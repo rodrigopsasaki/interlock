@@ -77,6 +77,7 @@ a `gap`, recorded with the nearest term and the difference.
 | derivation | Who produced a receipt or a mark: gate kind and version and runner, or model, prompt id and lens, or the person. Required, never optional. |
 | mark | What the verifier attaches to a debrief claim: rooted, unrooted, unexplained, gap. Never a verdict. |
 | outcome | How a node ended: cleared, held, reset, failed, cancelled, superseded. Always with its receipts. Failure, disposition and because are recorded separately. |
+| disposition | What was chosen to do about a failure: retry, repair, hold, cancel, or terminal failure. Recorded beside the failure and the because, never collapsed into either. |
 | lease | A runner's claim on a node with a typed expiry, renewed by heartbeat. Bounds silence, not work. Expiry is liveness; a sweeper, never the dead worker, writes the terminal fact. |
 | runner | The daemon that claims nodes, drives herdr, runs gates, verifies debriefs. Plain code. |
 | session | One agent process working one node in one pane. Ephemeral. |
@@ -122,4 +123,9 @@ to the node and is conserved; nothing inside a node mints its own retries.
 - Conventional Commits. The subject states the why; the body justifies the choice and its tradeoffs.
 - Every bend of the design gets a row in the bend log in the design note: what bent, against which
   decision or invariant, why, whether the way back was kept, what we learned.
+- Artifacts are the public API. Every artifact names `shape@version` on its first line; readers
+  accept every prior version forever; evolution is additive; a rename is a new version with a
+  reader for the old one; persisted journal lines carry their version and replay upcasts.
+- A gate command declared before its runtime exists is professed. It is verified literally the
+  first time it can run, and the harness, never the worker, bends the graph when it cannot.
 - No `README`, docs or comments that explain what the code plainly says. Docs explain why.

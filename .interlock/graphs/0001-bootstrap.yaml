@@ -45,10 +45,10 @@ nodes:
     gates:
       - id: replay
         kind: command
-        run: pnpm test --filter ledger -- --grep replay
+        run: pnpm --filter ledger test --testNamePattern replay
       - id: illegal-states
         kind: command
-        run: pnpm test --filter ledger -- --grep unrepresentable
+        run: pnpm --filter ledger test --testNamePattern unrepresentable
         # Tests that assert the type-level claims by attempting to construct the illegal
         # values and expecting the compiler to refuse.
 
@@ -65,11 +65,11 @@ nodes:
     gates:
       - id: one-adapter
         kind: command
-        run: pnpm test --filter runner -- --grep adapter-boundary
+        run: pnpm --filter runner test --testNamePattern adapter-boundary
         # Fails if any file outside the adapter references the herdr socket.
       - id: receipt-idempotent
         kind: command
-        run: pnpm test --filter runner -- --grep idempotent
+        run: pnpm --filter runner test --testNamePattern idempotent
 
   - id: debrief-schema
     acceptance: >
@@ -91,7 +91,7 @@ nodes:
     gates:
       - id: inverse-check
         kind: command
-        run: pnpm test --filter verifier -- --grep unexplained
+        run: pnpm --filter verifier test --testNamePattern unexplained
 
   - id: face
     acceptance: >
