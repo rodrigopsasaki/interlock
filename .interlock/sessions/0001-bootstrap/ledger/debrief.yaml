@@ -4,7 +4,7 @@ node: ledger
 role: worker
 graph_base_sha: fd2ba0bdece8842a17bd137e19089cd5ce4ee5bd
 session_start_sha: ca6aa90d484b889005a93dece89596680948ce9a
-head_sha: 0e21b02da071edfd84ec56328f830c6aaa79699c
+head_sha: cd462f4f153f9ad4f5fe73ecc9f71ff65813b25d
 derivation:
   kind: agent
   runtime: claude-code
@@ -101,6 +101,24 @@ discoveries:
     what: "@phyxiusjs/fp is published at 0.2.1 and matches this checkout's resolved version exactly."
     found_at: "`npm view @phyxiusjs/fp version` => 0.2.1"
     mattered_because: "verified before adding it as a new dependency, per the constraint that every added package is checked against npm."
+  - id: d9
+    what: >
+      @phyxiusjs/journal's Journal.fromJSON expects each entry's own id and a
+      full Instant timestamp ({wallMs, monoMs}), but @phyxiusjs/drain's
+      fileSink flattens only an ISO-formatted wall time and a sequence
+      number onto each journal.jsonl line -- the sink's own persisted shape
+      cannot rebuild a Journal's entries on restart without inventing a
+      monoMs and an id from nothing.
+    found_at: >
+      node_modules/.pnpm/@phyxiusjs+journal.../dist/index.d.ts (Journal.fromJSON,
+      SerializedJournal) against packages/ledger/src/sink.ts's fileSink usage
+    mattered_because: >
+      ruled out reconstructing the in-memory Journal object itself on
+      restart (verifier finding 3's fix); createLedger instead seeds only
+      the live LedgerProjection from readReplay, leaving the sink as sole
+      source of truth for everything before the current process -- matching
+      "state is a projection over the journal," not "the journal itself is
+      durable."
 decisions:
   - id: c1
     what: >
@@ -172,6 +190,155 @@ decisions:
       gate's name-based filter selects exactly and only these proofs.
     rests_on: ["brief:Gates"]
     hunks: ["packages/ledger/test/unrepresentable.test.ts"]
+  - id: c13
+    what: >
+      parseLine parses one JSON line into a LedgerEvent via isLedgerEvent's
+      own structural guard rather than a schema library; replayFromRaw folds
+      every line up to (never past) the first that fails to parse; readReplay
+      reads the sink's file and returns emptyProjection() on ENOENT (a fresh
+      directory) rather than treating a missing file as an error.
+    rests_on: ["brief:Crash-only", "brief:Durability is a sink", "verifier finding 1"]
+    hunks: ["packages/ledger/src/replay.ts"]
+  - id: c14
+    what: >
+      applyEvent folds each of LedgerEvent's nine kinds by the narrowest
+      update it implies: node-created and outbox-intent-recorded only
+      ensure the node's view exists; gate-moved replaces exactly the moved
+      gate's entry; receipt-written and note-appended append;
+      outcome-set and debrief-filed replace once; lease-taken/-renewed/
+      -expired update the session's lease and leaseExpired flag.
+      withSession is a no-op on a session id with no session-started event
+      yet, and outbox-intent-recorded carries no dedicated view of its own
+      since this node's acceptance defines no outbox projection.
+    rests_on:
+      [
+        "brief:Events, not rows",
+        "brief:State is a projection over the journal",
+        "verifier finding 1",
+      ]
+    hunks: ["packages/ledger/src/projection.ts"]
+  - id: c15
+    what: >
+      index.ts re-exports each module's public types and functions as the
+      package's one public surface, ordered to match the file tree, with no
+      logic of its own beyond what to expose.
+    rests_on: ["brief:Deliverable", "verifier finding 1"]
+    hunks: ["packages/ledger/src/index.ts"]
+  - id: c16
+    what: >
+      Modeled every remaining vocabulary noun with no constructor-level
+      legality beyond its own discriminated union -- brief, debrief
+      (Discovery/Decision), derivation, disposition, LedgerEvent's own
+      discriminant, mark (and Gap), session, spend -- as a plain closed type
+      with an isX guard and, where more than one shape is worth building by
+      hand, a factory object.
+    rests_on: ["AGENTS.md:Vocabulary", "brief:Illegal states unrepresentable", "verifier finding 1"]
+    hunks:
+      [
+        "packages/ledger/src/brief.ts",
+        "packages/ledger/src/debrief.ts",
+        "packages/ledger/src/derivation.ts",
+        "packages/ledger/src/disposition.ts",
+        "packages/ledger/src/event.ts",
+        "packages/ledger/src/mark.ts",
+        "packages/ledger/src/session.ts",
+        "packages/ledger/src/spend.ts",
+      ]
+  - id: c17
+    what: >
+      Every vocabulary module carries a dedicated positive-construction test
+      file, 1:1 by filename, proving its constructors produce legal values
+      and its isX guard recognizes them and rejects a kind outside the
+      closed set. Mechanical once each module's own shape was decided
+      (c1-c12, c16); no separate judgment call of its own.
+    rests_on: ["brief:Deliverable", "verifier finding 1"]
+    hunks:
+      [
+        "packages/ledger/test/derivation.test.ts",
+        "packages/ledger/test/gate.test.ts",
+        "packages/ledger/test/lease.test.ts",
+        "packages/ledger/test/mandate.test.ts",
+        "packages/ledger/test/note.test.ts",
+        "packages/ledger/test/outcome.test.ts",
+        "packages/ledger/test/projection.test.ts",
+        "packages/ledger/test/receipt.test.ts",
+        "packages/ledger/test/spend.test.ts",
+      ]
+  - id: c18
+    what: >
+      .gitignore gained packages/ledger/test/.runs/ alongside the rename
+      from packages/core; notes.yaml is this session's own append-as-you-work
+      record rather than a design choice about the ledger's shape; and
+      packages/core/src/index.ts was deleted as the git-mv rename's other
+      half, its content now split across the ledger's own per-noun modules
+      rather than carried forward as one file.
+    rests_on:
+      [
+        "brief:Deliverable",
+        "brief:Package: rename packages/core to packages/ledger",
+        "verifier finding 1",
+      ]
+    hunks:
+      [
+        ".gitignore",
+        ".interlock/sessions/0001-bootstrap/ledger/notes.yaml",
+        "packages/core/src/index.ts",
+      ]
+  - id: c19
+    what: >
+      test/wiring.test.ts, tsconfig.json and vitest.config.ts moved with
+      git mv alongside package.json's own rename (c1) and carry zero content
+      diff of their own; the rename is the only decision, already recorded
+      there.
+    rests_on: ["c1", "verifier finding 1"]
+    hunks:
+      [
+        "packages/ledger/test/wiring.test.ts",
+        "packages/ledger/tsconfig.json",
+        "packages/ledger/vitest.config.ts",
+      ]
+  - id: c20
+    what: >
+      createLedger now awaits readReplay(options.directory) to seed its live
+      projection before subscribing the journal to new events, so a second
+      call over a directory that already holds a prior run's events
+      continues that run instead of silently starting empty.
+    rests_on: ["brief:Crash-only", "verifier finding 3", "d9", "notes:14", "notes:15"]
+    hunks: ["packages/ledger/src/ledger.ts", "packages/ledger/test/replay.test.ts"]
+  - id: c21
+    what: >
+      proposeGateMove now takes the node's declared gate ids and the gate id
+      being moved, and refuses with a new undeclared-gate GateRefusal before
+      it ever inspects the current Gate's kind -- closing the half of
+      verification item (a) that only buildCleared's declared-side check
+      had covered.
+    rests_on: ["brief:Illegal states unrepresentable", "verifier finding 4", "notes:16", "notes:17"]
+    hunks:
+      [
+        "packages/ledger/src/gate.ts",
+        "packages/ledger/test/gate.test.ts",
+        "packages/ledger/test/unrepresentable.test.ts",
+      ]
+  - id: c22
+    what: >
+      Cut every comment that restated its own code, deleted the three inline
+      "reference implementation, supplied out of band" citations (d6/d7
+      already carry that provenance in this debrief), and compressed the
+      rest to its shortest true-WHY form -- 46 non-exempt comment lines
+      across 13 files down to 16 across 9.
+    rests_on: ["brief:Constraints", "verifier finding 2", "notes:18"]
+    hunks:
+      [
+        "packages/ledger/src/event.ts",
+        "packages/ledger/src/lease.ts",
+        "packages/ledger/src/mandate.ts",
+        "packages/ledger/src/outcome.ts",
+        "packages/ledger/src/projection.ts",
+        "packages/ledger/src/receipt.ts",
+        "packages/ledger/src/replay.ts",
+        "packages/ledger/src/sink.ts",
+        "packages/ledger/src/validate.ts",
+      ]
 gates_run_by_agent:
   - { id: typecheck, result: pass }
   - { id: test, result: pass }
@@ -217,7 +384,30 @@ open:
   - >
     No node or gate transition here is wired against
     @phyxiusjs/durable-step's StateStore, since nothing in this node's
-    acceptance drives concurrent execution. proposeGateMove and renewLease
-    return the same Result shape a StateStore's trySet does, which should
-    compose under an async wrapper when the runner node needs it, but that
-    composition has not been built or tested here.
+    acceptance drives concurrent execution. proposeGateMove (now also
+    checking the moved gate's id against the node's declared set, this
+    round) and renewLease return the same Result shape a StateStore's
+    trySet does, which should compose under an async wrapper when the
+    runner node needs it, but that composition has not been built or tested
+    here.
+  - >
+    This round's fix for createLedger's restart behavior (c20, verifier
+    finding 3) reseeds the live LedgerProjection from readReplay(directory)
+    but does not reconstruct the in-memory Journal's own entries (d9):
+    @phyxiusjs/journal's Journal.fromJSON needs each entry's own id and a
+    full Instant timestamp, which the sink's flattened line shape cannot
+    supply without inventing values. After a restart, the Journal's own
+    getSnapshot()/getEntry() only ever hold entries appended since that
+    restart -- not a complete history. This node's acceptance is stated in
+    terms of the projection, which is now correct across a restart, but
+    whoever next reads the Journal object itself expecting full history
+    should know it is not there.
+  - >
+    Verifier finding 1's underlying practice -- debrief.yaml's decisions
+    list scoped to the six notable choices in notes.yaml rather than a full
+    diff manifest -- is fixed this round: c13-c19 give every file from
+    session_start_sha..0e21b02 a decision's hunks or produces, including
+    the mechanical ones (a vocabulary type module, its matching
+    positive-construction test, a pure rename, session bookkeeping). Future
+    debriefs for this graph should check new files against decisions before
+    filing, not after a verifier flags the gap.
