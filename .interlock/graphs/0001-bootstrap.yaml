@@ -36,10 +36,11 @@ nodes:
 
   - id: ledger
     acceptance: >
-      The ledger as a Phyxius journal. Types for graph, node, brief, debrief, receipt, derivation,
-      lease and outcome where `cleared` cannot be constructed without one receipt per declared gate
-      and no receipt or mark can be constructed without a derivation. State is a projection over
-      the journal. A process killed mid-write replays to the same projection.
+      The ledger as a Phyxius journal. Types for graph, node, brief, note, debrief, gate state,
+      receipt, spend, derivation, lease and outcome where `cleared` cannot be constructed without
+      one satisfied-or-waived receipt per declared gate, no receipt or mark can be constructed
+      without a derivation, and no receipt without a spend. State is a projection over the journal.
+      A process killed mid-write replays to the same projection.
     depends_on: [scaffold]
     gates:
       - id: replay
@@ -56,8 +57,10 @@ nodes:
       A runner that claims a node under a lease, opens a worktree at the graph's base SHA, starts
       the configured agent in a herdr pane through the socket API behind a typed Runner interface,
       writes the brief into the worktree, waits for idle, blocked or done, runs the node's command
-      gates at the debriefed SHA, and appends content-addressed receipts with derivations. herdr
-      is touched in exactly one adapter file. The tmux fallback compiles and is not wired.
+      gates at the debriefed SHA, and appends content-addressed receipts with spend and
+      derivation. A sweeper, not the worker, notices an expired lease and writes abandoned; a
+      re-run re-earns only receipts whose spend was none. herdr is touched in exactly one adapter
+      file. The tmux fallback compiles and is not wired.
     depends_on: [ledger]
     gates:
       - id: one-adapter
@@ -70,9 +73,11 @@ nodes:
 
   - id: debrief-schema
     acceptance: >
-      The debrief file format and its validator. The brief tells the agent where to write it and
-      what shape it has. A missing or invalid debrief trips the standing gate and holds the node.
-      A drafted debrief is distinguishable from an authored one.
+      The debrief file format and its validator, and the note format it closes: a choice carries
+      its because, a surprise carries expected and observed. The brief tells the agent where to
+      write them and what shape they have. A missing or invalid debrief trips the standing gate and
+      holds the node as interrupted. A drafted debrief is distinguishable from an authored one and
+      is only ever produced when a person asks.
     depends_on: [ledger]
     gates: []
 

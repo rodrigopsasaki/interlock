@@ -46,8 +46,10 @@ it looks like, so we recognize it when it happens.
   rather than degrades, when the address is empty.
 - **I6** No runtime, model or multiplexer assumption outside its adapter. Broken: a Claude flag, a
   Codex log path or a herdr socket call in any file that is not the adapter for it.
-- **I7** Outward effects go through the outbox, exactly once. Broken: a duplicated comment after a
-  restart, or a post that never happened because the process died between doing and recording.
+- **I7** Outward effects go through the outbox: intent persisted before dispatch, a stable identity
+  per effect, doubt recorded as uncertain rather than resolved by guessing. Broken: a post that never
+  happened because the process died between doing and recording, a duplicate posted without
+  reconciliation, or an uncertain effect marked delivered because it probably was.
 - **I8** Every compression keeps the way back. Broken: a brief mutated after its session started, a
   debrief overwritten rather than versioned, a receipt deleted.
 - **I9** Values and conventions order and inform. They never gate. Broken: a node held because it
@@ -64,16 +66,18 @@ a `gap`, recorded with the nearest term and the difference.
 | --- | --- |
 | graph | The directed acyclic graph of nodes produced from one ask. Named by the ask, never by the type. |
 | node | One unit of work with an acceptance, dependency edges and at most one live session. The unit of recovery, drilldown and gating. |
-| brief | What a session is given: node, acceptance, gates, context slice. Immutable once the session starts. |
-| debrief | What a session returns beside its diff: discoveries and decisions, typed. Versioned, verified, never overwritten. |
+| brief | What a session is given: node, acceptance, gates, context slice, role. Immutable once the session starts. Role is supplied, never self-declared. |
+| note | A typed entry a session appends while it works: a choice with its because, or a surprise with expected and observed. A receipt. |
+| debrief | What a session returns beside its diff: discoveries and decisions, typed. Closes the notes. Versioned, verified, never overwritten. A session that ends without one is interrupted; nothing is drafted for it unless a person asks. |
 | discovery | Something the agent had to find that the brief did not give it. Every discovery is a brief deficiency. |
 | decision | A choice the session made, pointing at what it rests on and the hunk it produced. Rooted or marked unrooted. |
-| gate | A check the runner executes in the worktree. Declared in the brief or the standing table. Its result is a receipt. |
-| receipt | A fact the harness observed. Content-addressed by SHA and gate. Always carries its derivation. |
+| gate | A check the runner executes in the worktree. Declared in the brief or the standing table. Its result is a receipt. In one of five states: pending, satisfied, blocked, waived, superseded. A worker may challenge a gate; only a person or a ratified policy waives one, with a because. |
+| receipt | A fact the harness observed. Content-addressed by SHA and gate. Carries its spend (none, metered, local) and its derivation. Empty is not absent. |
+| spend | What a receipt cost: none, metered, or local. Decides revival: a receipt that cost nothing is re-earned; one that cost inference or money is kept and never re-spent. |
 | derivation | Who produced a receipt or a mark: gate kind and version and runner, or model, prompt id and lens, or the person. Required, never optional. |
 | mark | What the verifier attaches to a debrief claim: rooted, unrooted, unexplained, gap. Never a verdict. |
-| outcome | How a node ended: cleared, held, reset, failed. Always with its receipts. |
-| lease | A runner's claim on a node with a typed expiry. Expiry is liveness. |
+| outcome | How a node ended: cleared, held, reset, failed, cancelled, superseded. Always with its receipts. Failure, disposition and because are recorded separately. |
+| lease | A runner's claim on a node with a typed expiry, renewed by heartbeat. Bounds silence, not work. Expiry is liveness; a sweeper, never the dead worker, writes the terminal fact. |
 | runner | The daemon that claims nodes, drives herdr, runs gates, verifies debriefs. Plain code. |
 | session | One agent process working one node in one pane. Ephemeral. |
 | position | The current read of a graph, composed above the stream. The only thing the face volunteers. |
@@ -82,7 +86,7 @@ a `gap`, recorded with the nearest term and the difference.
 | stale | A node whose upstream outcome changed after it ran. Stale nodes re-run. |
 | cleared | A gate passed; a node whose proof the runner holds. |
 | held | A node waiting at a signal: a fork that is yours, or a failed gate, with an expiry. Siblings proceed. |
-| mandate | A pre-ratified class of work, scoped, with a typed expiry. Never blanket. |
+| mandate | A pre-ratified grant to act: who granted it, which action kind, in which context, until when, why. Never blanket. |
 | gap | An ask or debrief phrase that maps to no term. Telemetry, not belief. |
 
 ## Seams, and the first thing through each
@@ -97,7 +101,8 @@ a `gap`, recorded with the nearest term and the difference.
 | Substrate address | none | a substrate, by three verbs |
 
 Two seams cannot be retrofitted and are decided: derivation is required on every receipt and mark
-from the first commit, and the ledger is a Phyxius journal from day one.
+from the first commit, and the ledger is a Phyxius journal from day one. The retry budget belongs
+to the node and is conserved; nothing inside a node mints its own retries.
 
 ## The wall
 

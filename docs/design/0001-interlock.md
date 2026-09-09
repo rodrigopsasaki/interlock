@@ -1,6 +1,6 @@
 # Interlock
 
-Design note · v0.2 · 2026-09-09
+Design note · v0.3 · 2026-09-09
 
 A harness for doing software work with agents: enough context that they decide and manage their
 own work, enough structure that you never lose control. Named for the railway interlocking: the mechanism that makes an unsafe signal impossible
@@ -141,8 +141,11 @@ vocabulary. Never into the harness one.
 
 **D8. Crash-only, with an outbox for anything that leaves the box.** The only recovery path is the
 normal startup path: read the ledger, expire stale leases, reclaim nodes, continue. A power outage
-is a slow restart. Every outward effect is persisted as intent, then posted, then marked, so a
-restart posts what it owes exactly once.
+is a slow restart. Every outward effect is persisted as intent before it is attempted, carries a
+stable identity, and moves through pending, dispatching, and then delivered, uncertain, blocked or
+terminally failed. A lease that expires mid-dispatch lands in uncertain and goes to reconciliation,
+never back to pending. The outbox promises no lost intent and honest doubt; it does not promise
+exactly once, because nothing can.
 *Cost:* no mid-node resume. A node restarts from its last verified debrief. Nodes must be small
 enough for that to be cheap.
 *Revisit:* no. A special recovery mode appearing anywhere is the smell.
@@ -172,6 +175,8 @@ the state that costs afternoons.
 **D12. The node is the unit of recovery, of drilldown, and of gating. Nodes are small.** Three
 needs, one shape. A lost node costs one node's work. A drilldown reads one node's five columns. A
 gate proves one node's acceptance. The graph's granularity is the system's granularity.
+The retry budget belongs to the node and is conserved: nothing inside a node, no gate, no helper,
+no child, mints its own retries. Decomposition never creates retry capacity.
 *Cost:* per-node ceremony: a brief, a debrief, a gate run.
 *Revisit:* if ceremony dominates, merge nodes. Never drop the gate to make a node cheaper.
 
@@ -202,8 +207,10 @@ it would look like.
   rather than degrades, when the address is empty.
 - **I6. No runtime, model or multiplexer assumption outside its adapter.** Broken: a Claude flag, a
   Codex log path or a herdr socket call in any file that is not the adapter for it.
-- **I7. Outward effects go through the outbox, exactly once.** Broken: a duplicated comment after a
-  restart, or a post that never happened because the process died between doing and recording.
+- **I7. Outward effects go through the outbox: intent persisted before dispatch, a stable identity per
+  effect, doubt recorded as uncertain rather than resolved by guessing.** Broken: a post that never
+  happened because the process died between doing and recording, a duplicate posted without
+  reconciliation, or an uncertain effect marked delivered because it probably was.
 - **I8. Every compression keeps the way back.** Broken: a brief mutated after the session started, a
   debrief overwritten rather than versioned, a receipt deleted.
 - **I9. Values and conventions order and inform. They never gate.** Broken: a node held because it
@@ -224,7 +231,7 @@ there, what had to be found, what was chosen, what happened.
 
 | column | holds | why it is there |
 | --- | --- | --- |
-| Brief | The node, acceptance, gates, context slice. Immutable. | You can see exactly what the agent was told. Nothing softened. |
+| Brief | The node, acceptance, gates, context slice, and the session's role. Immutable. The role is supplied by the brief, never self-declared, so a worker cannot hide gates from itself by deciding what it is. | You can see exactly what the agent was told. Nothing softened. |
 | Context | Head SHA, files in scope, declared gates, runtime and model used. | Reproducibility. The same brief on a different SHA is a different session. |
 | Discoveries | Files read outside scope, conventions inferred, questions the agent answered for itself. | The column that pays for everything. In aggregate it is the list of what your briefs keep failing to say. |
 | Decisions | Each choice, what it rests on, the hunk it produced, rooted or unrooted. | Control without watching. You read choices, not transcripts. |
@@ -252,18 +259,30 @@ stateDiagram-v2
   gated --> held: proof failed
   held --> running: retry, or fork answered
   blocked --> running: answered
+  queued --> cancelled: authorized, with because
+  held --> cancelled: authorized, with because
+  queued --> superseded: acceptance re-versioned
+  held --> superseded: acceptance re-versioned
+  cancelled --> [*]
+  superseded --> [*]
 ```
 
 *Figure 2. The node is the unit. Running has three ways down: blocked comes from herdr's own
 detection, stalled is our overlay of quiet progress edges on a fresh lease, dead is an expired
-lease and resets to the last checkpoint. Only the gate decides cleared. Nothing else can.*
+lease and resets to the last checkpoint. Cancelled and superseded are terminal and need an
+authority and a because; superseding a node never rewrites the history of its sessions. Only the
+gate decides cleared. Nothing else can.*
 
 | state | detected by | triggers |
 | --- | --- | --- |
-| progressing | Fresh lease and a recent progress edge: discovery, decision or diff growth. | Nothing. This is the state you do not hear about. |
+| progressing | Fresh lease and a recent progress edge: a note, a decision or diff growth. | Nothing. This is the state you do not hear about. |
 | blocked | herdr's agent state, from hooks or screen manifest. | Real-time push. The fork is yours or a mandate covers it. |
 | stalled | Fresh lease, no progress edge past the threshold. | Real-time push. Verbs: kill, retry, attach. |
-| dead | Lease expired. | Receipt. Reset to checkpoint, requeue. You read it Monday if you care to. |
+| dead | Lease expired, noticed by a sweeper. A dead process runs no code, so the terminal fact is always written by an observer, never by the worker that died. | Receipt. Reset to checkpoint, requeue. You read it Monday if you care to. |
+
+The lease bounds silence, not work. It is short, renewed by a heartbeat at a fraction of its
+length, and deliberately decoupled from how long a node takes, so a wedged session ages out even
+when its step would legitimately have run for an hour.
 
 ## Gates
 
@@ -282,16 +301,29 @@ touching this repository runs these. The graph declares merge-path gates, the on
 and merged. A node can add to its table and never subtract from it. This is how "no feature
 without its tests" gets teeth without a judgment per node: the standing table says it once.
 
-**Receipts are content-addressed.** A gate runs in the node's worktree at the debriefed commit.
-The receipt carries the SHA, the gate id, the check, the result, duration, an output hash, and its
-derivation. Same SHA and gate, same receipt, so re-running is idempotent. A new commit makes every
-receipt stale, the same word with the same meaning as for graph invalidation. Cleared is the type
-that carries one receipt per declared gate. It cannot be constructed short.
+**A gate is in one of five states.** Pending. Satisfied, with its receipt. Blocked, with evidence
+and a because. Waived, by a named authority with a because. Superseded, by a replacement gate, with
+authority and because. A worker may challenge a gate with evidence; it can never weaken, waive or
+reinterpret one. Only a person or a ratified policy waives, and the waiver is a receipt with that
+person as its derivation.
 
-**Failure is the inner healing loop.** A failed gate holds the node with its receipt. Retry re-runs
-the node with the failure receipt appended to the brief, so the agent sees exactly what broke. The
-retry budget is a typed count; when it is spent the node is held for you. Repeated failures of one
-kind across nodes are a discipline candidate for the substrate.
+**Receipts are content-addressed and carry their spend.** A gate runs in the node's worktree at the
+debriefed commit. The receipt carries the SHA, the gate id, the check, the result, duration, an
+output hash, its spend, and its derivation. Spend is none, metered, or local, and it decides what
+revival does: a receipt that cost nothing is re-earned on revival; one that cost inference or money
+is kept and never re-spent. An empty receipt is not a missing one: empty means no proof beyond the
+check's own success, absent means the gate never ran. Same SHA and gate, same receipt, so re-running
+is idempotent. A new commit makes every receipt stale, the same word with the same meaning as for
+graph invalidation. Cleared is the type that carries one satisfied or waived receipt per declared
+gate. It cannot be constructed short.
+
+**Failure is the inner healing loop.** A failed gate holds the node with its receipt. Three things
+are recorded separately and never collapsed: the failure, what happened and where; the disposition,
+retry, repair, hold, cancel, or terminal failure; and the because, why that disposition is justified
+under policy and the remaining budget. Retry re-runs the node with the failure receipt appended to
+the brief, so the agent sees exactly what broke. The retry budget is a typed count owned by the
+node; when it is spent the node is held for you. Repeated failures of one kind across nodes are a
+discipline candidate for the substrate.
 
 ## The verifier
 
@@ -310,10 +342,17 @@ model, prompt and lens as its derivation so a verifier swap retracts its marks a
 gates compose without a new concept: a team may declare "no unexplained hunks" as a standing gate,
 and then it blocks because the team chose that.
 
+**Notes during, debrief after.** A session appends typed notes while it works: a choice, with what
+was chosen and a mandatory because; a surprise, with what was expected and what was observed. Notes
+are receipts, so they are the live form of the position without becoming an event stream. The
+debrief closes the notes; it does not replace them. A session that ends without a debrief is
+recorded as interrupted, and nothing is ever drafted on its behalf unless a person asks.
+
 **The human in an editor.** The debrief is a file the brief asks for, and the runner validates its
 schema. A person who did not write one trips the standing gate "debrief present and valid" and is
-held. The escape hatch is a post-hoc debrief: a model drafts one from the diff, marked drafted
-rather than authored, and the verifier treats it like any other. Same protocol, no special case.
+held. The escape hatch, on request only, is a post-hoc debrief: a model drafts one from the diff,
+marked drafted rather than authored, and the verifier treats it like any other. Same protocol, no
+special case.
 
 ## Derivation
 
@@ -336,7 +375,7 @@ server, you are away.
 | case | answer | escape hatch |
 | --- | --- | --- |
 | Your side goes dark | Sessions run. Positions reach your phone the moment it has signal. Six verbs back. Nothing needs to reach in. | Tailscale, mosh, herdr attach when you have a laptop. |
-| A fork needs you for twenty hours | The node is held with an expiry. Siblings proceed. Mandates cover the pre-ratified classes. You answer Sunday from the phone. | Expiry passes, the node stays held, Monday's position says so. |
+| A fork needs you for twenty hours | The node is held with an expiry. Siblings proceed. A mandate covers the pre-ratified classes: who granted it, which action kind, in which context, until when, and why. You answer Sunday from the phone. | Expiry passes, the node stays held, Monday's position says so. |
 | The server loses power | Crash-only restart. Leases expired, nodes reclaimed, outbox posts what it owes once. A receipt records it. No push. | None needed. You find out on Monday if you look. |
 | The house loses internet | Not modeled. Sessions stall, ledger holds, resumes on reconnect. Waiting costs time, never correctness. | A UPS and a reboot. |
 
@@ -393,7 +432,10 @@ be added without reopening the first. They are decided now.
 - **The ledger is a Phyxius journal from day one.** Leases, receipts, transitions and outbox intents
   are appended events; state is a projection; crash-only recovery is replay. Clock makes stall
   thresholds unit tests. Typed handlers are the gate kinds, the verbs and the transitions. Effect is
-  the outbox. Canonical logs are the drilldown.
+  the outbox. Canonical logs are the drilldown. A reference implementation of the durable step with
+  mandatory spend and receipt, and of the single-flight claim with heartbeat lease and
+  revive-or-abandon sweep, already exists on the same Phyxius primitive and is read as prior art,
+  never imported: keep its laws and its tests, rename its nouns.
 
 ## Bend log
 
@@ -404,6 +446,7 @@ bend against an invariant means we redesign, and the entry says how.
 | --- | --- | --- | --- | --- | --- |
 | 2026-09-09 | train → graph; parked → held; critical path, float, stale, cleared added | D13, vocabulary | A train asserts a linear shape the DAG does not have. Any single-object metaphor does. | Yes, v0 in history | Name the topology plainly; spend metaphor on behaviour words. |
 | 2026-09-09 | Open questions → seams; gates, verifier and derivation sections added; Phyxius first-class | D5, D6, D13, vocabulary | Pre-repository, do not pretend to make every decision; leave seams for the evolutions we predict and build one then the other. | Yes, v0.1 in history | A pre-build note settles seams and the few non-retrofittable choices, not nuanced defaults. |
+| 2026-09-09 | Carried over from a prior work algebra: five gate states; cancelled and superseded terminals; failure / disposition / because; conserved retry budget; spend on receipts and spend-driven revival; empty receipt ≠ absent; abandoned written by a sweeper; lease bounds silence; outbox with an honest uncertain state; typed notes during the session; interrupted gets no invented debrief; role supplied by the brief; mandate spelled | D8, D12, I7, gates, verifier, lifecycle, vocabulary | The same laws were written a month earlier inside the substrate and each carried an incident that earned it. Carry what makes sense, leave what does not: the substrate's belief analysis and ratification doors stay on its side. | Yes, v0.2 in history | I7 had promised exactly once. Nothing can. Promise no lost intent and honest doubt instead. |
 
 ---
 
