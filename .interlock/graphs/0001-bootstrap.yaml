@@ -1,0 +1,109 @@
+# Interlock's first graph.
+#
+# Authored by hand because the interpreter does not exist yet. Writing this by hand is how the
+# graph format gets designed: every awkwardness here is a finding about the format, and every
+# change to the format after this is a bend to log. The graph is the ledger of this work, not a
+# plan about it. When interlock can run anything, this graph is the first thing it runs.
+
+interlock: graph@v0
+id: 0001-bootstrap
+
+ask: >
+  Build interlock far enough that this graph can be loaded from this file and run through
+  interlock itself: each node leased, briefed, gated and cleared, with receipts that carry
+  their derivation.
+
+derivation:
+  kind: human
+  who: Rodrigo Sasaki
+  with: Claude, in a design conversation on 2026-09-09
+  # The interpreter will fill this with model, prompt id and lens. A human fills it with a name.
+  # It is never empty.
+
+read: >
+  Six seams, each with the first thing through it, in dependency order. The graph is done when
+  the last node's session was run by the runner this graph builds, and its outcome is cleared.
+
+nodes:
+  - id: scaffold
+    acceptance: >
+      A pnpm workspace on the pinned Node with strict TypeScript, vitest, and @phyxiusjs/*
+      dependencies, where `pnpm typecheck` and `pnpm test` run green on an empty package and
+      `pnpm interlock debrief validate` exists as a stub that fails closed.
+    depends_on: []
+    gates: []
+    # The standing table is enough. This node exists so the standing gates can run at all.
+
+  - id: ledger
+    acceptance: >
+      The ledger as a Phyxius journal. Types for graph, node, brief, debrief, receipt, derivation,
+      lease and outcome where `cleared` cannot be constructed without one receipt per declared gate
+      and no receipt or mark can be constructed without a derivation. State is a projection over
+      the journal. A process killed mid-write replays to the same projection.
+    depends_on: [scaffold]
+    gates:
+      - id: replay
+        kind: command
+        run: pnpm test --filter ledger -- --grep replay
+      - id: illegal-states
+        kind: command
+        run: pnpm test --filter ledger -- --grep unrepresentable
+        # Tests that assert the type-level claims by attempting to construct the illegal
+        # values and expecting the compiler to refuse.
+
+  - id: runner-command-gate
+    acceptance: >
+      A runner that claims a node under a lease, opens a worktree at the graph's base SHA, starts
+      the configured agent in a herdr pane through the socket API behind a typed Runner interface,
+      writes the brief into the worktree, waits for idle, blocked or done, runs the node's command
+      gates at the debriefed SHA, and appends content-addressed receipts with derivations. herdr
+      is touched in exactly one adapter file. The tmux fallback compiles and is not wired.
+    depends_on: [ledger]
+    gates:
+      - id: one-adapter
+        kind: command
+        run: pnpm test --filter runner -- --grep adapter-boundary
+        # Fails if any file outside the adapter references the herdr socket.
+      - id: receipt-idempotent
+        kind: command
+        run: pnpm test --filter runner -- --grep idempotent
+
+  - id: debrief-schema
+    acceptance: >
+      The debrief file format and its validator. The brief tells the agent where to write it and
+      what shape it has. A missing or invalid debrief trips the standing gate and holds the node.
+      A drafted debrief is distinguishable from an authored one.
+    depends_on: [ledger]
+    gates: []
+
+  - id: verifier-hunks
+    acceptance: >
+      Deterministic marks over a debrief against its diff at the debriefed SHA: every decision
+      cites a hunk that exists; every discovery cites a location that exists with the quoted
+      content; every hunk has a decision, or it is marked unexplained; every term is in one of the
+      two vocabularies, or it is a gap. Marks never block. Every mark carries its derivation.
+    depends_on: [debrief-schema, runner-command-gate]
+    gates:
+      - id: inverse-check
+        kind: command
+        run: pnpm test --filter verifier -- --grep unexplained
+
+  - id: face
+    acceptance: >
+      A process that runs in a herdr pane. Above: the position of a graph, with critical path and
+      float, and the five columns of any session on request. Below: the six verbs. It owns no
+      state; killing the pane loses scrollback and nothing else.
+    depends_on: [runner-command-gate]
+    gates: []
+
+  - id: self-run
+    acceptance: >
+      This graph, loaded from this file, run through interlock. Every node above leased by the
+      runner, its command gates run by the runner, its debrief verified, its outcome cleared. The
+      receipts are in the journal with derivations. The first bend log entries this run produces
+      are written into the design note.
+    depends_on: [face, verifier-hunks]
+    gates:
+      - id: dogfood
+        kind: command
+        run: pnpm interlock graph status 0001-bootstrap --expect cleared

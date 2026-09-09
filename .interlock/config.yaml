@@ -1,0 +1,26 @@
+# The standing table for this repository.
+#
+# Every node whose graph runs in this repo carries these gates in addition to its own.
+# A node may add gates. It may never remove one of these. This is the literal interlocking:
+# the table of what must be true before a route can clear.
+#
+# The commands below name package scripts that the `scaffold` node of the bootstrap graph
+# must create. Until then this file professes; it does not run.
+
+interlock: config@v0
+
+standing_gates:
+  - id: typecheck
+    kind: command
+    run: pnpm typecheck
+  - id: test
+    kind: command
+    run: pnpm test
+  - id: debrief-valid
+    kind: command
+    run: pnpm interlock debrief validate
+    # A session that produced no valid debrief is held here. A person working by hand in an
+    # editor trips this gate on purpose; the post-hoc debrief is the escape hatch.
+
+substrate:
+  address: none
