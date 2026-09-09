@@ -20,17 +20,14 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@24.13.3)
 
-  packages/core:
+  packages/ledger:
     dependencies:
       '@phyxiusjs/clock':
         specifier: ^0.3.0
         version: 0.3.0(@types/node@24.13.3)
-      '@phyxiusjs/drain':
-        specifier: ^0.3.0
-        version: 0.3.0(@types/node@24.13.3)
-      '@phyxiusjs/handler':
-        specifier: ^0.4.0
-        version: 0.4.0(@types/node@24.13.3)
+      '@phyxiusjs/fp':
+        specifier: ^0.2.1
+        version: 0.2.1(@types/node@24.13.3)
       '@phyxiusjs/journal':
         specifier: ^0.2.1
         version: 0.2.1(@types/node@24.13.3)
@@ -195,25 +192,8 @@ packages:
     os: [linux]
     libc: [glibc]
 
-  '@phyxiusjs/atom@0.2.1':
-    resolution: {integrity: sha512-/55Vgf3YiKnwyU+6n06bE3WxPNxB3cVPCFfSdoTktJx2Sg2T03h4YDwy1SF04QQ4RG1bbK5sil5acdO7SRymSw==}
-
-  '@phyxiusjs/circuit-breaker@0.4.0':
-    resolution: {integrity: sha512-UL7nOJahnmUw3dkrvsvvgFd2Q/zkKHVfKN+EiROIMjd6B5pFs4ByJ8N3Wp6bTiMCQ0B4IpzTKMUexL+DXSdOWQ==}
-    engines: {node: '>=22.0.0'}
-
   '@phyxiusjs/clock@0.3.0':
     resolution: {integrity: sha512-FM+vwwSA6+s16Ul8n4X6kMpWkQOU4DwCBFZlSpFq0J3TFeNVz149KSfedBttvmGOLkuJ+i3vJEOksSS0Wq3DOA==}
-    peerDependencies:
-      '@types/node': '>=18'
-
-  '@phyxiusjs/context@0.2.0':
-    resolution: {integrity: sha512-WpVG8XKbQVwWA++X+mE7YaF8m3Evvb/LWOqPAtv4RMLA3jACzmo5NKskbg1AzcRSTN6nUeipguUfeTJh1T0Edw==}
-    peerDependencies:
-      '@types/node': '>=18'
-
-  '@phyxiusjs/drain@0.3.0':
-    resolution: {integrity: sha512-/oj3HClBBNvZ2yVN0cbKkFa59Y5peZ7jIPsafPVp96nKs+nB44YO4QsxQ1GSG9RK74Dp0Q8MJR2EvtmWRnr+GA==}
     peerDependencies:
       '@types/node': '>=18'
 
@@ -221,26 +201,8 @@ packages:
     resolution: {integrity: sha512-Djvcr6CP8/3YlZGqS/3u30uhYPfNVPL5l5RA1iNpGUA/uKydis2HXU0oHO3KPaXlDPELfAWikVxxJFWwjVGTDQ==}
     engines: {node: '>=22.0.0'}
 
-  '@phyxiusjs/handler@0.4.0':
-    resolution: {integrity: sha512-VjRbOfQqnlgR6/E9qXOZLbmzYR3P492G94YcsoRven0gLDYMlpdXmd7uzcEQ4QeK8vOX3cZPTPtwqD808qN50g==}
-    engines: {node: '>=22.0.0'}
-
   '@phyxiusjs/journal@0.2.1':
     resolution: {integrity: sha512-IFo5IIYaYIQD+SaMmvgRcbJAQCG6JPAetioZqAII/B+Z7GyVpMw9afS4jpzG4M/pDXVWC3WYEFDQfIv6XH29DQ==}
-
-  '@phyxiusjs/observe@0.2.0':
-    resolution: {integrity: sha512-3rxK90lr3qrabOpN8R9J6hOWWXa0s2ld7p3wReoGgG6GTzqUvuj4z3JgJ3mKGkBtETUryavrQfXZDdjHNa77fg==}
-
-  '@phyxiusjs/process@0.2.1':
-    resolution: {integrity: sha512-Qv/Peaoc9543e6JESRMwqeiJC/WJjWBf29oJ9Y9XTyhYkWRaJYhL55qAgrlTIvXlX525nj1xqhKwhZE3g6wQ1A==}
-
-  '@phyxiusjs/retry@0.2.1':
-    resolution: {integrity: sha512-6yE6GlXY9pAZZ8DQnD10jELmMcuVOPLnX//pcXkroWu77Y8XZxccTI3Ua+SIvg3o6gfN7+PyLVzQLMjaPcw4sA==}
-    engines: {node: '>=22.0.0'}
-
-  '@phyxiusjs/validate@0.2.1':
-    resolution: {integrity: sha512-1ju13fzfbauLG18rMZbS9PC2f3W6+r/+wfsUalvPPSHuGhbNe7lHl1aSPOTIjryCScYcNc1p/yoMt0oyE6eI1Q==}
-    engines: {node: '>=22.0.0'}
 
   '@rollup/rollup-android-arm-eabi@4.63.1':
     resolution: {integrity: sha512-UZ8sUxPTiHWYX9QNdJedb1kDZSpS1t/VPWBWGSgqHNi9w3Cu6IXvu2mzbhiTiPvtrqgTQJ+zqiAq2iPIPilpaQ==}
@@ -678,32 +640,8 @@ snapshots:
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     optional: true
 
-  '@phyxiusjs/atom@0.2.1(@types/node@24.13.3)':
-    dependencies:
-      '@phyxiusjs/clock': 0.3.0(@types/node@24.13.3)
-    transitivePeerDependencies:
-      - '@types/node'
-
-  '@phyxiusjs/circuit-breaker@0.4.0(@types/node@24.13.3)':
-    dependencies:
-      '@phyxiusjs/atom': 0.2.1(@types/node@24.13.3)
-      '@phyxiusjs/clock': 0.3.0(@types/node@24.13.3)
-      '@phyxiusjs/fp': 0.2.1(@types/node@24.13.3)
-    transitivePeerDependencies:
-      - '@types/node'
-
   '@phyxiusjs/clock@0.3.0(@types/node@24.13.3)':
     dependencies:
-      '@types/node': 24.13.3
-
-  '@phyxiusjs/context@0.2.0(@types/node@24.13.3)':
-    dependencies:
-      '@types/node': 24.13.3
-
-  '@phyxiusjs/drain@0.3.0(@types/node@24.13.3)':
-    dependencies:
-      '@phyxiusjs/clock': 0.3.0(@types/node@24.13.3)
-      '@phyxiusjs/journal': 0.2.1(@types/node@24.13.3)
       '@types/node': 24.13.3
 
   '@phyxiusjs/fp@0.2.1(@types/node@24.13.3)':
@@ -712,49 +650,9 @@ snapshots:
     transitivePeerDependencies:
       - '@types/node'
 
-  '@phyxiusjs/handler@0.4.0(@types/node@24.13.3)':
-    dependencies:
-      '@phyxiusjs/atom': 0.2.1(@types/node@24.13.3)
-      '@phyxiusjs/circuit-breaker': 0.4.0(@types/node@24.13.3)
-      '@phyxiusjs/clock': 0.3.0(@types/node@24.13.3)
-      '@phyxiusjs/context': 0.2.0(@types/node@24.13.3)
-      '@phyxiusjs/fp': 0.2.1(@types/node@24.13.3)
-      '@phyxiusjs/journal': 0.2.1(@types/node@24.13.3)
-      '@phyxiusjs/observe': 0.2.0(@types/node@24.13.3)
-      '@phyxiusjs/process': 0.2.1(@types/node@24.13.3)
-      '@phyxiusjs/retry': 0.2.1(@types/node@24.13.3)
-      '@phyxiusjs/validate': 0.2.1(@types/node@24.13.3)
-    transitivePeerDependencies:
-      - '@types/node'
-
   '@phyxiusjs/journal@0.2.1(@types/node@24.13.3)':
     dependencies:
       '@phyxiusjs/clock': 0.3.0(@types/node@24.13.3)
-    transitivePeerDependencies:
-      - '@types/node'
-
-  '@phyxiusjs/observe@0.2.0(@types/node@24.13.3)':
-    dependencies:
-      '@phyxiusjs/context': 0.2.0(@types/node@24.13.3)
-    transitivePeerDependencies:
-      - '@types/node'
-
-  '@phyxiusjs/process@0.2.1(@types/node@24.13.3)':
-    dependencies:
-      '@phyxiusjs/clock': 0.3.0(@types/node@24.13.3)
-    transitivePeerDependencies:
-      - '@types/node'
-
-  '@phyxiusjs/retry@0.2.1(@types/node@24.13.3)':
-    dependencies:
-      '@phyxiusjs/clock': 0.3.0(@types/node@24.13.3)
-      '@phyxiusjs/fp': 0.2.1(@types/node@24.13.3)
-    transitivePeerDependencies:
-      - '@types/node'
-
-  '@phyxiusjs/validate@0.2.1(@types/node@24.13.3)':
-    dependencies:
-      '@phyxiusjs/fp': 0.2.1(@types/node@24.13.3)
     transitivePeerDependencies:
       - '@types/node'
 

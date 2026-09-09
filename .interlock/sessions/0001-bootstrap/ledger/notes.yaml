@@ -1,0 +1,312 @@
+interlock: notes@v0
+node: ledger
+entries:
+  - kind: choice
+    at: "2026-09-09T16:50:00Z"
+    chose: >
+      Renamed packages/core to packages/ledger with git mv, dropped the unused
+      @phyxiusjs/handler dependency, and added @phyxiusjs/fp for typed
+      Result-returning refusals.
+    because: >
+      Constraint says handler must be used or removed, and it was never
+      constructed by the scaffold session. fp gives the Ok/Err vocabulary the
+      reference implementation itself uses for the same purpose (a
+      compare-and-set store returning a Result rather than throwing), so
+      reusing it composes instead of hand-rolling a Result type.
+    rejected: ["hand-rolling a local Result<T,E> type instead of depending on @phyxiusjs/fp"]
+  - kind: choice
+    at: "2026-09-09T16:52:00Z"
+    chose: >
+      Did not add @phyxiusjs/durable-step or @phyxiusjs/atom as dependencies,
+      even though the brief's "Read first" section names durable-step as "the
+      natural home for node and gate transitions."
+    because: >
+      The acceptance is entirely about types, the journal, the projection and
+      crash-only replay -- it names no concurrent claiming or live CAS store.
+      The reference implementation's own single-flight/advisory-lock claim
+      mechanism and its sweeper/reviver are explicitly excluded from this
+      node, and a durable async StateStore exists to arbitrate concurrent
+      workers, which this library, with no runner of its own, does not have.
+      Gate and lease legality here are plain synchronous functions
+      (proposeGateMove, renewLease) returning a typed refusal -- the CAS
+      discipline without the async store, appropriate to a library that
+      never itself dispatches work.
+  - kind: choice
+    at: "2026-09-09T17:32:00Z"
+    chose: "Renamed the reference Mandate's `note` field to `because`."
+    because: >
+      This ledger's vocabulary already reserves `Note` for the choice/
+      surprise type; keeping the reference's field name verbatim would read
+      as two unrelated things sharing one word in the same codebase. `because`
+      matches the word this ledger already uses everywhere else a
+      justification is required (waived and superseded gates, a
+      disposition's outcome).
+  - kind: choice
+    at: "2026-09-09T17:34:00Z"
+    chose: >
+      Gate's waived arm carries authority, because AND a receipt; superseded
+      carries only authority and because, no receipt.
+    because: >
+      The acceptance requires "one satisfied-or-waived receipt per declared
+      gate" and the design note says the waiver itself is a receipt with the
+      waiving person as its derivation -- so buildCleared can read a receipt
+      off either a satisfied or a waived gate uniformly. Superseded is not
+      one of the two receipt-bearing arms the acceptance names, and the
+      design note only ever describes it by authority and because.
+  - kind: choice
+    at: "2026-09-09T17:36:00Z"
+    chose: >
+      Receipt identity hashes the actual file content at each scope path,
+      not the path strings, making receiptId and createReceipt genuinely
+      async.
+    because: >
+      "Same content and gate, same receipt" and the bend log's "a byte
+      changed under them invalidates it" both only make sense if identity is
+      a hash of bytes, not names -- a path string never changes across a
+      commit, only what is at it does.
+  - kind: choice
+    at: "2026-09-09T17:37:00Z"
+    chose: >
+      Modeled `stale` as a property of a receipt relative to a re-hashed
+      scope (checkStale), not as a node-dependency-graph concept.
+    because: >
+      AGENTS.md's own vocabulary row defines stale in terms of a node's
+      upstream outcome, which needs the graph's dependency edges -- the
+      interpreter's job, out of scope here. The design note's own other use
+      ("a new commit makes every receipt stale... a byte changed under them
+      invalidates it") is squarely inside the ledger's own receipt-identity
+      mechanism, so that is the sense built.
+  - kind: surprise
+    at: "2026-09-09T17:00:00Z"
+    expected: "pnpm test --filter ledger -- --grep replay, exactly as the brief and graph profess, to run and filter to the replay test."
+    observed: >
+      It fails twice over: pnpm's --filter must precede the script name, not
+      follow it (following it, --filter is forwarded to vitest itself as an
+      unknown option), and vitest 2.x has no --grep flag at all -- only
+      -t/--testNamePattern. The working form is
+      `pnpm --filter ledger test --testNamePattern <pattern>` with no `--`
+      separator; adding one causes pnpm to forward a literal `--` into
+      vitest's own argv, which vitest then treats as the start of its
+      positional file-filter arguments and the pattern flag after it is
+      never parsed as a flag at all.
+  - kind: choice
+    at: "2026-09-09T17:00:30Z"
+    chose: >
+      Left the graph's and config's professed gate commands untouched and
+      recorded the working invocation under `open` in the debrief instead.
+    because: "The brief says literally this: the harness bends the graph, not the worker."
+  - kind: surprise
+    at: "2026-09-09T17:10:00Z"
+    expected: >
+      The published @phyxiusjs/drain@0.3.0's stop() bug (flagged by the
+      scouted API map) to matter less with a small batchSize, since each
+      event would flush almost immediately.
+    observed: >
+      Reading the compiled drain.stop()/flushBuffer() shows the opposite: a
+      small batchSize means every append starts its own in-flight write, and
+      stop()'s single flushBuffer(true) call skips outright (returns without
+      awaiting or flushing anything) whenever one is already in flight, so a
+      burst of synchronous appends under batchSize:1 maximizes the number of
+      writes stop() can lose rather than minimizing it. Kept the default
+      batch size instead: a run that never crosses the threshold before
+      close() never has a write in flight for stop() to race.
+  - kind: choice
+    at: "2026-09-09T17:11:00Z"
+    chose: >
+      createLedger.close() calls drain.flush() before drain.stop(), and
+      createLedgerDrain keeps drain's default batchSize rather than
+      overriding it downward.
+    because: >
+      flush() itself loops until the buffer stops shrinking, which correctly
+      drains a buffer that is genuinely idle; the residual gap (a write
+      already in flight when close() is called) is a property of the
+      published package's stop(), not fixable from this side without forking
+      it. Named as an open item rather than hidden.
+    rejected: ["forking or vendoring a patched drain", "depending on the phyxius workspace source directly instead of the published npm package"]
+  - kind: surprise
+    at: "2026-09-09T17:15:00Z"
+    expected: "isRecord(value) narrowing unknown to Record<string, unknown> would let guard functions read value.field directly."
+    observed: >
+      The workspace tsconfig sets noPropertyAccessFromIndexSignature, which
+      refuses dot access on a type that carries only an index signature.
+      Every replay-boundary guard (isSpend, isGate, isDerivation, ...) needs
+      bracket access instead. Centralized it behind one `prop()` helper in
+      validate.ts rather than scattering value["field"] through every guard.
+  - kind: choice
+    at: "2026-09-09T17:20:00Z"
+    chose: >
+      Never put @phyxiusjs/clock's Instant (or its branded MonoMs) into any
+      journaled domain type. Lease.expiry is a plain wallMs number; Note.at
+      and Mandate.notAfter are plain ISO strings, matching brief.md's own
+      notes@v0 shape.
+    because: >
+      MonoMs has no public constructor from a raw number -- it is only ever
+      minted from a live clock reading -- so a value parsed back out of JSON
+      after a restart could never honestly satisfy the branded type without
+      a cast, which the constraints forbid outright. A wall-clock number or
+      ISO string round-trips through the sink with no cast and is exactly
+      what a lease or a note needs to compare against.
+  - kind: surprise
+    at: "2026-09-09T17:35:00Z"
+    expected: >
+      AGENTS.md's closed vocabulary table to list every noun the brief and
+      design note actually use for illegal-state fields.
+    observed: >
+      "disposition" is used directly in brief.md's own sentence ("An outcome
+      records failure, disposition and because as three fields") and in the
+      design note's Gates section, but is not a row in AGENTS.md's
+      vocabulary table. Treated as brief-sanctioned rather than a coinage,
+      since the brief itself names it; recorded as a discovery for the
+      debrief and left as a gap AGENTS.md's own table could close later.
+  - kind: surprise
+    at: "2026-09-09T18:05:00Z"
+    expected: >
+      createLedger's projection to already reflect a prior run's events on a
+      second call over the same directory, since @phyxiusjs/drain's fileSink
+      genuinely accumulates history in journal.jsonl across restarts.
+    observed: >
+      createLedger always started `current` from emptyProjection() and never
+      read options.directory before subscribing; the sink's history and the
+      live projection were two disconnected pieces. Confirmed with a second
+      createLedger() call in a new replay.test.ts case: before the fix,
+      .projection() came back empty even though journal.jsonl held a full
+      prior run. Four independent verifiers flagged this as the acceptance's
+      "the only recovery path is the normal start path" going unmet.
+  - kind: choice
+    at: "2026-09-09T18:07:00Z"
+    chose: >
+      Made createLedger async and had it seed its live projection with
+      `await readReplay(options.directory)` before subscribing the journal,
+      rather than adding a second, separately-called "resume" function.
+    because: >
+      readReplay already exists and is exported for exactly this purpose
+      (d1's own gate-invocation work depends on it); a caller that wants a
+      ledger should not have to remember a second step to get a correct
+      starting projection. Re-seeding the in-memory Journal itself with
+      historical JournalEntry objects was rejected: the sink's own line
+      shape (timestamp as an ISO string, no monoMs, no entry id) cannot
+      honestly satisfy SerializedJournal's Instant-typed fields without a
+      cast, which the constraints forbid; the Journal only needs to carry
+      new entries forward from here, and the sink remains the source of
+      truth for everything before this process started.
+    rejected: ["a separate resumeLedger()/seed() function callers must remember to invoke", "reconstructing the Journal's own entries via Journal.fromJSON"]
+  - kind: surprise
+    at: "2026-09-09T18:20:00Z"
+    expected: >
+      buildCleared's "one satisfied-or-waived receipt per declared gate"
+      check to be the whole of the acceptance's illegal-states requirement
+      for gates.
+    observed: >
+      It only checks the declared side: every declared id has a satisfying
+      or waiving Gate. Nothing anywhere refused a gate-moved event, or the
+      receipt it carries, for a gate id that is not in the node's declared
+      set at all — proposeGateMove only ever inspected the current Gate's
+      own kind, never the id being moved or what a node actually declared.
+  - kind: choice
+    at: "2026-09-09T18:22:00Z"
+    chose: >
+      Gave proposeGateMove the node's declared gate ids and the gate id
+      being moved as its first two arguments, and had it refuse with a new
+      `undeclared-gate` GateRefusal arm before it ever inspects the current
+      Gate's kind.
+    because: >
+      proposeGateMove is already the one choke point every gate-moved event
+      passes through before a Gate is built or transitioned, the same role
+      buildCleared plays for cleared -- extending it keeps the "declared or
+      not" question answered in one place rather than adding a second,
+      parallel constructor that callers could bypass by calling the old one.
+    rejected: ["a standalone checkGateDeclared() helper callers must remember to call before proposeGateMove", "checking membership inside buildCleared instead, which only ever sees the declared side and never the full gates map"]
+  - kind: choice
+    at: "2026-09-09T18:35:00Z"
+    chose: >
+      Cut every comment that restated the code beneath it, deleted the three
+      inline "reference implementation, supplied out of band" citations from
+      gate.ts, lease.ts and mandate.ts, and compressed the rest to their
+      shortest true-WHY form -- 46 non-exempt comment lines across 13 files
+      down to 16 across 9.
+    because: >
+      d6 and d7 already carry the reference citations as discoveries in
+      debrief.yaml, so repeating them inline added nothing a reader couldn't
+      get from the debrief; every comment that survives states something
+      the surrounding names and types cannot (a subtle library gap, a
+      compiler flag's effect, a policy the code doesn't spell out), never
+      the mechanics the next line already shows.
+  - kind: choice
+    at: "2026-09-09T19:05:00Z"
+    chose: >
+      Replaced createLedgerDrain (@phyxiusjs/drain's createDrain over a
+      fileSink) with attachLedgerSink: a plain journal.subscribe callback
+      that calls node:fs appendFileSync once per event, synchronously, and
+      returns the journal's own Unsubscribe. createLedger.close() now just
+      calls that Unsubscribe; there is no flush() or stop() left to await.
+    because: >
+      The harness's own review found drain@0.3.0's stop() can skip an
+      in-flight write outright rather than await it (already recorded as
+      d2/open in the prior round), and this node appends a handful of
+      events a minute -- batching buys nothing a synchronous single-line
+      append doesn't already give for free. AGENTS.md's own razor applies
+      directly: where Phyxius reads worse than plain code, that is a
+      finding about Phyxius, not a reason to bend the ledger. This closes
+      the residual drain gap the prior debrief left open.
+    rejected: ["keeping drain with a smaller batchSize (verifier d2 already showed this makes stop()'s loss window worse, not smaller)", "vendoring a patched drain"]
+  - kind: choice
+    at: "2026-09-09T19:25:00Z"
+    chose: >
+      Added packages/ledger/src/envelope.ts: EVENT_SHAPE ("event@v1"),
+      envelopeFor (spreads a LedgerEvent under one leading `interlock`
+      field), shapeTag (reads that field back out of untyped JSON) and
+      upcastTable, a ReadonlyMap<string, Upcaster> whose only entry today
+      maps "event@v1" to the identity upcast (isLedgerEvent's own guard).
+      replay.ts's parseLine/replayFromRaw/readReplay all take that table
+      as an optional last argument, defaulting to the production one.
+    because: >
+      "matching how every other interlock artifact names its shape on
+      line one" (debrief.yaml, config.yaml) means the tag has to be a
+      plain sibling field, not a nested wrapper, so envelopeFor spreads
+      rather than wraps -- object key order puts `interlock` first in
+      the JSON.stringify output as long as it's the first key in the
+      literal. Taking the table as a parameter, not a module-level
+      global, is what lets a test register a synthetic upcaster without
+      mutating production state.
+    rejected: ["nesting the event under an `event` field inside the envelope (breaks the sibling-field convention every other interlock file on line one already uses)", "a module-level mutable table callers register into (a test's registration would leak across tests)"]
+  - kind: choice
+    at: "2026-09-09T19:30:00Z"
+    chose: >
+      readReplay and createLedger both now return
+      Result<_, ReplayRefusal> instead of throwing or silently folding a
+      partial projection when a persisted line's shape tag is unknown or
+      its body fails the registered upcaster's guard. The truncated-tail
+      case (a line that fails to parse as JSON at all, or an empty
+      trailing line) is untouched: parseLine still reports that as
+      `{kind:"tail"}` and replayFromRaw still stops there without an
+      error.
+    because: >
+      The finding is explicit that a bad shape tag "is NOT the same as
+      the truncated-tail case" -- folding both into the same silent stop
+      would make a genuinely corrupt or newer-than-this-build journal
+      line indistinguishable from an ordinary crash mid-write.
+      createLedger is the one place that calls readReplay, and letting
+      it swallow the Err (or throw) would just move the domain-reason
+      throw one call frame up instead of removing it; propagating the
+      same Result keeps every boundary that can fail on untrusted
+      persisted data honest, matching how proposeGateMove/buildCleared/
+      renewLease already refuse rather than throw.
+    rejected: ["having createLedger catch the refusal and start from emptyProjection() (silently discards a real corruption signal)", "throwing out of createLedger on a refusal (moves the domain-reason throw up one frame instead of removing it)"]
+  - kind: choice
+    at: "2026-09-09T19:40:00Z"
+    chose: >
+      Deleted mark.ts:4, receipt.ts's old 16-17 and 55 outright rather
+      than compressing them; sink.ts's own comment left with the drain
+      it described. Kept validate.ts:13-15, replay.ts:6-7, mandate.ts:3
+      and projection.ts:37 verbatim.
+    because: >
+      Each deleted comment restated what its own next line already
+      says -- Gap's own field names are the vocabulary table,
+      receipt.test.ts already has a case named "carries the commit SHA
+      as history, not identity", and Stale's own name plus its two
+      fields already say what a stale receipt is.
+      The four kept comments each state something the surrounding names
+      and types cannot on their own: a compiler flag's effect, a
+      library-shape gap, a word collision with another type in this
+      same ledger, and a policy choice (never draft on a session's
+      behalf) the code's shape alone doesn't carry.
