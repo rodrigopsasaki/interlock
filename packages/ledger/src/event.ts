@@ -1,0 +1,113 @@
+import { isBrief, type Brief } from "./brief.js";
+import { isDebrief, type Debrief } from "./debrief.js";
+import { isGate, type Gate } from "./gate.js";
+import { isNode, type Node } from "./graph.js";
+import { isNote, type Note } from "./note.js";
+import { isOutcome, type Outcome } from "./outcome.js";
+import { isReceipt, type Receipt } from "./receipt.js";
+import { isSession, type Session } from "./session.js";
+import { isRecord, isString, prop } from "./validate.js";
+
+// Every change is one of these, appended. State is a projection folded over
+// the sequence; nothing here is ever read back as mutable state on its own.
+export type LedgerEvent =
+  | { readonly kind: "node-created"; readonly node: Node }
+  | {
+      readonly kind: "lease-taken";
+      readonly node: Node;
+      readonly session: string;
+      readonly expiry: number;
+    }
+  | {
+      readonly kind: "lease-renewed";
+      readonly node: Node;
+      readonly session: string;
+      readonly expiry: number;
+    }
+  | {
+      readonly kind: "lease-expired";
+      readonly node: Node;
+      readonly session: string;
+    }
+  | {
+      readonly kind: "session-started";
+      readonly session: Session;
+      readonly brief: Brief;
+    }
+  | {
+      readonly kind: "note-appended";
+      readonly session: string;
+      readonly note: Note;
+    }
+  | {
+      readonly kind: "debrief-filed";
+      readonly session: string;
+      readonly debrief: Debrief;
+    }
+  | {
+      readonly kind: "gate-moved";
+      readonly node: Node;
+      readonly gate: string;
+      readonly to: Gate;
+    }
+  | {
+      readonly kind: "receipt-written";
+      readonly node: Node;
+      readonly receipt: Receipt;
+    }
+  | {
+      readonly kind: "outcome-set";
+      readonly node: Node;
+      readonly outcome: Outcome;
+    }
+  | {
+      readonly kind: "outbox-intent-recorded";
+      readonly node: Node;
+      readonly id: string;
+      readonly intent: string;
+    };
+
+export function isLedgerEvent(value: unknown): value is LedgerEvent {
+  if (!isRecord(value)) return false;
+  const kind = prop(value, "kind");
+  if (typeof kind !== "string") return false;
+  switch (kind) {
+    case "node-created":
+      return isNode(prop(value, "node"));
+    case "lease-taken":
+    case "lease-renewed":
+      return (
+        isNode(prop(value, "node")) &&
+        isString(prop(value, "session")) &&
+        typeof prop(value, "expiry") === "number"
+      );
+    case "lease-expired":
+      return isNode(prop(value, "node")) && isString(prop(value, "session"));
+    case "session-started":
+      return isSession(prop(value, "session")) && isBrief(prop(value, "brief"));
+    case "note-appended":
+      return isString(prop(value, "session")) && isNote(prop(value, "note"));
+    case "debrief-filed":
+      return (
+        isString(prop(value, "session")) && isDebrief(prop(value, "debrief"))
+      );
+    case "gate-moved":
+      return (
+        isNode(prop(value, "node")) &&
+        isString(prop(value, "gate")) &&
+        isGate(prop(value, "to"))
+      );
+    case "receipt-written":
+      return isNode(prop(value, "node")) && isReceipt(prop(value, "receipt"));
+    case "outcome-set":
+      return isNode(prop(value, "node")) && isOutcome(prop(value, "outcome"));
+    case "outbox-intent-recorded":
+      return (
+        isNode(prop(value, "node")) &&
+        isString(prop(value, "id")) &&
+        isString(prop(value, "intent"))
+      );
+    default:
+      return false;
+  }
+}

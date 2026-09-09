@@ -31,3 +31,130 @@ entries:
       (proposeGateMove, renewLease) returning a typed refusal -- the CAS
       discipline without the async store, appropriate to a library that
       never itself dispatches work.
+  - kind: choice
+    at: "2026-09-09T17:32:00Z"
+    chose: "Renamed the reference Mandate's `note` field to `because`."
+    because: >
+      This ledger's vocabulary already reserves `Note` for the choice/
+      surprise type; keeping the reference's field name verbatim would read
+      as two unrelated things sharing one word in the same codebase. `because`
+      matches the word this ledger already uses everywhere else a
+      justification is required (waived and superseded gates, a
+      disposition's outcome).
+  - kind: choice
+    at: "2026-09-09T17:34:00Z"
+    chose: >
+      Gate's waived arm carries authority, because AND a receipt; superseded
+      carries only authority and because, no receipt.
+    because: >
+      The acceptance requires "one satisfied-or-waived receipt per declared
+      gate" and the design note says the waiver itself is a receipt with the
+      waiving person as its derivation -- so buildCleared can read a receipt
+      off either a satisfied or a waived gate uniformly. Superseded is not
+      one of the two receipt-bearing arms the acceptance names, and the
+      design note only ever describes it by authority and because.
+  - kind: choice
+    at: "2026-09-09T17:36:00Z"
+    chose: >
+      Receipt identity hashes the actual file content at each scope path,
+      not the path strings, making receiptId and createReceipt genuinely
+      async.
+    because: >
+      "Same content and gate, same receipt" and the bend log's "a byte
+      changed under them invalidates it" both only make sense if identity is
+      a hash of bytes, not names -- a path string never changes across a
+      commit, only what is at it does.
+  - kind: choice
+    at: "2026-09-09T17:37:00Z"
+    chose: >
+      Modeled `stale` as a property of a receipt relative to a re-hashed
+      scope (checkStale), not as a node-dependency-graph concept.
+    because: >
+      AGENTS.md's own vocabulary row defines stale in terms of a node's
+      upstream outcome, which needs the graph's dependency edges -- the
+      interpreter's job, out of scope here. The design note's own other use
+      ("a new commit makes every receipt stale... a byte changed under them
+      invalidates it") is squarely inside the ledger's own receipt-identity
+      mechanism, so that is the sense built.
+  - kind: surprise
+    at: "2026-09-09T17:00:00Z"
+    expected: "pnpm test --filter ledger -- --grep replay, exactly as the brief and graph profess, to run and filter to the replay test."
+    observed: >
+      It fails twice over: pnpm's --filter must precede the script name, not
+      follow it (following it, --filter is forwarded to vitest itself as an
+      unknown option), and vitest 2.x has no --grep flag at all -- only
+      -t/--testNamePattern. The working form is
+      `pnpm --filter ledger test --testNamePattern <pattern>` with no `--`
+      separator; adding one causes pnpm to forward a literal `--` into
+      vitest's own argv, which vitest then treats as the start of its
+      positional file-filter arguments and the pattern flag after it is
+      never parsed as a flag at all.
+  - kind: choice
+    at: "2026-09-09T17:00:30Z"
+    chose: >
+      Left the graph's and config's professed gate commands untouched and
+      recorded the working invocation under `open` in the debrief instead.
+    because: "The brief says literally this: the harness bends the graph, not the worker."
+  - kind: surprise
+    at: "2026-09-09T17:10:00Z"
+    expected: >
+      The published @phyxiusjs/drain@0.3.0's stop() bug (flagged by the
+      scouted API map) to matter less with a small batchSize, since each
+      event would flush almost immediately.
+    observed: >
+      Reading the compiled drain.stop()/flushBuffer() shows the opposite: a
+      small batchSize means every append starts its own in-flight write, and
+      stop()'s single flushBuffer(true) call skips outright (returns without
+      awaiting or flushing anything) whenever one is already in flight, so a
+      burst of synchronous appends under batchSize:1 maximizes the number of
+      writes stop() can lose rather than minimizing it. Kept the default
+      batch size instead: a run that never crosses the threshold before
+      close() never has a write in flight for stop() to race.
+  - kind: choice
+    at: "2026-09-09T17:11:00Z"
+    chose: >
+      createLedger.close() calls drain.flush() before drain.stop(), and
+      createLedgerDrain keeps drain's default batchSize rather than
+      overriding it downward.
+    because: >
+      flush() itself loops until the buffer stops shrinking, which correctly
+      drains a buffer that is genuinely idle; the residual gap (a write
+      already in flight when close() is called) is a property of the
+      published package's stop(), not fixable from this side without forking
+      it. Named as an open item rather than hidden.
+    rejected: ["forking or vendoring a patched drain", "depending on the phyxius workspace source directly instead of the published npm package"]
+  - kind: surprise
+    at: "2026-09-09T17:15:00Z"
+    expected: "isRecord(value) narrowing unknown to Record<string, unknown> would let guard functions read value.field directly."
+    observed: >
+      The workspace tsconfig sets noPropertyAccessFromIndexSignature, which
+      refuses dot access on a type that carries only an index signature.
+      Every replay-boundary guard (isSpend, isGate, isDerivation, ...) needs
+      bracket access instead. Centralized it behind one `prop()` helper in
+      validate.ts rather than scattering value["field"] through every guard.
+  - kind: choice
+    at: "2026-09-09T17:20:00Z"
+    chose: >
+      Never put @phyxiusjs/clock's Instant (or its branded MonoMs) into any
+      journaled domain type. Lease.expiry is a plain wallMs number; Note.at
+      and Mandate.notAfter are plain ISO strings, matching brief.md's own
+      notes@v0 shape.
+    because: >
+      MonoMs has no public constructor from a raw number -- it is only ever
+      minted from a live clock reading -- so a value parsed back out of JSON
+      after a restart could never honestly satisfy the branded type without
+      a cast, which the constraints forbid outright. A wall-clock number or
+      ISO string round-trips through the sink with no cast and is exactly
+      what a lease or a note needs to compare against.
+  - kind: surprise
+    at: "2026-09-09T17:35:00Z"
+    expected: >
+      AGENTS.md's closed vocabulary table to list every noun the brief and
+      design note actually use for illegal-state fields.
+    observed: >
+      "disposition" is used directly in brief.md's own sentence ("An outcome
+      records failure, disposition and because as three fields") and in the
+      design note's Gates section, but is not a row in AGENTS.md's
+      vocabulary table. Treated as brief-sanctioned rather than a coinage,
+      since the brief itself names it; recorded as a discovery for the
+      debrief and left as a gap AGENTS.md's own table could close later.

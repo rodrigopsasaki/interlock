@@ -2,3 +2,4 @@ node_modules/
 dist/
 .worktrees/
 coverage/
+packages/ledger/test/.runs/
