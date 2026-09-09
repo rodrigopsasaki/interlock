@@ -10,9 +10,9 @@ export function isStringArray(value: unknown): value is readonly string[] {
   return Array.isArray(value) && value.every(isString);
 }
 
-// `Record<string, unknown>` carries only an index signature, so
-// `noPropertyAccessFromIndexSignature` refuses `value.field` on it. This is
-// the one place that reads such a field, by name, so nothing else needs to.
+// noPropertyAccessFromIndexSignature refuses dot access on an index
+// signature; this is the one place that reads a field by name so nothing
+// else needs to.
 export function prop(value: Record<string, unknown>, key: string): unknown {
   return value[key];
 }

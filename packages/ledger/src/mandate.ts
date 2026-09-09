@@ -1,9 +1,6 @@
 import { isRecord, isString, prop } from "./validate.js";
 
-// reference implementation, supplied out of band: mandate.ts
-// `because` replaces the reference's `note` field: this ledger reserves the
-// word "note" for the choice/surprise type, so the same field is renamed to
-// stay unambiguous rather than collide with it.
+// `because`, not `note`: this ledger already reserves that word for the choice/surprise type.
 export interface Mandate {
   readonly grantedBy: string;
   readonly actionKind: string;

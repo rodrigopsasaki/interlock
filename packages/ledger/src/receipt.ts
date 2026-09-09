@@ -13,9 +13,8 @@ export interface Receipt {
   readonly proof: Readonly<Record<string, unknown>>;
 }
 
-// Identity is the content hash of the paths in the node's scope at gate-run
-// time, plus the gate id — never the commit SHA, which is carried on the
-// receipt as history only. Same content and gate, same id.
+// Identity is the scope's content hash plus the gate id, never the commit
+// SHA — that is carried as history only.
 export async function receiptId(
   scope: readonly string[],
   gate: string,
@@ -53,8 +52,7 @@ export function isReceipt(value: unknown): value is Receipt {
   );
 }
 
-// A receipt whose scope no longer hashes to what it once proved: the same
-// word design/0001-interlock.md uses for a receipt a later commit outran.
+// A receipt whose scope no longer hashes to what it once proved.
 export interface Stale {
   readonly receipt: Receipt;
   readonly recomputedId: string;

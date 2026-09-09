@@ -216,3 +216,18 @@ entries:
       not" question answered in one place rather than adding a second,
       parallel constructor that callers could bypass by calling the old one.
     rejected: ["a standalone checkGateDeclared() helper callers must remember to call before proposeGateMove", "checking membership inside buildCleared instead, which only ever sees the declared side and never the full gates map"]
+  - kind: choice
+    at: "2026-09-09T18:35:00Z"
+    chose: >
+      Cut every comment that restated the code beneath it, deleted the three
+      inline "reference implementation, supplied out of band" citations from
+      gate.ts, lease.ts and mandate.ts, and compressed the rest to their
+      shortest true-WHY form -- 46 non-exempt comment lines across 13 files
+      down to 16 across 9.
+    because: >
+      d6 and d7 already carry the reference citations as discoveries in
+      debrief.yaml, so repeating them inline added nothing a reader couldn't
+      get from the debrief; every comment that survives states something
+      the surrounding names and types cannot (a subtle library gap, a
+      compiler flag's effect, a policy the code doesn't spell out), never
+      the mechanics the next line already shows.

@@ -34,9 +34,7 @@ export function emptyProjection(): LedgerProjection {
   return { nodes: new Map(), sessions: new Map() };
 }
 
-// A session whose lease has expired with no debrief on file: the harness
-// never drafts one on its behalf, it only records that the session ended
-// without one.
+// The harness never drafts a debrief on a session's behalf; it only records that one is missing.
 export function isInterrupted(view: SessionView): boolean {
   return view.leaseExpired && view.debrief === undefined;
 }

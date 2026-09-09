@@ -4,8 +4,6 @@ import type { Gate } from "./gate.js";
 import { isReceipt, type Receipt } from "./receipt.js";
 import { isRecord, isString, prop } from "./validate.js";
 
-// Failure, disposition and because are recorded as three separate fields,
-// never collapsed into one, on the two outcomes that end in a failure.
 export type Outcome =
   | { readonly kind: "cleared"; readonly receipts: readonly Receipt[] }
   | {
@@ -42,8 +40,6 @@ export interface ClearRefusal {
   readonly missing: readonly string[];
 }
 
-// `cleared` cannot be built short: one satisfied-or-waived receipt per
-// declared gate, or the constructor refuses and names what is missing.
 export function buildCleared(
   declaredGates: readonly string[],
   gates: ReadonlyMap<string, Gate>,

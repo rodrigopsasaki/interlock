@@ -3,9 +3,8 @@ import { isLedgerEvent, type LedgerEvent } from "./event.js";
 import { emptyProjection, fold, type LedgerProjection } from "./projection.js";
 import { journalPath } from "./sink.js";
 
-// One JSON line per event. A line that fails to parse is the tail of a
-// write the process died in the middle of, never a reason to stop trusting
-// everything that came before it.
+// A line that fails to parse is the tail of a write the process died mid-way
+// through, never a reason to stop trusting what came before it.
 export function parseLine(line: string): LedgerEvent | undefined {
   const trimmed = line.trim();
   if (trimmed.length === 0) return undefined;
@@ -18,10 +17,6 @@ export function parseLine(line: string): LedgerEvent | undefined {
   return isLedgerEvent(parsed) ? parsed : undefined;
 }
 
-// The crash-only guarantee: replay a prefix of the sink to the same
-// projection as replaying the whole thing up to the last complete line.
-// A partial line at the end — the write a kill interrupted — is dropped,
-// never guessed at.
 export function replayFromRaw(raw: string): LedgerProjection {
   const events: LedgerEvent[] = [];
   for (const line of raw.split("\n")) {

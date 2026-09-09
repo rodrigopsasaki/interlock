@@ -22,8 +22,6 @@ export interface LeaseRefusal {
   readonly proposed: number;
 }
 
-// A lease touch never shortens a lease.
-// reference implementation, supplied out of band: climb-run-store.ts
 export function renewLease(
   lease: Lease,
   nextExpiry: number,

@@ -8,8 +8,6 @@ import { isReceipt, type Receipt } from "./receipt.js";
 import { isSession, type Session } from "./session.js";
 import { isRecord, isString, prop } from "./validate.js";
 
-// Every change is one of these, appended. State is a projection folded over
-// the sequence; nothing here is ever read back as mutable state on its own.
 export type LedgerEvent =
   | { readonly kind: "node-created"; readonly node: Node }
   | {
