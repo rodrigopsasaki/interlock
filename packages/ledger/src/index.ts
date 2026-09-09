@@ -36,6 +36,6 @@ export { checkStale, createReceipt, isReceipt, receiptId } from "./receipt.js";
 export { parseLine, readReplay, replayFromRaw } from "./replay.js";
 export type { Session } from "./session.js";
 export { isSession } from "./session.js";
-export { createLedgerDrain, journalPath, JOURNAL_FILE_NAME } from "./sink.js";
+export { attachLedgerSink, journalPath, JOURNAL_FILE_NAME } from "./sink.js";
 export type { Spend } from "./spend.js";
 export { isSpend, spend } from "./spend.js";

@@ -25,9 +25,6 @@ importers:
       '@phyxiusjs/clock':
         specifier: ^0.3.0
         version: 0.3.0(@types/node@24.13.3)
-      '@phyxiusjs/drain':
-        specifier: ^0.3.0
-        version: 0.3.0(@types/node@24.13.3)
       '@phyxiusjs/fp':
         specifier: ^0.2.1
         version: 0.2.1(@types/node@24.13.3)
@@ -197,11 +194,6 @@ packages:
 
   '@phyxiusjs/clock@0.3.0':
     resolution: {integrity: sha512-FM+vwwSA6+s16Ul8n4X6kMpWkQOU4DwCBFZlSpFq0J3TFeNVz149KSfedBttvmGOLkuJ+i3vJEOksSS0Wq3DOA==}
-    peerDependencies:
-      '@types/node': '>=18'
-
-  '@phyxiusjs/drain@0.3.0':
-    resolution: {integrity: sha512-/oj3HClBBNvZ2yVN0cbKkFa59Y5peZ7jIPsafPVp96nKs+nB44YO4QsxQ1GSG9RK74Dp0Q8MJR2EvtmWRnr+GA==}
     peerDependencies:
       '@types/node': '>=18'
 
@@ -650,12 +642,6 @@ snapshots:
 
   '@phyxiusjs/clock@0.3.0(@types/node@24.13.3)':
     dependencies:
-      '@types/node': 24.13.3
-
-  '@phyxiusjs/drain@0.3.0(@types/node@24.13.3)':
-    dependencies:
-      '@phyxiusjs/clock': 0.3.0(@types/node@24.13.3)
-      '@phyxiusjs/journal': 0.2.1(@types/node@24.13.3)
       '@types/node': 24.13.3
 
   '@phyxiusjs/fp@0.2.1(@types/node@24.13.3)':

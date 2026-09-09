@@ -231,3 +231,21 @@ entries:
       the surrounding names and types cannot (a subtle library gap, a
       compiler flag's effect, a policy the code doesn't spell out), never
       the mechanics the next line already shows.
+  - kind: choice
+    at: "2026-09-09T19:05:00Z"
+    chose: >
+      Replaced createLedgerDrain (@phyxiusjs/drain's createDrain over a
+      fileSink) with attachLedgerSink: a plain journal.subscribe callback
+      that calls node:fs appendFileSync once per event, synchronously, and
+      returns the journal's own Unsubscribe. createLedger.close() now just
+      calls that Unsubscribe; there is no flush() or stop() left to await.
+    because: >
+      The harness's own review found drain@0.3.0's stop() can skip an
+      in-flight write outright rather than await it (already recorded as
+      d2/open in the prior round), and this node appends a handful of
+      events a minute -- batching buys nothing a synchronous single-line
+      append doesn't already give for free. AGENTS.md's own razor applies
+      directly: where Phyxius reads worse than plain code, that is a
+      finding about Phyxius, not a reason to bend the ledger. This closes
+      the residual drain gap the prior debrief left open.
+    rejected: ["keeping drain with a smaller batchSize (verifier d2 already showed this makes stop()'s loss window worse, not smaller)", "vendoring a patched drain"]
