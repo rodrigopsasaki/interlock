@@ -4,7 +4,7 @@ node: ledger
 role: worker
 graph_base_sha: fd2ba0bdece8842a17bd137e19089cd5ce4ee5bd
 session_start_sha: ca6aa90d484b889005a93dece89596680948ce9a
-head_sha: cd462f4f153f9ad4f5fe73ecc9f71ff65813b25d
+head_sha: a2ac585a3cc86f518a1acd15cad41c2f5372b0e4
 derivation:
   kind: agent
   runtime: claude-code
@@ -119,6 +119,43 @@ discoveries:
       source of truth for everything before the current process -- matching
       "state is a projection over the journal," not "the journal itself is
       durable."
+  - id: d10
+    what: >
+      @phyxiusjs/journal's Journal.subscribe returns an Unsubscribe (a plain
+      () => void), the same JournalEntry-keyed callback registration drain
+      itself was built on top of.
+    found_at: "node_modules/.pnpm/@phyxiusjs+journal@0.2.1.../dist/index.d.ts, Journal.subscribe's own signature"
+    mattered_because: >
+      a synchronous sink needs no flush/stop protocol at all -- close() is
+      just calling the Unsubscribe subscribe already handed back, so
+      replacing the drain did not require inventing any new lifecycle.
+  - id: d11
+    what: >
+      JSON.stringify preserves an object literal's own key insertion order
+      for string keys, so `{ interlock: EVENT_SHAPE, ...event }` (interlock
+      written first in the literal) reliably puts "interlock" first in the
+      emitted line -- confirmed at runtime in the new versioned-envelope
+      test (Object.keys(parsed)[0]), not just assumed from JS semantics.
+    found_at: "packages/ledger/test/replay.test.ts, \"tags every persisted line with the current event shape, first field\""
+    mattered_because: >
+      the finding requires interlock as the line's first field specifically,
+      to match every other interlock artifact's own line one -- a nested
+      wrapper (`{event: {...}}`) would have carried a tag but broken that
+      sibling-field convention.
+  - id: d12
+    what: >
+      vitest's --testNamePattern matches the full "describe > it" name,
+      substring-style (the same mechanism d1 already found for the two
+      node-declared gates); a new describe block only lands inside the
+      working `pnpm --filter ledger test --testNamePattern replay`
+      invocation if its own text contains the literal word "replay".
+    found_at: >
+      re-running that exact invocation against replay.test.ts's new
+      "replay's versioned upcast seam" describe block
+    mattered_because: >
+      named the new describe block to contain "replay" on purpose, so this
+      round's refusal/upcast tests are actually exercised by the replay
+      gate rather than only by the unfiltered full suite.
 decisions:
   - id: c1
     what: >
@@ -339,6 +376,80 @@ decisions:
         "packages/ledger/src/sink.ts",
         "packages/ledger/src/validate.ts",
       ]
+  - id: c23
+    what: >
+      Replaced createLedgerDrain (@phyxiusjs/drain's createDrain over a
+      fileSink) with attachLedgerSink: a plain journal.subscribe callback
+      that calls node:fs appendFileSync once per event, synchronously, and
+      returns the journal's own Unsubscribe for createLedger.close() to
+      call -- there is no flush()/stop() left to await. Removed
+      @phyxiusjs/drain from package.json and regenerated pnpm-lock.yaml.
+      Deleted wiring.test.ts's drain describe block outright rather than
+      porting it: replay.test.ts's crash-only test already appends through
+      the real ledger and reads journal.jsonl back, one line per event.
+    rests_on: ["harness finding 2", "d2", "d10", "notes:19"]
+    hunks:
+      [
+        "packages/ledger/src/sink.ts",
+        "packages/ledger/src/ledger.ts",
+        "packages/ledger/package.json",
+        "packages/ledger/test/wiring.test.ts",
+      ]
+    produces: ["pnpm-lock.yaml"]
+  - id: c24
+    what: >
+      Added envelope.ts: EVENT_SHAPE ("event@v1"), envelopeFor (spreads a
+      LedgerEvent under one leading `interlock` field -- a sibling field,
+      matching every other interlock artifact's own line one, not a nested
+      wrapper), shapeTag, and upcastTable, a ReadonlyMap<string, Upcaster>
+      whose only entry maps "event@v1" to the identity upcast via
+      isLedgerEvent's own guard. attachLedgerSink now writes
+      envelopeFor(event) rather than the bare event.
+    rests_on: ["harness finding 1", "d11", "notes:20"]
+    hunks: ["packages/ledger/src/envelope.ts", "packages/ledger/src/sink.ts"]
+  - id: c25
+    what: >
+      replay.ts's parseLine/replayFromRaw/readReplay all take the upcast
+      table as an optional last argument (default: the production table)
+      and route every line through it. A line whose shape tag is unknown,
+      or whose tag is known but whose upcaster returns undefined, is a
+      ReplayRefusal (tag + 1-based line number) returned as an Err, never
+      thrown. The truncated-tail case -- a line that is not valid JSON at
+      all, including an empty trailing line -- is unchanged: still a
+      silent stop, no Err. createLedger now returns
+      Result<Ledger, ReplayRefusal> instead of Ledger, propagating
+      readReplay's own refusal rather than swallowing it or throwing one
+      call frame further up.
+    rests_on: ["brief:Crash-only", "harness finding 1", "notes:21"]
+    hunks: ["packages/ledger/src/replay.ts", "packages/ledger/src/ledger.ts"]
+  - id: c26
+    what: >
+      index.ts gained exports for envelope.ts's and replay.ts's new public
+      surface (EventEnvelope, Upcaster, EVENT_SHAPE, envelopeFor, shapeTag,
+      upcastTable, ParsedLine, ReplayRefusal) and swapped createLedgerDrain
+      for attachLedgerSink. replay.test.ts gained a "replay's versioned
+      upcast seam" describe block: a line-one-tag assertion, an
+      unknown-tag refusal, a known-tag-bad-body refusal, and a synthetic
+      upcaster (a fake `event@v0` shape) composed into a current event.
+      Every existing createLedger call site now unwraps the Result via
+      @phyxiusjs/fp's own unwrap.
+    rests_on: ["harness finding 1", "d12", "notes:20", "notes:21"]
+    hunks: ["packages/ledger/src/index.ts", "packages/ledger/test/replay.test.ts"]
+  - id: c27
+    what: >
+      Deleted mark.ts:4 and receipt.ts's receiptId and Stale comments
+      (old lines 16-17 and 55); sink.ts's drain-batch-size comment
+      disappeared with the drain rewrite (c23). Kept validate.ts:13-15,
+      replay.ts:6-7, mandate.ts:3 and projection.ts:37.
+    rests_on: ["brief:Constraints", "harness finding 3", "notes:22"]
+    hunks: ["packages/ledger/src/mark.ts", "packages/ledger/src/receipt.ts"]
+  - id: c28
+    what: >
+      notes.yaml is this round's own append-as-you-work record, not a
+      design choice about the ledger's shape -- same treatment c18 gave it
+      last round.
+    rests_on: ["brief:Deliverable"]
+    hunks: [".interlock/sessions/0001-bootstrap/ledger/notes.yaml"]
 gates_run_by_agent:
   - { id: typecheck, result: pass }
   - { id: test, result: pass }
@@ -357,18 +468,15 @@ open:
     invocation that actually runs each is recorded on its gate above. Per
     the brief, the graph itself is left as professed.
   - >
-    @phyxiusjs/drain@0.3.0 (published) predates a stop()-correctness fix
-    (await an in-flight write, loop until the buffer stops shrinking, report
-    an honest `remaining`) that exists only in the phyxius workspace's local
-    source and on an unmerged origin/changeset-release/main branch, per the
-    scaffold-supplied API map. This ledger works around the published gap by
-    keeping the drain's default batch size (a run smaller than the
-    threshold never triggers a mid-stream auto-flush for close() to race)
-    and calling flush() before stop(), but a write that happens to already
-    be in flight at the moment close() is called can still be lost -- a
-    residual gap in the published dependency, not something this node's own
-    code can close without vendoring a patched drain or depending on the
-    phyxius workspace source directly.
+    CLOSED this round (c23): @phyxiusjs/drain@0.3.0's stop()-can-skip-an-
+    in-flight-write gap, previously worked around by keeping the default
+    batch size, is gone because the drain itself is gone.
+    attachLedgerSink calls node:fs appendFileSync synchronously inside
+    journal.subscribe, one line per event, so there is no batching, no
+    background flush, and nothing in flight for close() to lose --
+    close() is just the journal's own Unsubscribe. @phyxiusjs/drain is
+    removed from package.json and pnpm-lock.yaml; no source or test in
+    this package mentions drain anymore.
   - >
     "disposition" is used as a type name here (packages/ledger/src/
     disposition.ts) on the strength of brief.md's own sentence and the
@@ -411,3 +519,13 @@ open:
     positive-construction test, a pure rename, session bookkeeping). Future
     debriefs for this graph should check new files against decisions before
     filing, not after a verifier flags the gap.
+  - >
+    parseLine treats a line that parses as valid JSON but carries no string
+    `interlock` field as a shape refusal with an empty-string tag
+    (`{kind:"refused", tag:""}`), distinct from the truncated-tail case
+    (invalid JSON). No test exercises this specific shape -- only the
+    "known-but-unregistered tag" and "registered-but-guard-fails" refusal
+    paths are proven, per the harness's own list of required cases. This
+    node's own sink can never produce a tagless line (envelopeFor always
+    writes `interlock` first), so the path is honest but unverified against
+    hand-edited or externally-produced journal.jsonl content.
