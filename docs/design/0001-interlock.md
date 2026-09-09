@@ -1,6 +1,6 @@
 # Interlock
 
-Design note · v0.5 · 2026-09-09
+Design note · v0.6 · 2026-09-09
 
 A harness for doing software work with agents: enough context that they decide and manage their
 own work, enough structure that you never lose control. Named for the railway interlocking: the mechanism that makes an unsafe signal impossible
@@ -189,6 +189,20 @@ and up-to-date from build graphs. Plans are commentary. The graph is what is tru
 *Cost:* the interpreter is the hardest part and is user-specific. It only gets good with the gap
 log feeding it.
 *Revisit:* the graph is a file; the model is one producer of it. Anyone may author one.
+
+**D20. A plan is approved before any of it runs, and the approval is a receipt on the plan's
+content.** A graph declares a human gate, `approved`. Its receipt carries the approver as its
+derivation and the content hash of the graph file as its identity. No node in the graph is leased
+and no session is briefed until that receipt exists for the current content; editing the graph
+stales the receipt by construction, the same way editing code stales a test receipt, so a plan
+cannot drift under an approval. The approval is a mandate over the whole graph: within an approved
+plan the harness proceeds node by node without asking again; a new graph is a new approval. The
+approval is agnostic of what produced the plan. The producer's derivation, a person, a model, a
+script, is information that participates in the decision, never a condition of it.
+*Cost:* the plan must exist as a file before work starts, which is the point. Records of what
+happened, debriefs, receipts, bend-log rows, are never gated; only plans are.
+*Revisit:* no. Face-read is its first viewer; until it exists the plan is rendered by hand and the
+approval travels in the pull request.
 
 ## Invariants
 
@@ -538,6 +552,7 @@ bend against an invariant means we redesign, and the entry says how.
 | 2026-09-09 | First session by hand (node `scaffold`): the brief's base SHA is the graph's base, but a session starts at the commit that contains its brief, which cannot be known while writing it; the brief carried no role; the debrief cannot mark a hunk as generated (a 1080-line lockfile has no line-by-line decision); "effect" was named as a Phyxius primitive and none exists | Brief and debrief shapes, seams | Writing the first brief and debrief by hand, as planned, before the formats had code. | Yes, both files committed with the session | Brief gets a `graph_base_sha`; the session's start SHA lives in the context column and the debrief; the brief supplies the role; the debrief gets a `produces` relation so a decision can own a generated hunk; the verifier treats generated hunks as explained by the decision that produced them. |
 | 2026-09-09 | Rebasing the scaffold branch onto main rewrote every commit SHA; the debrief's `head_sha` and any receipt addressed by commit SHA went stale although not one byte under the node's code paths changed. The whole-repo tree changed too, because main had moved under docs the gates never read | Receipts, D5 | Content-addressing by commit SHA conflates content with history, and by whole-repo tree conflates the node's scope with everything else. | Yes, the pre-rebase SHA is in the debrief and the code paths are provably identical | Address a receipt by the content hash of the paths in the node's scope. A rebase or an unrelated docs merge that changes none of them keeps the receipt; a byte changed under them invalidates it. The commit SHA stays on the receipt as history, not identity. |
 | 2026-09-09 | Ledger node (second hand-run session, first under a workflow): the two professed gate commands in the graph could not run at all (pnpm option order, vitest has no --grep); persisted events carried no shape version; durability rode on a drain whose published stop() can lose an in-flight write; the debrief's decisions covered six notable choices and left 26 of 40 files unexplained; "disposition" was used as a type without a vocabulary row | Graph, vocabulary, I8, compatibility | Professed commands are professed until they run; the persisted journal is the one artifact whose version cannot be added later; Phyxius's drain read worse than a synchronous append for a ledger that writes a few events a minute; decisions are a manifest of the diff, not a highlights reel. | Yes, every finding is in the session's debrief and notes | Graph gate commands bent to the invocations that run; every journal line now carries `interlock: event@v1` with an upcast seam; drain replaced by a synchronous sink and reported upstream; disposition ratified into the vocabulary; a debrief's decisions must cover every changed file, and the mechanical ones are cheap to write. |
+| 2026-09-09 | `face` split into `face-read` (depends on `ledger`) and `face` (depends on the runner); graph-level human gate `approved` added to the bootstrap graph; D20 written | Graph, D20 | Rodrigo wants to read the plan of every change before it runs. The read-only slice of the face needs the ledger and the graph file, not the runner, as 0002 argued; the approval gate is the interlocking applied to plans. | Yes, previous graph in history | The first plan approved under the new gate is the one that builds the approver. |
 | 2026-09-09 | Carried over from a prior work algebra: five gate states; cancelled and superseded terminals; failure / disposition / because; conserved retry budget; spend on receipts and spend-driven revival; empty receipt ≠ absent; abandoned written by a sweeper; lease bounds silence; outbox with an honest uncertain state; typed notes during the session; interrupted gets no invented debrief; role supplied by the brief; mandate spelled | D8, D12, I7, gates, verifier, lifecycle, vocabulary | The same laws were written a month earlier inside the substrate and each carried an incident that earned it. Carry what makes sense, leave what does not: the substrate's belief analysis and ratification doors stay on its side. | Yes, v0.2 in history | I7 had promised exactly once. Nothing can. Promise no lost intent and honest doubt instead. |
 
 ---
