@@ -24,6 +24,14 @@ read: >
   Six seams, each with the first thing through it, in dependency order. The graph is done when
   the last node's session was run by the runner this graph builds, and its outcome is cleared.
 
+gates:
+  # Graph-level. No node in this graph may be leased, and no session briefed, until this receipt
+  # exists for the CURRENT content of this file. Editing the file stales the receipt; the plan
+  # is then re-read and re-approved. The approval is agnostic of what produced the plan: the
+  # producer's derivation is information that participates in the decision, never a condition.
+  - id: approved
+    kind: human
+
 nodes:
   - id: scaffold
     acceptance: >
@@ -93,12 +101,28 @@ nodes:
         kind: command
         run: pnpm --filter verifier test --testNamePattern unexplained
 
+  - id: face-read
+    acceptance: >
+      `interlock graph show <id>` renders a graph file plus the journal as a position: nodes in
+      dependency order, each with its gate states and outcome, the unweighted critical path, and
+      the graph's approval state. `interlock graph approve <id> --by <who> --because <why>` writes
+      a human-gate receipt whose identity is the content hash of the graph file. `show` reports
+      approved, stale since the file changed, or not approved. Both read the journal through
+      replay and write only through the ledger's own append. A malformed graph gets a sentence,
+      not a stack trace.
+    depends_on: [ledger]
+    gates:
+      - id: stale-approval
+        kind: command
+        run: pnpm --filter face test --testNamePattern stale-approval
+        # Editing an approved graph flips its approval to stale.
+
   - id: face
     acceptance: >
       A process that runs in a herdr pane. Above: the position of a graph, with critical path and
       float, and the five columns of any session on request. Below: the six verbs. It owns no
       state; killing the pane loses scrollback and nothing else.
-    depends_on: [runner-command-gate]
+    depends_on: [runner-command-gate, face-read]
     gates: []
 
   - id: self-run

@@ -126,6 +126,9 @@ to the node and is conserved; nothing inside a node mints its own retries.
 - Artifacts are the public API. Every artifact names `shape@version` on its first line; readers
   accept every prior version forever; evolution is additive; a rename is a new version with a
   reader for the old one; persisted journal lines carry their version and replay upcasts.
+- No node of a graph is leased and no session briefed until the graph carries an `approved`
+  receipt for its current content. Approval is a mandate over the whole graph; a new graph is a
+  new approval. Records of what happened are never gated; only plans are.
 - A gate command declared before its runtime exists is professed. It is verified literally the
   first time it can run, and the harness, never the worker, bends the graph when it cannot.
 - No `README`, docs or comments that explain what the code plainly says. Docs explain why.
