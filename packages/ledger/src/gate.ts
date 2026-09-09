@@ -71,20 +71,31 @@ export function isGate(value: unknown): value is Gate {
   }
 }
 
-export interface GateRefusal {
-  readonly kind: "illegal-transition";
-  readonly from: Gate["kind"];
-  readonly to: Gate["kind"];
-}
+export type GateRefusal =
+  | {
+      readonly kind: "illegal-transition";
+      readonly from: Gate["kind"];
+      readonly to: Gate["kind"];
+    }
+  | {
+      readonly kind: "undeclared-gate";
+      readonly gate: string;
+      readonly declared: readonly string[];
+    };
 
-// A worker may challenge a gate with evidence; it can never weaken, waive or
-// reinterpret one. Waived and superseded are terminal: nothing moves a gate
-// out of either.
-// reference implementation, supplied out of band: climb-step-machine.ts
 export function proposeGateMove(
+  declaredGates: readonly string[],
+  gateId: string,
   current: Gate,
   next: Gate,
 ): Result<Gate, GateRefusal> {
+  if (!declaredGates.includes(gateId)) {
+    return err({
+      kind: "undeclared-gate",
+      gate: gateId,
+      declared: declaredGates,
+    });
+  }
   if (current.kind === "waived" || current.kind === "superseded") {
     return err({
       kind: "illegal-transition",

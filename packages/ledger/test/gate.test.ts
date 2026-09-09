@@ -37,8 +37,13 @@ describe("gate", () => {
     );
   });
 
-  it("allows a pending gate to move", () => {
-    const moved = proposeGateMove(gate.pending(), gate.satisfied(receipt));
+  it("allows a pending gate to move within the node's declared set", () => {
+    const moved = proposeGateMove(
+      ["typecheck"],
+      "typecheck",
+      gate.pending(),
+      gate.satisfied(receipt),
+    );
     expect(moved._tag).toBe("Ok");
   });
 });

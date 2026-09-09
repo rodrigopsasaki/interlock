@@ -214,7 +214,12 @@ describe("illegal states are unrepresentable or refused", () => {
 
   it("a gate refuses to move out of waived or superseded", () => {
     const waived = gate.waived("Rodrigo Sasaki", "known flaky", okReceipt);
-    const attempt = proposeGateMove(waived, gate.pending());
+    const attempt = proposeGateMove(
+      ["typecheck"],
+      "typecheck",
+      waived,
+      gate.pending(),
+    );
     expect(attempt).toEqual({
       _tag: "Err",
       error: { kind: "illegal-transition", from: "waived", to: "pending" },
@@ -222,6 +227,8 @@ describe("illegal states are unrepresentable or refused", () => {
 
     const superseded = gate.superseded("Rodrigo Sasaki", "replaced");
     const secondAttempt = proposeGateMove(
+      ["typecheck"],
+      "typecheck",
       superseded,
       gate.satisfied(okReceipt),
     );
@@ -232,6 +239,20 @@ describe("illegal states are unrepresentable or refused", () => {
         from: "superseded",
         to: "satisfied",
       },
+    });
+  });
+
+  it("a gate move refuses a gate id outside the node's declared set", () => {
+    const declared = ["typecheck", "test"];
+    const attempt = proposeGateMove(
+      declared,
+      "lint",
+      gate.pending(),
+      gate.satisfied(okReceipt),
+    );
+    expect(attempt).toEqual({
+      _tag: "Err",
+      error: { kind: "undeclared-gate", gate: "lint", declared },
     });
   });
 

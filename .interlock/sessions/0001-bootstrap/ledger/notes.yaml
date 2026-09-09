@@ -190,3 +190,29 @@ entries:
       new entries forward from here, and the sink remains the source of
       truth for everything before this process started.
     rejected: ["a separate resumeLedger()/seed() function callers must remember to invoke", "reconstructing the Journal's own entries via Journal.fromJSON"]
+  - kind: surprise
+    at: "2026-09-09T18:20:00Z"
+    expected: >
+      buildCleared's "one satisfied-or-waived receipt per declared gate"
+      check to be the whole of the acceptance's illegal-states requirement
+      for gates.
+    observed: >
+      It only checks the declared side: every declared id has a satisfying
+      or waiving Gate. Nothing anywhere refused a gate-moved event, or the
+      receipt it carries, for a gate id that is not in the node's declared
+      set at all — proposeGateMove only ever inspected the current Gate's
+      own kind, never the id being moved or what a node actually declared.
+  - kind: choice
+    at: "2026-09-09T18:22:00Z"
+    chose: >
+      Gave proposeGateMove the node's declared gate ids and the gate id
+      being moved as its first two arguments, and had it refuse with a new
+      `undeclared-gate` GateRefusal arm before it ever inspects the current
+      Gate's kind.
+    because: >
+      proposeGateMove is already the one choke point every gate-moved event
+      passes through before a Gate is built or transitioned, the same role
+      buildCleared plays for cleared -- extending it keeps the "declared or
+      not" question answered in one place rather than adding a second,
+      parallel constructor that callers could bypass by calling the old one.
+    rejected: ["a standalone checkGateDeclared() helper callers must remember to call before proposeGateMove", "checking membership inside buildCleared instead, which only ever sees the declared side and never the full gates map"]
