@@ -1,0 +1,33 @@
+interlock: notes@v0
+node: ledger
+entries:
+  - kind: choice
+    at: "2026-09-09T16:50:00Z"
+    chose: >
+      Renamed packages/core to packages/ledger with git mv, dropped the unused
+      @phyxiusjs/handler dependency, and added @phyxiusjs/fp for typed
+      Result-returning refusals.
+    because: >
+      Constraint says handler must be used or removed, and it was never
+      constructed by the scaffold session. fp gives the Ok/Err vocabulary the
+      reference implementation itself uses for the same purpose (a
+      compare-and-set store returning a Result rather than throwing), so
+      reusing it composes instead of hand-rolling a Result type.
+    rejected: ["hand-rolling a local Result<T,E> type instead of depending on @phyxiusjs/fp"]
+  - kind: choice
+    at: "2026-09-09T16:52:00Z"
+    chose: >
+      Did not add @phyxiusjs/durable-step or @phyxiusjs/atom as dependencies,
+      even though the brief's "Read first" section names durable-step as "the
+      natural home for node and gate transitions."
+    because: >
+      The acceptance is entirely about types, the journal, the projection and
+      crash-only replay -- it names no concurrent claiming or live CAS store.
+      The reference implementation's own single-flight/advisory-lock claim
+      mechanism and its sweeper/reviver are explicitly excluded from this
+      node, and a durable async StateStore exists to arbitrate concurrent
+      workers, which this library, with no runner of its own, does not have.
+      Gate and lease legality here are plain synchronous functions
+      (proposeGateMove, renewLease) returning a typed refusal -- the CAS
+      discipline without the async store, appropriate to a library that
+      never itself dispatches work.
