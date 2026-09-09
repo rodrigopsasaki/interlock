@@ -1,0 +1,93 @@
+interlock: debrief@v0
+graph: 0001-bootstrap
+node: scaffold
+base_sha: 128b17cbba507a324feccc81d91b6305b92f4d43
+head_sha: 25cdccba1110b995ae75892b4ac68c78caa0c079
+derivation:
+  kind: agent
+  runtime: claude-code
+  model: claude-sonnet-5
+discoveries:
+  - id: d1
+    what: Node 24.14.0 runs .ts files directly with no flag, but does not remap a ".js" import specifier to a sibling ".ts" file the way tsc's NodeNext resolution expects.
+    found_at: a probe run by hand -- "node run.ts" importing "./lib.js" (only lib.ts on disk) failed with ERR_MODULE_NOT_FOUND; importing "./lib.ts" directly worked.
+    mattered_because: it forced a real choice between a tsup build for the CLI entrypoint or explicit .ts specifiers plus allowImportingTsExtensions; the ledger/runner packages that do get imported by others should not assume either without checking first.
+  - id: d2
+    what: The @phyxiusjs/journal package is documented as in-memory and ephemeral and explicitly states it does not provide durability.
+    found_at: packages/core/journal/README.md in the phyxius monorepo, sections "What this really is" and "Journal does NOT help you with".
+    mattered_because: the ledger node's acceptance requires "a process killed mid-write replays to the same projection"; journal alone cannot satisfy that, which is why @phyxiusjs/drain was added even though the design note never names it.
+  - id: d3
+    what: Journal's constructor (from @phyxiusjs/journal) requires a Clock -- JournalOptions.clock is not optional -- and journal's own README installs it paired with clock.
+    found_at: packages/core/journal/src/types.ts:29-31 and packages/core/journal/README.md "Installation" section, both in the phyxius monorepo.
+    mattered_because: confirms clock is load-bearing for journal, not a separate nice-to-have -- one more reason both belong in core together.
+  - id: d4
+    what: ControlledClock.advanceBy() takes a branded Millis, not a raw number; a plain `clock.advanceBy(10)` fails typecheck and needs the `ms()` helper.
+    found_at: a real `pnpm typecheck` failure on packages/core/test/wiring.test.ts, TS2345 against packages/core/clock/src/controlled-clock.ts:222 in phyxius.
+    mattered_because: exactly the class of friction the brief asked scaffold to surface now rather than leave for the ledger node.
+  - id: d5
+    what: pnpm 11 (resolved via mise's Node 24 corepack shim) enforces a default minimumReleaseAge supply-chain policy and silently rewrites pnpm-workspace.yaml with allowBuilds/minimumReleaseAgeExclude blocks on install; a brand-new @types/node patch (published the same day) failed the policy outright.
+    found_at: running pnpm install and pnpm typecheck, both failing with ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION / ERR_PNPM_IGNORED_BUILDS until addressed.
+    mattered_because: an unpinned "latest" @types/node would make every fresh clone's first install non-deterministic depending on the day it runs; pinned to an exact, already-aged patch instead, and left a static, minimal allowBuilds entry rather than the placeholder text pnpm wrote.
+  - id: d6
+    what: no @phyxiusjs package named "effect" exists; the design note's "typed handlers, clock, and effect" names a fourth primitive that has no npm package to install.
+    found_at: running npm view @phyxiusjs/effect version, and a grep across phyxius's packages/*/README.md and package.json descriptions for "effect"/"outbox", both empty.
+    mattered_because: stops the ledger node from looking for a package that was never published; "effect" is interlock's own word for the outbox (AGENTS.md I7), composed from journal (+drain), not imported.
+  - id: d7
+    what: a .gitignore already existed at the repo root (node_modules/, dist/, .worktrees/) before this session; an early `cat >` overwrote it wholesale instead of extending it.
+    found_at: running git diff .gitignore after the first git add, showing a full-file replacement instead of a one-line addition.
+    mattered_because: caught before committing and fixed to a one-line addition (coverage/); left as a discovery because the brief did not say a .gitignore already existed, and "read before you overwrite" should have been automatic.
+  - id: d8
+    what: pnpm forwards trailing arguments to a root script invoked as `pnpm <script-name> <args>` (no "run", no "--") -- e.g. `pnpm interlock debrief validate` runs the "interlock" script with argv ["debrief","validate"] appended.
+    found_at: running pnpm interlock debrief validate by hand against the scaffolded root script, observed forwarding correctly.
+    mattered_because: the entire debrief-valid gate's command shape depends on this undocumented-in-the-brief forwarding behavior actually working; verified rather than assumed.
+  - id: d9
+    what: Handler's defineHandler (from @phyxiusjs/handler) requires a Validator-conformant input/output schema; its own quick start uses zod, which is not a phyxius dependency itself.
+    found_at: packages/components/handler/README.md "Quick start", in the phyxius monorepo.
+    mattered_because: constructing a real handler costs an extra dependency (zod or equivalent) that scaffold should not pre-add speculatively; recorded so the ledger node budgets for it.
+decisions:
+  - id: c1
+    what: Scaffolded a flat, Nx-free pnpm workspace (root package.json, pnpm-workspace.yaml, tsconfig.json, vitest.config.base.ts, and each package's vitest.config.ts) matching phyxius's strict compiler options and shared-vitest-baseline pattern.
+    rests_on: ["brief:Constraints", "brief:Read first"]
+    hunks: [package.json, pnpm-workspace.yaml, tsconfig.json, vitest.config.base.ts, packages/cli/vitest.config.ts, packages/core/vitest.config.ts]
+    rejected: Nx, matching phyxius exactly -- rejected because at two packages it adds a task-runner layer with none of our judgment in it; plain `pnpm -r` covers typecheck and test.
+  - id: c2
+    what: .gitignore keeps its three pre-existing entries and gains exactly one line (coverage/) instead of being replaced.
+    rests_on: ["d7"]
+    hunks: [.gitignore]
+  - id: c3
+    what: Pinned @types/node to an exact, already-aged patch (24.13.3) in both packages and left pnpm-workspace.yaml with a static allowBuilds entry approving esbuild, rather than the placeholder pnpm generates, so a fresh install is deterministic and non-interactive.
+    rests_on: ["d5"]
+    hunks: [pnpm-workspace.yaml, packages/cli/package.json, packages/core/package.json, pnpm-lock.yaml]
+  - id: c4
+    what: cli holds the interlock CLI's only required command -- debrief validate always returns a non-zero exit with an explicit not-implemented message, and any other command shape fails closed the same way rather than being silently accepted.
+    rests_on: ["brief:Acceptance", "brief:Constraints"]
+    hunks: [packages/cli/package.json, packages/cli/src/main.ts, packages/cli/src/debrief/validate.ts, packages/cli/test/main.test.ts]
+    rejected: a single-file CLI -- rejected in favor of splitting the pure, testable dispatcher (main.ts's run()) from the thin, untested argv/exitCode shell (bin.ts), so the fail-closed behavior is unit-tested directly rather than only through a process spawn.
+  - id: c5
+    what: cli's entrypoint runs directly via Node's native TypeScript execution (root's interlock script calls bin.ts with no build step), which requires allowImportingTsExtensions plus noEmit and explicit .ts specifiers on its relative imports -- the one package in the workspace that departs from the NodeNext .js-specifier convention the rest extend without note.
+    rests_on: ["d1"]
+    hunks: [packages/cli/tsconfig.json, packages/cli/src/bin.ts, packages/cli/src/main.ts, packages/cli/test/main.test.ts, package.json]
+    rejected: a tsup build producing dist/bin.js, matching phyxius exactly -- rejected because this package has no consumers to publish a dist for yet, and a build step that must run before every `pnpm interlock ...` invocation is ceremony this stub does not earn; revisit once the CLI grows real consumers or commands.
+  - id: c6
+    what: core declares the four @phyxiusjs dependencies the ledger node will plausibly need (journal, clock, handler, drain), each justified individually rather than pulled in only transitively through handler.
+    rests_on: ["brief:Read first", "d2", "d3", "d6", "d9"]
+    hunks: [packages/core/package.json, pnpm-lock.yaml]
+    rejected: depending on @phyxiusjs/handler alone and relying on its transitive re-export of journal/clock -- rejected because pnpm's non-hoisted node_modules would make journal/clock unresolvable as direct imports from core without declaring them directly (phantom-dependency risk), and because the ledger's own event log is a distinct concern from handler's internal observability journal.
+  - id: c7
+    what: core's src/index.ts is deliberately empty (export {}) -- no domain types, no ledger logic -- since that is the next node's acceptance, not this one's.
+    rests_on: ["brief:Acceptance", "brief:Constraints"]
+    hunks: [packages/core/src/index.ts, packages/core/tsconfig.json]
+  - id: c8
+    what: A wiring smoke test exercises journal+clock for real (construct, append, advance the controlled clock, assert sequence and wall time) and drain for real (construct against an empty compositeSink, append, stop), proving the runtime composition works rather than only that `npm install` succeeded; handler is declared but left unexercised.
+    rests_on: ["d4", "d9"]
+    hunks: [packages/core/test/wiring.test.ts]
+gates_run_by_agent:
+  - { id: typecheck, result: pass }
+  - { id: test, result: pass }
+  - { id: debrief-valid, result: fail, note: "fails closed by design -- exits 1 with a not-implemented message" }
+open:
+  - This session's base_sha (128b17c, the commit that added the brief) differs from the brief's own "base SHA" line (de6e0499..., the graph's base commit before the brief existed). Per the session instructions this is expected, not a brief error, but it means the brief's stated base SHA and this debrief's base_sha will never match for this node.
+  - Whether the ledger uses @phyxiusjs/drain or Journal's own toJSON/fromJSON snapshot for crash-only durability is left open on purpose; core depends on both journal and drain so the ledger node can pick either without touching this package.json again.
+  - The @phyxiusjs/handler dependency is declared but never constructed here; a real handler needs a Validator-conformant schema (handler's own quick start uses zod), which is a cost the ledger node will pay when it defines its first gate/verb handler, not one scaffold should pre-pay speculatively.
+  - The debrief shape's "hunks" field has no way to mark a hunk as generated (pnpm-lock.yaml) versus hand-authored; I cited the lockfile under the decisions whose dependency changes produced it, but a verifier walking hunks literally will find 1080 lines with no single decision "explaining" its content line-by-line.
+  - While drafting an early commit message I ran `pnpm interlock debrief validate` once directly (not through `mise exec --`), outside the pinned Node 24.14.0 toolchain, before catching a shell backtick-interpolation bug in that same commit and fixing it. The command is read-only (the CLI stub itself), so nothing was mutated, but it ran under the ambient node v26.0.0 / pnpm 11.20.0 for that one invocation rather than the pinned versions. Recorded for honesty, not because it changed anything in the diff.
