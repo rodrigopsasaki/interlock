@@ -1,0 +1,223 @@
+interlock: debrief@v1
+graph: 0001-bootstrap
+node: ledger
+role: worker
+graph_base_sha: fd2ba0bdece8842a17bd137e19089cd5ce4ee5bd
+session_start_sha: ca6aa90d484b889005a93dece89596680948ce9a
+head_sha: 0e21b02da071edfd84ec56328f830c6aaa79699c
+derivation:
+  kind: agent
+  runtime: claude-code
+  model: claude-sonnet-5
+discoveries:
+  - id: d1
+    what: >
+      The graph's professed gate command `pnpm test --filter ledger --
+      --grep replay` cannot run as written: pnpm's --filter must precede the
+      script name (following `test` it is forwarded to vitest as an unknown
+      option), and vitest 2.x has no --grep flag at all, only
+      -t/--testNamePattern. Adding the `--` separator pnpm's own script
+      forwarding otherwise inserts also breaks vitest's own flag parsing.
+    found_at: >
+      running `pnpm test --filter ledger -- --grep replay` (CACError: Unknown
+      option `--filter`), then `pnpm --filter ledger test -- --testNamePattern
+      replay` (ran all tests, unfiltered), then `pnpm --filter ledger test
+      --testNamePattern replay` (correctly filtered)
+    mattered_because: >
+      both node-declared gates (replay, illegal-states) are professed with
+      this exact broken shape; the working invocation had to be found and
+      recorded rather than assumed.
+  - id: d2
+    what: >
+      The published @phyxiusjs/drain@0.3.0's stop() calls flushBuffer(true)
+      exactly once and that call is a no-op (classifyFlush returns "skip")
+      whenever a write from an earlier auto-triggered flush is still in
+      flight -- it never awaits that in-flight write and never loops for a
+      still-nonempty buffer the way flush() does.
+    found_at: node_modules/.pnpm/@phyxiusjs+drain@0.3.0.../dist/index.js, createDrain's stop()/flushBuffer/classifyFlush
+    mattered_because: >
+      confirms the scouted API map's flag directly against the actual
+      compiled source, and shows a small batchSize makes the window WORSE
+      (every append starts its own in-flight write) rather than better, which
+      is the opposite of my first instinct.
+  - id: d3
+    what: >
+      The workspace tsconfig's noPropertyAccessFromIndexSignature refuses
+      `value.field` dot access on anything typed as (or narrowed to) an
+      index-signature-only type such as Record<string, unknown> -- every
+      untyped-JSON validator needed bracket access instead.
+    found_at: "a real `tsc --noEmit` run: ~90 TS4111 errors across every isX guard function"
+    mattered_because: >
+      the replay boundary (parsing JSON back into LedgerEvent) is exactly
+      where untyped input meets these guards; centralized the bracket access
+      behind one `prop()` helper rather than scattering it.
+  - id: d4
+    what: >
+      @phyxiusjs/clock's MonoMs has no public constructor from a raw number
+      -- it is only ever minted from a live clock reading or deadlineFrom --
+      so an Instant read back from JSON after a process restart can never
+      honestly satisfy the branded type without a cast.
+    found_at: "node_modules/.pnpm/@phyxiusjs+clock.../dist/index.d.ts, MonoMs's own doc comment"
+    mattered_because: >
+      ruled out putting Instant anywhere in a journaled domain type; Lease's
+      expiry and Note's/Mandate's timestamps are plain numbers/ISO strings
+      instead, which round-trip through the sink with no cast at all.
+  - id: d5
+    what: >
+      "disposition" is used directly in brief.md's own illegal-states
+      sentence ("An outcome records failure, disposition and because as
+      three fields") and in the design note's Gates section, but is not a
+      row in AGENTS.md's own closed vocabulary table.
+    found_at: "brief.md, \"Illegal states unrepresentable\"; AGENTS.md, Vocabulary table (absent)"
+    mattered_because: >
+      decided this is brief-sanctioned, not a coinage, since the brief's own
+      sentence names it -- but the gap between the brief's language and
+      AGENTS.md's table is real and worth closing there, not just here.
+  - id: d6
+    what: >
+      reference implementation, supplied out of band: climb-step-machine.ts
+      wraps openClimbStage/closeClimbStage rather than owning a parallel
+      state column, and its terminal `completed` state's empty transition
+      table is exactly what makes a second completion a pre-flight refusal.
+    found_at: "reference implementation, supplied out of band: climb-step-machine.ts"
+    mattered_because: >
+      confirmed the scout's Law 01 distillation by reading the file directly
+      and gave the concrete shape proposeGateMove renames and generalizes:
+      terminal states (waived, superseded here) refuse every further move.
+  - id: d7
+    what: >
+      reference implementation, supplied out of band: justification.ts's
+      InferenceDerivation is an all-optional bag (strategy/source/model/
+      promptId/lensRef), a different shape from what this ledger's
+      Derivation needed -- the acceptance's own union requires each kind's
+      fields, never optional. mandate.ts's Mandate names its justification
+      field `note`, which collides with this ledger's Note type.
+    found_at: "reference implementation, supplied out of band: justification.ts; reference implementation, supplied out of band: mandate.ts"
+    mattered_because: >
+      ruled out mirroring InferenceDerivation's shape for Derivation, and
+      forced the field rename to `because` on Mandate so the same word
+      doesn't mean two different things in the same codebase.
+  - id: d8
+    what: "@phyxiusjs/fp is published at 0.2.1 and matches this checkout's resolved version exactly."
+    found_at: "`npm view @phyxiusjs/fp version` => 0.2.1"
+    mattered_because: "verified before adding it as a new dependency, per the constraint that every added package is checked against npm."
+decisions:
+  - id: c1
+    what: >
+      Renamed packages/core to packages/ledger (git mv), removed the unused
+      @phyxiusjs/handler dependency, and added @phyxiusjs/fp for typed
+      Result refusals.
+    rests_on: ["brief:Constraints", "d8", "notes:1"]
+    hunks: ["packages/ledger/package.json"]
+    produces: ["pnpm-lock.yaml"]
+  - id: c2
+    what: >
+      Did not add @phyxiusjs/durable-step or @phyxiusjs/atom; gate and lease
+      legality are plain synchronous Result-returning functions instead of a
+      live async CAS store.
+    rests_on: ["brief:What the ledger is", "brief:Out of scope", "notes:2"]
+    hunks: ["packages/ledger/src/gate.ts:74-96", "packages/ledger/src/lease.ts:19-39"]
+  - id: c3
+    what: "Renamed the reference Mandate's `note` field to `because`."
+    rests_on: ["d7", "notes:3"]
+    hunks: ["packages/ledger/src/mandate.ts"]
+  - id: c4
+    what: >
+      Gate's waived arm carries authority, because AND a receipt; superseded
+      carries only authority and because.
+    rests_on: ["brief:Illegal states unrepresentable", "docs/design/0001-interlock.md:Gates", "notes:4"]
+    hunks: ["packages/ledger/src/gate.ts:5-23", "packages/ledger/src/outcome.ts:40-64"]
+  - id: c5
+    what: "Receipt identity hashes the actual file content at each scope path, not the path strings."
+    rests_on: ["brief:Receipt identity", "docs/design/0001-interlock.md:bend log", "notes:5"]
+    hunks: ["packages/ledger/src/receipt.ts:16-30"]
+  - id: c6
+    what: "Modeled `stale` as checkStale on a receipt relative to a re-hashed scope, not a node-dependency-graph concept."
+    rests_on: ["AGENTS.md:Vocabulary", "docs/design/0001-interlock.md:Gates", "notes:6"]
+    hunks: ["packages/ledger/src/receipt.ts:56-69"]
+  - id: c7
+    what: >
+      Left the graph's and config's professed gate commands untouched; the
+      working invocation for both node-declared gates is recorded under
+      `open` below rather than edited into the graph.
+    rests_on: ["brief:Gates", "d1", "notes:8"]
+    hunks: ["packages/ledger/test/replay.test.ts", "packages/ledger/test/unrepresentable.test.ts"]
+  - id: c8
+    what: >
+      createLedgerDrain keeps @phyxiusjs/drain's default batch size rather
+      than a smaller override, and createLedger.close() calls drain.flush()
+      before drain.stop().
+    rests_on: ["d2", "notes:10"]
+    hunks: ["packages/ledger/src/sink.ts", "packages/ledger/src/ledger.ts:39-42"]
+  - id: c9
+    what: >
+      Kept @phyxiusjs/clock's Instant/MonoMs out of every journaled domain
+      type; Lease.expiry, Note.at and Mandate.notAfter are plain numbers or
+      ISO strings.
+    rests_on: ["d4", "notes:12"]
+    hunks: ["packages/ledger/src/lease.ts", "packages/ledger/src/note.ts", "packages/ledger/src/mandate.ts"]
+  - id: c10
+    what: "Centralized untyped-JSON property access behind one `prop()` helper in validate.ts rather than scattering bracket access through every guard."
+    rests_on: ["d3"]
+    hunks: ["packages/ledger/src/validate.ts"]
+  - id: c11
+    what: "Kept Graph and Node as minimal identity types (an id, and a node's owning graph id) with no dependency edges or acceptance text."
+    rests_on: ["brief:Out of scope", "AGENTS.md:Vocabulary"]
+    hunks: ["packages/ledger/src/graph.ts"]
+  - id: c12
+    what: >
+      Split illegal-state proofs (compile-refused constructions and typed
+      Result refusals) into their own test/unrepresentable.test.ts, separate
+      from each type's positive-construction tests, so the illegal-states
+      gate's name-based filter selects exactly and only these proofs.
+    rests_on: ["brief:Gates"]
+    hunks: ["packages/ledger/test/unrepresentable.test.ts"]
+gates_run_by_agent:
+  - { id: typecheck, result: pass }
+  - { id: test, result: pass }
+  - { id: debrief-valid, result: fail, note: "fails closed by design until the debrief-schema node lands" }
+  - { id: replay, result: pass, invocation: "pnpm --filter ledger test --testNamePattern replay" }
+  - { id: illegal-states, result: pass, invocation: "pnpm --filter ledger test --testNamePattern unrepresentable" }
+open:
+  - >
+    Both node-declared gate commands as professed in the graph
+    (`pnpm test --filter ledger -- --grep replay` and the --grep
+    unrepresentable twin) do not run: `--filter` must precede the script
+    name for pnpm to treat it as a workspace filter rather than forwarding it
+    to the script, and vitest 2.x has no --grep flag, only
+    -t/--testNamePattern; pnpm's own `--` insertion when forwarding args
+    additionally breaks testNamePattern parsing if included literally. The
+    invocation that actually runs each is recorded on its gate above. Per
+    the brief, the graph itself is left as professed.
+  - >
+    @phyxiusjs/drain@0.3.0 (published) predates a stop()-correctness fix
+    (await an in-flight write, loop until the buffer stops shrinking, report
+    an honest `remaining`) that exists only in the phyxius workspace's local
+    source and on an unmerged origin/changeset-release/main branch, per the
+    scaffold-supplied API map. This ledger works around the published gap by
+    keeping the drain's default batch size (a run smaller than the
+    threshold never triggers a mid-stream auto-flush for close() to race)
+    and calling flush() before stop(), but a write that happens to already
+    be in flight at the moment close() is called can still be lost -- a
+    residual gap in the published dependency, not something this node's own
+    code can close without vendoring a patched drain or depending on the
+    phyxius workspace source directly.
+  - >
+    "disposition" is used as a type name here (packages/ledger/src/
+    disposition.ts) on the strength of brief.md's own sentence and the
+    design note's Gates section, but it is not a row in AGENTS.md's closed
+    vocabulary table. Worth a table entry there so a future session does not
+    have to re-derive this.
+  - >
+    Graph and Node are deliberately thin (an id, and a node's owning graph
+    id) with no dependency edges, acceptance text, or gate declarations --
+    that topology belongs to the interpreter, which does not exist yet.
+    Extending them later to carry it is additive, not a rename, but is
+    unproven against this node's own tests.
+  - >
+    No node or gate transition here is wired against
+    @phyxiusjs/durable-step's StateStore, since nothing in this node's
+    acceptance drives concurrent execution. proposeGateMove and renewLease
+    return the same Result shape a StateStore's trySet does, which should
+    compose under an async wrapper when the runner node needs it, but that
+    composition has not been built or tested here.
