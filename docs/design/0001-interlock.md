@@ -1,6 +1,6 @@
 # Interlock
 
-Design note · v0.4 · 2026-09-09
+Design note · v0.5 · 2026-09-09
 
 A harness for doing software work with agents: enough context that they decide and manage their
 own work, enough structure that you never lose control. Named for the railway interlocking: the mechanism that makes an unsafe signal impossible
@@ -367,6 +367,94 @@ produced" is a query, not a rebuild. And decompose disagreement: when two review
 the position shows two derivations side by side, and the disagreement reads as two lenses rather
 than as noise. Your decision between them is recorded with its own derivation, you.
 
+## Continuation versus measurement
+
+A single-pass answer from a model is a continuation: it has no procedure and no derivation, only
+fluency. A board over a decomposed question is a measurement: it has a stated way of settling and
+a record of who settled it. Interlock exists to stop treating continuations as answers.
+
+This decides where the expensive judgment goes. A large model's one advantage is that it holds
+the whole in one context and finds the decomposition itself; boards cannot, they need it handed
+to them. So the scarce judgment is spent once, at the interpreter, on the shape of the question,
+and never on continuing the answer. The interpreter's output for an ask is two things: the graph,
+which is the decomposition into settleable questions, and the read, a walkable statement of "I
+understood your ask as these questions, settled by these means," which the person corrects.
+Correcting the read is cheaper than correcting the answer, because a wrong read poisons every
+answer beneath it. Every correction is a gap.
+
+The interpreter may refuse. An ask that decomposes into no settleable question is a request for
+an opinion, and the honest read says so. That refusal is itself an answer to what should have
+been asked.
+
+**Depth is a residue, not a property.** No router can know in advance which question is deep.
+Depth is what survives decomposition: the question a board could not settle, or the board that
+split and stayed split. Escalation is triggered by a declared failure to settle, first to a more
+capable model, then to a person, never by a prediction of difficulty. A cheap model does not need
+to understand depth; it needs to be able to say "I cannot answer this with the criteria given,"
+and that is a gap, and gaps escalate. Nuance is the criterion not yet written down; a board's
+disagreement points at it.
+
+**The unit is settledness, not tokens.** A position on an inquiry says how much of the question
+is settled with receipts, what remains unsettled, and why. Budget is a constraint on how many
+draws each question gets. It is never a strategy, because tokens measure how much was spent
+finding out and cannot measure whether anything was found.
+
+**Strategy is declared; model is measured.** A strategy is typed: the graph shape, the gate kinds,
+the aggregation rule per board, the escalation trigger. A person declares it and the interpreter
+proposes it. Model assignment is a variable at each node's attempt, chosen inside the strategy,
+and the answer to "which model for which work" is never a table someone writes. It is a
+projection over receipts: for this gate kind under this strategy, this model settled it at this
+spend with this rate of unresolved boards. Derivation and spend on every receipt are what make
+that projection possible.
+
+**Design, build, operate are three roles.** Deciding the composable questions and their rules
+needs the most expensive judgment available. Building is hands. Operating the treadmill should be
+the cheapest thing that can run it without thinking, and that is not a cheap model. It is code.
+The chat interface fuses the three roles because one model does all of them there, and D2 exists
+because that is a category error.
+
+## Strategies
+
+A strategy is a graph with holes. Nodes carry acceptance forms rather than acceptances, gates are
+declared by kind and rule, roles are supplied per node, and every node carries its because: why
+this gate here. Instantiation binds an ask into the holes and pins the strategy version.
+
+Strategies improve by usage, as a projection and then a ratification, never as a rewrite in
+flight. Discoveries repeated across instances say the context slice is missing something.
+Unexplained hunks say a node boundary is wrong. The same gate failing across instances says a gate
+is missing upstream. Boards that keep splitting on one node say the criterion is unstated. Float
+and critical path across runs say the ordering is wrong. All of that projects a proposed next
+version, a person ratifies it, and running graphs stay pinned to the version they started under.
+
+A strategy is a procedure, and a procedure is compressed judgment, which is the founding failure:
+it freezes consensus to the circumstances that produced it. So a strategy stays appealable per
+instance. The interpreter may deviate from the shape with a recorded reason, and recurring
+deviations are the strongest signal that the strategy should change. A strategy whose nodes carry
+no because, or that cannot be deviated from, has become the checklist that rots.
+
+Strategies are extracted from graphs that cleared, generalized after two or three instances,
+never designed as a catalogue in advance. The bootstrap graph is the first candidate. They are
+files beside graphs, so the harness with no substrate address still has them; a substrate makes
+the projection across instances cheap and holds the ratification.
+
+## Compatibility
+
+Interlock's artifacts are its public API: graph, brief, notes, debrief, config, strategy, and the
+persisted journal events beneath them. A shape written today must still be readable in two years.
+
+- Every artifact names its shape and version on its first line. Readers accept every prior
+  version forever and upgrade on read; writers write the latest. A file on disk is never rewritten
+  to a new shape.
+- Evolution is additive. A new field is optional. A required field or a rename is a new version
+  with a reader for the old one. The rename from debrief v0 to v1 was the last free one.
+- Few kinds. Adding an artifact kind needs the same justification a new noun does.
+- The persisted journal is the surface that cannot be retrofitted: every event line carries its
+  shape version from the first byte written, and replay routes through a versioned upcast seam.
+  An unknown shape is a typed refusal, distinct from a truncated tail.
+- A hand-authored file that is wrong gets a sentence, not a stack trace.
+- The three substrate verbs are versioned like any other shape.
+- The `open` section of every debrief is the shapes' own gap log; that is how the formats grow.
+
 ## The weekend
 
 The ordinary failure case, not the catastrophic one. Saturday 13:00, sessions running on the home
@@ -449,6 +537,7 @@ bend against an invariant means we redesign, and the entry says how.
 | 2026-09-09 | Open questions → seams; gates, verifier and derivation sections added; Phyxius first-class | D5, D6, D13, vocabulary | Pre-repository, do not pretend to make every decision; leave seams for the evolutions we predict and build one then the other. | Yes, v0.1 in history | A pre-build note settles seams and the few non-retrofittable choices, not nuanced defaults. |
 | 2026-09-09 | First session by hand (node `scaffold`): the brief's base SHA is the graph's base, but a session starts at the commit that contains its brief, which cannot be known while writing it; the brief carried no role; the debrief cannot mark a hunk as generated (a 1080-line lockfile has no line-by-line decision); "effect" was named as a Phyxius primitive and none exists | Brief and debrief shapes, seams | Writing the first brief and debrief by hand, as planned, before the formats had code. | Yes, both files committed with the session | Brief gets a `graph_base_sha`; the session's start SHA lives in the context column and the debrief; the brief supplies the role; the debrief gets a `produces` relation so a decision can own a generated hunk; the verifier treats generated hunks as explained by the decision that produced them. |
 | 2026-09-09 | Rebasing the scaffold branch onto main rewrote every commit SHA; the debrief's `head_sha` and any receipt addressed by commit SHA went stale although not one byte under the node's code paths changed. The whole-repo tree changed too, because main had moved under docs the gates never read | Receipts, D5 | Content-addressing by commit SHA conflates content with history, and by whole-repo tree conflates the node's scope with everything else. | Yes, the pre-rebase SHA is in the debrief and the code paths are provably identical | Address a receipt by the content hash of the paths in the node's scope. A rebase or an unrelated docs merge that changes none of them keeps the receipt; a byte changed under them invalidates it. The commit SHA stays on the receipt as history, not identity. |
+| 2026-09-09 | Ledger node (second hand-run session, first under a workflow): the two professed gate commands in the graph could not run at all (pnpm option order, vitest has no --grep); persisted events carried no shape version; durability rode on a drain whose published stop() can lose an in-flight write; the debrief's decisions covered six notable choices and left 26 of 40 files unexplained; "disposition" was used as a type without a vocabulary row | Graph, vocabulary, I8, compatibility | Professed commands are professed until they run; the persisted journal is the one artifact whose version cannot be added later; Phyxius's drain read worse than a synchronous append for a ledger that writes a few events a minute; decisions are a manifest of the diff, not a highlights reel. | Yes, every finding is in the session's debrief and notes | Graph gate commands bent to the invocations that run; every journal line now carries `interlock: event@v1` with an upcast seam; drain replaced by a synchronous sink and reported upstream; disposition ratified into the vocabulary; a debrief's decisions must cover every changed file, and the mechanical ones are cheap to write. |
 | 2026-09-09 | Carried over from a prior work algebra: five gate states; cancelled and superseded terminals; failure / disposition / because; conserved retry budget; spend on receipts and spend-driven revival; empty receipt ≠ absent; abandoned written by a sweeper; lease bounds silence; outbox with an honest uncertain state; typed notes during the session; interrupted gets no invented debrief; role supplied by the brief; mandate spelled | D8, D12, I7, gates, verifier, lifecycle, vocabulary | The same laws were written a month earlier inside the substrate and each carried an incident that earned it. Carry what makes sense, leave what does not: the substrate's belief analysis and ratification doors stay on its side. | Yes, v0.2 in history | I7 had promised exactly once. Nothing can. Promise no lost intent and honest doubt instead. |
 
 ---
