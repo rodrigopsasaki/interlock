@@ -1,7 +1,6 @@
 import { isDerivation, type Derivation } from "./derivation.js";
 import { isRecord, isString, prop } from "./validate.js";
 
-// An ask or debrief phrase that maps to no term: telemetry, not belief.
 export interface Gap {
   readonly term: string;
   readonly nearest: string;

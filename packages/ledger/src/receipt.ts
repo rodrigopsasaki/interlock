@@ -13,8 +13,6 @@ export interface Receipt {
   readonly proof: Readonly<Record<string, unknown>>;
 }
 
-// Identity is the scope's content hash plus the gate id, never the commit
-// SHA — that is carried as history only.
 export async function receiptId(
   scope: readonly string[],
   gate: string,
@@ -52,7 +50,6 @@ export function isReceipt(value: unknown): value is Receipt {
   );
 }
 
-// A receipt whose scope no longer hashes to what it once proved.
 export interface Stale {
   readonly receipt: Receipt;
   readonly recomputedId: string;
