@@ -1,11 +1,8 @@
 import type { Clock } from "@phyxiusjs/clock";
 import { Journal } from "@phyxiusjs/journal";
 import type { LedgerEvent } from "./event.js";
-import {
-  applyEvent,
-  emptyProjection,
-  type LedgerProjection,
-} from "./projection.js";
+import { applyEvent, type LedgerProjection } from "./projection.js";
+import { readReplay } from "./replay.js";
 import { createLedgerDrain } from "./sink.js";
 
 export interface LedgerOptions {
@@ -19,13 +16,12 @@ export interface Ledger {
   close(): Promise<void>;
 }
 
-// A library, not a service: opens a journal over the injected clock, drains
-// it to the configured directory, and keeps a projection folded live from
-// the same events every reader could fold for themselves from the sink.
-export function createLedger(options: LedgerOptions): Ledger {
+// Crash-only: a second call over the same directory continues the prior run
+// instead of starting from empty.
+export async function createLedger(options: LedgerOptions): Promise<Ledger> {
   const journal = new Journal<LedgerEvent>({ clock: options.clock });
   const drain = createLedgerDrain(journal, options.clock, options.directory);
-  let current = emptyProjection();
+  let current = await readReplay(options.directory);
   journal.subscribe((entry) => {
     current = applyEvent(current, entry.data);
   });

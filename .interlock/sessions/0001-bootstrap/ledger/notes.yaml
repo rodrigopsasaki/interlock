@@ -158,3 +158,35 @@ entries:
       vocabulary table. Treated as brief-sanctioned rather than a coinage,
       since the brief itself names it; recorded as a discovery for the
       debrief and left as a gap AGENTS.md's own table could close later.
+  - kind: surprise
+    at: "2026-09-09T18:05:00Z"
+    expected: >
+      createLedger's projection to already reflect a prior run's events on a
+      second call over the same directory, since @phyxiusjs/drain's fileSink
+      genuinely accumulates history in journal.jsonl across restarts.
+    observed: >
+      createLedger always started `current` from emptyProjection() and never
+      read options.directory before subscribing; the sink's history and the
+      live projection were two disconnected pieces. Confirmed with a second
+      createLedger() call in a new replay.test.ts case: before the fix,
+      .projection() came back empty even though journal.jsonl held a full
+      prior run. Four independent verifiers flagged this as the acceptance's
+      "the only recovery path is the normal start path" going unmet.
+  - kind: choice
+    at: "2026-09-09T18:07:00Z"
+    chose: >
+      Made createLedger async and had it seed its live projection with
+      `await readReplay(options.directory)` before subscribing the journal,
+      rather than adding a second, separately-called "resume" function.
+    because: >
+      readReplay already exists and is exported for exactly this purpose
+      (d1's own gate-invocation work depends on it); a caller that wants a
+      ledger should not have to remember a second step to get a correct
+      starting projection. Re-seeding the in-memory Journal itself with
+      historical JournalEntry objects was rejected: the sink's own line
+      shape (timestamp as an ISO string, no monoMs, no entry id) cannot
+      honestly satisfy SerializedJournal's Instant-typed fields without a
+      cast, which the constraints forbid; the Journal only needs to carry
+      new entries forward from here, and the sink remains the source of
+      truth for everything before this process started.
+    rejected: ["a separate resumeLedger()/seed() function callers must remember to invoke", "reconstructing the Journal's own entries via Journal.fromJSON"]

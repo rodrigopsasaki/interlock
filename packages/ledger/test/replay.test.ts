@@ -44,9 +44,7 @@ function sameProjection(a: LedgerProjection, b: LedgerProjection): boolean {
   return JSON.stringify(normalize(a)) === JSON.stringify(normalize(b));
 }
 
-// How many of `raw`'s lines `replayFromRaw` will actually fold, using the
-// exact same per-line parser it uses — independent of `events`, the
-// originally recorded objects, so the comparison below is not circular.
+// Counts via `parseLine` itself, not `events.length`, so the assertion below never begs the question.
 function parseableEventCount(raw: string): number {
   let count = 0;
   for (const line of raw.split("\n")) {
@@ -60,7 +58,7 @@ describe("crash-only replay", () => {
   it("replays a truncated sink to the projection of some prefix of the recorded run, at every byte boundary", async () => {
     directory = mkdtempSync(join(runsRoot, "run-"));
     const clock = createControlledClock({ initialTime: 0 });
-    const ledger = createLedger({ clock, directory });
+    const ledger = await createLedger({ clock, directory });
 
     const node: Node = { graph: "0001-bootstrap", id: "ledger" };
     const receipt: Receipt = {
@@ -117,5 +115,47 @@ describe("crash-only replay", () => {
         sameProjection(replayed, fold(events.slice(0, expectedCount))),
       ).toBe(true);
     }
+  });
+
+  it("a second createLedger over the same directory continues the first run's projection", async () => {
+    directory = mkdtempSync(join(runsRoot, "run-"));
+    const clock = createControlledClock({ initialTime: 0 });
+    const node: Node = { graph: "0001-bootstrap", id: "ledger" };
+
+    const firstRun: readonly LedgerEvent[] = [
+      { kind: "node-created", node },
+      {
+        kind: "session-started",
+        session: { id: "session-1", node },
+        brief: {
+          graph: "0001-bootstrap",
+          node: "ledger",
+          role: "worker",
+          acceptance: "the ledger as a Phyxius journal",
+          gates: ["replay"],
+          scope: ["packages/ledger/src"],
+        },
+      },
+      { kind: "lease-taken", node, session: "session-1", expiry: 30_000 },
+    ];
+    const first = await createLedger({ clock, directory });
+    for (const event of firstRun) first.append(event);
+    await first.close();
+
+    const second = await createLedger({ clock, directory });
+    expect(sameProjection(second.projection(), fold(firstRun))).toBe(true);
+
+    const secondRunEvent: LedgerEvent = {
+      kind: "lease-expired",
+      node,
+      session: "session-1",
+    };
+    second.append(secondRunEvent);
+    await second.close();
+
+    const third = await createLedger({ clock, directory });
+    expect(
+      sameProjection(third.projection(), fold([...firstRun, secondRunEvent])),
+    ).toBe(true);
   });
 });
