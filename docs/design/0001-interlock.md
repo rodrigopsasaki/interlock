@@ -1,6 +1,6 @@
 # Interlock
 
-Design note · v0.3 · 2026-09-09
+Design note · v0.4 · 2026-09-09
 
 A harness for doing software work with agents: enough context that they decide and manage their
 own work, enough structure that you never lose control. Named for the railway interlocking: the mechanism that makes an unsafe signal impossible
@@ -431,8 +431,9 @@ be added without reopening the first. They are decided now.
 - **Derivation is required on every receipt and mark from the first commit.**
 - **The ledger is a Phyxius journal from day one.** Leases, receipts, transitions and outbox intents
   are appended events; state is a projection; crash-only recovery is replay. Clock makes stall
-  thresholds unit tests. Typed handlers are the gate kinds, the verbs and the transitions. Effect is
-  the outbox. Canonical logs are the drilldown. A reference implementation of the durable step with
+  thresholds unit tests. Typed handlers are the gate kinds, the verbs and the transitions. The outbox
+  composes the journal with a drain; there is no separate effect primitive. Canonical logs are the
+  drilldown. A reference implementation of the durable step with
   mandatory spend and receipt, and of the single-flight claim with heartbeat lease and
   revive-or-abandon sweep, already exists on the same Phyxius primitive and is read as prior art,
   never imported: keep its laws and its tests, rename its nouns.
@@ -446,6 +447,8 @@ bend against an invariant means we redesign, and the entry says how.
 | --- | --- | --- | --- | --- | --- |
 | 2026-09-09 | train → graph; parked → held; critical path, float, stale, cleared added | D13, vocabulary | A train asserts a linear shape the DAG does not have. Any single-object metaphor does. | Yes, v0 in history | Name the topology plainly; spend metaphor on behaviour words. |
 | 2026-09-09 | Open questions → seams; gates, verifier and derivation sections added; Phyxius first-class | D5, D6, D13, vocabulary | Pre-repository, do not pretend to make every decision; leave seams for the evolutions we predict and build one then the other. | Yes, v0.1 in history | A pre-build note settles seams and the few non-retrofittable choices, not nuanced defaults. |
+| 2026-09-09 | First session by hand (node `scaffold`): the brief's base SHA is the graph's base, but a session starts at the commit that contains its brief, which cannot be known while writing it; the brief carried no role; the debrief cannot mark a hunk as generated (a 1080-line lockfile has no line-by-line decision); "effect" was named as a Phyxius primitive and none exists | Brief and debrief shapes, seams | Writing the first brief and debrief by hand, as planned, before the formats had code. | Yes, both files committed with the session | Brief gets a `graph_base_sha`; the session's start SHA lives in the context column and the debrief; the brief supplies the role; the debrief gets a `produces` relation so a decision can own a generated hunk; the verifier treats generated hunks as explained by the decision that produced them. |
+| 2026-09-09 | Rebasing the scaffold branch onto main rewrote every commit SHA; the debrief's `head_sha` and any receipt addressed by commit SHA went stale although not one byte under the node's code paths changed. The whole-repo tree changed too, because main had moved under docs the gates never read | Receipts, D5 | Content-addressing by commit SHA conflates content with history, and by whole-repo tree conflates the node's scope with everything else. | Yes, the pre-rebase SHA is in the debrief and the code paths are provably identical | Address a receipt by the content hash of the paths in the node's scope. A rebase or an unrelated docs merge that changes none of them keeps the receipt; a byte changed under them invalidates it. The commit SHA stays on the receipt as history, not identity. |
 | 2026-09-09 | Carried over from a prior work algebra: five gate states; cancelled and superseded terminals; failure / disposition / because; conserved retry budget; spend on receipts and spend-driven revival; empty receipt ≠ absent; abandoned written by a sweeper; lease bounds silence; outbox with an honest uncertain state; typed notes during the session; interrupted gets no invented debrief; role supplied by the brief; mandate spelled | D8, D12, I7, gates, verifier, lifecycle, vocabulary | The same laws were written a month earlier inside the substrate and each carried an incident that earned it. Carry what makes sense, leave what does not: the substrate's belief analysis and ratification doors stay on its side. | Yes, v0.2 in history | I7 had promised exactly once. Nothing can. Promise no lost intent and honest doubt instead. |
 
 ---
