@@ -1,6 +1,7 @@
 import { appendFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Journal, Unsubscribe } from "@phyxiusjs/journal";
+import { envelopeFor } from "./envelope.js";
 import type { LedgerEvent } from "./event.js";
 
 export const JOURNAL_FILE_NAME = "journal.jsonl";
@@ -16,6 +17,6 @@ export function attachLedgerSink(
   mkdirSync(directory, { recursive: true });
   const path = journalPath(directory);
   return journal.subscribe((entry) => {
-    appendFileSync(path, `${JSON.stringify(entry.data)}\n`);
+    appendFileSync(path, `${JSON.stringify(envelopeFor(entry.data))}\n`);
   });
 }

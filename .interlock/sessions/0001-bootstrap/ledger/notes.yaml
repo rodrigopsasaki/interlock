@@ -249,3 +249,46 @@ entries:
       finding about Phyxius, not a reason to bend the ledger. This closes
       the residual drain gap the prior debrief left open.
     rejected: ["keeping drain with a smaller batchSize (verifier d2 already showed this makes stop()'s loss window worse, not smaller)", "vendoring a patched drain"]
+  - kind: choice
+    at: "2026-09-09T19:25:00Z"
+    chose: >
+      Added packages/ledger/src/envelope.ts: EVENT_SHAPE ("event@v1"),
+      envelopeFor (spreads a LedgerEvent under one leading `interlock`
+      field), shapeTag (reads that field back out of untyped JSON) and
+      upcastTable, a ReadonlyMap<string, Upcaster> whose only entry today
+      maps "event@v1" to the identity upcast (isLedgerEvent's own guard).
+      replay.ts's parseLine/replayFromRaw/readReplay all take that table
+      as an optional last argument, defaulting to the production one.
+    because: >
+      "matching how every other interlock artifact names its shape on
+      line one" (debrief.yaml, config.yaml) means the tag has to be a
+      plain sibling field, not a nested wrapper, so envelopeFor spreads
+      rather than wraps -- object key order puts `interlock` first in
+      the JSON.stringify output as long as it's the first key in the
+      literal. Taking the table as a parameter, not a module-level
+      global, is what lets a test register a synthetic upcaster without
+      mutating production state.
+    rejected: ["nesting the event under an `event` field inside the envelope (breaks the sibling-field convention every other interlock file on line one already uses)", "a module-level mutable table callers register into (a test's registration would leak across tests)"]
+  - kind: choice
+    at: "2026-09-09T19:30:00Z"
+    chose: >
+      readReplay and createLedger both now return
+      Result<_, ReplayRefusal> instead of throwing or silently folding a
+      partial projection when a persisted line's shape tag is unknown or
+      its body fails the registered upcaster's guard. The truncated-tail
+      case (a line that fails to parse as JSON at all, or an empty
+      trailing line) is untouched: parseLine still reports that as
+      `{kind:"tail"}` and replayFromRaw still stops there without an
+      error.
+    because: >
+      The finding is explicit that a bad shape tag "is NOT the same as
+      the truncated-tail case" -- folding both into the same silent stop
+      would make a genuinely corrupt or newer-than-this-build journal
+      line indistinguishable from an ordinary crash mid-write.
+      createLedger is the one place that calls readReplay, and letting
+      it swallow the Err (or throw) would just move the domain-reason
+      throw one call frame up instead of removing it; propagating the
+      same Result keeps every boundary that can fail on untrusted
+      persisted data honest, matching how proposeGateMove/buildCleared/
+      renewLease already refuse rather than throw.
+    rejected: ["having createLedger catch the refusal and start from emptyProjection() (silently discards a real corruption signal)", "throwing out of createLedger on a refusal (moves the domain-reason throw up one frame instead of removing it)"]

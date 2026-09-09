@@ -6,6 +6,8 @@ export type { Derivation } from "./derivation.js";
 export { derivation, isDerivation } from "./derivation.js";
 export type { Disposition } from "./disposition.js";
 export { isDisposition } from "./disposition.js";
+export type { EventEnvelope, Upcaster } from "./envelope.js";
+export { EVENT_SHAPE, envelopeFor, shapeTag, upcastTable } from "./envelope.js";
 export type { LedgerEvent } from "./event.js";
 export { isLedgerEvent } from "./event.js";
 export type { Gate, GateRefusal } from "./gate.js";
@@ -33,6 +35,7 @@ export {
 } from "./projection.js";
 export type { Receipt, Stale } from "./receipt.js";
 export { checkStale, createReceipt, isReceipt, receiptId } from "./receipt.js";
+export type { ParsedLine, ReplayRefusal } from "./replay.js";
 export { parseLine, readReplay, replayFromRaw } from "./replay.js";
 export type { Session } from "./session.js";
 export { isSession } from "./session.js";
