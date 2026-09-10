@@ -7,6 +7,7 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { gitInitFixture } from "./gitFixture.ts";
 
 vi.mock("ledger", async (importOriginal) => {
   const actual = await importOriginal<typeof import("ledger")>();
@@ -43,6 +44,7 @@ const validGraph = [
 
 function fixture(graphYaml: string): string {
   directory = mkdtempSync(join(runsRoot, "run-"));
+  gitInitFixture(directory);
   mkdirSync(join(directory, ".interlock", "graphs"), { recursive: true });
   writeFileSync(
     join(directory, ".interlock", "graphs", "demo.yaml"),

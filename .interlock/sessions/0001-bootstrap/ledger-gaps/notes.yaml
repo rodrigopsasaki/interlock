@@ -175,3 +175,64 @@ entries:
       held event only ever meant "waiting on a failed gate." The upcast to
       heldOn.gateFailure(failure, disposition) is lossless and unambiguous,
       with nothing to record under `open`.
+  - kind: choice
+    at: "2026-09-09T22:55:00Z"
+    chose: >
+      journalDirectory(repoRoot) keeps its exact signature and now runs
+      `git rev-parse --git-common-dir` with cwd=repoRoot, resolving that
+      path against repoRoot with node:path's `resolve` and joining the
+      dirname of the result with .interlock/ledger.
+    because: >
+      The common git dir's parent is the repository's own root shared by
+      every worktree, and the existing `.interlock/ledger/` .gitignore
+      entry already covers it. Keeping the signature identical means
+      approve.ts and show.ts need no call-site edits at all.
+  - kind: surprise
+    at: "2026-09-09T22:58:00Z"
+    expected: >
+      `git rev-parse --git-common-dir` would return a consistently
+      absolute or consistently relative path.
+    observed: >
+      It returns an ABSOLUTE path from a linked worktree (this
+      worktree's own) but a RELATIVE path (".git") when run inside the
+      main worktree itself -- verified both empirically. node:path's
+      `resolve(repoRoot, commonDir)` handles either case in one call, so
+      no isAbsolute branch was needed.
+  - kind: choice
+    at: "2026-09-09T23:00:00Z"
+    chose: >
+      Git-initialize each cli test fixture directory (+ one empty initial
+      commit, since currentCommitSha needs a resolvable HEAD) before
+      writing its graph file, factored into a shared
+      packages/cli/test/graph/gitFixture.ts helper used by both
+      approve.test.ts and show.test.ts.
+    because: >
+      Confirmed empirically (per the scout's own finding) that without a
+      `.git` of its own, a fixture directory nested inside this real
+      worktree is not a repository boundary at all: journalDirectory's new
+      git-common-dir walk would silently resolve to THIS worktree's own
+      real repository instead of the fixture, so the test suite's writes
+      would land outside the fixture. Ran this fix, then the full test
+      gate, and confirmed no journal.jsonl appeared under this worktree or
+      the fixture's own former per-worktree path -- only inside each
+      fixture's now-isolated .interlock/ledger.
+  - kind: surprise
+    at: "2026-09-09T23:05:00Z"
+    expected: >
+      `interlock graph show 0001-bootstrap`, run from this worktree after
+      the journal-per-repository fix, to report the graph as approved --
+      the repository's real journal was expected to hold the approval
+      the brief's fixture came from.
+    observed: >
+      It reports the graph STALE, not approved. The repository's real
+      shared journal (a two-line event@v1 journal a person wrote earlier
+      with `interlock graph approve`, the same fixture supplied to this
+      session) upcasts and reads correctly, but this very node
+      (ledger-gaps) was added to the graph file after that approval was
+      recorded, so the current content hash no longer matches the
+      receipt's -- exactly D20 and the bend log's own documented
+      stale-on-edit rule, not a defect. Recorded as a discovery in
+      debrief.yaml. Before this fix, per-worktree resolution made every
+      graph read "not approved" instead, hiding the repository's real,
+      already-recorded approval entirely. Re-approving is a human action
+      and stays out of this session's scope.
