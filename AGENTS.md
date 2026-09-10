@@ -89,6 +89,7 @@ a `gap`, recorded with the nearest term and the difference.
 | held | A node waiting at a signal: a fork that is yours, or a failed gate, with an expiry. Siblings proceed. |
 | mandate | A pre-ratified grant to act: who granted it, which action kind, in which context, until when, why. Never blanket. |
 | gap | An ask or debrief phrase that maps to no term. Telemetry, not belief. |
+| approved | The graph-level human gate whose receipt is content-addressed to the graph file. Its state is approved, stale since the file changed, or not approved. |
 
 ## Seams, and the first thing through each
 
