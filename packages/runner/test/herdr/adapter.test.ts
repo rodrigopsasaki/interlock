@@ -3,7 +3,11 @@ import { join, relative } from "node:path";
 import { randomUUID } from "node:crypto";
 import { isErr } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
-import { createHerdrRuntime } from "../../src/herdr/adapter.ts";
+import {
+  createHerdrRuntime,
+  generateAgentName,
+  isCompliantAgentName,
+} from "../../src/herdr/adapter.ts";
 import { startFakeHerdrServer, type FakeHerdrServer } from "./fakeServer.ts";
 
 // A Unix socket path is capped at ~104 bytes (macOS sockaddr_un): short and relative to this
@@ -170,5 +174,95 @@ describe("herdr adapter", () => {
     );
     expect(isErr(waited)).toBe(true);
     if (isErr(waited)) expect(waited.error.kind).toBe("timeout");
+  });
+
+  it("sends a herdr-compliant agent name on agent.start", async () => {
+    const fake = await fixture();
+    const created = await createHerdrRuntime(fake.socketPath);
+    if (isErr(created)) throw new Error("expected a runtime");
+    const pane = await created.value.openPane("/repo");
+    if (isErr(pane)) throw new Error("expected a pane");
+
+    const agent = await created.value.startAgent(pane.value, "claude", []);
+    if (isErr(agent)) throw new Error("expected an agent");
+    expect(isCompliantAgentName(agent.value.id)).toBe(true);
+
+    const startCall = fake.calls.find((call) => call.method === "agent.start");
+    expect(startCall?.params["name"]).toBe(agent.value.id);
+  });
+
+  it("sends an explicit startup timeout_ms on agent.start", async () => {
+    const fake = await fixture();
+    const created = await createHerdrRuntime(fake.socketPath);
+    if (isErr(created)) throw new Error("expected a runtime");
+    const pane = await created.value.openPane("/repo");
+    if (isErr(pane)) throw new Error("expected a pane");
+
+    const agent = await created.value.startAgent(pane.value, "claude", []);
+    if (isErr(agent)) throw new Error("expected an agent");
+
+    const startCall = fake.calls.find((call) => call.method === "agent.start");
+    expect(startCall?.params["timeout_ms"]).toBe(60_000);
+  });
+
+  it("settles a call with herdr's own code and message when it answers with an error frame", async () => {
+    const fake = await fixture();
+    const created = await createHerdrRuntime(fake.socketPath);
+    if (isErr(created)) throw new Error("expected a runtime");
+
+    fake.failNextCall(
+      "invalid_agent_name",
+      "agent name must start with a lowercase letter and contain only lowercase letters, digits, '-' or '_' (1-32 characters)",
+    );
+    const pane = await created.value.openPane("/repo");
+    expect(isErr(pane)).toBe(true);
+    if (isErr(pane))
+      expect(pane.error).toEqual({
+        kind: "remote",
+        code: "invalid_agent_name",
+        message:
+          "agent name must start with a lowercase letter and contain only lowercase letters, digits, '-' or '_' (1-32 characters)",
+      });
+  });
+
+  it("settles a withheld response as a call-timeout refusal naming the method", async () => {
+    const fake = await fixture();
+    const created = await createHerdrRuntime(fake.socketPath, 100);
+    if (isErr(created)) throw new Error("expected a runtime");
+
+    fake.withholdNextCall();
+    const pane = await created.value.openPane("/repo");
+    expect(isErr(pane)).toBe(true);
+    if (isErr(pane))
+      expect(pane.error).toEqual({
+        kind: "call-timeout",
+        method: "workspace.create",
+        timeoutMs: 100,
+      });
+  });
+});
+
+describe("herdr agent name compliance", () => {
+  it("generates names that start with a lowercase letter and use only lowercase letters, digits, - or _", () => {
+    for (let i = 0; i < 50; i += 1) {
+      const name = generateAgentName();
+      expect(isCompliantAgentName(name)).toBe(true);
+      expect(name.length).toBeLessThanOrEqual(32);
+    }
+  });
+
+  it("accepts the boundary cases of herdr's rule", () => {
+    expect(isCompliantAgentName("a")).toBe(true);
+    expect(isCompliantAgentName("il-1a2b3c4d")).toBe(true);
+    expect(isCompliantAgentName("a".repeat(32))).toBe(true);
+  });
+
+  it("rejects names herdr's own error would reject", () => {
+    expect(isCompliantAgentName("")).toBe(false);
+    expect(isCompliantAgentName("Il-1a2b3c4d")).toBe(false);
+    expect(isCompliantAgentName("1nterlock")).toBe(false);
+    expect(isCompliantAgentName("il on")).toBe(false);
+    expect(isCompliantAgentName("a".repeat(33))).toBe(false);
+    expect(isCompliantAgentName(`interlock-${randomUUID()}`)).toBe(false);
   });
 });

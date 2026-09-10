@@ -24,6 +24,12 @@ export type RuntimeRefusal =
       readonly until: readonly AgentStatus[];
       readonly timeoutMs: number;
     }
+  | {
+      readonly kind: "call-timeout";
+      readonly method: string;
+      readonly timeoutMs: number;
+    }
+  | { readonly kind: "remote"; readonly code: string; readonly message: string }
   | { readonly kind: "transport"; readonly because: string };
 
 export function explainRuntimeRefusal(refusal: RuntimeRefusal): string {
@@ -34,6 +40,10 @@ export function explainRuntimeRefusal(refusal: RuntimeRefusal): string {
       return `"${refusal.agentKind}": not a kind this runtime's agent host accepts.`;
     case "timeout":
       return `timed out after ${refusal.timeoutMs}ms waiting for one of: ${refusal.until.join(", ")}.`;
+    case "call-timeout":
+      return `${refusal.method}: no response within ${refusal.timeoutMs}ms.`;
+    case "remote":
+      return `${refusal.code}: ${refusal.message}`;
     case "transport":
       return refusal.because;
   }

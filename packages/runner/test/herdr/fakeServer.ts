@@ -11,6 +11,8 @@ export interface FakeHerdrServer {
   readonly socketPath: string;
   readonly calls: readonly RecordedCall[];
   agentStatus: string;
+  failNextCall(code: string, message: string): void;
+  withholdNextCall(): void;
   close(): Promise<void>;
 }
 
@@ -22,10 +24,8 @@ function respond(
   socket.write(`${JSON.stringify({ id, result })}\n`);
 }
 
-function fail(socket: Socket, id: string, message: string): void {
-  socket.write(
-    `${JSON.stringify({ id, error: { code: "unhandled", message } })}\n`,
-  );
+function fail(socket: Socket, id: string, code: string, message: string): void {
+  socket.write(`${JSON.stringify({ id, error: { code, message } })}\n`);
 }
 
 function panePayload(paneId: string): Record<string, unknown> {
@@ -48,6 +48,8 @@ export function startFakeHerdrServer(
   const calls: RecordedCall[] = [];
   const state = { agentStatus: "idle" };
   const sockets = new Set<Socket>();
+  let nextFailure: { code: string; message: string } | undefined;
+  let withholdNext = false;
 
   const server: Server = createServer((socket: Socket) => {
     sockets.add(socket);
@@ -73,6 +75,17 @@ export function startFakeHerdrServer(
     const params = prop(parsed, "params");
     if (!isString(id) || !isString(method) || !isRecord(params)) return;
     calls.push({ method, params });
+
+    if (withholdNext) {
+      withholdNext = false;
+      return;
+    }
+    if (nextFailure !== undefined) {
+      const { code, message } = nextFailure;
+      nextFailure = undefined;
+      fail(socket, id, code, message);
+      return;
+    }
 
     switch (method) {
       case "workspace.create":
@@ -103,7 +116,12 @@ export function startFakeHerdrServer(
         respond(socket, id, { read: { text: "fake agent output" } });
         return;
       default:
-        fail(socket, id, `fake herdr server does not implement "${method}"`);
+        fail(
+          socket,
+          id,
+          "unhandled",
+          `fake herdr server does not implement "${method}"`,
+        );
     }
   }
 
@@ -117,6 +135,12 @@ export function startFakeHerdrServer(
         },
         set agentStatus(value: string) {
           state.agentStatus = value;
+        },
+        failNextCall(code, message) {
+          nextFailure = { code, message };
+        },
+        withholdNextCall() {
+          withholdNext = true;
         },
         close() {
           for (const socket of sockets) socket.destroy();
