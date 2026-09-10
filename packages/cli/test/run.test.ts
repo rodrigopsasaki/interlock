@@ -9,7 +9,8 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
-import { err, ok } from "@phyxiusjs/fp";
+import { err, isOk, ok } from "@phyxiusjs/fp";
+import { readBriefFile } from "debrief";
 import { isLedgerEvent } from "ledger";
 import type { Runtime } from "runner";
 import { afterEach, describe, expect, it } from "vitest";
@@ -85,6 +86,36 @@ const localYaml = [
   "",
 ].join("\n");
 
+// The gates and scope here are engineered to exactly match what the runner will compute as
+// authoritative for the "demo"/"a" fixture below (standing gate "standing" then the node's own
+// "own-gate"; scope is every file the fixture commits), so the happy-path tests below see no
+// gate or scope narration from the rewrite. Tests that add files or gates of their own will.
+const demoBriefV1 = [
+  "---",
+  "interlock: brief@v1",
+  "graph: demo",
+  "node: a",
+  "role: worker",
+  "gates:",
+  "  - id: standing",
+  "    kind: command",
+  '    run: "true"',
+  "  - id: own-gate",
+  "    kind: command",
+  '    run: "true"',
+  "scope:",
+  "  - .interlock/config.yaml",
+  "  - .interlock/graphs/demo.yaml",
+  "  - .interlock/local.yaml",
+  "  - .interlock/sessions/demo/a/brief.md",
+  "substrate:",
+  "  address: none",
+  "---",
+  "",
+  "# brief",
+  "",
+].join("\n");
+
 const localYamlWithStartupAnswers = [
   "interlock: local@v0",
   "runtime:",
@@ -147,7 +178,7 @@ function fixture(
     });
     writeFileSync(
       join(directory, ".interlock", "sessions", "demo", "a", "brief.md"),
-      "# brief\n",
+      demoBriefV1,
     );
   }
   gitInitFixture(directory);
@@ -241,6 +272,33 @@ describe("interlock run", () => {
     );
     expect(journalAfter).toBe(journalBefore);
   });
+
+  it("refuses a brief@v0 node with the exact sentence, leaving the lease unrenewed", async () => {
+    const cwd = fixture({ withBrief: false });
+    mkdirSync(join(cwd, ".interlock", "sessions", "demo", "a"), {
+      recursive: true,
+    });
+    writeFileSync(
+      join(cwd, ".interlock", "sessions", "demo", "a", "brief.md"),
+      "# Brief · node `a` · graph `demo`\n",
+    );
+    commitAll(cwd, "add a legacy brief");
+    await runGraphApprove(
+      ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
+      { cwd },
+    );
+
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime: stubRuntime(),
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.message).toBe(
+      "brief refused: brief for demo/a is brief@v0; the runner requires brief@v1; add front matter",
+    );
+  }, 30_000);
 
   it("leases, worktrees, drives the injected runtime and gates a real node end to end", async () => {
     const cwd = fixture();
@@ -411,7 +469,7 @@ describe("interlock run", () => {
     });
     writeFileSync(
       join(cwd, ".interlock", "sessions", "demo", "a", "brief.md"),
-      "# brief\n",
+      demoBriefV1,
     );
 
     const result = await runInterlockRun(["demo", "a"], {
@@ -433,7 +491,12 @@ describe("interlock run", () => {
       "brief.md",
     );
     expect(existsSync(briefInWorktree)).toBe(true);
-    expect(readFileSync(briefInWorktree, "utf-8")).toBe("# brief\n");
+    const read = await readBriefFile(briefInWorktree);
+    if (!isOk(read) || read.value.kind !== "v1") {
+      throw new Error("expected the worktree copy to read as brief@v1");
+    }
+    expect(read.value.frontMatter.runner.kind).toBe("worktree");
+    expect(read.value.body).toContain("# brief");
   }, 30_000);
 
   it("narrates each step to stdout as it happens, ending on the agent's screen at judgement", async () => {

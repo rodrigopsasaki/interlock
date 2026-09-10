@@ -168,3 +168,26 @@ entries:
       The refusal now also covers a front-matter read failure and a legacy-brief refusal, and
       debrief's own BriefRefusal (the reader's refusal) needed the plain name without a
       collision. The shape changed enough that the name should too.
+
+  - kind: choice
+    at: "2026-09-10T15:50:00Z"
+    chose: >
+      Updated packages/cli/test/run.test.ts's shared fixture() brief.md from the placeholder
+      "# brief\n" (legacy) to a full brief@v1 front matter whose gates and scope are engineered
+      to exactly equal what the runner computes as authoritative for that fixture (standing gate
+      "standing" plus the node's own "own-gate"; scope the four files the fixture commits).
+    because: >
+      Once the runner refuses a v0 brief outright, every existing happy-path test needs a v1
+      brief to get past that step at all, and matching the authoritative values exactly keeps the
+      existing "narrates each step" test's exact-array assertion true without adding narration
+      noise to tests that were never about narration in the first place.
+
+  - kind: surprise
+    at: "2026-09-10T15:55:00Z"
+    expected: >
+      git ls-files' ordering would need to be treated as unspecified when hand-matching a test
+      fixture's declared scope to the runner's authoritative gitTrackedFiles() output.
+    observed: >
+      Empirically (verified against a throwaway fixture repo), git ls-files returns paths in the
+      git index's own byte-sorted order, which let the fixture brief above declare a scope list
+      that exactly matches the runner's authoritative computation.

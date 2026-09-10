@@ -20,10 +20,10 @@ import {
   createHerdrRuntime,
   ensureNodeWorktree,
   declaredGateIds,
-  explainBriefRefusal,
   explainGateJudgeRefusal,
   explainLocalConfigRefusal,
   explainRuntimeRefusal,
+  explainSessionBriefRefusal,
   explainStandingGatesRefusal,
   explainWorktreeRefusal,
   explainWorktreeSetupRefusal,
@@ -236,14 +236,22 @@ export async function runInterlockRun(
       worktreePath,
       graph,
       node,
+      graphBaseSha,
+      sessionId,
+      standingGates.value,
+      declaration.gates,
     );
     if (isErr(briefWritten)) {
-      const result = refuse("brief", explainBriefRefusal(briefWritten.error));
+      const result = refuse(
+        "brief",
+        explainSessionBriefRefusal(briefWritten.error),
+      );
       lease.stop();
       abandonLease();
       return result;
     }
     narrate("brief written");
+    for (const line of briefWritten.value.narration) narrate(line);
 
     for (const command of localConfig.value.worktreeSetup) {
       narrate(`worktree setup: ${command}`);
