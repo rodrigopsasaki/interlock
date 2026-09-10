@@ -23,6 +23,52 @@ describe("gateCommand", () => {
       "reviewed",
     ]);
   });
+
+  it("carries a standing gate's expect_output pattern into its command entry", () => {
+    const standing: readonly StandingGate[] = [
+      {
+        id: "test",
+        run: "pnpm test",
+        expectOutput: /Tests +[1-9][0-9]* passed/,
+      },
+    ];
+
+    const table = gateCommandTable(standing, []);
+    expect(table.get("test")).toEqual({
+      run: "pnpm test",
+      expectOutput: /Tests +[1-9][0-9]* passed/,
+    });
+  });
+
+  it("carries a node gate's own expect_output pattern, overriding the standing entry's", () => {
+    const standing: readonly StandingGate[] = [
+      { id: "test", run: "pnpm test", expectOutput: /standing pattern/ },
+    ];
+    const node: readonly GateDeclaration[] = [
+      {
+        id: "test",
+        kind: "command",
+        run: "pnpm --filter runner test",
+        expectOutput: /Tests +[1-9][0-9]* passed/,
+      },
+    ];
+
+    const table = gateCommandTable(standing, node);
+    expect(table.get("test")).toEqual({
+      run: "pnpm --filter runner test",
+      expectOutput: /Tests +[1-9][0-9]* passed/,
+    });
+  });
+
+  it("omits expect_output from a command entry when no pattern was declared", () => {
+    const standing: readonly StandingGate[] = [
+      { id: "typecheck", run: "pnpm typecheck" },
+    ];
+
+    const table = gateCommandTable(standing, []);
+    expect(table.get("typecheck")).toEqual({ run: "pnpm typecheck" });
+    expect(table.get("typecheck")).not.toHaveProperty("expectOutput");
+  });
 });
 
 describe("substituteGateCommand", () => {

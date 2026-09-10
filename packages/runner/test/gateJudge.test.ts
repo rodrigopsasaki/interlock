@@ -32,6 +32,12 @@ const node = { graph: "fixture", id: "n1" };
 const passCommand = `${process.execPath} -e process.exit(0)`;
 const failCommand = `${process.execPath} -e process.exit(1)`;
 
+// \x20 stands in for a literal space: the command line is split on whitespace with no shell
+// to keep a quoted argument together, so the -e script itself must contain none.
+const matchingOutputCommand = `${process.execPath} -e process.stdout.write("Tests\\x203\\x20passed\\x0a")`;
+const nonMatchingOutputCommand = `${process.execPath} -e process.stdout.write("Tests\\x200\\x20passed\\x0a")`;
+const testsPassedPattern = /Tests +[1-9][0-9]* passed/;
+
 describe("receipt-idempotent", () => {
   it("running the same gate twice over the same content writes one receipt identity and no duplicate fact", async () => {
     const root = fixture();
@@ -42,7 +48,7 @@ describe("receipt-idempotent", () => {
       node,
       session: "s1",
       declaredGateIds: ["always-pass"],
-      commandFor: new Map([["always-pass", passCommand]]),
+      commandFor: new Map([["always-pass", { run: passCommand }]]),
       worktree: root,
       scopeRoot: root,
       scopePaths: ["content.txt"],
@@ -78,7 +84,7 @@ describe("gateJudge", () => {
       node,
       session: "s1",
       declaredGateIds: ["always-fail"],
-      commandFor: new Map([["always-fail", failCommand]]),
+      commandFor: new Map([["always-fail", { run: failCommand }]]),
       worktree: root,
       scopeRoot: root,
       scopePaths: ["content.txt"],
@@ -185,7 +191,7 @@ describe("gateJudge", () => {
       node,
       session: "s1",
       declaredGateIds: ["foreign-none", "kept-local"],
-      commandFor: new Map([["foreign-none", failCommand]]),
+      commandFor: new Map([["foreign-none", { run: failCommand }]]),
       worktree: root,
       scopeRoot: root,
       scopePaths: ["content.txt"],
@@ -218,7 +224,7 @@ describe("gate command placeholders", () => {
       node: commandNode,
       session: "s1",
       declaredGateIds: ["echoes"],
-      commandFor: new Map([["echoes", "test {node} = n1"]]),
+      commandFor: new Map([["echoes", { run: "test {node} = n1" }]]),
       worktree: root,
       scopeRoot: root,
       scopePaths: ["content.txt"],
@@ -241,7 +247,7 @@ describe("gate command placeholders", () => {
       node,
       session: "s1",
       declaredGateIds: ["broken"],
-      commandFor: new Map([["broken", "pnpm run {branch}"]]),
+      commandFor: new Map([["broken", { run: "pnpm run {branch}" }]]),
       worktree: root,
       scopeRoot: root,
       scopePaths: ["content.txt"],
@@ -261,6 +267,121 @@ describe("gate command placeholders", () => {
         command: "pnpm run {branch}",
       },
     });
+  });
+});
+
+describe("expect_output", () => {
+  it("clears when the command exits zero and its output matches the declared pattern", async () => {
+    const root = fixture();
+    const ledger = memoryLedger();
+
+    const judged = await judgeGates({
+      ledger,
+      clock: createControlledClock(),
+      node,
+      session: "s1",
+      declaredGateIds: ["tested"],
+      commandFor: new Map([
+        [
+          "tested",
+          { run: matchingOutputCommand, expectOutput: testsPassedPattern },
+        ],
+      ]),
+      worktree: root,
+      scopeRoot: root,
+      scopePaths: ["content.txt"],
+      commitSha: "deadbeef",
+      runnerId: "run-1",
+      holdMs: 60_000,
+    });
+
+    if (isErr(judged)) throw new Error("expected an outcome");
+    expect(judged.value.kind).toBe("cleared");
+    const view = ledger.projection().nodes.get(nodeKey(node));
+    expect(view?.gates.get("tested")?.kind).toBe("satisfied");
+    const receipt = view?.receipts.find(
+      (candidate) => candidate.gate === "tested",
+    );
+    expect(receipt?.proof).toEqual({
+      exitCode: 0,
+      outputHash: expect.any(String),
+      outputMatched: true,
+      pattern: "Tests +[1-9][0-9]* passed",
+    });
+  });
+
+  it("holds when the command exits zero but its output does not match the declared pattern", async () => {
+    const root = fixture();
+    const ledger = memoryLedger();
+
+    const judged = await judgeGates({
+      ledger,
+      clock: createControlledClock(),
+      node,
+      session: "s1",
+      declaredGateIds: ["tested"],
+      commandFor: new Map([
+        [
+          "tested",
+          { run: nonMatchingOutputCommand, expectOutput: testsPassedPattern },
+        ],
+      ]),
+      worktree: root,
+      scopeRoot: root,
+      scopePaths: ["content.txt"],
+      commitSha: "deadbeef",
+      runnerId: "run-1",
+      holdMs: 60_000,
+    });
+
+    if (isErr(judged)) throw new Error("expected an outcome");
+    expect(judged.value.kind).toBe("held");
+    const view = ledger.projection().nodes.get(nodeKey(node));
+    const gateState = view?.gates.get("tested");
+    expect(gateState?.kind).toBe("blocked");
+    if (gateState?.kind !== "blocked") return;
+    expect(gateState.because).toBe(
+      "tested: output did not match /Tests +[1-9][0-9]* passed/",
+    );
+    const receipt = view?.receipts.find(
+      (candidate) => candidate.gate === "tested",
+    );
+    expect(receipt?.proof).toEqual({
+      exitCode: 0,
+      outputHash: expect.any(String),
+      outputMatched: false,
+      pattern: "Tests +[1-9][0-9]* passed",
+    });
+  });
+
+  it("fails on a nonzero exit even with a declared pattern, naming the exit code, not the pattern", async () => {
+    const root = fixture();
+    const ledger = memoryLedger();
+
+    const judged = await judgeGates({
+      ledger,
+      clock: createControlledClock(),
+      node,
+      session: "s1",
+      declaredGateIds: ["tested"],
+      commandFor: new Map([
+        ["tested", { run: failCommand, expectOutput: testsPassedPattern }],
+      ]),
+      worktree: root,
+      scopeRoot: root,
+      scopePaths: ["content.txt"],
+      commitSha: "deadbeef",
+      runnerId: "run-1",
+      holdMs: 60_000,
+    });
+
+    if (isErr(judged)) throw new Error("expected an outcome");
+    expect(judged.value.kind).toBe("held");
+    const view = ledger.projection().nodes.get(nodeKey(node));
+    const gateState = view?.gates.get("tested");
+    expect(gateState?.kind).toBe("blocked");
+    if (gateState?.kind !== "blocked") return;
+    expect(gateState.because).toBe("tested: exit 1");
   });
 });
 
@@ -355,7 +476,7 @@ describe("debrief ingestion", () => {
       node,
       session: "s1",
       declaredGateIds: ["always-pass"],
-      commandFor: new Map([["always-pass", passCommand]]),
+      commandFor: new Map([["always-pass", { run: passCommand }]]),
       worktree: root,
       scopeRoot: root,
       scopePaths: ["content.txt"],
@@ -392,7 +513,7 @@ describe("debrief ingestion", () => {
       node,
       session: "s1",
       declaredGateIds: ["always-pass"],
-      commandFor: new Map([["always-pass", passCommand]]),
+      commandFor: new Map([["always-pass", { run: passCommand }]]),
       worktree: root,
       scopeRoot: root,
       scopePaths: ["content.txt"],

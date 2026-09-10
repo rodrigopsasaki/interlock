@@ -75,6 +75,31 @@ function fixtureRepo(): string {
 const passCommand = `${process.execPath} -e process.exit(0)`;
 const failCommand = `${process.execPath} -e process.exit(1)`;
 
+// \x20 stands in for a literal space: the command line is split on whitespace with no shell
+// to keep a quoted argument together, so the -e script itself must contain none.
+const nonMatchingOutputCommand = `${process.execPath} -e process.stdout.write("Tests\\x200\\x20passed\\x0a")`;
+
+const documentWithExpectOutput: GraphDocument = {
+  id: "fixture-graph",
+  gates: [],
+  nodes: [
+    {
+      id: "node-a",
+      dependsOn: [],
+      gates: [
+        {
+          id: "own-gate",
+          kind: "command",
+          run: nonMatchingOutputCommand,
+          expectOutput: /Tests +[1-9][0-9]* passed/,
+        },
+      ],
+    },
+    { id: "node-b", dependsOn: ["node-a"], gates: [] },
+    { id: "node-undebriefed", dependsOn: [], gates: [] },
+  ],
+};
+
 const document: GraphDocument = {
   id: "fixture-graph",
   gates: [],
@@ -148,5 +173,36 @@ describe("backfill", () => {
       .projection()
       .nodes.get(nodeKey({ graph: "fixture-graph", id: "node-b" }));
     expect(nodeB?.gates.get("standing")?.kind).toBe("blocked");
+  }, 30_000);
+
+  it("holds a node whose command exits zero but its output does not match the node gate's expect_output", async () => {
+    const repoRoot = fixtureRepo();
+    const ledger = memoryLedger();
+
+    const backfilled = await backfillGraph({
+      repoRoot,
+      mainBranch: "main",
+      document: documentWithExpectOutput,
+      ledger,
+      clock: createControlledClock(),
+      standingGates: [{ id: "standing", run: passCommand }],
+      worktreeRoot: ".worktrees",
+    });
+
+    if (isErr(backfilled)) throw new Error("expected backfill to succeed");
+    const nodeAResult = backfilled.value.find(
+      (entry) => entry.node === "node-a",
+    );
+    expect(nodeAResult?.outcome.kind).toBe("held");
+
+    const nodeA = ledger
+      .projection()
+      .nodes.get(nodeKey({ graph: "fixture-graph", id: "node-a" }));
+    const ownGate = nodeA?.gates.get("own-gate");
+    expect(ownGate?.kind).toBe("blocked");
+    if (ownGate?.kind !== "blocked") return;
+    expect(ownGate.because).toBe(
+      "own-gate: output did not match /Tests +[1-9][0-9]* passed/",
+    );
   }, 30_000);
 });

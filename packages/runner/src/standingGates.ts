@@ -1,12 +1,14 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { err, ok, type Result } from "@phyxiusjs/fp";
+import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
+import { parseExpectOutput } from "ledger";
 import { parse as parseYaml, YAMLParseError } from "yaml";
 import { isRecord, isString, prop } from "./validate.ts";
 
 export interface StandingGate {
   readonly id: string;
   readonly run: string;
+  readonly expectOutput?: RegExp;
 }
 
 export type StandingGatesRefusal =
@@ -32,13 +34,8 @@ export function configPath(repoRoot: string): string {
   return join(repoRoot, ".interlock", "config.yaml");
 }
 
-function isStandingGate(value: unknown): value is StandingGate {
-  return (
-    isRecord(value) &&
-    isString(prop(value, "id")) &&
-    isString(prop(value, "run"))
-  );
-}
+const MALFORMED_STANDING_GATES =
+  '"standing_gates" must be a list of entries with a string "id" and "run"';
 
 export async function loadStandingGates(
   repoRoot: string,
@@ -71,15 +68,41 @@ export async function loadStandingGates(
     });
   }
   const standing = prop(parsed, "standing_gates");
-  if (!Array.isArray(standing) || !standing.every(isStandingGate)) {
-    return err({
-      kind: "malformed",
-      path,
-      reason:
-        '"standing_gates" must be a list of entries with a string "id" and "run"',
-    });
+  if (!Array.isArray(standing)) {
+    return err({ kind: "malformed", path, reason: MALFORMED_STANDING_GATES });
   }
-  return ok(standing);
+
+  const gates: StandingGate[] = [];
+  for (const entry of standing) {
+    if (!isRecord(entry)) {
+      return err({ kind: "malformed", path, reason: MALFORMED_STANDING_GATES });
+    }
+    const id = prop(entry, "id");
+    const run = prop(entry, "run");
+    const expectOutputSource = prop(entry, "expect_output");
+    if (
+      !isString(id) ||
+      !isString(run) ||
+      (expectOutputSource !== undefined && !isString(expectOutputSource))
+    ) {
+      return err({ kind: "malformed", path, reason: MALFORMED_STANDING_GATES });
+    }
+
+    if (expectOutputSource === undefined) {
+      gates.push({ id, run });
+      continue;
+    }
+    const compiled = parseExpectOutput(expectOutputSource);
+    if (isErr(compiled)) {
+      return err({
+        kind: "malformed",
+        path,
+        reason: `gate "${id}": expect_output "${expectOutputSource}" is not a valid regular expression (${compiled.error})`,
+      });
+    }
+    gates.push({ id, run, expectOutput: compiled.value });
+  }
+  return ok(gates);
 }
 
 function isNodeError(error: unknown): error is NodeJS.ErrnoException {

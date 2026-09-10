@@ -45,6 +45,24 @@ const graphYaml = [
   "",
 ].join("\n");
 
+const graphYamlWithExpectOutput = [
+  "interlock: graph@v0",
+  "id: demo",
+  "gates:",
+  "  - id: approved",
+  "    kind: human",
+  "nodes:",
+  "  - id: a",
+  "    acceptance: a trivial node",
+  "    depends_on: []",
+  "    gates:",
+  "      - id: own-gate",
+  "        kind: command",
+  '        run: "true"',
+  "        expect_output: 'Tests +[1-9][0-9]* passed'",
+  "",
+].join("\n");
+
 const configYaml = [
   "interlock: config@v0",
   "standing_gates:",
@@ -107,13 +125,14 @@ function fixture(
     readonly withLocal?: boolean;
     readonly withBrief?: boolean;
     readonly localYaml?: string;
+    readonly graphYaml?: string;
   } = {},
 ): string {
   directory = mkdtempSync(join(runsRoot, "run-"));
   mkdirSync(join(directory, ".interlock", "graphs"), { recursive: true });
   writeFileSync(
     join(directory, ".interlock", "graphs", "demo.yaml"),
-    graphYaml,
+    options.graphYaml ?? graphYaml,
   );
   writeFileSync(join(directory, ".interlock", "config.yaml"), configYaml);
   if (options.withLocal !== false) {
@@ -239,6 +258,23 @@ describe("interlock run", () => {
     expect(result.exitCode).toBe(0);
     expect(result.message).toContain("cleared");
     expect(existsSync(join(cwd, ".worktrees", "a"))).toBe(true);
+  }, 30_000);
+
+  it("holds a node whose gate command exits zero but its output does not match the graph's declared expect_output", async () => {
+    const cwd = fixture({ graphYaml: graphYamlWithExpectOutput });
+    await runGraphApprove(
+      ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
+      { cwd },
+    );
+
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime: stubRuntime(),
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.message).toContain("held");
   }, 30_000);
 
   it("narrates once when the runtime reports it waited for the pane's shell", async () => {

@@ -37,7 +37,7 @@ export {
 
 export { gitTrackedFiles } from "./scope.ts";
 export { unmetDependencies } from "./dependencies.ts";
-export type { PlaceholderRefusal } from "./gateCommand.ts";
+export type { GateCommand, PlaceholderRefusal } from "./gateCommand.ts";
 export {
   declaredGateIds,
   gateCommandTable,

@@ -29,6 +29,7 @@ import {
 } from "ledger";
 import {
   substituteGateCommand,
+  type GateCommand,
   type PlaceholderRefusal,
 } from "./gateCommand.ts";
 
@@ -57,7 +58,7 @@ export interface GateJudgeRequest {
   readonly node: Node;
   readonly session: string;
   readonly declaredGateIds: readonly string[];
-  readonly commandFor: ReadonlyMap<string, string>;
+  readonly commandFor: ReadonlyMap<string, GateCommand>;
   readonly worktree: string;
   readonly scopeRoot: string;
   readonly scopePaths: readonly string[];
@@ -96,6 +97,12 @@ function outputHash(output: string): string {
   return createHash("sha256").update(output).digest("hex");
 }
 
+function unmetCriterion(exitCode: number, pattern: RegExp | undefined): string {
+  return exitCode !== 0
+    ? `exit ${exitCode}`
+    : `output did not match /${pattern?.source ?? ""}/`;
+}
+
 export async function judgeGates(
   request: GateJudgeRequest,
 ): Promise<Result<Outcome, GateJudgeRefusal>> {
@@ -121,8 +128,8 @@ export async function judgeGates(
       continue;
     }
 
-    const command = commandFor.get(gateId) ?? "";
-    const substituted = substituteGateCommand(command, node);
+    const gateCommand = commandFor.get(gateId);
+    const substituted = substituteGateCommand(gateCommand?.run ?? "", node);
     if (isErr(substituted))
       return err({ kind: "placeholder", gateId, refusal: substituted.error });
 
@@ -133,6 +140,19 @@ export async function judgeGates(
     );
     const after = clock.now().monoMs;
 
+    const pattern = gateCommand?.expectOutput;
+    const satisfied =
+      exitCode === 0 && (pattern === undefined || pattern.test(output));
+    const proof =
+      pattern === undefined
+        ? { exitCode, outputHash: outputHash(output) }
+        : {
+            exitCode,
+            outputHash: outputHash(output),
+            outputMatched: pattern.test(output),
+            pattern: pattern.source,
+          };
+
     const built = await createReceipt(
       scopeRoot,
       scopePaths,
@@ -141,7 +161,7 @@ export async function judgeGates(
       spend.none(),
       duration.measured(elapsedSince(after, before)),
       derivation.gate(gateId, GATE_DERIVATION_VERSION, runnerId),
-      { exitCode, outputHash: outputHash(output) },
+      proof,
     );
     if (isErr(built)) return err({ kind: "scope", refusal: built.error });
     const receipt = built.value;
@@ -155,13 +175,12 @@ export async function judgeGates(
     }
     const effectiveReceipt = alreadyRecorded ?? receipt;
 
-    const next =
-      exitCode === 0
-        ? gate.satisfied(effectiveReceipt)
-        : gate.blocked(
-            `receipt ${effectiveReceipt.id}, exit code ${exitCode}`,
-            `${gateId} exited ${exitCode}`,
-          );
+    const next = satisfied
+      ? gate.satisfied(effectiveReceipt)
+      : gate.blocked(
+          `receipt ${effectiveReceipt.id}, ${unmetCriterion(exitCode, pattern)}`,
+          `${gateId}: ${unmetCriterion(exitCode, pattern)}`,
+        );
     const moved = proposeGateMove(declaredGateIds, gateId, current, next);
     if (isOk(moved)) {
       ledger.append({

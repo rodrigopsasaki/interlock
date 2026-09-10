@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { isErr, isOk, unwrap } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
 import { explainGraphRefusal, loadGraphDocument } from "../src/document.ts";
+import { findRepoRoot, graphFilePath } from "../src/root.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -155,5 +156,135 @@ describe("loadGraphDocument", () => {
     const document = unwrap(await loadGraphDocument(path));
     expect(document.nodes).toEqual([{ id: "a", dependsOn: [], gates: [] }]);
     expect(document.gates).toEqual([]);
+  });
+});
+
+describe("expect_output", () => {
+  it("compiles a node gate's pattern into a RegExp beside its command", async () => {
+    const path = write(
+      "graph.yaml",
+      [
+        "interlock: graph@v0",
+        "id: demo",
+        "nodes:",
+        "  - id: a",
+        "    depends_on: []",
+        "    gates:",
+        "      - id: test",
+        "        kind: command",
+        "        run: pnpm test",
+        "        expect_output: 'Tests +[1-9][0-9]* passed'",
+        "",
+      ].join("\n"),
+    );
+
+    const document = unwrap(await loadGraphDocument(path));
+    const testGate = document.nodes[0]?.gates[0];
+    expect(testGate?.expectOutput?.source).toBe("Tests +[1-9][0-9]* passed");
+    expect(testGate?.expectOutput?.test("Tests 3 passed")).toBe(true);
+    expect(testGate?.expectOutput?.test("Tests 0 passed")).toBe(false);
+  });
+
+  it("compiles a graph-level gate's pattern the same way", async () => {
+    const path = write(
+      "graph.yaml",
+      [
+        "interlock: graph@v0",
+        "id: demo",
+        "gates:",
+        "  - id: test",
+        "    kind: command",
+        "    run: pnpm test",
+        "    expect_output: 'ok'",
+        "nodes: []",
+        "",
+      ].join("\n"),
+    );
+
+    const document = unwrap(await loadGraphDocument(path));
+    expect(document.gates[0]?.expectOutput?.source).toBe("ok");
+  });
+
+  it("leaves expect_output undefined when the field is absent", async () => {
+    const path = write(
+      "graph.yaml",
+      [
+        "interlock: graph@v0",
+        "id: demo",
+        "nodes:",
+        "  - id: a",
+        "    depends_on: []",
+        "    gates:",
+        "      - id: typecheck",
+        "        kind: command",
+        "        run: pnpm typecheck",
+        "",
+      ].join("\n"),
+    );
+
+    const document = unwrap(await loadGraphDocument(path));
+    expect(document.nodes[0]?.gates).toEqual([
+      { id: "typecheck", kind: "command", run: "pnpm typecheck" },
+    ]);
+  });
+
+  it("refuses a malformed node gate pattern with a sentence naming the node and gate", async () => {
+    const path = write(
+      "graph.yaml",
+      [
+        "interlock: graph@v0",
+        "id: demo",
+        "nodes:",
+        "  - id: a",
+        "    depends_on: []",
+        "    gates:",
+        "      - id: test",
+        "        kind: command",
+        "        run: pnpm test",
+        "        expect_output: '(unclosed'",
+        "",
+      ].join("\n"),
+    );
+
+    const result = await loadGraphDocument(path);
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) return;
+    expect(result.error.kind).toBe("malformed-shape");
+    const message = explainGraphRefusal(result.error);
+    expect(message).toContain('node "a"');
+    expect(message).toContain('gate "test"');
+    expect(message).toContain("(unclosed");
+  });
+
+  it("parses the real bootstrap graph's expect_output criteria", async () => {
+    const repoRoot = findRepoRoot(import.meta.dirname);
+    if (repoRoot === undefined) throw new Error("expected a repo root");
+
+    const document = unwrap(
+      await loadGraphDocument(graphFilePath(repoRoot, "0001-bootstrap")),
+    );
+    const ledgerNode = document.nodes.find((node) => node.id === "ledger");
+    const replayGate = ledgerNode?.gates.find((gate) => gate.id === "replay");
+    expect(replayGate?.expectOutput?.source).toBe("Tests +[1-9][0-9]* passed");
+    expect(replayGate?.expectOutput?.test("Tests 12 passed")).toBe(true);
+    expect(replayGate?.expectOutput?.test("Tests 0 passed")).toBe(false);
+
+    const testGateIds = [
+      "replay",
+      "illegal-states",
+      "upcast-v1",
+      "one-adapter",
+      "receipt-idempotent",
+      "inverse-check",
+      "stale-approval",
+    ];
+    const allGates = document.nodes.flatMap((node) => node.gates);
+    for (const gateId of testGateIds) {
+      const declared = allGates.find((gate) => gate.id === gateId);
+      expect(declared?.expectOutput?.source).toBe("Tests +[1-9][0-9]* passed");
+    }
+
+    const dogfoodGate = allGates.find((gate) => gate.id === "dogfood");
+    expect(dogfoodGate?.expectOutput).toBeUndefined();
   });
 });

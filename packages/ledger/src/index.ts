@@ -24,6 +24,7 @@ export type { EventEnvelope, Upcaster } from "./envelope.ts";
 export { EVENT_SHAPE, envelopeFor, shapeTag, upcastTable } from "./envelope.ts";
 export type { LedgerEvent } from "./event.ts";
 export { isLedgerEvent } from "./event.ts";
+export { parseExpectOutput } from "./expectOutput.ts";
 export type { Gate, GateRefusal } from "./gate.ts";
 export { gate, isGate, proposeGateMove } from "./gate.ts";
 export type { Graph, Node } from "./graph.ts";

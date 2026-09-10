@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
+import { parseExpectOutput } from "ledger";
 import { parse as parseYaml, YAMLParseError } from "yaml";
 import { isStringArray, isRecord, isString, prop } from "./validate.ts";
 import { topologicalOrder } from "./topology.ts";
@@ -10,6 +11,7 @@ export interface GateDeclaration {
   readonly id: string;
   readonly kind: string;
   readonly run?: string;
+  readonly expectOutput?: RegExp;
 }
 
 export interface NodeDeclaration {
@@ -57,20 +59,51 @@ export function explainGraphRefusal(refusal: GraphRefusal): string {
   }
 }
 
-function isGateDeclaration(value: unknown): value is GateDeclaration {
-  if (!isRecord(value)) return false;
-  const run = prop(value, "run");
-  return (
-    isString(prop(value, "id")) &&
-    isString(prop(value, "kind")) &&
-    (run === undefined || isString(run))
-  );
-}
+const malformedGates = (context: string): string =>
+  `${context}"gates" must be a list of entries with a string "id" and "kind"`;
 
-function isGateDeclarationArray(
-  value: unknown,
-): value is readonly GateDeclaration[] {
-  return Array.isArray(value) && value.every(isGateDeclaration);
+function parseGateDeclarations(
+  raw: unknown,
+  context: string,
+): Result<readonly GateDeclaration[], string> {
+  if (raw === undefined) return ok([]);
+  if (!Array.isArray(raw)) return err(malformedGates(context));
+
+  const declarations: GateDeclaration[] = [];
+  for (const entry of raw) {
+    if (!isRecord(entry)) return err(malformedGates(context));
+
+    const id = prop(entry, "id");
+    const kind = prop(entry, "kind");
+    const run = prop(entry, "run");
+    const expectOutputSource = prop(entry, "expect_output");
+    if (
+      !isString(id) ||
+      !isString(kind) ||
+      (run !== undefined && !isString(run)) ||
+      (expectOutputSource !== undefined && !isString(expectOutputSource))
+    ) {
+      return err(malformedGates(context));
+    }
+
+    if (expectOutputSource === undefined) {
+      declarations.push({ id, kind, ...(run === undefined ? {} : { run }) });
+      continue;
+    }
+    const compiled = parseExpectOutput(expectOutputSource);
+    if (isErr(compiled)) {
+      return err(
+        `${context}gate "${id}": expect_output "${expectOutputSource}" is not a valid regular expression (${compiled.error})`,
+      );
+    }
+    declarations.push({
+      id,
+      kind,
+      ...(run === undefined ? {} : { run }),
+      expectOutput: compiled.value,
+    });
+  }
+  return ok(declarations);
 }
 
 function parseShape(parsed: unknown): Result<GraphDocument, string> {
@@ -86,12 +119,8 @@ function parseShape(parsed: unknown): Result<GraphDocument, string> {
   const id = prop(parsed, "id");
   if (!isString(id)) return err('"id" is missing or not a string');
 
-  const rawGates = prop(parsed, "gates");
-  if (rawGates !== undefined && !isGateDeclarationArray(rawGates)) {
-    return err(
-      '"gates" must be a list of entries with a string "id" and "kind"',
-    );
-  }
+  const parsedGates = parseGateDeclarations(prop(parsed, "gates"), "");
+  if (isErr(parsedGates)) return parsedGates;
 
   const rawNodes = prop(parsed, "nodes");
   if (!Array.isArray(rawNodes)) return err('"nodes" is missing or not a list');
@@ -114,22 +143,21 @@ function parseShape(parsed: unknown): Result<GraphDocument, string> {
       return err(`node "${nodeId}": "depends_on" must be a list of strings`);
     }
 
-    const rawNodeGates = prop(rawNode, "gates");
-    if (rawNodeGates !== undefined && !isGateDeclarationArray(rawNodeGates)) {
-      return err(
-        `node "${nodeId}": "gates" must be a list of entries with a string "id" and "kind"`,
-      );
-    }
+    const parsedNodeGates = parseGateDeclarations(
+      prop(rawNode, "gates"),
+      `node "${nodeId}": `,
+    );
+    if (isErr(parsedNodeGates)) return parsedNodeGates;
 
     nodes.push({
       id: nodeId,
       ...(rawAcceptance === undefined ? {} : { acceptance: rawAcceptance }),
       dependsOn: rawDependsOn ?? [],
-      gates: rawNodeGates ?? [],
+      gates: parsedNodeGates.value,
     });
   }
 
-  return ok({ id, gates: rawGates ?? [], nodes });
+  return ok({ id, gates: parsedGates.value, nodes });
 }
 
 export async function loadGraphDocument(
