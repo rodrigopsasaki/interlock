@@ -1,3 +1,28 @@
+---
+interlock: brief@v1
+graph: 0001-bootstrap
+node: verifier-hunks
+role: worker
+gates:
+  - id: typecheck
+    kind: command
+    run: pnpm typecheck
+  - id: test
+    kind: command
+    run: pnpm test
+  - id: debrief-valid
+    kind: command
+    run: pnpm interlock debrief validate {graph} {node}
+  - id: inverse-check
+    kind: command
+    run: pnpm --filter verifier --fail-if-no-match test --testNamePattern unexplained
+    expect_output: 'Tests +[1-9][0-9]* passed'
+scope:
+  - packages
+  - .interlock/sessions/0001-bootstrap/verifier-hunks
+substrate:
+  address: none
+---
 # Brief · node `verifier-hunks` · graph `0001-bootstrap`
 
 This brief is immutable once your session starts. If it is wrong, say so in the debrief; do not
