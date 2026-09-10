@@ -113,4 +113,65 @@ describe("sweeper", () => {
 
     expect(second).toEqual([]);
   });
+
+  it("collects a second dead session on the same node; the first's cancellation does not hide it", () => {
+    const ledger = memoryLedger();
+    ledger.append({
+      kind: "session-started",
+      session: { id: "session-1", node: node("a") },
+      brief: {
+        graph: "0001-bootstrap",
+        node: "a",
+        role: "worker",
+        acceptance: "",
+        gates: [],
+        scope: [],
+      },
+    });
+    ledger.append({
+      kind: "lease-taken",
+      node: node("a"),
+      session: "session-1",
+      expiry: 1_000,
+    });
+
+    const firstSweep = sweepExpiredLeases(ledger, 2_000);
+    expect(firstSweep).toEqual(["session-1"]);
+
+    ledger.append({
+      kind: "session-started",
+      session: { id: "session-2", node: node("a") },
+      brief: {
+        graph: "0001-bootstrap",
+        node: "a",
+        role: "worker",
+        acceptance: "",
+        gates: [],
+        scope: [],
+      },
+    });
+    ledger.append({
+      kind: "lease-taken",
+      node: node("a"),
+      session: "session-2",
+      expiry: 3_000,
+    });
+
+    const secondSweep = sweepExpiredLeases(ledger, 4_000);
+    expect(secondSweep).toEqual(["session-2"]);
+
+    const thirdSweep = sweepExpiredLeases(ledger, 5_000);
+    expect(thirdSweep).toEqual([]);
+
+    const projection = ledger.projection();
+    expect(projection.sessions.get("session-1")?.leaseExpired).toBe(true);
+    expect(projection.sessions.get("session-2")?.leaseExpired).toBe(true);
+    expect(projection.nodes.get("0001-bootstrap::a")?.outcome).toEqual(
+      outcome.cancelled(
+        [],
+        ABANDONED_AUTHORITY,
+        "lease session-2 expired at 3000 with no outcome",
+      ),
+    );
+  });
 });
