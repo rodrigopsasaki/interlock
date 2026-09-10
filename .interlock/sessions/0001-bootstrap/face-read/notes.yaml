@@ -47,3 +47,126 @@ entries:
       own esbuild-based resolution never cared about the distinction either way. `pnpm --filter
       ledger typecheck` and `pnpm --filter ledger test` both passed clean immediately after only
       touching src/*.ts, tsconfig.json and package.json.
+  - kind: choice
+    at: "2026-09-09T21:40:00Z"
+    chose: >
+      Pinned the new "yaml" dependency to an exact "2.9.0" (published 2026-05-11, about four
+      months before this session) in packages/face/package.json, rather than a floating "^2.9.0".
+    because: >
+      Matches scaffold's own c3 precedent for @types/node: pnpm's minimumReleaseAge policy rejects
+      a same-day-published version outright, and an exact, already-aged pin keeps a fresh install
+      deterministic regardless of the day it runs. Checked the real published version list and
+      publish timestamps via `npm view yaml versions/time` before choosing it, rather than assuming
+      a version number was safe.
+  - kind: choice
+    at: "2026-09-09T21:45:00Z"
+    chose: >
+      Wrote packages/face/src/validate.ts as a near-verbatim copy of ledger's own
+      validate.ts (isRecord/isString/isStringArray/prop), rather than importing it from ledger.
+    because: >
+      ledger's index.ts does not export these guards; they are private to that package. The brief
+      asks explicitly for "the same hand-written guards style the ledger uses," not a shared
+      dependency on ledger's internals, and duplicating four small structural predicates costs far
+      less than adding a cross-package internal API for something this small.
+  - kind: choice
+    at: "2026-09-09T21:50:00Z"
+    chose: >
+      Named the graph file's own raw shapes GraphDocument/NodeDeclaration/GateDeclaration rather
+      than reusing ledger's Node/Gate names.
+    because: >
+      ledger's Node is {graph, id} with no dependency edges (decision c11: "that topology belongs
+      to the interpreter") and Gate is a five-state runtime union -- neither shape matches what a
+      graph@v0 file's own "nodes[]"/"gates[]" entries actually carry (dependency edges, a command
+      string, no runtime state at all). Reusing the same names for a different shape would read as
+      the same concept when it is not, and both types are in scope together in position.ts
+      (imported from ledger) and document.ts (declared locally), so a name collision would need an
+      import alias regardless. "Document" is the brief's own word for this
+      ("a function from (graph document, projection, ...)"); "Declaration" is plain programming
+      English for one entry in it, not a harness noun -- flagged under `open` per I3, matching how
+      the ledger session flagged "disposition" for the same reason.
+  - kind: choice
+    at: "2026-09-09T22:10:00Z"
+    chose: >
+      topologicalOrder returns Result<readonly NodeDeclaration[], CycleRefusal>, a Kahn's-algorithm
+      order over the already-validated node list, with the cycle refusal naming only the nodes
+      actually still stuck (not every node in the graph).
+    because: >
+      A graph this size (single digits of nodes today, dozens at most before it stops being "a
+      position you glance at") has no need for a shortest-cycle-finding algorithm; reporting every
+      node Kahn's algorithm could not place is an honest, exact answer to "what is stuck," not an
+      approximation, and is what the loader's sentence error and criticalPath's own DP both need
+      as their one shared source of order.
+  - kind: choice
+    at: "2026-09-09T22:20:00Z"
+    chose: >
+      criticalPath takes an already-topologically-sorted node list (not a document) and computes
+      the longest chain by node count via one forward dynamic-programming pass, breaking ties by
+      keeping the first-encountered maximum.
+    because: >
+      Reusing topologicalOrder's own output, rather than re-deriving order inside criticalPath,
+      is the one-validator-one-source-of-truth principle applied to topology as well as to shape
+      validation; a forward DP pass over a topological order is the standard unweighted-longest-
+      path construction and needs no separate cycle check of its own, since its input is already
+      guaranteed acyclic by the caller.
+    rejected:
+      - "computing critical path directly from GraphDocument and re-deriving topological order inside criticalPath itself -- rejected because it would duplicate topologicalOrder's own traversal for no benefit, and because computePosition already needs the ordered list for node position too."
+  - kind: surprise
+    at: "2026-09-09T22:35:00Z"
+    expected: >
+      The bootstrap graph's own critical path would run through verifier-hunks, since it is the
+      node with the most dependencies (debrief-schema and runner-command-gate both).
+    observed: >
+      Hand-computing the DP by the algorithm's own tie-break rule (first-encountered max, scanning
+      each node's depends_on in the order the graph file lists them) gives scaffold -> ledger ->
+      runner-command-gate -> face -> self-run, five nodes -- the same length as the
+      verifier-hunks-through path, but face's branch is reached first because runner-command-gate
+      is listed before debrief-schema in the nodes each downstream node depends on. Running the
+      real CLI against the actual graph file confirmed this exact path before any test asserted it,
+      so the test in criticalPath.test.ts encodes the verified real answer, not a guess.
+  - kind: choice
+    at: "2026-09-09T22:45:00Z"
+    chose: >
+      computePosition takes (document, projection, contentHash) and is fully synchronous; every
+      I/O (reading the graph file, computing the content hash via ledger's own receiptId, reading
+      the journal via readReplay) happens in the CLI command before calling it.
+    because: >
+      This is the exact signature the brief specifies ("a function from (graph document,
+      projection, current graph content hash) to a position value"), and keeping every read
+      outside it is what makes it testable with plain fold()-built projections and literal graph
+      document objects, with no file system or ledger instance needed anywhere in position.test.ts.
+  - kind: choice
+    at: "2026-09-09T22:50:00Z"
+    chose: >
+      approvalState treats a waived "approved" gate the same as a satisfied one (compares its
+      receipt id to the current content hash either way); every other gate kind (pending, blocked,
+      superseded, or no gate at all) is not-approved.
+    because: >
+      D20 and the graph's own gates: block only ever name a human gate; buildCleared elsewhere in
+      ledger already treats satisfied and waived as the two receipt-bearing gate kinds
+      uniformly for the same reason. approve itself only ever produces satisfied, never waived --
+      nothing in this node ever constructs a waived approval -- but approvalState should still
+      answer correctly if a person waives the gate by hand later, since that is what the type
+      already allows.
+  - kind: choice
+    at: "2026-09-09T23:00:00Z"
+    chose: >
+      renderPosition is a separate pure function from computePosition, taking only a Position
+      value, with its own file (render.ts). Every correctness assertion in position.test.ts reads
+      the Position value directly; render.test.ts only smoke-tests that the text function is pure
+      and does not silently drop a node or the critical path.
+    because: >
+      The brief is explicit that tests hit the value, not the text; keeping computePosition free
+      of any string formatting is what makes that possible, and a plain text renderer is the
+      cheapest thing that satisfies "show reports approved, stale... or not approved" without
+      inventing a second display layer this node was never asked to build (no pane, no columns).
+  - kind: choice
+    at: "2026-09-09T23:10:00Z"
+    chose: >
+      Wrote findRepoRoot/graphFilePath/journalDirectory/currentCommitSha in packages/face/src/root.ts,
+      after grepping packages/ledger/src and packages/cli/src for any existing repo-root utility
+      and finding none.
+    because: >
+      D14 puts "reads fresh, owns nothing" loaders in packages/face, and both CLI commands need
+      the identical repo-root resolution (a graph id alone is not a path); one shared
+      implementation is the "one validator, two callers" principle applied to path resolution,
+      not just shape validation.
