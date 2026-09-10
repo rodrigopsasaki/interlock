@@ -5,11 +5,11 @@ import { afterEach, describe, expect, it } from "vitest";
 import { run } from "../src/main.ts";
 
 describe("interlock debrief validate", () => {
-  it("fails closed with a non-zero exit and a not-implemented message", async () => {
+  it("refuses with no arguments, naming the expected form", async () => {
     const result = await run(["debrief", "validate"]);
 
     expect(result.exitCode).not.toBe(0);
-    expect(result.message).toMatch(/not implemented/i);
+    expect(result.message).toContain("interlock debrief validate");
   });
 });
 

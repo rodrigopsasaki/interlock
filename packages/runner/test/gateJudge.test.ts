@@ -5,7 +5,7 @@ import { isErr } from "@phyxiusjs/fp";
 import { nodeKey, type Receipt } from "ledger";
 import { afterEach, describe, expect, it } from "vitest";
 import { judgeGates } from "../src/gateJudge.ts";
-import { memoryLedger } from "./support/memoryLedger.ts";
+import { memoryLedger, memoryLedgerWithLog } from "./support/memoryLedger.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -34,6 +34,7 @@ describe("receipt-idempotent", () => {
       ledger,
       clock: createControlledClock(),
       node,
+      session: "s1",
       declaredGateIds: ["always-pass"],
       commandFor: new Map([["always-pass", "true"]]),
       worktree: root,
@@ -69,6 +70,7 @@ describe("gateJudge", () => {
       ledger,
       clock: createControlledClock(),
       node,
+      session: "s1",
       declaredGateIds: ["always-fail"],
       commandFor: new Map([["always-fail", "false"]]),
       worktree: root,
@@ -115,6 +117,7 @@ describe("gateJudge", () => {
       ledger,
       clock: createControlledClock(),
       node,
+      session: "s1",
       declaredGateIds: ["reviewed"],
       commandFor: new Map(),
       worktree: root,
@@ -174,6 +177,7 @@ describe("gateJudge", () => {
       ledger,
       clock: createControlledClock(),
       node,
+      session: "s1",
       declaredGateIds: ["foreign-none", "kept-local"],
       commandFor: new Map([["foreign-none", "false"]]),
       worktree: root,
@@ -193,5 +197,208 @@ describe("gateJudge", () => {
     expect(
       view?.receipts.find((receipt) => receipt.gate === "kept-local")?.id,
     ).toBe("kept");
+  });
+});
+
+describe("gate command placeholders", () => {
+  it("substitutes {graph} and {node} before spawning", async () => {
+    const root = fixture();
+    const ledger = memoryLedger();
+    const commandNode = { graph: "fixture", id: "n1" };
+
+    const judged = await judgeGates({
+      ledger,
+      clock: createControlledClock(),
+      node: commandNode,
+      session: "s1",
+      declaredGateIds: ["echoes"],
+      commandFor: new Map([["echoes", "test {node} = n1"]]),
+      worktree: root,
+      scopeRoot: root,
+      scopePaths: ["content.txt"],
+      commitSha: "deadbeef",
+      runnerId: "run-1",
+      holdMs: 60_000,
+    });
+
+    if (isErr(judged)) throw new Error("expected an outcome");
+    expect(judged.value.kind).toBe("cleared");
+  });
+
+  it("refuses a gate command with an unknown placeholder", async () => {
+    const root = fixture();
+    const ledger = memoryLedger();
+
+    const judged = await judgeGates({
+      ledger,
+      clock: createControlledClock(),
+      node,
+      session: "s1",
+      declaredGateIds: ["broken"],
+      commandFor: new Map([["broken", "pnpm run {branch}"]]),
+      worktree: root,
+      scopeRoot: root,
+      scopePaths: ["content.txt"],
+      commitSha: "deadbeef",
+      runnerId: "run-1",
+      holdMs: 60_000,
+    });
+
+    expect(isErr(judged)).toBe(true);
+    if (!isErr(judged)) return;
+    expect(judged.error).toEqual({
+      kind: "placeholder",
+      gateId: "broken",
+      refusal: {
+        kind: "unknown-placeholder",
+        token: "branch",
+        command: "pnpm run {branch}",
+      },
+    });
+  });
+});
+
+const SHA = "a".repeat(40);
+
+function writeSession(
+  root: string,
+  graph: string,
+  nodeId: string,
+  debriefYaml: string,
+  notesYaml: string,
+): void {
+  const dir = join(root, ".interlock", "sessions", graph, nodeId);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, "debrief.yaml"), debriefYaml);
+  writeFileSync(join(dir, "notes.yaml"), notesYaml);
+}
+
+const v2Debrief = [
+  "interlock: debrief@v2",
+  "graph: fixture",
+  "node: n1",
+  "role: worker",
+  `graph_base_sha: ${SHA}`,
+  `session_start_sha: ${SHA}`,
+  `head_sha: ${SHA}`,
+  "derivation:",
+  "  kind: agent",
+  "  runtime: claude-code",
+  "  model: claude-sonnet-5",
+  "discoveries: []",
+  "decisions:",
+  "  - id: c1",
+  "    what: did a thing",
+  "    because: notes:1",
+  "    rests_on: []",
+  "    hunks: []",
+  "gates_run_by_agent: []",
+  "open: []",
+  "",
+].join("\n");
+
+const v0Debrief = [
+  "interlock: debrief@v0",
+  "graph: fixture",
+  "node: n1",
+  `base_sha: ${SHA}`,
+  `head_sha: ${SHA}`,
+  "derivation:",
+  "  kind: agent",
+  "  runtime: claude-code",
+  "  model: claude-sonnet-5",
+  "discoveries: []",
+  "decisions: []",
+  "gates_run_by_agent: []",
+  "open: []",
+  "",
+].join("\n");
+
+const notesYaml = [
+  "interlock: notes@v0",
+  "node: n1",
+  "entries:",
+  "  - kind: choice",
+  '    at: "2026-09-10T00:00:00Z"',
+  "    chose: did the thing",
+  "    because: it was needed",
+  "",
+].join("\n");
+
+describe("debrief ingestion", () => {
+  it("appends debrief-filed and every note-appended before the outcome, for a cleared v2 node", async () => {
+    const root = fixture();
+    writeSession(root, "fixture", "n1", v2Debrief, notesYaml);
+    const { ledger, events } = memoryLedgerWithLog();
+    ledger.append({
+      kind: "session-started",
+      session: { id: "s1", node },
+      brief: {
+        graph: node.graph,
+        node: node.id,
+        role: "worker",
+        acceptance: "fixture",
+        gates: ["always-pass"],
+        scope: [],
+      },
+    });
+
+    const judged = await judgeGates({
+      ledger,
+      clock: createControlledClock(),
+      node,
+      session: "s1",
+      declaredGateIds: ["always-pass"],
+      commandFor: new Map([["always-pass", "true"]]),
+      worktree: root,
+      scopeRoot: root,
+      scopePaths: ["content.txt"],
+      commitSha: "deadbeef",
+      runnerId: "run-1",
+      holdMs: 60_000,
+    });
+
+    if (isErr(judged)) throw new Error("expected an outcome");
+    expect(judged.value.kind).toBe("cleared");
+    const kinds = events.map((event) => event.kind);
+    expect(kinds.filter((kind) => kind === "debrief-filed")).toHaveLength(1);
+    expect(kinds.filter((kind) => kind === "note-appended")).toHaveLength(1);
+    expect(kinds.indexOf("debrief-filed")).toBeLessThan(
+      kinds.indexOf("outcome-set"),
+    );
+    expect(kinds.indexOf("note-appended")).toBeLessThan(
+      kinds.indexOf("outcome-set"),
+    );
+
+    const sessionView = ledger.projection().sessions.get("s1");
+    expect(sessionView?.debrief?.graph).toBe("fixture");
+    expect(sessionView?.notes).toHaveLength(1);
+  });
+
+  it("appends nothing beyond the outcome for a legacy-valid debrief", async () => {
+    const root = fixture();
+    writeSession(root, "fixture", "n1", v0Debrief, notesYaml);
+    const { ledger, events } = memoryLedgerWithLog();
+
+    const judged = await judgeGates({
+      ledger,
+      clock: createControlledClock(),
+      node,
+      session: "s1",
+      declaredGateIds: ["always-pass"],
+      commandFor: new Map([["always-pass", "true"]]),
+      worktree: root,
+      scopeRoot: root,
+      scopePaths: ["content.txt"],
+      commitSha: "deadbeef",
+      runnerId: "run-1",
+      holdMs: 60_000,
+    });
+
+    if (isErr(judged)) throw new Error("expected an outcome");
+    expect(judged.value.kind).toBe("cleared");
+    const kinds = events.map((event) => event.kind);
+    expect(kinds).not.toContain("debrief-filed");
+    expect(kinds).not.toContain("note-appended");
   });
 });

@@ -4,6 +4,12 @@ import type { Clock } from "@phyxiusjs/clock";
 import { elapsedSince } from "@phyxiusjs/clock";
 import { err, isErr, isOk, ok, type Result } from "@phyxiusjs/fp";
 import {
+  debriefFilePath,
+  notesFilePath,
+  readDebriefFile,
+  readNotesFile,
+} from "debrief";
+import {
   buildCleared,
   createReceipt,
   derivation,
@@ -21,22 +27,35 @@ import {
   type Outcome,
   type ScopeRefusal,
 } from "ledger";
+import {
+  substituteGateCommand,
+  type PlaceholderRefusal,
+} from "./gateCommand.ts";
 
 export const GATE_DERIVATION_VERSION = "runner@0";
 
-export type GateJudgeRefusal = {
-  readonly kind: "scope";
-  readonly refusal: ScopeRefusal;
-};
+export type GateJudgeRefusal =
+  | { readonly kind: "scope"; readonly refusal: ScopeRefusal }
+  | {
+      readonly kind: "placeholder";
+      readonly gateId: string;
+      readonly refusal: PlaceholderRefusal;
+    };
 
 export function explainGateJudgeRefusal(refusal: GateJudgeRefusal): string {
-  return explainScopeRefusal(refusal.refusal);
+  switch (refusal.kind) {
+    case "scope":
+      return explainScopeRefusal(refusal.refusal);
+    case "placeholder":
+      return `${refusal.gateId}: "${refusal.refusal.command}" names unknown placeholder "{${refusal.refusal.token}}".`;
+  }
 }
 
 export interface GateJudgeRequest {
   readonly ledger: Ledger;
   readonly clock: Clock;
   readonly node: Node;
+  readonly session: string;
   readonly declaredGateIds: readonly string[];
   readonly commandFor: ReadonlyMap<string, string>;
   readonly worktree: string;
@@ -84,6 +103,7 @@ export async function judgeGates(
     ledger,
     clock,
     node,
+    session,
     declaredGateIds,
     commandFor,
     worktree,
@@ -102,9 +122,13 @@ export async function judgeGates(
     }
 
     const command = commandFor.get(gateId) ?? "";
+    const substituted = substituteGateCommand(command, node);
+    if (isErr(substituted))
+      return err({ kind: "placeholder", gateId, refusal: substituted.error });
+
     const before = clock.now().monoMs;
     const { exitCode, output } = await spawnGateCommand(
-      ["mise", "exec", "--", ...tokenize(command)],
+      ["mise", "exec", "--", ...tokenize(substituted.value)],
       worktree,
     );
     const after = clock.now().monoMs;
@@ -162,6 +186,36 @@ export async function judgeGates(
         clock.now().wallMs + holdMs,
       );
 
+  if (resolved.kind === "cleared") {
+    await ingestDebrief(ledger, session, worktree, node);
+  }
+
   ledger.append({ kind: "outcome-set", node, outcome: resolved });
   return ok(resolved);
+}
+
+async function ingestDebrief(
+  ledger: Ledger,
+  session: string,
+  worktree: string,
+  node: Node,
+): Promise<void> {
+  const debriefRead = await readDebriefFile(
+    debriefFilePath(worktree, node.graph, node.id),
+  );
+  if (isErr(debriefRead) || debriefRead.value.kind !== "v2") return;
+
+  ledger.append({
+    kind: "debrief-filed",
+    session,
+    debrief: debriefRead.value.debrief,
+  });
+
+  const notesRead = await readNotesFile(
+    notesFilePath(worktree, node.graph, node.id),
+  );
+  if (isErr(notesRead)) return;
+  for (const note of notesRead.value) {
+    ledger.append({ kind: "note-appended", session, note });
+  }
 }

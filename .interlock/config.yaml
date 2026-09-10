@@ -5,7 +5,7 @@
 # the table of what must be true before a route can clear.
 #
 # The commands below name package scripts that the `scaffold` node of the bootstrap graph
-# must create. Until then this file professes; it does not run.
+# create. The runner runs them; `debrief-valid` fails closed until its validator exists.
 
 interlock: config@v0
 
@@ -18,9 +18,10 @@ standing_gates:
     run: pnpm test
   - id: debrief-valid
     kind: command
-    run: pnpm interlock debrief validate
+    run: pnpm interlock debrief validate {graph} {node}
     # A session that produced no valid debrief is held here. A person working by hand in an
-    # editor trips this gate on purpose; the post-hoc debrief is the escape hatch.
+    # editor trips this gate on purpose; the post-hoc debrief is the escape hatch. The runner
+    # substitutes {graph} and {node} when it runs a gate.
 
 substrate:
   address: none

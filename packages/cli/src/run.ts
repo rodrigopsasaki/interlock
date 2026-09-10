@@ -286,6 +286,7 @@ export async function runInterlockRun(
       ledger,
       clock,
       node: targetNode,
+      session: sessionId,
       declaredGateIds: gateIds,
       commandFor: gateCommandTable(standingGates.value, declaration.gates),
       worktree: worktreePath,

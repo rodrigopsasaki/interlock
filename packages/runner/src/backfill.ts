@@ -112,6 +112,7 @@ export async function backfillGraph(
       ledger,
       clock,
       node,
+      session: `${runnerId}-${declaration.id}`,
       declaredGateIds: declaredGateIds(standingGates, declaration.gates),
       commandFor: gateCommandTable(standingGates, declaration.gates),
       worktree: worktreePath,

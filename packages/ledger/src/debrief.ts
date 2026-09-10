@@ -23,6 +23,12 @@ export type DebriefDerivation =
   | { readonly kind: "agent"; readonly runtime: string; readonly model: string }
   | { readonly kind: "human"; readonly who: string };
 
+// Presence, not a kind: a debrief is drafted the moment this is set, authored otherwise.
+export interface Drafted {
+  readonly by: string;
+  readonly from: string;
+}
+
 export interface GateRun {
   readonly id: string;
   readonly result: "pass" | "fail";
@@ -42,6 +48,7 @@ export interface Debrief {
   readonly decisions: readonly Decision[];
   readonly gatesRunByAgent: readonly GateRun[];
   readonly open: readonly string[];
+  readonly drafted?: Drafted;
 }
 
 export function isDiscovery(value: unknown): value is Discovery {
@@ -85,6 +92,14 @@ export function isDebriefDerivation(
   }
 }
 
+export function isDrafted(value: unknown): value is Drafted {
+  return (
+    isRecord(value) &&
+    isString(prop(value, "by")) &&
+    isString(prop(value, "from"))
+  );
+}
+
 export function isGateRun(value: unknown): value is GateRun {
   if (!isRecord(value)) return false;
   const result = prop(value, "result");
@@ -103,6 +118,7 @@ export function isDebrief(value: unknown): value is Debrief {
   const discoveries = prop(value, "discoveries");
   const decisions = prop(value, "decisions");
   const gatesRunByAgent = prop(value, "gatesRunByAgent");
+  const drafted = prop(value, "drafted");
   return (
     isString(prop(value, "graph")) &&
     isString(prop(value, "node")) &&
@@ -117,6 +133,7 @@ export function isDebrief(value: unknown): value is Debrief {
     decisions.every(isDecision) &&
     Array.isArray(gatesRunByAgent) &&
     gatesRunByAgent.every(isGateRun) &&
-    isStringArray(prop(value, "open"))
+    isStringArray(prop(value, "open")) &&
+    (drafted === undefined || isDrafted(drafted))
   );
 }

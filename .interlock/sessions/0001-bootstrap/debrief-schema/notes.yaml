@@ -1,0 +1,191 @@
+interlock: notes@v0
+node: debrief-schema
+entries:
+  - kind: choice
+    at: "2026-09-10T01:05:00Z"
+    chose: >
+      Put the debrief@v0/v1/v2 readers and the notes@v0 reader in a new
+      package, packages/debrief, rather than folding them into
+      packages/ledger.
+    because: >
+      packages/ledger has no I/O and no "yaml" dependency today -- it is
+      pure types and guards, imported by every other package. Reading and
+      parsing YAML files is exactly the shape packages/face already keeps
+      separate from packages/ledger (document.ts's GraphDocument reader
+      next to graph.ts's Graph/Node type); a second file-reading concern
+      belongs in its own package by the same precedent, not folded into
+      the type package every other package already depends on.
+  - kind: choice
+    at: "2026-09-10T01:15:00Z"
+    chose: >
+      Made the debrief@v0 and debrief@v1 readers shallow at the per-item
+      level -- each discovery and decision only needs "id" and "what" to
+      be strings; found_at, mattered_because, rests_on and hunks are not
+      checked for legacy versions.
+    because: >
+      runner-command-gate/debrief.yaml's seven discoveries all spell the
+      field "matters_because" (present tense) rather than
+      "mattered_because", and the brief requires every one of the five
+      existing session directories to validate. A rule that reads legacy
+      content field-by-field against today's type would reject a real,
+      previously-accepted file for a spelling slip that mattered nothing
+      at the time it was written; legacy-valid has to mean "this file
+      still names a known shape tag and its top-level fields," not
+      "this file would also satisfy debrief@v2 if you squint."
+    rejected:
+      - "deep field validation for legacy versions too, tolerating known misspellings by name (a growing list of exceptions, and brittle against the next one)"
+  - kind: surprise
+    at: "2026-09-10T01:25:00Z"
+    expected: >
+      Reusing packages/ledger/src/note.ts's own isNote guard directly for
+      the notes@v0 reader, since it already types Note exactly.
+    observed: >
+      isNote rejects eight real, otherwise well-formed entries across
+      ledger-gaps/notes.yaml and runner-command-gate/notes.yaml. Each
+      writes "rejected: >", a YAML folded block scalar whose body reads
+      like ["a", "b"] but parses to one string, not a sequence --
+      isStringArray on a string is false, so isNote returns false for the
+      whole entry, chose/because and all.
+  - kind: choice
+    at: "2026-09-10T01:30:00Z"
+    chose: >
+      Wrote the notes@v0 entry reader to check only what the brief's own
+      rule names -- chose and because for a choice, expected and observed
+      for a surprise -- and to keep a "rejected" field only when it
+      parses as a real string array, dropping it silently otherwise
+      rather than failing the entry.
+    because: >
+      The brief's notes@v0 rule is "a choice with chose and a mandatory
+      because, or a surprise with expected and observed; anything else is
+      a sentence naming the entry index and what is missing" -- rejected
+      is not in that list, and it is optional on Note. Failing eight real,
+      otherwise-honest entries over an optional field's shape would
+      contradict "all five existing session directories must validate."
+    rejected:
+      - "reusing ledger's isNote as-is and accepting that those eight entries read as invalid (contradicts the corpus must validate)"
+      - "coercing a malformed rejected string into a single-element array (invents structure the file never had)"
+  - kind: choice
+    at: "2026-09-10T01:45:00Z"
+    chose: >
+      Hand-wrote a field-by-field parser for debrief@v2 (packages/debrief/src/debrief.ts,
+      decision.ts, discovery.ts, gateRun.ts), snake_case-to-camelCase mapping each field and
+      building the Debrief value directly, rather than remapping keys and
+      then delegating to ledger's isDebrief boolean guard.
+    because: >
+      The brief requires specific sentences -- "decision without because",
+      "head_sha not a SHA", a named missing field -- and isDebrief only
+      returns true or false with no reason. Mirroring
+      packages/face/src/document.ts's parseShape style, as the brief asks,
+      means walking each field and failing at the first one that is
+      wrong, with a sentence naming it.
+  - kind: choice
+    at: "2026-09-10T01:50:00Z"
+    chose: >
+      Added an optional "drafted?: Drafted" field directly to
+      packages/ledger/src/debrief.ts's Debrief interface, with an
+      isDrafted guard and an updated isDebrief, rather than keeping
+      "drafted" as a detail only the file-shape reader in packages/debrief
+      knows about.
+    because: >
+      The brief names packages/ledger/src/debrief.ts as "the specification
+      of debrief@v2" and asks for one new additive field on it. Compatibility
+      requires evolution to stay additive, and isLedgerEvent's
+      "debrief-filed" case already calls isDebrief at replay time -- a
+      drafted debrief a future command appends has to replay correctly,
+      which means the type, not only the file reader, has to know the
+      field exists.
+  - kind: surprise
+    at: "2026-09-10T02:05:00Z"
+    expected: >
+      Every session directory under .interlock/sessions/0001-bootstrap/
+      would carry a notes.yaml alongside its debrief.yaml, the way ledger,
+      face-read, ledger-gaps and runner-command-gate all do.
+    observed: >
+      scaffold has no notes.yaml at all -- only brief.md and debrief.yaml.
+      It is debrief@v0, the very first hand-authored session, and it
+      predates the notes.yaml convention existing.
+  - kind: choice
+    at: "2026-09-10T02:10:00Z"
+    chose: >
+      Made "interlock debrief validate <graph> <node>" treat a missing
+      notes.yaml as zero notes (a non-fatal "no notes were appended" line)
+      rather than a refusal, while any other notes.yaml refusal (malformed
+      YAML, an unknown shape tag, a bad entry) still fails the command.
+    because: >
+      scaffold has no notes.yaml because the format did not exist yet when
+      it ran, and the brief requires every one of the five existing
+      session directories to validate. Treating "the file never existed
+      for this vintage" the same as "the file exists and is wrong" would
+      fail a real, previously-accepted session for a convention it
+      predates.
+    rejected:
+      - "requiring notes.yaml only for debrief@v1 and debrief@v2, special-cased by version (adds a version-keyed branch for one historical fixture instead of one general rule)"
+  - kind: choice
+    at: "2026-09-10T02:25:00Z"
+    chose: >
+      Added a required "session: string" field to runner's GateJudgeRequest
+      -- threaded as the real sessionId from cli/run.ts, and synthesized
+      per node as `${runnerId}-${declaration.id}` in backfill.ts -- rather
+      than inventing a lookup inside judgeGates itself.
+    because: >
+      note-appended and debrief-filed both require a session id on the
+      ledger event, and cli/run.ts already has the real one in scope from
+      the session-started event it appends just before judging gates;
+      backfill has no live session to reuse, so it names one consistently
+      instead of leaving the field unfillable.
+  - kind: choice
+    at: "2026-09-10T02:35:00Z"
+    chose: >
+      Gated ingestion strictly on `resolved.kind === "cleared"` (every
+      declared gate, including debrief-valid, already satisfied) and made
+      a parse failure inside ingestion a silent no-op rather than a
+      GateJudgeRefusal.
+    because: >
+      By the time a node is cleared, the debrief-valid gate has already
+      run the same validator as a separate process and proven the file
+      readable; a parse failure at that point inside ingestion would be an
+      inconsistency in the runner, not a real user-facing refusal, and
+      ingestion should never be the reason a judged, cleared node fails to
+      record its outcome.
+  - kind: surprise
+    at: "2026-09-10T02:50:00Z"
+    expected: >
+      Appending debrief-filed and note-appended for a v2 node inside a
+      gateJudge.test.ts case would populate that session's SessionView in
+      ledger.projection().sessions automatically, the way outcome-set
+      populates a node's NodeView.
+    observed: >
+      projection.ts's withSession is a no-op when the session id is not
+      already a key in projection.sessions -- it only becomes one via a
+      prior session-started event. A node ingested by backfill, which
+      never appends session-started, writes real debrief-filed and
+      note-appended events to the journal, but no SessionView appears for
+      them; only a node judged after interlock run (which does append
+      session-started first) gets both the events and the live view.
+      Recorded under open rather than changed, since projection.ts belongs
+      to packages/ledger, not this node.
+  - kind: surprise
+    at: "2026-09-10T02:58:00Z"
+    expected: >
+      interlock debrief validate's own success messages would name a
+      debrief.yaml or notes.yaml path the way every other command's
+      messages do.
+    observed: >
+      findRepoRoot resolves an absolute filesystem path, and
+      debriefFilePath/notesFilePath build on it, so the two success lines
+      this command prints echoed the full local path down to the home
+      directory -- for a command whose real output this repository's own
+      debriefs quote verbatim. Made the two printed paths relative to the
+      repository root; the absolute path is still what is actually read.
+  - kind: choice
+    at: "2026-09-10T03:15:00Z"
+    chose: >
+      In requireItemsWithIdAndWhat (packages/debrief/src/debrief.ts), push
+      each item the loop already proved is a Record<string, unknown> with
+      a string id and what into a new items: Record<string, unknown>[]
+      array and return that, rather than keeping the single-line
+      `ok(raw as readonly Record<string, unknown>[])` the fix round's two
+      verifier findings named.
+    because: "verifier finding 1, verifier finding 2"
+    rejected:
+      - "a real isRecordArray(value): value is Record<string, unknown>[] type predicate in validate.ts, called once after the loop instead of inside it (an extra pass over an array the loop has already walked, for no narrowing the loop's own isRecord/isString checks don't already give)"
