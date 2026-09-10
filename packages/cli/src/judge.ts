@@ -98,14 +98,6 @@ export async function runInterlockJudge(
     };
   }
 
-  const worktreePath = join(repoRoot, localConfig.value.worktreeRoot, node);
-  if (!existsSync(worktreePath)) {
-    return {
-      exitCode: 1,
-      message: `${worktreePath}: no worktree there; nothing for judge to read.`,
-    };
-  }
-
   const journal = sharedJournalDirectory(repoRoot);
   const clock = options.clock ?? createSystemClock();
   const opened = await createLedger({ clock, directory: journal });
@@ -136,6 +128,14 @@ export async function runInterlockJudge(
       return {
         exitCode: 1,
         message: `${graph}: graph is ${approval}, not approved for its current content; refusing to lease "${node}".`,
+      };
+    }
+
+    const worktreePath = join(repoRoot, localConfig.value.worktreeRoot, node);
+    if (!existsSync(worktreePath)) {
+      return {
+        exitCode: 1,
+        message: `${worktreePath}: no worktree there; nothing for judge to read.`,
       };
     }
 
