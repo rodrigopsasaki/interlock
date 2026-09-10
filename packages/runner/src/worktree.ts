@@ -13,6 +13,11 @@ export type WorktreeRefusal =
       readonly kind: "diverged";
       readonly branch: string;
       readonly commit: string;
+    }
+  | {
+      readonly kind: "dirty-behind-base";
+      readonly branch: string;
+      readonly paths: number;
     };
 
 export function explainWorktreeRefusal(refusal: WorktreeRefusal): string {
@@ -21,8 +26,19 @@ export function explainWorktreeRefusal(refusal: WorktreeRefusal): string {
       return `git ${refusal.command.join(" ")}: ${refusal.because}`;
     case "diverged":
       return `branch "${refusal.branch}" carries commits beyond its base at ${refusal.commit}; refusing to discard them.`;
+    case "dirty-behind-base":
+      return `branch "${refusal.branch}" is behind its base with ${refusal.paths} uncommitted path(s); refusing to reset over them.`;
   }
 }
+
+export type WorktreeOutcome =
+  | { readonly kind: "created"; readonly path: string }
+  | {
+      readonly kind: "reused";
+      readonly path: string;
+      readonly uncommittedPaths: number;
+      readonly commitsBeyondBase: number;
+    };
 
 interface ExecError extends Error {
   readonly status: number | null;
@@ -77,23 +93,90 @@ function isAncestor(
   }
 }
 
+function commitsBeyondBase(
+  repoRoot: string,
+  base: string,
+  tip: string,
+): Result<number, WorktreeRefusal> {
+  const counted = git(repoRoot, ["rev-list", "--count", `${base}..${tip}`]);
+  if (isErr(counted)) return counted;
+  return ok(Number.parseInt(counted.value.trim(), 10));
+}
+
+// A porcelain line is two status characters, a space, then the path; a rename carries its
+// destination after " -> ". Never the source the commit above `reset --hard` would discard.
+function parsePorcelainPath(line: string): string {
+  const path = line.slice(3);
+  const arrow = path.indexOf(" -> ");
+  return arrow === -1 ? path : path.slice(arrow + 4);
+}
+
+export function uncommittedPaths(
+  worktreePath: string,
+): Result<readonly string[], WorktreeRefusal> {
+  const status = git(worktreePath, [
+    "status",
+    "--porcelain",
+    "--untracked-files=all",
+  ]);
+  if (isErr(status)) return status;
+  const paths = status.value
+    .split("\n")
+    .filter((line) => line.length > 0)
+    .map(parsePorcelainPath);
+  return ok(paths);
+}
+
+function reused(
+  path: string,
+  uncommittedPathCount: number,
+  commitsBeyondBaseCount: number,
+): WorktreeOutcome {
+  return {
+    kind: "reused",
+    path,
+    uncommittedPaths: uncommittedPathCount,
+    commitsBeyondBase: commitsBeyondBaseCount,
+  };
+}
+
+// Never resets over uncommitted work: a tip behind its base only fast-forwards when the tree is
+// clean, and a tip ahead of its base is prior work to resume, not a divergence to refuse.
 function reuseWorktree(
   repoRoot: string,
   path: string,
   sha: string,
   branch: string,
-): Result<string, WorktreeRefusal> {
+): Result<WorktreeOutcome, WorktreeRefusal> {
   const tip = git(repoRoot, ["rev-parse", branch]);
   if (isErr(tip)) return tip;
   const tipSha = tip.value.trim();
-  if (tipSha === sha) return ok(path);
 
-  const safe = isAncestor(repoRoot, tipSha, sha);
-  if (isErr(safe)) return safe;
-  if (!safe.value) return err({ kind: "diverged", branch, commit: tipSha });
+  const dirty = uncommittedPaths(path);
+  if (isErr(dirty)) return dirty;
+  const dirtyCount = dirty.value.length;
 
+  if (tipSha === sha) return ok(reused(path, dirtyCount, 0));
+
+  const tipBehindBase = isAncestor(repoRoot, tipSha, sha);
+  if (isErr(tipBehindBase)) return tipBehindBase;
+
+  if (!tipBehindBase.value) {
+    const baseBehindTip = isAncestor(repoRoot, sha, tipSha);
+    if (isErr(baseBehindTip)) return baseBehindTip;
+    if (!baseBehindTip.value) {
+      return err({ kind: "diverged", branch, commit: tipSha });
+    }
+    const ahead = commitsBeyondBase(repoRoot, sha, tipSha);
+    if (isErr(ahead)) return ahead;
+    return ok(reused(path, dirtyCount, ahead.value));
+  }
+
+  if (dirtyCount > 0) {
+    return err({ kind: "dirty-behind-base", branch, paths: dirtyCount });
+  }
   const reset = git(path, ["reset", "--hard", sha]);
-  return isOk(reset) ? ok(path) : reset;
+  return isOk(reset) ? ok(reused(path, 0, 0)) : reset;
 }
 
 export function ensureNodeWorktree(
@@ -101,7 +184,7 @@ export function ensureNodeWorktree(
   path: string,
   sha: string,
   branch: string,
-): Result<string, WorktreeRefusal> {
+): Result<WorktreeOutcome, WorktreeRefusal> {
   if (existsSync(join(path, ".git"))) {
     return reuseWorktree(repoRoot, path, sha, branch);
   }
@@ -109,7 +192,40 @@ export function ensureNodeWorktree(
     ? ["worktree", "add", path, branch]
     : ["worktree", "add", "-b", branch, path, sha];
   const added = git(repoRoot, args);
-  return isOk(added) ? ok(path) : added;
+  return isOk(added) ? ok({ kind: "created", path }) : added;
+}
+
+const BRIEF_COMMIT_FOOTER =
+  "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>";
+
+// Commits the brief the runner just wrote, and only the brief: the worktree is clean when the
+// agent starts, and R2's uncommitted-work check holds on a node's first run, not only resumed
+// ones. Never touches git identity; whatever the worktree's own config resolves is who commits.
+export function commitBriefIfChanged(
+  worktreePath: string,
+  briefRelativePath: string,
+  node: string,
+  session: string,
+): Result<string | undefined, WorktreeRefusal> {
+  const dirty = uncommittedPaths(worktreePath);
+  if (isErr(dirty)) return dirty;
+  if (!dirty.value.includes(briefRelativePath)) return ok(undefined);
+
+  const added = git(worktreePath, ["add", "--", briefRelativePath]);
+  if (isErr(added)) return added;
+
+  const message = [
+    `chore(${node}): write the session brief`,
+    "",
+    `Writes the session brief ${node} starts session ${session} from.`,
+    "",
+    BRIEF_COMMIT_FOOTER,
+  ].join("\n");
+  const committed = git(worktreePath, ["commit", "-m", message]);
+  if (isErr(committed)) return committed;
+
+  const short = git(worktreePath, ["rev-parse", "--short", "HEAD"]);
+  return isOk(short) ? ok(short.value.trim()) : short;
 }
 
 export function createDetachedWorktree(
