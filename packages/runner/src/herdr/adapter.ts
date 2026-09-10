@@ -107,73 +107,81 @@ function parseFrame(line: string): RpcSuccess | RpcFailure | undefined {
   return undefined;
 }
 
-interface HerdrClient {
-  call(
-    method: string,
-    params: Readonly<Record<string, unknown>>,
-    timeoutMs?: number,
-  ): Promise<Result<Record<string, unknown>, RuntimeRefusal>>;
-  close(): void;
-}
-
-function connectHerdr(
+// herdr serves one request per connection and closes the socket once its response is written,
+// so a call owns its own connection end to end: connect, write one frame, read the matching
+// frame, close. Nothing here is reused across calls.
+function callHerdr(
   socketPath: string,
-  defaultCallTimeoutMs: number,
-): Promise<Result<HerdrClient, RuntimeRefusal>> {
+  method: string,
+  params: Readonly<Record<string, unknown>>,
+  timeoutMs: number,
+): Promise<Result<Record<string, unknown>, RuntimeRefusal>> {
   return new Promise((resolve) => {
+    const id = randomUUID();
     const socket = connect(socketPath);
-    const pending = new Map<string, (frame: RpcSuccess | RpcFailure) => void>();
     let buffer = "";
+    let settled = false;
+
+    const settle = (
+      result: Result<Record<string, unknown>, RuntimeRefusal>,
+    ) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(deadline);
+      socket.destroy();
+      resolve(result);
+    };
+
+    const deadline = setTimeout(() => {
+      settle(err({ kind: "call-timeout", method, timeoutMs }));
+    }, timeoutMs);
 
     socket.once("error", () => {
-      resolve(err({ kind: "no-socket", path: socketPath }));
+      settle(err({ kind: "no-socket", path: socketPath }));
     });
 
     socket.once("connect", () => {
-      socket.removeAllListeners("error");
-      socket.on("error", () => undefined);
-      socket.on("data", (chunk: Buffer) => {
-        buffer += chunk.toString("utf-8");
-        let boundary = buffer.indexOf("\n");
-        while (boundary !== -1) {
-          const line = buffer.slice(0, boundary);
-          buffer = buffer.slice(boundary + 1);
-          const frame = line.trim().length === 0 ? undefined : parseFrame(line);
-          if (frame !== undefined) pending.get(frame.id)?.(frame);
-          if (frame !== undefined) pending.delete(frame.id);
-          boundary = buffer.indexOf("\n");
-        }
-      });
+      socket.write(`${JSON.stringify({ id, method, params })}\n`);
+    });
 
-      resolve(
-        ok({
-          call(method, params, timeoutMs = defaultCallTimeoutMs) {
-            return new Promise((resolveCall) => {
-              const id = randomUUID();
-              const deadline = setTimeout(() => {
-                pending.delete(id);
-                resolveCall(err({ kind: "call-timeout", method, timeoutMs }));
-              }, timeoutMs);
-              pending.set(id, (frame) => {
-                clearTimeout(deadline);
-                resolveCall(
-                  "error" in frame
-                    ? err({
-                        kind: "remote",
-                        code: frame.error.code,
-                        message: frame.error.message,
-                      })
-                    : ok(frame.result),
-                );
-              });
-              socket.write(`${JSON.stringify({ id, method, params })}\n`);
-            });
-          },
-          close() {
-            socket.end();
-          },
-        }),
-      );
+    socket.on("data", (chunk: Buffer) => {
+      buffer += chunk.toString("utf-8");
+      let boundary = buffer.indexOf("\n");
+      while (boundary !== -1) {
+        const line = buffer.slice(0, boundary);
+        buffer = buffer.slice(boundary + 1);
+        const frame = line.trim().length === 0 ? undefined : parseFrame(line);
+        if (frame !== undefined && frame.id === id) {
+          settle(
+            "error" in frame
+              ? err({
+                  kind: "remote",
+                  code: frame.error.code,
+                  message: frame.error.message,
+                })
+              : ok(frame.result),
+          );
+          return;
+        }
+        boundary = buffer.indexOf("\n");
+      }
+    });
+  });
+}
+
+// One throwaway connection, made and closed before any real call, so a missing herdr refuses
+// early with its own reason instead of surfacing as a mysterious first-call timeout.
+function verifyHerdrSocket(
+  socketPath: string,
+): Promise<Result<void, RuntimeRefusal>> {
+  return new Promise((resolve) => {
+    const socket = connect(socketPath);
+    socket.once("error", () => {
+      resolve(err({ kind: "no-socket", path: socketPath }));
+    });
+    socket.once("connect", () => {
+      socket.destroy();
+      resolve(ok(undefined));
     });
   });
 }
@@ -182,13 +190,18 @@ export async function createHerdrRuntime(
   socketPath: string = defaultHerdrSocketPath(),
   defaultCallTimeoutMs: number = DEFAULT_CALL_TIMEOUT_MS,
 ): Promise<Result<Runtime, RuntimeRefusal>> {
-  const connected = await connectHerdr(socketPath, defaultCallTimeoutMs);
-  if (isErr(connected)) return connected;
-  const client = connected.value;
+  const verified = await verifyHerdrSocket(socketPath);
+  if (isErr(verified)) return verified;
+
+  const call = (
+    method: string,
+    params: Readonly<Record<string, unknown>>,
+    timeoutMs: number = defaultCallTimeoutMs,
+  ) => callHerdr(socketPath, method, params, timeoutMs);
 
   return ok({
     async openPane(cwd) {
-      const created = await client.call("workspace.create", {
+      const created = await call("workspace.create", {
         cwd,
         focus: false,
       });
@@ -206,7 +219,7 @@ export async function createHerdrRuntime(
       if (!AGENT_KINDS.has(kind))
         return err({ kind: "unknown-agent-kind", agentKind: kind });
       const name = generateAgentName();
-      const started = await client.call(
+      const started = await call(
         "agent.start",
         {
           name,
@@ -221,14 +234,14 @@ export async function createHerdrRuntime(
     },
 
     async reportIdentity(agent: Agent, label: string, identity: AgentIdentity) {
-      const reportedAgent = await client.call("pane.report_agent", {
+      const reportedAgent = await call("pane.report_agent", {
         pane_id: agent.pane.id,
         source: "interlock",
         agent: label,
         state: "working",
       });
       if (isErr(reportedAgent)) return reportedAgent;
-      const reportedSession = await client.call("pane.report_agent_session", {
+      const reportedSession = await call("pane.report_agent_session", {
         pane_id: agent.pane.id,
         source: "interlock",
         agent: label,
@@ -241,7 +254,7 @@ export async function createHerdrRuntime(
     },
 
     async prompt(agent: Agent, text: string) {
-      const prompted = await client.call("agent.prompt", {
+      const prompted = await call("agent.prompt", {
         target: agent.id,
         text,
       });
@@ -253,7 +266,7 @@ export async function createHerdrRuntime(
       until: readonly AgentStatus[],
       timeoutMs: number,
     ) {
-      const waited = await client.call(
+      const waited = await call(
         "agent.wait",
         { target: agent.id, until, timeout_ms: timeoutMs },
         timeoutMs + CALL_DEADLINE_MARGIN_MS,
@@ -266,7 +279,7 @@ export async function createHerdrRuntime(
     },
 
     async read(agent: Agent) {
-      const read = await client.call("agent.read", {
+      const read = await call("agent.read", {
         target: agent.id,
         source: "recent",
       });
@@ -281,7 +294,7 @@ export async function createHerdrRuntime(
     },
 
     async sendKeys(agent: Agent, keys: readonly string[]) {
-      const sent = await client.call("agent.send_keys", {
+      const sent = await call("agent.send_keys", {
         target: agent.id,
         keys,
       });
@@ -289,7 +302,7 @@ export async function createHerdrRuntime(
     },
 
     async closePane(pane: Pane) {
-      const closed = await client.call("pane.close", { pane_id: pane.id });
+      const closed = await call("pane.close", { pane_id: pane.id });
       return isErr(closed) ? closed : ok(undefined);
     },
   });

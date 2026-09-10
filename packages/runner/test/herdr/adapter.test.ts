@@ -225,6 +225,23 @@ describe("herdr adapter", () => {
       });
   });
 
+  it("settles two calls back to back, each on its own connection", async () => {
+    const fake = await fixture();
+    const created = await createHerdrRuntime(fake.socketPath);
+    if (isErr(created)) throw new Error("expected a runtime");
+    const runtime = created.value;
+
+    const first = await runtime.openPane("/repo/one");
+    expect(isErr(first)).toBe(false);
+    const second = await runtime.openPane("/repo/two");
+    expect(isErr(second)).toBe(false);
+
+    expect(fake.calls.map((call) => call.method)).toEqual([
+      "workspace.create",
+      "workspace.create",
+    ]);
+  });
+
   it("settles a withheld response as a call-timeout refusal naming the method", async () => {
     const fake = await fixture();
     const created = await createHerdrRuntime(fake.socketPath, 100);
