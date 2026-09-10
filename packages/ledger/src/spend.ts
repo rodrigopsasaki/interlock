@@ -1,4 +1,4 @@
-import { isRecord, prop } from "./validate.js";
+import { isRecord, prop } from "./validate.ts";
 
 export type Spend =
   | { readonly kind: "none" }

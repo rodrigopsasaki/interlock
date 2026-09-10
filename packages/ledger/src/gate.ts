@@ -1,6 +1,6 @@
 import { err, ok, type Result } from "@phyxiusjs/fp";
-import { isReceipt, type Receipt } from "./receipt.js";
-import { isRecord, isString, prop } from "./validate.js";
+import { isReceipt, type Receipt } from "./receipt.ts";
+import { isRecord, isString, prop } from "./validate.ts";
 
 export type Gate =
   | { readonly kind: "pending" }

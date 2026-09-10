@@ -1,10 +1,10 @@
 import type { Clock } from "@phyxiusjs/clock";
 import { isErr, ok, type Result } from "@phyxiusjs/fp";
 import { Journal } from "@phyxiusjs/journal";
-import type { LedgerEvent } from "./event.js";
-import { applyEvent, type LedgerProjection } from "./projection.js";
-import { readReplay, type ReplayRefusal } from "./replay.js";
-import { attachLedgerSink } from "./sink.js";
+import type { LedgerEvent } from "./event.ts";
+import { applyEvent, type LedgerProjection } from "./projection.ts";
+import { readReplay, type ReplayRefusal } from "./replay.ts";
+import { attachLedgerSink } from "./sink.ts";
 
 export interface LedgerOptions {
   readonly clock: Clock;

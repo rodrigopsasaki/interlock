@@ -1,5 +1,5 @@
-import { isLedgerEvent, type LedgerEvent } from "./event.js";
-import { isRecord, isString, prop } from "./validate.js";
+import { isLedgerEvent, type LedgerEvent } from "./event.ts";
+import { isRecord, isString, prop } from "./validate.ts";
 
 export const EVENT_SHAPE = "event@v1";
 

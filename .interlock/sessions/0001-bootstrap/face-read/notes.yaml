@@ -1,0 +1,49 @@
+interlock: notes@v0
+node: face-read
+entries:
+  - kind: surprise
+    at: "2026-09-09T21:15:00Z"
+    expected: >
+      packages/cli's src/bin.ts would be able to import from packages/ledger the same way it
+      already imports its own sibling files (via explicit .ts specifiers), once ledger is added
+      as a workspace dependency.
+    observed: >
+      A probe (node run.ts importing ./lib.js with only lib.ts on disk) reproduced scaffold's own
+      d1 finding: raw Node's ESM loader does not remap a .js specifier to a sibling .ts file. A
+      second probe proved the fix: a package.json "main" pointing directly at "./src/index.ts",
+      with every internal relative import in that package also using an explicit .ts specifier,
+      resolves correctly under raw Node (confirmed with a two-package pnpm-style symlink probe
+      before touching any real file). ledger's own src/*.ts files all import each other via .js
+      specifiers, which is exactly the case scaffold's d1 already named as broken for direct Node
+      execution; this had never mattered before because nothing outside packages/ledger had ever
+      imported it at runtime.
+  - kind: choice
+    at: "2026-09-09T21:25:00Z"
+    chose: >
+      Converted every internal relative import in packages/ledger/src from a ".js" specifier to
+      an explicit ".ts" one (20 files, one line each), added allowImportingTsExtensions to
+      ledger's tsconfig.json, and pointed ledger's package.json "main"/"types" at
+      "./src/index.ts". Did the same for the new face package from the start.
+    because: >
+      This is the same convention packages/cli already uses for its own internal imports
+      (scaffold's decision c5), generalized to every workspace package a raw-Node-executed CLI
+      command now actually has to load. It requires no build step, matching this repository's
+      existing zero-build posture for packages that have no external consumer, rather than adding
+      a tsc/tsup build + dist output whose only purpose would be satisfying Node's resolver.
+    rejected:
+      - "giving ledger and face a real build step (tsc emit to dist/, package.json main pointing at dist/index.js), matching how the published @phyxiusjs/* packages ship -- rejected because those packages have external npm consumers and this repository's own packages do not; a build step that must run before every `pnpm interlock ...` invocation is exactly the ceremony scaffold's own c5 already declined to pay for cli itself, and there is no reason ledger/face should pay it first."
+      - "leaving ledger's .js specifiers alone and only rewriting cli's new command files to reach into ledger's individual source files by relative path, bypassing package resolution entirely -- rejected because it would mean two different ways of consuming the same package (bare specifier for anything that only needs types, relative reach-through for anything the CLI actually runs), and because it does not fix the same problem inside ledger's own module graph (index.ts's re-exports still walk every .js-specified file transitively)."
+  - kind: surprise
+    at: "2026-09-09T21:30:00Z"
+    expected: >
+      Converting ledger's internal imports to .ts specifiers might require touching
+      packages/ledger/test/*.ts too, since those files import the same modules via ".js"
+      specifiers.
+    observed: >
+      They did not need to change. TypeScript's NodeNext module resolution treats a ".js"
+      specifier with only a sibling ".ts" file on disk as valid by design (the "write .ts, import
+      .js, a future build fills the gap" convention) independent of allowImportingTsExtensions,
+      which only governs whether an explicit ".ts" specifier is itself legal to write. vitest's
+      own esbuild-based resolution never cared about the distinction either way. `pnpm --filter
+      ledger typecheck` and `pnpm --filter ledger test` both passed clean immediately after only
+      touching src/*.ts, tsconfig.json and package.json.

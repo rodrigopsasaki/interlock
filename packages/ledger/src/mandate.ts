@@ -1,4 +1,4 @@
-import { isRecord, isString, prop } from "./validate.js";
+import { isRecord, isString, prop } from "./validate.ts";
 
 // `because`, not `note`: this ledger already reserves that word for the choice/surprise type.
 export interface Mandate {
