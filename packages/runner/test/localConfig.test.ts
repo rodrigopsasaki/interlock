@@ -279,3 +279,67 @@ describe("loadLocalConfig runtime.prompt_taken_timeout_ms", () => {
     }
   });
 });
+
+describe("loadLocalConfig worktree_setup", () => {
+  it("defaults to an empty list when the field is absent", async () => {
+    const repoRoot = fixtureRepo(baseFields.join("\n"));
+
+    const result = await loadLocalConfig(repoRoot);
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) expect(result.value.worktreeSetup).toEqual([]);
+  });
+
+  it("parses a list of commands in declared order", async () => {
+    const yaml = [
+      "interlock: local@v0",
+      "runtime:",
+      "  kind: claude",
+      "  args: []",
+      "worktree_root: .worktrees",
+      "worktree_setup:",
+      '  - "install dependencies"',
+      '  - "build the toolchain cache"',
+      "lease_ms: 900000",
+      "run_timeout_ms: 3600000",
+      "substrate:",
+      "  address: none",
+      "",
+    ].join("\n");
+    const repoRoot = fixtureRepo(yaml);
+
+    const result = await loadLocalConfig(repoRoot);
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) {
+      expect(result.value.worktreeSetup).toEqual([
+        "install dependencies",
+        "build the toolchain cache",
+      ]);
+    }
+  });
+
+  it("refuses with a sentence error naming the field when it is not a list of strings", async () => {
+    const yaml = [
+      "interlock: local@v0",
+      "runtime:",
+      "  kind: claude",
+      "  args: []",
+      "worktree_root: .worktrees",
+      "worktree_setup: not-a-list",
+      "lease_ms: 900000",
+      "run_timeout_ms: 3600000",
+      "substrate:",
+      "  address: none",
+      "",
+    ].join("\n");
+    const repoRoot = fixtureRepo(yaml);
+
+    const result = await loadLocalConfig(repoRoot);
+
+    expect(isErr(result)).toBe(true);
+    if (isErr(result) && result.error.kind === "malformed") {
+      expect(result.error.reason).toContain('"worktree_setup"');
+    }
+  });
+});

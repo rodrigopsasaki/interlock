@@ -52,6 +52,12 @@ export {
   removeWorktree,
 } from "./worktree.ts";
 
+export type { WorktreeSetupRefusal } from "./worktreeSetup.ts";
+export {
+  explainWorktreeSetupRefusal,
+  runSetupCommand,
+} from "./worktreeSetup.ts";
+
 export type { LeaseHandle } from "./lease.ts";
 export { takeLease } from "./lease.ts";
 

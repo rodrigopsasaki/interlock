@@ -26,12 +26,14 @@ import {
   explainRuntimeRefusal,
   explainStandingGatesRefusal,
   explainWorktreeRefusal,
+  explainWorktreeSetupRefusal,
   gateCommandTable,
   gitTrackedFiles,
   judgeGates,
   loadLocalConfig,
   loadStandingGates,
   matchesScreen,
+  runSetupCommand,
   takeLease,
   unmetDependencies,
   writeBriefIntoWorktree,
@@ -240,6 +242,20 @@ export async function runInterlockRun(
       return result;
     }
     narrate("brief written");
+
+    for (const command of localConfig.value.worktreeSetup) {
+      narrate(`worktree setup: ${command}`);
+      const setup = await runSetupCommand(command, worktreePath);
+      if (isErr(setup)) {
+        const result = refuse(
+          "worktree setup",
+          explainWorktreeSetupRefusal(setup.error),
+        );
+        lease.stop();
+        abandonLease();
+        return result;
+      }
+    }
 
     const injectedRuntime = options.runtime;
     const createdRuntime =

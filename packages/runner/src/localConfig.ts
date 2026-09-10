@@ -22,6 +22,7 @@ export interface LocalConfig {
     readonly promptTakenTimeoutMs: number;
   };
   readonly worktreeRoot: string;
+  readonly worktreeSetup: readonly string[];
   readonly leaseMs: number;
   readonly runTimeoutMs: number;
   readonly substrateAddress: string;
@@ -43,6 +44,7 @@ const FIELD_GUIDE =
   "runtime.prompt_taken_timeout_ms (optional; how long to wait after the opening prompt for " +
   "the agent to move off idle before the long wait judges it), " +
   "worktree_root (where node worktrees are created, relative to the repository root), " +
+  "worktree_setup (optional; commands run in a node's worktree before its pane opens), " +
   "lease_ms (how long a lease lasts before a sweep may call it abandoned), " +
   "run_timeout_ms (the wall timeout waiting for the agent to go idle, blocked or done), " +
   "substrate.address (unused by this node, present so the shape is one).";
@@ -190,6 +192,16 @@ function parseShape(
     });
   }
 
+  const worktreeSetupField = prop(parsed, "worktree_setup");
+  if (worktreeSetupField !== undefined && !isStringArray(worktreeSetupField)) {
+    return err({
+      kind: "malformed",
+      path,
+      reason: '"worktree_setup" must be a list of strings',
+    });
+  }
+  const worktreeSetup = worktreeSetupField ?? [];
+
   const leaseMs = prop(parsed, "lease_ms");
   if (typeof leaseMs !== "number") {
     return err({
@@ -229,6 +241,7 @@ function parseShape(
       promptTakenTimeoutMs,
     },
     worktreeRoot,
+    worktreeSetup,
     leaseMs,
     runTimeoutMs,
     substrateAddress,

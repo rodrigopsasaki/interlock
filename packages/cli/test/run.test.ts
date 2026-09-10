@@ -85,6 +85,23 @@ const localYamlWithStartupAnswers = [
   "",
 ].join("\n");
 
+function localYamlWithWorktreeSetup(...commands: readonly string[]): string {
+  return [
+    "interlock: local@v0",
+    "runtime:",
+    "  kind: claude",
+    "  args: []",
+    "worktree_root: .worktrees",
+    "worktree_setup:",
+    ...commands.map((command) => `  - "${command}"`),
+    "lease_ms: 60000",
+    "run_timeout_ms: 5000",
+    "substrate:",
+    "  address: none",
+    "",
+  ].join("\n");
+}
+
 function fixture(
   options: {
     readonly withLocal?: boolean;
@@ -661,6 +678,61 @@ describe("interlock run", () => {
     expect(result.exitCode).toBe(1);
     expect(result.message).toBe(
       "startup refused: agent not ready after 60000ms; last status working",
+    );
+  }, 30_000);
+
+  it("runs worktree_setup commands in the worktree before the pane opens, narrating each", async () => {
+    const cwd = fixture({
+      localYaml: localYamlWithWorktreeSetup("true", "true"),
+    });
+    await runGraphApprove(
+      ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
+      { cwd },
+    );
+
+    const lines: string[] = [];
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock({ initialTime: 0 }),
+      runtime: stubRuntime(),
+      narrate: (line) => lines.push(line),
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(lines.indexOf("worktree setup: true")).toBeGreaterThan(
+      lines.indexOf("brief written"),
+    );
+    expect(
+      lines.filter((line) => line === "worktree setup: true"),
+    ).toHaveLength(2);
+    expect(lines.indexOf("pane pane-1 opened")).toBeGreaterThan(
+      lines.lastIndexOf("worktree setup: true"),
+    );
+  }, 30_000);
+
+  it("refuses on a failing worktree_setup command, naming it and its exit code, without opening a pane", async () => {
+    const cwd = fixture({
+      localYaml: localYamlWithWorktreeSetup("false"),
+    });
+    await runGraphApprove(
+      ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
+      { cwd },
+    );
+
+    const lines: string[] = [];
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock({ initialTime: 0 }),
+      runtime: stubRuntime(),
+      narrate: (line) => lines.push(line),
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.message).toBe('worktree setup refused: "false" exited 1.');
+    expect(lines).toContain("worktree setup: false");
+    expect(lines).not.toContain("pane pane-1 opened");
+    expect(lines.at(-1)).toBe(
+      "lease not renewed; the sweeper will collect it at 1970-01-01T00:01:00.000Z",
     );
   }, 30_000);
 });
