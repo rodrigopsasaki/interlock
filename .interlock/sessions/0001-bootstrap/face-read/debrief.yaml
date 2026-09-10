@@ -4,7 +4,7 @@ node: face-read
 role: worker
 graph_base_sha: 5778fcf69d3d2f1c3f08851c6ad90fad9e00be48
 session_start_sha: 49125b495ae7ed0501e4cb5908af7fe9e2c4fd7b
-head_sha: 4a17d75cbadf3c637fd8fea9ae6ca47010a70fe2
+head_sha: 19e9649676bd93031cb178024091c86132347b07
 derivation:
   kind: agent
   runtime: claude-code
@@ -328,6 +328,24 @@ decisions:
     what: notes.yaml is this session's own append-as-you-work record, committed across the three code commits alongside the work each entry documents, not a design choice about face's own shape.
     rests_on: ["brief:Deliverable"]
     hunks: [".interlock/sessions/0001-bootstrap/face-read/notes.yaml"]
+  - id: c18
+    what: >
+      Fix round: removed the `as Record<string, unknown>` cast in approve.test.ts's
+      journalEventKinds helper. The guard already there (typeof parsed === "object" &&
+      parsed !== null && "kind" in parsed) narrows parsed enough on its own for
+      String(parsed["kind"]) to compile clean under this repo's own strict tsconfig
+      (noPropertyAccessFromIndexSignature included); the cast added nothing.
+    rests_on: ["verifier finding 2", "notes:24"]
+    hunks: ["packages/cli/test/graph/approve.test.ts"]
+  - id: c19
+    what: >
+      Fix round: this entry and c18 close the gap a verifier found in the original filing
+      (c1-c17) -- every changed file in this session's diff had a decision naming it except
+      debrief.yaml itself, the one file the brief's own "decisions are a manifest of the diff"
+      check was never run against before filing. Closed the same way c17 already closes it for
+      notes.yaml: naming debrief.yaml as its own hunk.
+    rests_on: ["brief:Deliverable", "verifier finding 1"]
+    hunks: [".interlock/sessions/0001-bootstrap/face-read/debrief.yaml"]
 gates_run_by_agent:
   - { id: typecheck, result: pass, invocation: "mise exec -- pnpm typecheck" }
   - { id: test, result: pass, invocation: "mise exec -- pnpm test" }
