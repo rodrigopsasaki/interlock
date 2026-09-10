@@ -736,13 +736,14 @@ describe("interlock run", () => {
     expect(sentIndex).toBeLessThan(lines.indexOf("prompt sent"));
   }, 30_000);
 
-  it("refuses when the agent stays blocked at startup with no configured answer", async () => {
+  it("refuses when the agent stays blocked at startup with no configured answer, closing the pane before any prompt is taken", async () => {
     const cwd = fixture();
     await runGraphApprove(
       ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
       { cwd },
     );
 
+    let closed = false;
     const runtime: Runtime = {
       ...stubRuntime(),
       waitUntil: (agent, until, timeoutMs) =>
@@ -751,6 +752,10 @@ describe("interlock run", () => {
           : stubRuntime().waitUntil(agent, until, timeoutMs),
       read: () =>
         Promise.resolve(ok("Is this a project you created or one you trust?")),
+      closePane: () => {
+        closed = true;
+        return Promise.resolve(ok(undefined));
+      },
     };
 
     const result = await runInterlockRun(["demo", "a"], {
@@ -763,6 +768,7 @@ describe("interlock run", () => {
     expect(result.message).toBe(
       "agent blocked at startup with no configured answer; screen: Is this a project you created or one you trust?",
     );
+    expect(closed).toBe(true);
   }, 30_000);
 
   it("waits through unknown, then blocked, then idle before sending the prompt", async () => {
@@ -910,6 +916,7 @@ describe("interlock run", () => {
     });
 
     expect(result.exitCode).toBe(0);
+    expect(result.message).toContain("cleared");
     expect(lines).toContain("agent screen: > summarised the diff");
     const screenPath = join(
       cwd,
@@ -1073,6 +1080,47 @@ describe("interlock run", () => {
     });
   }, 30_000);
 
+  it("narrates only the first five of a larger uncommitted-paths list", async () => {
+    const cwd = fixture();
+    await runGraphApprove(
+      ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
+      { cwd },
+    );
+
+    const dirtyFiles = Array.from({ length: 6 }, (_, i) => `dirty-${i}.txt`);
+    const runtime: Runtime = {
+      ...stubRuntime(),
+      waitUntil: (agent, until, timeoutMs) => {
+        if (until[0] === "idle") {
+          for (const name of dirtyFiles) {
+            writeFileSync(
+              join(cwd, ".worktrees", "a", name),
+              "staged, never committed\n",
+            );
+          }
+        }
+        return stubRuntime().waitUntil(agent, until, timeoutMs);
+      },
+    };
+    const lines: string[] = [];
+
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime,
+      narrate: (line) => lines.push(line),
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.message).toContain("held");
+    expect(lines).toContain(
+      "6 uncommitted path(s) in the worktree; gates judge commits only",
+    );
+    const narratedPaths = lines.filter((line) => line.startsWith("  dirty-"));
+    expect(narratedPaths).toHaveLength(5);
+    expect(narratedPaths).not.toContain(`  ${dirtyFiles[5]}`);
+  }, 30_000);
+
   it("names the node as the agent's preferred herdr name", async () => {
     const cwd = fixture();
     await runGraphApprove(
@@ -1097,5 +1145,58 @@ describe("interlock run", () => {
 
     expect(result.exitCode).toBe(0);
     expect(preferredId).toBe("a");
+  }, 30_000);
+
+  it("narrates prior work and threads it into the opening prompt when resuming a worktree that carries it", async () => {
+    const cwd = fixture();
+    await runGraphApprove(
+      ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
+      { cwd },
+    );
+    const baseSha = headSha(cwd);
+    const worktreePath = join(cwd, ".worktrees", "a");
+
+    // Stand up the worktree by hand, as an earlier interrupted session would have left it: one
+    // real commit beyond the graph base, plus a path never committed.
+    execFileSync(
+      "git",
+      ["worktree", "add", "-b", "graph/demo/a", worktreePath, baseSha],
+      { cwd },
+    );
+    writeFileSync(
+      join(worktreePath, "earlier-session.txt"),
+      "partial progress from a session that never finished\n",
+    );
+    commitAll(worktreePath, "partial progress");
+    writeFileSync(
+      join(worktreePath, "still-uncommitted.txt"),
+      "left over, never committed\n",
+    );
+
+    let promptText: string | undefined;
+    const runtime: Runtime = {
+      ...stubRuntime(),
+      prompt: (_agent, text) => {
+        promptText = text;
+        return Promise.resolve(ok(undefined));
+      },
+    };
+    const lines: string[] = [];
+
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime,
+      narrate: (line) => lines.push(line),
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(lines).toContain(
+      "worktree carries prior work: 1 uncommitted path(s), 1 commit(s) beyond the graph base",
+    );
+    expect(promptText).toContain(
+      "This worktree carries work from an earlier session of this node: " +
+        "1 uncommitted path(s) and 1 commit(s) beyond the graph base.",
+    );
   }, 30_000);
 });
