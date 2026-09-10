@@ -3,6 +3,7 @@ import { validateBrief } from "./brief/validate.ts";
 import { validateDebrief } from "./debrief/validate.ts";
 import { runGraphApprove } from "./graph/approve.ts";
 import { runGraphShow } from "./graph/show.ts";
+import { runInterlockJudge } from "./judge.ts";
 import { runInterlockRun } from "./run.ts";
 import { runInterlockSweep } from "./sweep.ts";
 
@@ -32,6 +33,10 @@ export async function run(argv: readonly string[]): Promise<CommandResult> {
 
   if (group === "run") {
     return runInterlockRun(argv.slice(1));
+  }
+
+  if (group === "judge") {
+    return runInterlockJudge(argv.slice(1));
   }
 
   if (group === "sweep") {

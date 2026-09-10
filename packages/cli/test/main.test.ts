@@ -62,10 +62,14 @@ function isolatedRepo(): string {
 }
 
 describe("dispatch to the runner commands", () => {
-  it("routes run and backfill by their first argument, refusing before touching disk", async () => {
+  it("routes run, judge and backfill by their first argument, refusing before touching disk", async () => {
     const run1 = await run(["run"]);
     expect(run1.exitCode).not.toBe(0);
     expect(run1.message).toContain("interlock run");
+
+    const judge1 = await run(["judge"]);
+    expect(judge1.exitCode).not.toBe(0);
+    expect(judge1.message).toContain("interlock judge");
 
     const backfill1 = await run(["backfill"]);
     expect(backfill1.exitCode).not.toBe(0);
