@@ -15,6 +15,9 @@ runtime:
   # Optional. How long the runner waits for the runtime to become ready before sending the
   # opening prompt. Defaults to 60000.
   # startup_timeout_ms: 60000
+  # Optional. How long the runner waits, after sending the opening prompt, for the agent to
+  # move off idle before the long wait judges it. Defaults to 20000.
+  # prompt_taken_timeout_ms: 20000
 
 # Where the runner creates a node's git worktree, relative to the repository root.
 worktree_root: .worktrees

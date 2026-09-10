@@ -42,10 +42,6 @@ import {
 import type { CommandResult } from "./main.ts";
 
 const HELD_REVISIT_MS = 24 * 60 * 60 * 1000;
-// The runtime's wait targets include "working": wait briefly for the agent to move off its
-// pre-prompt idle status before the real, long wait judges it. A miss here is not fatal; the
-// long wait still judges.
-const PROMPT_SETTLE_TIMEOUT_MS = 3_000;
 
 function isoOf(wallMs: number): string {
   return new Date(wallMs).toISOString();
@@ -380,11 +376,24 @@ export async function runInterlockRun(
     }
     narrate("prompt sent");
 
-    await runtime.waitUntil(
+    const promptTakenTimeoutMs = localConfig.value.runtime.promptTakenTimeoutMs;
+    const tookPrompt = await runtime.waitUntil(
       agent,
-      ["working", "idle", "blocked", "done"],
-      PROMPT_SETTLE_TIMEOUT_MS,
+      ["working", "blocked", "done"],
+      promptTakenTimeoutMs,
     );
+    if (isErr(tookPrompt)) {
+      const explanation =
+        tookPrompt.error.kind === "timeout" &&
+        tookPrompt.error.status === "idle"
+          ? `prompt not taken after ${promptTakenTimeoutMs}ms; agent still idle`
+          : explainRuntimeRefusal(tookPrompt.error);
+      const result = refuse("prompt taken", explanation);
+      lease.stop();
+      abandonLease();
+      return result;
+    }
+    if (tookPrompt.value === "working") narrate("agent working");
 
     narrate(
       `waiting for idle, blocked or done (timeout ${localConfig.value.runTimeoutMs}ms)`,

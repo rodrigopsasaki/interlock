@@ -11,6 +11,7 @@ import { isRecord, isString, prop } from "./validate.ts";
 export const LOCAL_CONFIG_SHAPE = "local@v0";
 
 const DEFAULT_STARTUP_TIMEOUT_MS = 60_000;
+const DEFAULT_PROMPT_TAKEN_TIMEOUT_MS = 20_000;
 
 export interface LocalConfig {
   readonly runtime: {
@@ -18,6 +19,7 @@ export interface LocalConfig {
     readonly args: readonly string[];
     readonly startupAnswers: readonly StartupAnswer[];
     readonly startupTimeoutMs: number;
+    readonly promptTakenTimeoutMs: number;
   };
   readonly worktreeRoot: string;
   readonly leaseMs: number;
@@ -38,6 +40,8 @@ const FIELD_GUIDE =
   "runtime.startup_answers (optional; keys to send when the runtime blocks at startup), " +
   "runtime.startup_timeout_ms (optional; how long to wait for the runtime to become ready " +
   "before sending the opening prompt), " +
+  "runtime.prompt_taken_timeout_ms (optional; how long to wait after the opening prompt for " +
+  "the agent to move off idle before the long wait judges it), " +
   "worktree_root (where node worktrees are created, relative to the repository root), " +
   "lease_ms (how long a lease lasts before a sweep may call it abandoned), " +
   "run_timeout_ms (the wall timeout waiting for the agent to go idle, blocked or done), " +
@@ -161,6 +165,22 @@ function parseShape(
   }
   const startupTimeoutMs = startupTimeoutMsField ?? DEFAULT_STARTUP_TIMEOUT_MS;
 
+  const promptTakenTimeoutMsField = isRecord(runtime)
+    ? prop(runtime, "prompt_taken_timeout_ms")
+    : undefined;
+  if (
+    promptTakenTimeoutMsField !== undefined &&
+    typeof promptTakenTimeoutMsField !== "number"
+  ) {
+    return err({
+      kind: "malformed",
+      path,
+      reason: '"runtime.prompt_taken_timeout_ms" must be a number',
+    });
+  }
+  const promptTakenTimeoutMs =
+    promptTakenTimeoutMsField ?? DEFAULT_PROMPT_TAKEN_TIMEOUT_MS;
+
   const worktreeRoot = prop(parsed, "worktree_root");
   if (!isString(worktreeRoot)) {
     return err({
@@ -206,6 +226,7 @@ function parseShape(
       args: runtimeArgs ?? [],
       startupAnswers: startupAnswers.value,
       startupTimeoutMs,
+      promptTakenTimeoutMs,
     },
     worktreeRoot,
     leaseMs,

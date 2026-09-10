@@ -333,7 +333,7 @@ describe("interlock run", () => {
       calls.indexOf("reportIdentity"),
     );
     expect(calls.indexOf("prompt")).toBeLessThan(
-      calls.indexOf("waitUntil:working,idle,blocked,done"),
+      calls.indexOf("waitUntil:working,blocked,done"),
     );
     expect(promptText).toContain(".interlock/sessions/demo/a/brief.md");
   }, 30_000);
@@ -416,6 +416,79 @@ describe("interlock run", () => {
       "prompt sent",
       "waiting for idle, blocked or done (timeout 5000ms)",
     ]);
+  }, 30_000);
+
+  it("narrates 'agent working' once the agent moves off idle, before the long wait", async () => {
+    const cwd = fixture();
+    await runGraphApprove(
+      ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
+      { cwd },
+    );
+
+    const runtime: Runtime = {
+      ...stubRuntime(),
+      waitUntil: (agent, until, timeoutMs) =>
+        until.includes("working")
+          ? Promise.resolve(ok("working"))
+          : stubRuntime().waitUntil(agent, until, timeoutMs),
+    };
+    const lines: string[] = [];
+
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock({ initialTime: 0 }),
+      runtime,
+      narrate: (line) => lines.push(line),
+    });
+
+    expect(result.exitCode).toBe(0);
+    const sessionMatch = result.message.match(/session ([^,]+),/);
+    if (sessionMatch === null) {
+      throw new Error("expected a session id in the result message");
+    }
+    const [, sessionId] = sessionMatch;
+
+    expect(lines).toEqual([
+      `leased a (session ${sessionId}, expires 1970-01-01T00:01:00.000Z)`,
+      `worktree at ${join(cwd, ".worktrees", "a")} on ${headSha(cwd)}`,
+      "brief written",
+      "pane pane-1 opened",
+      "agent agent-1 started (claude)",
+      "identity reported",
+      "agent ready (idle)",
+      "prompt sent",
+      "agent working",
+      "waiting for idle, blocked or done (timeout 5000ms)",
+    ]);
+  }, 30_000);
+
+  it("refuses when the agent is still idle after the prompt-taken timeout, naming it, not the run timeout", async () => {
+    const cwd = fixture();
+    await runGraphApprove(
+      ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
+      { cwd },
+    );
+
+    const runtime: Runtime = {
+      ...stubRuntime(),
+      waitUntil: (agent, until, timeoutMs) =>
+        until.includes("working")
+          ? Promise.resolve(
+              err({ kind: "timeout", until, timeoutMs, status: "idle" }),
+            )
+          : stubRuntime().waitUntil(agent, until, timeoutMs),
+    };
+
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime,
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.message).toBe(
+      "prompt taken refused: prompt not taken after 20000ms; agent still idle",
+    );
   }, 30_000);
 
   it("narrates a runtime refusal at the moment it happens and does not leave the lease dangling silently", async () => {
