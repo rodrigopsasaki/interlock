@@ -4,7 +4,7 @@ node: ledger-gaps
 role: worker
 graph_base_sha: 29b0ea4967025644eb912c6f5c87b0c7cf1f1f2f
 session_start_sha: 9e49cfa4d820721ae4af8016c5fb69d64e883b65
-head_sha: 204532a359d9354348eefd4c503eceae26d9d873
+head_sha: 7855138cf5c8a3071085a9149566e6c2c149bf01
 derivation:
   kind: agent
   runtime: claude-code
@@ -351,11 +351,125 @@ decisions:
     rests_on: ["brief:Deliverable"]
     hunks:
       - ".interlock/sessions/0001-bootstrap/ledger-gaps/debrief.yaml"
+  - id: c26
+    what: >
+      Reshaped `receiptId`, `createReceipt` and `checkStale`
+      (packages/ledger/src/receipt.ts) to take a repository `root` plus
+      repository-relative paths instead of bare (implicitly absolute)
+      scope strings, hashing each path's POSIX-relative form rather than
+      whatever string the caller passed. Added `ScopeRefusal`
+      (absolute-path | escapes-root) and `explainScopeRefusal`, returning
+      `Result<T, ScopeRefusal>` from all three functions instead of
+      throwing or silently hashing a bad path.
+    because: notes:18
+    rests_on:
+      [
+        "harness finding: receipt identity depended on absolute path",
+        "docs/design/0001-interlock.md's bend log row: 'Address a receipt by the content hash of the paths in the node's scope'",
+        "notes:18",
+      ]
+    hunks:
+      - "packages/ledger/src/receipt.ts"
+  - id: c27
+    what: >
+      Exported `ScopeRefusal` and `explainScopeRefusal` from
+      packages/ledger/src/index.ts, alongside the existing receipt exports.
+    because: "the manifest rule: every new public type and factory needs a public export or it is not actually usable outside the package"
+    rests_on: ["brief:Deliverable", "notes:18"]
+    hunks:
+      - "packages/ledger/src/index.ts:54"
+      - "packages/ledger/src/index.ts:59"
+  - id: c28
+    what: >
+      cli/graph/approve.ts now resolves the graph file's path relative to
+      `repoRoot` before calling `createReceipt`, passing `repoRoot` as the
+      new first argument, and refuses with `explainScopeRefusal` (closing
+      the ledger, exit 1) instead of assuming success when the call
+      returns a `ScopeRefusal`.
+    because: notes:18
+    rests_on: ["harness finding: receipt identity depended on absolute path", "notes:18"]
+    hunks:
+      - "packages/cli/src/graph/approve.ts:1"
+      - "packages/cli/src/graph/approve.ts:14-17"
+      - "packages/cli/src/graph/approve.ts:97-139"
+  - id: c29
+    what: >
+      cli/graph/show.ts gets the identical fix: `receiptId` now takes
+      `repoRoot` and the graph file's path relative to it, and a
+      `ScopeRefusal` becomes an exit-1 message via `explainScopeRefusal`
+      rather than reaching `computePosition` with no content hash at all.
+    because: notes:18
+    rests_on: ["harness finding: receipt identity depended on absolute path", "notes:18"]
+    hunks:
+      - "packages/cli/src/graph/show.ts:1"
+      - "packages/cli/src/graph/show.ts:12"
+      - "packages/cli/src/graph/show.ts:52-66"
+  - id: c30
+    what: >
+      Rewrote packages/ledger/test/receipt.test.ts for the new signature
+      and added the fix round's own proof: byte-identical files at the
+      same relative path in two different absolute checkout directories
+      produce the same receipt id; a one-byte edit under the scope still
+      changes it (in both `receiptId` and `checkStale`); an absolute scope
+      path is refused (`ScopeRefusal.absolute-path`) instead of hashed; a
+      relative path that resolves outside `root` is refused
+      (`ScopeRefusal.escapes-root`).
+    because: >
+      notes:18 -- these are exactly the three tests the fix round's own
+      brief named: same id across checkouts, still-changes-on-one-byte,
+      and a typed refusal for an absolute path outside the root.
+    rests_on: ["notes:18"]
+    hunks:
+      - "packages/ledger/test/receipt.test.ts"
+  - id: c31
+    what: >
+      Updated unrepresentable.test.ts's receipt-identity test to the new
+      `(root, paths, gate)` signature, unwrapping the `Result` each of
+      `createReceipt`/`receiptId` now returns.
+    because: "type-only sync: this file constructs receipts directly, not through receipt.test.ts's own fixtures"
+    rests_on: ["notes:18"]
+    hunks:
+      - "packages/ledger/test/unrepresentable.test.ts:1-2"
+      - "packages/ledger/test/unrepresentable.test.ts:252-280"
+  - id: c32
+    what: >
+      Updated face/test/approval.test.ts's "stale-approval" test to the
+      new signature: `createReceipt`/`receiptId` now take `directory` as
+      root and `"graph.yaml"` as the one relative scope path, unwrapping
+      the `Result`. The test's own assertions (approved before the edit,
+      stale after a one-byte edit) are unchanged.
+    because: "type-only sync, keeping the fix-round gate's own named test (stale-approval) green"
+    rests_on: ["brief:Gates", "notes:18"]
+    hunks:
+      - "packages/face/test/approval.test.ts:1-3"
+      - "packages/face/test/approval.test.ts:52-61"
+      - "packages/face/test/approval.test.ts:81-98"
+  - id: c33
+    what: >
+      Appended notes.yaml's 18th entry, recording this fix round's own
+      design choice and its rejected alternatives.
+    because: "brief:Deliverable item 2 -- notes.yaml is appended while working and committed with the code it belongs to"
+    rests_on: ["brief:Deliverable"]
+    hunks:
+      - ".interlock/sessions/0001-bootstrap/ledger-gaps/notes.yaml:239-277"
+  - id: c34
+    what: >
+      Updated this debrief for the fix round: bumped head_sha to the fix
+      commit, added decisions c26-c34 covering every file this round's
+      diff touched (including this file and notes.yaml), refreshed
+      gates_run_by_agent with the invocations run at the new head_sha, and
+      added the open item about the repository's real receipt reading
+      stale after this fix.
+    because: "brief:Deliverable item 3 -- the manifest rule, checked before filing, for this round's own diff"
+    rests_on: ["brief:Deliverable"]
+    hunks:
+      - ".interlock/sessions/0001-bootstrap/ledger-gaps/debrief.yaml"
 gates_run_by_agent:
   - { id: typecheck, result: pass, invocation: "mise exec -- pnpm typecheck" }
   - { id: test, result: pass, invocation: "mise exec -- pnpm test" }
   - { id: debrief-valid, result: fail, invocation: "mise exec -- pnpm interlock debrief validate", note: "fails closed by design until the debrief-schema node lands" }
   - { id: upcast-v1, result: pass, invocation: "mise exec -- pnpm --filter ledger test --testNamePattern upcast" }
+  - { id: stale-approval, result: pass, invocation: "mise exec -- pnpm --filter face test --testNamePattern stale-approval" }
 open:
   - >
     v1 reset upcast: a v1 `outcome-set{kind:"reset"}` event refuses to
@@ -392,3 +506,19 @@ open:
     not a defect. Re-approving is a human action
     (`interlock graph approve 0001-bootstrap --by ... --because ...`) and
     is out of this session's scope to perform.
+  - >
+    After the receipt-identity fix (c26-c29), `interlock graph show
+    0001-bootstrap` still reports STALE at this round's head_sha
+    (7855138cf5c8a3071085a9149566e6c2c149bf01), same as before the fix, and
+    that is correct, not a regression: the receipt already recorded in the
+    repository's real, shared journal was computed by `interlock graph
+    approve` under the OLD (absolute-path) hashing, against the graph
+    content before this session's own `ledger-gaps` node existed. The new
+    relative-path hash naturally reads that old receipt as not matching
+    today's content, for the same reason discovery d3 already gives (D20's
+    stale-on-edit rule), now compounded by the hashing algorithm itself
+    having changed underneath it. The real journal was left untouched by
+    this fix round, as instructed; a person re-approves the current graph
+    content with `interlock graph approve 0001-bootstrap --by <who>
+    --because <why>` when ready, and the new receipt will carry the
+    corrected, location-independent id.
