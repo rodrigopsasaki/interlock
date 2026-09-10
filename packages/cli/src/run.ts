@@ -36,6 +36,7 @@ import {
   loadLocalConfig,
   loadStandingGates,
   takeLease,
+  unmetDependencies,
   type Agent,
   type Pane,
   type Runtime,
@@ -162,10 +163,10 @@ export async function runInterlockRun(
     }
 
     const targetNode = { graph, id: node };
-    const unmet = declaration.dependsOn.filter(
-      (dependsOn) =>
-        ledger.projection().nodes.get(nodeKey({ graph, id: dependsOn }))
-          ?.outcome?.kind !== "cleared",
+    const unmet = unmetDependencies(
+      graph,
+      declaration.dependsOn,
+      ledger.projection(),
     );
     if (unmet.length > 0) {
       return {

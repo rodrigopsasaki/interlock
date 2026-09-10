@@ -10,7 +10,6 @@ import {
   type NodeDeclaration,
 } from "face";
 import type { Ledger, Node, Outcome } from "ledger";
-import { unmetDependencies } from "./dependencies.ts";
 import { declaredGateIds, gateCommandTable } from "./gateCommand.ts";
 import {
   explainGateJudgeRefusal,
@@ -66,9 +65,12 @@ export interface BackfillOptions {
   readonly worktreeRoot: string;
 }
 
-// The position stops depending on pull-request bodies: every already-debriefed, already-cleared
-// node is re-gated at main's own current content, in dependency order, so a later node's
-// dependency check sees an earlier node's outcome from the SAME backfill run.
+// The position stops depending on pull-request bodies: every already-debriefed node, whose
+// dependencies were also already debriefed, is re-gated at main's own current content. A
+// dependency is eligible by having its own debrief, not by a ledger outcome of "cleared" --
+// a standing gate that always fails (debrief-valid, until debrief-schema lands) would otherwise
+// make every node past the first ineligible forever, since nothing could ever clear to unblock
+// it. The judged outcome is still whatever the gates honestly produce, held included.
 export async function backfillGraph(
   options: BackfillOptions,
 ): Promise<Result<readonly BackfillNodeResult[], BackfillRefusal>> {
@@ -105,12 +107,10 @@ export async function backfillGraph(
   const results: BackfillNodeResult[] = [];
   for (const declaration of candidates) {
     if (!hasDebrief(repoRoot, document.id, declaration.id)) continue;
-    if (
-      unmetDependencies(document.id, declaration.dependsOn, ledger.projection())
-        .length > 0
-    ) {
-      continue;
-    }
+    const undebriefedDependency = declaration.dependsOn.find(
+      (dependsOn) => !hasDebrief(repoRoot, document.id, dependsOn),
+    );
+    if (undebriefedDependency !== undefined) continue;
 
     const node: Node = { graph: document.id, id: declaration.id };
     const judged = await judgeGates({

@@ -226,3 +226,49 @@ entries:
       stub `Runtime`, with no live or fake herdr socket in the loop at
       all. The production path (no `runtime` option passed) still wires
       herdr as the only implementation anywhere `run` is actually invoked.
+  - kind: surprise
+    at: "2026-09-10T02:30:00Z"
+    expected: >
+      Backfilling this repository's real journal would reach `cleared` for
+      scaffold, ledger, ledger-gaps and face-read, and the critical path
+      would move to begin at `runner-command-gate`, as the acceptance
+      describes.
+    observed: >
+      `debrief-valid` is a standing gate on every node, and its stub always
+      exits 1 by design (until `debrief-schema` lands) -- so `buildCleared`
+      can never construct `cleared` for ANY node in this repository right
+      now; the honest outcome is always `held`. Backfill's first run (with
+      eligibility gated on a dependency's ledger outcome being literally
+      `cleared`) backfilled only `scaffold`, then structurally could never
+      reach `ledger`, `ledger-gaps` or `face-read`, since their one
+      dependency edge could never satisfy "cleared" either -- a total
+      deadlock past the first node, not the single-gate-failure case the
+      brief's "if a gate fails for a cleared node" sentence names.
+  - kind: choice
+    at: "2026-09-10T02:35:00Z"
+    chose: >
+      Changed backfill's dependency-eligibility check from "every
+      dependency's ledger outcome is `cleared`" to "every dependency also
+      has its own `debrief.yaml`", leaving the judged outcome itself
+      (`held`, honestly, while `debrief-valid` always fails) untouched.
+    because: >
+      "Already cleared... at main" in the brief's own acceptance sentence
+      names nodes whose PRs already merged -- known-complete by their
+      debrief, not by a ledger fact backfill exists precisely because the
+      ledger does not yet have. Gating eligibility on the ledger's
+      `cleared` outcome made the check circular: nothing can ever satisfy
+      it while `debrief-valid` is a standing, deliberately-always-failing
+      gate, so every node past the first would be permanently
+      unbackfillable regardless of its own real state. Gating on debrief
+      presence instead lets every already-debriefed, already-dependency-
+      debriefed node get honestly re-gated at main, which is what "the
+      position stops depending on pull-request bodies" asks for; the
+      backfill-can-never-reach-cleared finding itself is recorded under
+      `open` in the debrief, not hidden by loosening what "cleared" means.
+    rejected: >
+      ["forcing debrief-valid to pass for backfilled nodes (the brief's
+      own instruction against ever forcing a receipt)", "leaving the
+      ledger-outcome-based check as built and reporting only scaffold as
+      backfillable (technically defensible but defeats the acceptance's
+      own stated purpose -- catching up all four nodes' real receipts --
+      over a gate everyone already knows is a stub)"]

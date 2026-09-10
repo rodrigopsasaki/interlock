@@ -115,4 +115,33 @@ describe("backfill", () => {
     expect(nodeA?.gates.get("standing")?.kind).toBe("satisfied");
     expect(nodeA?.gates.get("own-gate")?.kind).toBe("satisfied");
   }, 30_000);
+
+  it("still gates a debriefed node whose dependency never clears, because a standing gate always fails", async () => {
+    const repoRoot = fixtureRepo();
+    const ledger = memoryLedger();
+
+    const backfilled = await backfillGraph({
+      repoRoot,
+      mainBranch: "main",
+      document,
+      ledger,
+      clock: createControlledClock(),
+      standingGates: [{ id: "standing", run: "false" }],
+      worktreeRoot: ".worktrees",
+    });
+
+    if (isErr(backfilled)) throw new Error("expected backfill to succeed");
+    expect(backfilled.value.map((entry) => entry.node)).toEqual([
+      "node-a",
+      "node-b",
+    ]);
+    expect(
+      backfilled.value.every((entry) => entry.outcome.kind === "held"),
+    ).toBe(true);
+
+    const nodeB = ledger
+      .projection()
+      .nodes.get(nodeKey({ graph: "fixture-graph", id: "node-b" }));
+    expect(nodeB?.gates.get("standing")?.kind).toBe("blocked");
+  }, 30_000);
 });
