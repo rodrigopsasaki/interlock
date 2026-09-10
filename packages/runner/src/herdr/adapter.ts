@@ -21,6 +21,22 @@ const DEFAULT_CALL_TIMEOUT_MS = 30_000;
 const AGENT_START_TIMEOUT_MS = 60_000;
 const CALL_DEADLINE_MARGIN_MS = 5_000;
 
+// A pane's shell is not guaranteed to have reached its prompt the instant workspace.create
+// returns; herdr refuses agent.start with this code until it has. Retried, not fatal.
+const AGENT_PANE_BUSY_CODE = "agent_pane_busy";
+const PANE_READY_INITIAL_BACKOFF_MS = 500;
+const PANE_READY_MAX_BACKOFF_MS = 2_000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isPaneBusyRefusal(
+  refusal: RuntimeRefusal,
+): refusal is Extract<RuntimeRefusal, { kind: "remote" }> {
+  return refusal.kind === "remote" && refusal.code === AGENT_PANE_BUSY_CODE;
+}
+
 // herdr's own rule, from its error text: must start with a lowercase letter and contain only
 // lowercase letters, digits, '-' or '_' (1-32 characters).
 const AGENT_NAME_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/;
@@ -189,6 +205,7 @@ function verifyHerdrSocket(
 export async function createHerdrRuntime(
   socketPath: string = defaultHerdrSocketPath(),
   defaultCallTimeoutMs: number = DEFAULT_CALL_TIMEOUT_MS,
+  paneReadyTimeoutMs: number = AGENT_START_TIMEOUT_MS,
 ): Promise<Result<Runtime, RuntimeRefusal>> {
   const verified = await verifyHerdrSocket(socketPath);
   if (isErr(verified)) return verified;
@@ -215,22 +232,47 @@ export async function createHerdrRuntime(
         : ok({ id: paneId });
     },
 
-    async startAgent(pane: Pane, kind: string, args: readonly string[]) {
+    async startAgent(
+      pane: Pane,
+      kind: string,
+      args: readonly string[],
+      onWaitingForPane?: () => void,
+    ) {
       if (!AGENT_KINDS.has(kind))
         return err({ kind: "unknown-agent-kind", agentKind: kind });
       const name = generateAgentName();
-      const started = await call(
-        "agent.start",
-        {
-          name,
-          kind,
-          pane_id: pane.id,
-          args,
-          timeout_ms: AGENT_START_TIMEOUT_MS,
-        },
-        AGENT_START_TIMEOUT_MS + CALL_DEADLINE_MARGIN_MS,
-      );
-      return isErr(started) ? started : ok({ id: name, pane });
+      const params = {
+        name,
+        kind,
+        pane_id: pane.id,
+        args,
+        timeout_ms: AGENT_START_TIMEOUT_MS,
+      };
+      const callTimeoutMs = AGENT_START_TIMEOUT_MS + CALL_DEADLINE_MARGIN_MS;
+
+      let attempt = 0;
+      let waitedMs = 0;
+      let backoffMs = PANE_READY_INITIAL_BACKOFF_MS;
+      for (;;) {
+        attempt += 1;
+        const started = await call("agent.start", params, callTimeoutMs);
+        if (!isErr(started)) return ok({ id: name, pane });
+        if (!isPaneBusyRefusal(started.error)) return started;
+
+        const remainingBudgetMs = paneReadyTimeoutMs - waitedMs;
+        if (remainingBudgetMs <= 0) {
+          return err({
+            kind: "remote",
+            code: AGENT_PANE_BUSY_CODE,
+            message: `${started.error.message} (waited ${waitedMs}ms for the pane's shell)`,
+          });
+        }
+        if (attempt === 1) onWaitingForPane?.();
+        const delayMs = Math.min(backoffMs, remainingBudgetMs);
+        await sleep(delayMs);
+        waitedMs += delayMs;
+        backoffMs = Math.min(backoffMs * 2, PANE_READY_MAX_BACKOFF_MS);
+      }
     },
 
     async reportIdentity(

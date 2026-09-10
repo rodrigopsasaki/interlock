@@ -278,6 +278,7 @@ export async function runInterlockRun(
       pane,
       localConfig.value.runtime.kind,
       localConfig.value.runtime.args,
+      () => narrate("waiting for the pane's shell"),
     );
     if (isErr(startedAgent)) {
       const result = refuse(

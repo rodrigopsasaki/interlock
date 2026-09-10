@@ -11,7 +11,7 @@ export interface FakeHerdrServer {
   readonly socketPath: string;
   readonly calls: readonly RecordedCall[];
   agentStatus: string;
-  failNextCall(code: string, message: string): void;
+  failNextCall(code: string, message: string, times?: number): void;
   withholdNextCall(): void;
   close(): Promise<void>;
 }
@@ -52,7 +52,9 @@ export function startFakeHerdrServer(
   const calls: RecordedCall[] = [];
   const state = { agentStatus: "idle" };
   const sockets = new Set<Socket>();
-  let nextFailure: { code: string; message: string } | undefined;
+  let nextFailure:
+    | { code: string; message: string; remaining: number }
+    | undefined;
   let withholdNext = false;
 
   const server: Server = createServer((socket: Socket) => {
@@ -86,7 +88,10 @@ export function startFakeHerdrServer(
     }
     if (nextFailure !== undefined) {
       const { code, message } = nextFailure;
-      nextFailure = undefined;
+      nextFailure =
+        nextFailure.remaining > 1
+          ? { ...nextFailure, remaining: nextFailure.remaining - 1 }
+          : undefined;
       fail(socket, id, code, message);
       return;
     }
@@ -139,8 +144,8 @@ export function startFakeHerdrServer(
         set agentStatus(value: string) {
           state.agentStatus = value;
         },
-        failNextCall(code, message) {
-          nextFailure = { code, message };
+        failNextCall(code, message, times = 1) {
+          nextFailure = { code, message, remaining: times };
         },
         withholdNextCall() {
           withholdNext = true;
