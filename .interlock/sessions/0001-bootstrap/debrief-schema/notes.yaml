@@ -177,3 +177,15 @@ entries:
       directory -- for a command whose real output this repository's own
       debriefs quote verbatim. Made the two printed paths relative to the
       repository root; the absolute path is still what is actually read.
+  - kind: choice
+    at: "2026-09-10T03:15:00Z"
+    chose: >
+      In requireItemsWithIdAndWhat (packages/debrief/src/debrief.ts), push
+      each item the loop already proved is a Record<string, unknown> with
+      a string id and what into a new items: Record<string, unknown>[]
+      array and return that, rather than keeping the single-line
+      `ok(raw as readonly Record<string, unknown>[])` the fix round's two
+      verifier findings named.
+    because: "verifier finding 1, verifier finding 2"
+    rejected:
+      - "a real isRecordArray(value): value is Record<string, unknown>[] type predicate in validate.ts, called once after the loop instead of inside it (an extra pass over an array the loop has already walked, for no narrowing the loop's own isRecord/isString checks don't already give)"

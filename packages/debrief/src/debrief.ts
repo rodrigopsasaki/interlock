@@ -172,6 +172,7 @@ function requireItemsWithIdAndWhat(
 ): Result<readonly Record<string, unknown>[], DebriefRefusal> {
   const raw = prop(parsed, field);
   if (!Array.isArray(raw)) return invalid(path, `"${field}" must be a list`);
+  const items: Record<string, unknown>[] = [];
   for (const [index, item] of raw.entries()) {
     if (
       !isRecord(item) ||
@@ -179,8 +180,9 @@ function requireItemsWithIdAndWhat(
       !isString(prop(item, "what"))
     )
       return invalid(path, `${field} ${index}: "id" and "what" are required`);
+    items.push(item);
   }
-  return ok(raw as readonly Record<string, unknown>[]);
+  return ok(items);
 }
 
 function parseLegacy(
