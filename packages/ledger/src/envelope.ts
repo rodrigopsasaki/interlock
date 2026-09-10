@@ -1,8 +1,9 @@
 import { isLedgerEvent, type LedgerEvent } from "./event.ts";
 import { upcastV1 } from "./upcast/v1.ts";
+import { upcastV2 } from "./upcast/v2.ts";
 import { isRecord, isString, prop } from "./validate.ts";
 
-export const EVENT_SHAPE = "event@v2";
+export const EVENT_SHAPE = "event@v3";
 
 export type EventEnvelope = {
   readonly interlock: typeof EVENT_SHAPE;
@@ -22,5 +23,6 @@ export type Upcaster = (raw: unknown) => LedgerEvent | undefined;
 
 export const upcastTable: ReadonlyMap<string, Upcaster> = new Map([
   [EVENT_SHAPE, (raw: unknown) => (isLedgerEvent(raw) ? raw : undefined)],
+  ["event@v2", upcastV2],
   ["event@v1", upcastV1],
 ]);

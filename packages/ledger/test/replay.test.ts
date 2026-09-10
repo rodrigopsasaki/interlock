@@ -15,6 +15,7 @@ import { fold, type LedgerProjection } from "../src/projection.js";
 import { duration, type Receipt } from "../src/receipt.js";
 import { parseLine, replayFromRaw } from "../src/replay.js";
 import { spend } from "../src/spend.js";
+import { upcastV1 } from "../src/upcast/v1.js";
 import { isRecord, prop } from "../src/validate.js";
 
 const runsRoot = join(import.meta.dirname, ".runs");
@@ -340,6 +341,55 @@ describe("replay's versioned upcast seam", () => {
       _tag: "Err",
       error: { tag: "event@v1", line: 1 },
     });
+  });
+
+  it("replays the real v1/v2 mixed journal under v3, refusing only what the v1 upcaster itself refuses", () => {
+    const raw = readFileSync(
+      join(import.meta.dirname, "fixtures", "journal-v1-v2-2026-09-10.jsonl"),
+      "utf-8",
+    );
+    const lines = raw.split("\n").filter((line) => line.trim().length > 0);
+    const refusedByV1 = lines.filter((line) => {
+      const parsed: unknown = JSON.parse(line);
+      return (
+        isRecord(parsed) &&
+        prop(parsed, "interlock") === "event@v1" &&
+        upcastV1(parsed) === undefined
+      );
+    });
+
+    const replayed = replayFromRaw(raw);
+    expect(replayed._tag).toBe("Ok");
+    expect(parseableEventCount(raw)).toBe(lines.length - refusedByV1.length);
+    if (replayed._tag !== "Ok") return;
+
+    const graphNode: Node = { graph: "0001-bootstrap", id: "0001-bootstrap" };
+    const approved = replayed.value.nodes
+      .get(nodeKey(graphNode))
+      ?.gates.get("approved");
+    expect(approved?.kind).toBe("satisfied");
+  });
+
+  it("a v3 held-on-uncommitted-work outcome round-trips through append and replay", async () => {
+    directory = mkdtempSync(join(runsRoot, "run-"));
+    const clock = createControlledClock({ initialTime: 0 });
+    const ledger = unwrap(await createLedger({ clock, directory }));
+    const node: Node = { graph: "0001-bootstrap", id: "ledger" };
+
+    const held = outcome.held(
+      [],
+      heldOn.uncommittedWork(3),
+      "3 uncommitted path(s) in the worktree; gates judge commits only",
+      30_000,
+    );
+    ledger.append({ kind: "outcome-set", node, outcome: held });
+    await ledger.close();
+
+    const raw = readFileSync(join(directory, "journal.jsonl"), "utf-8");
+    const replayed = replayFromRaw(raw);
+    expect(replayed._tag).toBe("Ok");
+    if (replayed._tag !== "Ok") return;
+    expect(replayed.value.nodes.get(nodeKey(node))?.outcome).toEqual(held);
   });
 
   it("refuses a v1 debrief-filed event: v1 recorded none of the fields debrief@v2 requires", () => {
