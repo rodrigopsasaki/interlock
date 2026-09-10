@@ -51,7 +51,8 @@ describe("ensureNodeWorktree", () => {
 
     expect(isOk(result)).toBe(true);
     expect(headSha(path)).toBe(sha);
-    if (isOk(result)) expect(result.value).toEqual({ kind: "created", path });
+    if (isOk(result))
+      expect(result.value).toEqual({ kind: "created", path, base: sha });
   });
 
   it("is idempotent: asking for the base it is already on changes nothing", () => {
@@ -68,6 +69,7 @@ describe("ensureNodeWorktree", () => {
       expect(result.value).toEqual({
         kind: "reused",
         path,
+        base: sha,
         uncommittedPaths: 0,
         commitsBeyondBase: 0,
       });
@@ -95,6 +97,7 @@ describe("ensureNodeWorktree", () => {
       expect(result.value).toEqual({
         kind: "reused",
         path,
+        base: firstSha,
         uncommittedPaths: 0,
         commitsBeyondBase: 2,
       });
@@ -150,7 +153,7 @@ describe("ensureNodeWorktree", () => {
     expect(existsSync(join(path, "merged.txt"))).toBe(true);
   });
 
-  it("refuses to reset an existing worktree whose branch carries commits beyond its old base, naming the branch and the commit", () => {
+  it("keeps a resumed branch on its own base when main moves on, even with a path left uncommitted", () => {
     const repoRoot = fixtureRepo();
     const firstSha = headSha(repoRoot);
     const path = join(repoRoot, ".worktrees", "node-a");
@@ -161,31 +164,30 @@ describe("ensureNodeWorktree", () => {
     writeFileSync(join(path, "session-work.txt"), "the agent's own work\n");
     commitAll(path, "session work");
     const sessionSha = headSha(path);
+    writeFileSync(join(path, "in-progress.txt"), "not committed yet\n");
 
-    writeFileSync(
-      join(repoRoot, "unrelated.txt"),
-      "an unrelated later commit\n",
-    );
-    commitAll(repoRoot, "unrelated later commit");
+    writeFileSync(join(repoRoot, "main-moved.txt"), "main advanced\n");
+    commitAll(repoRoot, "main moved on by one commit");
     const laterSha = headSha(repoRoot);
 
     const result = ensureNodeWorktree(repoRoot, path, laterSha, branch);
 
-    expect(isErr(result)).toBe(true);
-    if (!isErr(result)) throw new Error("expected a refusal");
-    expect(result.error).toEqual({
-      kind: "diverged",
-      branch,
-      commit: sessionSha,
-    });
-    expect(explainWorktreeRefusal(result.error)).toContain(branch);
-    expect(explainWorktreeRefusal(result.error)).toContain(sessionSha);
-
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) {
+      expect(result.value).toEqual({
+        kind: "reused",
+        path,
+        base: firstSha,
+        uncommittedPaths: 1,
+        commitsBeyondBase: 1,
+      });
+    }
     expect(headSha(path)).toBe(sessionSha);
     expect(existsSync(join(path, "session-work.txt"))).toBe(true);
     expect(readFileSync(join(path, "session-work.txt"), "utf-8")).toBe(
       "the agent's own work\n",
     );
+    expect(existsSync(join(path, "in-progress.txt"))).toBe(true);
   });
 
   it("refuses with a git failure sentence when the requested SHA does not exist", () => {

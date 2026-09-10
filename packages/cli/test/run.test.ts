@@ -1199,4 +1199,59 @@ describe("interlock run", () => {
         "1 uncommitted path(s) and 1 commit(s) beyond the graph base.",
     );
   }, 30_000);
+
+  it("keeps a resumed branch on its own base and narrates it, even though main moved on", async () => {
+    const cwd = fixture();
+    await runGraphApprove(
+      ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
+      { cwd },
+    );
+    const branchBaseSha = headSha(cwd);
+    const worktreePath = join(cwd, ".worktrees", "a");
+
+    execFileSync(
+      "git",
+      ["worktree", "add", "-b", "graph/demo/a", worktreePath, branchBaseSha],
+      { cwd },
+    );
+    writeFileSync(
+      join(worktreePath, "earlier-session.txt"),
+      "partial progress from a session that never finished\n",
+    );
+    commitAll(worktreePath, "partial progress");
+
+    writeFileSync(join(cwd, "merged-after-approval.txt"), "main moved on\n");
+    commitAll(cwd, "main moved on by one commit");
+    const mainHeadSha = headSha(cwd);
+    expect(mainHeadSha).not.toBe(branchBaseSha);
+
+    const lines: string[] = [];
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime: stubRuntime(),
+      narrate: (line) => lines.push(line),
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(lines).toContain(
+      `branch base ${branchBaseSha.slice(0, 7)} is behind main ${mainHeadSha.slice(0, 7)}; the session rebases before it opens a pull request`,
+    );
+
+    const journal = readFileSync(
+      join(cwd, ".interlock", "ledger", "journal.jsonl"),
+      "utf-8",
+    );
+    const started = journal
+      .trim()
+      .split("\n")
+      .map((line): unknown => JSON.parse(line))
+      .filter(isLedgerEvent)
+      .find((event) => event.kind === "session-started");
+    if (started === undefined || started.kind !== "session-started") {
+      throw new Error("expected a session-started event in the journal");
+    }
+    expect(started.graphBaseSha).toBe(branchBaseSha);
+    expect(started.graphBaseSha).not.toBe(mainHeadSha);
+  }, 30_000);
 });

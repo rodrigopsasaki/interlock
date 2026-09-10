@@ -188,7 +188,7 @@ export async function runInterlockRun(
       };
     }
 
-    const graphBaseSha = currentCommitSha(repoRoot);
+    const requestedGraphBaseSha = currentCommitSha(repoRoot);
 
     const targetNode = { graph, id: node };
     const unmet = unmetDependencies(
@@ -202,6 +202,22 @@ export async function runInterlockRun(
         message: `${node}: dependencies not cleared: ${unmet.join(", ")}.`,
       };
     }
+
+    const worktreePath = join(repoRoot, localConfig.value.worktreeRoot, node);
+    const branch = `graph/${graph}/${node}`;
+    const worktree = ensureNodeWorktree(
+      repoRoot,
+      worktreePath,
+      requestedGraphBaseSha,
+      branch,
+    );
+    if (isErr(worktree)) {
+      return {
+        exitCode: 1,
+        message: `worktree refused: ${explainWorktreeRefusal(worktree.error)}`,
+      };
+    }
+    const graphBaseSha = worktree.value.base;
 
     const gateIds = declaredGateIds(standingGates.value, declaration.gates);
     const sessionId = randomUUID();
@@ -244,21 +260,12 @@ export async function runInterlockRun(
       );
     };
 
-    const worktreePath = join(repoRoot, localConfig.value.worktreeRoot, node);
-    const branch = `graph/${graph}/${node}`;
-    const worktree = ensureNodeWorktree(
-      repoRoot,
-      worktreePath,
-      graphBaseSha,
-      branch,
-    );
-    if (isErr(worktree)) {
-      const result = refuse("worktree", explainWorktreeRefusal(worktree.error));
-      lease.stop();
-      abandonLease();
-      return result;
-    }
     narrate(`worktree at ${worktreePath} on ${graphBaseSha}`);
+    if (graphBaseSha !== requestedGraphBaseSha) {
+      narrate(
+        `branch base ${graphBaseSha.slice(0, 7)} is behind main ${requestedGraphBaseSha.slice(0, 7)}; the session rebases before it opens a pull request`,
+      );
+    }
     const priorWork = priorWorkOf(worktree.value);
     if (priorWork !== undefined) {
       narrate(
