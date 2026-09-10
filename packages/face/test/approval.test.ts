@@ -1,5 +1,6 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { unwrap } from "@phyxiusjs/fp";
 import {
   createReceipt,
   derivation,
@@ -49,14 +50,17 @@ describe("stale-approval", () => {
       nodes: [],
     };
 
-    const approvedReceipt = await createReceipt(
-      [path],
-      "approved",
-      "deadbeef",
-      spend.none(),
-      duration.unknown(),
-      derivation.human("Rodrigo Sasaki"),
-      { because: "approved for the stale-approval test" },
+    const approvedReceipt = unwrap(
+      await createReceipt(
+        directory,
+        ["graph.yaml"],
+        "approved",
+        "deadbeef",
+        spend.none(),
+        duration.unknown(),
+        derivation.human("Rodrigo Sasaki"),
+        { because: "approved for the stale-approval test" },
+      ),
     );
 
     const node = { graph: document.id, id: document.id };
@@ -74,7 +78,9 @@ describe("stale-approval", () => {
       gate.satisfied(approvedReceipt),
     );
 
-    const contentHashBeforeEdit = await receiptId([path], "approved");
+    const contentHashBeforeEdit = unwrap(
+      await receiptId(directory, ["graph.yaml"], "approved"),
+    );
     expect(
       computePosition(document, projection, contentHashBeforeEdit).approval,
     ).toBe("approved");
@@ -84,7 +90,9 @@ describe("stale-approval", () => {
       `${["interlock: graph@v0", "id: demo", "gates:", "  - id: approved", "    kind: human", "nodes: []", ""].join("\n")} `,
     );
 
-    const contentHashAfterEdit = await receiptId([path], "approved");
+    const contentHashAfterEdit = unwrap(
+      await receiptId(directory, ["graph.yaml"], "approved"),
+    );
     expect(contentHashAfterEdit).not.toBe(contentHashBeforeEdit);
     expect(
       computePosition(document, projection, contentHashAfterEdit).approval,

@@ -1,3 +1,5 @@
+import { join } from "node:path";
+import { unwrap } from "@phyxiusjs/fp";
 import { describe, expect, it } from "vitest";
 import { derivation, type Derivation } from "../src/derivation.js";
 import { gate, isGate, proposeGateMove, type Gate } from "../src/gate.js";
@@ -248,27 +250,34 @@ describe("illegal states are unrepresentable or refused", () => {
   });
 
   it("receipt identity is computed from content and gate, same content and gate, same receipt", async () => {
-    const scope = [import.meta.dirname + "/../package.json"];
-    const first = await createReceipt(
-      scope,
-      "typecheck",
-      "sha-a",
-      { kind: "none" },
-      duration.unknown(),
-      derivation.human("a"),
-      {},
+    const root = join(import.meta.dirname, "..");
+    const paths = ["package.json"];
+    const first = unwrap(
+      await createReceipt(
+        root,
+        paths,
+        "typecheck",
+        "sha-a",
+        { kind: "none" },
+        duration.unknown(),
+        derivation.human("a"),
+        {},
+      ),
     );
-    const second = await createReceipt(
-      scope,
-      "typecheck",
-      "sha-b",
-      { kind: "none" },
-      duration.unknown(),
-      derivation.human("a"),
-      {},
+    const second = unwrap(
+      await createReceipt(
+        root,
+        paths,
+        "typecheck",
+        "sha-b",
+        { kind: "none" },
+        duration.unknown(),
+        derivation.human("a"),
+        {},
+      ),
     );
     expect(first.id).toBe(second.id);
-    expect(first.id).toBe(await receiptId(scope, "typecheck"));
+    expect(first.id).toBe(unwrap(await receiptId(root, paths, "typecheck")));
     expect(isReceipt(first)).toBe(true);
   });
 

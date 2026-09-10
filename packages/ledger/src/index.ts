@@ -51,11 +51,12 @@ export {
   fold,
   isInterrupted,
 } from "./projection.ts";
-export type { Duration, Receipt, Stale } from "./receipt.ts";
+export type { Duration, Receipt, ScopeRefusal, Stale } from "./receipt.ts";
 export {
   checkStale,
   createReceipt,
   duration,
+  explainScopeRefusal,
   isDuration,
   isReceipt,
   receiptId,

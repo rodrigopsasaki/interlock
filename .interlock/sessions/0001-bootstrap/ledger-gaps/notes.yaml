@@ -236,3 +236,42 @@ entries:
       graph read "not approved" instead, hiding the repository's real,
       already-recorded approval entirely. Re-approving is a human action
       and stays out of this session's scope.
+  - kind: choice
+    at: "2026-09-09T23:45:00Z"
+    chose: >
+      Fixed the receipt-identity bug (a harness finding, not brief work: the
+      graph read approved from the main checkout and stale from this
+      worktree for byte-identical graph files, because `receiptId` hashed
+      each scope entry's absolute path string before its content) by
+      reshaping `receiptId`/`createReceipt`/`checkStale` to take a `root`
+      plus repository-relative paths, hashing each path's POSIX-relative
+      string instead of whatever absolute string the caller passed. A
+      relative path outside `root`, or any absolute path at all (whether or
+      not it happens to resolve inside `root`), is a typed `ScopeRefusal`
+      (`Result<T, ScopeRefusal>`, `@phyxiusjs/fp`) rather than a silently
+      hashed string.
+    because: >
+      Content-addressing must depend only on the paths' content and their
+      position relative to the repository, never on where the repository is
+      checked out -- exactly what the design note's own bend log already
+      says ("Address a receipt by the content hash of the paths in the
+      node's scope"). A single shared `root` matches every real call site
+      (`approve.ts`/`show.ts` both resolve one graph file under one
+      `repoRoot`); a per-entry `{root, path}` scope would add a degree of
+      freedom nothing here uses. Reusing `Result`/`err`/`ok` for the refusal
+      matches the exact pattern `gate.ts`'s `GateRefusal` and
+      `document.ts`'s `GraphRefusal` already use, rather than inventing a
+      throwing variant or a silent fallback -- "shape the API so the caller
+      cannot get this wrong" reads here as "an absolute path never reaches
+      `createHash`", proven by a test that passes one and asserts the
+      refusal, not by trusting every caller to remember to relativize
+      first.
+    rejected: >
+      ["scope entries as `{root, path}[]` (one root per path) -- strictly
+      more general than anything the two real callers need, and it would
+      let two entries disagree about which repository they belong to, a
+      state this codebase has no use for", "validating only inside
+      approve.ts/show.ts before calling receiptId, leaving receiptId itself
+      taking bare strings -- the exact shape of the original bug: nothing
+      would stop a third caller from passing an absolute path straight
+      through and silently hashing it again"]
