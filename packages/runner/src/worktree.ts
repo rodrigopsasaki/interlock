@@ -38,9 +38,7 @@ function branchExists(repoRoot: string, branch: string): boolean {
   return isOk(found);
 }
 
-// A node's worktree is created once and reused across leases on the same node: a re-run
-// checks out the branch that is already there instead of failing on "already exists".
-export function createNodeWorktree(
+export function ensureNodeWorktree(
   repoRoot: string,
   path: string,
   sha: string,

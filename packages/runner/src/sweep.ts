@@ -11,11 +11,7 @@ export const ABANDONED_AUTHORITY = "sweeper";
 
 type ExpiredSession = SessionView & { readonly lease: Lease };
 
-// The ledger has no `abandoned` outcome kind (event@v2's Outcome union has six arms, not
-// seven); adding a seventh is a shape change, not the additive-field case the runner is asked
-// to route around instead of stopping for. `cancelled` already carries the shape abandonment
-// needs -- receipts, authority, because -- so the sweeper writes cancelled with authority
-// "sweeper" and records the missing outcome kind as an open item.
+// The ledger has no abandoned outcome kind yet, so the sweeper writes cancelled with authority "sweeper".
 function isExpiredUnresolved(
   session: SessionView,
   projection: LedgerProjection,

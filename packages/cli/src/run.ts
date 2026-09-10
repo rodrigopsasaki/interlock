@@ -23,7 +23,7 @@ import {
   briefPath,
   buildBrief,
   createHerdrRuntime,
-  createNodeWorktree,
+  ensureNodeWorktree,
   declaredGateIds,
   explainBriefRefusal,
   explainGateJudgeRefusal,
@@ -202,7 +202,7 @@ export async function runInterlockRun(
 
     const worktreePath = join(repoRoot, localConfig.value.worktreeRoot, node);
     const branch = `graph/${graph}/${node}`;
-    const worktree = createNodeWorktree(
+    const worktree = ensureNodeWorktree(
       repoRoot,
       worktreePath,
       graphBaseSha,

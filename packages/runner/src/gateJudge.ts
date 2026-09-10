@@ -77,10 +77,6 @@ function outputHash(output: string): string {
   return createHash("sha256").update(output).digest("hex");
 }
 
-// Every gate re-runs, every judgement, regardless of what a prior run or an agent left in the
-// journal: cleared is decided only by this run's own execution (brief: "What the runner is").
-// The one exception is a receipt whose spend was not none -- inference or money already spent
-// is kept, never re-earned for free.
 export async function judgeGates(
   request: GateJudgeRequest,
 ): Promise<Result<Outcome, GateJudgeRefusal>> {

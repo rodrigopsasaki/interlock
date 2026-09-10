@@ -11,7 +11,12 @@ export interface AppendsEvents {
   append(event: LedgerEvent): void;
 }
 
-// Heartbeat at a third of the lease's own length (brief: "the lease bounds silence, not work").
+const HEARTBEATS_PER_LEASE = 3;
+
+function heartbeatInterval(leaseMs: number): Millis {
+  return ms(Math.max(1, Math.floor(leaseMs / HEARTBEATS_PER_LEASE)));
+}
+
 export function takeLease(
   ledger: AppendsEvents,
   clock: Clock,
@@ -22,8 +27,7 @@ export function takeLease(
   const expiry = clock.now().wallMs + leaseMs;
   ledger.append({ kind: "lease-taken", node, session, expiry });
 
-  const heartbeat: Millis = ms(Math.max(1, Math.floor(leaseMs / 3)));
-  const timer: TimerHandle = clock.interval(heartbeat, () => {
+  const timer: TimerHandle = clock.interval(heartbeatInterval(leaseMs), () => {
     ledger.append({
       kind: "lease-renewed",
       node,

@@ -1,8 +1,6 @@
 import type { GateDeclaration } from "face";
 import type { StandingGate } from "./standingGates.ts";
 
-// Three sources, add but never remove (AGENTS.md): standing gates come first, then the node's
-// own, in that order -- a node may add to the table, never subtract from it.
 export function declaredGateIds(
   standing: readonly StandingGate[],
   node: readonly GateDeclaration[],

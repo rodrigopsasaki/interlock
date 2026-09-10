@@ -28,9 +28,7 @@ export function defaultTmuxRunner(
   });
 }
 
-// D3: herdr owns process/agent-state detection. tmux is the escape hatch if that seam closes,
-// at the documented cost of losing state detection -- it can host a pane and read its screen,
-// never observe idle, blocked or done, so waitUntil can only ever time out honestly.
+// tmux cannot observe an agent's state, so waitUntil can only time out.
 export function createTmuxRuntime(
   run: TmuxCommandRunner = defaultTmuxRunner,
 ): Runtime {

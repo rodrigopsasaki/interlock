@@ -30,10 +30,7 @@ export function explainBriefRefusal(refusal: BriefRefusal): string {
   return `${refusal.path}: ${refusal.because}`;
 }
 
-// The worktree is checked out at the graph's base SHA, which predates the node's own
-// brief-authoring commit in the general case (docs/design/0001-interlock.md's own bend log,
-// 2026-09-09, "a session starts at the commit that contains its brief"); the brief the runner
-// already verified present on disk is written into the worktree at the same relative path.
+// The graph base predates the commit that carries the brief, so the runner writes the brief into the worktree.
 export async function writeBriefIntoWorktree(
   repoRoot: string,
   worktreePath: string,

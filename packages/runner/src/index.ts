@@ -37,7 +37,7 @@ export { declaredGateIds, gateCommandTable } from "./gateCommand.ts";
 export type { WorktreeRefusal } from "./worktree.ts";
 export {
   createDetachedWorktree,
-  createNodeWorktree,
+  ensureNodeWorktree,
   explainWorktreeRefusal,
   removeWorktree,
 } from "./worktree.ts";

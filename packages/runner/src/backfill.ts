@@ -65,12 +65,7 @@ export interface BackfillOptions {
   readonly worktreeRoot: string;
 }
 
-// The position stops depending on pull-request bodies: every already-debriefed node, whose
-// dependencies were also already debriefed, is re-gated at main's own current content. A
-// dependency is eligible by having its own debrief, not by a ledger outcome of "cleared" --
-// a standing gate that always fails (debrief-valid, until debrief-schema lands) would otherwise
-// make every node past the first ineligible forever, since nothing could ever clear to unblock
-// it. The judged outcome is still whatever the gates honestly produce, held included.
+// Eligibility is by a dependency having a debrief, because a standing gate that always fails would otherwise starve every dependent.
 export async function backfillGraph(
   options: BackfillOptions,
 ): Promise<Result<readonly BackfillNodeResult[], BackfillRefusal>> {
