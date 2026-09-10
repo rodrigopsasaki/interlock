@@ -17,6 +17,7 @@ import {
   explainLocalConfigRefusal,
   explainStandingGatesRefusal,
   gateCommandTable,
+  HELD_REVISIT_MS,
   judgeWorktree,
   loadLocalConfig,
   loadStandingGates,
@@ -31,8 +32,6 @@ function sessionOverrideFrom(args: readonly string[]): string | undefined {
   const flagIndex = args.indexOf("--session");
   return flagIndex === -1 ? undefined : args[flagIndex + 1];
 }
-
-const HELD_REVISIT_MS = 24 * 60 * 60 * 1000;
 
 export async function runInterlockJudge(
   args: readonly string[],

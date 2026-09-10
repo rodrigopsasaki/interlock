@@ -35,6 +35,7 @@ import {
   explainWorktreeSetupRefusal,
   gateCommandTable,
   gitTrackedFiles,
+  HELD_REVISIT_MS,
   judgeWorktree,
   lastNonEmptyLine,
   loadLocalConfig,
@@ -53,8 +54,6 @@ import {
   type WorktreeOutcome,
 } from "runner";
 import type { CommandResult } from "./main.ts";
-
-const HELD_REVISIT_MS = 24 * 60 * 60 * 1000;
 
 function isoOf(wallMs: number): string {
   return new Date(wallMs).toISOString();

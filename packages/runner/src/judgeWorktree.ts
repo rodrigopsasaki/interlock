@@ -15,6 +15,8 @@ import {
   type WorktreeRefusal,
 } from "./worktree.ts";
 
+export const HELD_REVISIT_MS = 24 * 60 * 60 * 1000;
+
 export interface JudgeWorktreeRequest {
   readonly ledger: Ledger;
   readonly clock: Clock;
