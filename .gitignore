@@ -11,3 +11,4 @@ packages/runner/test/.herdr-runs/
 packages/runner/test/.localconfig-runs/
 .interlock/ledger/
 .interlock/local.yaml
+.interlock/sessions/**/screen.txt
