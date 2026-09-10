@@ -22,6 +22,7 @@ import {
   briefExists,
   briefPath,
   buildBrief,
+  buildOpeningPrompt,
   createHerdrRuntime,
   ensureNodeWorktree,
   declaredGateIds,
@@ -46,6 +47,10 @@ import {
 import type { CommandResult } from "./main.ts";
 
 const HELD_REVISIT_MS = 24 * 60 * 60 * 1000;
+// The runtime's wait targets include "working": wait briefly for the agent to move off its
+// pre-prompt idle status before the real, long wait judges it. A miss here is not fatal; the
+// long wait still judges.
+const PROMPT_SETTLE_TIMEOUT_MS = 3_000;
 
 function approvalReceiptSha(current: Gate | undefined): string | undefined {
   if (current === undefined) return undefined;
@@ -270,6 +275,21 @@ export async function runInterlockRun(
       lease.stop();
       return { exitCode: 1, message: explainRuntimeRefusal(reported.error) };
     }
+
+    const prompted = await runtime.prompt(
+      agent,
+      buildOpeningPrompt(graph, node),
+    );
+    if (isErr(prompted)) {
+      lease.stop();
+      return { exitCode: 1, message: explainRuntimeRefusal(prompted.error) };
+    }
+
+    await runtime.waitUntil(
+      agent,
+      ["working", "idle", "blocked", "done"],
+      PROMPT_SETTLE_TIMEOUT_MS,
+    );
 
     const waited = await runtime.waitUntil(
       agent,

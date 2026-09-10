@@ -97,6 +97,7 @@ function stubRuntime(): Runtime {
     openPane: () => Promise.resolve(ok({ id: "pane-1" })),
     startAgent: (pane) => Promise.resolve(ok({ id: "agent-1", pane })),
     reportIdentity: () => Promise.resolve(ok(undefined)),
+    prompt: () => Promise.resolve(ok(undefined)),
     waitUntil: () => Promise.resolve(ok("idle")),
     read: () => Promise.resolve(ok("")),
     closePane: () => Promise.resolve(ok(undefined)),
@@ -186,6 +187,47 @@ describe("interlock run", () => {
     expect(result.exitCode).toBe(0);
     expect(result.message).toContain("cleared");
     expect(existsSync(join(cwd, ".worktrees", "a"))).toBe(true);
+  }, 30_000);
+
+  it("sends the opening prompt exactly once, after reportIdentity and before waitUntil, naming the brief path", async () => {
+    const cwd = fixture();
+    await runGraphApprove(
+      ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
+      { cwd },
+    );
+
+    const calls: string[] = [];
+    let promptText: string | undefined;
+    const runtime: Runtime = {
+      ...stubRuntime(),
+      reportIdentity: (...args) => {
+        calls.push("reportIdentity");
+        return stubRuntime().reportIdentity(...args);
+      },
+      prompt: (agent, text) => {
+        calls.push("prompt");
+        promptText = text;
+        return stubRuntime().prompt(agent, text);
+      },
+      waitUntil: (...args) => {
+        calls.push("waitUntil");
+        return stubRuntime().waitUntil(...args);
+      },
+    };
+
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime,
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(calls.filter((call) => call === "prompt")).toHaveLength(1);
+    expect(calls.indexOf("prompt")).toBeGreaterThan(
+      calls.indexOf("reportIdentity"),
+    );
+    expect(calls.indexOf("prompt")).toBeLessThan(calls.indexOf("waitUntil"));
+    expect(promptText).toContain(".interlock/sessions/demo/a/brief.md");
   }, 30_000);
 
   it("writes the brief into the worktree even though the node's brief is committed after the graph's own base SHA", async () => {

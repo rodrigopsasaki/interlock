@@ -49,6 +49,11 @@ export function createTmuxRuntime(
       return Promise.resolve(ok(undefined));
     },
 
+    async prompt(agent: Agent, text: string) {
+      const sent = await run(["send-keys", "-t", agent.pane.id, text, "Enter"]);
+      return isErr(sent) ? sent : ok(undefined);
+    },
+
     waitUntil(
       _agent: Agent,
       until: readonly AgentStatus[],

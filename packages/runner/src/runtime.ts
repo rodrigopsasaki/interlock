@@ -51,6 +51,7 @@ export interface Runtime {
     label: string,
     identity: AgentIdentity,
   ): Promise<Result<void, RuntimeRefusal>>;
+  prompt(agent: Agent, text: string): Promise<Result<void, RuntimeRefusal>>;
   waitUntil(
     agent: Agent,
     until: readonly AgentStatus[],
