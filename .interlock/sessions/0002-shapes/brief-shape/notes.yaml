@@ -1,0 +1,59 @@
+interlock: notes@v0
+node: brief-shape
+entries:
+  - kind: choice
+    at: "2026-09-10T14:00:00Z"
+    chose: >
+      A front-matter block present but with no "interlock" key, and a file with no front matter
+      block at all, both validate as brief@v0 legacy. Only a present-and-wrong tag value is an
+      "unknown-tag" refusal.
+    because: >
+      The brief's own Readers paragraph says "no front matter, or with front matter lacking the
+      shape tag" both validate as legacy-valid; that is the more specific, authoritative reading
+      over the terser Errors bullet listing "missing tag" beside "unknown tag", and it keeps the
+      reader's dispatch a single small decision instead of forking on file-layout accidents like
+      an empty front-matter block.
+    rejected:
+      - treating a present-but-tagless front-matter mapping as a hard "missing-tag" refusal
+
+  - kind: choice
+    at: "2026-09-10T14:05:00Z"
+    chose: >
+      BriefRefusal has four kinds (missing-file, malformed-front-matter, unknown-tag,
+      invalid-front-matter), folding missing-field, malformed-gate, bad-scope-path and
+      not-a-plain-word-role into invalid-front-matter's free-text reason.
+    because: >
+      packages/debrief/src/debrief.ts already proves this shape scales for every structural
+      failure; no caller anywhere discriminates on a finer refusal kind, so a wider union would
+      be surface with no reader.
+
+  - kind: choice
+    at: "2026-09-10T14:10:00Z"
+    chose: >
+      Gate and scope errors cite a list index ("gates[2]", "scope[0]"), never a physical line
+      number.
+    because: >
+      Nothing in this codebase tracks real YAML source positions; every existing "line" in a
+      debrief sentence error is actually a list index. The brief reader mirrors that same
+      convention rather than inventing line tracking that would be the only one of its kind here.
+
+  - kind: choice
+    at: "2026-09-10T14:35:00Z"
+    chose: >
+      renderSlice returns only the per-kind subsections (### Convention, ### Risk, ...) or the
+      one-sentence "no substrate" text, with no outer "## Context slice" heading of its own.
+    because: >
+      Assembling the brief's full four-section body (acceptance, slice, constraints, deliverable)
+      from an ask is the interpreter's job, explicitly out of scope here. The renderer only needs
+      to be a pure, independently testable function from items to the slice's own markdown.
+
+  - kind: surprise
+    at: "2026-09-10T15:00:00Z"
+    expected: >
+      The brief's "Errors" list (missing tag, unknown tag, missing field, malformed gate, bad
+      scope path, bad role) reads as six independent, mutually exclusive refusal kinds.
+    observed: >
+      "Missing tag" and the Readers paragraph's "front matter lacking the shape tag" describe the
+      same case, and the Readers paragraph explicitly calls that case legacy-valid, not a
+      refusal. Read literally, the two paragraphs only agree if "missing tag" in the Errors list
+      is shorthand for that already-covered case rather than a fifth, competing refusal kind.

@@ -15,4 +15,36 @@ export {
 export type { NotesRefusal } from "./notes.ts";
 export { NOTES_V0, explainNotesRefusal, readNotesFile } from "./notes.ts";
 
-export { debriefFilePath, notesFilePath, sessionDirectory } from "./paths.ts";
+export type {
+  BriefFrontMatter,
+  BriefRead,
+  BriefRefusal,
+  BriefRunnerFields,
+  LegacyBrief,
+  V1Brief,
+} from "./brief.ts";
+export {
+  BRIEF_V1,
+  explainBriefRefusal,
+  explainLegacyBrief,
+  readBriefFile,
+} from "./brief.ts";
+
+export type { BriefGate } from "./briefGate.ts";
+export { parseBriefGate } from "./briefGate.ts";
+
+export type { BriefSubstrate } from "./briefSubstrate.ts";
+export { parseBriefSubstrate } from "./briefSubstrate.ts";
+
+export { isValidScopePath } from "./briefScopePath.ts";
+export { isPlainWord } from "./role.ts";
+
+export type { Item, ItemKind, ItemScope, ItemStanding } from "./slice.ts";
+export { renderSlice } from "./slice.ts";
+
+export {
+  briefFilePath,
+  debriefFilePath,
+  notesFilePath,
+  sessionDirectory,
+} from "./paths.ts";
