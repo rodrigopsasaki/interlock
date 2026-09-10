@@ -1,0 +1,832 @@
+interlock: debrief@v1
+graph: 0001-bootstrap
+node: runner-command-gate
+role: worker
+graph_base_sha: 1833f7950a28cf17ea02790cf7b13e70471ee323
+session_start_sha: ac425eb067638f52631de59f21c61583438c5189
+head_sha: d88e6c43edca4cc77c19d8296116489573e68ced
+derivation:
+  kind: agent
+  runtime: claude-code
+  model: claude-sonnet-5
+discoveries:
+  - id: d1
+    what: >
+      Nothing in graph@v0 carries a machine-readable "graph base SHA" per
+      node -- only prose in each session's hand-written brief.md does.
+    found_at: >
+      reading packages/face/src/document.ts's GraphDocument/NodeDeclaration
+      types in full and grepping .interlock/graphs/0001-bootstrap.yaml for
+      a base-sha-shaped field; neither exists.
+    matters_because: >
+      interlock run needs this SHA to create the node's worktree, and
+      cannot parse brief.md prose (brief authoring/format is explicitly
+      not this node's job). The graph's own `approved` gate receipt
+      already carries a commitSha for exactly the content the whole plan
+      runs against (D20), so the runner reads it from there instead.
+  - id: d2
+    what: >
+      graph.yaml already writes a `run:` command per gate and an
+      `acceptance:` string per node (visible on every node in
+      .interlock/graphs/0001-bootstrap.yaml), but face's GraphDocument
+      parser (packages/face/src/document.ts) captured neither field.
+    found_at: >
+      comparing 0001-bootstrap.yaml's node entries against
+      GateDeclaration/NodeDeclaration's fields and isGateDeclaration's
+      validator before writing gateCommand.ts.
+    matters_because: >
+      The runner needs a gate's actual command and a node's acceptance
+      text to build gate invocations and a ledger Brief; extending face's
+      existing parser with two optional fields reads this data face
+      already owns instead of a second YAML reader.
+  - id: d3
+    what: >
+      This worktree's HEAD (the session-start brief commit) is exactly one
+      commit ahead of `main`, and `git diff --stat` between `main` and
+      `graph_base_sha` is empty -- the two are the same commit,
+      1833f7950a28cf17ea02790cf7b13e70471ee323.
+    found_at: >
+      `git rev-parse main` and `git diff --stat 1833f79... main` run by
+      hand in the main repository before writing backfill.ts.
+    matters_because: >
+      Confirms this session's own worktree cannot be gated in place as
+      "main's current content" (it carries one extra committed file this
+      session added), so backfill has to check out a separate, real
+      worktree at main's own resolved SHA rather than reuse this one.
+  - id: d4
+    what: >
+      A Unix-domain socket's `sun_path` is capped near 104 bytes on macOS;
+      `net.Server#listen()` on an absolute path built from this worktree's
+      own location raised EINVAL well before any test logic ran.
+    found_at: >
+      running the herdr adapter's fake-socket test for the first time; the
+      raised error's own message names the exact failing absolute path.
+    matters_because: >
+      Every socket path a test builds has to be short and relative to
+      `process.cwd()` rather than derived from this worktree's absolute
+      location, or the fake server never binds at all, regardless of what
+      it is supposed to test.
+  - id: d5
+    what: >
+      `debrief-valid` (a standing gate on every node, per
+      .interlock/config.yaml) is a stub that always exits 1 until
+      debrief-schema lands, which means `buildCleared`
+      (packages/ledger/src/outcome.ts) can never construct `cleared` for
+      ANY node in this repository right now -- the honest outcome for
+      every node is always `held`.
+    found_at: >
+      the real backfill's first run against the shared journal: only
+      `scaffold` (the one node with no dependencies) was backfilled, and
+      it landed at `held`, not `cleared`; ledger, ledger-gaps and
+      face-read were silently skipped because their dependency's ledger
+      outcome could never satisfy "cleared" either.
+    matters_because: >
+      This is a real, structural fact about the repository today, not a
+      bug in this session's runner: no node -- backfilled or freshly run
+      through `interlock run` -- can reach `cleared` until debrief-schema
+      exists. It forced changing backfill's eligibility check (see
+      decision c22) and is recorded under `open` below rather than worked
+      around by forcing a receipt.
+  - id: d6
+    what: >
+      Running `pnpm install` inside a fresh git worktree nested under this
+      repository's own working tree (packages/runner/test/.runs/backfill-*
+      and the real .worktrees/backfill-* the real backfill used) does not
+      pick up this repository's own pnpm-workspace.yaml; pnpm treats the
+      fixture/worktree as its own standalone project.
+    found_at: >
+      the backfill unit test and the real backfill run both completing
+      without pnpm complaining about an unlisted workspace member.
+    matters_because: >
+      This is what makes it safe to build backfill's ephemeral checkout
+      directly inside this worktree (as the wall rules require) rather
+      than needing to escape it.
+  - id: d7
+    what: >
+      `interlock graph show 0001-bootstrap`, run for real in this
+      worktree against the repository's shared journal, before and after
+      the real `interlock backfill 0001-bootstrap` (also run for real,
+      against the same journal, at main's own resolved SHA
+      1833f7950a28cf17ea02790cf7b13e70471ee323): scaffold, ledger,
+      ledger-gaps and face-read move from ready/blocked to `held`, each
+      with its own declared gates now `satisfied` and real receipts in
+      the shared journal, backed by 16 receipt-written events (4 nodes x
+      the 3 standing gates plus each node's own declared gates).
+      Verbatim, both captured by hand immediately bracketing the
+      backfill command, is included here per the deliverable's own
+      requirement.
+    found_at: |
+      BEFORE (mise exec -- pnpm interlock graph show 0001-bootstrap):
+
+      graph 0001-bootstrap — approved
+
+      scaffold — ready
+        gates: none declared
+      ledger — blocked on scaffold
+        gates: replay pending, illegal-states pending
+      ledger-gaps — blocked on ledger
+        gates: upcast-v1 pending
+      debrief-schema — blocked on ledger
+        gates: none declared
+      face-read — blocked on ledger
+        gates: stale-approval pending
+      runner-command-gate — blocked on ledger-gaps
+        gates: one-adapter pending, receipt-idempotent pending
+      verifier-hunks — blocked on debrief-schema, runner-command-gate
+        gates: inverse-check pending
+      face — blocked on runner-command-gate, face-read
+        gates: none declared
+      self-run — blocked on face, verifier-hunks
+        gates: dogfood pending
+
+      critical path: scaffold -> ledger -> ledger-gaps -> runner-command-gate -> face -> self-run
+
+      interlock backfill 0001-bootstrap ran (two invocations: the first
+      under the pre-fix eligibility check, backfilling only scaffold to
+      held per d5; the second, after decision c22's fix, below):
+
+      $ mise exec -- pnpm interlock backfill 0001-bootstrap
+      Preparing worktree (detached HEAD 1833f79)
+      0001-bootstrap: backfilled 4 node(s).
+      scaffold: held
+      ledger: held
+      ledger-gaps: held
+      face-read: held
+
+      AFTER (mise exec -- pnpm interlock graph show 0001-bootstrap):
+
+      graph 0001-bootstrap — approved
+
+      scaffold — held
+        gates: none declared
+      ledger — held
+        gates: replay satisfied, illegal-states satisfied
+      ledger-gaps — held
+        gates: upcast-v1 satisfied
+      debrief-schema — blocked on ledger
+        gates: none declared
+      face-read — held
+        gates: stale-approval satisfied
+      runner-command-gate — blocked on ledger-gaps
+        gates: one-adapter pending, receipt-idempotent pending
+      verifier-hunks — blocked on debrief-schema, runner-command-gate
+        gates: inverse-check pending
+      face — blocked on runner-command-gate, face-read
+        gates: none declared
+      self-run — blocked on face, verifier-hunks
+        gates: dogfood pending
+
+      critical path: scaffold -> ledger -> ledger-gaps -> runner-command-gate -> face -> self-run
+
+      Receipts the backfill wrote (node | gate | duration | exit code),
+      read back from the real shared journal's receipt-written events:
+
+      scaffold    | typecheck       | 2584.27ms | exit 0
+      scaffold    | test            | 3736.23ms | exit 0
+      scaffold    | debrief-valid   |  314.76ms | exit 1
+      ledger      | typecheck       | 1599.34ms | exit 0
+      ledger      | test            | 2302.67ms | exit 0
+      ledger      | debrief-valid   |  309.01ms | exit 1
+      ledger      | replay          |  750.18ms | exit 0
+      ledger      | illegal-states  |  668.84ms | exit 0
+      ledger-gaps | typecheck       | 1629.00ms | exit 0
+      ledger-gaps | test            | 2295.23ms | exit 0
+      ledger-gaps | debrief-valid   |  312.27ms | exit 1
+      ledger-gaps | upcast-v1       |  644.68ms | exit 0
+      face-read   | typecheck       | 1635.18ms | exit 0
+      face-read   | test            | 2314.11ms | exit 0
+      face-read   | debrief-valid   |  315.63ms | exit 1
+      face-read   | stale-approval  |  659.48ms | exit 0
+
+      Every gate but debrief-valid exits 0; debrief-valid exits 1 for
+      every node, by design (d5).
+    matters_because: >
+      This is the deliverable's own required evidence: a real run against
+      the real shared journal, not a description of one. The critical
+      path text is unchanged by this backfill (still
+      "scaffold -> ledger -> ledger-gaps -> runner-command-gate -> face ->
+      self-run") because nothing reached `cleared` -- see d5 and the
+      `open` item below for why, and why that is the honest outcome
+      rather than a forced one.
+decisions:
+  - id: c1
+    what: >
+      Defined the `Runtime` interface (packages/runner/src/runtime.ts):
+      openPane(cwd), startAgent(pane, kind, args), reportIdentity(agent,
+      label, identity), waitUntil(agent, until, timeoutMs), read(agent),
+      closePane(pane), each returning a `Result` with a typed
+      `RuntimeRefusal` (no-socket | unknown-agent-kind | timeout |
+      transport) and an `explainRuntimeRefusal` sentence-builder. Added
+      packages/runner/src/validate.ts, the same minimal isRecord/isString/
+      prop/stringAt guard set ledger and face each carry their own copy
+      of, needed to read herdr's JSON responses without `as`.
+    because: >
+      "brief:What the runner is -- One adapter" names exactly these six
+      operations as the interface's surface; a typed refusal per step
+      instead of throwing keeps every caller's errors-as-sentences
+      obligation possible without a try/catch at each call site.
+    rests_on: ["brief:What the runner is", "brief:Constraints"]
+    hunks:
+      - "packages/runner/src/runtime.ts"
+      - "packages/runner/src/validate.ts"
+  - id: c2
+    what: >
+      Built the herdr adapter (packages/runner/src/herdr/adapter.ts): a
+      newline-delimited JSON-RPC client over a raw Unix socket (id-keyed
+      pending-request map, no framing library), implementing `Runtime` via
+      workspace.create, agent.start, pane.report_agent,
+      pane.report_agent_session, agent.wait, agent.read and pane.close.
+      The agent's own herdr identity is a name this adapter mints itself
+      (`interlock-<uuid>`), never a value read back from agent.start's
+      result.
+    because: notes:8, notes:9
+    rests_on:
+      [
+        "brief:Read first item 6",
+        "brief:What the runner is -- One adapter",
+        "notes:8",
+        "notes:9",
+      ]
+    hunks:
+      - "packages/runner/src/herdr/adapter.ts"
+  - id: c3
+    what: >
+      Copied the supplied herdr socket schema into
+      packages/runner/test/fixtures/herdr-socket-schema.json under a
+      neutral name; its origin path is not written anywhere in this
+      session's diff.
+    because: "brief:Read first item 6 -- copy the schema fixture, never its origin path"
+    rests_on: ["brief:Read first"]
+    hunks:
+      - "packages/runner/test/fixtures/herdr-socket-schema.json"
+  - id: c4
+    what: >
+      Wrote a fake herdr socket server for tests
+      (packages/runner/test/herdr/fakeServer.ts): a real `net.createServer`
+      over a Unix socket, implementing the same method subset the adapter
+      calls with the schema's request/response shapes, recording every
+      call and letting a test drive `agent.wait`'s returned status.
+      Tracks and destroys accepted sockets on `close()` so a test's
+      `afterEach` does not hang on a client that never disconnects.
+    because: notes:15
+    rests_on: ["brief:What the runner is -- Tests without a live herdr", "notes:15"]
+    hunks:
+      - "packages/runner/test/herdr/fakeServer.ts"
+  - id: c5
+    what: >
+      Added packages/runner/test/herdr/adapter.test.ts: refuses with
+      no-socket when nothing listens; refuses unknown-agent-kind before
+      ever calling agent.start; drives open/start/report/wait/read/close
+      end to end against the fake server and asserts the exact RPC call
+      sequence and pane.report_agent_session's source/agent_session_id
+      fields; times out when the agent never reaches a requested status.
+      Test socket paths are built relative to `process.cwd()`, short
+      regardless of this worktree's own absolute location.
+    because: notes:5
+    rests_on: ["brief:Gates", "notes:5"]
+    hunks:
+      - "packages/runner/test/herdr/adapter.test.ts"
+  - id: c6
+    what: >
+      Wrote the tmux adapter (packages/runner/src/tmux/adapter.ts): the
+      same `Runtime` interface over tmux CLI invocations (new-session,
+      send-keys, capture-pane, kill-session) through an injectable command
+      runner, with `reportIdentity` a no-op and `waitUntil` an
+      unconditional timeout refusal.
+    because: notes:9
+    rests_on: ["brief:What the runner is -- One adapter", "docs/design/0001-interlock.md#D3", "notes:10"]
+    hunks:
+      - "packages/runner/src/tmux/adapter.ts"
+  - id: c7
+    what: >
+      Added packages/runner/test/tmux/adapter.test.ts: asserts the exact
+      tmux command-argument arrays for opening a pane, starting an agent,
+      reading and closing it, and that waitUntil always times out.
+    because: "brief:What the runner is -- has a unit test for its command shapes"
+    rests_on: ["brief:What the runner is"]
+    hunks:
+      - "packages/runner/test/tmux/adapter.test.ts"
+  - id: c8
+    what: >
+      Added packages/runner/test/adapterBoundary.test.ts: greps every .ts
+      file under packages/runner/src and packages/cli/src, except the
+      adapter file itself, for herdr's RPC method-name strings, the
+      literal "herdr.sock" socket-path fragment, and the bare quoted CLI
+      name "herdr"; fails on any hit. A second assertion confirms the
+      adapter file itself does carry these tokens, so the test cannot pass
+      by accident.
+    because: >
+      "brief:What the runner is -- The adapter-boundary test greps every
+      other file ... for herdr's method names, socket path, and CLI name
+      and fails on any hit"
+    rests_on: ["brief:What the runner is", "brief:Gates"]
+    hunks:
+      - "packages/runner/test/adapterBoundary.test.ts"
+  - id: c9
+    what: >
+      Added packages/runner/src/worktree.ts: createNodeWorktree (creates a
+      new branch at a SHA, or reuses one that already exists, so a re-run
+      does not fail on "branch already exists"), createDetachedWorktree
+      (backfill's ephemeral checkout), removeWorktree, all wrapping
+      execFileSync's throw into a typed `WorktreeRefusal` and an
+      `explainWorktreeRefusal` sentence.
+    because: "brief:What the runner is -- creates a git worktree for the node's branch at the graph base SHA"
+    rests_on: ["brief:What the runner is", "d1"]
+    hunks:
+      - "packages/runner/src/worktree.ts"
+  - id: c10
+    what: >
+      Added packages/runner/src/lease.ts: takeLease appends `lease-taken`
+      then heartbeats via `clock.interval` at a third of the lease length,
+      appending `lease-renewed` with a fresh `now + leaseMs` expiry each
+      time; returns a handle whose `stop()` cancels the timer. Takes only
+      `{append}` (a new `AppendsEvents` interface), not the whole `Ledger`
+      surface, so a test can pass a bare recorder.
+    because: >
+      "brief:What the runner is -- takes a lease on the node (typed
+      expiry, heartbeat at a third of it, on the ledger's clock)"
+    rests_on: ["brief:What the runner is", "docs/design/0001-interlock.md#Node lifecycle"]
+    hunks:
+      - "packages/runner/src/lease.ts"
+  - id: c11
+    what: >
+      Added packages/runner/test/lease.test.ts on a controlled clock:
+      asserts the initial lease-taken expiry, two heartbeats' worth of
+      lease-renewed events at the expected `now + leaseMs` values, and
+      that `stop()` ends renewal.
+    because: "brief:What the runner is -- Lease and heartbeat on a controlled clock"
+    rests_on: ["brief:What the runner is"]
+    hunks:
+      - "packages/runner/test/lease.test.ts"
+  - id: c12
+    what: >
+      Added packages/runner/src/localConfig.ts: LocalConfig{runtime:
+      {kind,args}, worktreeRoot, leaseMs, runTimeoutMs, substrateAddress},
+      parsed from a `local@v0` YAML shape; a missing file refuses with a
+      sentence naming every field and its meaning, a malformed one names
+      the specific reason. Added .interlock/local.example.yaml (committed)
+      spelling out the same fields with comments, and this machine's own
+      .interlock/local.yaml (gitignored) so the real backfill below could
+      actually run.
+    because: notes:13
+    rests_on: ["brief:What the runner is -- Configuration", "notes:13"]
+    hunks:
+      - "packages/runner/src/localConfig.ts"
+      - ".interlock/local.example.yaml"
+  - id: c13
+    what: >
+      Added packages/runner/src/standingGates.ts: reads
+      .interlock/config.yaml's `standing_gates` list into
+      `StandingGate{id, run}`, refusing (missing/malformed) with a
+      sentence -- nothing else in this repository parsed this file before.
+    because: "d2 (the same gap, on config.yaml's own run: field, not graph.yaml's)"
+    rests_on: ["brief:Gates", "d2"]
+    hunks:
+      - "packages/runner/src/standingGates.ts"
+  - id: c14
+    what: >
+      Added packages/runner/src/scope.ts (gitTrackedFiles: `git ls-files`
+      at a root) and packages/runner/src/gateCommand.ts (declaredGateIds:
+      standing then node gate ids, in that order; gateCommandTable: a
+      merged id-to-command map, node gates overriding only their own ids).
+    because: notes:3
+    rests_on: ["AGENTS.md#Gates -- three sources, add but never remove", "notes:2"]
+    hunks:
+      - "packages/runner/src/scope.ts"
+      - "packages/runner/src/gateCommand.ts"
+  - id: c15
+    what: >
+      Added packages/runner/src/dependencies.ts: unmetDependencies(graph,
+      dependsOn, projection) -- the linear scan the ledger-gaps scouting
+      read flagged as missing (no node-to-outcome index exists), used by
+      `interlock run`'s own dependency-cleared refusal.
+    because: "the ledger-gaps scouting read's own flagged gap: no reverse index from a node to its outcome exists yet"
+    rests_on: ["brief:What the runner is -- Refuses unless the node's dependencies are cleared"]
+    hunks:
+      - "packages/runner/src/dependencies.ts"
+  - id: c16
+    what: >
+      Added packages/runner/src/sessionBrief.ts: briefPath/briefExists
+      (the markdown brief.md presence check) and buildBrief, constructing
+      a proper ledger `Brief{graph,node,role:"worker",acceptance,gates,
+      scope}` distinct from the markdown file.
+    because: >
+      "the ledger-gaps scouting read's own flagged gap: session-started
+      needs a real ledger Brief value before a lease can be taken, or
+      lease-taken silently no-ops"
+    rests_on: ["packages/ledger/src/projection.ts#withSession", "packages/ledger/src/brief.ts"]
+    hunks:
+      - "packages/runner/src/sessionBrief.ts"
+  - id: c17
+    what: >
+      Added packages/runner/src/gateJudge.ts: for each declared gate,
+      re-runs its command (through `mise exec --`) unless its current
+      receipt's spend is not `none`; writes a receipt (spend none,
+      measured duration, `derivation.gate(gate, "runner@0", runnerId)`,
+      proof of exit code and an output hash, never the output) once per
+      distinct identity per node (checked against the node's own
+      `receipts` array before appending, since `applyEvent`'s
+      `receipt-written` case appends with no dedup of its own); moves the
+      gate to satisfied or blocked; and finally calls `buildCleared`,
+      writing `cleared` on success or `held` (on={gate-failure, the
+      missing gate ids joined, disposition "hold"}) otherwise.
+    because: notes:10, notes:11
+    rests_on:
+      [
+        "brief:What the runner is -- Gates run by the runner",
+        "brief:What the runner is -- Cleared is decided only by the runner's own run",
+        "docs/design/0001-interlock.md#Gates",
+        "notes:11",
+        "notes:12",
+      ]
+    hunks:
+      - "packages/runner/src/gateJudge.ts"
+  - id: c18
+    what: >
+      Added packages/runner/test/gateJudge.test.ts, its `describe` named
+      "receipt-idempotent" for the gate's own test-name selector: running
+      the same gate twice over the same content writes one receipt
+      identity and no duplicate fact; a failing gate holds the node with
+      `on.kind === "gate-failure"` and the failing gate named; an existing
+      non-none-spend receipt is kept, never re-run.
+    because: "brief:Gates -- receipt-idempotent's own literal wording"
+    rests_on: ["brief:Gates"]
+    hunks:
+      - "packages/runner/test/gateJudge.test.ts"
+  - id: c19
+    what: >
+      Added packages/runner/src/sweep.ts: sweepExpiredLeases scans live
+      sessions for a lease whose expiry has passed with `leaseExpired`
+      still false and the node's outcome still undefined, appends
+      `lease-expired` then `outcome-set(outcome.cancelled(receipts,
+      "sweeper", because))`. A second sweep at the same time is a no-op by
+      construction, since the outcome it would have written is already
+      there.
+    because: notes:2
+    rests_on: ["brief:What the runner is -- interlock sweep", "AGENTS.md#vocabulary", "notes:3"]
+    hunks:
+      - "packages/runner/src/sweep.ts"
+  - id: c20
+    what: >
+      Added packages/runner/test/sweep.test.ts: abandons an expired,
+      unresolved session and leaves a live or already-resolved one
+      untouched; a second sweep at the same wall time writes nothing new.
+    because: "brief:What the runner is -- The sweeper on a projection with an expired lease; idempotent"
+    rests_on: ["brief:What the runner is"]
+    hunks:
+      - "packages/runner/test/sweep.test.ts"
+  - id: c21
+    what: >
+      Added packages/runner/src/backfill.ts: checks out a real, separate
+      git worktree at `git rev-parse <mainBranch>`, installs there once,
+      then for every graph node whose session directory holds a
+      debrief.yaml AND whose every dependency also holds one, runs
+      `judgeGates` there at main's resolved SHA, in topological order;
+      removes the worktree afterward. Eligibility checks debrief presence,
+      not a dependency's ledger outcome being literally `cleared` (see d5,
+      c-fix below).
+    because: notes:5
+    rests_on:
+      [
+        "brief:What the runner is -- interlock backfill",
+        "notes:6",
+        "notes:7",
+        "d3",
+        "d5",
+      ]
+    hunks:
+      - "packages/runner/src/backfill.ts"
+  - id: c22
+    what: >
+      Fixed backfill's eligibility check: the first real run against the
+      shared journal (see d5) showed the ledger-outcome-based check could
+      never let ledger, ledger-gaps or face-read qualify, since nothing
+      can ever reach `cleared` while debrief-valid always fails. Changed
+      the check to "every dependency also has a debrief.yaml", leaving the
+      judged outcome (held, honestly) untouched, and reused this same
+      `unmetDependencies` -- no, this fix removed that import from
+      backfill.ts entirely and left it only in cli/src/run.ts, where the
+      literal ledger-outcome-cleared question is the correct one to ask.
+    because: notes:17, notes:18
+    rests_on: ["notes:16", "notes:17", "d5"]
+    hunks:
+      - "packages/runner/src/backfill.ts"
+  - id: c23
+    what: >
+      Added a second case to packages/runner/test/backfill.test.ts: a
+      standing gate that always fails still lets a dependent, debriefed
+      node get gated (landing at held, not skipped), proving c22's fix.
+      The first case (a passing standing gate reaching cleared) is
+      unchanged.
+    because: notes:18
+    rests_on: ["brief:What the runner is -- Backfill on a fixture repository whose gates are trivial commands", "notes:17"]
+    hunks:
+      - "packages/runner/test/backfill.test.ts"
+  - id: c24
+    what: >
+      Added packages/runner/test/liveSmoke.test.ts: connects to herdr's
+      real default socket path if `existsSync` finds it, else logs a
+      sentence and returns (a pass, not a skip marker vitest would report
+      separately) -- never starts or configures herdr itself.
+    because: "brief:What the runner is -- One live smoke test ... skipped with a sentence if it does not [exist]"
+    rests_on: ["brief:Read first item 6", "brief:What the runner is"]
+    hunks:
+      - "packages/runner/test/liveSmoke.test.ts"
+  - id: c25
+    what: >
+      Added packages/runner/test/support/memoryLedger.ts (an in-process
+      `Ledger` built from `applyEvent`/`emptyProjection`, reused by the
+      sweep, gateJudge and backfill unit tests) and
+      packages/runner/test/support/gitFixture.ts
+      (gitInitFixtureWithContent: git-inits and commits whatever is
+      already on disk, for a worktree checkout that needs real,
+      committed content).
+    because: "type-only/fixture sync: every runner-package test needing a Ledger or a real git checkout composes the same two helpers instead of five copies"
+    rests_on: ["brief:Constraints -- Small single-purpose files"]
+    hunks:
+      - "packages/runner/test/support/memoryLedger.ts"
+      - "packages/runner/test/support/gitFixture.ts"
+  - id: c26
+    what: >
+      Added packages/runner/src/index.ts, the package's public barrel:
+      every type and factory a caller outside packages/runner/src needs
+      (Runtime family, both adapter factories, local/standing-gate config,
+      scope, dependencies, gate command table, worktree, lease, session
+      brief, gateJudge, sweep, backfill), matching the manifest rule --
+      a new public symbol with no export is not usable outside the
+      package.
+    because: "the manifest rule: every new public type and factory needs a public export or it is not actually usable outside the package (ledger-gaps c6 set this precedent)"
+    rests_on: ["brief:Deliverable"]
+    hunks:
+      - "packages/runner/src/index.ts"
+  - id: c27
+    what: >
+      Scaffolded packages/runner (package.json, tsconfig.json,
+      vitest.config.ts) matching the sibling packages' established
+      pattern exactly: main/types at ./src/index.ts, typecheck: tsc
+      --noEmit, test: vitest run, the same tsconfig extends/
+      allowImportingTsExtensions shape. Added `runner: workspace:*` to
+      packages/cli/package.json and regenerated pnpm-lock.yaml.
+    because: "brief:Constraints -- pnpm workspace as is; d6"
+    rests_on: ["packages/ledger/package.json", "packages/face/package.json", "d6"]
+    hunks:
+      - "packages/runner/package.json"
+      - "packages/runner/tsconfig.json"
+      - "packages/runner/vitest.config.ts"
+      - "packages/cli/package.json"
+      - "pnpm-lock.yaml"
+  - id: c28
+    what: >
+      Added `.worktrees/` and `.interlock/local.yaml` to .gitignore's
+      existing per-package `.runs/` pattern (extended with
+      packages/runner/test/.runs/), matching the WALL RULE that the fake
+      socket server's and every fixture's temp directory lives inside
+      this worktree and is gitignored.
+    because: "brief:What the runner is -- Configuration (local.yaml, gitignored); brief:Tests without a live herdr"
+    rests_on: ["brief:Configuration", "brief:Tests without a live herdr"]
+    hunks:
+      - ".gitignore"
+  - id: c29
+    what: >
+      Extended face's document.ts additively: `GateDeclaration.run?:
+      string` and `NodeDeclaration.acceptance?: string`, both parsed as
+      optional strings, both unrelated to the persisted ledger event
+      shape (this is a TypeScript-type and YAML-parser change inside a
+      package this session owns, not the event@v2 shape-change question
+      the ledger-gap items below are about).
+    because: notes:4
+    rests_on: ["d2", "notes:4"]
+    hunks:
+      - "packages/face/src/document.ts:9-19"
+      - "packages/face/src/document.ts:58-68"
+      - "packages/face/src/document.ts:104-128"
+  - id: c30
+    what: >
+      Wrote cli/src/run.ts: `interlock run <graph> <node>`. Refuses
+      (before opening anything): missing args, no repository root, a
+      missing/malformed local.yaml, a missing/malformed graph, an
+      undeclared node, missing/malformed standing gates, a missing
+      brief.md. Opens the ledger; refuses on approval not being
+      "approved" (reading the graph node's own `approved` gate + d1's
+      commitSha), on unmet dependencies (via runner's
+      unmetDependencies), then appends session-started (with a real
+      Brief) before taking a lease (the ledger-gaps scouting read's own
+      flagged ordering rule), creates the node's worktree at the
+      approval receipt's commitSha, opens a herdr pane (or an injected
+      `Runtime` for tests), starts the configured agent, reports its
+      identity with source "interlock" and label
+      `<graph>/<node>/<session>`, waits for idle/blocked/done, stops the
+      heartbeat, reads the worktree's own HEAD as the debriefed SHA, and
+      judges the gates there. A single try/finally closes the opened pane
+      (if any) and the ledger on every path, a deliberate deviation from
+      graph/approve.ts's literal repeated-close style given roughly a
+      dozen early returns here against three there.
+    because: notes:1, notes:14
+    rests_on:
+      [
+        "brief:What the runner is -- interlock run",
+        "packages/cli/src/graph/approve.ts",
+        "notes:1",
+        "notes:14",
+        "d1",
+      ]
+    hunks:
+      - "packages/cli/src/run.ts"
+  - id: c31
+    what: >
+      Added packages/cli/test/run.test.ts: refusals for missing args, a
+      graph file that does not exist, a missing local.yaml (naming its
+      fields), an undeclared node, and a node with no brief (asserting
+      the journal is byte-identical before and after, since approve
+      already opened one); one full end-to-end happy path with an
+      injected stub `Runtime` and a controlled clock, asserting the
+      worktree exists on disk and the outcome reads "cleared".
+    because: notes:18
+    rests_on: ["brief:Errors are sentences", "notes:18"]
+    hunks:
+      - "packages/cli/test/run.test.ts"
+  - id: c32
+    what: >
+      Extended packages/cli/test/graph/gitFixture.ts with `commitAll`
+      (stage and commit whatever is on disk), needed by run.test.ts's
+      happy path, which checks out a real worktree and so needs real,
+      committed files, unlike approve.test.ts/show.test.ts's existing
+      empty-commit-only fixtures.
+    because: "run.test.ts's happy path needs a real git worktree checkout with real files in it, which gitInitFixture's empty commit alone cannot provide"
+    rests_on: ["brief:What the runner is -- creates a git worktree"]
+    hunks:
+      - "packages/cli/test/graph/gitFixture.ts"
+  - id: c33
+    what: >
+      Wrote cli/src/sweep.ts: `interlock sweep`, opening the ledger,
+      calling sweepExpiredLeases at the clock's current wall time, closing
+      the ledger in a try/finally, and reporting how many sessions were
+      abandoned or that none were.
+    because: "brief:What the runner is -- interlock sweep"
+    rests_on: ["brief:What the runner is"]
+    hunks:
+      - "packages/cli/src/sweep.ts"
+  - id: c34
+    what: >
+      Added packages/cli/test/sweep.test.ts: an empty journal reports
+      nothing to abandon; a hand-authored journal with one expired,
+      unresolved lease is abandoned, with `lease-expired` and
+      `outcome-set` both landing in the real on-disk journal file.
+    because: "brief:Gates -- the sweeper's own coverage requirement"
+    rests_on: ["brief:What the runner is"]
+    hunks:
+      - "packages/cli/test/sweep.test.ts"
+  - id: c35
+    what: >
+      Wrote cli/src/backfill.ts: `interlock backfill <graph>`, loading
+      local config, the graph document and standing gates, opening the
+      ledger, calling runner's backfillGraph with `mainBranch: "main"`,
+      closing the ledger, and reporting each backfilled node's outcome
+      kind.
+    because: "brief:What the runner is -- interlock backfill, the first act"
+    rests_on: ["brief:What the runner is"]
+    hunks:
+      - "packages/cli/src/backfill.ts"
+  - id: c36
+    what: >
+      Added packages/cli/test/backfill.test.ts: refusals for a missing
+      graph id, a missing local.yaml (naming its fields), and a graph file
+      that does not exist. The mechanics of a real backfill run
+      (dependency chains, held-vs-cleared, worktree checkout) are covered
+      at the runner package's own backfill.test.ts, not duplicated here.
+    because: "type-only/refusal coverage at the CLI layer; the heavier mechanics are runner's own to prove"
+    rests_on: ["brief:Errors are sentences"]
+    hunks:
+      - "packages/cli/test/backfill.test.ts"
+  - id: c37
+    what: >
+      Wired `run`, `sweep` and `backfill` into cli/src/main.ts's dispatch
+      as single-word top-level commands (`argv[0]`), alongside the
+      existing two-word `group action` commands (`graph show`, `graph
+      approve`, `debrief validate`).
+    because: "brief:What the runner is names the three verbs literally: interlock run <graph> <node>, interlock sweep, interlock backfill <graph>"
+    rests_on: ["brief:What the runner is"]
+    hunks:
+      - "packages/cli/src/main.ts"
+  - id: c38
+    what: >
+      Extended packages/cli/test/main.test.ts: run/backfill refuse before
+      touching disk on missing args; sweep, dispatched through `run()`,
+      is proven from an isolated fixture repository (via `process.chdir`,
+      restored in a finally) rather than this session's own real
+      repository, so a dispatch-level unit test never touches the real
+      shared journal as a side effect.
+    because: "dispatch coverage for the three new verbs, isolated from this repository's own live journal"
+    rests_on: ["brief:What the runner is"]
+    hunks:
+      - "packages/cli/test/main.test.ts"
+  - id: c39
+    what: >
+      Appended notes.yaml's choice and surprise entries across both code
+      commits, naming every real design fork (graph base SHA, the
+      abandoned-outcome routing, receipt scope, the two additive face
+      fields, backfill's separate worktree, the herdr agent-identity and
+      events.subscribe choices, the tmux always-timeout choice, receipt
+      idempotence, the try/finally deviation, local.yaml's worktree_root
+      default, held's disposition/expiry defaults, the socket fake-server
+      close() hang, the injected-Runtime seam) and every surprise this
+      session found (the socket path-length limit; the debrief-valid
+      deadlock and its fix).
+    because: "brief:Deliverable item 2 -- notes.yaml is appended while working and committed with the code it belongs to"
+    rests_on: ["brief:Deliverable"]
+    hunks:
+      - ".interlock/sessions/0001-bootstrap/runner-command-gate/notes.yaml"
+  - id: c40
+    what: >
+      Filed this debrief as the session's final commit, decisions covering
+      every file this session's diff touched across both code commits,
+      including this file, per the manifest rule.
+    because: "brief:Deliverable item 3 -- the manifest rule, checked before filing"
+    rests_on: ["brief:Deliverable"]
+    hunks:
+      - ".interlock/sessions/0001-bootstrap/runner-command-gate/debrief.yaml"
+gates_run_by_agent:
+  - { id: typecheck, result: pass, invocation: "mise exec -- pnpm typecheck" }
+  - { id: test, result: pass, invocation: "mise exec -- pnpm test" }
+  - { id: debrief-valid, result: fail, invocation: "mise exec -- pnpm interlock debrief validate", note: "fails closed by design until the debrief-schema node lands" }
+  - { id: one-adapter, result: pass, invocation: "mise exec -- pnpm --filter runner test --testNamePattern adapter-boundary" }
+  - { id: receipt-idempotent, result: pass, invocation: "mise exec -- pnpm --filter runner test --testNamePattern idempotent" }
+open:
+  - >
+    No `abandoned` Outcome kind exists (event@v2's Outcome union has six
+    arms: cleared | held | reset | failed | cancelled | superseded). The
+    sweeper writes `outcome.cancelled(receipts, "sweeper", because)`
+    instead, per this session's own routing instruction (a new union arm
+    is a shape change to stop on, not build). Proposal for a future
+    session: add `abandoned` as a seventh, additive Outcome union arm --
+    `{kind:"abandoned", receipts, because}` (no `authority`, since the
+    sweeper is not a person and Derivation has no system-actor kind
+    either) -- bumping to event@v3 with an upcaster that reads a v2
+    `cancelled` whose authority is literally "sweeper" back as
+    `abandoned`, the same lossless-where-honest pattern ledger-gaps used
+    for reset/held.
+  - >
+    Outcome has no typed `derivation: Derivation` field; "the sweeper as
+    derivation" is in practice the free-text `authority: "sweeper"` string
+    on the `cancelled` outcome it writes, not a typed Derivation value
+    (Derivation's three kinds -- gate | model | human -- have no
+    system-actor arm for "the sweeper" or "the runner" outside a gate
+    receipt's own `runner: string` field). Worth deciding explicitly
+    alongside the `abandoned` proposal above rather than assumed away.
+  - >
+    debrief-valid is a standing gate on every node and its stub always
+    exits 1 until debrief-schema lands (discovery d5): no node in this
+    repository, backfilled or freshly run through `interlock run`, can
+    reach `cleared` right now. The real backfill run below (see the
+    before/after `graph show` output) moved scaffold, ledger, ledger-gaps
+    and face-read from ready/blocked to `held`, each with its own declared
+    gates satisfied and real receipts in the shared journal -- but not to
+    `cleared`, and the critical path still reads
+    "scaffold -> ledger -> ledger-gaps -> runner-command-gate -> face ->
+    self-run", not beginning at runner-command-gate as the acceptance's
+    aspirational sentence describes. This is the honest, expected state
+    until debrief-schema exists; forcing debrief-valid to pass for
+    backfilled nodes was refused, per this session's own instruction never
+    to force a receipt.
+  - >
+    The journal's one-writer-per-repository rule is enforced only by
+    convention today, exactly as the brief says to state plainly: the
+    runner (`judgeGates`) always re-runs every spend-none gate itself and
+    never trusts a receipt already in the journal as proof, and it
+    records which receipts it wrote in which run via each receipt's own
+    `derivation.runner` id (`run-<sessionId>` for `interlock run`,
+    `backfill-<uuid>` for backfill). Nothing on this one machine, for this
+    one user, stops a second process from opening the same journal file
+    concurrently and interleaving writes -- @phyxiusjs/journal's sink is a
+    synchronous `appendFileSync` per event with no lock file or advisory
+    lock of its own. This is unchanged from the ledger session's own
+    debrief, which already recorded the same honest gap.
+  - >
+    Receipt scope for every gate this session's runner writes is
+    `git ls-files` at the content root (the worktree for `interlock run`,
+    the ephemeral main checkout for backfill) -- the whole repository's
+    tracked files, not a narrower per-node or per-gate scope, since
+    neither graph.yaml nor config.yaml declares one and this session
+    cannot edit either file. This is correct (never a false pass) but
+    coarse: an edit anywhere in the repository invalidates every node's
+    receipts, not only the ones a gate's command actually reads. A future
+    session could add a declared `scope:` list per gate to graph.yaml or
+    config.yaml to narrow this.
+  - >
+    `interlock run`'s own end-to-end path (lease, worktree, herdr pane,
+    gate judging) is proven against the fake herdr socket server
+    (adapter.test.ts) and, separately, end to end at the CLI layer with an
+    injected stub `Runtime` (run.test.ts) -- never against a live herdr
+    process, since this session was told not to start or configure herdr
+    and no socket was present throughout (confirmed by the live smoke
+    test's own skip). The herdr adapter's few schema fields the
+    distillation itself flagged as inferred rather than schema-proven
+    (agent.wait's and the four "ok"-mutation methods' result shapes) are
+    therefore unverified against a real server.
+  - >
+    Held's `disposition` is always `"hold"` and its `expiry` is a fixed
+    constant (this session's configured lease length for `interlock run`,
+    24 hours for backfill), never computed from a retry budget --
+    AGENTS.md's conserved retry budget and the failure/disposition/because
+    healing loop's retry-repair-cancel machinery are out of this node's
+    acceptance and not built here.
