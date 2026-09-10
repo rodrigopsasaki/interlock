@@ -383,6 +383,7 @@ describe("interlock run", () => {
       "pane pane-1 opened",
       "agent agent-1 started (claude)",
       "identity reported",
+      "agent ready (idle)",
       "prompt sent",
       "waiting for idle, blocked or done (timeout 5000ms)",
     ]);
@@ -490,6 +491,74 @@ describe("interlock run", () => {
     expect(result.exitCode).toBe(1);
     expect(result.message).toBe(
       "agent blocked at startup with no configured answer; screen: Is this a project you created or one you trust?",
+    );
+  }, 30_000);
+
+  it("waits through unknown, then blocked, then idle before sending the prompt", async () => {
+    const cwd = fixture({ localYaml: localYamlWithStartupAnswers });
+    await runGraphApprove(
+      ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
+      { cwd },
+    );
+
+    const statuses: ("unknown" | "blocked" | "idle")[] = [
+      "unknown",
+      "blocked",
+      "idle",
+    ];
+    const lines: string[] = [];
+    const runtime: Runtime = {
+      ...stubRuntime(),
+      waitUntil: (agent, until, timeoutMs) =>
+        until.length === 2
+          ? Promise.resolve(ok(statuses.shift() ?? "idle"))
+          : stubRuntime().waitUntil(agent, until, timeoutMs),
+      read: () => Promise.resolve(ok("trust this project? [Down/Enter]")),
+    };
+
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime,
+      narrate: (line) => lines.push(line),
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(statuses).toHaveLength(0);
+    const answered = lines.indexOf("startup answer sent (trust this project)");
+    const ready = lines.indexOf("agent ready (idle)");
+    const prompted = lines.indexOf("prompt sent");
+    expect(answered).toBeGreaterThan(-1);
+    expect(ready).toBeGreaterThan(answered);
+    expect(prompted).toBeGreaterThan(ready);
+  }, 30_000);
+
+  it("refuses with the last observed status when the agent never becomes ready", async () => {
+    const cwd = fixture();
+    await runGraphApprove(
+      ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
+      { cwd },
+    );
+
+    const runtime: Runtime = {
+      ...stubRuntime(),
+      waitUntil: (agent, until, timeoutMs) =>
+        until.length === 2
+          ? Promise.resolve(
+              err({ kind: "timeout", until, timeoutMs, status: "working" }),
+            )
+          : stubRuntime().waitUntil(agent, until, timeoutMs),
+    };
+
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime,
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.message).toBe(
+      "startup refused: agent not ready after 60000ms; last status working",
     );
   }, 30_000);
 });

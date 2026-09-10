@@ -12,6 +12,9 @@ runtime:
   # startup_answers:
   #   - matches: "the text the runtime shows when it needs an answer before it is ready"
   #     keys: [Down, Enter]
+  # Optional. How long the runner waits for the runtime to become ready before sending the
+  # opening prompt. Defaults to 60000.
+  # startup_timeout_ms: 60000
 
 # Where the runner creates a node's git worktree, relative to the repository root.
 worktree_root: .worktrees
