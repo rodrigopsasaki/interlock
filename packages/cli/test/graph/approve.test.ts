@@ -56,7 +56,7 @@ function journalEventKinds(cwd: string): readonly string[] {
     .map((line): string => {
       const parsed: unknown = JSON.parse(line);
       return typeof parsed === "object" && parsed !== null && "kind" in parsed
-        ? String((parsed as Record<string, unknown>)["kind"])
+        ? String(parsed["kind"])
         : "";
     });
 }

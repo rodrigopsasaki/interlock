@@ -289,3 +289,18 @@ entries:
       The journal is per-machine state, not a committed artifact, for now -- this is the one
       decision in the brief that should be revisited when the runner exists, since a shared
       journal across machines is exactly what a real runner would need to change.
+  - kind: choice
+    at: "2026-09-09T22:00:00Z"
+    chose: >
+      Fix round: dropped the `as Record<string, unknown>` cast in approve.test.ts's
+      journalEventKinds helper, indexing `parsed["kind"]` directly after the same
+      `typeof parsed === "object" && parsed !== null && "kind" in parsed` guard.
+    because: >
+      A verifier found the cast fully redundant: compiling the guard's narrowed
+      `parsed["kind"]` access under this repo's own tsconfig (noPropertyAccessFromIndexSignature
+      included) produces zero errors, since TypeScript's `in` narrowing on an already
+      object-narrowed `unknown` already types `parsed["kind"]` as `unknown`, which `String()`
+      accepts without help. Left it a plain index rather than reaching for face's own
+      isRecord/prop guards (packages/face/src/validate.ts): those are not part of face's public
+      surface (index.ts, c10), and a test reaching past that surface into another package's
+      internals would cut the same boundary the package split is there to keep.
