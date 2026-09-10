@@ -14,6 +14,7 @@
     "face": "workspace:*",
     "ledger": "workspace:*",
     "runner": "workspace:*",
+    "verifier": "workspace:*",
     "yaml": "2.9.0"
   },
   "devDependencies": {

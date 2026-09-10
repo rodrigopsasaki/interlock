@@ -5,6 +5,7 @@ coverage/
 packages/ledger/test/.runs/
 packages/face/test/.runs/
 packages/cli/test/.runs/
+packages/verifier/test/.runs/
 packages/runner/test/.runs/
 packages/runner/test/.worktree-runs/
 packages/runner/test/.herdr-runs/

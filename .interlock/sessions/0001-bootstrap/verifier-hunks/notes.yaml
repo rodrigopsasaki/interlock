@@ -157,3 +157,79 @@ entries:
       the fix is a one-line scope move with a clear, checkable reason, not
       an open design question, and "gate every change against that
       baseline" means a red floor gets fixed, not carried.
+  - kind: choice
+    at: "2026-09-10T18:44:00Z"
+    chose: >
+      Resumed from the prior session's checkpoint commit by verifying its
+      floor first: `pnpm typecheck` and `pnpm test` both green, and
+      `pnpm --filter verifier test --testNamePattern unexplained` already
+      matches `inverse-check`'s expect_output. The library
+      (packages/verifier) and its 41 tests were complete; only the CLI
+      command (`interlock verify <graph> <node>`) named in the brief's
+      Deliverable 4 and "What the verifier is" was still unbuilt. Added
+      packages/cli/src/verify.ts (mirroring debrief/validate.ts's own
+      shape: resolve repoRoot, missing-debrief sentence, dispatch on the
+      DebriefRead's kind) and wired it into main.ts and cli's package.json.
+    because: >
+      The brief's Deliverable 4 requires "the output of interlock verify
+      ... verbatim" for both debrief-schema and this node's own debrief --
+      a command that did not exist yet. Re-deriving the library instead of
+      reading what was already there would have redone finished work the
+      interlock instructions explicitly forbid.
+  - kind: surprise
+    at: "2026-09-10T18:47:00Z"
+    expected: >
+      `interlock verify 0001-bootstrap debrief-schema` to print only its
+      one position line, since the verifier never fails a gate and every
+      internal git check is wrapped in try/catch.
+    observed: >
+      Running it against the real corpus printed several `fatal: path
+      '...' does not exist in '<sha>'` lines to stderr -- git's own
+      diagnostic for a failed `cat-file -e`, from foundAt.ts's
+      candidatePaths trying several substrings per discovery, most of
+      which are not real paths by design (that is how the classifier
+      recognizes prose). node's execFileSync inherits stderr by default;
+      the try/catch in git.ts caught the *thrown error* fine, but git had
+      already written to the parent's own stderr before that.
+  - kind: choice
+    at: "2026-09-10T18:49:00Z"
+    chose: >
+      Fixed git.ts's shared `git()` helper to pass
+      `stdio: ["ignore", "pipe", "pipe"]`, so a probing git call's stderr
+      is captured for the caller (still available on a thrown error, still
+      inert here since every caller catches and discards it) rather than
+      inherited onto this process's own stderr. Verified empirically with
+      a standalone node -e reproduction before and after, then re-ran
+      `interlock verify 0001-bootstrap debrief-schema`: identical marks,
+      clean stderr.
+    because: >
+      "Comments: as few as possible. This is a public face" is this
+      brief's own constraint on the code; the same posture applies to what
+      the CLI prints. A command that never fails a gate should not spray
+      five lines of git's own fatal-looking diagnostics on every real run
+      -- that is confusing noise a fix-at-the-cause, not a symptom patch,
+      since the probing behavior it was breaking (try several candidate
+      paths, expect most to miss) is correct and stays exactly as it was.
+    rejected: >
+      Redirecting stderr only at the two probing call sites (foundAt.ts's
+      resolveCandidate) instead of in the shared helper -- rejected
+      because isCommit and isAncestor probe just as speculatively
+      (checking a sha or ancestry that may not hold) and would leak the
+      same noise; the fix belongs in the one function all four callers
+      share, not duplicated at each call site.
+  - kind: surprise
+    at: "2026-09-10T18:52:00Z"
+    expected: >
+      This worktree's own `git status` to be clean except for tracked
+      changes, matching the runner-started session's promise.
+    observed: >
+      `packages/verifier/test/.runs/` showed as untracked from the very
+      first `git status` this session ran, before this session touched
+      anything -- every sibling package (ledger, face, cli, runner) has
+      its own `test/.runs/` line in .gitignore, but the prior session
+      never added verifier's.
+    mattered_because: >
+      Left alone, every future `pnpm --filter verifier test` run in any
+      checkout would keep surfacing this as untracked noise; one line in
+      the already-in-scope .gitignore, matching every sibling package's
+      own entry, closes the gap at its cause.

@@ -11,8 +11,15 @@ export interface FileDiff {
   readonly addedLines: readonly string[];
 }
 
+// stderr is piped, not inherited: isCommit, isAncestor, pathExistsAt and fileContentAt all
+// probe paths and shas expected to fail as often as they succeed, and git's own "fatal: ..."
+// belongs in the caught error, not spilled onto this process's own stderr.
 function git(args: readonly string[], cwd: string): string {
-  return execFileSync("git", args, { cwd, encoding: "utf-8" });
+  return execFileSync("git", args, {
+    cwd,
+    encoding: "utf-8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
 }
 
 export function isCommit(repoRoot: string, sha: string): boolean {
