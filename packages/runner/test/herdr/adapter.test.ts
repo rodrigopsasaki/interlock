@@ -296,6 +296,39 @@ describe("herdr adapter", () => {
     ).toHaveLength(2);
   }, 10_000);
 
+  // Real herdr answers a timed-out agent.wait with a remote error whose code is "timeout", not
+  // a status payload. That error is the slice elapsing, exactly like an unanswered call: the
+  // loop keeps going, and the status it eventually returns comes from the next agent.get.
+  it("reads two herdr-timeout errors from agent.wait as elapsed slices, returning the status agent.get reports next", async () => {
+    const fake = await fixture();
+    fake.agentStatus = "working";
+    fake.delayAgentWaitToRequestedTimeout = true;
+    setTimeout(() => {
+      fake.agentStatus = "idle";
+    }, 150);
+    const created = await createHerdrRuntime(
+      fake.socketPath,
+      30_000,
+      60_000,
+      100,
+    );
+    if (isErr(created)) throw new Error("expected a runtime");
+    const pane = await created.value.openPane("/repo");
+    if (isErr(pane)) throw new Error("expected a pane");
+    const agent = await created.value.startAgent(pane.value, "claude", []);
+    if (isErr(agent)) throw new Error("expected an agent");
+
+    const waited = await created.value.waitUntil(
+      agent.value,
+      ["idle", "blocked", "done"],
+      7_000,
+    );
+    expect(waited).toEqual({ _tag: "Ok", value: "idle" });
+    expect(
+      fake.calls.filter((call) => call.method === "agent.wait"),
+    ).toHaveLength(2);
+  }, 10_000);
+
   it("returns a remote refusal from agent.wait without retrying", async () => {
     const fake = await fixture();
     fake.agentStatus = "working";

@@ -145,15 +145,16 @@ export function startFakeHerdrServer(
         respond(socket, id, { agent: { agent_status: state.agentStatus } });
         return;
       case "agent.wait": {
-        const respondToWait = () =>
-          respond(socket, id, { agent: { agent_status: state.agentStatus } });
         if (!state.delayAgentWaitToRequestedTimeout) {
-          respondToWait();
+          respond(socket, id, { agent: { agent_status: state.agentStatus } });
           return;
         }
+        // Real herdr answers an agent.wait whose timeout_ms elapsed before the status changed
+        // with this exact error, never a status payload: the fake exists to be herdr.
         const requestedTimeoutMs = prop(params, "timeout_ms");
         setTimeout(
-          respondToWait,
+          () =>
+            fail(socket, id, "timeout", "timed out waiting for agent status"),
           typeof requestedTimeoutMs === "number" ? requestedTimeoutMs : 0,
         );
         return;
