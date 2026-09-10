@@ -1,6 +1,9 @@
+import { runInterlockBackfill } from "./backfill.ts";
 import { validateDebrief } from "./debrief/validate.ts";
 import { runGraphApprove } from "./graph/approve.ts";
 import { runGraphShow } from "./graph/show.ts";
+import { runInterlockRun } from "./run.ts";
+import { runInterlockSweep } from "./sweep.ts";
 
 export interface CommandResult {
   readonly exitCode: number;
@@ -21,6 +24,18 @@ export async function run(argv: readonly string[]): Promise<CommandResult> {
 
   if (group === "graph" && action === "approve") {
     return runGraphApprove(argv.slice(2));
+  }
+
+  if (group === "run") {
+    return runInterlockRun(argv.slice(1));
+  }
+
+  if (group === "sweep") {
+    return runInterlockSweep(argv.slice(1));
+  }
+
+  if (group === "backfill") {
+    return runInterlockBackfill(argv.slice(1));
   }
 
   return {

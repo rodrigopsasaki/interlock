@@ -1,8 +1,10 @@
 {
-  "name": "cli",
+  "name": "runner",
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
@@ -12,7 +14,7 @@
     "@phyxiusjs/fp": "^0.2.1",
     "face": "workspace:*",
     "ledger": "workspace:*",
-    "runner": "workspace:*"
+    "yaml": "2.9.0"
   },
   "devDependencies": {
     "@types/node": "24.13.3",

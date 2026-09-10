@@ -1,4 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 import { run } from "../src/main.ts";
 
 describe("interlock debrief validate", () => {
@@ -15,5 +18,70 @@ describe("an unknown command", () => {
     const result = await run(["graph", "status"]);
 
     expect(result.exitCode).not.toBe(0);
+  });
+});
+
+const runsRoot = join(import.meta.dirname, ".runs");
+mkdirSync(runsRoot, { recursive: true });
+const GIT_ENV = {
+  ...process.env,
+  GIT_AUTHOR_NAME: "fixture",
+  GIT_AUTHOR_EMAIL: "fixture@example.invalid",
+  GIT_COMMITTER_NAME: "fixture",
+  GIT_COMMITTER_EMAIL: "fixture@example.invalid",
+};
+
+let directory: string | undefined;
+
+afterEach(() => {
+  if (directory !== undefined)
+    rmSync(directory, { recursive: true, force: true });
+  directory = undefined;
+});
+
+function isolatedRepo(): string {
+  directory = mkdtempSync(join(runsRoot, "main-"));
+  mkdirSync(join(directory, ".interlock", "graphs"), { recursive: true });
+  execFileSync("git", ["-c", "init.defaultBranch=main", "init", "--quiet"], {
+    cwd: directory,
+  });
+  execFileSync(
+    "git",
+    [
+      "-c",
+      "commit.gpgsign=false",
+      "commit",
+      "--quiet",
+      "--allow-empty",
+      "-m",
+      "fixture root",
+    ],
+    { cwd: directory, env: GIT_ENV },
+  );
+  return directory;
+}
+
+describe("dispatch to the runner commands", () => {
+  it("routes run and backfill by their first argument, refusing before touching disk", async () => {
+    const run1 = await run(["run"]);
+    expect(run1.exitCode).not.toBe(0);
+    expect(run1.message).toContain("interlock run");
+
+    const backfill1 = await run(["backfill"]);
+    expect(backfill1.exitCode).not.toBe(0);
+    expect(backfill1.message).toContain("interlock backfill");
+  });
+
+  it("routes sweep by its first argument, isolated from this repository's own journal", async () => {
+    const cwd = isolatedRepo();
+    const originalCwd = process.cwd();
+    process.chdir(cwd);
+    try {
+      const sweep1 = await run(["sweep"]);
+      expect(sweep1.exitCode).toBe(0);
+      expect(sweep1.message).toContain("no expired");
+    } finally {
+      process.chdir(originalCwd);
+    }
   });
 });

@@ -1,0 +1,23 @@
+# Per-machine choices for the runner. Copy this file to .interlock/local.yaml (gitignored) and
+# fill it in; local.yaml is never committed, so these values never leave this machine.
+
+interlock: local@v0
+
+# The agent CLI the runner starts inside a herdr pane, and its extra arguments.
+runtime:
+  kind: claude
+  args: []
+
+# Where the runner creates a node's git worktree, relative to the repository root.
+worktree_root: .worktrees
+
+# How long a lease lasts before a sweep may call it abandoned. The runner renews it by
+# heartbeat at a third of this length while a session is running.
+lease_ms: 900000
+
+# The wall timeout the runner waits for the agent to go idle, blocked or done.
+run_timeout_ms: 3600000
+
+# The substrate address. Unused by this node; present so the shape is one.
+substrate:
+  address: none

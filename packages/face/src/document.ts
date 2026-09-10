@@ -9,10 +9,12 @@ export const GRAPH_SHAPE = "graph@v0";
 export interface GateDeclaration {
   readonly id: string;
   readonly kind: string;
+  readonly run?: string;
 }
 
 export interface NodeDeclaration {
   readonly id: string;
+  readonly acceptance?: string;
   readonly dependsOn: readonly string[];
   readonly gates: readonly GateDeclaration[];
 }
@@ -56,10 +58,12 @@ export function explainGraphRefusal(refusal: GraphRefusal): string {
 }
 
 function isGateDeclaration(value: unknown): value is GateDeclaration {
+  if (!isRecord(value)) return false;
+  const run = prop(value, "run");
   return (
-    isRecord(value) &&
     isString(prop(value, "id")) &&
-    isString(prop(value, "kind"))
+    isString(prop(value, "kind")) &&
+    (run === undefined || isString(run))
   );
 }
 
@@ -100,6 +104,11 @@ function parseShape(parsed: unknown): Result<GraphDocument, string> {
     if (!isString(nodeId))
       return err(`node ${index}: "id" is missing or not a string`);
 
+    const rawAcceptance = prop(rawNode, "acceptance");
+    if (rawAcceptance !== undefined && !isString(rawAcceptance)) {
+      return err(`node "${nodeId}": "acceptance" must be a string`);
+    }
+
     const rawDependsOn = prop(rawNode, "depends_on");
     if (rawDependsOn !== undefined && !isStringArray(rawDependsOn)) {
       return err(`node "${nodeId}": "depends_on" must be a list of strings`);
@@ -114,6 +123,7 @@ function parseShape(parsed: unknown): Result<GraphDocument, string> {
 
     nodes.push({
       id: nodeId,
+      ...(rawAcceptance === undefined ? {} : { acceptance: rawAcceptance }),
       dependsOn: rawDependsOn ?? [],
       gates: rawNodeGates ?? [],
     });
