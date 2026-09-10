@@ -169,6 +169,30 @@ describe("interlock judge", () => {
     expect(result.message).toContain("interlock judge");
   });
 
+  it("refuses a graph that has never been approved", async () => {
+    const cwd = fixture();
+
+    const judged = await runInterlockJudge(["demo", "a"], { cwd });
+
+    expect(judged.exitCode).not.toBe(0);
+    expect(judged.message).toContain("not approved");
+  });
+
+  it("refuses a graph whose approval is stale", async () => {
+    const cwd = fixture();
+    await approve(cwd);
+
+    writeFileSync(
+      join(cwd, ".interlock", "graphs", "demo.yaml"),
+      `${graphYaml} `,
+    );
+
+    const judged = await runInterlockJudge(["demo", "a"], { cwd });
+
+    expect(judged.exitCode).not.toBe(0);
+    expect(judged.message).toContain("graph is stale");
+  });
+
   it("clears a clean worktree that carries a committed debrief", async () => {
     const cwd = fixture();
     await approve(cwd);
@@ -269,6 +293,47 @@ describe("interlock judge", () => {
 
     expect(judged.exitCode).not.toBe(0);
     expect(judged.message).toContain("no worktree there");
+  });
+
+  it("refuses a worktree with no session recorded for the node", async () => {
+    const cwd = fixture();
+    await approve(cwd);
+    const worktreePath = join(cwd, ".worktrees", "a");
+    mkdirSync(worktreePath, { recursive: true });
+    gitInitFixture(worktreePath);
+    writeFileSync(
+      join(worktreePath, "unattributed-work.txt"),
+      "found, not run by interlock\n",
+    );
+    commitAll(worktreePath, "worktree content with no recorded session");
+
+    const judged = await runInterlockJudge(["demo", "a"], { cwd });
+
+    expect(judged.exitCode).not.toBe(0);
+    expect(judged.message).toContain("no session recorded");
+  });
+
+  it("proceeds to judgement when --session names a node with no session recorded", async () => {
+    const cwd = fixture();
+    await approve(cwd);
+    const worktreePath = join(cwd, ".worktrees", "a");
+    mkdirSync(worktreePath, { recursive: true });
+    gitInitFixture(worktreePath);
+    writeFileSync(
+      join(worktreePath, "unattributed-work.txt"),
+      "found, not run by interlock\n",
+    );
+    commitAll(worktreePath, "worktree content with no recorded session");
+
+    const judged = await runInterlockJudge(
+      ["demo", "a", "--session", "hand-named-session"],
+      { cwd },
+    );
+
+    expect(judged.exitCode).toBe(0);
+    expect(judged.message).toBe(
+      "a: cleared (session hand-named-session, judged by hand)",
+    );
   });
 
   it("lets --session override the ledger's latest session", async () => {
