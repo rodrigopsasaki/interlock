@@ -57,8 +57,7 @@ function branchExists(repoRoot: string, branch: string): boolean {
   return isOk(found);
 }
 
-// git exits 1 (no stderr) for "not an ancestor", the ordinary negative answer, and nonzero with
-// a message for a real failure (bad revision, corrupt object, ...); only the latter is a refusal.
+// git exits 1 for "not an ancestor"; only a nonzero exit with a message is a real failure.
 function isAncestor(
   repoRoot: string,
   ancestor: string,
@@ -78,9 +77,6 @@ function isAncestor(
   }
 }
 
-// The worktree at `path` already exists from an earlier run. Moving it to a new base is safe
-// only when the branch has nothing of its own: every commit it carries must already be reachable
-// from `sha`. Otherwise a session's work would be discarded silently.
 function reuseWorktree(
   repoRoot: string,
   path: string,

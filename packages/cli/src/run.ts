@@ -160,8 +160,6 @@ export async function runInterlockRun(
       };
     }
 
-    // The approval receipt is content-addressed to the graph file, not to a base: it proves the
-    // plan was read, not what commit to start from. The base is always the repository's own HEAD.
     const graphBaseSha = currentCommitSha(repoRoot);
 
     const targetNode = { graph, id: node };

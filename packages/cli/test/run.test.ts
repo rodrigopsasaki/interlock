@@ -324,8 +324,6 @@ describe("interlock run", () => {
       { cwd },
     );
 
-    // Deliberately left uncommitted: the base is HEAD at run time, which cannot carry a file
-    // that was only ever written to the working tree.
     mkdirSync(join(cwd, ".interlock", "sessions", "demo", "a"), {
       recursive: true,
     });
