@@ -12,8 +12,10 @@ import { startFakeHerdrServer, type FakeHerdrServer } from "./fakeServer.ts";
 
 // A Unix socket path is capped at ~104 bytes (macOS sockaddr_un): short and relative to this
 // process's own cwd (vitest runs each package from its own directory), not this worktree's
-// full absolute path, which alone can exceed the limit.
-const runsRoot = join(import.meta.dirname, "..", ".runs");
+// full absolute path, which alone can exceed the limit. Its own directory, never the one
+// gateJudge.test.ts and backfill.test.ts mkdtemp under: this file wipes the whole thing every
+// test, which would delete their live fixtures if the two were the same directory.
+const runsRoot = join(import.meta.dirname, "..", ".herdr-runs");
 mkdirSync(runsRoot, { recursive: true });
 
 let server: FakeHerdrServer | undefined;

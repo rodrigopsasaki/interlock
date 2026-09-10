@@ -7,5 +7,7 @@ packages/face/test/.runs/
 packages/cli/test/.runs/
 packages/runner/test/.runs/
 packages/runner/test/.worktree-runs/
+packages/runner/test/.herdr-runs/
+packages/runner/test/.localconfig-runs/
 .interlock/ledger/
 .interlock/local.yaml
