@@ -120,3 +120,47 @@ entries:
       predates.
     rejected:
       - "requiring notes.yaml only for debrief@v1 and debrief@v2, special-cased by version (adds a version-keyed branch for one historical fixture instead of one general rule)"
+  - kind: choice
+    at: "2026-09-10T02:25:00Z"
+    chose: >
+      Added a required "session: string" field to runner's GateJudgeRequest
+      -- threaded as the real sessionId from cli/run.ts, and synthesized
+      per node as `${runnerId}-${declaration.id}` in backfill.ts -- rather
+      than inventing a lookup inside judgeGates itself.
+    because: >
+      note-appended and debrief-filed both require a session id on the
+      ledger event, and cli/run.ts already has the real one in scope from
+      the session-started event it appends just before judging gates;
+      backfill has no live session to reuse, so it names one consistently
+      instead of leaving the field unfillable.
+  - kind: choice
+    at: "2026-09-10T02:35:00Z"
+    chose: >
+      Gated ingestion strictly on `resolved.kind === "cleared"` (every
+      declared gate, including debrief-valid, already satisfied) and made
+      a parse failure inside ingestion a silent no-op rather than a
+      GateJudgeRefusal.
+    because: >
+      By the time a node is cleared, the debrief-valid gate has already
+      run the same validator as a separate process and proven the file
+      readable; a parse failure at that point inside ingestion would be an
+      inconsistency in the runner, not a real user-facing refusal, and
+      ingestion should never be the reason a judged, cleared node fails to
+      record its outcome.
+  - kind: surprise
+    at: "2026-09-10T02:50:00Z"
+    expected: >
+      Appending debrief-filed and note-appended for a v2 node inside a
+      gateJudge.test.ts case would populate that session's SessionView in
+      ledger.projection().sessions automatically, the way outcome-set
+      populates a node's NodeView.
+    observed: >
+      projection.ts's withSession is a no-op when the session id is not
+      already a key in projection.sessions -- it only becomes one via a
+      prior session-started event. A node ingested by backfill, which
+      never appends session-started, writes real debrief-filed and
+      note-appended events to the journal, but no SessionView appears for
+      them; only a node judged after interlock run (which does append
+      session-started first) gets both the events and the live view.
+      Recorded under open rather than changed, since projection.ts belongs
+      to packages/ledger, not this node.
