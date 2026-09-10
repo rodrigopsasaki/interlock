@@ -17,6 +17,28 @@ export function defaultHerdrSocketPath(): string {
   return join(homedir(), ".config", "herdr", "herdr.sock");
 }
 
+const DEFAULT_CALL_TIMEOUT_MS = 30_000;
+const AGENT_START_TIMEOUT_MS = 60_000;
+const CALL_DEADLINE_MARGIN_MS = 5_000;
+
+// herdr's own rule, from its error text: must start with a lowercase letter and contain only
+// lowercase letters, digits, '-' or '_' (1-32 characters).
+const AGENT_NAME_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/;
+
+export function isCompliantAgentName(name: string): boolean {
+  return AGENT_NAME_PATTERN.test(name);
+}
+
+export function generateAgentName(): string {
+  const name = `il-${randomUUID().slice(0, 8)}`;
+  if (!isCompliantAgentName(name)) {
+    throw new Error(
+      `generateAgentName produced a name herdr would reject: "${name}"`,
+    );
+  }
+  return name;
+}
+
 const AGENT_KINDS: ReadonlySet<string> = new Set([
   "pi",
   "claude",
@@ -89,12 +111,14 @@ interface HerdrClient {
   call(
     method: string,
     params: Readonly<Record<string, unknown>>,
+    timeoutMs?: number,
   ): Promise<Result<Record<string, unknown>, RuntimeRefusal>>;
   close(): void;
 }
 
 function connectHerdr(
   socketPath: string,
+  defaultCallTimeoutMs: number,
 ): Promise<Result<HerdrClient, RuntimeRefusal>> {
   return new Promise((resolve) => {
     const socket = connect(socketPath);
@@ -123,13 +147,22 @@ function connectHerdr(
 
       resolve(
         ok({
-          call(method, params) {
+          call(method, params, timeoutMs = defaultCallTimeoutMs) {
             return new Promise((resolveCall) => {
               const id = randomUUID();
+              const deadline = setTimeout(() => {
+                pending.delete(id);
+                resolveCall(err({ kind: "call-timeout", method, timeoutMs }));
+              }, timeoutMs);
               pending.set(id, (frame) => {
+                clearTimeout(deadline);
                 resolveCall(
                   "error" in frame
-                    ? err({ kind: "transport", because: frame.error.message })
+                    ? err({
+                        kind: "remote",
+                        code: frame.error.code,
+                        message: frame.error.message,
+                      })
                     : ok(frame.result),
                 );
               });
@@ -147,8 +180,9 @@ function connectHerdr(
 
 export async function createHerdrRuntime(
   socketPath: string = defaultHerdrSocketPath(),
+  defaultCallTimeoutMs: number = DEFAULT_CALL_TIMEOUT_MS,
 ): Promise<Result<Runtime, RuntimeRefusal>> {
-  const connected = await connectHerdr(socketPath);
+  const connected = await connectHerdr(socketPath, defaultCallTimeoutMs);
   if (isErr(connected)) return connected;
   const client = connected.value;
 
@@ -171,13 +205,18 @@ export async function createHerdrRuntime(
     async startAgent(pane: Pane, kind: string, args: readonly string[]) {
       if (!AGENT_KINDS.has(kind))
         return err({ kind: "unknown-agent-kind", agentKind: kind });
-      const name = `interlock-${randomUUID()}`;
-      const started = await client.call("agent.start", {
-        name,
-        kind,
-        pane_id: pane.id,
-        args,
-      });
+      const name = generateAgentName();
+      const started = await client.call(
+        "agent.start",
+        {
+          name,
+          kind,
+          pane_id: pane.id,
+          args,
+          timeout_ms: AGENT_START_TIMEOUT_MS,
+        },
+        AGENT_START_TIMEOUT_MS + CALL_DEADLINE_MARGIN_MS,
+      );
       return isErr(started) ? started : ok({ id: name, pane });
     },
 
@@ -214,11 +253,11 @@ export async function createHerdrRuntime(
       until: readonly AgentStatus[],
       timeoutMs: number,
     ) {
-      const waited = await client.call("agent.wait", {
-        target: agent.id,
-        until,
-        timeout_ms: timeoutMs,
-      });
+      const waited = await client.call(
+        "agent.wait",
+        { target: agent.id, until, timeout_ms: timeoutMs },
+        timeoutMs + CALL_DEADLINE_MARGIN_MS,
+      );
       if (isErr(waited)) return waited;
       const status = stringAt(waited.value, "agent", "agent_status");
       return isAgentStatus(status) && until.includes(status)
