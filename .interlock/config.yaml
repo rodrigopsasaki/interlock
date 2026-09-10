@@ -4,8 +4,8 @@
 # A node may add gates. It may never remove one of these. This is the literal interlocking:
 # the table of what must be true before a route can clear.
 #
-# The commands below name package scripts that the `scaffold` node of the bootstrap graph
-# create. The runner runs them; `debrief-valid` fails closed until its validator exists.
+# The commands below name package scripts the `scaffold` node of the bootstrap graph had to
+# create. The runner runs them for every node.
 
 interlock: config@v0
 
