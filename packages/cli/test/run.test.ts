@@ -193,6 +193,20 @@ function headSha(cwd: string): string {
   }).trim();
 }
 
+// The brief commit's short sha is nondeterministic per run; splits it out of a narrated line
+// array so the rest can still be compared exactly.
+function extractBriefCommitLine(lines: readonly string[]): {
+  readonly rest: readonly string[];
+  readonly briefCommitLine: string | undefined;
+} {
+  const index = lines.findIndex((line) => line.startsWith("brief committed "));
+  if (index === -1) return { rest: lines, briefCommitLine: undefined };
+  return {
+    rest: [...lines.slice(0, index), ...lines.slice(index + 1)],
+    briefCommitLine: lines[index],
+  };
+}
+
 function stubRuntime(): Runtime {
   return {
     openPane: () => Promise.resolve(ok({ id: "pane-1" })),
@@ -300,39 +314,62 @@ describe("interlock run", () => {
     );
   }, 30_000);
 
-  it("leases, worktrees, drives the injected runtime and gates a real node end to end", async () => {
+  it("leases, worktrees, drives the injected runtime and gates a real node end to end, closing the pane on clear", async () => {
     const cwd = fixture();
     await runGraphApprove(
       ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
       { cwd },
     );
 
+    let closed = false;
+    const runtime: Runtime = {
+      ...stubRuntime(),
+      closePane: () => {
+        closed = true;
+        return Promise.resolve(ok(undefined));
+      },
+    };
+
     const result = await runInterlockRun(["demo", "a"], {
       cwd,
       clock: createControlledClock(),
-      runtime: stubRuntime(),
+      runtime,
     });
 
     expect(result.exitCode).toBe(0);
     expect(result.message).toContain("cleared");
     expect(existsSync(join(cwd, ".worktrees", "a"))).toBe(true);
+    expect(closed).toBe(true);
   }, 30_000);
 
-  it("holds a node whose gate command exits zero but its output does not match the graph's declared expect_output", async () => {
+  it("holds a node whose gate command exits zero but its output does not match the graph's declared expect_output, leaving the pane open", async () => {
     const cwd = fixture({ graphYaml: graphYamlWithExpectOutput });
     await runGraphApprove(
       ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
       { cwd },
     );
 
+    let closed = false;
+    const runtime: Runtime = {
+      ...stubRuntime(),
+      closePane: () => {
+        closed = true;
+        return Promise.resolve(ok(undefined));
+      },
+    };
+    const lines: string[] = [];
+
     const result = await runInterlockRun(["demo", "a"], {
       cwd,
       clock: createControlledClock(),
-      runtime: stubRuntime(),
+      runtime,
+      narrate: (line) => lines.push(line),
     });
 
     expect(result.exitCode).toBe(0);
     expect(result.message).toContain("held");
+    expect(closed).toBe(false);
+    expect(lines).toContain("pane pane-1 left open for drilldown");
   }, 30_000);
 
   it("narrates once when the runtime reports it waited for the pane's shell", async () => {
@@ -384,7 +421,15 @@ describe("interlock run", () => {
     });
 
     expect(result.exitCode).toBe(0);
-    expect(headSha(join(cwd, ".worktrees", "a"))).toBe(headAtRunTime);
+    // The worktree's own HEAD sits one commit ahead of headAtRunTime: the runner's own brief
+    // commit (R3). The graph base it was cut from is still headAtRunTime, asserted below via
+    // the session-started event, which is the claim this test is actually about.
+    const commitsBeyondRunTime = execFileSync(
+      "git",
+      ["rev-list", "--count", `${headAtRunTime}..HEAD`],
+      { cwd: join(cwd, ".worktrees", "a"), encoding: "utf-8" },
+    ).trim();
+    expect(commitsBeyondRunTime).toBe("1");
     expect(
       existsSync(join(cwd, ".worktrees", "a", "merged-after-approval.txt")),
     ).toBe(true);
@@ -521,7 +566,9 @@ describe("interlock run", () => {
     }
     const [, sessionId] = sessionMatch;
 
-    expect(lines).toEqual([
+    const { rest, briefCommitLine } = extractBriefCommitLine(lines);
+    expect(briefCommitLine).toMatch(/^brief committed [0-9a-f]+$/);
+    expect(rest).toEqual([
       `leased a (session ${sessionId}, expires 1970-01-01T00:01:00.000Z)`,
       `worktree at ${join(cwd, ".worktrees", "a")} on ${headSha(cwd)}`,
       "brief written",
@@ -565,7 +612,9 @@ describe("interlock run", () => {
     }
     const [, sessionId] = sessionMatch;
 
-    expect(lines).toEqual([
+    const { rest, briefCommitLine } = extractBriefCommitLine(lines);
+    expect(briefCommitLine).toMatch(/^brief committed [0-9a-f]+$/);
+    expect(rest).toEqual([
       `leased a (session ${sessionId}, expires 1970-01-01T00:01:00.000Z)`,
       `worktree at ${join(cwd, ".worktrees", "a")} on ${headSha(cwd)}`,
       "brief written",
@@ -634,11 +683,13 @@ describe("interlock run", () => {
 
     expect(result.exitCode).toBe(1);
     expect(result.message).toBe("agent start refused: agent CLI crashed");
-    expect(lines).toHaveLength(6);
-    expect(lines[0]).toMatch(
+    const { rest, briefCommitLine } = extractBriefCommitLine(lines);
+    expect(briefCommitLine).toMatch(/^brief committed [0-9a-f]+$/);
+    expect(rest).toHaveLength(6);
+    expect(rest[0]).toMatch(
       /^leased a \(session .+, expires 1970-01-01T00:01:00\.000Z\)$/,
     );
-    expect(lines.slice(1)).toEqual([
+    expect(rest.slice(1)).toEqual([
       `worktree at ${join(cwd, ".worktrees", "a")} on ${headSha(cwd)}`,
       "brief written",
       "pane pane-1 opened",
@@ -913,5 +964,138 @@ describe("interlock run", () => {
       "screen.txt",
     );
     expect(existsSync(screenPath)).toBe(false);
+  }, 30_000);
+
+  it("waits through a mid-run blocked agent, narrating the pane and the screen, before it settles", async () => {
+    const cwd = fixture();
+    await runGraphApprove(
+      ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
+      { cwd },
+    );
+
+    let call = 0;
+    const runtime: Runtime = {
+      ...stubRuntime(),
+      waitUntil: (agent, until, timeoutMs) => {
+        call += 1;
+        if (call === 1) return Promise.resolve(ok("idle")); // startup
+        if (call === 2) return Promise.resolve(ok("working")); // prompt taken
+        if (call === 3) return Promise.resolve(ok("blocked")); // the long wait, first pass
+        if (call === 4) return Promise.resolve(ok("working")); // back to work
+        if (call === 5) return Promise.resolve(ok("idle")); // settles
+        return stubRuntime().waitUntil(agent, until, timeoutMs);
+      },
+      read: () =>
+        Promise.resolve(ok("waiting on your approval to run a command\n")),
+    };
+    const lines: string[] = [];
+
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime,
+      narrate: (line) => lines.push(line),
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.message).toContain("cleared");
+    expect(lines).toContain(
+      "agent blocked; answer in pane pane-1: waiting on your approval to run a command",
+    );
+    expect(lines.filter((line) => line === "agent working")).toHaveLength(2);
+    const blockedIndex = lines.indexOf(
+      "agent blocked; answer in pane pane-1: waiting on your approval to run a command",
+    );
+    expect(blockedIndex).toBeGreaterThan(-1);
+    expect(lines.lastIndexOf("agent working")).toBeGreaterThan(blockedIndex);
+  }, 30_000);
+
+  it("holds on uncommitted work without running any gate when the agent leaves the worktree dirty", async () => {
+    const cwd = fixture();
+    await runGraphApprove(
+      ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
+      { cwd },
+    );
+
+    let closed = false;
+    const runtime: Runtime = {
+      ...stubRuntime(),
+      waitUntil: (agent, until, timeoutMs) => {
+        if (until[0] === "idle") {
+          writeFileSync(
+            join(cwd, ".worktrees", "a", "uncommitted.txt"),
+            "staged, never committed\n",
+          );
+        }
+        return stubRuntime().waitUntil(agent, until, timeoutMs);
+      },
+      closePane: () => {
+        closed = true;
+        return Promise.resolve(ok(undefined));
+      },
+    };
+    const lines: string[] = [];
+
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime,
+      narrate: (line) => lines.push(line),
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.message).toContain("held");
+    expect(lines).toContain(
+      "1 uncommitted path(s) in the worktree; gates judge commits only",
+    );
+    expect(lines).toContain("  uncommitted.txt");
+    expect(lines).toContain("pane pane-1 left open for drilldown");
+    expect(closed).toBe(false);
+
+    const journal = readFileSync(
+      join(cwd, ".interlock", "ledger", "journal.jsonl"),
+      "utf-8",
+    );
+    const events = journal
+      .trim()
+      .split("\n")
+      .map((line): unknown => JSON.parse(line))
+      .filter(isLedgerEvent);
+    const held = events.find(
+      (event) => event.kind === "outcome-set" && event.outcome.kind === "held",
+    );
+    if (held === undefined || held.kind !== "outcome-set") {
+      throw new Error("expected a held outcome-set event in the journal");
+    }
+    expect(held.outcome.kind === "held" ? held.outcome.on : undefined).toEqual({
+      kind: "uncommitted-work",
+      paths: 1,
+    });
+  }, 30_000);
+
+  it("names the node as the agent's preferred herdr name", async () => {
+    const cwd = fixture();
+    await runGraphApprove(
+      ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
+      { cwd },
+    );
+
+    let preferredId: string | undefined;
+    const runtime: Runtime = {
+      ...stubRuntime(),
+      startAgent: (pane, _kind, _args, _onWaitingForPane, preferred) => {
+        preferredId = preferred;
+        return Promise.resolve(ok({ id: "agent-1", pane }));
+      },
+    };
+
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime,
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(preferredId).toBe("a");
   }, 30_000);
 });
