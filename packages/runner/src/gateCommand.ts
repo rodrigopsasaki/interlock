@@ -42,14 +42,30 @@ export function declaredGateIds(
   ];
 }
 
+export interface GateCommand {
+  readonly run: string;
+  readonly expectOutput?: RegExp;
+}
+
+function toGateCommand(
+  run: string,
+  expectOutput: RegExp | undefined,
+): GateCommand {
+  return expectOutput === undefined ? { run } : { run, expectOutput };
+}
+
 export function gateCommandTable(
   standing: readonly StandingGate[],
   node: readonly GateDeclaration[],
-): ReadonlyMap<string, string> {
-  const table = new Map<string, string>();
-  for (const entry of standing) table.set(entry.id, entry.run);
+): ReadonlyMap<string, GateCommand> {
+  const table = new Map<string, GateCommand>();
+  for (const entry of standing) {
+    table.set(entry.id, toGateCommand(entry.run, entry.expectOutput));
+  }
   for (const entry of node) {
-    if (entry.run !== undefined) table.set(entry.id, entry.run);
+    const run = entry.run;
+    if (run !== undefined)
+      table.set(entry.id, toGateCommand(run, entry.expectOutput));
   }
   return table;
 }

@@ -17,8 +17,7 @@ function tokenize(command: string): readonly string[] {
   return command.split(/\s+/).filter((token) => token.length > 0);
 }
 
-// Runs through the same pinned-toolchain invocation the gates use, so a node's worktree never
-// depends on whatever happens to be on this machine's PATH.
+// So a node's worktree never depends on whatever happens to be on this machine's PATH.
 export function runSetupCommand(
   command: string,
   cwd: string,

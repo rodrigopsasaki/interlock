@@ -13,8 +13,7 @@ export interface NodeView {
   readonly gates: ReadonlyMap<string, Gate>;
   readonly receipts: readonly Receipt[];
   readonly outcome: Outcome | undefined;
-  // How many leases this node has had. Lets a later lease tell whether the node's outcome is
-  // its own or a stale one left by an earlier, abandoned attempt.
+  // Lets a later lease tell whether the node's outcome is its own or a stale one left by an earlier, abandoned attempt.
   readonly leaseGeneration: number;
   readonly outcomeSetAtGeneration: number | undefined;
 }
