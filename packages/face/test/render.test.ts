@@ -1,4 +1,4 @@
-import { fold } from "ledger";
+import { fold, heldOn, outcome, type LedgerEvent } from "ledger";
 import { describe, expect, it } from "vitest";
 import type { GraphDocument } from "../src/document.ts";
 import { computePosition } from "../src/position.ts";
@@ -27,5 +27,25 @@ describe("renderPosition", () => {
     expect(text).toContain("a");
     expect(text).toContain("b");
     expect(text).toContain("critical path");
+  });
+
+  it("names the because on a held node, not just the outcome kind", () => {
+    const events: readonly LedgerEvent[] = [
+      {
+        kind: "outcome-set",
+        node: { graph: "demo", id: "a" },
+        outcome: outcome.held(
+          [],
+          heldOn.uncommittedWork(3),
+          "3 uncommitted path(s) in the worktree; gates judge commits only",
+          30_000,
+        ),
+      },
+    ];
+    const position = computePosition(document, fold(events), "hash");
+    const text = renderPosition(position);
+    expect(text).toContain(
+      "a — held: 3 uncommitted path(s) in the worktree; gates judge commits only",
+    );
   });
 });
