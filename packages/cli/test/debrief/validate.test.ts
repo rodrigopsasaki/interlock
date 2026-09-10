@@ -146,6 +146,19 @@ describe("validateDebrief", () => {
     expect(result.message).toContain("no notes were appended.");
   });
 
+  it("names the debrief and notes paths relative to the repository, not absolutely", async () => {
+    const cwd = repoWithSession("g", "n", v2Debrief, notesYaml);
+    const result = await validateDebrief(["g", "n"], { cwd });
+    expect(result.exitCode).toBe(0);
+    expect(result.message).not.toContain(cwd);
+    expect(result.message).toContain(
+      join(".interlock", "sessions", "g", "n", "debrief.yaml"),
+    );
+    expect(result.message).toContain(
+      join(".interlock", "sessions", "g", "n", "notes.yaml"),
+    );
+  });
+
   it("validates a debrief@v0 file as legacy-valid, not ingested", async () => {
     const cwd = repoWithSession("g", "n", v0Debrief, notesYaml);
     const result = await validateDebrief(["g", "n"], { cwd });

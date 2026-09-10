@@ -164,3 +164,16 @@ entries:
       session-started first) gets both the events and the live view.
       Recorded under open rather than changed, since projection.ts belongs
       to packages/ledger, not this node.
+  - kind: surprise
+    at: "2026-09-10T02:58:00Z"
+    expected: >
+      interlock debrief validate's own success messages would name a
+      debrief.yaml or notes.yaml path the way every other command's
+      messages do.
+    observed: >
+      findRepoRoot resolves an absolute filesystem path, and
+      debriefFilePath/notesFilePath build on it, so the two success lines
+      this command prints echoed the full local path down to the home
+      directory -- for a command whose real output this repository's own
+      debriefs quote verbatim. Made the two printed paths relative to the
+      repository root; the absolute path is still what is actually read.

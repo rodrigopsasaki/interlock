@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+import { relative } from "node:path";
 import { isErr } from "@phyxiusjs/fp";
 import {
   DEBRIEF_V2,
@@ -110,14 +111,15 @@ export async function validateDebrief(
   if (isErr(notesRead) && notesRead.error.kind !== "missing-file") {
     return { exitCode: 1, message: explainNotesRefusal(notesRead.error) };
   }
+  const relativeNotesPath = relative(repoRoot, notesPath);
   const notesMessage = isErr(notesRead)
-    ? `${notesPath}: no notes were appended.`
-    : `${notesPath}: valid as ${NOTES_V0}.`;
+    ? `${relativeNotesPath}: no notes were appended.`
+    : `${relativeNotesPath}: valid as ${NOTES_V0}.`;
 
   return {
     exitCode: 0,
     message: [
-      `${debriefPath}: ${describeDebriefRead(debriefRead.value)}`,
+      `${relative(repoRoot, debriefPath)}: ${describeDebriefRead(debriefRead.value)}`,
       notesMessage,
     ].join("\n"),
   };
