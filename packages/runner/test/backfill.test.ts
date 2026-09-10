@@ -70,6 +70,11 @@ function fixtureRepo(): string {
   return directory;
 }
 
+// Node itself, by its own already-running absolute path: these spawn through the runner's own
+// `mise exec --` prefix, and process.execPath needs no PATH lookup on top of that.
+const passCommand = `${process.execPath} -e process.exit(0)`;
+const failCommand = `${process.execPath} -e process.exit(1)`;
+
 const document: GraphDocument = {
   id: "fixture-graph",
   gates: [],
@@ -77,7 +82,7 @@ const document: GraphDocument = {
     {
       id: "node-a",
       dependsOn: [],
-      gates: [{ id: "own-gate", kind: "command", run: "true" }],
+      gates: [{ id: "own-gate", kind: "command", run: passCommand }],
     },
     { id: "node-b", dependsOn: ["node-a"], gates: [] },
     { id: "node-undebriefed", dependsOn: [], gates: [] },
@@ -95,7 +100,7 @@ describe("backfill", () => {
       document,
       ledger,
       clock: createControlledClock(),
-      standingGates: [{ id: "standing", run: "true" }],
+      standingGates: [{ id: "standing", run: passCommand }],
       worktreeRoot: ".worktrees",
     });
 
@@ -126,7 +131,7 @@ describe("backfill", () => {
       document,
       ledger,
       clock: createControlledClock(),
-      standingGates: [{ id: "standing", run: "false" }],
+      standingGates: [{ id: "standing", run: failCommand }],
       worktreeRoot: ".worktrees",
     });
 

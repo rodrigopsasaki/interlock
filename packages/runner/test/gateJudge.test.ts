@@ -26,6 +26,12 @@ function fixture(): string {
 
 const node = { graph: "fixture", id: "n1" };
 
+// Node itself, by its own already-running absolute path, rather than "true"/"false": these
+// spawn through the runner's own `mise exec --` prefix, and a bare command name adds a second
+// PATH lookup on top of that. process.execPath needs no lookup at all.
+const passCommand = `${process.execPath} -e process.exit(0)`;
+const failCommand = `${process.execPath} -e process.exit(1)`;
+
 describe("receipt-idempotent", () => {
   it("running the same gate twice over the same content writes one receipt identity and no duplicate fact", async () => {
     const root = fixture();
@@ -36,7 +42,7 @@ describe("receipt-idempotent", () => {
       node,
       session: "s1",
       declaredGateIds: ["always-pass"],
-      commandFor: new Map([["always-pass", "true"]]),
+      commandFor: new Map([["always-pass", passCommand]]),
       worktree: root,
       scopeRoot: root,
       scopePaths: ["content.txt"],
@@ -72,7 +78,7 @@ describe("gateJudge", () => {
       node,
       session: "s1",
       declaredGateIds: ["always-fail"],
-      commandFor: new Map([["always-fail", "false"]]),
+      commandFor: new Map([["always-fail", failCommand]]),
       worktree: root,
       scopeRoot: root,
       scopePaths: ["content.txt"],
@@ -179,7 +185,7 @@ describe("gateJudge", () => {
       node,
       session: "s1",
       declaredGateIds: ["foreign-none", "kept-local"],
-      commandFor: new Map([["foreign-none", "false"]]),
+      commandFor: new Map([["foreign-none", failCommand]]),
       worktree: root,
       scopeRoot: root,
       scopePaths: ["content.txt"],
@@ -349,7 +355,7 @@ describe("debrief ingestion", () => {
       node,
       session: "s1",
       declaredGateIds: ["always-pass"],
-      commandFor: new Map([["always-pass", "true"]]),
+      commandFor: new Map([["always-pass", passCommand]]),
       worktree: root,
       scopeRoot: root,
       scopePaths: ["content.txt"],
@@ -386,7 +392,7 @@ describe("debrief ingestion", () => {
       node,
       session: "s1",
       declaredGateIds: ["always-pass"],
-      commandFor: new Map([["always-pass", "true"]]),
+      commandFor: new Map([["always-pass", passCommand]]),
       worktree: root,
       scopeRoot: root,
       scopePaths: ["content.txt"],
