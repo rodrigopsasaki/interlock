@@ -132,6 +132,27 @@ describe("herdr adapter", () => {
     expect(promptCall?.params["wait"]).toBeUndefined();
   });
 
+  it("sends keys to the named agent via agent.send_keys", async () => {
+    const fake = await fixture();
+    const created = await createHerdrRuntime(fake.socketPath);
+    if (isErr(created)) throw new Error("expected a runtime");
+    const runtime = created.value;
+
+    const pane = await runtime.openPane("/repo/worktree");
+    if (isErr(pane)) throw new Error("expected a pane");
+    const agent = await runtime.startAgent(pane.value, "claude", []);
+    if (isErr(agent)) throw new Error("expected an agent");
+
+    const sent = await runtime.sendKeys(agent.value, ["Down", "Enter"]);
+    expect(isErr(sent)).toBe(false);
+
+    const sendKeysCall = fake.calls.find(
+      (call) => call.method === "agent.send_keys",
+    );
+    expect(sendKeysCall?.params["target"]).toBe(agent.value.id);
+    expect(sendKeysCall?.params["keys"]).toEqual(["Down", "Enter"]);
+  });
+
   it("times out when the agent never reaches a requested state", async () => {
     const fake = await fixture();
     fake.agentStatus = "working";

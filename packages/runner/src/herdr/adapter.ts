@@ -241,6 +241,14 @@ export async function createHerdrRuntime(
         : ok(text);
     },
 
+    async sendKeys(agent: Agent, keys: readonly string[]) {
+      const sent = await client.call("agent.send_keys", {
+        target: agent.id,
+        keys,
+      });
+      return isErr(sent) ? sent : ok(undefined);
+    },
+
     async closePane(pane: Pane) {
       const closed = await client.call("pane.close", { pane_id: pane.id });
       return isErr(closed) ? closed : ok(undefined);

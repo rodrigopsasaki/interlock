@@ -64,6 +64,25 @@ describe("tmux adapter", () => {
     });
   });
 
+  it("sends keys to a pane via send-keys", async () => {
+    const { runner, calls } = recordingRunner();
+    const runtime = createTmuxRuntime(runner);
+    const pane = await runtime.openPane("/repo");
+    if (pane._tag !== "Ok") throw new Error("expected a pane");
+    const agent = await runtime.startAgent(pane.value, "claude", []);
+    if (agent._tag !== "Ok") throw new Error("expected an agent");
+
+    await runtime.sendKeys(agent.value, ["Down", "Enter"]);
+
+    expect(calls[2]).toEqual([
+      "send-keys",
+      "-t",
+      pane.value.id,
+      "Down",
+      "Enter",
+    ]);
+  });
+
   it("reads a pane by capturing it", async () => {
     const { runner, calls } = recordingRunner();
     const runtime = createTmuxRuntime(runner);
