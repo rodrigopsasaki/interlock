@@ -228,3 +228,41 @@ entries:
     rejected:
       - "a new top-level debrief.yaml field (e.g. validator_outputs) outside decisions/discoveries"
       - "leaving the evidence only as a hunk citation, trusting the reader to open the fixture"
+
+  - kind: choice
+    at: "2026-09-10T16:20:00Z"
+    chose: >
+      Rebased onto origin/main (PR #26, expect_output on command gates) by keeping main's
+      loop-based loadStandingGates parser -- required once compiling expect_output can fail --
+      and adding this branch's required "kind" field into that same loop, rather than keeping
+      this branch's every()-predicate parser and bolting expect_output compilation on beside it.
+      One merged standingGates.test.ts keeps every test from both sides; the two that asserted
+      contradictory behavior for a kind-less entry (main: parses to a gate with no kind; this
+      branch: refuses as malformed) were reconciled in favor of refusal, since kind stayed
+      required.
+    because: >
+      A pure isStandingGate(value): value is StandingGate predicate cannot report which specific
+      field failed or run parseExpectOutput's compile step, which can itself fail and needs its
+      own malformed-with-reason path; main already solved that with a manual field-by-field loop,
+      so extending it was less code than reintroducing a predicate main had already moved away
+      from.
+    rejected:
+      - "keeping the every(isStandingGate) predicate and validating expect_output in a second pass"
+
+  - kind: choice
+    at: "2026-09-10T16:25:00Z"
+    chose: >
+      Once rebased, authoritativeBriefGates in briefRewrite.ts now carries a StandingGate's or
+      GateDeclaration's compiled expect_output through into the rewritten brief's BriefGate, as
+      RegExp.source (a string), rather than leaving it always absent. Also fixed four
+      StandingGate literals in gateCommand.test.ts and backfill.test.ts, written on main after
+      this branch's fork, that predated the "kind" field this branch requires.
+    because: >
+      This closes the open item this branch filed at notes:10 and debrief.yaml's open list: face's
+      GateDeclaration did not parse expect_output at the time, so nothing could fill it; main's
+      PR #26 (merged after this branch forked) added exactly that parsing to
+      packages/face/src/document.ts. BriefGate.expectOutput is already typed as a front-matter
+      string (packages/debrief/src/briefGate.ts), so .source round-trips a RegExp built with
+      new RegExp(source) and no flags (packages/ledger/src/expectOutput.ts) back to its original
+      text exactly. The four literals were tsc-caught, not chosen: the two StandingGate shapes
+      merging made "kind" required everywhere.

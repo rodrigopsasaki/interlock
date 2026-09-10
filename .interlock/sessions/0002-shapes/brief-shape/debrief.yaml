@@ -4,7 +4,7 @@ node: brief-shape
 role: worker
 graph_base_sha: 95a672046a5cfca8bb356e15e63ba433f54c9920
 session_start_sha: 95a672046a5cfca8bb356e15e63ba433f54c9920
-head_sha: c020cbbdb4ec6bf5368ba10f755d8f12ac556b1b
+head_sha: 5ed07e2b0fb030e6c4356eeb9613ac5a6bf47481
 derivation:
   kind: agent
   runtime: claude-code
@@ -474,14 +474,88 @@ decisions:
       - "c18"
     hunks:
       - ".interlock/sessions/0002-shapes/brief-shape/debrief.yaml"
+
+  - id: c23
+    what: >
+      Rebased graph/0002-shapes/brief-shape onto origin/main (through PR #26, "compose an
+      expect_output criterion onto command gates"). Resolved the two conflicting files by
+      keeping main's loop-based loadStandingGates parser (required once compiling expect_output
+      can fail mid-parse) and adding this branch's required "kind" field into that same loop and
+      its StandingGate type, rather than keeping this branch's every(isStandingGate) predicate
+      and bolting expect_output validation on beside it. Merged the two add/add
+      standingGates.test.ts files into one, keeping every test from both; the two tests that
+      asserted contradictory outcomes for a kind-less config entry (main: parses to a gate with
+      no kind; this branch: refuses as malformed) were reconciled toward refusal, since "kind"
+      stayed required, and main's "leaves expect_output undefined" fixture and expectation
+      gained the now-mandatory kind field.
+    because: >
+      Package.json's StandingGate is one type with one set of callers (gateCommandTable,
+      briefRewrite.ts, backfill.ts); it cannot carry two incompatible shapes, and this branch's
+      briefRewrite.ts already depends on every StandingGate carrying kind. A pure type predicate
+      cannot report which field failed or run a compile step that can itself fail, so extending
+      main's loop (which already solved that for expect_output) was less code and less risk than
+      reintroducing the predicate main had moved away from.
+    rests_on:
+      - "notes:20 (2026-09-10T16:20:00Z choice)"
+    hunks:
+      - "packages/runner/src/standingGates.ts"
+      - "packages/runner/test/standingGates.test.ts"
+
+  - id: c24
+    what: >
+      authoritativeBriefGates in briefRewrite.ts now carries a StandingGate's or
+      GateDeclaration's compiled expect_output through into the rewritten brief's BriefGate, as
+      RegExp.source (a string), instead of leaving it always absent. Added a unit test proving
+      authoritativeBriefGates includes expectOutput when either source declares it, and a
+      render/read round-trip test proving a rewritten brief's front matter carries expect_output
+      back out through readBriefFile. Also fixed four StandingGate object literals in
+      gateCommand.test.ts and backfill.test.ts (written on main after this branch forked) that
+      predated the "kind" field c23 folded into StandingGate.
+    because: >
+      This closes the open item this branch filed at notes:10 and this file's own open list:
+      face's GateDeclaration did not parse expect_output when this branch wrote briefRewrite.ts,
+      so nothing could fill it. Main's PR #26, merged after this branch's fork, added exactly
+      that parsing to packages/face/src/document.ts (GateDeclaration.expectOutput?: RegExp), so
+      the constraint that produced the open item no longer holds. BriefGate.expectOutput is
+      already typed as a front-matter string (packages/debrief/src/briefGate.ts), and .source
+      round-trips a RegExp built with new RegExp(source) and no flags
+      (packages/ledger/src/expectOutput.ts) back to its original text exactly, so no new brief
+      shape version was needed.
+    rests_on:
+      - "notes:10"
+      - "notes:21 (2026-09-10T16:25:00Z choice)"
+    hunks:
+      - "packages/runner/src/briefRewrite.ts"
+      - "packages/runner/test/briefRewrite.test.ts"
+      - "packages/runner/test/backfill.test.ts"
+      - "packages/runner/test/gateCommand.test.ts"
+
+  - id: c25
+    what: >
+      Updated this debrief (still debrief@v2): bumped head_sha to
+      5ed07e2b0fb030e6c4356eeb9613ac5a6bf47481 (the rebase's last code commit), added decisions
+      c23 and c24 with a because on each, removed the now-resolved expect_output open item, and
+      refreshed gates_run_by_agent with this round's re-run results at the rebased head.
+    because: >
+      "brief:Deliverable 3" requires debrief@v2 as the final commit, head_sha the last code
+      commit, a because on every decision, decisions a manifest of every changed file; this is
+      that same requirement applied to the rebase and its follow-up fix, mirroring c18's and
+      c22's role for the earlier filings.
+    rests_on:
+      - "brief:Deliverable 3"
+      - "c18"
+      - "c22"
+    hunks:
+      - ".interlock/sessions/0002-shapes/brief-shape/debrief.yaml"
 gates_run_by_agent:
   - id: typecheck
     result: pass
     invocation: "mise exec -- pnpm typecheck"
+    note: "re-run clean at the rebased head, after folding kind into StandingGate"
   - id: test
     result: pass
     invocation: "mise exec -- pnpm test"
-    note: "289 tests across ledger, face, debrief, runner, cli; run twice at the same head_sha, both green"
+    note: "330 tests across ledger, face, debrief, runner, cli at the rebased head; one clean run, no flake"
   - id: debrief-valid
     result: pass
     invocation: "mise exec -- pnpm interlock debrief validate 0002-shapes brief-shape"
@@ -491,12 +565,6 @@ gates_run_by_agent:
     invocation: "mise exec -- pnpm --filter debrief --fail-if-no-match test --testNamePattern brief"
     note: "17 tests passed (d3); at least one, as the gate's expect_output requires"
 open:
-  - >
-    face's GateDeclaration does not parse expect_output, so a rewritten brief's gates never
-    carry it even though every test gate in both .interlock/graphs/*.yaml declares one
-    (notes:10). The brief-legacy gate's own expect_output is therefore descriptive intent on
-    this graph today, not a runner-enforced check; wiring it belongs to whichever node next
-    touches face's graph parser and the gate judge together.
   - >
     diffGates and diffScope narrate by id and by count, never by full path or full command,
     to keep the common case readable. If a team wants the exact before/after values (not just
