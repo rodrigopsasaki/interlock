@@ -208,3 +208,23 @@ entries:
       BriefRead, with zero casts.
     rejected:
       - "leaving the cast and adding a comment explaining why it was safe"
+
+  - kind: choice
+    at: "2026-09-10T16:10:00Z"
+    chose: >
+      Recorded Deliverable 4's required evidence (the interlock brief validate output for every
+      existing brief@v0 and for the brief@v1 fixture, verbatim, plus the fixture's exact front
+      matter) as a new debrief decision (c19) whose "what" field is the evidence itself, rather
+      than as a new top-level debrief field or only as a hunk citation.
+    because: >
+      A fix-round verifier found that decision c6's hunk citation
+      ("packages/debrief/test/fixtures/brief-v1.md:1-36") pointed at the fixture without quoting
+      it, and that no gate or section embedded the validator output the brief asks for verbatim.
+      debrief@v2's schema (packages/debrief/src/debrief.ts) has no field for arbitrary evidence
+      blocks, but a decision's "what" is already free text with no shape constraint beyond being
+      a string, so it is the one place in the existing shape that can carry exact command output
+      and file content without inventing a sixth debrief@v2 field this node was never asked to
+      add.
+    rejected:
+      - "a new top-level debrief.yaml field (e.g. validator_outputs) outside decisions/discoveries"
+      - "leaving the evidence only as a hunk citation, trusting the reader to open the fixture"
