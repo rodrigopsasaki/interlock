@@ -66,6 +66,23 @@ describe("outcome factories", () => {
     });
   });
 
+  it("carries a path count as data on held-for-uncommitted-work, no gate involved at all", () => {
+    const held = outcome.held(
+      [],
+      heldOn.uncommittedWork(4),
+      "4 uncommitted path(s) in the worktree; gates judge commits only",
+      30_000,
+    );
+    expect(held).toEqual({
+      kind: "held",
+      receipts: [],
+      on: { kind: "uncommitted-work", paths: 4 },
+      because:
+        "4 uncommitted path(s) in the worktree; gates judge commits only",
+      expiry: 30_000,
+    });
+  });
+
   it("carries a decision's authority as data on held, with no failure at all", () => {
     const held = outcome.held(
       [],

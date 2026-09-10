@@ -221,6 +221,24 @@ speed that keeps its receipts and its way back.
 criteria has to be re-read when the record says it was wrong.
 *Revisit:* the three sources are the starting set. A fourth needs a written justification here.
 
+**D26. Proof waits on a commit, `blocked` waits on a person, and a pane waits on `cleared`.**
+No gate runs against a worktree carrying uncommitted paths: the runner counts them first,
+and any count above zero holds the node on that fact alone, no gate spent, no receipt
+written, so nothing is ever proven against content nobody committed. The brief the runner
+writes into the worktree is committed too, on the node's branch, before setup starts, so
+that check applies the same way whether this is a node's first session or one it is
+resuming. Separately, `blocked` surfacing from herdr names a person's turn at the keyboard,
+not the end of the run: the runner narrates the pane and the screen's last line and waits
+again, through `working`, back to `idle` or `done`, bounded only by the run's own timeout,
+fixed at the first wait and never restarted by a transition. Because a person may already be
+sitting at a blocked or held pane, it now stays open for anything short of `cleared`,
+narrated for drilldown instead of closed; only a refusal ahead of the prompt still closes
+it, as it always has.
+*Cost:* real, correct work left uncommitted is held rather than judged, and stays held until
+someone commits it; a pane that would have closed on a bad run now waits for a person to close it.
+*Revisit:* if held-on-uncommitted-work becomes the common outcome rather than the rare one, the
+runner commits on the agent's behalf instead of holding on it.
+
 ## Invariants
 
 These do not bend. When one is in the way, the design around it is wrong. Each names what breaking
@@ -577,6 +595,7 @@ bend against an invariant means we redesign, and the entry says how.
 | 2026-09-09 | `face-read` cleared. `interlock graph show` renders the bootstrap graph with `scaffold` as ready and `ledger` as blocked on it, although both are cleared and merged: their gates ran by hand and their receipts live in pull-request bodies, not in the journal. The ledger package now resolves under raw Node through explicit `.ts` specifiers and a `main` pointing at source, a consequence of running the CLI without a build step | D14, D5, receipts | The face reads the journal and nothing else, so a receipt that was never written to it does not exist for the face. That is correct, and it exposes that the first two nodes were cleared outside the ledger. | Yes, the receipts are in PRs #2 and #4 | The runner's first act is to re-run the standing gates for every cleared node at main and write their receipts, so the position stops depending on anyone's memory. `approved` enters the vocabulary as a gate id and a three-valued state. |
 | 2026-09-09 | `face` split into `face-read` (depends on `ledger`) and `face` (depends on the runner); graph-level human gate `approved` added to the bootstrap graph; D20 written | Graph, D20 | Every plan is read and approved before any of it runs. The read-only slice of the face needs the ledger and the graph file, not the runner, as 0002 argued; the approval gate is the interlocking applied to plans. | Yes, previous graph in history | The first plan approved under the new gate is the one that builds the approver. |
 | 2026-09-09 | Carried over from a prior work algebra: five gate states; cancelled and superseded terminals; failure / disposition / because; conserved retry budget; spend on receipts and spend-driven revival; empty receipt ≠ absent; abandoned written by a sweeper; lease bounds silence; outbox with an honest uncertain state; typed notes during the session; interrupted gets no invented debrief; role supplied by the brief; mandate spelled | D8, D12, I7, gates, verifier, lifecycle, vocabulary | The same laws were written a month earlier inside the substrate and each carried an incident that earned it. Carry what makes sense, leave what does not: the substrate's belief analysis and ratification doors stay on its side. | Yes, v0.2 in history | I7 had promised exactly once. Nothing can. Promise no lost intent and honest doubt instead. |
+| 2026-09-10 | A live run treated an agent's `blocked` status as the session's end, read the screen once, and judged gates in a worktree the agent had left with uncommitted work; the receipts it wrote named a commit that held none of that work. Writing `brief.md` into the worktree itself left it dirty before the agent so much as touched a key, and the per-judgement screen snapshot was never excluded from the tree it judges | D5, D21, I1, vocabulary | A receipt is a proof the harness produced; one written against uncommitted content proves nothing the receipt claims. `blocked` already carries two identities in this repository — a gate state (one of five) on one hand, the status herdr reports for a running agent on the other — and this fix adds no third meaning: the runner had simply been treating the herdr reading as if it were a terminal outcome, never as anything to wait through. A pane closed on a refusal takes the agent's unanswered question, and the context to answer it, with it | Yes, the pre-fix run's journal lines and receipts are unchanged; nothing is retracted, only judged differently from here on | `blocked` now names two things: a gate's own state, and an agent runtime's status surfaced through herdr. The runner reads the second as a person's turn and never conflates it with the first, but the tension between one word carrying two meanings is left standing, not resolved. The shape change (`held`'s new uncommitted-work reason) moved the persisted event to `event@v3`; the real production journal, v1 and v2 mixed, replays under it losslessly. Reading `reuseWorktree` while fixing this surfaced two defects the run itself never hit, not something observed live: it refused a tip carrying commits of its own as diverged whenever the requested base was not its ancestor, and it would have reset a dirty tree over uncommitted work had a resumed tip ever landed behind its base; both are fixed alongside it. D26 written |
 
 ---
 

@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { join, relative } from "node:path";
-import { createSystemClock, type Clock } from "@phyxiusjs/clock";
+import {
+  createSystemClock,
+  deadlineFrom,
+  ms,
+  type Clock,
+} from "@phyxiusjs/clock";
 import { isErr, isOk, ok } from "@phyxiusjs/fp";
 import {
   approvalState,
@@ -11,12 +16,20 @@ import {
   loadGraphDocument,
   sharedJournalDirectory,
 } from "face";
-import { createLedger, explainScopeRefusal, nodeKey, receiptId } from "ledger";
+import {
+  createLedger,
+  explainScopeRefusal,
+  heldOn,
+  nodeKey,
+  outcome,
+  receiptId,
+} from "ledger";
 import {
   briefExists,
   briefPath,
   buildBrief,
   buildOpeningPrompt,
+  commitBriefIfChanged,
   createHerdrRuntime,
   ensureNodeWorktree,
   declaredGateIds,
@@ -36,12 +49,16 @@ import {
   matchesScreen,
   runSetupCommand,
   takeLease,
+  uncommittedPaths,
   unmetDependencies,
+  waitForSession,
   writeBriefIntoWorktree,
   writeScreenSnapshot,
   type Agent,
   type Pane,
+  type PriorWork,
   type Runtime,
+  type WorktreeOutcome,
 } from "runner";
 import type { CommandResult } from "./main.ts";
 
@@ -49,6 +66,17 @@ const HELD_REVISIT_MS = 24 * 60 * 60 * 1000;
 
 function isoOf(wallMs: number): string {
   return new Date(wallMs).toISOString();
+}
+
+function priorWorkOf(worktree: WorktreeOutcome): PriorWork | undefined {
+  if (worktree.kind !== "reused") return undefined;
+  if (worktree.uncommittedPaths === 0 && worktree.commitsBeyondBase === 0) {
+    return undefined;
+  }
+  return {
+    uncommittedPaths: worktree.uncommittedPaths,
+    commitsBeyondBase: worktree.commitsBeyondBase,
+  };
 }
 
 export async function runInterlockRun(
@@ -136,6 +164,7 @@ export async function runInterlockRun(
   let pane: Pane | undefined;
   let agent: Agent | undefined;
   let runtime: Runtime | undefined;
+  let paneCustody: "runner" | "person" = "runner";
 
   try {
     const contentHash = await receiptId(
@@ -159,7 +188,7 @@ export async function runInterlockRun(
       };
     }
 
-    const graphBaseSha = currentCommitSha(repoRoot);
+    const requestedGraphBaseSha = currentCommitSha(repoRoot);
 
     const targetNode = { graph, id: node };
     const unmet = unmetDependencies(
@@ -173,6 +202,22 @@ export async function runInterlockRun(
         message: `${node}: dependencies not cleared: ${unmet.join(", ")}.`,
       };
     }
+
+    const worktreePath = join(repoRoot, localConfig.value.worktreeRoot, node);
+    const branch = `graph/${graph}/${node}`;
+    const worktree = ensureNodeWorktree(
+      repoRoot,
+      worktreePath,
+      requestedGraphBaseSha,
+      branch,
+    );
+    if (isErr(worktree)) {
+      return {
+        exitCode: 1,
+        message: `worktree refused: ${explainWorktreeRefusal(worktree.error)}`,
+      };
+    }
+    const graphBaseSha = worktree.value.base;
 
     const gateIds = declaredGateIds(standingGates.value, declaration.gates);
     const sessionId = randomUUID();
@@ -215,21 +260,19 @@ export async function runInterlockRun(
       );
     };
 
-    const worktreePath = join(repoRoot, localConfig.value.worktreeRoot, node);
-    const branch = `graph/${graph}/${node}`;
-    const worktree = ensureNodeWorktree(
-      repoRoot,
-      worktreePath,
-      graphBaseSha,
-      branch,
-    );
-    if (isErr(worktree)) {
-      const result = refuse("worktree", explainWorktreeRefusal(worktree.error));
-      lease.stop();
-      abandonLease();
-      return result;
+    narrate(`worktree at ${worktreePath} on ${graphBaseSha}`);
+    if (graphBaseSha !== requestedGraphBaseSha) {
+      narrate(
+        `branch base ${graphBaseSha.slice(0, 7)} is behind main ${requestedGraphBaseSha.slice(0, 7)}; the session rebases before it opens a pull request`,
+      );
     }
-    narrate(`worktree at ${worktree.value} on ${graphBaseSha}`);
+    const priorWork = priorWorkOf(worktree.value);
+    if (priorWork !== undefined) {
+      narrate(
+        `worktree carries prior work: ${priorWork.uncommittedPaths} uncommitted path(s), ` +
+          `${priorWork.commitsBeyondBase} commit(s) beyond the graph base`,
+      );
+    }
 
     const briefWritten = await writeBriefIntoWorktree(
       repoRoot,
@@ -252,6 +295,26 @@ export async function runInterlockRun(
     }
     narrate("brief written");
     for (const line of briefWritten.value.narration) narrate(line);
+
+    const briefRelativePath = relative(worktreePath, briefWritten.value.path);
+    const briefCommitted = commitBriefIfChanged(
+      worktreePath,
+      briefRelativePath,
+      node,
+      sessionId,
+    );
+    if (isErr(briefCommitted)) {
+      const result = refuse(
+        "brief commit",
+        explainWorktreeRefusal(briefCommitted.error),
+      );
+      lease.stop();
+      abandonLease();
+      return result;
+    }
+    if (briefCommitted.value !== undefined) {
+      narrate(`brief committed ${briefCommitted.value}`);
+    }
 
     for (const command of localConfig.value.worktreeSetup) {
       narrate(`worktree setup: ${command}`);
@@ -301,6 +364,7 @@ export async function runInterlockRun(
       localConfig.value.runtime.kind,
       localConfig.value.runtime.args,
       () => narrate("waiting for the pane's shell"),
+      node,
     );
     if (isErr(startedAgent)) {
       const result = refuse(
@@ -392,7 +456,7 @@ export async function runInterlockRun(
 
     const prompted = await runtime.prompt(
       agent,
-      buildOpeningPrompt(graph, node),
+      buildOpeningPrompt(graph, node, priorWork),
     );
     if (isErr(prompted)) {
       const result = refuse("prompt", explainRuntimeRefusal(prompted.error));
@@ -419,15 +483,23 @@ export async function runInterlockRun(
       abandonLease();
       return result;
     }
+    paneCustody = "person";
     if (tookPrompt.value === "working") narrate("agent working");
 
     narrate(
       `waiting for idle, blocked or done (timeout ${localConfig.value.runTimeoutMs}ms)`,
     );
-    const waited = await runtime.waitUntil(
+    const deadline = deadlineFrom(
+      clock.now().monoMs,
+      ms(localConfig.value.runTimeoutMs),
+    );
+    const waited = await waitForSession(
+      runtime,
       agent,
-      ["idle", "blocked", "done"],
+      clock,
+      deadline,
       localConfig.value.runTimeoutMs,
+      narrate,
     );
     lease.stop();
     if (isErr(waited)) {
@@ -441,11 +513,40 @@ export async function runInterlockRun(
       narrate(
         `agent screen read refused: ${explainRuntimeRefusal(screenRead.error)}`,
       );
-    } else {
+    }
+
+    const dirty = uncommittedPaths(worktreePath);
+    if (isErr(dirty)) {
+      const result = refuse(
+        "worktree status",
+        explainWorktreeRefusal(dirty.error),
+      );
+      abandonLease();
+      return result;
+    }
+
+    if (isOk(screenRead)) {
       await writeScreenSnapshot(worktreePath, graph, node, screenRead.value);
       narrate(
         `agent screen: ${lastNonEmptyLine(screenRead.value) ?? "(no output)"}`,
       );
+    }
+
+    if (dirty.value.length > 0) {
+      const because = `${dirty.value.length} uncommitted path(s) in the worktree; gates judge commits only`;
+      narrate(because);
+      for (const path of dirty.value.slice(0, 5)) narrate(`  ${path}`);
+      const held = outcome.held(
+        [],
+        heldOn.uncommittedWork(dirty.value.length),
+        because,
+        clock.now().wallMs + HELD_REVISIT_MS,
+      );
+      ledger.append({ kind: "outcome-set", node: targetNode, outcome: held });
+      return {
+        exitCode: 0,
+        message: `${node}: ${held.kind} (session ${sessionId}, agent status ${waited.value}).`,
+      };
     }
 
     const debriefedSha = currentCommitSha(worktreePath);
@@ -468,14 +569,20 @@ export async function runInterlockRun(
       abandonLease();
       return result;
     }
+    if (judged.value.kind === "cleared") paneCustody = "runner";
 
     return {
       exitCode: 0,
       message: `${node}: ${judged.value.kind} (session ${sessionId}, agent status ${waited.value}).`,
     };
   } finally {
-    if (pane !== undefined && runtime !== undefined)
-      await runtime.closePane(pane);
+    if (pane !== undefined && runtime !== undefined) {
+      if (paneCustody === "runner") {
+        await runtime.closePane(pane);
+      } else {
+        narrate(`pane ${pane.id} left open for drilldown`);
+      }
+    }
     await ledger.close();
   }
 }

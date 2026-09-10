@@ -216,6 +216,47 @@ export async function createHerdrRuntime(
     timeoutMs: number = defaultCallTimeoutMs,
   ) => callHerdr(socketPath, method, params, timeoutMs);
 
+  const attemptStartAgent = async (
+    name: string,
+    pane: Pane,
+    kind: string,
+    args: readonly string[],
+    onWaitingForPane?: () => void,
+  ): Promise<Result<Agent, RuntimeRefusal>> => {
+    const params = {
+      name,
+      kind,
+      pane_id: pane.id,
+      args,
+      timeout_ms: AGENT_START_TIMEOUT_MS,
+    };
+    const callTimeoutMs = AGENT_START_TIMEOUT_MS + CALL_DEADLINE_MARGIN_MS;
+
+    let attempt = 0;
+    let waitedMs = 0;
+    let backoffMs = PANE_READY_INITIAL_BACKOFF_MS;
+    for (;;) {
+      attempt += 1;
+      const started = await call("agent.start", params, callTimeoutMs);
+      if (!isErr(started)) return ok({ id: name, pane });
+      if (!isPaneBusyRefusal(started.error)) return started;
+
+      const remainingBudgetMs = paneReadyTimeoutMs - waitedMs;
+      if (remainingBudgetMs <= 0) {
+        return err({
+          kind: "remote",
+          code: AGENT_PANE_BUSY_CODE,
+          message: `${started.error.message} (waited ${waitedMs}ms for the pane's shell)`,
+        });
+      }
+      if (attempt === 1) onWaitingForPane?.();
+      const delayMs = Math.min(backoffMs, remainingBudgetMs);
+      await sleep(delayMs);
+      waitedMs += delayMs;
+      backoffMs = Math.min(backoffMs * 2, PANE_READY_MAX_BACKOFF_MS);
+    }
+  };
+
   return ok({
     async openPane(cwd) {
       const created = await call("workspace.create", {
@@ -237,42 +278,37 @@ export async function createHerdrRuntime(
       kind: string,
       args: readonly string[],
       onWaitingForPane?: () => void,
+      preferredId?: string,
     ) {
       if (!AGENT_KINDS.has(kind))
         return err({ kind: "unknown-agent-kind", agentKind: kind });
-      const name = generateAgentName();
-      const params = {
-        name,
+
+      const preferredIsCompliant =
+        preferredId !== undefined && isCompliantAgentName(preferredId);
+      const primary = preferredIsCompliant ? preferredId : generateAgentName();
+
+      const first = await attemptStartAgent(
+        primary,
+        pane,
         kind,
-        pane_id: pane.id,
         args,
-        timeout_ms: AGENT_START_TIMEOUT_MS,
-      };
-      const callTimeoutMs = AGENT_START_TIMEOUT_MS + CALL_DEADLINE_MARGIN_MS;
-
-      let attempt = 0;
-      let waitedMs = 0;
-      let backoffMs = PANE_READY_INITIAL_BACKOFF_MS;
-      for (;;) {
-        attempt += 1;
-        const started = await call("agent.start", params, callTimeoutMs);
-        if (!isErr(started)) return ok({ id: name, pane });
-        if (!isPaneBusyRefusal(started.error)) return started;
-
-        const remainingBudgetMs = paneReadyTimeoutMs - waitedMs;
-        if (remainingBudgetMs <= 0) {
-          return err({
-            kind: "remote",
-            code: AGENT_PANE_BUSY_CODE,
-            message: `${started.error.message} (waited ${waitedMs}ms for the pane's shell)`,
-          });
-        }
-        if (attempt === 1) onWaitingForPane?.();
-        const delayMs = Math.min(backoffMs, remainingBudgetMs);
-        await sleep(delayMs);
-        waitedMs += delayMs;
-        backoffMs = Math.min(backoffMs * 2, PANE_READY_MAX_BACKOFF_MS);
+        onWaitingForPane,
+      );
+      if (!isErr(first)) return first;
+      if (
+        !preferredIsCompliant ||
+        first.error.kind !== "remote" ||
+        first.error.code === AGENT_PANE_BUSY_CODE
+      ) {
+        return first;
       }
+      return attemptStartAgent(
+        generateAgentName(),
+        pane,
+        kind,
+        args,
+        onWaitingForPane,
+      );
     },
 
     async reportIdentity(

@@ -10,27 +10,29 @@ export type WorktreeRefusal =
       readonly because: string;
     }
   | {
-      readonly kind: "diverged";
+      readonly kind: "dirty-behind-base";
       readonly branch: string;
-      readonly commit: string;
+      readonly paths: number;
     };
 
 export function explainWorktreeRefusal(refusal: WorktreeRefusal): string {
   switch (refusal.kind) {
     case "git-failed":
       return `git ${refusal.command.join(" ")}: ${refusal.because}`;
-    case "diverged":
-      return `branch "${refusal.branch}" carries commits beyond its base at ${refusal.commit}; refusing to discard them.`;
+    case "dirty-behind-base":
+      return `branch "${refusal.branch}" is behind its base with ${refusal.paths} uncommitted path(s); refusing to reset over them.`;
   }
 }
 
-interface ExecError extends Error {
-  readonly status: number | null;
-}
-
-function isExecError(error: unknown): error is ExecError {
-  return error instanceof Error && "status" in error;
-}
+export type WorktreeOutcome =
+  | { readonly kind: "created"; readonly path: string; readonly base: string }
+  | {
+      readonly kind: "reused";
+      readonly path: string;
+      readonly base: string;
+      readonly uncommittedPaths: number;
+      readonly commitsBeyondBase: number;
+    };
 
 function git(
   cwd: string,
@@ -57,24 +59,61 @@ function branchExists(repoRoot: string, branch: string): boolean {
   return isOk(found);
 }
 
-// git exits 1 for "not an ancestor"; only a nonzero exit with a message is a real failure.
-function isAncestor(
+function mergeBase(
   repoRoot: string,
-  ancestor: string,
-  descendant: string,
-): Result<boolean, WorktreeRefusal> {
-  const args = ["merge-base", "--is-ancestor", ancestor, descendant];
-  try {
-    execFileSync("git", args, { cwd: repoRoot, encoding: "utf-8" });
-    return ok(true);
-  } catch (error) {
-    if (isExecError(error) && error.status === 1) return ok(false);
-    return err({
-      kind: "git-failed",
-      command: args,
-      because: error instanceof Error ? error.message : String(error),
-    });
-  }
+  a: string,
+  b: string,
+): Result<string, WorktreeRefusal> {
+  const found = git(repoRoot, ["merge-base", a, b]);
+  if (isErr(found)) return found;
+  return ok(found.value.trim());
+}
+
+function commitsBeyondBase(
+  repoRoot: string,
+  base: string,
+  tip: string,
+): Result<number, WorktreeRefusal> {
+  const counted = git(repoRoot, ["rev-list", "--count", `${base}..${tip}`]);
+  if (isErr(counted)) return counted;
+  return ok(Number.parseInt(counted.value.trim(), 10));
+}
+
+function parsePorcelainPath(line: string): string {
+  const path = line.slice(3);
+  const arrow = path.indexOf(" -> ");
+  return arrow === -1 ? path : path.slice(arrow + 4);
+}
+
+export function uncommittedPaths(
+  worktreePath: string,
+): Result<readonly string[], WorktreeRefusal> {
+  const status = git(worktreePath, [
+    "status",
+    "--porcelain",
+    "--untracked-files=all",
+  ]);
+  if (isErr(status)) return status;
+  const paths = status.value
+    .split("\n")
+    .filter((line) => line.length > 0)
+    .map(parsePorcelainPath);
+  return ok(paths);
+}
+
+function reused(
+  path: string,
+  base: string,
+  uncommittedPathCount: number,
+  commitsBeyondBaseCount: number,
+): WorktreeOutcome {
+  return {
+    kind: "reused",
+    path,
+    base,
+    uncommittedPaths: uncommittedPathCount,
+    commitsBeyondBase: commitsBeyondBaseCount,
+  };
 }
 
 function reuseWorktree(
@@ -82,18 +121,31 @@ function reuseWorktree(
   path: string,
   sha: string,
   branch: string,
-): Result<string, WorktreeRefusal> {
+): Result<WorktreeOutcome, WorktreeRefusal> {
   const tip = git(repoRoot, ["rev-parse", branch]);
   if (isErr(tip)) return tip;
   const tipSha = tip.value.trim();
-  if (tipSha === sha) return ok(path);
 
-  const safe = isAncestor(repoRoot, tipSha, sha);
-  if (isErr(safe)) return safe;
-  if (!safe.value) return err({ kind: "diverged", branch, commit: tipSha });
+  const dirty = uncommittedPaths(path);
+  if (isErr(dirty)) return dirty;
+  const dirtyCount = dirty.value.length;
 
-  const reset = git(path, ["reset", "--hard", sha]);
-  return isOk(reset) ? ok(path) : reset;
+  if (tipSha === sha) return ok(reused(path, sha, dirtyCount, 0));
+
+  const base = mergeBase(repoRoot, sha, tipSha);
+  if (isErr(base)) return base;
+
+  if (base.value === tipSha) {
+    if (dirtyCount > 0) {
+      return err({ kind: "dirty-behind-base", branch, paths: dirtyCount });
+    }
+    const reset = git(path, ["reset", "--hard", sha]);
+    return isOk(reset) ? ok(reused(path, sha, 0, 0)) : reset;
+  }
+
+  const ahead = commitsBeyondBase(repoRoot, base.value, tipSha);
+  if (isErr(ahead)) return ahead;
+  return ok(reused(path, base.value, dirtyCount, ahead.value));
 }
 
 export function ensureNodeWorktree(
@@ -101,7 +153,7 @@ export function ensureNodeWorktree(
   path: string,
   sha: string,
   branch: string,
-): Result<string, WorktreeRefusal> {
+): Result<WorktreeOutcome, WorktreeRefusal> {
   if (existsSync(join(path, ".git"))) {
     return reuseWorktree(repoRoot, path, sha, branch);
   }
@@ -109,7 +161,43 @@ export function ensureNodeWorktree(
     ? ["worktree", "add", path, branch]
     : ["worktree", "add", "-b", branch, path, sha];
   const added = git(repoRoot, args);
-  return isOk(added) ? ok(path) : added;
+  return isOk(added) ? ok({ kind: "created", path, base: sha }) : added;
+}
+
+const BRIEF_COMMIT_FOOTER =
+  "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>";
+
+export function commitBriefIfChanged(
+  worktreePath: string,
+  briefRelativePath: string,
+  node: string,
+  session: string,
+): Result<string | undefined, WorktreeRefusal> {
+  const dirty = uncommittedPaths(worktreePath);
+  if (isErr(dirty)) return dirty;
+  if (!dirty.value.includes(briefRelativePath)) return ok(undefined);
+
+  const staged = git(worktreePath, ["add", "--", briefRelativePath]);
+  if (isErr(staged)) return staged;
+
+  const message = [
+    `chore(${node}): write the session brief`,
+    "",
+    `Writes the session brief ${node} starts session ${session} from.`,
+    "",
+    BRIEF_COMMIT_FOOTER,
+  ].join("\n");
+  const committed = git(worktreePath, [
+    "commit",
+    "-m",
+    message,
+    "--",
+    briefRelativePath,
+  ]);
+  if (isErr(committed)) return committed;
+
+  const short = git(worktreePath, ["rev-parse", "--short", "HEAD"]);
+  return isOk(short) ? ok(short.value.trim()) : short;
 }
 
 export function createDetachedWorktree(

@@ -216,33 +216,36 @@ describe("readBriefFile", () => {
 
 const REPO_ROOT = join(import.meta.dirname, "..", "..", "..");
 
-const existingBriefs: readonly [string, string][] = [
+const legacyBriefs: readonly [string, string][] = [
   ["0001-bootstrap", "debrief-schema"],
   ["0001-bootstrap", "face-read"],
   ["0001-bootstrap", "ledger-gaps"],
   ["0001-bootstrap", "ledger"],
   ["0001-bootstrap", "runner-command-gate"],
   ["0001-bootstrap", "scaffold"],
-  ["0001-bootstrap", "verifier-hunks"],
   ["0002-shapes", "brief-shape"],
 ];
 
+function existingBriefPath(graph: string, node: string): string {
+  return join(REPO_ROOT, ".interlock", "sessions", graph, node, "brief.md");
+}
+
 describe("every existing brief under .interlock/sessions", () => {
-  it.each(existingBriefs)(
-    "%s/%s validates as brief@v0",
-    async (graph, node) => {
-      const path = join(
-        REPO_ROOT,
-        ".interlock",
-        "sessions",
-        graph,
-        node,
-        "brief.md",
-      );
-      const result = await readBriefFile(path);
-      expect(isOk(result)).toBe(true);
-      if (!isOk(result)) return;
-      expect(result.value.kind).toBe("legacy");
-    },
-  );
+  it.each(legacyBriefs)("%s/%s validates as brief@v0", async (graph, node) => {
+    const result = await readBriefFile(existingBriefPath(graph, node));
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) return;
+    expect(result.value.kind).toBe("legacy");
+  });
+
+  // verifier-hunks carries brief@v1 front matter from the moment the runner became the one
+  // to drive it live; every other brief here predates that and stays legacy-valid.
+  it("0001-bootstrap/verifier-hunks validates as brief@v1", async () => {
+    const result = await readBriefFile(
+      existingBriefPath("0001-bootstrap", "verifier-hunks"),
+    );
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) return;
+    expect(result.value.kind).toBe("v1");
+  });
 });

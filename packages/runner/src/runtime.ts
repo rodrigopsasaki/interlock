@@ -57,6 +57,7 @@ export interface Runtime {
     kind: string,
     args: readonly string[],
     onWaitingForPane?: () => void,
+    preferredId?: string,
   ): Promise<Result<Agent, RuntimeRefusal>>;
   reportIdentity(
     agent: Agent,
