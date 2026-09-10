@@ -279,3 +279,61 @@ entries:
       delete-plus-add correctly (per its own docstring and the pure-delete
       test beside it); the bug was only ever the invocation letting git
       pick a different diff shape than the one that parser expects.
+  - kind: choice
+    at: "2026-09-10T19:00:00Z"
+    chose: >
+      Set this debrief's `session_start_sha` to `graph_base_sha`
+      (043c78a0bea483de7d212031255b771d493a7ab5), not to `git rev-parse
+      HEAD` at the literal moment this conversation began (3f39411, the
+      commit that rewrote brief.md for this resumption). The whole range
+      from the graph base through every commit on this branch --
+      c2c6a4ea's checkpointed work, the brief rewrite, and this session's
+      own three commits -- is treated as one debrief's own diff.
+    because: >
+      The checkpoint commit's own message is explicit and specific to
+      this exact hand-off, overriding the brief's generic "HEAD before
+      you change anything" phrasing (written for the ordinary case of a
+      session starting clean at the graph base, not a resumption):
+      "These are the files that session had staged, committed as they
+      were so the node can resume on its own branch. The resuming
+      session owns these hunks: its debrief cites them, its notes
+      already describe the choices behind them." A debrief whose
+      session_start_sha excluded that commit could never cite those
+      hunks at all (checkHunkCitation only roots a citation against a
+      path that changed within the debrief's own range) -- the entire
+      verifier library would sit undocumented forever, in the one node
+      whose whole purpose is proving decisions are grounded in real
+      diffs. The top-level task instructions given at this session's
+      start point the same way: "This worktree carries work from an
+      earlier session of this node... do not redo finished work" --
+      framing it as one continuing node-level effort, not two
+      independent, disjoint sessions.
+    rejected: >
+      session_start_sha = 3f39411 (HEAD at the literal moment this
+      conversation's context began), mirroring debrief-schema's own
+      pattern of placing session_start_sha right after the runner's
+      brief-write commit precisely to exclude it from the diff -- rejected
+      because it would also exclude the checkpoint commit that precedes
+      it, orphaning 1748 lines of real, already-reviewed work that the
+      checkpoint commit's own message explicitly assigns to this debrief.
+      Every file that range would still show as changed relative to an
+      even earlier graph_base_sha, but citing them from a debrief whose
+      own session_start_sha starts later would make every such citation
+      unrooted (the path never changed within the declared range) -- the
+      opposite of what "the resuming session owns these hunks" asks for.
+  - kind: surprise
+    at: "2026-09-10T19:01:00Z"
+    expected: >
+      That fixing session_start_sha to graph_base_sha would leave a clean
+      range where every file's presence traces to an agent's own decision.
+    observed: >
+      brief.md itself is a changed file in this debrief's own range once
+      session_start_sha = graph_base_sha -- the runner's own rewrite from
+      the scaffolded placeholder to real front matter, plus its later
+      field updates, both sit inside a range that is necessarily
+      contiguous. Given a decision below (c1) describing it as a factual
+      account of the runner's own action, rather than left `unexplained`:
+      "or it is marked unexplained" is a legitimate, honest outcome too
+      (it costs nothing, per this node's own design), but a one-line
+      factual decision costs a reader less confusion than an unexplained
+      mark on the one file this whole session was forbidden to edit.
