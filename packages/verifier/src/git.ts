@@ -78,15 +78,20 @@ function stripPrefix(raw: string, prefix: string): string | undefined {
 
 // A no-context diff of the whole range, parsed once into one entry per changed path: the
 // path itself, the new-file line ranges of every hunk that added at least one line, and the
-// raw text of every added line. A rename with no content change shows as a delete plus an
-// add under plain `git diff` (no -M requested), which is exactly the two changed paths the
-// inverse check and the hunk citations both want.
+// raw text of every added line. --no-renames is explicit, not git's default: a rename or a
+// new file textually similar to an existing one otherwise renders as a "copy from"/"copy to"
+// pair whenever the invoking machine's own git config turns on diff.renames, which would make
+// this deterministic verifier's hunks depend on a setting outside the repository. Plain add
+// plus delete is exactly the two changed paths the inverse check and the hunk citations want.
 export function diffFiles(
   repoRoot: string,
   from: string,
   to: string,
 ): readonly FileDiff[] {
-  const output = git(["diff", "-U0", `${from}..${to}`], repoRoot);
+  const output = git(
+    ["diff", "--no-renames", "-U0", `${from}..${to}`],
+    repoRoot,
+  );
   const files: FileDiff[] = [];
   let path: string | undefined;
   let minusPath: string | undefined;

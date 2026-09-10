@@ -233,3 +233,49 @@ entries:
       checkout would keep surfacing this as untracked noise; one line in
       the already-in-scope .gitignore, matching every sibling package's
       own entry, closes the gap at its cause.
+  - kind: surprise
+    at: "2026-09-10T18:55:00Z"
+    expected: >
+      `git diff -U0 <from>..<to>` in git.ts's diffFiles to always show a
+      brand-new file as one clean `--- /dev/null` / `+++ b/<path>` hunk
+      covering its whole content, per the acceptance's "Deterministic
+      marks over a debrief against its diff."
+    observed: >
+      This machine's own global git config sets `diff.renames = copies`.
+      Diffing this session's own first real range (043c78a0..the
+      pre-fix head) showed `packages/verifier/package.json` not as a new
+      file but as a "copy from packages/cli/package.json" (62%
+      similarity, since I had just added a dependency line to cli's own
+      package.json in the same commit): a handful of changed-line hunks
+      relative to cli/package.json's content, not the true `+1,21` new-file
+      hunk. git.ts's own comment ("no -M requested") assumed plain `git
+      diff` never does this, which is only true when the invoking user's
+      git config leaves renames off -- not guaranteed, and not something
+      this repository controls.
+    mattered_because: >
+      A hunk citation against a copy-detected file's line numbers would
+      compare against the wrong range (relative to the copy source, not
+      the true new-file numbering), and the same command run by a
+      different engineer with a different global gitconfig would produce
+      different marks from the identical repository state -- exactly the
+      non-determinism the acceptance rules out ("Deterministic marks").
+  - kind: choice
+    at: "2026-09-10T18:57:00Z"
+    chose: >
+      Added `--no-renames` to diffFiles' own `git diff` invocation, and a
+      regression test (git.test.ts) that sets `diff.renames: copies` on a
+      fixture repo, modifies one file and adds a second, textually-similar
+      one in the same commit -- the exact shape that triggered this in the
+      real corpus -- and asserts the new file's full content comes back as
+      addedLines. Confirmed by temporarily reverting the flag: the new
+      test fails (reports one changed line, not the whole file) without
+      it, passes with it.
+    because: >
+      Determinism is this node's own acceptance criterion, verbatim
+      ("Deterministic marks over a debrief against its diff"); a mark that
+      depends on which engineer's machine ran the command is not
+      deterministic. `--no-renames` is the direct, one-flag fix at the
+      cause -- the parser in diffFiles already handles a rename as a
+      delete-plus-add correctly (per its own docstring and the pure-delete
+      test beside it); the bug was only ever the invocation letting git
+      pick a different diff shape than the one that parser expects.

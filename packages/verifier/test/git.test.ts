@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -100,6 +101,43 @@ describe("diffFiles", () => {
       { start: 2, end: 2 },
       { start: 9, end: 9 },
     ]);
+  });
+
+  // git's copy detector needs a source file that also changed in the same commit, and enough
+  // shared lines to clear its similarity threshold -- both true of a package.json a new
+  // package copies its shape from while the original also gains a line, the exact shape of
+  // this session's own packages/cli and packages/verifier package.json files.
+  it("reports a new file textually similar to one also modified in the same commit as its own added hunk, even when the machine's git config detects copies", () => {
+    const dir = freshRepo();
+    execFileSync("git", ["config", "diff.renames", "copies"], { cwd: dir });
+    const original = [
+      "{",
+      '  "name": "a",',
+      '  "scripts": { "test": "vitest run" },',
+      '  "dependencies": {',
+      '    "one": "1.0.0",',
+      '    "two": "2.0.0",',
+      '    "three": "3.0.0",',
+      '    "four": "4.0.0"',
+      "  }",
+      "}",
+      "",
+    ].join("\n");
+    writeFileSync(join(dir, "a.json"), original);
+    const from = commitAll(dir, "first");
+
+    writeFileSync(join(dir, "a.json"), original.replace("four", "five"));
+    writeFileSync(join(dir, "b.json"), original.replace('"a"', '"b"'));
+    const to = commitAll(
+      dir,
+      "modify a.json and add b.json, textually close to a.json's original",
+    );
+
+    const files = diffFiles(dir, from, to);
+    const added = files.find((file) => file.path === "b.json");
+    expect(added?.addedLines).toEqual(
+      original.replace('"a"', '"b"').split("\n").slice(0, -1),
+    );
   });
 
   it("reports a pure deletion with no added lines, path still present", () => {
