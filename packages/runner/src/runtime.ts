@@ -23,6 +23,7 @@ export type RuntimeRefusal =
       readonly kind: "timeout";
       readonly until: readonly AgentStatus[];
       readonly timeoutMs: number;
+      readonly status: AgentStatus;
     }
   | {
       readonly kind: "call-timeout";
@@ -58,7 +59,8 @@ export interface Runtime {
   ): Promise<Result<Agent, RuntimeRefusal>>;
   reportIdentity(
     agent: Agent,
-    label: string,
+    graph: string,
+    node: string,
     identity: AgentIdentity,
   ): Promise<Result<void, RuntimeRefusal>>;
   prompt(agent: Agent, text: string): Promise<Result<void, RuntimeRefusal>>;

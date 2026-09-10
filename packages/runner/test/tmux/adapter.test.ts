@@ -60,7 +60,12 @@ describe("tmux adapter", () => {
     const waited = await runtime.waitUntil(agent.value, ["idle", "done"], 500);
     expect(waited).toEqual({
       _tag: "Err",
-      error: { kind: "timeout", until: ["idle", "done"], timeoutMs: 500 },
+      error: {
+        kind: "timeout",
+        until: ["idle", "done"],
+        timeoutMs: 500,
+        status: "unknown",
+      },
     });
   });
 

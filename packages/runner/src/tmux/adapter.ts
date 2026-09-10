@@ -45,7 +45,12 @@ export function createTmuxRuntime(
       return isErr(sent) ? sent : ok({ id: pane.id, pane });
     },
 
-    reportIdentity(_agent: Agent, _label: string, _identity: AgentIdentity) {
+    reportIdentity(
+      _agent: Agent,
+      _graph: string,
+      _node: string,
+      _identity: AgentIdentity,
+    ) {
       return Promise.resolve(ok(undefined));
     },
 
@@ -59,7 +64,9 @@ export function createTmuxRuntime(
       until: readonly AgentStatus[],
       timeoutMs: number,
     ): Promise<Result<AgentStatus, RuntimeRefusal>> {
-      return Promise.resolve(err({ kind: "timeout", until, timeoutMs }));
+      return Promise.resolve(
+        err({ kind: "timeout", until, timeoutMs, status: "unknown" }),
+      );
     },
 
     async read(agent: Agent) {

@@ -233,24 +233,19 @@ export async function createHerdrRuntime(
       return isErr(started) ? started : ok({ id: name, pane });
     },
 
-    async reportIdentity(agent: Agent, label: string, identity: AgentIdentity) {
-      const reportedAgent = await call("pane.report_agent", {
+    async reportIdentity(
+      agent: Agent,
+      graph: string,
+      node: string,
+      identity: AgentIdentity,
+    ) {
+      const reported = await call("pane.report_metadata", {
         pane_id: agent.pane.id,
         source: "interlock",
-        agent: label,
-        state: "working",
+        tokens: { graph, node, session: identity.sessionId },
+        title: `${graph}/${node}`,
       });
-      if (isErr(reportedAgent)) return reportedAgent;
-      const reportedSession = await call("pane.report_agent_session", {
-        pane_id: agent.pane.id,
-        source: "interlock",
-        agent: label,
-        agent_session_id: identity.sessionId,
-        ...(identity.sessionPath === undefined
-          ? {}
-          : { agent_session_path: identity.sessionPath }),
-      });
-      return isErr(reportedSession) ? reportedSession : ok(undefined);
+      return isErr(reported) ? reported : ok(undefined);
     },
 
     async prompt(agent: Agent, text: string) {
@@ -275,7 +270,12 @@ export async function createHerdrRuntime(
       const status = stringAt(waited.value, "agent", "agent_status");
       return isAgentStatus(status) && until.includes(status)
         ? ok(status)
-        : err({ kind: "timeout", until, timeoutMs });
+        : err({
+            kind: "timeout",
+            until,
+            timeoutMs,
+            status: isAgentStatus(status) ? status : "unknown",
+          });
     },
 
     async read(agent: Agent) {

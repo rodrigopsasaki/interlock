@@ -159,3 +159,62 @@ describe("loadLocalConfig runtime.startup_answers", () => {
     }
   });
 });
+
+describe("loadLocalConfig runtime.startup_timeout_ms", () => {
+  it("defaults to 60000 when the field is absent", async () => {
+    const repoRoot = fixtureRepo(baseFields.join("\n"));
+
+    const result = await loadLocalConfig(repoRoot);
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result))
+      expect(result.value.runtime.startupTimeoutMs).toBe(60_000);
+  });
+
+  it("parses an explicit value", async () => {
+    const yaml = [
+      "interlock: local@v0",
+      "runtime:",
+      "  kind: claude",
+      "  args: []",
+      "  startup_timeout_ms: 15000",
+      "worktree_root: .worktrees",
+      "lease_ms: 900000",
+      "run_timeout_ms: 3600000",
+      "substrate:",
+      "  address: none",
+      "",
+    ].join("\n");
+    const repoRoot = fixtureRepo(yaml);
+
+    const result = await loadLocalConfig(repoRoot);
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result))
+      expect(result.value.runtime.startupTimeoutMs).toBe(15_000);
+  });
+
+  it("refuses with a sentence error naming the field when it is not a number", async () => {
+    const yaml = [
+      "interlock: local@v0",
+      "runtime:",
+      "  kind: claude",
+      "  args: []",
+      "  startup_timeout_ms: soon",
+      "worktree_root: .worktrees",
+      "lease_ms: 900000",
+      "run_timeout_ms: 3600000",
+      "substrate:",
+      "  address: none",
+      "",
+    ].join("\n");
+    const repoRoot = fixtureRepo(yaml);
+
+    const result = await loadLocalConfig(repoRoot);
+
+    expect(isErr(result)).toBe(true);
+    if (isErr(result) && result.error.kind === "malformed") {
+      expect(result.error.reason).toContain('"runtime.startup_timeout_ms"');
+    }
+  });
+});

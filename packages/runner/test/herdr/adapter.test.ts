@@ -77,10 +77,9 @@ describe("herdr adapter", () => {
 
     const reported = await runtime.reportIdentity(
       agent.value,
-      "0001-bootstrap/runner-command-gate/session-1",
-      {
-        sessionId: "session-1",
-      },
+      "0001-bootstrap",
+      "runner-command-gate",
+      { sessionId: "session-1" },
     );
     expect(isErr(reported)).toBe(false);
 
@@ -101,17 +100,48 @@ describe("herdr adapter", () => {
     expect(methods).toEqual([
       "workspace.create",
       "agent.start",
-      "pane.report_agent",
-      "pane.report_agent_session",
+      "pane.report_metadata",
       "agent.wait",
       "agent.read",
       "pane.close",
     ]);
-    const reportedSession = fake.calls.find(
-      (call) => call.method === "pane.report_agent_session",
+  });
+
+  it("reports identity as pane metadata, never as pane.report_agent", async () => {
+    const fake = await fixture();
+    const created = await createHerdrRuntime(fake.socketPath);
+    if (isErr(created)) throw new Error("expected a runtime");
+    const runtime = created.value;
+
+    const pane = await runtime.openPane("/repo/worktree");
+    if (isErr(pane)) throw new Error("expected a pane");
+    const agent = await runtime.startAgent(pane.value, "claude", []);
+    if (isErr(agent)) throw new Error("expected an agent");
+
+    const reported = await runtime.reportIdentity(
+      agent.value,
+      "0001-bootstrap",
+      "runner-command-gate",
+      { sessionId: "session-1" },
     );
-    expect(reportedSession?.params["source"]).toBe("interlock");
-    expect(reportedSession?.params["agent_session_id"]).toBe("session-1");
+    expect(isErr(reported)).toBe(false);
+
+    const metadataCalls = fake.calls.filter(
+      (call) => call.method === "pane.report_metadata",
+    );
+    expect(metadataCalls).toHaveLength(1);
+    expect(
+      fake.calls.some((call) => call.method.startsWith("pane.report_agent")),
+    ).toBe(false);
+
+    const [metadataCall] = metadataCalls;
+    expect(metadataCall?.params["pane_id"]).toBe(pane.value.id);
+    expect(metadataCall?.params["source"]).toBe("interlock");
+    expect(metadataCall?.params["tokens"]).toEqual({
+      graph: "0001-bootstrap",
+      node: "runner-command-gate",
+      session: "session-1",
+    });
   });
 
   it("sends an opening prompt to the named agent, without a wait clause", async () => {

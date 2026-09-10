@@ -106,8 +106,7 @@ export function startFakeHerdrServer(
         });
         return;
       }
-      case "pane.report_agent":
-      case "pane.report_agent_session":
+      case "pane.report_metadata":
       case "pane.close":
       case "agent.prompt":
       case "agent.send_keys":

@@ -46,7 +46,6 @@ const HELD_REVISIT_MS = 24 * 60 * 60 * 1000;
 // pre-prompt idle status before the real, long wait judges it. A miss here is not fatal; the
 // long wait still judges.
 const PROMPT_SETTLE_TIMEOUT_MS = 3_000;
-const STARTUP_CHECK_TIMEOUT_MS = 5_000;
 
 function isoOf(wallMs: number): string {
   return new Date(wallMs).toISOString();
@@ -292,13 +291,9 @@ export async function runInterlockRun(
     agent = startedAgent.value;
     narrate(`agent ${agent.id} started (${localConfig.value.runtime.kind})`);
 
-    const reported = await runtime.reportIdentity(
-      agent,
-      `${graph}/${node}/${sessionId}`,
-      {
-        sessionId,
-      },
-    );
+    const reported = await runtime.reportIdentity(agent, graph, node, {
+      sessionId,
+    });
     if (isErr(reported)) {
       const result = refuse(
         "identity report",
@@ -310,53 +305,67 @@ export async function runInterlockRun(
     }
     narrate("identity reported");
 
+    const startupTimeoutMs = localConfig.value.runtime.startupTimeoutMs;
     const startupAnswers = localConfig.value.runtime.startupAnswers;
     const answered = new Set<number>();
     let startupStatus = await runtime.waitUntil(
       agent,
       ["idle", "blocked"],
-      STARTUP_CHECK_TIMEOUT_MS,
+      startupTimeoutMs,
     );
     let startupScreen = "";
-    while (isOk(startupStatus) && startupStatus.value === "blocked") {
-      const screen = await runtime.read(agent);
-      if (isErr(screen)) {
-        const result = refuse("startup", explainRuntimeRefusal(screen.error));
-        lease.stop();
-        abandonLease();
-        return result;
+    while (isOk(startupStatus) && startupStatus.value !== "idle") {
+      if (startupStatus.value === "blocked") {
+        const screen = await runtime.read(agent);
+        if (isErr(screen)) {
+          const result = refuse("startup", explainRuntimeRefusal(screen.error));
+          lease.stop();
+          abandonLease();
+          return result;
+        }
+        startupScreen = screen.value;
+        const candidate = startupAnswers
+          .map((answer, index) => ({ answer, index }))
+          .find(
+            ({ answer, index }) =>
+              !answered.has(index) &&
+              matchesScreen(answer.matches, startupScreen),
+          );
+        if (candidate === undefined) break;
+        answered.add(candidate.index);
+        const sent = await runtime.sendKeys(agent, candidate.answer.keys);
+        if (isErr(sent)) {
+          const result = refuse("startup", explainRuntimeRefusal(sent.error));
+          lease.stop();
+          abandonLease();
+          return result;
+        }
+        narrate(`startup answer sent (${candidate.answer.matches})`);
       }
-      startupScreen = screen.value;
-      const candidate = startupAnswers
-        .map((answer, index) => ({ answer, index }))
-        .find(
-          ({ answer, index }) =>
-            !answered.has(index) &&
-            matchesScreen(answer.matches, startupScreen),
-        );
-      if (candidate === undefined) break;
-      answered.add(candidate.index);
-      const sent = await runtime.sendKeys(agent, candidate.answer.keys);
-      if (isErr(sent)) {
-        const result = refuse("startup", explainRuntimeRefusal(sent.error));
-        lease.stop();
-        abandonLease();
-        return result;
-      }
-      narrate(`startup answer sent (${candidate.answer.matches})`);
       startupStatus = await runtime.waitUntil(
         agent,
         ["idle", "blocked"],
-        STARTUP_CHECK_TIMEOUT_MS,
+        startupTimeoutMs,
       );
     }
-    if (isOk(startupStatus) && startupStatus.value === "blocked") {
+    if (isErr(startupStatus)) {
+      const explanation =
+        startupStatus.error.kind === "timeout"
+          ? `agent not ready after ${startupStatus.error.timeoutMs}ms; last status ${startupStatus.error.status}`
+          : explainRuntimeRefusal(startupStatus.error);
+      const result = refuse("startup", explanation);
+      lease.stop();
+      abandonLease();
+      return result;
+    }
+    if (startupStatus.value === "blocked") {
       const line = `agent blocked at startup with no configured answer; screen: ${startupScreen.slice(0, 200)}`;
       narrate(line);
       lease.stop();
       abandonLease();
       return { exitCode: 1, message: line };
     }
+    narrate("agent ready (idle)");
 
     const prompted = await runtime.prompt(
       agent,

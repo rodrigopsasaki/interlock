@@ -10,11 +10,14 @@ import { isRecord, isString, prop } from "./validate.ts";
 
 export const LOCAL_CONFIG_SHAPE = "local@v0";
 
+const DEFAULT_STARTUP_TIMEOUT_MS = 60_000;
+
 export interface LocalConfig {
   readonly runtime: {
     readonly kind: string;
     readonly args: readonly string[];
     readonly startupAnswers: readonly StartupAnswer[];
+    readonly startupTimeoutMs: number;
   };
   readonly worktreeRoot: string;
   readonly leaseMs: number;
@@ -33,6 +36,8 @@ export type LocalConfigRefusal =
 const FIELD_GUIDE =
   'runtime.kind (the agent CLI to start, e.g. "claude"), runtime.args (its extra arguments), ' +
   "runtime.startup_answers (optional; keys to send when the runtime blocks at startup), " +
+  "runtime.startup_timeout_ms (optional; how long to wait for the runtime to become ready " +
+  "before sending the opening prompt), " +
   "worktree_root (where node worktrees are created, relative to the repository root), " +
   "lease_ms (how long a lease lasts before a sweep may call it abandoned), " +
   "run_timeout_ms (the wall timeout waiting for the agent to go idle, blocked or done), " +
@@ -141,6 +146,21 @@ function parseShape(
   );
   if (isErr(startupAnswers)) return startupAnswers;
 
+  const startupTimeoutMsField = isRecord(runtime)
+    ? prop(runtime, "startup_timeout_ms")
+    : undefined;
+  if (
+    startupTimeoutMsField !== undefined &&
+    typeof startupTimeoutMsField !== "number"
+  ) {
+    return err({
+      kind: "malformed",
+      path,
+      reason: '"runtime.startup_timeout_ms" must be a number',
+    });
+  }
+  const startupTimeoutMs = startupTimeoutMsField ?? DEFAULT_STARTUP_TIMEOUT_MS;
+
   const worktreeRoot = prop(parsed, "worktree_root");
   if (!isString(worktreeRoot)) {
     return err({
@@ -185,6 +205,7 @@ function parseShape(
       kind: runtimeKind,
       args: runtimeArgs ?? [],
       startupAnswers: startupAnswers.value,
+      startupTimeoutMs,
     },
     worktreeRoot,
     leaseMs,
