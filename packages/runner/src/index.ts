@@ -95,6 +95,12 @@ export {
   judgeGates,
 } from "./gateJudge.ts";
 
+export type {
+  JudgeWorktreeRefusal,
+  JudgeWorktreeRequest,
+} from "./judgeWorktree.ts";
+export { explainJudgeWorktreeRefusal, judgeWorktree } from "./judgeWorktree.ts";
+
 export { ABANDONED_AUTHORITY, sweepExpiredLeases } from "./sweep.ts";
 
 export type {
