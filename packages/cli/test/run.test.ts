@@ -85,6 +85,23 @@ const localYamlWithStartupAnswers = [
   "",
 ].join("\n");
 
+function localYamlWithWorktreeSetup(...commands: readonly string[]): string {
+  return [
+    "interlock: local@v0",
+    "runtime:",
+    "  kind: claude",
+    "  args: []",
+    "worktree_root: .worktrees",
+    "worktree_setup:",
+    ...commands.map((command) => `  - "${command}"`),
+    "lease_ms: 60000",
+    "run_timeout_ms: 5000",
+    "substrate:",
+    "  address: none",
+    "",
+  ].join("\n");
+}
+
 function fixture(
   options: {
     readonly withLocal?: boolean;
@@ -333,7 +350,7 @@ describe("interlock run", () => {
       calls.indexOf("reportIdentity"),
     );
     expect(calls.indexOf("prompt")).toBeLessThan(
-      calls.indexOf("waitUntil:working,idle,blocked,done"),
+      calls.indexOf("waitUntil:working,blocked,done"),
     );
     expect(promptText).toContain(".interlock/sessions/demo/a/brief.md");
   }, 30_000);
@@ -383,7 +400,7 @@ describe("interlock run", () => {
     expect(readFileSync(briefInWorktree, "utf-8")).toBe("# brief\n");
   }, 30_000);
 
-  it("narrates each step to stdout as it happens, ending on the wait before the judgement", async () => {
+  it("narrates each step to stdout as it happens, ending on the agent's screen at judgement", async () => {
     const cwd = fixture();
     await runGraphApprove(
       ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
@@ -415,7 +432,82 @@ describe("interlock run", () => {
       "agent ready (idle)",
       "prompt sent",
       "waiting for idle, blocked or done (timeout 5000ms)",
+      "agent screen: (no output)",
     ]);
+  }, 30_000);
+
+  it("narrates 'agent working' once the agent moves off idle, before the long wait", async () => {
+    const cwd = fixture();
+    await runGraphApprove(
+      ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
+      { cwd },
+    );
+
+    const runtime: Runtime = {
+      ...stubRuntime(),
+      waitUntil: (agent, until, timeoutMs) =>
+        until.includes("working")
+          ? Promise.resolve(ok("working"))
+          : stubRuntime().waitUntil(agent, until, timeoutMs),
+    };
+    const lines: string[] = [];
+
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock({ initialTime: 0 }),
+      runtime,
+      narrate: (line) => lines.push(line),
+    });
+
+    expect(result.exitCode).toBe(0);
+    const sessionMatch = result.message.match(/session ([^,]+),/);
+    if (sessionMatch === null) {
+      throw new Error("expected a session id in the result message");
+    }
+    const [, sessionId] = sessionMatch;
+
+    expect(lines).toEqual([
+      `leased a (session ${sessionId}, expires 1970-01-01T00:01:00.000Z)`,
+      `worktree at ${join(cwd, ".worktrees", "a")} on ${headSha(cwd)}`,
+      "brief written",
+      "pane pane-1 opened",
+      "agent agent-1 started (claude)",
+      "identity reported",
+      "agent ready (idle)",
+      "prompt sent",
+      "agent working",
+      "waiting for idle, blocked or done (timeout 5000ms)",
+      "agent screen: (no output)",
+    ]);
+  }, 30_000);
+
+  it("refuses when the agent is still idle after the prompt-taken timeout, naming it, not the run timeout", async () => {
+    const cwd = fixture();
+    await runGraphApprove(
+      ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
+      { cwd },
+    );
+
+    const runtime: Runtime = {
+      ...stubRuntime(),
+      waitUntil: (agent, until, timeoutMs) =>
+        until.includes("working")
+          ? Promise.resolve(
+              err({ kind: "timeout", until, timeoutMs, status: "idle" }),
+            )
+          : stubRuntime().waitUntil(agent, until, timeoutMs),
+    };
+
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime,
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.message).toBe(
+      "prompt taken refused: prompt not taken after 20000ms; agent still idle",
+    );
   }, 30_000);
 
   it("narrates a runtime refusal at the moment it happens and does not leave the lease dangling silently", async () => {
@@ -589,5 +681,138 @@ describe("interlock run", () => {
     expect(result.message).toBe(
       "startup refused: agent not ready after 60000ms; last status working",
     );
+  }, 30_000);
+
+  it("runs worktree_setup commands in the worktree before the pane opens, narrating each", async () => {
+    const cwd = fixture({
+      localYaml: localYamlWithWorktreeSetup("true", "true"),
+    });
+    await runGraphApprove(
+      ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
+      { cwd },
+    );
+
+    const lines: string[] = [];
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock({ initialTime: 0 }),
+      runtime: stubRuntime(),
+      narrate: (line) => lines.push(line),
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(lines.indexOf("worktree setup: true")).toBeGreaterThan(
+      lines.indexOf("brief written"),
+    );
+    expect(
+      lines.filter((line) => line === "worktree setup: true"),
+    ).toHaveLength(2);
+    expect(lines.indexOf("pane pane-1 opened")).toBeGreaterThan(
+      lines.lastIndexOf("worktree setup: true"),
+    );
+  }, 30_000);
+
+  it("refuses on a failing worktree_setup command, naming it and its exit code, without opening a pane", async () => {
+    const cwd = fixture({
+      localYaml: localYamlWithWorktreeSetup("false"),
+    });
+    await runGraphApprove(
+      ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
+      { cwd },
+    );
+
+    const lines: string[] = [];
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock({ initialTime: 0 }),
+      runtime: stubRuntime(),
+      narrate: (line) => lines.push(line),
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.message).toBe('worktree setup refused: "false" exited 1.');
+    expect(lines).toContain("worktree setup: false");
+    expect(lines).not.toContain("pane pane-1 opened");
+    expect(lines.at(-1)).toBe(
+      "lease not renewed; the sweeper will collect it at 1970-01-01T00:01:00.000Z",
+    );
+  }, 30_000);
+
+  it("writes the agent's screen into the worktree and narrates its last non-empty line before judgement", async () => {
+    const cwd = fixture();
+    await runGraphApprove(
+      ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
+      { cwd },
+    );
+
+    const runtime: Runtime = {
+      ...stubRuntime(),
+      read: () =>
+        Promise.resolve(ok("> ran the gates\n> summarised the diff\n\n")),
+    };
+    const lines: string[] = [];
+
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime,
+      narrate: (line) => lines.push(line),
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(lines).toContain("agent screen: > summarised the diff");
+    const screenPath = join(
+      cwd,
+      ".worktrees",
+      "a",
+      ".interlock",
+      "sessions",
+      "demo",
+      "a",
+      "screen.txt",
+    );
+    expect(existsSync(screenPath)).toBe(true);
+    expect(readFileSync(screenPath, "utf-8")).toBe(
+      "> ran the gates\n> summarised the diff\n\n",
+    );
+  }, 30_000);
+
+  it("narrates a failed screen read and still reaches judgement", async () => {
+    const cwd = fixture();
+    await runGraphApprove(
+      ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
+      { cwd },
+    );
+
+    const runtime: Runtime = {
+      ...stubRuntime(),
+      read: () =>
+        Promise.resolve(
+          err({ kind: "transport", because: "the pane vanished" }),
+        ),
+    };
+    const lines: string[] = [];
+
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime,
+      narrate: (line) => lines.push(line),
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.message).toContain("cleared");
+    expect(lines).toContain("agent screen read refused: the pane vanished");
+    const screenPath = join(
+      cwd,
+      ".worktrees",
+      "a",
+      ".interlock",
+      "sessions",
+      "demo",
+      "a",
+      "screen.txt",
+    );
+    expect(existsSync(screenPath)).toBe(false);
   }, 30_000);
 });

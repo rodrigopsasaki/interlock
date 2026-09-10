@@ -9,19 +9,28 @@ import {
 
 export const ABANDONED_AUTHORITY = "sweeper";
 
-type ExpiredSession = SessionView & { readonly lease: Lease };
+type ExpiredSession = SessionView & {
+  readonly lease: Lease;
+  readonly leaseGeneration: number;
+};
 
-// The ledger has no abandoned outcome kind yet, so the sweeper writes cancelled with authority "sweeper".
+// The ledger has no abandoned outcome kind yet, so the sweeper writes cancelled with authority
+// "sweeper". A node's outcome is one value, not one per session, so a session is unresolved
+// unless the node's outcome was set at or after its own lease — an earlier session's dead lease
+// otherwise reads as resolved forever, once any later outcome lands on the shared node.
 function isExpiredUnresolved(
   session: SessionView,
   projection: LedgerProjection,
   nowWallMs: number,
 ): session is ExpiredSession {
-  const lease = session.lease;
-  if (lease === undefined) return false;
+  const { lease, leaseGeneration } = session;
+  if (lease === undefined || leaseGeneration === undefined) return false;
   if (session.leaseExpired) return false;
   if (lease.expiry > nowWallMs) return false;
-  return projection.nodes.get(nodeKey(session.node))?.outcome === undefined;
+  const outcomeGeneration = projection.nodes.get(
+    nodeKey(session.node),
+  )?.outcomeSetAtGeneration;
+  return outcomeGeneration === undefined || outcomeGeneration < leaseGeneration;
 }
 
 export function sweepExpiredLeases(

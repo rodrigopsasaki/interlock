@@ -52,6 +52,18 @@ export {
   removeWorktree,
 } from "./worktree.ts";
 
+export type { WorktreeSetupRefusal } from "./worktreeSetup.ts";
+export {
+  explainWorktreeSetupRefusal,
+  runSetupCommand,
+} from "./worktreeSetup.ts";
+
+export {
+  lastNonEmptyLine,
+  screenPath,
+  writeScreenSnapshot,
+} from "./sessionScreen.ts";
+
 export type { LeaseHandle } from "./lease.ts";
 export { takeLease } from "./lease.ts";
 

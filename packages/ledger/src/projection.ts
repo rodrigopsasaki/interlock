@@ -13,6 +13,10 @@ export interface NodeView {
   readonly gates: ReadonlyMap<string, Gate>;
   readonly receipts: readonly Receipt[];
   readonly outcome: Outcome | undefined;
+  // How many leases this node has had. Lets a later lease tell whether the node's outcome is
+  // its own or a stale one left by an earlier, abandoned attempt.
+  readonly leaseGeneration: number;
+  readonly outcomeSetAtGeneration: number | undefined;
 }
 
 export interface SessionView {
@@ -24,6 +28,7 @@ export interface SessionView {
   readonly debrief: Debrief | undefined;
   readonly lease: Lease | undefined;
   readonly leaseExpired: boolean;
+  readonly leaseGeneration: number | undefined;
 }
 
 export interface LedgerProjection {
@@ -41,7 +46,14 @@ export function isInterrupted(view: SessionView): boolean {
 }
 
 function emptyNodeView(node: Node): NodeView {
-  return { node, gates: new Map(), receipts: [], outcome: undefined };
+  return {
+    node,
+    gates: new Map(),
+    receipts: [],
+    outcome: undefined,
+    leaseGeneration: 0,
+    outcomeSetAtGeneration: undefined,
+  };
 }
 
 function withNode(
@@ -76,8 +88,14 @@ export function applyEvent(
     case "node-created":
       return withNode(projection, event.node, (view) => view);
     case "lease-taken": {
-      const withNodeCreated = withNode(projection, event.node, (view) => view);
-      return withSession(withNodeCreated, event.session, (view) => ({
+      const current =
+        projection.nodes.get(nodeKey(event.node)) ?? emptyNodeView(event.node);
+      const generation = current.leaseGeneration + 1;
+      const withGeneration = withNode(projection, event.node, (view) => ({
+        ...view,
+        leaseGeneration: generation,
+      }));
+      return withSession(withGeneration, event.session, (view) => ({
         ...view,
         lease: {
           node: event.node,
@@ -85,6 +103,7 @@ export function applyEvent(
           expiry: event.expiry,
         },
         leaseExpired: false,
+        leaseGeneration: generation,
       }));
     }
     case "lease-renewed":
@@ -117,6 +136,7 @@ export function applyEvent(
         debrief: undefined,
         lease: undefined,
         leaseExpired: false,
+        leaseGeneration: undefined,
       });
       return { ...withNodeCreated, sessions };
     }
@@ -145,6 +165,7 @@ export function applyEvent(
       return withNode(projection, event.node, (view) => ({
         ...view,
         outcome: event.outcome,
+        outcomeSetAtGeneration: view.leaseGeneration,
       }));
     case "outbox-intent-recorded":
       return withNode(projection, event.node, (view) => view);

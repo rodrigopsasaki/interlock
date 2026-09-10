@@ -113,4 +113,46 @@ describe("fold", () => {
     ]).sessions.get("session-1");
     expect(debriefed && isInterrupted(debriefed)).toBe(false);
   });
+
+  it("tracks each lease's own generation against the node's, so a stale outcome is tellable from a current one", () => {
+    const firstLease: readonly LedgerEvent[] = [
+      { kind: "session-started", session: { id: "session-1", node }, brief },
+      { kind: "lease-taken", node, session: "session-1", expiry: 1_000 },
+    ];
+    const afterFirstLease = fold(firstLease);
+    expect(afterFirstLease.nodes.get(nodeKey(node))?.leaseGeneration).toBe(1);
+    expect(afterFirstLease.sessions.get("session-1")?.leaseGeneration).toBe(1);
+
+    const afterFirstOutcome = fold([
+      ...firstLease,
+      {
+        kind: "outcome-set",
+        node,
+        outcome: outcome.cancelled([], "sweeper", "expired"),
+      },
+    ]);
+    expect(
+      afterFirstOutcome.nodes.get(nodeKey(node))?.outcomeSetAtGeneration,
+    ).toBe(1);
+
+    const secondLease: readonly LedgerEvent[] = [
+      { kind: "session-started", session: { id: "session-2", node }, brief },
+      { kind: "lease-taken", node, session: "session-2", expiry: 2_000 },
+    ];
+    const afterSecondLease = fold([
+      ...firstLease,
+      {
+        kind: "outcome-set",
+        node,
+        outcome: outcome.cancelled([], "sweeper", "expired"),
+      },
+      ...secondLease,
+    ]);
+    expect(afterSecondLease.nodes.get(nodeKey(node))?.leaseGeneration).toBe(2);
+    expect(afterSecondLease.sessions.get("session-2")?.leaseGeneration).toBe(2);
+    // The node's outcome still carries generation 1: it predates session-2's own lease.
+    expect(
+      afterSecondLease.nodes.get(nodeKey(node))?.outcomeSetAtGeneration,
+    ).toBe(1);
+  });
 });

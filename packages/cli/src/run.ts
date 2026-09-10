@@ -26,15 +26,19 @@ import {
   explainRuntimeRefusal,
   explainStandingGatesRefusal,
   explainWorktreeRefusal,
+  explainWorktreeSetupRefusal,
   gateCommandTable,
   gitTrackedFiles,
   judgeGates,
+  lastNonEmptyLine,
   loadLocalConfig,
   loadStandingGates,
   matchesScreen,
+  runSetupCommand,
   takeLease,
   unmetDependencies,
   writeBriefIntoWorktree,
+  writeScreenSnapshot,
   type Agent,
   type Pane,
   type Runtime,
@@ -42,10 +46,6 @@ import {
 import type { CommandResult } from "./main.ts";
 
 const HELD_REVISIT_MS = 24 * 60 * 60 * 1000;
-// The runtime's wait targets include "working": wait briefly for the agent to move off its
-// pre-prompt idle status before the real, long wait judges it. A miss here is not fatal; the
-// long wait still judges.
-const PROMPT_SETTLE_TIMEOUT_MS = 3_000;
 
 function isoOf(wallMs: number): string {
   return new Date(wallMs).toISOString();
@@ -245,6 +245,20 @@ export async function runInterlockRun(
     }
     narrate("brief written");
 
+    for (const command of localConfig.value.worktreeSetup) {
+      narrate(`worktree setup: ${command}`);
+      const setup = await runSetupCommand(command, worktreePath);
+      if (isErr(setup)) {
+        const result = refuse(
+          "worktree setup",
+          explainWorktreeSetupRefusal(setup.error),
+        );
+        lease.stop();
+        abandonLease();
+        return result;
+      }
+    }
+
     const injectedRuntime = options.runtime;
     const createdRuntime =
       injectedRuntime === undefined
@@ -380,11 +394,24 @@ export async function runInterlockRun(
     }
     narrate("prompt sent");
 
-    await runtime.waitUntil(
+    const promptTakenTimeoutMs = localConfig.value.runtime.promptTakenTimeoutMs;
+    const tookPrompt = await runtime.waitUntil(
       agent,
-      ["working", "idle", "blocked", "done"],
-      PROMPT_SETTLE_TIMEOUT_MS,
+      ["working", "blocked", "done"],
+      promptTakenTimeoutMs,
     );
+    if (isErr(tookPrompt)) {
+      const explanation =
+        tookPrompt.error.kind === "timeout" &&
+        tookPrompt.error.status === "idle"
+          ? `prompt not taken after ${promptTakenTimeoutMs}ms; agent still idle`
+          : explainRuntimeRefusal(tookPrompt.error);
+      const result = refuse("prompt taken", explanation);
+      lease.stop();
+      abandonLease();
+      return result;
+    }
+    if (tookPrompt.value === "working") narrate("agent working");
 
     narrate(
       `waiting for idle, blocked or done (timeout ${localConfig.value.runTimeoutMs}ms)`,
@@ -399,6 +426,18 @@ export async function runInterlockRun(
       const result = refuse("wait", explainRuntimeRefusal(waited.error));
       abandonLease();
       return result;
+    }
+
+    const screenRead = await runtime.read(agent);
+    if (isErr(screenRead)) {
+      narrate(
+        `agent screen read refused: ${explainRuntimeRefusal(screenRead.error)}`,
+      );
+    } else {
+      await writeScreenSnapshot(worktreePath, graph, node, screenRead.value);
+      narrate(
+        `agent screen: ${lastNonEmptyLine(screenRead.value) ?? "(no output)"}`,
+      );
     }
 
     const debriefedSha = currentCommitSha(worktreePath);
