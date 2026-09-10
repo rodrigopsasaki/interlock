@@ -223,7 +223,6 @@ const existingBriefs: readonly [string, string][] = [
   ["0001-bootstrap", "ledger"],
   ["0001-bootstrap", "runner-command-gate"],
   ["0001-bootstrap", "scaffold"],
-  ["0001-bootstrap", "verifier-hunks"],
   ["0002-shapes", "brief-shape"],
 ];
 
@@ -245,4 +244,23 @@ describe("every existing brief under .interlock/sessions", () => {
       expect(result.value.kind).toBe("legacy");
     },
   );
+
+  // verifier-hunks is the first node `interlock run` itself has leased: the runner rewrites
+  // brief.md into a real brief@v1 in the worktree before the session starts, so this one
+  // session directory's file is no longer the scaffolded legacy placeholder every other one
+  // still is.
+  it("0001-bootstrap/verifier-hunks validates as brief@v1, rewritten by the runner", async () => {
+    const path = join(
+      REPO_ROOT,
+      ".interlock",
+      "sessions",
+      "0001-bootstrap",
+      "verifier-hunks",
+      "brief.md",
+    );
+    const result = await readBriefFile(path);
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) return;
+    expect(result.value.kind).toBe("v1");
+  });
 });

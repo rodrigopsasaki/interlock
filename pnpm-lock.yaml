@@ -139,6 +139,25 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@24.13.3)
 
+  packages/verifier:
+    dependencies:
+      '@phyxiusjs/fp':
+        specifier: ^0.2.1
+        version: 0.2.1(@types/node@24.13.3)
+      ledger:
+        specifier: workspace:*
+        version: link:../ledger
+    devDependencies:
+      '@types/node':
+        specifier: 24.13.3
+        version: 24.13.3
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@24.13.3)
+
 packages:
 
   '@esbuild/aix-ppc64@0.21.5':
