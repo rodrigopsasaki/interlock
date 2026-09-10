@@ -11,13 +11,7 @@ import {
   loadGraphDocument,
   sharedJournalDirectory,
 } from "face";
-import {
-  createLedger,
-  explainScopeRefusal,
-  nodeKey,
-  receiptId,
-  type Gate,
-} from "ledger";
+import { createLedger, explainScopeRefusal, nodeKey, receiptId } from "ledger";
 import {
   briefExists,
   briefPath,
@@ -52,12 +46,8 @@ const HELD_REVISIT_MS = 24 * 60 * 60 * 1000;
 // long wait still judges.
 const PROMPT_SETTLE_TIMEOUT_MS = 3_000;
 
-function approvalReceiptSha(current: Gate | undefined): string | undefined {
-  if (current === undefined) return undefined;
-  if (current.kind === "satisfied" || current.kind === "waived") {
-    return current.receipt.commitSha;
-  }
-  return undefined;
+function isoOf(wallMs: number): string {
+  return new Date(wallMs).toISOString();
 }
 
 export async function runInterlockRun(
@@ -66,6 +56,7 @@ export async function runInterlockRun(
     readonly cwd?: string;
     readonly clock?: Clock;
     readonly runtime?: Runtime;
+    readonly narrate?: (line: string) => void;
   } = {},
 ): Promise<CommandResult> {
   const [graph, node] = args;
@@ -76,6 +67,12 @@ export async function runInterlockRun(
         'interlock run: expected a graph id and a node id, e.g. "interlock run 0001-bootstrap runner-command-gate".',
     };
   }
+
+  const narrate =
+    options.narrate ??
+    ((line: string) => {
+      process.stdout.write(`${line}\n`);
+    });
 
   const cwd = options.cwd ?? process.cwd();
   const repoRoot = findRepoRoot(cwd);
@@ -161,13 +158,9 @@ export async function runInterlockRun(
       };
     }
 
-    const graphBaseSha = approvalReceiptSha(approvalGate);
-    if (graphBaseSha === undefined) {
-      return {
-        exitCode: 1,
-        message: `${graph}: approval gate carries no receipt to read a base SHA from.`,
-      };
-    }
+    // The approval receipt is content-addressed to the graph file, not to a base: it proves the
+    // plan was read, not what commit to start from. The base is always the repository's own HEAD.
+    const graphBaseSha = currentCommitSha(repoRoot);
 
     const targetNode = { graph, id: node };
     const unmet = unmetDependencies(
@@ -195,6 +188,7 @@ export async function runInterlockRun(
       kind: "session-started",
       session: { id: sessionId, node: targetNode },
       brief,
+      graphBaseSha,
     });
 
     const lease = takeLease(
@@ -204,6 +198,23 @@ export async function runInterlockRun(
       sessionId,
       localConfig.value.leaseMs,
     );
+    narrate(
+      `leased ${node} (session ${sessionId}, expires ${isoOf(lease.expiry)})`,
+    );
+
+    const refuse = (step: string, explanation: string): CommandResult => {
+      const line = `${step} refused: ${explanation}`;
+      narrate(line);
+      return { exitCode: 1, message: line };
+    };
+    const abandonLease = (): void => {
+      const expiry =
+        ledger.projection().sessions.get(sessionId)?.lease?.expiry ??
+        lease.expiry;
+      narrate(
+        `lease not renewed; the sweeper will collect it at ${isoOf(expiry)}`,
+      );
+    };
 
     const worktreePath = join(repoRoot, localConfig.value.worktreeRoot, node);
     const branch = `graph/${graph}/${node}`;
@@ -214,9 +225,12 @@ export async function runInterlockRun(
       branch,
     );
     if (isErr(worktree)) {
+      const result = refuse("worktree", explainWorktreeRefusal(worktree.error));
       lease.stop();
-      return { exitCode: 1, message: explainWorktreeRefusal(worktree.error) };
+      abandonLease();
+      return result;
     }
+    narrate(`worktree at ${worktree.value} on ${graphBaseSha}`);
 
     const briefWritten = await writeBriefIntoWorktree(
       repoRoot,
@@ -225,9 +239,12 @@ export async function runInterlockRun(
       node,
     );
     if (isErr(briefWritten)) {
+      const result = refuse("brief", explainBriefRefusal(briefWritten.error));
       lease.stop();
-      return { exitCode: 1, message: explainBriefRefusal(briefWritten.error) };
+      abandonLease();
+      return result;
     }
+    narrate("brief written");
 
     const injectedRuntime = options.runtime;
     const createdRuntime =
@@ -235,20 +252,28 @@ export async function runInterlockRun(
         ? await createHerdrRuntime()
         : ok(injectedRuntime);
     if (isErr(createdRuntime)) {
+      const result = refuse(
+        "runtime",
+        explainRuntimeRefusal(createdRuntime.error),
+      );
       lease.stop();
-      return {
-        exitCode: 1,
-        message: explainRuntimeRefusal(createdRuntime.error),
-      };
+      abandonLease();
+      return result;
     }
     runtime = createdRuntime.value;
 
     const openedPane = await runtime.openPane(worktreePath);
     if (isErr(openedPane)) {
+      const result = refuse(
+        "pane open",
+        explainRuntimeRefusal(openedPane.error),
+      );
       lease.stop();
-      return { exitCode: 1, message: explainRuntimeRefusal(openedPane.error) };
+      abandonLease();
+      return result;
     }
     pane = openedPane.value;
+    narrate(`pane ${pane.id} opened`);
 
     const startedAgent = await runtime.startAgent(
       pane,
@@ -256,13 +281,16 @@ export async function runInterlockRun(
       localConfig.value.runtime.args,
     );
     if (isErr(startedAgent)) {
+      const result = refuse(
+        "agent start",
+        explainRuntimeRefusal(startedAgent.error),
+      );
       lease.stop();
-      return {
-        exitCode: 1,
-        message: explainRuntimeRefusal(startedAgent.error),
-      };
+      abandonLease();
+      return result;
     }
     agent = startedAgent.value;
+    narrate(`agent ${agent.id} started (${localConfig.value.runtime.kind})`);
 
     const reported = await runtime.reportIdentity(
       agent,
@@ -272,18 +300,27 @@ export async function runInterlockRun(
       },
     );
     if (isErr(reported)) {
+      const result = refuse(
+        "identity report",
+        explainRuntimeRefusal(reported.error),
+      );
       lease.stop();
-      return { exitCode: 1, message: explainRuntimeRefusal(reported.error) };
+      abandonLease();
+      return result;
     }
+    narrate("identity reported");
 
     const prompted = await runtime.prompt(
       agent,
       buildOpeningPrompt(graph, node),
     );
     if (isErr(prompted)) {
+      const result = refuse("prompt", explainRuntimeRefusal(prompted.error));
       lease.stop();
-      return { exitCode: 1, message: explainRuntimeRefusal(prompted.error) };
+      abandonLease();
+      return result;
     }
+    narrate("prompt sent");
 
     await runtime.waitUntil(
       agent,
@@ -291,6 +328,9 @@ export async function runInterlockRun(
       PROMPT_SETTLE_TIMEOUT_MS,
     );
 
+    narrate(
+      `waiting for idle, blocked or done (timeout ${localConfig.value.runTimeoutMs}ms)`,
+    );
     const waited = await runtime.waitUntil(
       agent,
       ["idle", "blocked", "done"],
@@ -298,7 +338,9 @@ export async function runInterlockRun(
     );
     lease.stop();
     if (isErr(waited)) {
-      return { exitCode: 1, message: explainRuntimeRefusal(waited.error) };
+      const result = refuse("wait", explainRuntimeRefusal(waited.error));
+      abandonLease();
+      return result;
     }
 
     const debriefedSha = currentCommitSha(worktreePath);
@@ -317,7 +359,9 @@ export async function runInterlockRun(
       holdMs: HELD_REVISIT_MS,
     });
     if (isErr(judged)) {
-      return { exitCode: 1, message: explainGateJudgeRefusal(judged.error) };
+      const result = refuse("gates", explainGateJudgeRefusal(judged.error));
+      abandonLease();
+      return result;
     }
 
     return {

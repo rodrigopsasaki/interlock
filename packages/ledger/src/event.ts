@@ -31,6 +31,9 @@ export type LedgerEvent =
       readonly kind: "session-started";
       readonly session: Session;
       readonly brief: Brief;
+      // The worktree base at lease time: the repository's HEAD, not the graph approval's
+      // content-addressed receipt. Absent on events recorded before this field existed.
+      readonly graphBaseSha?: string;
     }
   | {
       readonly kind: "note-appended";
@@ -81,8 +84,14 @@ export function isLedgerEvent(value: unknown): value is LedgerEvent {
       );
     case "lease-expired":
       return isNode(prop(value, "node")) && isString(prop(value, "session"));
-    case "session-started":
-      return isSession(prop(value, "session")) && isBrief(prop(value, "brief"));
+    case "session-started": {
+      const graphBaseSha = prop(value, "graphBaseSha");
+      return (
+        isSession(prop(value, "session")) &&
+        isBrief(prop(value, "brief")) &&
+        (graphBaseSha === undefined || isString(graphBaseSha))
+      );
+    }
     case "note-appended":
       return isString(prop(value, "session")) && isNote(prop(value, "note"));
     case "debrief-filed":

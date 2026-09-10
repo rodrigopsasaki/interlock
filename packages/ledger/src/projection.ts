@@ -19,6 +19,7 @@ export interface SessionView {
   readonly session: string;
   readonly node: Node;
   readonly brief: Brief;
+  readonly graphBaseSha: string | undefined;
   readonly notes: readonly Note[];
   readonly debrief: Debrief | undefined;
   readonly lease: Lease | undefined;
@@ -111,6 +112,7 @@ export function applyEvent(
         session: event.session.id,
         node: event.session.node,
         brief: event.brief,
+        graphBaseSha: event.graphBaseSha,
         notes: [],
         debrief: undefined,
         lease: undefined,
