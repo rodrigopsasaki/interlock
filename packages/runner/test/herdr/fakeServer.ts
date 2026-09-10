@@ -92,6 +92,7 @@ export function startFakeHerdrServer(
       case "pane.report_agent":
       case "pane.report_agent_session":
       case "pane.close":
+      case "agent.prompt":
         respond(socket, id, {});
         return;
       case "agent.wait":

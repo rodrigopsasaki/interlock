@@ -110,6 +110,28 @@ describe("herdr adapter", () => {
     expect(reportedSession?.params["agent_session_id"]).toBe("session-1");
   });
 
+  it("sends an opening prompt to the named agent, without a wait clause", async () => {
+    const fake = await fixture();
+    const created = await createHerdrRuntime(fake.socketPath);
+    if (isErr(created)) throw new Error("expected a runtime");
+    const runtime = created.value;
+
+    const pane = await runtime.openPane("/repo/worktree");
+    if (isErr(pane)) throw new Error("expected a pane");
+    const agent = await runtime.startAgent(pane.value, "claude", []);
+    if (isErr(agent)) throw new Error("expected an agent");
+
+    const prompted = await runtime.prompt(agent.value, "read your brief first");
+    expect(isErr(prompted)).toBe(false);
+
+    const promptCall = fake.calls.find(
+      (call) => call.method === "agent.prompt",
+    );
+    expect(promptCall?.params["target"]).toBe(agent.value.id);
+    expect(promptCall?.params["text"]).toBe("read your brief first");
+    expect(promptCall?.params["wait"]).toBeUndefined();
+  });
+
   it("times out when the agent never reaches a requested state", async () => {
     const fake = await fixture();
     fake.agentStatus = "working";

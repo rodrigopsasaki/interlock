@@ -201,6 +201,14 @@ export async function createHerdrRuntime(
       return isErr(reportedSession) ? reportedSession : ok(undefined);
     },
 
+    async prompt(agent: Agent, text: string) {
+      const prompted = await client.call("agent.prompt", {
+        target: agent.id,
+        text,
+      });
+      return isErr(prompted) ? prompted : ok(undefined);
+    },
+
     async waitUntil(
       agent: Agent,
       until: readonly AgentStatus[],

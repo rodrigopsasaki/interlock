@@ -8,6 +8,8 @@ export type {
 } from "./runtime.ts";
 export { explainRuntimeRefusal } from "./runtime.ts";
 
+export { buildOpeningPrompt } from "./openingPrompt.ts";
+
 export { createHerdrRuntime, defaultHerdrSocketPath } from "./herdr/adapter.ts";
 export {
   createTmuxRuntime,
