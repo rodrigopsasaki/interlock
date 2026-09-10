@@ -1,0 +1,395 @@
+interlock: debrief@v1
+graph: 0001-bootstrap
+node: face-read
+role: worker
+graph_base_sha: 5778fcf69d3d2f1c3f08851c6ad90fad9e00be48
+session_start_sha: 49125b495ae7ed0501e4cb5908af7fe9e2c4fd7b
+head_sha: 4a17d75cbadf3c637fd8fea9ae6ca47010a70fe2
+derivation:
+  kind: agent
+  runtime: claude-code
+  model: claude-sonnet-5
+discoveries:
+  - id: d1
+    what: >
+      Raw Node's ESM loader does not remap a ".js" import specifier to a sibling ".ts" file across
+      a package boundary either -- the same gap scaffold's own d1 named for a single file, one
+      level up, at the point where one workspace package imports another. packages/ledger/src's
+      own internal imports all use ".js" specifiers pointing at ".ts" files, which vitest and
+      tsc's own NodeNext resolution both tolerate, but which raw Node (the interpreter
+      packages/cli's bin.ts actually runs under, with no build step) does not. Nothing before
+      face-read had ever imported ledger at runtime, so this had never mattered.
+    found_at: >
+      two probes run by hand before touching any real file: `node run.ts` importing `./lib.js`
+      (only lib.ts on disk) failed with ERR_MODULE_NOT_FOUND, matching scaffold's own d1 exactly;
+      a second probe (two directories, a manual node_modules symlink, one package.json "main"
+      pointing at "./src/index.ts") proved that a bare package specifier resolves correctly under
+      raw Node when the target package's own internal imports also use explicit ".ts" specifiers.
+    mattered_because: >
+      This is the one discovery this session's whole cross-package architecture rests on: without
+      it, `pnpm interlock graph show/approve` would fail at the first `import ... from "ledger"`
+      the moment bin.ts actually ran, no matter how correct face's or cli's own code was, and the
+      fix (converting ledger's own internal imports) touches 20 files that are otherwise
+      untouched by this node's own acceptance.
+  - id: d2
+    what: >
+      TypeScript's NodeNext module resolution treats a ".js" specifier with only a sibling ".ts"
+      file on disk as legal by design (the "author in .ts, a future build fills in .js"
+      convention), independent of the allowImportingTsExtensions flag -- that flag only governs
+      whether an explicit ".ts" specifier is itself legal to write, not whether a ".js" one
+      resolves to a ".ts" file.
+    found_at: >
+      `pnpm --filter ledger typecheck` and `pnpm --filter ledger test` both passed clean
+      immediately after converting only packages/ledger/src's own imports (not
+      packages/ledger/test's, which still use ".js" specifiers) -- no compiler or test-runner
+      error appeared naming the untouched test files.
+    mattered_because: >
+      Confirmed that fixing d1 required touching only ledger's src/ (20 files), not its test/
+      (12 files) too -- a materially smaller, more mechanical diff than converting the whole
+      package would have been.
+  - id: d3
+    what: >
+      The bootstrap graph's own unweighted critical path runs scaffold -> ledger ->
+      runner-command-gate -> face -> self-run (five nodes), not through verifier-hunks, even
+      though verifier-hunks depends on two nodes (debrief-schema and runner-command-gate) where
+      face only depends on one path through runner-command-gate. Both chains tie at length five;
+      face's branch wins because runner-command-gate is listed before debrief-schema in every
+      node that depends on both, and the tie-break keeps the first-encountered maximum.
+    found_at: >
+      hand-computed against the real .interlock/graphs/0001-bootstrap.yaml before writing
+      criticalPath.test.ts's own assertion, then confirmed by running the real CLI
+      (`mise exec -- pnpm interlock graph show 0001-bootstrap`) against the actual repository and
+      reading its "critical path:" line.
+    mattered_because: >
+      criticalPath.test.ts's "matches the bootstrap graph's own five-node chain" case encodes this
+      verified real answer, not an assumption about which branch should win a tie.
+  - id: d4
+    what: >
+      Every writable location under this worktree, by construction, is nested somewhere under the
+      worktree's own root -- which does carry a real .interlock/. A test fixture built under
+      packages/cli/test/.runs/ therefore can never exercise findRepoRoot's "no .interlock
+      directory found in this directory or any parent" branch: the walk always finds the real one
+      partway up, before reaching any filesystem boundary.
+    found_at: >
+      a failing assertion in an early draft of graph/show.test.ts: a fixture cwd with no
+      .interlock/ of its own still resolved the worktree's real graphs directory instead of
+      refusing, because findRepoRoot correctly kept walking up past it.
+    mattered_because: >
+      Removed that one test rather than construct a fixture outside the worktree (which the
+      brief's own constraints forbid) to make a false refusal pass; findRepoRoot's "not found"
+      branch stays real, reachable code with no dedicated regression test, which is an honest gap
+      given the constraint, not an oversight -- recorded under `open`.
+  - id: d5
+    what: >
+      `git rev-parse HEAD` run with its cwd set to a gitignored temp fixture nested inside this
+      worktree resolves the enclosing repository's real current HEAD, since git's own discovery
+      walks up past a directory with no .git of its own to find the one that does.
+    found_at: >
+      packages/cli/test/graph/approve.test.ts's fixtures (under packages/cli/test/.runs/), which
+      are plain directories with no git repository of their own, yet every approve call against
+      them succeeds and records a real, valid commit SHA.
+    mattered_because: >
+      No dependency injection or fixture git-init was needed to make approve's commitSha field
+      honest in tests; the same fact that produced d4's gap (fixtures are always nested inside a
+      real repository) made this one free instead of costly.
+  - id: d6
+    what: >
+      The "yaml" npm package's most recent stable release before this session, 2.9.0, was
+      published 2026-05-11 -- about four months before this session's own date -- well outside
+      any plausible pnpm minimumReleaseAge window.
+    found_at: "`npm view yaml versions --json` and `npm view yaml time --json`, run before adding the dependency."
+    mattered_because: >
+      Pinned to this exact, already-aged version per scaffold's own d5/c3 precedent for
+      @types/node; `pnpm install` afterward showed no ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION and
+      left pnpm-workspace.yaml's allowBuilds untouched.
+  - id: d7
+    what: >
+      No repo-root-finder utility exists anywhere in packages/ledger/src or packages/cli/src.
+    found_at: "`grep -rn` for \"interlock\"/\"repoRoot\"/\"findRoot\"-shaped names across both packages' src trees before writing packages/face/src/root.ts, confirming the scout's own note."
+    mattered_because: >
+      Confirmed this was new code to write, not something to reuse, before writing it -- matching
+      the discipline of reading before guessing rather than assuming the scout's absence-of-
+      mention was itself proof.
+  - id: d8
+    what: >
+      @phyxiusjs/clock's published 0.3.0 build (the version this workspace already pins) exports
+      createSystemClock as a real, public function.
+    found_at: "node_modules/.pnpm/@phyxiusjs+clock@0.3.0.../dist/index.d.ts's own export list, read directly after `pnpm install`, not assumed from the scout's own flagged-as-unverified note."
+    mattered_because: >
+      graph approve's clock (passed to createLedger) depends on this export existing; the scout
+      explicitly named this as unverified pending install, so it was checked directly rather than
+      carried forward as an assumption.
+  - id: d9
+    what: >
+      The real, journal-less repository's `interlock graph show 0001-bootstrap`, before any
+      approval exists, reports every one of the graph's eight nodes as ready or blocked on its own
+      unmet dependencies, the five-node critical path from d3, and the graph itself as
+      "not approved" -- then, after a real `interlock graph approve 0001-bootstrap --by "Rodrigo
+      Sasaki" --because "approved in conversation on 2026-09-09 against 79521ddccff79088"`, the
+      identical show command reports "approved" and nothing else in the position changes.
+    found_at: >
+      run for real in this worktree at head_sha 4a17d75cbadf3c637fd8fea9ae6ca47010a70fe2. Before:
+      "graph 0001-bootstrap — not approved" with scaffold ready, every other node blocked on its
+      declared dependencies, and "critical path: scaffold -> ledger -> runner-command-gate -> face
+      -> self-run". The approve command's own output:
+      "0001-bootstrap: approved (receipt 3a28df7be5a783b79e86a37bbf787e4d0e5e2994a68dcbbe4358429063b54af3)."
+      After: "graph 0001-bootstrap — approved", every node's ready/blocked state and the critical
+      path unchanged. .interlock/ledger/journal.jsonl (gitignored, real, on disk in this worktree)
+      now holds exactly two lines: node-created for the pseudo node {graph: "0001-bootstrap", id:
+      "0001-bootstrap"}, then gate-moved{gate: "approved", to: satisfied(receipt)} with
+      commitSha 4a17d75cbadf3c637fd8fea9ae6ca47010a70fe2, derivation {kind: human, who: "Rodrigo
+      Sasaki"}, and proof.because the literal string passed on the command line.
+    mattered_because: >
+      This is the first real receipt this journal has ever held, and it backfills the approval
+      record PR #6 refers to -- the deliverable the brief explicitly asks this session to produce,
+      not a dry run or a mocked example.
+decisions:
+  - id: c1
+    what: >
+      Converted every internal relative import in packages/ledger/src from a ".js" specifier to
+      an explicit ".ts" one (20 files, one line each), added allowImportingTsExtensions to
+      ledger's tsconfig.json, and pointed ledger's package.json "main"/"types" at "./src/index.ts".
+    rests_on: ["d1", "d2", "notes:1", "notes:2", "notes:3"]
+    hunks:
+      [
+        "packages/ledger/src/brief.ts",
+        "packages/ledger/src/debrief.ts",
+        "packages/ledger/src/derivation.ts",
+        "packages/ledger/src/envelope.ts",
+        "packages/ledger/src/event.ts",
+        "packages/ledger/src/gate.ts",
+        "packages/ledger/src/graph.ts",
+        "packages/ledger/src/index.ts",
+        "packages/ledger/src/lease.ts",
+        "packages/ledger/src/ledger.ts",
+        "packages/ledger/src/mandate.ts",
+        "packages/ledger/src/mark.ts",
+        "packages/ledger/src/note.ts",
+        "packages/ledger/src/outcome.ts",
+        "packages/ledger/src/projection.ts",
+        "packages/ledger/src/receipt.ts",
+        "packages/ledger/src/replay.ts",
+        "packages/ledger/src/session.ts",
+        "packages/ledger/src/sink.ts",
+        "packages/ledger/src/spend.ts",
+        "packages/ledger/tsconfig.json",
+        "packages/ledger/package.json",
+      ]
+  - id: c2
+    what: >
+      Scaffolded packages/face as a sibling of ledger and cli: package.json ("face", depending on
+      ledger via "workspace:*", @phyxiusjs/fp, and yaml pinned to 2.9.0), tsconfig.json (extends
+      the root config with allowImportingTsExtensions, matching cli's own pattern), and
+      vitest.config.ts (re-exports the shared baseConfig, matching ledger's and cli's own file
+      verbatim).
+    rests_on: ["brief:Package", "d6", "notes:4"]
+    hunks: ["packages/face/package.json", "packages/face/tsconfig.json", "packages/face/vitest.config.ts"]
+    produces: ["pnpm-lock.yaml"]
+  - id: c3
+    what: >
+      Wrote packages/face/src/validate.ts as ledger's own validate.ts guard style
+      (isRecord/isString/isStringArray/prop), duplicated rather than imported since ledger's
+      index.ts does not export these guards.
+    rests_on: ["brief:Constraints", "notes:5"]
+    hunks: ["packages/face/src/validate.ts"]
+  - id: c4
+    what: >
+      Wrote document.ts: GraphDocument/NodeDeclaration/GateDeclaration types (named apart from
+      ledger's own Node/Gate, which describe a different, dependency-edge-free shape), GRAPH_SHAPE
+      ("graph@v0"), loadGraphDocument (reads the file, parses it with the "yaml" package, validates
+      the parsed value with hand-written guards, checks every depends_on id against the document's
+      own node ids, and runs topologicalOrder to refuse a cycle), GraphRefusal's four kinds
+      (missing-file/malformed-shape/unknown-dependency/cycle), and explainGraphRefusal, the one
+      sentence-producing function both CLI commands call.
+    rests_on: ["brief:Position rendering is pure", "brief:Errors are sentences", "notes:6", "notes:22"]
+    hunks: ["packages/face/src/document.ts", "packages/face/test/document.test.ts"]
+  - id: c5
+    what: >
+      Wrote topology.ts: topologicalOrder over NodeDeclaration[] via Kahn's algorithm, returning
+      Result<readonly NodeDeclaration[], CycleRefusal>, with a cycle's refusal naming only the
+      nodes actually still stuck rather than the whole graph.
+    rests_on: ["brief:Node order topological by depends_on", "notes:7"]
+    hunks: ["packages/face/src/topology.ts", "packages/face/test/topology.test.ts"]
+  - id: c6
+    what: >
+      Wrote criticalPath.ts: a single forward dynamic-programming pass over an already
+      topologically-sorted node list, computing the unweighted longest dependency chain by node
+      count with a first-encountered-max tie-break, reconstructed by walking a predecessor map.
+    rests_on: ["brief:Critical path", "d3", "notes:8", "notes:9"]
+    hunks: ["packages/face/src/criticalPath.ts", "packages/face/test/criticalPath.test.ts"]
+  - id: c7
+    what: >
+      Wrote position.ts: computePosition(document, projection, contentHash) -> Position, pure and
+      synchronous, folding topological order, each node's outcome-or-ready/blocked state (ready
+      when every dependency's outcome is "cleared", else blocked on the unmet ones by id), each
+      declared gate's projection state or gate.pending(), the graph's own approval state via the
+      standalone approvalState(gate, contentHash) function, and criticalPath's own output.
+    rests_on:
+      [
+        "brief:Position rendering is pure",
+        "brief:The graph's approval is a receipt on the graph's content",
+        "brief:Approval state has three values",
+        "notes:10",
+        "notes:11",
+      ]
+    hunks: ["packages/face/src/position.ts", "packages/face/test/position.test.ts"]
+  - id: c8
+    what: >
+      Wrote render.ts: renderPosition(position) -> text, a separate pure function from
+      computePosition so every correctness test can assert against the Position value directly.
+    rests_on: ["brief:Position rendering is pure", "notes:12"]
+    hunks: ["packages/face/src/render.ts", "packages/face/test/render.test.ts"]
+  - id: c9
+    what: >
+      Wrote root.ts: findRepoRoot (walks up from a start directory for the nearest ancestor
+      containing .interlock/), graphFilePath, journalDirectory (.interlock/ledger under the repo
+      root), and currentCommitSha (shells `git rev-parse HEAD`).
+    rests_on: ["brief:Where the journal lives", "d5", "d7", "notes:13", "notes:22"]
+    hunks: ["packages/face/src/root.ts"]
+  - id: c10
+    what: >
+      Wrote index.ts: face's one public surface, one export block per module in file-tree order,
+      no logic of its own, matching ledger's own index.ts shape.
+    rests_on: ["brief:Constraints", "brief:Package"]
+    hunks: ["packages/face/src/index.ts"]
+  - id: c11
+    what: >
+      Wrote the stale-approval test itself (approval.test.ts): approves a real fixture graph file
+      via createReceipt against real bytes on disk, edits the file by exactly one byte, and asserts
+      computePosition's approval flips from "approved" to "stale" -- named so
+      `--testNamePattern stale-approval` selects exactly this one test, mirroring the ledger
+      session's own d1/d12 discovery about vitest's substring name matching.
+    rests_on: ["brief:Approval state has three values", ".interlock/graphs/0001-bootstrap.yaml:stale-approval gate"]
+    hunks: ["packages/face/test/approval.test.ts"]
+  - id: c12
+    what: >
+      Wrote packages/cli/src/graph/show.ts: resolves the repository root and graph file path,
+      loads the graph document through face's one loader, reads the journal through readReplay
+      only, computes the current content hash via ledger's own receiptId, and returns
+      renderPosition's text on success or a sentence (missing id, unresolvable repo root,
+      malformed graph, or a journal ReplayRefusal) on failure. show.test.ts proves it opens no
+      ledger for writing (createLedger and attachLedgerSink mocked and asserted uncalled, plus a
+      filesystem check that no journal directory appears).
+    rests_on:
+      [
+        "brief:show never writes",
+        "docs/design/0002-face.md:D15",
+        "d4",
+        "notes:14",
+        "notes:19",
+      ]
+    hunks: ["packages/cli/src/graph/show.ts", "packages/cli/test/graph/show.test.ts"]
+  - id: c13
+    what: >
+      Wrote packages/cli/src/graph/approve.ts: refuses without --by or --because, or on a graph
+      that fails the same validator show uses, before touching anything; otherwise opens
+      createLedger for the call's duration, treats the graph as a pseudo node ({graph: id, id:
+      id}), appends node-created only if that node is not yet in the projection, computes the
+      approval receipt via createReceipt (scope: the graph file path, gate: "approved", derivation:
+      human(by), proof: {because}, commitSha: the real current HEAD), moves the gate through
+      proposeGateMove, appends gate-moved, and always closes the ledger -- even on a GateRefusal.
+      approve.test.ts proves every refusal, the exact event sequence a first and a second approval
+      each produce, and that a subsequent show reports approved, then stale after an edit.
+    rests_on:
+      [
+        "brief:approve refuses without a because",
+        "brief:The graph's approval is a receipt on the graph's content",
+        "docs/design/0001-interlock.md:D20",
+        "notes:15",
+        "notes:16",
+        "notes:17",
+        "notes:18",
+      ]
+    hunks: ["packages/cli/src/graph/approve.ts", "packages/cli/test/graph/approve.test.ts"]
+  - id: c14
+    what: >
+      main.ts's run() is now `async`, dispatching "graph show"/"graph approve" alongside the
+      existing debrief-validate and unknown-command branches under one Promise<CommandResult>
+      signature; bin.ts awaits it and routes a zero exit's message to stdout, a non-zero one to
+      stderr (previously always stderr, untested against a real success message since every prior
+      command always failed). main.test.ts's two existing tests now `await run(...)`.
+    rests_on: ["brief:CLI run() dispatch", "notes:20", "notes:21"]
+    hunks: ["packages/cli/src/main.ts", "packages/cli/src/bin.ts", "packages/cli/test/main.test.ts"]
+  - id: c15
+    what: >
+      packages/cli/package.json gained dependencies on @phyxiusjs/clock, @phyxiusjs/fp, face, and
+      ledger (the latter two via workspace:*).
+    rests_on: ["brief:Package"]
+    hunks: ["packages/cli/package.json"]
+  - id: c16
+    what: >
+      .gitignore gained .interlock/ledger/ (the journal is per-machine state, not a committed
+      artifact, for now -- the one decision in the brief flagged for revisiting once the runner
+      exists), plus packages/face/test/.runs/ and packages/cli/test/.runs/, matching ledger's own
+      test/.runs/ entry.
+    rests_on: ["brief:Where the journal lives", "notes:23"]
+    hunks: [".gitignore"]
+  - id: c17
+    what: notes.yaml is this session's own append-as-you-work record, committed across the three code commits alongside the work each entry documents, not a design choice about face's own shape.
+    rests_on: ["brief:Deliverable"]
+    hunks: [".interlock/sessions/0001-bootstrap/face-read/notes.yaml"]
+gates_run_by_agent:
+  - { id: typecheck, result: pass, invocation: "mise exec -- pnpm typecheck" }
+  - { id: test, result: pass, invocation: "mise exec -- pnpm test" }
+  - { id: debrief-valid, result: fail, invocation: "mise exec -- pnpm interlock debrief validate", note: "fails closed by design until the debrief-schema node lands" }
+  - { id: stale-approval, result: pass, invocation: "mise exec -- pnpm --filter face test --testNamePattern stale-approval" }
+open:
+  - >
+    Graph-as-node obstacle 1 (carried from the brief, confirmed, routed around, not fixed):
+    node-created carries no gates payload (event.ts), so the graph's own declared gates can never
+    be persisted on that event. Every call that needs them (proposeGateMove inside approve,
+    computePosition's approval read) re-reads document.gates from the graph file itself, never
+    from the projection -- exactly D14's "two sources of truth" framing, not a workaround for a
+    gap.
+  - >
+    Graph-as-node obstacle 2 (carried from the brief, confirmed, routed around, not fixed):
+    nothing at the type level stops a real node inside a graph from sharing an id with the graph
+    itself, which would collide in the same nodes map (nodeKey is "<graph>::<id>", and the
+    pseudo-node's key is "<graphId>::<graphId>"). Not a blocker: the bootstrap graph's own eight
+    node ids never equal "0001-bootstrap". Worth a type-level fix (e.g. a branded or reserved id)
+    if a future graph ever names a node after itself.
+  - >
+    "approval"/ApprovalState is used as a noun throughout packages/face (a Position's `approval`
+    field, the approvalState function) on the strength of D20's own repeated use ("the approval is
+    a mandate over the whole graph," "the approval is agnostic of what produced the plan"), but it
+    is not a row in AGENTS.md's closed vocabulary table -- the same treatment, and the same gap,
+    the ledger session already recorded for "disposition."
+  - >
+    "Document" and "Declaration" (GraphDocument, NodeDeclaration, GateDeclaration) are plain
+    programming English, not AGENTS.md vocabulary or design-note nouns, used because ledger's own
+    Node and Gate already name a different, narrower shape (no dependency edges, no command
+    string) that both types are in scope alongside in position.ts. "Document" itself is the
+    brief's own word ("a function from (graph document, projection, ...)"); "Declaration" is not.
+    Neither word ever appears in rendered position text (renderPosition uses only vocabulary and
+    D20-sanctioned words), so I3 is not broken by anything a person actually reads -- but both
+    names are recorded here per I3's own rule that an unmatched word is a gap, never a silent
+    coinage.
+  - >
+    loadGraphDocument rethrows any file-read error that is not ENOENT, and currentCommitSha throws
+    if `git rev-parse HEAD` fails outside a git repository -- mirroring readReplay's own identical
+    ENOENT-only handling in packages/ledger/src/replay.ts. Neither case is one of the five named
+    sentence-error scenarios, and this repository's own worktree is always a git repository in
+    every path this node's acceptance describes, so this was a deliberate parity choice with an
+    existing precedent, not an oversight -- but it means an unexpected filesystem failure or a
+    non-git .interlock/ repository would still surface a raw stack trace rather than a sentence.
+  - >
+    findRepoRoot's "no .interlock directory found" branch has no dedicated regression test: every
+    writable location under this worktree's own "do not create files outside this worktree"
+    constraint is, by construction, nested inside a real .interlock/-bearing repository (d4), so no
+    fixture built inside the worktree can honestly exercise it. The branch is real and reachable
+    code, exercised informally (by hand, before this constraint was recognized), just not covered
+    by an automated test.
+  - >
+    Four ledger gaps this node was explicitly told not to fix, confirmed still present and routed
+    around rather than patched: no Outcome kind for a voluntary, non-failure pause; reset's
+    constructor takes only receipts, no because or authority; Receipt has no duration field;
+    the Debrief TS type (packages/ledger/src/debrief.ts) still lacks the derivation,
+    graph_base_sha, session_start_sha, and gates_run_by_agent fields this very file's on-disk YAML
+    carries.
+  - >
+    The live demonstration this deliverable requires (d9): `interlock graph show 0001-bootstrap`
+    against the real, journal-less repository, a real `interlock graph approve 0001-bootstrap
+    --by "Rodrigo Sasaki" --because "approved in conversation on 2026-09-09 against
+    79521ddccff79088"`, and `show` again -- run for real in this worktree, not mocked, with its
+    full verbatim output recorded under discovery d9 above. This is the first real receipt this
+    journal has ever held.
