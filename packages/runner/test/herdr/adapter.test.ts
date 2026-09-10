@@ -287,6 +287,91 @@ describe("herdr adapter", () => {
         timeoutMs: 100,
       });
   });
+
+  it("retries agent.start on agent_pane_busy until the pane's shell is ready", async () => {
+    const fake = await fixture();
+    const created = await createHerdrRuntime(fake.socketPath);
+    if (isErr(created)) throw new Error("expected a runtime");
+    const pane = await created.value.openPane("/repo");
+    if (isErr(pane)) throw new Error("expected a pane");
+
+    fake.failNextCall(
+      "agent_pane_busy",
+      "agent target pane fake-pane-1 is not an available shell",
+      2,
+    );
+    let waits = 0;
+    const agent = await created.value.startAgent(
+      pane.value,
+      "claude",
+      [],
+      () => {
+        waits += 1;
+      },
+    );
+
+    expect(isErr(agent)).toBe(false);
+    expect(waits).toBe(1);
+    expect(
+      fake.calls.filter((call) => call.method === "agent.start"),
+    ).toHaveLength(3);
+  });
+
+  it("returns a non-busy refusal from agent.start at once, without retrying", async () => {
+    const fake = await fixture();
+    const created = await createHerdrRuntime(fake.socketPath);
+    if (isErr(created)) throw new Error("expected a runtime");
+    const pane = await created.value.openPane("/repo");
+    if (isErr(pane)) throw new Error("expected a pane");
+
+    fake.failNextCall(
+      "invalid_agent_name",
+      "agent name must start with a lowercase letter and contain only lowercase letters, digits, '-' or '_' (1-32 characters)",
+    );
+    let waits = 0;
+    const agent = await created.value.startAgent(
+      pane.value,
+      "claude",
+      [],
+      () => {
+        waits += 1;
+      },
+    );
+
+    expect(isErr(agent)).toBe(true);
+    if (isErr(agent)) expect(agent.error.kind).toBe("remote");
+    if (isErr(agent) && agent.error.kind === "remote")
+      expect(agent.error.code).toBe("invalid_agent_name");
+    expect(waits).toBe(0);
+    expect(
+      fake.calls.filter((call) => call.method === "agent.start"),
+    ).toHaveLength(1);
+  });
+
+  it("gives up on agent_pane_busy once its wait budget elapses, naming the total wait", async () => {
+    const fake = await fixture();
+    const created = await createHerdrRuntime(fake.socketPath, 30_000, 700);
+    if (isErr(created)) throw new Error("expected a runtime");
+    const pane = await created.value.openPane("/repo");
+    if (isErr(pane)) throw new Error("expected a pane");
+
+    fake.failNextCall(
+      "agent_pane_busy",
+      "agent target pane fake-pane-1 is not an available shell",
+      50,
+    );
+    const agent = await created.value.startAgent(pane.value, "claude", []);
+
+    expect(isErr(agent)).toBe(true);
+    if (isErr(agent)) {
+      expect(agent.error).toEqual({
+        kind: "remote",
+        code: "agent_pane_busy",
+        message:
+          "agent target pane fake-pane-1 is not an available shell (waited 700ms for the pane's shell)",
+      });
+    }
+  }, 10_000);
 });
 
 describe("herdr agent name compliance", () => {
