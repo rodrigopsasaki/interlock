@@ -1,5 +1,5 @@
-import { isDerivation, type Derivation } from "./derivation.js";
-import { isRecord, isString, prop } from "./validate.js";
+import { isDerivation, type Derivation } from "./derivation.ts";
+import { isRecord, isString, prop } from "./validate.ts";
 
 export interface Gap {
   readonly term: string;

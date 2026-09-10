@@ -9,6 +9,41 @@ importers:
   .: {}
 
   packages/cli:
+    dependencies:
+      '@phyxiusjs/clock':
+        specifier: ^0.3.0
+        version: 0.3.0(@types/node@24.13.3)
+      '@phyxiusjs/fp':
+        specifier: ^0.2.1
+        version: 0.2.1(@types/node@24.13.3)
+      face:
+        specifier: workspace:*
+        version: link:../face
+      ledger:
+        specifier: workspace:*
+        version: link:../ledger
+    devDependencies:
+      '@types/node':
+        specifier: 24.13.3
+        version: 24.13.3
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@24.13.3)
+
+  packages/face:
+    dependencies:
+      '@phyxiusjs/fp':
+        specifier: ^0.2.1
+        version: 0.2.1(@types/node@24.13.3)
+      ledger:
+        specifier: workspace:*
+        version: link:../ledger
+      yaml:
+        specifier: 2.9.0
+        version: 2.9.0
     devDependencies:
       '@types/node':
         specifier: 24.13.3
@@ -564,6 +599,11 @@ packages:
     engines: {node: '>=8'}
     hasBin: true
 
+  yaml@2.9.0:
+    resolution: {integrity: sha512-2AvhNX3mb8zd6Zy7INTtSpl1F15HW6Wnqj0srWlkKLcpYl/gMIMJiyuGq2KeI2YFxUPjdlB+3Lc10seMLtL4cA==}
+    engines: {node: '>= 14.6'}
+    hasBin: true
+
 snapshots:
 
   '@esbuild/aix-ppc64@0.21.5':
@@ -976,3 +1016,5 @@ snapshots:
     dependencies:
       siginfo: 2.0.0
       stackback: 0.0.2
+
+  yaml@2.9.0: {}

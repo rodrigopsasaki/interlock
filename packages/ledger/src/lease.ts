@@ -1,6 +1,6 @@
 import { err, ok, type Result } from "@phyxiusjs/fp";
-import { isNode, type Node } from "./graph.js";
-import { isRecord, isString, prop } from "./validate.js";
+import { isNode, type Node } from "./graph.ts";
+import { isRecord, isString, prop } from "./validate.ts";
 
 export interface Lease {
   readonly node: Node;

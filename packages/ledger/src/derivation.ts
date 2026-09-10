@@ -1,4 +1,4 @@
-import { isRecord, isString, prop } from "./validate.js";
+import { isRecord, isString, prop } from "./validate.ts";
 
 export type Derivation =
   | {

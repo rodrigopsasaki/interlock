@@ -1,12 +1,12 @@
-import type { Brief } from "./brief.js";
-import type { Debrief } from "./debrief.js";
-import type { LedgerEvent } from "./event.js";
-import type { Gate } from "./gate.js";
-import { nodeKey, type Node } from "./graph.js";
-import type { Lease } from "./lease.js";
-import type { Note } from "./note.js";
-import type { Outcome } from "./outcome.js";
-import type { Receipt } from "./receipt.js";
+import type { Brief } from "./brief.ts";
+import type { Debrief } from "./debrief.ts";
+import type { LedgerEvent } from "./event.ts";
+import type { Gate } from "./gate.ts";
+import { nodeKey, type Node } from "./graph.ts";
+import type { Lease } from "./lease.ts";
+import type { Note } from "./note.ts";
+import type { Outcome } from "./outcome.ts";
+import type { Receipt } from "./receipt.ts";
 
 export interface NodeView {
   readonly node: Node;

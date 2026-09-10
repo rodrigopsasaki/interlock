@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { isDerivation, type Derivation } from "./derivation.js";
-import { isSpend, type Spend } from "./spend.js";
-import { isRecord, isString, prop } from "./validate.js";
+import { isDerivation, type Derivation } from "./derivation.ts";
+import { isSpend, type Spend } from "./spend.ts";
+import { isRecord, isString, prop } from "./validate.ts";
 
 export interface Receipt {
   readonly id: string;

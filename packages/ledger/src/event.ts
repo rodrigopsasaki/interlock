@@ -1,12 +1,12 @@
-import { isBrief, type Brief } from "./brief.js";
-import { isDebrief, type Debrief } from "./debrief.js";
-import { isGate, type Gate } from "./gate.js";
-import { isNode, type Node } from "./graph.js";
-import { isNote, type Note } from "./note.js";
-import { isOutcome, type Outcome } from "./outcome.js";
-import { isReceipt, type Receipt } from "./receipt.js";
-import { isSession, type Session } from "./session.js";
-import { isRecord, isString, prop } from "./validate.js";
+import { isBrief, type Brief } from "./brief.ts";
+import { isDebrief, type Debrief } from "./debrief.ts";
+import { isGate, type Gate } from "./gate.ts";
+import { isNode, type Node } from "./graph.ts";
+import { isNote, type Note } from "./note.ts";
+import { isOutcome, type Outcome } from "./outcome.ts";
+import { isReceipt, type Receipt } from "./receipt.ts";
+import { isSession, type Session } from "./session.ts";
+import { isRecord, isString, prop } from "./validate.ts";
 
 export type LedgerEvent =
   | { readonly kind: "node-created"; readonly node: Node }

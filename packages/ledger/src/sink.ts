@@ -1,8 +1,8 @@
 import { appendFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Journal, Unsubscribe } from "@phyxiusjs/journal";
-import { envelopeFor } from "./envelope.js";
-import type { LedgerEvent } from "./event.js";
+import { envelopeFor } from "./envelope.ts";
+import type { LedgerEvent } from "./event.ts";
 
 export const JOURNAL_FILE_NAME = "journal.jsonl";
 

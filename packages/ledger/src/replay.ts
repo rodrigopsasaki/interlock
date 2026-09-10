@@ -1,9 +1,9 @@
 import { readFile } from "node:fs/promises";
 import { err, ok, type Result } from "@phyxiusjs/fp";
-import { shapeTag, upcastTable, type Upcaster } from "./envelope.js";
-import type { LedgerEvent } from "./event.js";
-import { emptyProjection, fold, type LedgerProjection } from "./projection.js";
-import { journalPath } from "./sink.js";
+import { shapeTag, upcastTable, type Upcaster } from "./envelope.ts";
+import type { LedgerEvent } from "./event.ts";
+import { emptyProjection, fold, type LedgerProjection } from "./projection.ts";
+import { journalPath } from "./sink.ts";
 
 export type ParsedLine =
   | { readonly kind: "event"; readonly event: LedgerEvent }

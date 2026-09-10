@@ -1,8 +1,8 @@
 import { err, ok, type Result } from "@phyxiusjs/fp";
-import { isDisposition, type Disposition } from "./disposition.js";
-import type { Gate } from "./gate.js";
-import { isReceipt, type Receipt } from "./receipt.js";
-import { isRecord, isString, prop } from "./validate.js";
+import { isDisposition, type Disposition } from "./disposition.ts";
+import type { Gate } from "./gate.ts";
+import { isReceipt, type Receipt } from "./receipt.ts";
+import { isRecord, isString, prop } from "./validate.ts";
 
 export type Outcome =
   | { readonly kind: "cleared"; readonly receipts: readonly Receipt[] }

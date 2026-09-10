@@ -1,4 +1,4 @@
-import { isRecord, isString, isStringArray, prop } from "./validate.js";
+import { isRecord, isString, isStringArray, prop } from "./validate.ts";
 
 export interface Discovery {
   readonly id: string;

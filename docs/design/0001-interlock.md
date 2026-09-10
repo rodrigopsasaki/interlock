@@ -1,6 +1,6 @@
 # Interlock
 
-Design note · v0.6 · 2026-09-09
+Design note · v0.7 · 2026-09-09
 
 A harness for doing software work with agents: enough context that they decide and manage their
 own work, enough structure that you never lose control. Named for the railway interlocking: the mechanism that makes an unsafe signal impossible
@@ -203,6 +203,23 @@ script, is information that participates in the decision, never a condition of i
 happened, debriefs, receipts, bend-log rows, are never gated; only plans are.
 *Revisit:* no. Face-read is its first viewer; until it exists the plan is rendered by hand and the
 approval travels in the pull request.
+
+**D21. A gate composes criteria, and a human criterion is one of them.** A gate is satisfied when
+every criterion it declares is satisfied: a command exiting zero, a shape holding over the diff, a
+board reaching its declared aggregation, a named person clearing it with a because. A human
+thumbs-up therefore never replaces produced and validated artifacts; it sits beside them in the
+same gate. Where a human criterion is required is decided by whoever declares the graph, and is
+suggested rather than fixed, from three sources: declared, the axioms and professed values that
+name what always needs a person, such as an effect that leaves the box, a spend, or a change to
+an approved acceptance; learned, a projection over receipts showing where boards split, approvals
+were later reverted or gates were later waived, proposed as a strategy change and ratified by a
+person; and declared ignorance, an ask the interpreter cannot decompose into settleable criteria,
+for which a human criterion is the honest gate. Values order candidates that all clear their
+gates and never gate them, as I9 requires; a value that asks for speed that lasts is read as
+speed that keeps its receipts and its way back.
+*Cost:* a gate is a small conjunction rather than a single check, and the placement of human
+criteria has to be re-read when the record says it was wrong.
+*Revisit:* the three sources are the starting set. A fourth needs a written justification here.
 
 ## Invariants
 
@@ -552,6 +569,7 @@ bend against an invariant means we redesign, and the entry says how.
 | 2026-09-09 | First session by hand (node `scaffold`): the brief's base SHA is the graph's base, but a session starts at the commit that contains its brief, which cannot be known while writing it; the brief carried no role; the debrief cannot mark a hunk as generated (a 1080-line lockfile has no line-by-line decision); "effect" was named as a Phyxius primitive and none exists | Brief and debrief shapes, seams | Writing the first brief and debrief by hand, as planned, before the formats had code. | Yes, both files committed with the session | Brief gets a `graph_base_sha`; the session's start SHA lives in the context column and the debrief; the brief supplies the role; the debrief gets a `produces` relation so a decision can own a generated hunk; the verifier treats generated hunks as explained by the decision that produced them. |
 | 2026-09-09 | Rebasing the scaffold branch onto main rewrote every commit SHA; the debrief's `head_sha` and any receipt addressed by commit SHA went stale although not one byte under the node's code paths changed. The whole-repo tree changed too, because main had moved under docs the gates never read | Receipts, D5 | Content-addressing by commit SHA conflates content with history, and by whole-repo tree conflates the node's scope with everything else. | Yes, the pre-rebase SHA is in the debrief and the code paths are provably identical | Address a receipt by the content hash of the paths in the node's scope. A rebase or an unrelated docs merge that changes none of them keeps the receipt; a byte changed under them invalidates it. The commit SHA stays on the receipt as history, not identity. |
 | 2026-09-09 | Ledger node (second hand-run session, first under a workflow): the two professed gate commands in the graph could not run at all (pnpm option order, vitest has no --grep); persisted events carried no shape version; durability rode on a drain whose published stop() can lose an in-flight write; the debrief's decisions covered six notable choices and left 26 of 40 files unexplained; "disposition" was used as a type without a vocabulary row | Graph, vocabulary, I8, compatibility | Professed commands are professed until they run; the persisted journal is the one artifact whose version cannot be added later; Phyxius's drain read worse than a synchronous append for a ledger that writes a few events a minute; decisions are a manifest of the diff, not a highlights reel. | Yes, every finding is in the session's debrief and notes | Graph gate commands bent to the invocations that run; every journal line now carries `interlock: event@v1` with an upcast seam; drain replaced by a synchronous sink and reported upstream; disposition ratified into the vocabulary; a debrief's decisions must cover every changed file, and the mechanical ones are cheap to write. |
+| 2026-09-09 | `face-read` cleared. `interlock graph show` renders the bootstrap graph with `scaffold` as ready and `ledger` as blocked on it, although both are cleared and merged: their gates ran by hand and their receipts live in pull-request bodies, not in the journal. The ledger package now resolves under raw Node through explicit `.ts` specifiers and a `main` pointing at source, a consequence of running the CLI without a build step | D14, D5, receipts | The face reads the journal and nothing else, so a receipt that was never written to it does not exist for the face. That is correct, and it exposes that the first two nodes were cleared outside the ledger. | Yes, the receipts are in PRs #2 and #4 | The runner's first act is to re-run the standing gates for every cleared node at main and write their receipts, so the position stops depending on anyone's memory. `approved` enters the vocabulary as a gate id and a three-valued state. |
 | 2026-09-09 | `face` split into `face-read` (depends on `ledger`) and `face` (depends on the runner); graph-level human gate `approved` added to the bootstrap graph; D20 written | Graph, D20 | Every plan is read and approved before any of it runs. The read-only slice of the face needs the ledger and the graph file, not the runner, as 0002 argued; the approval gate is the interlocking applied to plans. | Yes, previous graph in history | The first plan approved under the new gate is the one that builds the approver. |
 | 2026-09-09 | Carried over from a prior work algebra: five gate states; cancelled and superseded terminals; failure / disposition / because; conserved retry budget; spend on receipts and spend-driven revival; empty receipt ≠ absent; abandoned written by a sweeper; lease bounds silence; outbox with an honest uncertain state; typed notes during the session; interrupted gets no invented debrief; role supplied by the brief; mandate spelled | D8, D12, I7, gates, verifier, lifecycle, vocabulary | The same laws were written a month earlier inside the substrate and each carried an incident that earned it. Carry what makes sense, leave what does not: the substrate's belief analysis and ratification doors stay on its side. | Yes, v0.2 in history | I7 had promised exactly once. Nothing can. Promise no lost intent and honest doubt instead. |
 
