@@ -4,7 +4,7 @@ node: debrief-schema
 role: worker
 graph_base_sha: a22166b9695e695e8f846934088c71d3ea4d6578
 session_start_sha: 0a02b4d01300ddb1415dbc00e776d9742b715e12
-head_sha: e3a988ebe25076087909c0a1839a14199fd6ed9d
+head_sha: 910f8a19eab255813b36ce90d20fdd08d3905660
 derivation:
   kind: agent
   runtime: claude-code
@@ -413,10 +413,45 @@ decisions:
     rests_on: ["brief:Deliverable"]
     hunks:
       - ".interlock/sessions/0001-bootstrap/debrief-schema/debrief.yaml"
+  - id: c27
+    what: >
+      Fixed requireItemsWithIdAndWhat's `ok(raw as readonly Record<string, unknown>[])` by
+      pushing each item the loop's own isRecord/isString checks already proved onto a real
+      items: Record<string, unknown>[] and returning that, instead of asserting the whole
+      unknown[] past the compiler. This was the session's one real as/!/any/as-unknown-as hit;
+      re-grepping every added line across all 33 changed files after the fix finds none.
+    because: "verifier finding 1, verifier finding 2"
+    rests_on: [
+      "verifier finding 1",
+      "verifier finding 2",
+      "AGENTS.md#Conventions",
+      "brief:Constraints",
+    ]
+    hunks:
+      - "packages/debrief/src/debrief.ts:168-186"
+  - id: c28
+    what: >
+      Appended this fix round's choice, and the rejected isRecordArray-type-predicate
+      alternative, to this session's own notes.yaml; amended into the same commit as c27
+      rather than a separate one, matching how every earlier commit in this session carried
+      its own notes.yaml delta.
+    because: "brief:Deliverable 2"
+    rests_on: ["brief:Deliverable"]
+    hunks:
+      - ".interlock/sessions/0001-bootstrap/debrief-schema/notes.yaml:180-191"
+  - id: c29
+    what: >
+      Bumped head_sha to this round's fix commit, added c27-c29 to cover every file this round
+      touched, updated the test gate's count, and re-ran debrief-valid against all six session
+      directories before filing this as the round's own final commit.
+    because: "brief:Deliverable 3"
+    rests_on: ["brief:Deliverable", "verifier finding 1", "verifier finding 2"]
+    hunks:
+      - ".interlock/sessions/0001-bootstrap/debrief-schema/debrief.yaml"
 gates_run_by_agent:
   - { id: typecheck, result: pass, invocation: "mise exec -- pnpm typecheck" }
-  - { id: test, result: pass, invocation: "mise exec -- pnpm test", note: "251 tests across ledger, face, debrief, runner, cli" }
-  - { id: debrief-valid, result: pass, invocation: "mise exec -- pnpm interlock debrief validate 0001-bootstrap debrief-schema", note: "run for real against this session's own files after they were written; see d1" }
+  - { id: test, result: pass, invocation: "mise exec -- pnpm test", note: "202 tests across ledger, face, debrief, runner, cli" }
+  - { id: debrief-valid, result: pass, invocation: "mise exec -- pnpm interlock debrief validate 0001-bootstrap debrief-schema", note: "run for real against this session's own files at this round's head_sha; see d1 and d6" }
 open:
   - >
     packages/ledger/src/projection.ts's withSession stays a no-op for a
