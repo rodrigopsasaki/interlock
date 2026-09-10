@@ -5,6 +5,7 @@ export type {
   DebriefDerivation,
   Decision,
   Discovery,
+  Drafted,
   GateRun,
 } from "./debrief.ts";
 export {
@@ -12,6 +13,7 @@ export {
   isDebriefDerivation,
   isDecision,
   isDiscovery,
+  isDrafted,
   isGateRun,
 } from "./debrief.ts";
 export type { Derivation } from "./derivation.ts";
