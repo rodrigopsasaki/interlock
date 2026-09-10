@@ -27,3 +27,13 @@ export function gitInitFixture(directory: string): void {
     { cwd: directory, env: GIT_ENV },
   );
 }
+
+// A worktree checkout needs real, committed content: stages and commits whatever is on disk.
+export function commitAll(directory: string, message: string): void {
+  execFileSync("git", ["add", "-A"], { cwd: directory });
+  execFileSync(
+    "git",
+    ["-c", "commit.gpgsign=false", "commit", "--quiet", "-m", message],
+    { cwd: directory, env: GIT_ENV },
+  );
+}

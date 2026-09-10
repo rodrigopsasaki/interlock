@@ -1,0 +1,356 @@
+interlock: notes@v0
+node: runner-command-gate
+entries:
+  - kind: choice
+    at: "2026-09-10T00:10:00Z"
+    chose: >
+      Derived a node's "graph base SHA" from the graph node's own `approved`
+      gate receipt (`receipt.commitSha`), never from markdown in a brief.md
+      file.
+    because: >
+      Nothing in graph@v0 carries a machine-readable base SHA per node --
+      only prose in each session's hand-written brief does. D20's own rule
+      (no session is briefed until the graph carries an approved receipt
+      for its current content) already ties one commit to the whole
+      approved plan: the receipt that gates leasing already names it.
+      Reusing that receipt composes with existing typed machinery
+      (approvalState, receiptId) instead of parsing prose.
+    rejected: >
+      ["regex-parsing 'graph base SHA:' out of brief.md (brittle, and the
+      brief explicitly says brief authoring/format is not the runner's
+      job)", "a new graph.yaml field (graph.yaml is off limits this
+      session and the graph's own approval-receipt commit already answers
+      the question)"]
+  - kind: choice
+    at: "2026-09-10T00:15:00Z"
+    chose: >
+      Wrote the sweeper's `abandoned` write as `outcome.cancelled(receipts,
+      "sweeper", because)` rather than adding a seventh Outcome union arm,
+      and recorded the missing kind under `open`.
+    because: >
+      The orchestrator's own instruction: add to the current event@v2 shape
+      only when it is a new OPTIONAL FIELD; a new union arm or required
+      field is a shape change to stop on and route around with the closest
+      existing typed shape. `cancelled` already carries exactly the shape
+      abandonment needs -- receipts, authority, because -- so it is the
+      closest existing typed shape, not a stretch.
+    rejected: >
+      ["a seventh Outcome kind 'abandoned' (a real union-arm shape change,
+      touching isOutcome's switch and every exhaustive Outcome.kind switch
+      in face and this package; the brief's own routing rule says stop for
+      this, not build it)"]
+  - kind: surprise
+    at: "2026-09-10T00:20:00Z"
+    expected: >
+      A node's "scope" for receipt content-addressing would be declared
+      somewhere in graph.yaml or config.yaml.
+    observed: >
+      Neither file declares a per-node or per-gate scope; a gate command
+      like `pnpm typecheck` genuinely runs over the whole workspace. Scoped
+      every gate receipt to `git ls-files` at the content root (the
+      worktree for `interlock run`, the ephemeral main checkout for
+      backfill) -- the one honest, already-typed answer `receiptId`
+      supports without inventing an out-of-band scope registry graph.yaml
+      cannot carry this session (graph.yaml is off limits).
+  - kind: choice
+    at: "2026-09-10T00:30:00Z"
+    chose: >
+      Extended face's `GateDeclaration` with an optional `run?: string` and
+      `NodeDeclaration` with an optional `acceptance?: string`, parsed from
+      the fields graph.yaml already carries per node/gate but
+      `loadGraphDocument` previously dropped.
+    because: >
+      The runner needs a gate's command and a node's acceptance text to
+      build gate invocations and a ledger Brief; both fields are already
+      present in every node's YAML (graph.yaml's own `run:` and
+      `acceptance:` lines) and were simply unparsed. Extending face's
+      parser composes with the one place graph.yaml is already read,
+      rather than a second, duplicate YAML reader in this package. Both
+      additions are optional fields on TypeScript types face itself owns,
+      not the persisted ledger event shape, so this is unrelated to the
+      event@v2 shape-change question above.
+  - kind: choice
+    at: "2026-09-10T00:45:00Z"
+    chose: >
+      `interlock backfill` checks out a SEPARATE, ephemeral git worktree at
+      main's real SHA (`git rev-parse main`), installs there, gates there,
+      then removes it -- rather than gating in place in this session's own
+      worktree.
+    because: >
+      This worktree's HEAD is one commit ahead of main (the session-start
+      brief commit) and, unlike main, carries `.interlock/sessions/.../
+      runner-command-gate/` itself; git-ls-files-scoped receipts computed
+      in place would content-address a tree main never had. A real,
+      separate checkout at main's own resolved SHA is the only way to gate
+      "the current main content" honestly, and reuses the same worktree
+      primitive `interlock run` needs.
+  - kind: surprise
+    at: "2026-09-10T00:50:00Z"
+    expected: >
+      A fake Unix-domain socket for tests could live at any path under a
+      gitignored temp directory.
+    observed: >
+      `server.listen()` on this absolute worktree path raised `EINVAL`: a
+      Unix socket's `sun_path` is capped near 104 bytes on macOS, and this
+      worktree's own absolute path alone is already most of that budget.
+      Fixed by writing every test socket path relative to `process.cwd()`
+      (vitest runs each package from its own directory), which is short
+      regardless of how long this worktree's absolute path is.
+  - kind: choice
+    at: "2026-09-10T01:00:00Z"
+    chose: >
+      The herdr adapter mints its own agent name (`interlock-<uuid>`)
+      rather than reading one back from `agent.start`'s result, and uses
+      that name as the `target` for every later `agent.*` call.
+    because: >
+      herdr's own CLI usage text says agent targets accept "unique agent
+      names ... that currently host agents" -- the caller-supplied `name`
+      IS the identity, not a server-minted id `agent.start` hands back. It
+      also sidesteps `agent_started`'s `agent: AgentInfo` shape, whose
+      exact fields the schema does not bind per-method (flagged inferred
+      by the scouting read), so the adapter reads back nothing it does not
+      have to.
+  - kind: choice
+    at: "2026-09-10T01:05:00Z"
+    chose: >
+      The herdr adapter does not call `events.subscribe`; `waitUntil` is
+      one blocking `agent.wait` round trip.
+    because: >
+      `agent.wait` already blocks on `until`/`timeout_ms` server-side,
+      which is exactly what the runner's own wait step needs, and the
+      schema's own mapping from a subscribed CRUD event type to a wire
+      frame is flagged not directly attested (inferred, not schema-proven)
+      in the scouting read. One fewer request/response pair to get wrong
+      inside the one file that cannot be cross-checked against a live
+      server this session.
+  - kind: choice
+    at: "2026-09-10T01:10:00Z"
+    chose: >
+      The tmux adapter's `waitUntil` always returns a `timeout` refusal,
+      unconditionally, for every call.
+    because: >
+      D3 names this exactly: tmux is the escape hatch if herdr's seam
+      closes, "with a loss of state detection, not a rewrite." tmux can
+      host a pane and capture its screen; it has no notion of idle,
+      blocked or done. Returning timeout honestly is the compiling,
+      unwired fallback the acceptance asks for, not a fabricated status.
+  - kind: choice
+    at: "2026-09-10T01:20:00Z"
+    chose: >
+      `judgeGates` re-runs every declared gate whose current receipt's
+      spend is `none` on every judgement, and only skips (keeps as-is) a
+      gate whose spend is `metered` or `local`.
+    because: >
+      This is D8 and the brief's own words, literally: a receipt that cost
+      nothing is re-earned by re-running; one that cost inference or money
+      is kept and never re-spent. It also makes "cleared decided only by
+      the runner's own run" true by construction -- nothing about WHO
+      wrote a prior spend-none receipt matters, because it is never
+      trusted as proof; it is always regenerated fresh, under this run's
+      own derivation.
+  - kind: choice
+    at: "2026-09-10T01:25:00Z"
+    chose: >
+      Receipt idempotence is enforced by the runner, not the ledger:
+      before appending `receipt-written`, `judgeGates` checks whether a
+      receipt with the same `id` already sits in the node's `receipts`
+      array, and skips the append (reusing the existing receipt object for
+      the `gate-moved` that follows) when it does.
+    because: >
+      `applyEvent`'s `receipt-written` case appends unconditionally with
+      no identity check -- confirmed by reading projection.ts -- so
+      nothing upstream guarantees "same content, one fact." The
+      `receipt-idempotent` gate's own wording asks for exactly this
+      property, so it has to be built here.
+  - kind: choice
+    at: "2026-09-10T01:35:00Z"
+    chose: >
+      `cli/src/run.ts` wraps the whole post-ledger-open body in a single
+      `try`/`finally` that closes the pane (if opened) and the ledger,
+      instead of a manual `await ledger.close()` before each early return.
+    because: >
+      `graph/approve.ts`'s literal repeated-close style reads fine at
+      three early returns; `interlock run` has roughly a dozen (approval,
+      dependencies, worktree, four herdr calls, gate judging), and
+      `try`/`finally` guarantees the close fires exactly once on every
+      path without retyping it a dozen times. A deliberate, noted
+      deviation from the exact prior shape, not a different rule.
+  - kind: choice
+    at: "2026-09-10T01:40:00Z"
+    chose: >
+      `.interlock/local.yaml`'s `worktree_root` defaults to `.worktrees`
+      in both `local.example.yaml` and this machine's own `local.yaml`.
+    because: >
+      The scaffold node's own `.gitignore` already carries a `.worktrees/`
+      entry with no file in this session's history ever having used it --
+      a discovery that a future consumer was anticipated before this
+      session existed. Matching it composes with that intent instead of
+      picking a fresh, competing convention.
+  - kind: choice
+    at: "2026-09-10T01:45:00Z"
+    chose: >
+      A held outcome's `disposition` is always `"hold"` at this stage, and
+      its `expiry` is `now + a fixed constant` (24h for backfill, the
+      configured lease length for `interlock run`), never computed from a
+      retry budget.
+    because: >
+      AGENTS.md's retry budget ("conserved... nothing inside a node mints
+      its own retries") and repair/retry disposition logic are explicitly
+      out of scope for this node's command-gate acceptance; `hold` is the
+      one disposition that asks for nothing this session does not already
+      have. The constants are a judgment call with no other source of
+      truth in this graph or config format yet.
+  - kind: surprise
+    at: "2026-09-10T02:00:00Z"
+    expected: >
+      A fake herdr socket server's `close()` would resolve promptly once
+      the test finished its assertions.
+    observed: >
+      `net.Server#close()` waits for every open connection to end first;
+      the herdr adapter holds one long-lived client socket for a whole
+      `Runtime`'s life and has no separate "disconnect" step (by design --
+      `Runtime`'s own `close` step is `closePane`, an RPC call, not a
+      transport teardown). Fixed by having the fake server track and
+      `destroy()` its accepted sockets on `close()`, matching how a real
+      server must already tolerate a client that never says goodbye.
+  - kind: choice
+    at: "2026-09-10T02:10:00Z"
+    chose: >
+      Injected the concrete `Runtime` as an optional parameter on
+      `runInterlockRun`'s options, defaulting to `createHerdrRuntime()`
+      when omitted, rather than hard-wiring the herdr factory call inside
+      the function body with no seam.
+    because: >
+      Lets `interlock run`'s own refusal logic, lease/heartbeat sequencing
+      and gate judging be exercised end to end in a CLI-level test with a
+      stub `Runtime`, with no live or fake herdr socket in the loop at
+      all. The production path (no `runtime` option passed) still wires
+      herdr as the only implementation anywhere `run` is actually invoked.
+  - kind: surprise
+    at: "2026-09-10T02:30:00Z"
+    expected: >
+      Backfilling this repository's real journal would reach `cleared` for
+      scaffold, ledger, ledger-gaps and face-read, and the critical path
+      would move to begin at `runner-command-gate`, as the acceptance
+      describes.
+    observed: >
+      `debrief-valid` is a standing gate on every node, and its stub always
+      exits 1 by design (until `debrief-schema` lands) -- so `buildCleared`
+      can never construct `cleared` for ANY node in this repository right
+      now; the honest outcome is always `held`. Backfill's first run (with
+      eligibility gated on a dependency's ledger outcome being literally
+      `cleared`) backfilled only `scaffold`, then structurally could never
+      reach `ledger`, `ledger-gaps` or `face-read`, since their one
+      dependency edge could never satisfy "cleared" either -- a total
+      deadlock past the first node, not the single-gate-failure case the
+      brief's "if a gate fails for a cleared node" sentence names.
+  - kind: choice
+    at: "2026-09-10T02:35:00Z"
+    chose: >
+      Changed backfill's dependency-eligibility check from "every
+      dependency's ledger outcome is `cleared`" to "every dependency also
+      has its own `debrief.yaml`", leaving the judged outcome itself
+      (`held`, honestly, while `debrief-valid` always fails) untouched.
+    because: >
+      "Already cleared... at main" in the brief's own acceptance sentence
+      names nodes whose PRs already merged -- known-complete by their
+      debrief, not by a ledger fact backfill exists precisely because the
+      ledger does not yet have. Gating eligibility on the ledger's
+      `cleared` outcome made the check circular: nothing can ever satisfy
+      it while `debrief-valid` is a standing, deliberately-always-failing
+      gate, so every node past the first would be permanently
+      unbackfillable regardless of its own real state. Gating on debrief
+      presence instead lets every already-debriefed, already-dependency-
+      debriefed node get honestly re-gated at main, which is what "the
+      position stops depending on pull-request bodies" asks for; the
+      backfill-can-never-reach-cleared finding itself is recorded under
+      `open` in the debrief, not hidden by loosening what "cleared" means.
+    rejected: >
+      ["forcing debrief-valid to pass for backfilled nodes (the brief's
+      own instruction against ever forcing a receipt)", "leaving the
+      ledger-outcome-based check as built and reporting only scaffold as
+      backfillable (technically defensible but defeats the acceptance's
+      own stated purpose -- catching up all four nodes' real receipts --
+      over a gate everyone already knows is a stub)"]
+  - kind: choice
+    at: "2026-09-10T03:00:00Z"
+    chose: >
+      Fix round on a blocking verifier finding: `cli/src/run.ts` now writes
+      the brief into the freshly created worktree, between
+      `createNodeWorktree` and the first herdr call, through a new
+      `runner/src/sessionBrief.ts` function `writeBriefIntoWorktree` that
+      reads the brief.md `briefExists` already verified present on the
+      caller's own disk and writes it to the same relative
+      `.interlock/sessions/<graph>/<node>/brief.md` path inside the
+      worktree, creating the directory. `interlock run`'s worktree stays
+      checked out at the graph's base SHA, unchanged; only the brief write
+      is new.
+    because: >
+      The finding proved, against the live shared journal and this
+      session's own prior debrief (graph_base_sha
+      1833f7950a28cf17ea02790cf7b13e70471ee323), that a node's own brief is
+      committed strictly after the graph's approval commit in the general
+      case -- exactly what docs/design/0001-interlock.md's 2026-09-09 bend
+      log already says ("a session starts at the commit that contains its
+      brief, which cannot be known while writing it") -- so the worktree's
+      checked-out tree structurally never contains brief.md, and nothing
+      between worktree creation and opening the herdr pane wrote it in.
+      This breaks the acceptance's own literal "writes the brief into the
+      worktree" clause for the very next undriven node. The "What the
+      runner is" section of this same, immutable brief says "copies
+      nothing, the brief is already in the tree" -- an assumption the
+      finding disproves; the acceptance is the binding text ("Acceptance
+      (verbatim from the graph)"), the wall rules forbid editing brief.md
+      to reconcile the contradiction, so this entry records it instead of
+      silently picking a side. Reading the source content from the
+      caller's own disk (not a git ref) reuses exactly what `briefExists`
+      already checked, rather than inventing a second, git-object-based
+      read path.
+    rejected: >
+      ["checking the worktree out at the node's own session-start SHA
+      instead of the graph base SHA (the acceptance names 'the graph's
+      base SHA' as its own separate clause, and that SHA cannot be known
+      before the brief is written, per the 2026-09-09 bend log -- moving
+      the checkout point would trade one acceptance violation for
+      another)", "reading brief.md from a git ref (e.g. the node's own
+      later commit) instead of the caller's live disk (no such ref is
+      knowable or stable at this point in `interlock run`, and
+      `briefExists`/`briefPath` already establish disk, not git history,
+      as this brief's source of truth)"]
+  - kind: choice
+    at: "2026-09-10T00:59:00Z"
+    chose: >
+      For each of the ten targeted comments, either deleted it outright
+      once its claim already lived in a name (gateCommand's and
+      gateJudge's claims moved into test titles, lease's heartbeat rule
+      into `HEARTBEATS_PER_LEASE`/`heartbeatInterval`, worktree's reuse
+      rule into the name `ensureNodeWorktree`), or compressed it to one
+      line stating only the local why (sessionBrief.ts, backfill.ts,
+      scope.ts, sweep.ts, tmux/adapter.ts), or trimmed it to match
+      ledger's and face's own wording for the same compiler-flag
+      constraint (validate.ts).
+    because: >
+      AGENTS.md's own rule -- "No README, docs or comments that explain
+      what the code plainly says. Docs explain why" -- means a comment
+      earns its place only when its why is genuinely local and not
+      already carried by a name, a test, or docs/design/0001-interlock.md.
+      Five comments stated a why no identifier or test title captures
+      (git-checkout timing, dependency-debrief eligibility, the graph
+      format's own scope gap, the ledger's own missing outcome kind,
+      tmux's own observability limit), so those were kept but compressed
+      instead of deleted, matching the repository owner's instruction to
+      replace them with one line each rather than remove them outright.
+      The other five stated only mechanics (an array's concatenation
+      order, a re-run rule, a division by three, a reuse guarantee) or
+      restated AGENTS.md/the brief verbatim, so a name or a test proves
+      the same claim more durably than prose that can drift from the
+      code beside it.
+    rejected: >
+      ["deleting all ten outright and pointing every reader at the design
+      note (the five one-line survivors' why is a fact about this file's
+      own local reasoning, not the design note's project history, and
+      would be lost rather than relocated)", "leaving every comment at its
+      original multi-line length (the repository owner's rule for this
+      public face is as few comments as possible; a name, a type, a test
+      or a module boundary is preferred wherever one already carries the
+      meaning)"]
