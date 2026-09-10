@@ -25,5 +25,5 @@ export {
   currentCommitSha,
   findRepoRoot,
   graphFilePath,
-  journalDirectory,
+  sharedJournalDirectory,
 } from "./root.ts";

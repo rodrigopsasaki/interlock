@@ -6,7 +6,7 @@ import {
   explainGraphRefusal,
   findRepoRoot,
   graphFilePath,
-  journalDirectory,
+  sharedJournalDirectory,
   loadGraphDocument,
 } from "face";
 import {
@@ -74,7 +74,7 @@ export async function runGraphApprove(
     return { exitCode: 1, message: explainGraphRefusal(document.error) };
   }
 
-  const journal = journalDirectory(repoRoot);
+  const journal = sharedJournalDirectory(repoRoot);
   const clock = createSystemClock();
   const opened = await createLedger({ clock, directory: journal });
   if (isErr(opened)) {

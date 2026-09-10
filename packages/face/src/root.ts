@@ -16,10 +16,7 @@ export function graphFilePath(repoRoot: string, graphId: string): string {
   return join(repoRoot, ".interlock", "graphs", `${graphId}.yaml`);
 }
 
-// The journal belongs to the repository, not the worktree: every worktree of one repository
-// shares the git dir common to all of them, so resolving the journal under its parent means
-// every worktree reads and writes the same journal.
-export function journalDirectory(repoRoot: string): string {
+export function sharedJournalDirectory(repoRoot: string): string {
   const commonDir = execFileSync("git", ["rev-parse", "--git-common-dir"], {
     cwd: repoRoot,
     encoding: "utf-8",

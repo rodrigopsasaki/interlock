@@ -198,17 +198,13 @@ const PASS_THROUGH_KINDS: ReadonlySet<string> = new Set([
   "outbox-intent-recorded",
 ]);
 
-// `Node`, `Brief`, `Session` and `Note` never changed under this session, so the current,
-// v2 guard already validates their v1 shape; only `Gate`, `Receipt`, `Outcome` and `Debrief`
-// need a v1-specific reading. `debrief-filed` carries fields (graph base and session start
-// SHAs, gates run by the agent, a decision's because) v1 never recorded and cannot honestly
-// synthesize, so it is refused the same way a v1 `reset` is.
 export function upcastV1(raw: unknown): LedgerEvent | undefined {
   if (!isRecord(raw)) return undefined;
   const kind = prop(raw, "kind");
   if (typeof kind !== "string") return undefined;
 
   if (PASS_THROUGH_KINDS.has(kind)) return isLedgerEvent(raw) ? raw : undefined;
+  // v1 never recorded debrief-filed's fields, so it is refused the same way a v1 `reset` is.
   if (kind === "debrief-filed") return undefined;
 
   const node = prop(raw, "node");

@@ -5,7 +5,7 @@ import {
   explainGraphRefusal,
   findRepoRoot,
   graphFilePath,
-  journalDirectory,
+  sharedJournalDirectory,
   loadGraphDocument,
   renderPosition,
 } from "face";
@@ -40,7 +40,7 @@ export async function runGraphShow(
     return { exitCode: 1, message: explainGraphRefusal(document.error) };
   }
 
-  const journal = journalDirectory(repoRoot);
+  const journal = sharedJournalDirectory(repoRoot);
   const replayed = await readReplay(journal);
   if (isErr(replayed)) {
     return {

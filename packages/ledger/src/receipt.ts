@@ -39,9 +39,6 @@ export interface Receipt {
   readonly proof: Readonly<Record<string, unknown>>;
 }
 
-// A receipt is addressed by the content of the paths in its scope, never by where the
-// repository checking them out happens to live. Every scope path is given relative to
-// `root`; an absolute path, or one that resolves outside `root`, is a refusal, not a hash.
 export type ScopeRefusal =
   | { readonly kind: "absolute-path"; readonly path: string }
   | {
