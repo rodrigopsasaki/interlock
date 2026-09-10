@@ -101,3 +101,77 @@ entries:
       (the ledger session's and face-read's) already carries under
       `gates_run_by_agent:` -- the type says what those files already are,
       not a new invention.
+  - kind: choice
+    at: "2026-09-09T22:35:00Z"
+    chose: >
+      Built the event@v1 upcaster as a new module,
+      packages/ledger/src/upcast/v1.ts, with its own frozen V1Receipt /
+      V1Gate / V1Outcome shapes and guards, rather than widening the
+      current (now v2) guards to accept either version.
+    because: >
+      outcome.ts/receipt.ts/debrief.ts's own guards must keep validating
+      only the current shape -- a v1 body needs a genuinely different
+      reading (no `on`, no reset authority, no receipt duration) before any
+      transform is safe. Freezing the old shapes in one file named for what
+      it does keeps that reading in one place instead of scattering
+      `| v1Thing` arms through every current type.
+  - kind: choice
+    at: "2026-09-09T22:37:00Z"
+    chose: >
+      For the five event kinds whose payload never changed (node-created,
+      lease-taken, lease-renewed, lease-expired, session-started,
+      note-appended, outbox-intent-recorded), the v1 upcaster calls the
+      CURRENT isLedgerEvent guard directly instead of hand-rolling parallel
+      v1 copies of isNode/isBrief/isSession/isNote.
+    because: >
+      Node, Brief, Session and Note did not change under this session, so
+      the current v2 guard already validates a v1 body for these kinds
+      losslessly -- composing the existing guard is smaller and more
+      honest than a parallel copy that would only ever agree with it.
+  - kind: surprise
+    at: "2026-09-09T22:40:00Z"
+    expected: >
+      Only `held` and `reset` outcomes would need special v1-upcast
+      handling, since those are the two Outcome arms the brief names.
+    observed: >
+      `receipts: readonly Receipt[]` is a field on EVERY Outcome arm --
+      cleared, failed, cancelled and superseded carry receipts too -- so a
+      v1 outcome of any kind needs its embedded receipts upcast for
+      duration, not only held's. upcastOutcome maps `receipts` through
+      upcastReceipt unconditionally, before the per-kind switch.
+  - kind: choice
+    at: "2026-09-09T22:42:00Z"
+    chose: >
+      A v1 `reset` outcome-set event upcasts to `undefined` -- a
+      principled per-body refusal, using the exact registered-tag-but-
+      guard-fails refusal path replay.ts and replay.test.ts already prove
+      -- rather than inventing an authority or a because.
+    because: >
+      v1 never recorded either field for a reset; synthesizing one would
+      be exactly the "fake zero" the brief warns against for duration, only
+      for a string instead of a number. Recorded under `open`: a real v1
+      journal carrying a reset outcome would refuse replay at that line
+      rather than silently gain a fabricated reason.
+  - kind: choice
+    at: "2026-09-09T22:43:00Z"
+    chose: >
+      A v1 `debrief-filed` event also upcasts to `undefined`
+      unconditionally, for every body, rather than a parallel V1Debrief
+      type that would only ever be built to immediately refuse.
+    because: >
+      Debrief's four new required fields (graphBaseSha, sessionStartSha,
+      derivation, gatesRunByAgent) have no v1 equivalent and, unlike
+      duration, no natural "unknown" arm to upcast into honestly -- and no
+      code anywhere converts a debrief.yaml file into a debrief-filed event
+      yet, so this path is unreachable in practice today. Recorded under
+      `open` as the same tension as reset.
+  - kind: surprise
+    at: "2026-09-09T22:45:00Z"
+    expected: >
+      Held's v1-to-v2 upcast might carry the same honesty tension as reset
+      -- ambiguous which HeldOn arm a v1 held event meant.
+    observed: >
+      It does not: v1 had no data-on-held distinction at all, so every v1
+      held event only ever meant "waiting on a failed gate." The upcast to
+      heldOn.gateFailure(failure, disposition) is lossless and unambiguous,
+      with nothing to record under `open`.

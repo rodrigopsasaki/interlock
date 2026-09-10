@@ -1,0 +1,2 @@
+{"interlock":"event@v1","kind":"node-created","node":{"graph":"0001-bootstrap","id":"0001-bootstrap"}}
+{"interlock":"event@v1","kind":"gate-moved","node":{"graph":"0001-bootstrap","id":"0001-bootstrap"},"gate":"approved","to":{"kind":"satisfied","receipt":{"id":"a3071e0bcc5450812fb0d52753b4a6815c7aebdfce3f71dd6f1a293f127c1b69","gate":"approved","commitSha":"29b0ea4967025644eb912c6f5c87b0c7cf1f1f2f","spend":{"kind":"none"},"derivation":{"kind":"human","who":"Rodrigo Sasaki"},"proof":{"because":"greenlighting first graph"}}}}

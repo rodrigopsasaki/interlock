@@ -7,12 +7,12 @@ import { derivation } from "../src/derivation.js";
 import { EVENT_SHAPE, upcastTable, type Upcaster } from "../src/envelope.js";
 import type { LedgerEvent } from "../src/event.js";
 import { gate } from "../src/gate.js";
-import { isNode, type Node } from "../src/graph.js";
+import { isNode, nodeKey, type Node } from "../src/graph.js";
 import { createLedger } from "../src/ledger.js";
 import { note } from "../src/note.js";
-import { outcome } from "../src/outcome.js";
+import { heldOn, outcome } from "../src/outcome.js";
 import { fold, type LedgerProjection } from "../src/projection.js";
-import type { Receipt } from "../src/receipt.js";
+import { duration, type Receipt } from "../src/receipt.js";
 import { parseLine, replayFromRaw } from "../src/replay.js";
 import { spend } from "../src/spend.js";
 import { isRecord, prop } from "../src/validate.js";
@@ -69,6 +69,7 @@ describe("crash-only replay", () => {
       gate: "typecheck",
       commitSha: "deadbeef",
       spend: spend.none(),
+      duration: duration.measured(842),
       derivation: derivation.gate("typecheck", "1", "runner"),
       proof: {},
     };
@@ -100,7 +101,11 @@ describe("crash-only replay", () => {
         to: gate.satisfied(receipt),
       },
       { kind: "receipt-written", node, receipt },
-      { kind: "outcome-set", node, outcome: outcome.reset([receipt]) },
+      {
+        kind: "outcome-set",
+        node,
+        outcome: outcome.reset([receipt], "Rodrigo Sasaki", "flaky suite"),
+      },
       { kind: "lease-expired", node, session: "session-1" },
     ];
 
@@ -250,5 +255,113 @@ describe("replay's versioned upcast seam", () => {
     expect(
       sameProjection(replayed.value, fold([{ kind: "node-created", node }])),
     ).toBe(true);
+  });
+
+  it("upcasts the real event@v1 fixture so the graph's approved gate is satisfied", () => {
+    const raw = readFileSync(
+      join(import.meta.dirname, "fixtures", "journal-v1-approved.jsonl"),
+      "utf-8",
+    );
+    const replayed = replayFromRaw(raw);
+    expect(replayed._tag).toBe("Ok");
+    if (replayed._tag !== "Ok") return;
+    const graphNode: Node = { graph: "0001-bootstrap", id: "0001-bootstrap" };
+    const approved = replayed.value.nodes
+      .get(nodeKey(graphNode))
+      ?.gates.get("approved");
+    expect(approved?.kind).toBe("satisfied");
+  });
+
+  it("upcasts that fixture's v1 receipt to the typed unknown duration, never a coerced number", () => {
+    const raw = readFileSync(
+      join(import.meta.dirname, "fixtures", "journal-v1-approved.jsonl"),
+      "utf-8",
+    );
+    const replayed = replayFromRaw(raw);
+    expect(replayed._tag).toBe("Ok");
+    if (replayed._tag !== "Ok") return;
+    const graphNode: Node = { graph: "0001-bootstrap", id: "0001-bootstrap" };
+    const approved = replayed.value.nodes
+      .get(nodeKey(graphNode))
+      ?.gates.get("approved");
+    expect(
+      approved?.kind === "satisfied" ? approved.receipt.duration : undefined,
+    ).toEqual({ kind: "unknown" });
+  });
+
+  it("upcasts a v1 held outcome to held's gate-failure arm, losslessly", () => {
+    const node: Node = { graph: "0001-bootstrap", id: "ledger" };
+    const v1Receipt: Omit<Receipt, "duration"> = {
+      id: "r1",
+      gate: "typecheck",
+      commitSha: "deadbeef",
+      spend: { kind: "none" },
+      derivation: { kind: "human", who: "Rodrigo Sasaki" },
+      proof: {},
+    };
+    const legacyLine = JSON.stringify({
+      interlock: "event@v1",
+      kind: "outcome-set",
+      node,
+      outcome: {
+        kind: "held",
+        receipts: [v1Receipt],
+        failure: "typecheck failed",
+        disposition: "repair",
+        because: "a real type error, not flaky",
+        expiry: 30_000,
+      },
+    });
+
+    const replayed = replayFromRaw(legacyLine);
+    expect(replayed._tag).toBe("Ok");
+    if (replayed._tag !== "Ok") return;
+    expect(replayed.value.nodes.get(nodeKey(node))?.outcome).toEqual(
+      outcome.held(
+        [{ ...v1Receipt, duration: { kind: "unknown" } }],
+        heldOn.gateFailure("typecheck failed", "repair"),
+        "a real type error, not flaky",
+        30_000,
+      ),
+    );
+  });
+
+  it("refuses a v1 reset outcome rather than inventing an authority or a because", () => {
+    const node: Node = { graph: "0001-bootstrap", id: "ledger" };
+    const legacyLine = JSON.stringify({
+      interlock: "event@v1",
+      kind: "outcome-set",
+      node,
+      outcome: { kind: "reset", receipts: [] },
+    });
+
+    const refused = replayFromRaw(legacyLine);
+    expect(refused).toEqual({
+      _tag: "Err",
+      error: { tag: "event@v1", line: 1 },
+    });
+  });
+
+  it("refuses a v1 debrief-filed event: v1 recorded none of the fields debrief@v2 requires", () => {
+    const legacyLine = JSON.stringify({
+      interlock: "event@v1",
+      kind: "debrief-filed",
+      session: "session-1",
+      debrief: {
+        graph: "0001-bootstrap",
+        node: "ledger",
+        role: "worker",
+        headSha: "deadbeef",
+        discoveries: [],
+        decisions: [],
+        open: [],
+      },
+    });
+
+    const refused = replayFromRaw(legacyLine);
+    expect(refused).toEqual({
+      _tag: "Err",
+      error: { tag: "event@v1", line: 1 },
+    });
   });
 });
