@@ -60,16 +60,33 @@ nodes:
         # Tests that assert the type-level claims by attempting to construct the illegal
         # values and expecting the compiler to refuse.
 
+  - id: ledger-gaps
+    acceptance: >
+      Four gaps the face exposed in the ledger's shapes, closed: an outcome kind for a voluntary
+      hold with authority and because and no failure; reset carries because and authority; a
+      receipt carries its duration; the debrief type carries derivation, graph base and session
+      start SHAs, gates run by the agent, produces on decisions, and a mandatory because on every
+      decision. The persisted shape moves to `event@v2` with the `event@v1` upcaster kept and
+      proven on a v1 fixture. The journal directory resolves per repository, shared across its
+      worktrees, not per worktree.
+    depends_on: [ledger]
+    gates:
+      - id: upcast-v1
+        kind: command
+        run: pnpm --filter ledger test --testNamePattern upcast
+
   - id: runner-command-gate
     acceptance: >
       A runner that claims a node under a lease, opens a worktree at the graph's base SHA, starts
       the configured agent in a herdr pane through the socket API behind a typed Runner interface,
       writes the brief into the worktree, waits for idle, blocked or done, runs the node's command
-      gates at the debriefed SHA, and appends content-addressed receipts with spend and
+      gates at the debriefed SHA, and appends content-addressed receipts with spend, duration and
       derivation. A sweeper, not the worker, notices an expired lease and writes abandoned; a
       re-run re-earns only receipts whose spend was none. herdr is touched in exactly one adapter
-      file. The tmux fallback compiles and is not wired.
-    depends_on: [ledger]
+      file. The tmux fallback compiles and is not wired. Its first act is to re-run the standing
+      gates for every node already cleared in the repository at main and write their receipts, so
+      the position stops depending on pull-request bodies.
+    depends_on: [ledger-gaps]
     gates:
       - id: one-adapter
         kind: command
