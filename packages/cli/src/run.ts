@@ -68,7 +68,6 @@ function isoOf(wallMs: number): string {
   return new Date(wallMs).toISOString();
 }
 
-// undefined for a fresh worktree, or a reused one with nothing left over from a prior session.
 function priorWorkOf(worktree: WorktreeOutcome): PriorWork | undefined {
   if (worktree.kind !== "reused") return undefined;
   if (worktree.uncommittedPaths === 0 && worktree.commitsBeyondBase === 0) {
@@ -165,8 +164,6 @@ export async function runInterlockRun(
   let pane: Pane | undefined;
   let agent: Agent | undefined;
   let runtime: Runtime | undefined;
-  // Before the prompt is taken, an unattended pane is the runner's to close on any refusal.
-  // Once a person may be looking at it, it stays open on anything short of the node clearing.
   let paneCustody: "runner" | "person" = "runner";
 
   try {
@@ -479,7 +476,6 @@ export async function runInterlockRun(
       abandonLease();
       return result;
     }
-    // The pane now belongs to the person: it stays open on anything short of the node clearing.
     paneCustody = "person";
     if (tookPrompt.value === "working") narrate("agent working");
 

@@ -216,8 +216,6 @@ export async function createHerdrRuntime(
     timeoutMs: number = defaultCallTimeoutMs,
   ) => callHerdr(socketPath, method, params, timeoutMs);
 
-  // agent.start retried on agent_pane_busy until the pane's shell is ready; any other remote
-  // refusal (an already-taken name, among them) is the caller's to decide how to answer.
   const attemptStartAgent = async (
     name: string,
     pane: Pane,
@@ -285,8 +283,6 @@ export async function createHerdrRuntime(
       if (!AGENT_KINDS.has(kind))
         return err({ kind: "unknown-agent-kind", agentKind: kind });
 
-      // The node's own id names the agent when it fits herdr's rule; a taken or otherwise
-      // refused preferred id falls back to a generated one, never a second attempt at itself.
       const preferredIsCompliant =
         preferredId !== undefined && isCompliantAgentName(preferredId);
       const primary = preferredIsCompliant ? preferredId : generateAgentName();

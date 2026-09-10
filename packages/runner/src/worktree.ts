@@ -103,8 +103,6 @@ function commitsBeyondBase(
   return ok(Number.parseInt(counted.value.trim(), 10));
 }
 
-// A porcelain line is two status characters, a space, then the path; a rename carries its
-// destination after " -> ". Never the source the commit above `reset --hard` would discard.
 function parsePorcelainPath(line: string): string {
   const path = line.slice(3);
   const arrow = path.indexOf(" -> ");
@@ -140,8 +138,6 @@ function reused(
   };
 }
 
-// Never resets over uncommitted work: a tip behind its base only fast-forwards when the tree is
-// clean, and a tip ahead of its base is prior work to resume, not a divergence to refuse.
 function reuseWorktree(
   repoRoot: string,
   path: string,
@@ -198,9 +194,6 @@ export function ensureNodeWorktree(
 const BRIEF_COMMIT_FOOTER =
   "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>";
 
-// Commits the brief the runner just wrote, and only the brief: the worktree is clean when the
-// agent starts, and R2's uncommitted-work check holds on a node's first run, not only resumed
-// ones. Never touches git identity; whatever the worktree's own config resolves is who commits.
 export function commitBriefIfChanged(
   worktreePath: string,
   briefRelativePath: string,

@@ -13,10 +13,6 @@ import {
 const AFTER_BLOCKED: readonly AgentStatus[] = ["working", "idle", "done"];
 const AFTER_WORKING: readonly AgentStatus[] = ["idle", "blocked", "done"];
 
-// After the prompt is taken, blocked is a person's turn, not the session's end: the loop keeps
-// waiting through it, narrating the pane to answer and the agent going back to work, until the
-// agent settles on idle or done, or the run's own deadline (set once by the caller, never reset
-// by a blocked/working transition) is spent.
 export async function waitForSession(
   runtime: Runtime,
   agent: Agent,
