@@ -204,8 +204,8 @@ export function commitBriefIfChanged(
   if (isErr(dirty)) return dirty;
   if (!dirty.value.includes(briefRelativePath)) return ok(undefined);
 
-  const added = git(worktreePath, ["add", "--", briefRelativePath]);
-  if (isErr(added)) return added;
+  const staged = git(worktreePath, ["add", "--", briefRelativePath]);
+  if (isErr(staged)) return staged;
 
   const message = [
     `chore(${node}): write the session brief`,
@@ -214,7 +214,13 @@ export function commitBriefIfChanged(
     "",
     BRIEF_COMMIT_FOOTER,
   ].join("\n");
-  const committed = git(worktreePath, ["commit", "-m", message]);
+  const committed = git(worktreePath, [
+    "commit",
+    "-m",
+    message,
+    "--",
+    briefRelativePath,
+  ]);
   if (isErr(committed)) return committed;
 
   const short = git(worktreePath, ["rev-parse", "--short", "HEAD"]);

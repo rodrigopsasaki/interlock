@@ -259,6 +259,46 @@ describe("commitBriefIfChanged", () => {
     expect(changed).toBe("root.txt");
   });
 
+  it("leaves an unrelated staged file and an unstaged edit exactly as they were", () => {
+    const repoRoot = fixtureRepo();
+    const sha = headSha(repoRoot);
+    const path = join(repoRoot, ".worktrees", "node-a");
+    unwrap(ensureNodeWorktree(repoRoot, path, sha, "graph/demo/node-a"));
+
+    writeFileSync(
+      join(path, "staged-earlier.txt"),
+      "left by an earlier session\n",
+    );
+    execFileSync("git", ["add", "staged-earlier.txt"], { cwd: path });
+    writeFileSync(join(path, "root.txt"), "unstaged edit\n");
+    writeFileSync(join(path, "brief.md"), "brief content\n");
+    execFileSync("git", ["add", "brief.md"], { cwd: path });
+
+    const result = commitBriefIfChanged(
+      path,
+      "brief.md",
+      "node-a",
+      "session-1",
+    );
+
+    expect(isOk(result)).toBe(true);
+    expect(unwrap(result)).toBeDefined();
+
+    const status = execFileSync("git", ["status", "--porcelain"], {
+      cwd: path,
+      encoding: "utf-8",
+    });
+    expect(status).toContain("staged-earlier.txt");
+    expect(status).toContain("root.txt");
+
+    const changed = execFileSync(
+      "git",
+      ["show", "--name-only", "--pretty=", "HEAD"],
+      { cwd: path, encoding: "utf-8" },
+    ).trim();
+    expect(changed).toBe("brief.md");
+  });
+
   it("commits nothing and reports no sha when the path already matches HEAD", () => {
     const repoRoot = fixtureRepo();
     const sha = headSha(repoRoot);
