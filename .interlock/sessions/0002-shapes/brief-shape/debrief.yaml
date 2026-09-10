@@ -4,7 +4,7 @@ node: brief-shape
 role: worker
 graph_base_sha: 95a672046a5cfca8bb356e15e63ba433f54c9920
 session_start_sha: 95a672046a5cfca8bb356e15e63ba433f54c9920
-head_sha: 71c6e759e74356ae4daede694be5275dc4cd7e70
+head_sha: c020cbbdb4ec6bf5368ba10f755d8f12ac556b1b
 derivation:
   kind: agent
   runtime: claude-code
@@ -345,6 +345,135 @@ decisions:
       - "brief:Deliverable 3"
     hunks:
       - ".interlock/sessions/0002-shapes/brief-shape/debrief.yaml"
+  - id: c19
+    what: |
+      Deliverable 4 requires, verbatim in the debrief: the output of `interlock brief
+      validate` for every existing brief (all brief@v0) and for a brief@v1 fixture, and
+      that fixture's exact front matter. Recorded here in full.
+
+      interlock brief validate, every existing brief (all brief@v0):
+
+      $ mise exec -- pnpm interlock brief validate 0001-bootstrap debrief-schema
+      .interlock/sessions/0001-bootstrap/debrief-schema/brief.md: valid as brief@v0; the runner requires brief@v1.
+      (exit 0)
+
+      $ mise exec -- pnpm interlock brief validate 0001-bootstrap face-read
+      .interlock/sessions/0001-bootstrap/face-read/brief.md: valid as brief@v0; the runner requires brief@v1.
+      (exit 0)
+
+      $ mise exec -- pnpm interlock brief validate 0001-bootstrap ledger
+      .interlock/sessions/0001-bootstrap/ledger/brief.md: valid as brief@v0; the runner requires brief@v1.
+      (exit 0)
+
+      $ mise exec -- pnpm interlock brief validate 0001-bootstrap ledger-gaps
+      .interlock/sessions/0001-bootstrap/ledger-gaps/brief.md: valid as brief@v0; the runner requires brief@v1.
+      (exit 0)
+
+      $ mise exec -- pnpm interlock brief validate 0001-bootstrap runner-command-gate
+      .interlock/sessions/0001-bootstrap/runner-command-gate/brief.md: valid as brief@v0; the runner requires brief@v1.
+      (exit 0)
+
+      $ mise exec -- pnpm interlock brief validate 0001-bootstrap scaffold
+      .interlock/sessions/0001-bootstrap/scaffold/brief.md: valid as brief@v0; the runner requires brief@v1.
+      (exit 0)
+
+      $ mise exec -- pnpm interlock brief validate 0001-bootstrap verifier-hunks
+      .interlock/sessions/0001-bootstrap/verifier-hunks/brief.md: valid as brief@v0; the runner requires brief@v1.
+      (exit 0)
+
+      $ mise exec -- pnpm interlock brief validate 0002-shapes brief-shape
+      .interlock/sessions/0002-shapes/brief-shape/brief.md: valid as brief@v0; the runner requires brief@v1.
+      (exit 0)
+
+      interlock brief validate, the brief@v1 fixture:
+
+      $ mise exec -- pnpm interlock brief validate --file packages/debrief/test/fixtures/brief-v1.md
+      packages/debrief/test/fixtures/brief-v1.md: valid as brief@v1.
+      (exit 0)
+
+      Exact front matter of packages/debrief/test/fixtures/brief-v1.md:
+
+      ---
+      interlock: brief@v1
+      graph: 0002-shapes
+      node: fixture-node
+      role: worker
+      gates:
+        - id: typecheck
+          kind: command
+          run: pnpm typecheck
+        - id: fixture-gate
+          kind: command
+          run: pnpm test
+          expect_output: 'Tests +[1-9][0-9]* passed'
+      scope:
+        - packages/debrief/src/brief.ts
+        - packages/debrief/test/fixtures/brief-v1.md
+      substrate:
+        address: none
+      ---
+    because: >
+      "brief:Deliverable 4" requires this exact content, verbatim, in the debrief; a
+      fix-round verifier (finding 1) found it absent -- gates_run_by_agent names only
+      typecheck, test, debrief-valid and brief-legacy, and decision c6 cited the fixture
+      by hunk without quoting it or the validator's output. Recorded here in full so the
+      requirement is met by inspection, not by trusting a gate that does not check it.
+    rests_on:
+      - "brief:Deliverable 4"
+      - "verifier finding 1"
+    hunks:
+      - ".interlock/sessions/0002-shapes/brief-shape/debrief.yaml:decisions.c19"
+      - "packages/debrief/test/fixtures/brief-v1.md:1-19"
+
+  - id: c20
+    what: >
+      In packages/debrief/test/brief.test.ts's legacy-front-matter test, replaced
+      "const legacy = result.value as LegacyBrief" with a "result.value.kind !== \"legacy\""
+      guard that throws, letting TypeScript narrow BriefRead to LegacyBrief on its own; dropped
+      the LegacyBrief import, now unused.
+    because: >
+      A fix-round verifier (finding 2) found the cast doing real narrowing work: the runtime
+      assertion two lines above it (expect(result.value.kind).toBe("legacy")) does not narrow
+      the type, so the cast was the only thing making "legacy.missingFields" type-check. The
+      same test file already uses the correct idiom two lines up for the sibling Result union
+      ("if (!isOk(result)) return;"); this applies that same idiom to BriefRead, with no cast.
+    rests_on:
+      - "verifier finding 2"
+      - "packages/debrief/test/brief.test.ts:76-77"
+    hunks:
+      - "packages/debrief/test/brief.test.ts:1-248"
+
+  - id: c21
+    what: >
+      Appended two entries to .interlock/sessions/0002-shapes/brief-shape/notes.yaml this fix
+      round: the choice behind c20 (narrow instead of cast), and the choice behind c19 (embed
+      the deliverable-4 evidence as a decision, not a new top-level field).
+    because: >
+      "brief:Deliverable 2" requires notes.yaml appended while working, committed with the code;
+      c17 already covers the session's original four notes commits, and this decision covers
+      the two this fix round adds on top of them.
+    rests_on:
+      - "brief:Deliverable 2"
+      - "c17"
+    hunks:
+      - ".interlock/sessions/0002-shapes/brief-shape/notes.yaml:194-230"
+
+  - id: c22
+    what: >
+      Updated this debrief (still debrief@v2): bumped head_sha to c020cbbdb4ec6bf5368ba10f755d8f12ac556b1b
+      (the last code commit, c21's notes append), added decisions c19-c22 with a because on
+      each, and added an open note explaining that verifier finding 3 was already resolved by
+      commit c1709a0 before this fix round began.
+    because: >
+      "brief:Deliverable 3" requires debrief@v2 as the final commit, head_sha the last code
+      commit, a because on every decision, decisions a manifest of every changed file; this is
+      that same requirement applied to the fix round's own changes, mirroring c18's role for
+      the original filing.
+    rests_on:
+      - "brief:Deliverable 3"
+      - "c18"
+    hunks:
+      - ".interlock/sessions/0002-shapes/brief-shape/debrief.yaml"
 gates_run_by_agent:
   - id: typecheck
     result: pass
@@ -377,3 +506,10 @@ open:
     The tension between this node's own Readers paragraph and Errors bullet over what "missing
     tag" means (d1) is worth a maintainer's read; brief@v1's reader resolved it one way, and
     the design note could say so explicitly rather than leaving two paragraphs to disagree.
+  - >
+    A fix-round verifier's finding 3 ("no debrief.yaml exists for this session ... debrief-valid
+    exits 1") was accurate against commit 71c6e759 but was already resolved before this fix
+    round began: commit c1709a0 ("file the closing debrief@v2") added debrief.yaml, and it was
+    already present, valid, and passing debrief-valid at this session's HEAD when the fix round
+    started. No code change was needed for it; head_sha above and gates_run_by_agent below are
+    re-verified against the debrief.yaml this fix round produced, including decision c19.
