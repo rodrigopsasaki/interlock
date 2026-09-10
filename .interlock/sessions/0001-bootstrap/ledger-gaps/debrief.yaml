@@ -1,0 +1,394 @@
+interlock: debrief@v1
+graph: 0001-bootstrap
+node: ledger-gaps
+role: worker
+graph_base_sha: 29b0ea4967025644eb912c6f5c87b0c7cf1f1f2f
+session_start_sha: 9e49cfa4d820721ae4af8016c5fb69d64e883b65
+head_sha: 204532a359d9354348eefd4c503eceae26d9d873
+derivation:
+  kind: agent
+  runtime: claude-code
+  model: claude-sonnet-5
+discoveries:
+  - id: d1
+    what: >
+      `receipts: readonly Receipt[]` is a field on EVERY Outcome arm, not
+      only `held` -- cleared, failed, cancelled and superseded all carry
+      it too.
+    found_at: >
+      reading packages/ledger/src/outcome.ts's Outcome union in full before
+      writing the v1 upcaster.
+    mattered_because: >
+      A v1-to-v2 upcast of ANY outcome kind needs its embedded receipts
+      upcast for duration, not only held's -- upcastOutcome
+      (packages/ledger/src/upcast/v1.ts:168-189) maps `receipts` through
+      upcastReceipt unconditionally, before the per-kind switch, or every
+      non-held v1 outcome would keep pre-duration receipts.
+  - id: d2
+    what: >
+      `git rev-parse --git-common-dir` returns a RELATIVE path (".git")
+      when run from inside the main worktree itself, but an ABSOLUTE path
+      when run from a linked worktree.
+    found_at: >
+      running `git rev-parse --git-common-dir` by hand both from this
+      linked worktree (an absolute path) and from the repository's main
+      worktree (a relative ".git"), before writing journalDirectory.
+    mattered_because: >
+      journalDirectory (packages/face/src/root.ts:22-28) resolves the
+      command's output with node:path's `resolve(repoRoot, commonDir)`
+      rather than a bare `join`, so both cases land on the same absolute
+      path; a bare join would have produced a wrong nested path for the
+      main-worktree case.
+  - id: d3
+    what: >
+      `interlock graph show 0001-bootstrap`, run from this worktree after
+      the journal-per-repository fix, reads the repository's own real
+      journal for the first time (a two-line event@v1 journal a person
+      wrote earlier with `interlock graph approve`, the same content as
+      the fixture supplied to this session) and reports the graph STALE,
+      not approved and not not-approved.
+    found_at: >
+      `mise exec -- pnpm interlock graph show 0001-bootstrap` from this
+      worktree's own root, at head_sha.
+    mattered_because: >
+      Confirms the fix reaches the repository's real, previously-invisible
+      approval. The STALE report is itself correct, not a defect: this
+      very node (ledger-gaps) was added to the graph after that approval
+      was recorded, which is exactly D20 and the bend log's own documented
+      stale-on-edit rule. Re-approving is a human action
+      (`interlock graph approve`) and stays out of this session's scope.
+decisions:
+  - id: c1
+    what: >
+      Redesigned `held` around a typed `on: HeldOn` field -- HeldOn =
+      {kind:"gate-failure", failure, disposition} |
+      {kind:"decision", authority} -- so a voluntary hold carries an
+      authority and a because with no failure at all, never as a second
+      Outcome kind.
+    because: notes:1
+    rests_on: ["brief:What this node closes, and how", "AGENTS.md:vocabulary#held", "notes:1"]
+    hunks:
+      - "packages/ledger/src/outcome.ts:7-13"
+      - "packages/ledger/src/outcome.ts:17-23"
+      - "packages/ledger/src/outcome.ts:74-81"
+      - "packages/ledger/src/outcome.ts:94-105"
+      - "packages/ledger/src/outcome.ts:144-159"
+      - "packages/ledger/src/outcome.ts:169-174"
+  - id: c2
+    what: >
+      Gave `reset` its own `authority` and `because`, the same two fields
+      `cancelled` and `superseded` already carry, and split isOutcome's
+      merged cleared/reset case so reset's fields are actually checked.
+    because: notes:2
+    rests_on: ["brief:What this node closes, and how", "notes:2"]
+    hunks:
+      - "packages/ledger/src/outcome.ts:24-29"
+      - "packages/ledger/src/outcome.ts:84-93"
+      - "packages/ledger/src/outcome.ts:175-178"
+  - id: c3
+    what: >
+      Typed a receipt's duration as `Duration = {kind:"measured", ms} |
+      {kind:"unknown"}`, required on Receipt and on createReceipt's
+      argument list (placed between spend and derivation), validated by
+      isReceipt.
+    because: notes:3
+    rests_on: ["brief:What this node closes, and how", "docs/design/0001-interlock.md#Gates", "notes:3", "notes:4"]
+    hunks:
+      - "packages/ledger/src/receipt.ts:7-28"
+      - "packages/ledger/src/receipt.ts:30-38"
+      - "packages/ledger/src/receipt.ts:53-64"
+      - "packages/ledger/src/receipt.ts:66-77"
+  - id: c4
+    what: >
+      cli/graph/approve.ts now imports `duration` and passes
+      `duration.unknown()` into createReceipt for the human "approved"
+      gate -- nothing about a person's click has a measured wall-clock
+      gate duration.
+    because: notes:5
+    rests_on: ["notes:5"]
+    hunks:
+      - "packages/cli/src/graph/approve.ts:15"
+      - "packages/cli/src/graph/approve.ts:96-104"
+  - id: c5
+    what: >
+      Added `derivation` (a new DebriefDerivation type -- agent{runtime,
+      model} | human{who}, distinct from ledger's existing per-receipt
+      Derivation), `graphBaseSha`, `sessionStartSha` and `gatesRunByAgent`
+      (GateRun{id, result:"pass"|"fail", invocation?, note?}) to Debrief,
+      and a required `because` to Decision; updated isDebrief/isDecision/
+      isDebriefDerivation/isGateRun to match.
+    because: notes:6
+    rests_on: ["brief:What this node closes, and how", "docs/design/0002-face.md#Views", "notes:6", "notes:7"]
+    hunks:
+      - "packages/ledger/src/debrief.ts:10-18"
+      - "packages/ledger/src/debrief.ts:20-31"
+      - "packages/ledger/src/debrief.ts:33-45"
+      - "packages/ledger/src/debrief.ts:57-70"
+      - "packages/ledger/src/debrief.ts:72-99"
+      - "packages/ledger/src/debrief.ts:101-122"
+  - id: c6
+    what: >
+      Exported the new names (Duration/duration/isDuration, HeldOn/heldOn/
+      isHeldOn, DebriefDerivation/isDebriefDerivation, GateRun/isGateRun)
+      from packages/ledger/src/index.ts.
+    because: "the manifest rule: every new public type and factory needs a public export or it is not actually usable outside the package"
+    rests_on: ["brief:Deliverable"]
+    hunks:
+      - "packages/ledger/src/index.ts:3-16"
+      - "packages/ledger/src/index.ts:39-46"
+      - "packages/ledger/src/index.ts:54-62"
+  - id: c7
+    what: >
+      Bumped EVENT_SHAPE to event@v2 and replaced the prior event@v1 table
+      entry (the identity function under the old, now-current guard) with
+      a real transform, upcastV1.
+    because: notes:8
+    rests_on: ["brief:What this node closes, and how", "docs/design/0001-interlock.md#Compatibility", "notes:8"]
+    hunks:
+      - "packages/ledger/src/envelope.ts:1-2"
+      - "packages/ledger/src/envelope.ts:5"
+      - "packages/ledger/src/envelope.ts:23-26"
+  - id: c8
+    what: >
+      Built the v1-to-v2 event transform as a new module,
+      packages/ledger/src/upcast/v1.ts: frozen V1Receipt/V1Gate/V1Outcome
+      shapes and guards; upcastReceipt adds the typed unknown duration;
+      upcastGate/upcastOutcome recurse through them; the five unaffected
+      kinds reuse the current isLedgerEvent guard directly; reset and
+      debrief-filed refuse rather than fabricate a reason.
+    because: notes:9
+    rests_on: ["brief:What this node closes, and how", "brief:Deliverable", "notes:8", "notes:9", "notes:10", "notes:11", "notes:12", "notes:13", "d1"]
+    hunks:
+      - "packages/ledger/src/upcast/v1.ts"
+  - id: c9
+    what: >
+      Copied the supplied real two-line event@v1 fixture into
+      packages/ledger/test/fixtures/journal-v1-approved.jsonl.
+    because: "brief:Read first item 6 -- the fixture is the upcast-v1 gate's proof, and it is not synthetic"
+    rests_on: ["brief:Read first"]
+    hunks:
+      - "packages/ledger/test/fixtures/journal-v1-approved.jsonl"
+  - id: c10
+    what: >
+      Updated replay.test.ts's own pre-existing crash-only-replay receipt
+      literal and reset-outcome call to the new required duration/
+      authority/because fields.
+    because: "the file's other fixture data must keep compiling and asserting the same crash-only behaviour under the new required fields"
+    rests_on: ["notes:2", "notes:3"]
+    hunks:
+      - "packages/ledger/test/replay.test.ts:6-18"
+      - "packages/ledger/test/replay.test.ts:67-75"
+      - "packages/ledger/test/replay.test.ts:104-108"
+  - id: c11
+    what: >
+      Added five tests to replay.test.ts's "replay's versioned upcast
+      seam" describe block: the real fixture replays to an approved gate;
+      its receipt's duration upcasts to the typed unknown arm; a
+      hand-authored v1 held event upcasts losslessly to held's
+      gate-failure arm; a hand-authored v1 reset event refuses instead of
+      inventing a reason; a hand-authored v1 debrief-filed event refuses
+      the same way.
+    because: >
+      "brief:Read first item 6 and Deliverable item 4 -- the fixture's
+      replay result and the upcast rules are the session's own proof, and
+      the upcast-v1 gate selects on the describe block's name, already
+      containing 'upcast'"
+    rests_on: ["brief:Gates", "notes:11", "notes:12", "notes:13", "d1"]
+    hunks:
+      - "packages/ledger/test/replay.test.ts:260-273"
+      - "packages/ledger/test/replay.test.ts:275-291"
+      - "packages/ledger/test/replay.test.ts:292-327"
+      - "packages/ledger/test/replay.test.ts:329-343"
+      - "packages/ledger/test/replay.test.ts:345-367"
+  - id: c12
+    what: "Added the required duration field to gate.test.ts's shared receipt literal."
+    because: "type-only sync: the literal must keep compiling under the now-required Receipt.duration"
+    rests_on: ["notes:3"]
+    hunks:
+      - "packages/ledger/test/gate.test.ts:1-15"
+  - id: c13
+    what: >
+      Updated outcome.test.ts: receiptFor gains duration; the held test
+      now goes through heldOn.gateFailure/heldOn.decision; added a
+      reset-carries-authority-and-because test alongside the existing
+      cancelled/superseded one.
+    because: notes:1
+    rests_on: ["notes:1", "notes:2", "notes:3"]
+    hunks:
+      - "packages/ledger/test/outcome.test.ts:1-18"
+      - "packages/ledger/test/outcome.test.ts:48-93"
+  - id: c14
+    what: >
+      Updated projection.test.ts: the shared receipt literal gains
+      duration; the reset outcome-set event and its expectation both gain
+      authority/because; the inline debrief-filed literal gains the four
+      new Debrief fields.
+    because: "type-only sync plus the manifest rule for the one place this file constructs a Debrief"
+    rests_on: ["notes:2", "notes:3", "notes:6", "notes:7"]
+    hunks:
+      - "packages/ledger/test/projection.test.ts:10-30"
+      - "packages/ledger/test/projection.test.ts:43-55"
+      - "packages/ledger/test/projection.test.ts:95-111"
+  - id: c15
+    what: >
+      Added duration.measured(...) to every existing createReceipt call in
+      receipt.test.ts, and a new test asserting a receipt built with
+      duration.unknown() carries exactly {kind:"unknown"}.
+    because: notes:3
+    rests_on: ["notes:3"]
+    hunks:
+      - "packages/ledger/test/receipt.test.ts:1-11"
+      - "packages/ledger/test/receipt.test.ts:42-94"
+      - "packages/ledger/test/receipt.test.ts:96-124"
+  - id: c16
+    what: >
+      Updated unrepresentable.test.ts: okReceipt and the two existing
+      derivation/spend @ts-expect-error receipts gain duration; added a
+      third @ts-expect-error test for a receipt missing duration; replaced
+      the single held/failed test with five: held missing `on`/because/
+      expiry, held's gate-failure arm missing failure/disposition,
+      held-by-decision's positive construction plus its two
+      @ts-expect-error arms, failed alone, and reset missing authority/
+      because; updated the two createReceipt calls in the
+      receipt-identity test.
+    because: >
+      "brief:Deliverable item 4's 'reset without because unrepresentable'
+      and 'held-by-decision carries authority and because' tests, plus
+      keeping every other illegal-state test compiling under the new
+      required fields"
+    rests_on: ["brief:Gates", "notes:1", "notes:2", "notes:3"]
+    hunks:
+      - "packages/ledger/test/unrepresentable.test.ts:1-31"
+      - "packages/ledger/test/unrepresentable.test.ts:69-106"
+      - "packages/ledger/test/unrepresentable.test.ts:174-226"
+      - "packages/ledger/test/unrepresentable.test.ts:250-269"
+  - id: c17
+    what: >
+      Updated face/test/position.test.ts: the shared receipt() helper
+      gains duration; the reset outcome-set event gains authority/because;
+      the held-outcome test goes through heldOn.gateFailure.
+    because: "type-only sync: face's own position.test.ts constructs these types directly, not through ledger's own tests"
+    rests_on: ["notes:1", "notes:2", "notes:3"]
+    hunks:
+      - "packages/face/test/position.test.ts:1-10"
+      - "packages/face/test/position.test.ts:26-35"
+      - "packages/face/test/position.test.ts:54-90"
+  - id: c18
+    what: "Added duration.unknown() to approval.test.ts's one createReceipt call."
+    because: "type-only sync"
+    rests_on: ["notes:3"]
+    hunks:
+      - "packages/face/test/approval.test.ts:1-13"
+      - "packages/face/test/approval.test.ts:52-60"
+  - id: c19
+    what: >
+      journalDirectory now runs `git rev-parse --git-common-dir` with
+      cwd=repoRoot and resolves the result (via node:path's resolve) to
+      the dirname of the common dir's parent, joined with
+      .interlock/ledger, instead of joining repoRoot with .interlock/ledger
+      directly. Signature unchanged, so approve.ts and show.ts need no
+      call-site edits.
+    because: notes:14
+    rests_on: ["brief:What this node closes, and how", "docs/design/0001-interlock.md's ledger-node bend log row on the per-worktree journal", "notes:14", "notes:15", "d2"]
+    hunks:
+      - "packages/face/src/root.ts:19-28"
+  - id: c20
+    what: >
+      Added packages/face/test/root.test.ts: git-inits a temp repo, adds a
+      second worktree of it (still inside this worktree), and asserts
+      journalDirectory resolves the identical path from both.
+    because: >
+      "brief:Deliverable item 4's own checklist test -- 'two worktrees of
+      one repo resolve the same journal dir' -- root.ts had no direct test
+      coverage before this session"
+    rests_on: ["brief:Gates", "notes:14"]
+    hunks:
+      - "packages/face/test/root.test.ts"
+  - id: c21
+    what: >
+      Added packages/cli/test/graph/gitFixture.ts: git-inits a fixture
+      directory plus one empty initial commit (currentCommitSha needs a
+      resolvable HEAD), factored out once for both approve.test.ts and
+      show.test.ts.
+    because: notes:16
+    rests_on: ["notes:16"]
+    hunks:
+      - "packages/cli/test/graph/gitFixture.ts"
+  - id: c22
+    what: >
+      approve.test.ts's fixture() helper now calls gitInitFixture(directory)
+      before writing the graph file, isolating its own git-common-dir
+      resolution from this real worktree.
+    because: notes:16
+    rests_on: ["notes:16"]
+    hunks:
+      - "packages/cli/test/graph/approve.test.ts:1-13"
+      - "packages/cli/test/graph/approve.test.ts:38-47"
+  - id: c23
+    what: >
+      show.test.ts's fixture() helper gets the identical gitInitFixture
+      fix.
+    because: notes:16
+    rests_on: ["notes:16"]
+    hunks:
+      - "packages/cli/test/graph/show.test.ts:1-10"
+      - "packages/cli/test/graph/show.test.ts:45-54"
+  - id: c24
+    what: >
+      Appended notes.yaml's 17 choice/surprise entries across all three
+      code commits, naming every real design fork and every surprise this
+      session found.
+    because: "brief:Deliverable item 2 -- notes.yaml is appended while working and committed with the code it belongs to"
+    rests_on: ["brief:Deliverable"]
+    hunks:
+      - ".interlock/sessions/0001-bootstrap/ledger-gaps/notes.yaml"
+  - id: c25
+    what: >
+      Filed this debrief as the session's final commit, decisions covering
+      every file this session's diff touched, including this file and
+      notes.yaml, per the manifest rule.
+    because: "brief:Deliverable item 3 -- the manifest rule, checked before filing"
+    rests_on: ["brief:Deliverable"]
+    hunks:
+      - ".interlock/sessions/0001-bootstrap/ledger-gaps/debrief.yaml"
+gates_run_by_agent:
+  - { id: typecheck, result: pass, invocation: "mise exec -- pnpm typecheck" }
+  - { id: test, result: pass, invocation: "mise exec -- pnpm test" }
+  - { id: debrief-valid, result: fail, invocation: "mise exec -- pnpm interlock debrief validate", note: "fails closed by design until the debrief-schema node lands" }
+  - { id: upcast-v1, result: pass, invocation: "mise exec -- pnpm --filter ledger test --testNamePattern upcast" }
+open:
+  - >
+    v1 reset upcast: a v1 `outcome-set{kind:"reset"}` event refuses to
+    upcast (returns undefined) rather than inventing an authority or a
+    because, since v1 never recorded either. This is a typed, per-body
+    refusal using replay.ts's existing registered-tag-but-guard-fails
+    path; no real v1 journal known to exist carries a reset outcome, so
+    this is untested against real data, only against a hand-authored
+    synthetic line (replay.test.ts:329-343).
+  - >
+    v1 debrief-filed upcast: refuses unconditionally, for every body,
+    rather than a parallel V1Debrief type -- Debrief's four new required
+    fields (graphBaseSha, sessionStartSha, derivation, gatesRunByAgent)
+    have no v1 equivalent and no honest "unknown" arm the way duration
+    does. No code anywhere converts a debrief.yaml file into a
+    debrief-filed event yet, so this path is unreachable in practice
+    today; recorded here in case that changes before debrief-schema lands.
+  - >
+    DebriefDerivation vs Derivation: Debrief's new `derivation` field is a
+    genuinely different concept from ledger's existing per-receipt
+    Derivation (gate/model/human) -- it names who ran the whole SESSION
+    (agent{runtime,model} | human{who}), not who produced one receipt or
+    mark. Sharing the word `derivation` for two different shapes is a
+    real vocabulary tension, not a coinage or a silent widening; flagged
+    here per I3 rather than resolved by renaming either one, since the
+    brief's own instruction and the on-disk debrief.yaml both use
+    `derivation` for this field.
+  - >
+    Graph 0001-bootstrap reports STALE, not approved, when read from this
+    worktree via `interlock graph show` at head_sha (discovery d3). The
+    repository's real journal is read correctly for the first time; the
+    staleness itself is the graph file having grown a ledger-gaps node
+    since the recorded approval, which is D20's own documented behaviour,
+    not a defect. Re-approving is a human action
+    (`interlock graph approve 0001-bootstrap --by ... --because ...`) and
+    is out of this session's scope to perform.
