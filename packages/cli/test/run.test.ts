@@ -187,4 +187,50 @@ describe("interlock run", () => {
     expect(result.message).toContain("cleared");
     expect(existsSync(join(cwd, ".worktrees", "a"))).toBe(true);
   }, 30_000);
+
+  it("writes the brief into the worktree even though the node's brief is committed after the graph's own base SHA", async () => {
+    directory = mkdtempSync(join(runsRoot, "run-"));
+    const cwd = directory;
+    mkdirSync(join(cwd, ".interlock", "graphs"), { recursive: true });
+    writeFileSync(join(cwd, ".interlock", "graphs", "demo.yaml"), graphYaml);
+    writeFileSync(join(cwd, ".interlock", "config.yaml"), configYaml);
+    writeFileSync(join(cwd, ".interlock", "local.yaml"), localYaml);
+    gitInitFixture(cwd);
+    commitAll(cwd, "graph content");
+
+    await runGraphApprove(
+      ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
+      { cwd },
+    );
+
+    mkdirSync(join(cwd, ".interlock", "sessions", "demo", "a"), {
+      recursive: true,
+    });
+    writeFileSync(
+      join(cwd, ".interlock", "sessions", "demo", "a", "brief.md"),
+      "# brief\n",
+    );
+    commitAll(cwd, "brief for node a");
+
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime: stubRuntime(),
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.message).toContain("cleared");
+    const briefInWorktree = join(
+      cwd,
+      ".worktrees",
+      "a",
+      ".interlock",
+      "sessions",
+      "demo",
+      "a",
+      "brief.md",
+    );
+    expect(existsSync(briefInWorktree)).toBe(true);
+    expect(readFileSync(briefInWorktree, "utf-8")).toBe("# brief\n");
+  }, 30_000);
 });

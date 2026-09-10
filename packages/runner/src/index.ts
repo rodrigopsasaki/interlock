@@ -45,7 +45,14 @@ export {
 export type { LeaseHandle } from "./lease.ts";
 export { takeLease } from "./lease.ts";
 
-export { briefExists, briefPath, buildBrief } from "./sessionBrief.ts";
+export type { BriefRefusal } from "./sessionBrief.ts";
+export {
+  briefExists,
+  briefPath,
+  buildBrief,
+  explainBriefRefusal,
+  writeBriefIntoWorktree,
+} from "./sessionBrief.ts";
 
 export type { GateJudgeRefusal, GateJudgeRequest } from "./gateJudge.ts";
 export {

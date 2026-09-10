@@ -25,6 +25,7 @@ import {
   createHerdrRuntime,
   createNodeWorktree,
   declaredGateIds,
+  explainBriefRefusal,
   explainGateJudgeRefusal,
   explainLocalConfigRefusal,
   explainRuntimeRefusal,
@@ -37,6 +38,7 @@ import {
   loadStandingGates,
   takeLease,
   unmetDependencies,
+  writeBriefIntoWorktree,
   type Agent,
   type Pane,
   type Runtime,
@@ -209,6 +211,17 @@ export async function runInterlockRun(
     if (isErr(worktree)) {
       lease.stop();
       return { exitCode: 1, message: explainWorktreeRefusal(worktree.error) };
+    }
+
+    const briefWritten = await writeBriefIntoWorktree(
+      repoRoot,
+      worktreePath,
+      graph,
+      node,
+    );
+    if (isErr(briefWritten)) {
+      lease.stop();
+      return { exitCode: 1, message: explainBriefRefusal(briefWritten.error) };
     }
 
     const injectedRuntime = options.runtime;

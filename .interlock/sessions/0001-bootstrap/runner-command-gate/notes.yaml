@@ -272,3 +272,48 @@ entries:
       backfillable (technically defensible but defeats the acceptance's
       own stated purpose -- catching up all four nodes' real receipts --
       over a gate everyone already knows is a stub)"]
+  - kind: choice
+    at: "2026-09-10T03:00:00Z"
+    chose: >
+      Fix round on a blocking verifier finding: `cli/src/run.ts` now writes
+      the brief into the freshly created worktree, between
+      `createNodeWorktree` and the first herdr call, through a new
+      `runner/src/sessionBrief.ts` function `writeBriefIntoWorktree` that
+      reads the brief.md `briefExists` already verified present on the
+      caller's own disk and writes it to the same relative
+      `.interlock/sessions/<graph>/<node>/brief.md` path inside the
+      worktree, creating the directory. `interlock run`'s worktree stays
+      checked out at the graph's base SHA, unchanged; only the brief write
+      is new.
+    because: >
+      The finding proved, against the live shared journal and this
+      session's own prior debrief (graph_base_sha
+      1833f7950a28cf17ea02790cf7b13e70471ee323), that a node's own brief is
+      committed strictly after the graph's approval commit in the general
+      case -- exactly what docs/design/0001-interlock.md's 2026-09-09 bend
+      log already says ("a session starts at the commit that contains its
+      brief, which cannot be known while writing it") -- so the worktree's
+      checked-out tree structurally never contains brief.md, and nothing
+      between worktree creation and opening the herdr pane wrote it in.
+      This breaks the acceptance's own literal "writes the brief into the
+      worktree" clause for the very next undriven node. The "What the
+      runner is" section of this same, immutable brief says "copies
+      nothing, the brief is already in the tree" -- an assumption the
+      finding disproves; the acceptance is the binding text ("Acceptance
+      (verbatim from the graph)"), the wall rules forbid editing brief.md
+      to reconcile the contradiction, so this entry records it instead of
+      silently picking a side. Reading the source content from the
+      caller's own disk (not a git ref) reuses exactly what `briefExists`
+      already checked, rather than inventing a second, git-object-based
+      read path.
+    rejected: >
+      ["checking the worktree out at the node's own session-start SHA
+      instead of the graph base SHA (the acceptance names 'the graph's
+      base SHA' as its own separate clause, and that SHA cannot be known
+      before the brief is written, per the 2026-09-09 bend log -- moving
+      the checkout point would trade one acceptance violation for
+      another)", "reading brief.md from a git ref (e.g. the node's own
+      later commit) instead of the caller's live disk (no such ref is
+      knowable or stable at this point in `interlock run`, and
+      `briefExists`/`briefPath` already establish disk, not git history,
+      as this brief's source of truth)"]
