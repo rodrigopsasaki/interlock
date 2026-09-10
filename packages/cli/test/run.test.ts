@@ -67,8 +67,30 @@ const localYaml = [
   "",
 ].join("\n");
 
+const localYamlWithStartupAnswers = [
+  "interlock: local@v0",
+  "runtime:",
+  "  kind: claude",
+  "  args: []",
+  "  startup_answers:",
+  '    - matches: "trust this project"',
+  "      keys:",
+  "        - Down",
+  "        - Enter",
+  "worktree_root: .worktrees",
+  "lease_ms: 60000",
+  "run_timeout_ms: 5000",
+  "substrate:",
+  "  address: none",
+  "",
+].join("\n");
+
 function fixture(
-  options: { readonly withLocal?: boolean; readonly withBrief?: boolean } = {},
+  options: {
+    readonly withLocal?: boolean;
+    readonly withBrief?: boolean;
+    readonly localYaml?: string;
+  } = {},
 ): string {
   directory = mkdtempSync(join(runsRoot, "run-"));
   mkdirSync(join(directory, ".interlock", "graphs"), { recursive: true });
@@ -78,7 +100,10 @@ function fixture(
   );
   writeFileSync(join(directory, ".interlock", "config.yaml"), configYaml);
   if (options.withLocal !== false) {
-    writeFileSync(join(directory, ".interlock", "local.yaml"), localYaml);
+    writeFileSync(
+      join(directory, ".interlock", "local.yaml"),
+      options.localYaml ?? localYaml,
+    );
   }
   if (options.withBrief !== false) {
     mkdirSync(join(directory, ".interlock", "sessions", "demo", "a"), {
@@ -109,6 +134,7 @@ function stubRuntime(): Runtime {
     prompt: () => Promise.resolve(ok(undefined)),
     waitUntil: () => Promise.resolve(ok("idle")),
     read: () => Promise.resolve(ok("")),
+    sendKeys: () => Promise.resolve(ok(undefined)),
     closePane: () => Promise.resolve(ok(undefined)),
   };
 }
@@ -260,9 +286,9 @@ describe("interlock run", () => {
         promptText = text;
         return stubRuntime().prompt(agent, text);
       },
-      waitUntil: (...args) => {
-        calls.push("waitUntil");
-        return stubRuntime().waitUntil(...args);
+      waitUntil: (agent, until, timeoutMs) => {
+        calls.push(`waitUntil:${until.join(",")}`);
+        return stubRuntime().waitUntil(agent, until, timeoutMs);
       },
     };
 
@@ -277,7 +303,9 @@ describe("interlock run", () => {
     expect(calls.indexOf("prompt")).toBeGreaterThan(
       calls.indexOf("reportIdentity"),
     );
-    expect(calls.indexOf("prompt")).toBeLessThan(calls.indexOf("waitUntil"));
+    expect(calls.indexOf("prompt")).toBeLessThan(
+      calls.indexOf("waitUntil:working,idle,blocked,done"),
+    );
     expect(promptText).toContain(".interlock/sessions/demo/a/brief.md");
   }, 30_000);
 
@@ -296,8 +324,6 @@ describe("interlock run", () => {
       { cwd },
     );
 
-    // Deliberately left uncommitted: the base is HEAD at run time, which cannot carry a file
-    // that was only ever written to the working tree.
     mkdirSync(join(cwd, ".interlock", "sessions", "demo", "a"), {
       recursive: true,
     });
@@ -398,5 +424,72 @@ describe("interlock run", () => {
       "agent start refused: agent CLI crashed",
       "lease not renewed; the sweeper will collect it at 1970-01-01T00:01:00.000Z",
     ]);
+  }, 30_000);
+
+  it("answers a startup dialog with the configured keys before sending the prompt", async () => {
+    const cwd = fixture({ localYaml: localYamlWithStartupAnswers });
+    await runGraphApprove(
+      ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
+      { cwd },
+    );
+
+    let blocked = true;
+    const sentKeys: (readonly string[])[] = [];
+    const lines: string[] = [];
+    const runtime: Runtime = {
+      ...stubRuntime(),
+      waitUntil: (agent, until, timeoutMs) =>
+        until.length === 2
+          ? Promise.resolve(ok(blocked ? "blocked" : "idle"))
+          : stubRuntime().waitUntil(agent, until, timeoutMs),
+      read: () => Promise.resolve(ok("trust this project? [Down/Enter]")),
+      sendKeys: (_agent, keys) => {
+        sentKeys.push(keys);
+        blocked = false;
+        return Promise.resolve(ok(undefined));
+      },
+    };
+
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime,
+      narrate: (line) => lines.push(line),
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(sentKeys).toEqual([["Down", "Enter"]]);
+    const sentIndex = lines.indexOf("startup answer sent (trust this project)");
+    expect(sentIndex).toBeGreaterThan(-1);
+    expect(sentIndex).toBeLessThan(lines.indexOf("prompt sent"));
+  }, 30_000);
+
+  it("refuses when the agent stays blocked at startup with no configured answer", async () => {
+    const cwd = fixture();
+    await runGraphApprove(
+      ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
+      { cwd },
+    );
+
+    const runtime: Runtime = {
+      ...stubRuntime(),
+      waitUntil: (agent, until, timeoutMs) =>
+        until.length === 2
+          ? Promise.resolve(ok("blocked"))
+          : stubRuntime().waitUntil(agent, until, timeoutMs),
+      read: () =>
+        Promise.resolve(ok("Is this a project you created or one you trust?")),
+    };
+
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime,
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.message).toBe(
+      "agent blocked at startup with no configured answer; screen: Is this a project you created or one you trust?",
+    );
   }, 30_000);
 });

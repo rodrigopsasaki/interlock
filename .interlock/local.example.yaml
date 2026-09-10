@@ -7,6 +7,11 @@ interlock: local@v0
 runtime:
   kind: claude
   args: []
+  # Optional. Each entry names the text the runtime shows when it needs an answer before it
+  # is ready, and the keys to send it. Entries are tried in order, at most once each.
+  # startup_answers:
+  #   - matches: "the text the runtime shows when it needs an answer before it is ready"
+  #     keys: [Down, Enter]
 
 # Where the runner creates a node's git worktree, relative to the repository root.
 worktree_root: .worktrees

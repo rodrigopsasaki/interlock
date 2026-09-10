@@ -25,6 +25,9 @@ export {
   localConfigPath,
 } from "./localConfig.ts";
 
+export type { StartupAnswer } from "./startupAnswers.ts";
+export { matchesScreen } from "./startupAnswers.ts";
+
 export type { StandingGate, StandingGatesRefusal } from "./standingGates.ts";
 export {
   configPath,

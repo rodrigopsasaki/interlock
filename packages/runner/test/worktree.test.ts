@@ -16,9 +16,6 @@ import {
   headSha,
 } from "./support/gitFixture.ts";
 
-// Its own directory, not the shared "test/.runs" other files in this package also use: those
-// files' own hooks recursively wipe that directory between tests, racing this file's fixtures
-// when vitest runs test files concurrently.
 const runsRoot = join(import.meta.dirname, ".worktree-runs");
 mkdirSync(runsRoot, { recursive: true });
 
@@ -70,8 +67,6 @@ describe("ensureNodeWorktree", () => {
     const created = ensureNodeWorktree(repoRoot, path, firstSha, branch);
     expect(isOk(created)).toBe(true);
 
-    // A merge lands on the repository's main line after the worktree was created; nothing was
-    // ever committed inside the worktree itself, so its branch is still exactly at `firstSha`.
     writeFileSync(join(repoRoot, "merged.txt"), "merged after the fact\n");
     commitAll(repoRoot, "merge landed after the worktree was created");
     const laterSha = headSha(repoRoot);
@@ -92,13 +87,10 @@ describe("ensureNodeWorktree", () => {
     const created = ensureNodeWorktree(repoRoot, path, firstSha, branch);
     expect(isOk(created)).toBe(true);
 
-    // A session commits real work inside the worktree, diverging its branch from the base it
-    // started on.
     writeFileSync(join(path, "session-work.txt"), "the agent's own work\n");
     commitAll(path, "session work");
     const sessionSha = headSha(path);
 
-    // Meanwhile the repository's main line moves on independently.
     writeFileSync(
       join(repoRoot, "unrelated.txt"),
       "an unrelated later commit\n",
@@ -118,7 +110,6 @@ describe("ensureNodeWorktree", () => {
     expect(explainWorktreeRefusal(result.error)).toContain(branch);
     expect(explainWorktreeRefusal(result.error)).toContain(sessionSha);
 
-    // Nothing discarded: the session's own commit and file are still exactly where they were.
     expect(headSha(path)).toBe(sessionSha);
     expect(existsSync(join(path, "session-work.txt"))).toBe(true);
     expect(readFileSync(join(path, "session-work.txt"), "utf-8")).toBe(

@@ -1,13 +1,21 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { err, ok, type Result } from "@phyxiusjs/fp";
+import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import { parse as parseYaml, YAMLParseError } from "yaml";
+import {
+  isValidStartupAnswerMatcher,
+  type StartupAnswer,
+} from "./startupAnswers.ts";
 import { isRecord, isString, prop } from "./validate.ts";
 
 export const LOCAL_CONFIG_SHAPE = "local@v0";
 
 export interface LocalConfig {
-  readonly runtime: { readonly kind: string; readonly args: readonly string[] };
+  readonly runtime: {
+    readonly kind: string;
+    readonly args: readonly string[];
+    readonly startupAnswers: readonly StartupAnswer[];
+  };
   readonly worktreeRoot: string;
   readonly leaseMs: number;
   readonly runTimeoutMs: number;
@@ -24,6 +32,7 @@ export type LocalConfigRefusal =
 
 const FIELD_GUIDE =
   'runtime.kind (the agent CLI to start, e.g. "claude"), runtime.args (its extra arguments), ' +
+  "runtime.startup_answers (optional; keys to send when the runtime blocks at startup), " +
   "worktree_root (where node worktrees are created, relative to the repository root), " +
   "lease_ms (how long a lease lasts before a sweep may call it abandoned), " +
   "run_timeout_ms (the wall timeout waiting for the agent to go idle, blocked or done), " +
@@ -44,6 +53,49 @@ export function localConfigPath(repoRoot: string): string {
 
 function isStringArray(value: unknown): value is readonly string[] {
   return Array.isArray(value) && value.every(isString);
+}
+
+function parseStartupAnswers(
+  value: unknown,
+  path: string,
+): Result<readonly StartupAnswer[], LocalConfigRefusal> {
+  if (value === undefined) return ok([]);
+  if (!Array.isArray(value)) {
+    return err({
+      kind: "malformed",
+      path,
+      reason: '"runtime.startup_answers" must be a list',
+    });
+  }
+
+  const answers: StartupAnswer[] = [];
+  for (const [index, entry] of value.entries()) {
+    if (!isRecord(entry)) {
+      return err({
+        kind: "malformed",
+        path,
+        reason: `"runtime.startup_answers[${index}]" is not a mapping`,
+      });
+    }
+    const matches = prop(entry, "matches");
+    if (!isString(matches) || !isValidStartupAnswerMatcher(matches)) {
+      return err({
+        kind: "malformed",
+        path,
+        reason: `"runtime.startup_answers[${index}].matches" must be a string or a valid /regex/`,
+      });
+    }
+    const keys = prop(entry, "keys");
+    if (!isStringArray(keys) || keys.length === 0) {
+      return err({
+        kind: "malformed",
+        path,
+        reason: `"runtime.startup_answers[${index}].keys" must be a non-empty list of strings`,
+      });
+    }
+    answers.push({ matches, keys });
+  }
+  return ok(answers);
 }
 
 function parseShape(
@@ -83,6 +135,11 @@ function parseShape(
       reason: '"runtime.args" must be a list of strings',
     });
   }
+  const startupAnswers = parseStartupAnswers(
+    isRecord(runtime) ? prop(runtime, "startup_answers") : undefined,
+    path,
+  );
+  if (isErr(startupAnswers)) return startupAnswers;
 
   const worktreeRoot = prop(parsed, "worktree_root");
   if (!isString(worktreeRoot)) {
@@ -124,7 +181,11 @@ function parseShape(
   }
 
   return ok({
-    runtime: { kind: runtimeKind, args: runtimeArgs ?? [] },
+    runtime: {
+      kind: runtimeKind,
+      args: runtimeArgs ?? [],
+      startupAnswers: startupAnswers.value,
+    },
     worktreeRoot,
     leaseMs,
     runTimeoutMs,

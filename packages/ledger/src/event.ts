@@ -31,8 +31,7 @@ export type LedgerEvent =
       readonly kind: "session-started";
       readonly session: Session;
       readonly brief: Brief;
-      // The worktree base at lease time: the repository's HEAD, not the graph approval's
-      // content-addressed receipt. Absent on events recorded before this field existed.
+      // Absent on events recorded before the field existed.
       readonly graphBaseSha?: string;
     }
   | {
