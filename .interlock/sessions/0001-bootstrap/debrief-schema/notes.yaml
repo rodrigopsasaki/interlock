@@ -94,3 +94,29 @@ entries:
       drafted debrief a future command appends has to replay correctly,
       which means the type, not only the file reader, has to know the
       field exists.
+  - kind: surprise
+    at: "2026-09-10T02:05:00Z"
+    expected: >
+      Every session directory under .interlock/sessions/0001-bootstrap/
+      would carry a notes.yaml alongside its debrief.yaml, the way ledger,
+      face-read, ledger-gaps and runner-command-gate all do.
+    observed: >
+      scaffold has no notes.yaml at all -- only brief.md and debrief.yaml.
+      It is debrief@v0, the very first hand-authored session, and it
+      predates the notes.yaml convention existing.
+  - kind: choice
+    at: "2026-09-10T02:10:00Z"
+    chose: >
+      Made "interlock debrief validate <graph> <node>" treat a missing
+      notes.yaml as zero notes (a non-fatal "no notes were appended" line)
+      rather than a refusal, while any other notes.yaml refusal (malformed
+      YAML, an unknown shape tag, a bad entry) still fails the command.
+    because: >
+      scaffold has no notes.yaml because the format did not exist yet when
+      it ran, and the brief requires every one of the five existing
+      session directories to validate. Treating "the file never existed
+      for this vintage" the same as "the file exists and is wrong" would
+      fail a real, previously-accepted session for a convention it
+      predates.
+    rejected:
+      - "requiring notes.yaml only for debrief@v1 and debrief@v2, special-cased by version (adds a version-keyed branch for one historical fixture instead of one general rule)"
