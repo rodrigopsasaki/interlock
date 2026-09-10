@@ -11,7 +11,7 @@ import type { StandingGate } from "../src/standingGates.ts";
 describe("gateCommand", () => {
   it("standing gates come before the node's own", () => {
     const standing: readonly StandingGate[] = [
-      { id: "typecheck", run: "pnpm typecheck" },
+      { id: "typecheck", kind: "command", run: "pnpm typecheck" },
     ];
     const node: readonly GateDeclaration[] = [
       { id: "reviewed", kind: "command", run: "pnpm review" },

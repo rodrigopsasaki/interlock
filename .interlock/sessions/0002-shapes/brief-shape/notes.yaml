@@ -80,3 +80,91 @@ entries:
       the gate's coverage depends on test names containing "brief" (e.g. the "readBriefFile" and
       "every existing brief under .interlock/sessions" describe blocks), confirmed empirically by
       running the exact gate command rather than assumed from the flag's name.
+
+  - kind: choice
+    at: "2026-09-10T15:20:00Z"
+    chose: >
+      Kept packages/debrief's package.json "name" as "debrief" and put the brief reader and
+      renderer inside it, rather than renaming the package to "session".
+    because: >
+      The approved graph .interlock/graphs/0002-shapes.yaml and this node's own immutable
+      brief.md both bake in the literal command "pnpm --filter debrief ..." for the brief-legacy
+      gate. Renaming package.json's name would desync that filter from two files this node
+      cannot edit, making its own acceptance gate unsatisfiable. A directory-only rename would
+      have been safe but bought nothing real, since pnpm resolves --filter by package name, not
+      directory.
+    rejected:
+      - renaming packages/debrief's package.json name to "session"
+      - a cosmetic directory-only rename with the name kept as "debrief"
+
+  - kind: choice
+    at: "2026-09-10T15:25:00Z"
+    chose: >
+      Added a required "kind" field to runner's StandingGate and its config.yaml parser.
+    because: >
+      brief@v1's gates list needs "kind" on every gate, including standing ones, and
+      .interlock/config.yaml already declares "kind: command" on every standing gate; the old
+      loader silently dropped it. Reading the field that was already on disk, instead of
+      hardcoding "command" for every standing gate, keeps the brief honest if a non-command
+      standing gate is ever declared.
+
+  - kind: choice
+    at: "2026-09-10T15:30:00Z"
+    chose: >
+      The runner leaves a gate's "expect_output" unfilled (always absent) when it rebuilds a
+      node's gates from face's GateDeclaration.
+    because: >
+      GateDeclaration does not parse expect_output today, and extending face's graph parser is
+      out of scope for this node ("the face" is listed under Out of scope). BriefGate's
+      expectOutput stays optional so a later face change can fill it without another shape
+      version.
+
+  - kind: choice
+    at: "2026-09-10T15:32:00Z"
+    chose: >
+      Scope-path validation (isValidScopePath) is a small local function in packages/debrief
+      built on node:path/posix, rather than exporting and reusing ledger's unexported
+      resolveScopePath.
+    because: >
+      Exporting a receipt-identity internal for an unrelated front-matter concern would couple
+      two packages that only need to agree informally; the posix-normalize check is
+      self-contained, dependency-free, and reads in one line.
+
+  - kind: choice
+    at: "2026-09-10T15:35:00Z"
+    chose: >
+      diffScope narrates a count-based summary ("N path(s) ... M") rather than listing every
+      added or removed path.
+    because: >
+      Scope is every git-tracked file today (scope.ts's existing rule), often hundreds of paths;
+      a full per-path diff would turn "narrated, never silently overwritten" into an unreadable
+      wall of text on the common case where the runner simply grows the repository.
+
+  - kind: choice
+    at: "2026-09-10T15:37:00Z"
+    chose: >
+      diffGates and diffScope emit no narration line at all when the repository copy already
+      agrees with the runner's authoritative view.
+    because: >
+      "A difference is narrated" reads as conditional on there being one; narrating "no change"
+      on every single run would be noise standing where signal should be.
+
+  - kind: choice
+    at: "2026-09-10T15:40:00Z"
+    chose: >
+      runner's briefPath is now a direct alias of debrief's briefFilePath, instead of a second
+      independent join() computing the same .interlock/sessions/<graph>/<node>/brief.md path.
+    because: >
+      Two packages independently computing the same path is exactly the kind of untracked
+      duplication that drifts silently. Aliasing keeps runner's existing public name (used by
+      cli/src/run.ts and elsewhere) stable while there is only one real implementation.
+
+  - kind: choice
+    at: "2026-09-10T15:42:00Z"
+    chose: >
+      Renamed runner's old write-only BriefRefusal/explainBriefRefusal (one kind: write-failed)
+      to SessionBriefRefusal/explainSessionBriefRefusal.
+    because: >
+      The refusal now also covers a front-matter read failure and a legacy-brief refusal, and
+      debrief's own BriefRefusal (the reader's refusal) needed the plain name without a
+      collision. The shape changed enough that the name should too.

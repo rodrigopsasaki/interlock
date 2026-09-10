@@ -125,7 +125,7 @@ describe("backfill", () => {
       document,
       ledger,
       clock: createControlledClock(),
-      standingGates: [{ id: "standing", run: passCommand }],
+      standingGates: [{ id: "standing", kind: "command", run: passCommand }],
       worktreeRoot: ".worktrees",
     });
 
@@ -156,7 +156,7 @@ describe("backfill", () => {
       document,
       ledger,
       clock: createControlledClock(),
-      standingGates: [{ id: "standing", run: failCommand }],
+      standingGates: [{ id: "standing", kind: "command", run: failCommand }],
       worktreeRoot: ".worktrees",
     });
 

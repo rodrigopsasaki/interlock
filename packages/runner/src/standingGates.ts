@@ -7,6 +7,7 @@ import { isRecord, isString, prop } from "./validate.ts";
 
 export interface StandingGate {
   readonly id: string;
+  readonly kind: string;
   readonly run: string;
   readonly expectOutput?: RegExp;
 }
@@ -35,7 +36,7 @@ export function configPath(repoRoot: string): string {
 }
 
 const MALFORMED_STANDING_GATES =
-  '"standing_gates" must be a list of entries with a string "id" and "run"';
+  '"standing_gates" must be a list of entries with a string "id", "kind" and "run"';
 
 export async function loadStandingGates(
   repoRoot: string,
@@ -78,10 +79,12 @@ export async function loadStandingGates(
       return err({ kind: "malformed", path, reason: MALFORMED_STANDING_GATES });
     }
     const id = prop(entry, "id");
+    const gateKind = prop(entry, "kind");
     const run = prop(entry, "run");
     const expectOutputSource = prop(entry, "expect_output");
     if (
       !isString(id) ||
+      !isString(gateKind) ||
       !isString(run) ||
       (expectOutputSource !== undefined && !isString(expectOutputSource))
     ) {
@@ -89,7 +92,7 @@ export async function loadStandingGates(
     }
 
     if (expectOutputSource === undefined) {
-      gates.push({ id, run });
+      gates.push({ id, kind: gateKind, run });
       continue;
     }
     const compiled = parseExpectOutput(expectOutputSource);
@@ -100,7 +103,7 @@ export async function loadStandingGates(
         reason: `gate "${id}": expect_output "${expectOutputSource}" is not a valid regular expression (${compiled.error})`,
       });
     }
-    gates.push({ id, run, expectOutput: compiled.value });
+    gates.push({ id, kind: gateKind, run, expectOutput: compiled.value });
   }
   return ok(gates);
 }
