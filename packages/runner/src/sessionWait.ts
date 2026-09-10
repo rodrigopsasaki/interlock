@@ -18,6 +18,7 @@ export async function waitForSession(
   agent: Agent,
   clock: Clock,
   deadline: MonoMs,
+  runTimeoutMs: number,
   narrate: (line: string) => void,
 ): Promise<Result<AgentStatus, RuntimeRefusal>> {
   let until = AFTER_WORKING;
@@ -26,7 +27,12 @@ export async function waitForSession(
   for (;;) {
     const now = clock.now().monoMs;
     if (hasPassed(now, deadline)) {
-      return err({ kind: "timeout", until, timeoutMs: 0, status: lastStatus });
+      return err({
+        kind: "timeout",
+        until,
+        timeoutMs: runTimeoutMs,
+        status: lastStatus,
+      });
     }
 
     const remaining = elapsedSince(deadline, now);

@@ -41,6 +41,7 @@ describe("waitForSession", () => {
       agent,
       clock,
       deadline,
+      60_000,
       (line) => lines.push(line),
     );
 
@@ -75,6 +76,7 @@ describe("waitForSession", () => {
       agent,
       clock,
       deadline,
+      60_000,
       (line) => lines.push(line),
     );
 
@@ -108,6 +110,7 @@ describe("waitForSession", () => {
       agent,
       clock,
       deadline,
+      3_500,
       () => {},
     );
 
@@ -135,6 +138,7 @@ describe("waitForSession", () => {
       agent,
       clock,
       deadline,
+      60_000,
       () => {},
     );
 
@@ -162,6 +166,7 @@ describe("waitForSession", () => {
       agent,
       clock,
       deadline,
+      1_000,
       () => {},
     );
 
@@ -171,7 +176,7 @@ describe("waitForSession", () => {
       expect(result.error).toEqual({
         kind: "timeout",
         until: ["idle", "blocked", "done"],
-        timeoutMs: 0,
+        timeoutMs: 1_000,
         status: "unknown",
       });
   });
