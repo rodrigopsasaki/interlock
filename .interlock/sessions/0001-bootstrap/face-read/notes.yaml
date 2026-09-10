@@ -170,3 +170,122 @@ entries:
       the identical repo-root resolution (a graph id alone is not a path); one shared
       implementation is the "one validator, two callers" principle applied to path resolution,
       not just shape validation.
+  - kind: surprise
+    at: "2026-09-09T23:20:00Z"
+    expected: >
+      A CLI-level test could exercise findRepoRoot's "no .interlock directory found" refusal by
+      pointing a fixture's cwd at a fresh temp directory under packages/cli/test/.runs/.
+    observed: >
+      Every writable location under this worktree's own constraint ("do not create files outside
+      this worktree") is, by construction, nested somewhere under this repository's own root --
+      which does carry a real .interlock/. findRepoRoot correctly walked up past the empty fixture
+      directory and found the real .interlock/, so the test asserted the wrong thing (it found the
+      worktree's actual graphs directory instead of failing). Removed that one test rather than
+      constructing a fixture outside the worktree to make it pass; the "not found" branch stays
+      defensive code without a dedicated regression test, which is honest given the constraint,
+      not an oversight -- recorded under `open`.
+  - kind: choice
+    at: "2026-09-09T23:35:00Z"
+    chose: >
+      graph approve requires both --by and --because, refusing with a sentence naming whichever
+      is missing, before touching the file system or opening a ledger at all.
+    because: >
+      derivation.human(who) has no honest empty-string default -- "approved by nobody" is not a
+      fact the harness should be willing to record -- and the brief's own acceptance line always
+      shows both flags together ("--by <who> --because <why>"). Only --because is named as a
+      required-refusal test in the brief's own checklist, so --by's refusal is additional coverage
+      this node chose to add, not a named requirement; recorded here rather than left silent.
+  - kind: choice
+    at: "2026-09-09T23:45:00Z"
+    chose: >
+      graph approve appends node-created only when the pseudo graph-node is absent from the
+      current projection (checked via ledger.projection() right after createLedger opens); every
+      approval, first or repeat, appends exactly one gate-moved.
+    because: >
+      applyEvent's own node-created case is a no-op on a node that already has a view (withNode
+      just returns the existing view unchanged), so skipping the redundant append changes nothing
+      about the resulting projection -- it only keeps the journal itself free of a repeated event
+      with no information in it. A test (`does not re-append node-created on a second approval`)
+      proves this: two approvals of the same fixture graph produce exactly
+      ["node-created", "gate-moved", "gate-moved"], not three "node-created" events.
+    rejected:
+      - "appending node-created unconditionally on every approve call -- rejected as journal noise with no projection effect, once the no-op was confirmed by reading applyEvent's own withNode helper rather than assumed."
+  - kind: choice
+    at: "2026-09-09T23:50:00Z"
+    chose: >
+      approve reads the current commit SHA via `git rev-parse HEAD` (packages/face/src/root.ts's
+      currentCommitSha, shelled through node:child_process) at the moment of approval, for the
+      receipt's commitSha field.
+    because: >
+      receipt.ts's own docstring-level contract says commitSha is required and is history, not
+      identity (identity is the content hash receiptId already computes from the scope files).
+      The real, current HEAD of the repository the approval happens in is the only honest value
+      to put there; a placeholder or empty string would be a fabricated fact recorded into a
+      journal that other tools may read later.
+  - kind: surprise
+    at: "2026-09-10T00:00:00Z"
+    expected: >
+      approve's fixture tests would need to be run inside a real git repository for
+      currentCommitSha to succeed, since `git rev-parse HEAD` fails outside one.
+    observed: >
+      packages/cli/test/.runs/run-* fixtures are themselves nested inside this real git worktree
+      (gitignored, but still on disk under it), so `git rev-parse HEAD` run with that directory as
+      cwd resolves the enclosing repository's real HEAD without any special test setup -- the same
+      fact that made the repo-root "not found" test impossible to construct (the prior surprise)
+      made this one free.
+  - kind: choice
+    at: "2026-09-10T00:10:00Z"
+    chose: >
+      show and approve both surface a journal ReplayRefusal as
+      "<journal path>: line <n> has shape tag \"<tag>\", which this build does not recognize.",
+      reusing the exact {tag, line} fields readReplay's own Result already carries rather than
+      re-deriving anything.
+    because: >
+      "the line where possible" is literally possible here, unlike the graph file's own shape-tag
+      error (a parsed YAML value has no line-number mapping back to source without a dedicated YAML
+      source-map, which this loader does not build); readReplay already computed the exact line,
+      so using it is the cheapest honest answer, not an omission.
+  - kind: choice
+    at: "2026-09-10T00:15:00Z"
+    chose: >
+      bin.ts now routes a zero exit code's message to stdout and a non-zero one to stderr, instead
+      of always writing to stderr.
+    because: >
+      Every command before this node always failed (debrief validate is a permanent stub, an
+      unknown command is always wrong), so "always stderr" was never actually tested against a
+      real success message. graph show's whole reason to exist is a person reading its output; a
+      real position belongs on stdout the way any other read command's output does, and an error
+      belongs on stderr so it does not get piped or redirected as if it were data.
+  - kind: choice
+    at: "2026-09-10T00:20:00Z"
+    chose: >
+      main.ts's run() is now `async`, returning Promise<CommandResult> uniformly for every branch,
+      including the pre-existing debrief-validate and unknown-command ones; main.test.ts's two
+      existing tests now `await run(...)`.
+    because: >
+      createLedger, readReplay and createReceipt are all Promise-returning; a single dispatch
+      function with one signature is simpler than a sync/async split by command, and the brief's
+      own builder note names updating the existing test as an accepted consequence of whichever
+      signature change was chosen, not a constraint against changing it.
+  - kind: choice
+    at: "2026-09-10T00:25:00Z"
+    chose: >
+      Left loadGraphDocument's file-read error handling to rethrow any non-ENOENT error (mirroring
+      readReplay's own identical pattern in packages/ledger/src/replay.ts), and left
+      currentCommitSha free to throw if `git rev-parse HEAD` fails outside a git repository.
+    because: >
+      Neither case is one of the five named sentence-error scenarios (missing file, unknown
+      dependency, cycle, malformed shape tag, ReplayRefusal); ledger's own precedent already
+      treats an unexpected file-system failure as exceptional infrastructure trouble rather than a
+      sentence-worthy input problem, and this repository's own worktree is always a git repository
+      in every path this node's acceptance describes. Recorded under `open` rather than engineered
+      around for an untested exotic failure mode outside the acceptance.
+  - kind: choice
+    at: "2026-09-10T00:32:00Z"
+    chose: >
+      Added .interlock/ledger/ to .gitignore, alongside packages/face/test/.runs/ and
+      packages/cli/test/.runs/ matching ledger's own test/.runs/ entry.
+    because: >
+      The journal is per-machine state, not a committed artifact, for now -- this is the one
+      decision in the brief that should be revisited when the runner exists, since a shared
+      journal across machines is exactly what a real runner would need to change.

@@ -3,3 +3,6 @@ dist/
 .worktrees/
 coverage/
 packages/ledger/test/.runs/
+packages/face/test/.runs/
+packages/cli/test/.runs/
+.interlock/ledger/
