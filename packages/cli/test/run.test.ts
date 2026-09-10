@@ -64,6 +64,23 @@ const graphYamlWithExpectOutput = [
   "",
 ].join("\n");
 
+const graphYamlWithBadPlaceholder = [
+  "interlock: graph@v0",
+  "id: demo",
+  "gates:",
+  "  - id: approved",
+  "    kind: human",
+  "nodes:",
+  "  - id: a",
+  "    acceptance: a trivial node",
+  "    depends_on: []",
+  "    gates:",
+  "      - id: own-gate",
+  "        kind: command",
+  '        run: "echo {bogus}"',
+  "",
+].join("\n");
+
 const configYaml = [
   "interlock: config@v0",
   "standing_gates:",
@@ -1058,6 +1075,11 @@ describe("interlock run", () => {
     expect(lines).toContain("  uncommitted.txt");
     expect(lines).toContain("pane pane-1 left open for drilldown");
     expect(closed).toBe(false);
+    expect(lines.indexOf("agent screen: (no output)")).toBeLessThan(
+      lines.indexOf(
+        "1 uncommitted path(s) in the worktree; gates judge commits only",
+      ),
+    );
 
     const journal = readFileSync(
       join(cwd, ".interlock", "ledger", "journal.jsonl"),
@@ -1078,6 +1100,45 @@ describe("interlock run", () => {
       kind: "uncommitted-work",
       paths: 1,
     });
+  }, 30_000);
+
+  it("still narrates the agent screen when gate judging itself refuses", async () => {
+    const cwd = fixture({ graphYaml: graphYamlWithBadPlaceholder });
+    await runGraphApprove(
+      ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
+      { cwd },
+    );
+
+    const runtime: Runtime = {
+      ...stubRuntime(),
+      read: () => Promise.resolve(ok("> summarised the diff")),
+    };
+    const lines: string[] = [];
+
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime,
+      narrate: (line) => lines.push(line),
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.message).toContain("gates refused");
+    expect(lines).toContain("agent screen: > summarised the diff");
+    expect(
+      existsSync(
+        join(
+          cwd,
+          ".worktrees",
+          "a",
+          ".interlock",
+          "sessions",
+          "demo",
+          "a",
+          "screen.txt",
+        ),
+      ),
+    ).toBe(true);
   }, 30_000);
 
   it("narrates only the first five of a larger uncommitted-paths list", async () => {

@@ -518,6 +518,13 @@ export async function runInterlockRun(
       narrate,
       runnerId: `run-${sessionId}`,
       holdMs: HELD_REVISIT_MS,
+      onWorktreeRead: async () => {
+        if (!isOk(screenRead)) return;
+        await writeScreenSnapshot(worktreePath, graph, node, screenRead.value);
+        narrate(
+          `agent screen: ${lastNonEmptyLine(screenRead.value) ?? "(no output)"}`,
+        );
+      },
     });
     if (isErr(judged)) {
       const result =
@@ -529,13 +536,6 @@ export async function runInterlockRun(
           : refuse("gates", explainGateJudgeRefusal(judged.error.refusal));
       abandonLease();
       return result;
-    }
-
-    if (isOk(screenRead)) {
-      await writeScreenSnapshot(worktreePath, graph, node, screenRead.value);
-      narrate(
-        `agent screen: ${lastNonEmptyLine(screenRead.value) ?? "(no output)"}`,
-      );
     }
 
     if (judged.value.kind === "cleared") paneCustody = "runner";

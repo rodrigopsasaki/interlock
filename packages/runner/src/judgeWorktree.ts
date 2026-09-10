@@ -26,6 +26,7 @@ export interface JudgeWorktreeRequest {
   readonly narrate: (line: string) => void;
   readonly runnerId: string;
   readonly holdMs: number;
+  readonly onWorktreeRead?: () => Promise<void>;
 }
 
 export type JudgeWorktreeRefusal =
@@ -57,12 +58,15 @@ export async function judgeWorktree(
     narrate,
     runnerId,
     holdMs,
+    onWorktreeRead,
   } = request;
 
   const dirty = uncommittedPaths(worktree);
   if (isErr(dirty)) {
     return err({ kind: "worktree-status", refusal: dirty.error });
   }
+
+  if (onWorktreeRead !== undefined) await onWorktreeRead();
 
   if (dirty.value.length > 0) {
     const because = `${dirty.value.length} uncommitted path(s) in the worktree; gates judge commits only`;
