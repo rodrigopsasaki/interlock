@@ -1,11 +1,20 @@
+import { join } from "node:path";
+import { unwrap } from "@phyxiusjs/fp";
 import { describe, expect, it } from "vitest";
 import { derivation, type Derivation } from "../src/derivation.js";
 import { gate, isGate, proposeGateMove, type Gate } from "../src/gate.js";
 import { createLease, renewLease } from "../src/lease.js";
 import { mark, type Mark } from "../src/mark.js";
-import { buildCleared, type Outcome } from "../src/outcome.js";
+import {
+  buildCleared,
+  heldOn,
+  outcome,
+  type HeldOn,
+  type Outcome,
+} from "../src/outcome.js";
 import {
   createReceipt,
+  duration,
   isReceipt,
   receiptId,
   type Receipt,
@@ -18,6 +27,7 @@ const okReceipt: Receipt = {
   gate: "typecheck",
   commitSha: "deadbeef",
   spend: { kind: "none" },
+  duration: duration.unknown(),
   derivation: derivation.gate("typecheck", "1", "runner"),
   proof: {},
 };
@@ -65,6 +75,7 @@ describe("illegal states are unrepresentable or refused", () => {
       gate: "typecheck",
       commitSha: "a",
       spend: { kind: "none" },
+      duration: duration.unknown(),
       proof: {},
     };
     expect(illegal).toBeTruthy();
@@ -76,6 +87,20 @@ describe("illegal states are unrepresentable or refused", () => {
       id: "x",
       gate: "typecheck",
       commitSha: "a",
+      duration: duration.unknown(),
+      derivation: derivation.human("a"),
+      proof: {},
+    };
+    expect(illegal).toBeTruthy();
+  });
+
+  it("receipt cannot be constructed without a duration", () => {
+    // @ts-expect-error — no `duration` field
+    const illegal: Receipt = {
+      id: "x",
+      gate: "typecheck",
+      commitSha: "a",
+      spend: { kind: "none" },
       derivation: derivation.human("a"),
       proof: {},
     };
@@ -148,16 +173,45 @@ describe("illegal states are unrepresentable or refused", () => {
     expect(illegal).toBeTruthy();
   });
 
-  it("held and failed cannot collapse failure, disposition and because into fewer than three fields", () => {
-    // @ts-expect-error — no `disposition`, no `because`
-    const illegalHeld: Outcome = {
+  it("held cannot be constructed without what it's waiting on, because or expiry", () => {
+    // @ts-expect-error — no `on`, no `because`, no `expiry`
+    const illegal: Outcome = { kind: "held", receipts: [] };
+    expect(illegal).toBeTruthy();
+  });
+
+  it("held's gate-failure reason cannot be constructed without both failure and disposition", () => {
+    // @ts-expect-error — no `failure`, no `disposition`
+    const illegal: HeldOn = { kind: "gate-failure" };
+    expect(illegal).toBeTruthy();
+  });
+
+  it("held-by-decision carries authority and the outer because, and cannot be built without either", () => {
+    const held = outcome.held(
+      [],
+      heldOn.decision("Rodrigo Sasaki"),
+      "waiting on a call only a person makes",
+      30_000,
+    );
+    expect(held).toMatchObject({
+      on: { kind: "decision", authority: "Rodrigo Sasaki" },
+      because: "waiting on a call only a person makes",
+    });
+
+    // @ts-expect-error — no `authority`
+    const missingAuthority: HeldOn = { kind: "decision" };
+    expect(missingAuthority).toBeTruthy();
+
+    // @ts-expect-error — no `because`
+    const missingBecause: Outcome = {
       kind: "held",
       receipts: [],
-      failure: "typecheck failed",
+      on: heldOn.decision("Rodrigo Sasaki"),
       expiry: 30_000,
     };
-    expect(illegalHeld).toBeTruthy();
+    expect(missingBecause).toBeTruthy();
+  });
 
+  it("failed cannot collapse failure, disposition and because into fewer than three fields", () => {
     // @ts-expect-error — no `disposition`, no `because`
     const illegalFailed: Outcome = {
       kind: "failed",
@@ -165,6 +219,12 @@ describe("illegal states are unrepresentable or refused", () => {
       failure: "typecheck failed",
     };
     expect(illegalFailed).toBeTruthy();
+  });
+
+  it("reset cannot be constructed without both authority and because", () => {
+    // @ts-expect-error — no `authority`, no `because`
+    const illegal: Outcome = { kind: "reset", receipts: [] };
+    expect(illegal).toBeTruthy();
   });
 
   it("a disposition cannot appear on an outcome without its own because", () => {
@@ -190,25 +250,34 @@ describe("illegal states are unrepresentable or refused", () => {
   });
 
   it("receipt identity is computed from content and gate, same content and gate, same receipt", async () => {
-    const scope = [import.meta.dirname + "/../package.json"];
-    const first = await createReceipt(
-      scope,
-      "typecheck",
-      "sha-a",
-      { kind: "none" },
-      derivation.human("a"),
-      {},
+    const root = join(import.meta.dirname, "..");
+    const paths = ["package.json"];
+    const first = unwrap(
+      await createReceipt(
+        root,
+        paths,
+        "typecheck",
+        "sha-a",
+        { kind: "none" },
+        duration.unknown(),
+        derivation.human("a"),
+        {},
+      ),
     );
-    const second = await createReceipt(
-      scope,
-      "typecheck",
-      "sha-b",
-      { kind: "none" },
-      derivation.human("a"),
-      {},
+    const second = unwrap(
+      await createReceipt(
+        root,
+        paths,
+        "typecheck",
+        "sha-b",
+        { kind: "none" },
+        duration.unknown(),
+        derivation.human("a"),
+        {},
+      ),
     );
     expect(first.id).toBe(second.id);
-    expect(first.id).toBe(await receiptId(scope, "typecheck"));
+    expect(first.id).toBe(unwrap(await receiptId(root, paths, "typecheck")));
     expect(isReceipt(first)).toBe(true);
   });
 

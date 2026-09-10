@@ -1,7 +1,9 @@
 import {
   derivation,
+  duration,
   fold,
   gate,
+  heldOn,
   outcome,
   spend,
   type LedgerEvent,
@@ -27,6 +29,7 @@ function receipt(gateId: string): Receipt {
     gate: gateId,
     commitSha: "deadbeef",
     spend: spend.none(),
+    duration: duration.unknown(),
     derivation: derivation.gate(gateId, "1", "runner"),
     proof: {},
   };
@@ -54,7 +57,7 @@ describe("computePosition", () => {
       {
         kind: "outcome-set",
         node: { graph: "demo", id: "a" },
-        outcome: outcome.reset([]),
+        outcome: outcome.reset([], "Rodrigo Sasaki", "flaky suite"),
       },
     ];
     const cleared = fold([
@@ -72,7 +75,12 @@ describe("computePosition", () => {
   });
 
   it("shows a node's own recorded outcome instead of computing ready/blocked", () => {
-    const heldOutcome = outcome.held([], "gate failed", "retry", "flaky", 1000);
+    const heldOutcome = outcome.held(
+      [],
+      heldOn.gateFailure("gate failed", "retry"),
+      "flaky",
+      1000,
+    );
     const projection = fold([
       { kind: "node-created", node: { graph: "demo", id: "a" } },
       {

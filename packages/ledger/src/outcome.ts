@@ -4,17 +4,29 @@ import type { Gate } from "./gate.ts";
 import { isReceipt, type Receipt } from "./receipt.ts";
 import { isRecord, isString, prop } from "./validate.ts";
 
+export type HeldOn =
+  | {
+      readonly kind: "gate-failure";
+      readonly failure: string;
+      readonly disposition: Disposition;
+    }
+  | { readonly kind: "decision"; readonly authority: string };
+
 export type Outcome =
   | { readonly kind: "cleared"; readonly receipts: readonly Receipt[] }
   | {
       readonly kind: "held";
       readonly receipts: readonly Receipt[];
-      readonly failure: string;
-      readonly disposition: Disposition;
+      readonly on: HeldOn;
       readonly because: string;
       readonly expiry: number;
     }
-  | { readonly kind: "reset"; readonly receipts: readonly Receipt[] }
+  | {
+      readonly kind: "reset";
+      readonly receipts: readonly Receipt[];
+      readonly authority: string;
+      readonly because: string;
+    }
   | {
       readonly kind: "failed";
       readonly receipts: readonly Receipt[];
@@ -59,22 +71,35 @@ export function buildCleared(
     : ok({ kind: "cleared", receipts });
 }
 
+export const heldOn = {
+  gateFailure: (failure: string, disposition: Disposition): HeldOn => ({
+    kind: "gate-failure",
+    failure,
+    disposition,
+  }),
+  decision: (authority: string): HeldOn => ({ kind: "decision", authority }),
+};
+
 export const outcome = {
-  reset: (receipts: readonly Receipt[]): Outcome => ({
+  reset: (
+    receipts: readonly Receipt[],
+    authority: string,
+    because: string,
+  ): Outcome => ({
     kind: "reset",
     receipts,
+    authority,
+    because,
   }),
   held: (
     receipts: readonly Receipt[],
-    failure: string,
-    disposition: Disposition,
+    on: HeldOn,
     because: string,
     expiry: number,
   ): Outcome => ({
     kind: "held",
     receipts,
-    failure,
-    disposition,
+    on,
     because,
     expiry,
   }),
@@ -116,6 +141,23 @@ function isReceiptArray(value: unknown): value is readonly Receipt[] {
   return Array.isArray(value) && value.every(isReceipt);
 }
 
+export function isHeldOn(value: unknown): value is HeldOn {
+  if (!isRecord(value)) return false;
+  const kind = prop(value, "kind");
+  if (typeof kind !== "string") return false;
+  switch (kind) {
+    case "gate-failure":
+      return (
+        isString(prop(value, "failure")) &&
+        isDisposition(prop(value, "disposition"))
+      );
+    case "decision":
+      return isString(prop(value, "authority"));
+    default:
+      return false;
+  }
+}
+
 export function isOutcome(value: unknown): value is Outcome {
   if (!isRecord(value)) return false;
   const kind = prop(value, "kind");
@@ -123,14 +165,16 @@ export function isOutcome(value: unknown): value is Outcome {
   if (typeof kind !== "string" || !isReceiptArray(receipts)) return false;
   switch (kind) {
     case "cleared":
-    case "reset":
       return true;
     case "held":
       return (
-        isString(prop(value, "failure")) &&
-        isDisposition(prop(value, "disposition")) &&
+        isHeldOn(prop(value, "on")) &&
         isString(prop(value, "because")) &&
         typeof prop(value, "expiry") === "number"
+      );
+    case "reset":
+      return (
+        isString(prop(value, "authority")) && isString(prop(value, "because"))
       );
     case "failed":
       return (

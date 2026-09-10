@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { derivation } from "../src/derivation.js";
 import { gate, isGate, proposeGateMove } from "../src/gate.js";
-import type { Receipt } from "../src/receipt.js";
+import { duration, type Receipt } from "../src/receipt.js";
 import { spend } from "../src/spend.js";
 
 const receipt: Receipt = {
@@ -9,6 +9,7 @@ const receipt: Receipt = {
   gate: "typecheck",
   commitSha: "deadbeef",
   spend: spend.none(),
+  duration: duration.unknown(),
   derivation: derivation.gate("typecheck", "1", "runner"),
   proof: {},
 };

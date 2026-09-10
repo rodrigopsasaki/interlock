@@ -1,14 +1,15 @@
+import { relative } from "node:path";
 import { isErr } from "@phyxiusjs/fp";
 import {
   computePosition,
   explainGraphRefusal,
   findRepoRoot,
   graphFilePath,
-  journalDirectory,
+  sharedJournalDirectory,
   loadGraphDocument,
   renderPosition,
 } from "face";
-import { readReplay, receiptId } from "ledger";
+import { explainScopeRefusal, readReplay, receiptId } from "ledger";
 import type { CommandResult } from "../main.ts";
 
 export async function runGraphShow(
@@ -39,7 +40,7 @@ export async function runGraphShow(
     return { exitCode: 1, message: explainGraphRefusal(document.error) };
   }
 
-  const journal = journalDirectory(repoRoot);
+  const journal = sharedJournalDirectory(repoRoot);
   const replayed = await readReplay(journal);
   if (isErr(replayed)) {
     return {
@@ -48,7 +49,19 @@ export async function runGraphShow(
     };
   }
 
-  const contentHash = await receiptId([path], "approved");
-  const position = computePosition(document.value, replayed.value, contentHash);
+  const contentHash = await receiptId(
+    repoRoot,
+    [relative(repoRoot, path)],
+    "approved",
+  );
+  if (isErr(contentHash)) {
+    return { exitCode: 1, message: explainScopeRefusal(contentHash.error) };
+  }
+
+  const position = computePosition(
+    document.value,
+    replayed.value,
+    contentHash.value,
+  );
   return { exitCode: 0, message: renderPosition(position) };
 }

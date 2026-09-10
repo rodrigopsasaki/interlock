@@ -10,6 +10,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { runGraphApprove } from "../../src/graph/approve.ts";
 import { runGraphShow } from "../../src/graph/show.ts";
+import { gitInitFixture } from "./gitFixture.ts";
 
 const runsRoot = join(import.meta.dirname, "..", ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -36,6 +37,7 @@ const validGraph = [
 
 function fixture(graphYaml: string): string {
   directory = mkdtempSync(join(runsRoot, "run-"));
+  gitInitFixture(directory);
   mkdirSync(join(directory, ".interlock", "graphs"), { recursive: true });
   writeFileSync(
     join(directory, ".interlock", "graphs", "demo.yaml"),

@@ -1,14 +1,12 @@
 import type { NodeDeclaration } from "./document.ts";
 
-// `order` must already be topologically sorted (dependencies before dependents),
-// which is exactly what `topologicalOrder` produces.
 export function criticalPath(
-  order: readonly NodeDeclaration[],
+  topologicallyOrdered: readonly NodeDeclaration[],
 ): readonly string[] {
   const chainLength = new Map<string, number>();
   const predecessor = new Map<string, string>();
 
-  for (const node of order) {
+  for (const node of topologicallyOrdered) {
     let best = 0;
     let bestDependsOn: string | undefined;
     for (const dependsOn of node.dependsOn) {
@@ -24,7 +22,7 @@ export function criticalPath(
 
   let endId: string | undefined;
   let endLength = 0;
-  for (const node of order) {
+  for (const node of topologicallyOrdered) {
     const length = chainLength.get(node.id) ?? 0;
     if (length > endLength) {
       endLength = length;

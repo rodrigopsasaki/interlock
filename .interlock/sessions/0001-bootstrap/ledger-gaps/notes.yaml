@@ -1,0 +1,299 @@
+interlock: notes@v0
+node: ledger-gaps
+entries:
+  - kind: choice
+    at: "2026-09-09T22:00:00Z"
+    chose: >
+      Modeled a voluntary hold as a nested union on `held`'s new `on` field:
+      HeldOn = {kind:"gate-failure", failure, disposition} |
+      {kind:"decision", authority}, with `because` and `expiry` staying
+      common fields on `held` itself.
+    because: >
+      The brief's own words rule out a second word ("never as a second
+      word") and AGENTS.md:89 already phrases the two reasons a node waits
+      as one sentence: "a fork that is yours, or a failed gate." Nesting the
+      discriminator inside `on` keeps `held`'s own `kind` a single word and
+      makes a decision-hold carrying a stray `failure`, or a gate-failure
+      hold missing `disposition`, a compile error rather than a runtime
+      check.
+    rejected: >
+      ["making `failure`/`disposition` optional on held and adding a
+      boolean `voluntary` flag (representable-when-wrong: a voluntary hold
+      could still carry a failure)", "a second Outcome kind such as
+      `held-by-decision` (the brief's literal instruction against a second
+      word, and it would fork every switch on Outcome.kind that already
+      handles `held`)"]
+  - kind: choice
+    at: "2026-09-09T22:05:00Z"
+    chose: >
+      Gave `reset` its own `authority` and `because`, exactly the two
+      fields `cancelled` and `superseded` already carry, and split
+      `isOutcome`'s `case "cleared": case "reset": return true;` into two
+      cases.
+    because: >
+      A human-triggered retry is the same shape of fact as a
+      human-triggered cancel: someone, for a stated reason, changed the
+      node's course. Reusing the existing authority/because pair composes
+      instead of inventing a third vocabulary for the same idea.
+  - kind: choice
+    at: "2026-09-09T22:10:00Z"
+    chose: >
+      Typed a receipt's duration as `Duration = {kind:"measured", ms:
+      number} | {kind:"unknown"}`, required on `Receipt`, with
+      `duration.measured(ms)` / `duration.unknown()` factories.
+    because: >
+      The brief says "required" literally; a nested typed field is never
+      absent even when the measured-ness inside it is unknown, so it
+      satisfies "required" without inventing a fake number. It is also the
+      typed-unknown-duration shape the deliverable asks the upcast rule to
+      produce.
+    rejected: >
+      ["an optional `durationMs?: number` (repeats the exact mistake I3
+      already names for derivation: 'an optional field becomes the field
+      everyone skips')", "splitting Receipt itself into measured/unmeasured
+      variants (forces every Receipt consumer -- Gate's satisfied/waived
+      arms, Outcome.receipts, every existing test -- to add a second
+      discriminant it never needed before, for a fact that belongs on the
+      receipt, not the receipt's own identity)"]
+  - kind: choice
+    at: "2026-09-09T22:12:00Z"
+    chose: >
+      Placed the new `duration` parameter between `spend` and `derivation`
+      in both `Receipt` and `createReceipt`'s argument list.
+    because: >
+      `spend` and `duration` are the two facts about what a gate run cost
+      (money/inference, time); grouping them ahead of `derivation` and
+      `proof` reads as "what it cost, then who produced it, then what it
+      proved."
+  - kind: choice
+    at: "2026-09-09T22:15:00Z"
+    chose: >
+      `cli/graph/approve.ts` now passes `duration.unknown()` into
+      `createReceipt` for the human "approved" gate.
+    because: >
+      Nothing about a person typing `interlock graph approve` has a
+      measured wall-clock gate duration the way a command gate's exit does.
+      `unknown()` says exactly that, honestly; a future command-gate runner
+      is the caller that will pass `duration.measured(ms)`.
+  - kind: choice
+    at: "2026-09-09T22:20:00Z"
+    chose: >
+      Named the debrief's new session-producer field `derivation` (matching
+      the brief's own word and the on-disk debrief.yaml's own field name),
+      but typed it as a new `DebriefDerivation` union
+      ({kind:"agent",runtime,model} | {kind:"human",who}), not ledger's
+      existing `Derivation` (gate | model | human).
+    because: >
+      The on-disk shape {kind:"agent", runtime, model} has no
+      correspondence in ledger's existing Derivation arms at all -- it
+      names which agent ran a whole SESSION, not who produced one receipt
+      or mark. Reusing the type would either force a field mismatch or
+      silently widen Derivation's meaning; a new type sharing the word
+      names the tension explicitly instead of coining or colliding
+      silently, per I3. Recorded under `open`.
+  - kind: choice
+    at: "2026-09-09T22:22:00Z"
+    chose: >
+      Typed `gatesRunByAgent` as `GateRun {id, result: "pass" | "fail",
+      invocation?, note?}`.
+    because: >
+      This is exactly the shape every entry in both real debrief.yaml files
+      (the ledger session's and face-read's) already carries under
+      `gates_run_by_agent:` -- the type says what those files already are,
+      not a new invention.
+  - kind: choice
+    at: "2026-09-09T22:35:00Z"
+    chose: >
+      Built the event@v1 upcaster as a new module,
+      packages/ledger/src/upcast/v1.ts, with its own frozen V1Receipt /
+      V1Gate / V1Outcome shapes and guards, rather than widening the
+      current (now v2) guards to accept either version.
+    because: >
+      outcome.ts/receipt.ts/debrief.ts's own guards must keep validating
+      only the current shape -- a v1 body needs a genuinely different
+      reading (no `on`, no reset authority, no receipt duration) before any
+      transform is safe. Freezing the old shapes in one file named for what
+      it does keeps that reading in one place instead of scattering
+      `| v1Thing` arms through every current type.
+  - kind: choice
+    at: "2026-09-09T22:37:00Z"
+    chose: >
+      For the five event kinds whose payload never changed (node-created,
+      lease-taken, lease-renewed, lease-expired, session-started,
+      note-appended, outbox-intent-recorded), the v1 upcaster calls the
+      CURRENT isLedgerEvent guard directly instead of hand-rolling parallel
+      v1 copies of isNode/isBrief/isSession/isNote.
+    because: >
+      Node, Brief, Session and Note did not change under this session, so
+      the current v2 guard already validates a v1 body for these kinds
+      losslessly -- composing the existing guard is smaller and more
+      honest than a parallel copy that would only ever agree with it.
+  - kind: surprise
+    at: "2026-09-09T22:40:00Z"
+    expected: >
+      Only `held` and `reset` outcomes would need special v1-upcast
+      handling, since those are the two Outcome arms the brief names.
+    observed: >
+      `receipts: readonly Receipt[]` is a field on EVERY Outcome arm --
+      cleared, failed, cancelled and superseded carry receipts too -- so a
+      v1 outcome of any kind needs its embedded receipts upcast for
+      duration, not only held's. upcastOutcome maps `receipts` through
+      upcastReceipt unconditionally, before the per-kind switch.
+  - kind: choice
+    at: "2026-09-09T22:42:00Z"
+    chose: >
+      A v1 `reset` outcome-set event upcasts to `undefined` -- a
+      principled per-body refusal, using the exact registered-tag-but-
+      guard-fails refusal path replay.ts and replay.test.ts already prove
+      -- rather than inventing an authority or a because.
+    because: >
+      v1 never recorded either field for a reset; synthesizing one would
+      be exactly the "fake zero" the brief warns against for duration, only
+      for a string instead of a number. Recorded under `open`: a real v1
+      journal carrying a reset outcome would refuse replay at that line
+      rather than silently gain a fabricated reason.
+  - kind: choice
+    at: "2026-09-09T22:43:00Z"
+    chose: >
+      A v1 `debrief-filed` event also upcasts to `undefined`
+      unconditionally, for every body, rather than a parallel V1Debrief
+      type that would only ever be built to immediately refuse.
+    because: >
+      Debrief's four new required fields (graphBaseSha, sessionStartSha,
+      derivation, gatesRunByAgent) have no v1 equivalent and, unlike
+      duration, no natural "unknown" arm to upcast into honestly -- and no
+      code anywhere converts a debrief.yaml file into a debrief-filed event
+      yet, so this path is unreachable in practice today. Recorded under
+      `open` as the same tension as reset.
+  - kind: surprise
+    at: "2026-09-09T22:45:00Z"
+    expected: >
+      Held's v1-to-v2 upcast might carry the same honesty tension as reset
+      -- ambiguous which HeldOn arm a v1 held event meant.
+    observed: >
+      It does not: v1 had no data-on-held distinction at all, so every v1
+      held event only ever meant "waiting on a failed gate." The upcast to
+      heldOn.gateFailure(failure, disposition) is lossless and unambiguous,
+      with nothing to record under `open`.
+  - kind: choice
+    at: "2026-09-09T22:55:00Z"
+    chose: >
+      journalDirectory(repoRoot) keeps its exact signature and now runs
+      `git rev-parse --git-common-dir` with cwd=repoRoot, resolving that
+      path against repoRoot with node:path's `resolve` and joining the
+      dirname of the result with .interlock/ledger.
+    because: >
+      The common git dir's parent is the repository's own root shared by
+      every worktree, and the existing `.interlock/ledger/` .gitignore
+      entry already covers it. Keeping the signature identical means
+      approve.ts and show.ts need no call-site edits at all.
+  - kind: surprise
+    at: "2026-09-09T22:58:00Z"
+    expected: >
+      `git rev-parse --git-common-dir` would return a consistently
+      absolute or consistently relative path.
+    observed: >
+      It returns an ABSOLUTE path from a linked worktree (this
+      worktree's own) but a RELATIVE path (".git") when run inside the
+      main worktree itself -- verified both empirically. node:path's
+      `resolve(repoRoot, commonDir)` handles either case in one call, so
+      no isAbsolute branch was needed.
+  - kind: choice
+    at: "2026-09-09T23:00:00Z"
+    chose: >
+      Git-initialize each cli test fixture directory (+ one empty initial
+      commit, since currentCommitSha needs a resolvable HEAD) before
+      writing its graph file, factored into a shared
+      packages/cli/test/graph/gitFixture.ts helper used by both
+      approve.test.ts and show.test.ts.
+    because: >
+      Confirmed empirically (per the scout's own finding) that without a
+      `.git` of its own, a fixture directory nested inside this real
+      worktree is not a repository boundary at all: journalDirectory's new
+      git-common-dir walk would silently resolve to THIS worktree's own
+      real repository instead of the fixture, so the test suite's writes
+      would land outside the fixture. Ran this fix, then the full test
+      gate, and confirmed no journal.jsonl appeared under this worktree or
+      the fixture's own former per-worktree path -- only inside each
+      fixture's now-isolated .interlock/ledger.
+  - kind: surprise
+    at: "2026-09-09T23:05:00Z"
+    expected: >
+      `interlock graph show 0001-bootstrap`, run from this worktree after
+      the journal-per-repository fix, to report the graph as approved --
+      the repository's real journal was expected to hold the approval
+      the brief's fixture came from.
+    observed: >
+      It reports the graph STALE, not approved. The repository's real
+      shared journal (a two-line event@v1 journal a person wrote earlier
+      with `interlock graph approve`, the same fixture supplied to this
+      session) upcasts and reads correctly, but this very node
+      (ledger-gaps) was added to the graph file after that approval was
+      recorded, so the current content hash no longer matches the
+      receipt's -- exactly D20 and the bend log's own documented
+      stale-on-edit rule, not a defect. Recorded as a discovery in
+      debrief.yaml. Before this fix, per-worktree resolution made every
+      graph read "not approved" instead, hiding the repository's real,
+      already-recorded approval entirely. Re-approving is a human action
+      and stays out of this session's scope.
+  - kind: choice
+    at: "2026-09-09T23:45:00Z"
+    chose: >
+      Fixed the receipt-identity bug (a harness finding, not brief work: the
+      graph read approved from the main checkout and stale from this
+      worktree for byte-identical graph files, because `receiptId` hashed
+      each scope entry's absolute path string before its content) by
+      reshaping `receiptId`/`createReceipt`/`checkStale` to take a `root`
+      plus repository-relative paths, hashing each path's POSIX-relative
+      string instead of whatever absolute string the caller passed. A
+      relative path outside `root`, or any absolute path at all (whether or
+      not it happens to resolve inside `root`), is a typed `ScopeRefusal`
+      (`Result<T, ScopeRefusal>`, `@phyxiusjs/fp`) rather than a silently
+      hashed string.
+    because: >
+      Content-addressing must depend only on the paths' content and their
+      position relative to the repository, never on where the repository is
+      checked out -- exactly what the design note's own bend log already
+      says ("Address a receipt by the content hash of the paths in the
+      node's scope"). A single shared `root` matches every real call site
+      (`approve.ts`/`show.ts` both resolve one graph file under one
+      `repoRoot`); a per-entry `{root, path}` scope would add a degree of
+      freedom nothing here uses. Reusing `Result`/`err`/`ok` for the refusal
+      matches the exact pattern `gate.ts`'s `GateRefusal` and
+      `document.ts`'s `GraphRefusal` already use, rather than inventing a
+      throwing variant or a silent fallback -- "shape the API so the caller
+      cannot get this wrong" reads here as "an absolute path never reaches
+      `createHash`", proven by a test that passes one and asserts the
+      refusal, not by trusting every caller to remember to relativize
+      first.
+    rejected: >
+      ["scope entries as `{root, path}[]` (one root per path) -- strictly
+      more general than anything the two real callers need, and it would
+      let two entries disagree about which repository they belong to, a
+      state this codebase has no use for", "validating only inside
+      approve.ts/show.ts before calling receiptId, leaving receiptId itself
+      taking bare strings -- the exact shape of the original bug: nothing
+      would stop a third caller from passing an absolute path straight
+      through and silently hashing it again"]
+  - kind: choice
+    at: "2026-09-09T23:55:00Z"
+    chose: >
+      Deleted five comments that only restated what a name, a type or a
+      test already said (root.ts's journal-sharing note, receipt.ts's
+      ScopeRefusal note, criticalPath.ts's order-precondition note,
+      upcast/v1.ts's per-kind-switch note), renaming `journalDirectory` to
+      `sharedJournalDirectory` and criticalPath's `order` parameter to
+      `topologicallyOrdered` so each name now carries what the deleted
+      comment said, and shortened gitFixture.ts's comment and
+      upcast/v1.ts's debrief-filed refusal to one line each. Left every
+      comment stating a why the code cannot -- validate.ts's compiler
+      constraint, replay.ts's truncated-tail rule, mandate.ts's word
+      collision, projection.ts's policy, debrief.ts's vocabulary tension,
+      upcast/v1.ts's frozen-v1-shapes and reset-refusal notes, and
+      replay.test.ts's assertion-design note -- untouched.
+    because: >
+      AGENTS.md:135 ("No README, docs or comments that explain what the
+      code plainly says. Docs explain why.") and the repository owner's
+      own instruction for this pass: as few comments as possible, since
+      this is a public face and names, types and module boundaries already
+      carry the meaning.

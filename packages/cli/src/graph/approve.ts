@@ -1,3 +1,4 @@
+import { relative } from "node:path";
 import { createSystemClock } from "@phyxiusjs/clock";
 import { isErr } from "@phyxiusjs/fp";
 import {
@@ -5,13 +6,15 @@ import {
   explainGraphRefusal,
   findRepoRoot,
   graphFilePath,
-  journalDirectory,
+  sharedJournalDirectory,
   loadGraphDocument,
 } from "face";
 import {
   createLedger,
   createReceipt,
   derivation,
+  duration,
+  explainScopeRefusal,
   gate,
   nodeKey,
   proposeGateMove,
@@ -71,7 +74,7 @@ export async function runGraphApprove(
     return { exitCode: 1, message: explainGraphRefusal(document.error) };
   }
 
-  const journal = journalDirectory(repoRoot);
+  const journal = sharedJournalDirectory(repoRoot);
   const clock = createSystemClock();
   const opened = await createLedger({ clock, directory: journal });
   if (isErr(opened)) {
@@ -93,19 +96,25 @@ export async function runGraphApprove(
     gate.pending();
   const commitSha = currentCommitSha(repoRoot);
   const receipt = await createReceipt(
-    [path],
+    repoRoot,
+    [relative(repoRoot, path)],
     "approved",
     commitSha,
     spend.none(),
+    duration.unknown(),
     derivation.human(by),
     { because },
   );
+  if (isErr(receipt)) {
+    await ledger.close();
+    return { exitCode: 1, message: explainScopeRefusal(receipt.error) };
+  }
 
   const moved = proposeGateMove(
     declaredGates,
     "approved",
     current,
-    gate.satisfied(receipt),
+    gate.satisfied(receipt.value),
   );
   if (isErr(moved)) {
     await ledger.close();
@@ -125,5 +134,8 @@ export async function runGraphApprove(
   });
   await ledger.close();
 
-  return { exitCode: 0, message: `${id}: approved (receipt ${receipt.id}).` };
+  return {
+    exitCode: 0,
+    message: `${id}: approved (receipt ${receipt.value.id}).`,
+  };
 }
