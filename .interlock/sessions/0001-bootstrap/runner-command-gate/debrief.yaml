@@ -4,7 +4,7 @@ node: runner-command-gate
 role: worker
 graph_base_sha: 1833f7950a28cf17ea02790cf7b13e70471ee323
 session_start_sha: ac425eb067638f52631de59f21c61583438c5189
-head_sha: e819a1e079c6e1c58251e1ad59dd17042b086af5
+head_sha: c8fb87033d864fe5aa76f452bab22d0985776c91
 derivation:
   kind: agent
   runtime: claude-code
@@ -839,6 +839,50 @@ decisions:
     because: "brief:Deliverable item 3 -- the manifest rule, checked before filing"
     rests_on: ["brief:Deliverable"]
     hunks:
+      - ".interlock/sessions/0001-bootstrap/runner-command-gate/debrief.yaml"
+  - id: c46
+    what: >
+      Comment pass. Deleted the restated-AGENTS.md/mechanics comments in
+      gateCommand.ts, gateJudge.ts, lease.ts and worktree.ts, backing each
+      deleted claim with a name instead: a new gateCommand.test.ts case
+      named "standing gates come before the node's own", a new gateJudge
+      test case named "cleared is decided only by this run's own gate
+      execution; foreign gate receipts are ignored; spend other than none
+      is kept", lease.ts's `HEARTBEATS_PER_LEASE`
+      constant/`heartbeatInterval` function, and worktree.ts's
+      `createNodeWorktree` renamed to `ensureNodeWorktree` (both call
+      sites, packages/runner/src/index.ts and packages/cli/src/run.ts,
+      updated to match). Compressed the design-note-paraphrasing comments
+      in sessionBrief.ts, backfill.ts, scope.ts, sweep.ts and
+      tmux/adapter.ts to one line each stating only the local why, and
+      trimmed validate.ts's comment to two lines matching ledger's and
+      face's own wording for the same noPropertyAccessFromIndexSignature
+      constraint. Verified with `mise exec -- pnpm typecheck`, `pnpm
+      test`, and both `pnpm --filter runner test --testNamePattern
+      adapter-boundary` and `--testNamePattern idempotent`, all passing;
+      `rg -n '^\s*//' packages/runner/src packages/cli/src --glob '*.ts' |
+      grep -v ts-expect-error | wc -l` goes from 33 to 7. Appended
+      notes.yaml with this round's choice and updated this debrief's
+      `head_sha` and this closing decision, covering every file the
+      round's diff touched.
+    because: "brief:Deliverable item 2 and item 3 -- notes.yaml is appended while working, and the debrief manifest rule is checked before filing"
+    rests_on: ["brief:Deliverable", "AGENTS.md#Conventions"]
+    hunks:
+      - "packages/runner/src/gateCommand.ts"
+      - "packages/runner/src/gateJudge.ts"
+      - "packages/runner/src/lease.ts"
+      - "packages/runner/src/sessionBrief.ts"
+      - "packages/runner/src/backfill.ts"
+      - "packages/runner/src/scope.ts"
+      - "packages/runner/src/sweep.ts"
+      - "packages/runner/src/tmux/adapter.ts"
+      - "packages/runner/src/worktree.ts"
+      - "packages/runner/src/validate.ts"
+      - "packages/runner/src/index.ts"
+      - "packages/cli/src/run.ts"
+      - "packages/runner/test/gateCommand.test.ts"
+      - "packages/runner/test/gateJudge.test.ts"
+      - ".interlock/sessions/0001-bootstrap/runner-command-gate/notes.yaml"
       - ".interlock/sessions/0001-bootstrap/runner-command-gate/debrief.yaml"
 gates_run_by_agent:
   - { id: typecheck, result: pass, invocation: "mise exec -- pnpm typecheck", note: "re-run at e819a1e (fix round, finding 1)" }

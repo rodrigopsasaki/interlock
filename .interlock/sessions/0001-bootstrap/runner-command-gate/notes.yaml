@@ -317,3 +317,40 @@ entries:
       knowable or stable at this point in `interlock run`, and
       `briefExists`/`briefPath` already establish disk, not git history,
       as this brief's source of truth)"]
+  - kind: choice
+    at: "2026-09-10T00:59:00Z"
+    chose: >
+      For each of the ten targeted comments, either deleted it outright
+      once its claim already lived in a name (gateCommand's and
+      gateJudge's claims moved into test titles, lease's heartbeat rule
+      into `HEARTBEATS_PER_LEASE`/`heartbeatInterval`, worktree's reuse
+      rule into the name `ensureNodeWorktree`), or compressed it to one
+      line stating only the local why (sessionBrief.ts, backfill.ts,
+      scope.ts, sweep.ts, tmux/adapter.ts), or trimmed it to match
+      ledger's and face's own wording for the same compiler-flag
+      constraint (validate.ts).
+    because: >
+      AGENTS.md's own rule -- "No README, docs or comments that explain
+      what the code plainly says. Docs explain why" -- means a comment
+      earns its place only when its why is genuinely local and not
+      already carried by a name, a test, or docs/design/0001-interlock.md.
+      Five comments stated a why no identifier or test title captures
+      (git-checkout timing, dependency-debrief eligibility, the graph
+      format's own scope gap, the ledger's own missing outcome kind,
+      tmux's own observability limit), so those were kept but compressed
+      instead of deleted, matching the repository owner's instruction to
+      replace them with one line each rather than remove them outright.
+      The other five stated only mechanics (an array's concatenation
+      order, a re-run rule, a division by three, a reuse guarantee) or
+      restated AGENTS.md/the brief verbatim, so a name or a test proves
+      the same claim more durably than prose that can drift from the
+      code beside it.
+    rejected: >
+      ["deleting all ten outright and pointing every reader at the design
+      note (the five one-line survivors' why is a fact about this file's
+      own local reasoning, not the design note's project history, and
+      would be lost rather than relocated)", "leaving every comment at its
+      original multi-line length (the repository owner's rule for this
+      public face is as few comments as possible; a name, a type, a test
+      or a module boundary is preferred wherever one already carries the
+      meaning)"]
