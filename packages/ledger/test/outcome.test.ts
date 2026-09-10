@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { derivation } from "../src/derivation.js";
 import { gate } from "../src/gate.js";
-import { buildCleared, outcome } from "../src/outcome.js";
-import type { Receipt } from "../src/receipt.js";
+import { buildCleared, heldOn, outcome } from "../src/outcome.js";
+import { duration, type Receipt } from "../src/receipt.js";
 import { spend } from "../src/spend.js";
 
 function receiptFor(gateId: string): Receipt {
@@ -11,6 +11,7 @@ function receiptFor(gateId: string): Receipt {
     gate: gateId,
     commitSha: "deadbeef",
     spend: spend.none(),
+    duration: duration.unknown(),
     derivation: derivation.gate(gateId, "1", "runner"),
     proof: {},
   };
@@ -45,21 +46,49 @@ describe("buildCleared", () => {
 });
 
 describe("outcome factories", () => {
-  it("carries failure, disposition and because as three separate fields on held", () => {
+  it("carries a failed gate's failure and disposition as data on held, never a second word", () => {
     const held = outcome.held(
       [],
-      "typecheck failed",
-      "repair",
+      heldOn.gateFailure("typecheck failed", "repair"),
       "a real type error, not flaky",
       30_000,
     );
     expect(held).toEqual({
       kind: "held",
       receipts: [],
-      failure: "typecheck failed",
-      disposition: "repair",
+      on: {
+        kind: "gate-failure",
+        failure: "typecheck failed",
+        disposition: "repair",
+      },
       because: "a real type error, not flaky",
       expiry: 30_000,
+    });
+  });
+
+  it("carries a decision's authority as data on held, with no failure at all", () => {
+    const held = outcome.held(
+      [],
+      heldOn.decision("Rodrigo Sasaki"),
+      "waiting on a call only a person makes",
+      30_000,
+    );
+    expect(held).toEqual({
+      kind: "held",
+      receipts: [],
+      on: { kind: "decision", authority: "Rodrigo Sasaki" },
+      because: "waiting on a call only a person makes",
+      expiry: 30_000,
+    });
+  });
+
+  it("carries authority and because on reset, the same as on cancelled and superseded", () => {
+    expect(
+      outcome.reset([], "Rodrigo Sasaki", "flaky suite, re-running"),
+    ).toMatchObject({
+      kind: "reset",
+      authority: "Rodrigo Sasaki",
+      because: "flaky suite, re-running",
     });
   });
 

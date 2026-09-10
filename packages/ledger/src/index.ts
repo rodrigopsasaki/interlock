@@ -1,7 +1,19 @@
 export type { Brief } from "./brief.ts";
 export { isBrief } from "./brief.ts";
-export type { Debrief, Decision, Discovery } from "./debrief.ts";
-export { isDebrief, isDecision, isDiscovery } from "./debrief.ts";
+export type {
+  Debrief,
+  DebriefDerivation,
+  Decision,
+  Discovery,
+  GateRun,
+} from "./debrief.ts";
+export {
+  isDebrief,
+  isDebriefDerivation,
+  isDecision,
+  isDiscovery,
+  isGateRun,
+} from "./debrief.ts";
 export type { Derivation } from "./derivation.ts";
 export { derivation, isDerivation } from "./derivation.ts";
 export type { Disposition } from "./disposition.ts";
@@ -24,8 +36,14 @@ export type { Gap, Mark } from "./mark.ts";
 export { isGap, isMark, mark } from "./mark.ts";
 export type { Note } from "./note.ts";
 export { isNote, note } from "./note.ts";
-export type { ClearRefusal, Outcome } from "./outcome.ts";
-export { buildCleared, isOutcome, outcome } from "./outcome.ts";
+export type { ClearRefusal, HeldOn, Outcome } from "./outcome.ts";
+export {
+  buildCleared,
+  heldOn,
+  isHeldOn,
+  isOutcome,
+  outcome,
+} from "./outcome.ts";
 export type { LedgerProjection, NodeView, SessionView } from "./projection.ts";
 export {
   applyEvent,
@@ -33,8 +51,15 @@ export {
   fold,
   isInterrupted,
 } from "./projection.ts";
-export type { Receipt, Stale } from "./receipt.ts";
-export { checkStale, createReceipt, isReceipt, receiptId } from "./receipt.ts";
+export type { Duration, Receipt, Stale } from "./receipt.ts";
+export {
+  checkStale,
+  createReceipt,
+  duration,
+  isDuration,
+  isReceipt,
+  receiptId,
+} from "./receipt.ts";
 export type { ParsedLine, ReplayRefusal } from "./replay.ts";
 export { parseLine, readReplay, replayFromRaw } from "./replay.ts";
 export type { Session } from "./session.ts";

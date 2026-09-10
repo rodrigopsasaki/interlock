@@ -7,7 +7,7 @@ import { nodeKey, type Node } from "../src/graph.js";
 import { note } from "../src/note.js";
 import { outcome } from "../src/outcome.js";
 import { fold, isInterrupted } from "../src/projection.js";
-import type { Receipt } from "../src/receipt.js";
+import { duration, type Receipt } from "../src/receipt.js";
 import { spend } from "../src/spend.js";
 
 const node: Node = { graph: "0001-bootstrap", id: "ledger" };
@@ -24,6 +24,7 @@ const receipt: Receipt = {
   gate: "typecheck",
   commitSha: "deadbeef",
   spend: spend.none(),
+  duration: duration.unknown(),
   derivation: derivation.gate("typecheck", "1", "runner"),
   proof: {},
 };
@@ -39,13 +40,19 @@ describe("fold", () => {
         to: gate.satisfied(receipt),
       },
       { kind: "receipt-written", node, receipt },
-      { kind: "outcome-set", node, outcome: outcome.reset([receipt]) },
+      {
+        kind: "outcome-set",
+        node,
+        outcome: outcome.reset([receipt], "Rodrigo Sasaki", "flaky suite"),
+      },
     ];
     const projection = fold(events);
     const view = projection.nodes.get(nodeKey(node));
     expect(view?.gates.get("typecheck")).toEqual(gate.satisfied(receipt));
     expect(view?.receipts).toEqual([receipt]);
-    expect(view?.outcome).toEqual(outcome.reset([receipt]));
+    expect(view?.outcome).toEqual(
+      outcome.reset([receipt], "Rodrigo Sasaki", "flaky suite"),
+    );
   });
 
   it("projects a session's notes and lease from its events", () => {
@@ -89,9 +96,17 @@ describe("fold", () => {
           graph: "0001-bootstrap",
           node: "ledger",
           role: "worker",
+          graphBaseSha: "deadbeef",
+          sessionStartSha: "deadbeef",
           headSha: "deadbeef",
+          derivation: {
+            kind: "agent",
+            runtime: "claude-code",
+            model: "claude-sonnet-5",
+          },
           discoveries: [],
           decisions: [],
+          gatesRunByAgent: [],
           open: [],
         },
       },

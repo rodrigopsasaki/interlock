@@ -4,6 +4,7 @@ import { derivation } from "../src/derivation.js";
 import {
   checkStale,
   createReceipt,
+  duration,
   isReceipt,
   receiptId,
 } from "../src/receipt.js";
@@ -45,6 +46,7 @@ describe("createReceipt", () => {
       "typecheck",
       "aaa",
       spend.none(),
+      duration.measured(1_204),
       derivation.gate("typecheck", "1", "r"),
       {},
     );
@@ -53,6 +55,7 @@ describe("createReceipt", () => {
       "typecheck",
       "bbb",
       spend.none(),
+      duration.measured(1_204),
       derivation.gate("typecheck", "1", "r"),
       {},
     );
@@ -67,10 +70,25 @@ describe("createReceipt", () => {
       "typecheck",
       "aaa",
       spend.none(),
+      duration.measured(1_204),
       derivation.gate("typecheck", "1", "r"),
       {},
     );
     expect(receipt.proof).toEqual({});
+    expect(isReceipt(receipt)).toBe(true);
+  });
+
+  it("carries a typed unknown duration for a gate with nothing measured, such as a human's", async () => {
+    const receipt = await createReceipt(
+      [packageJson],
+      "approved",
+      "aaa",
+      spend.none(),
+      duration.unknown(),
+      derivation.human("Rodrigo Sasaki"),
+      {},
+    );
+    expect(receipt.duration).toEqual({ kind: "unknown" });
     expect(isReceipt(receipt)).toBe(true);
   });
 });
@@ -82,6 +100,7 @@ describe("checkStale", () => {
       "typecheck",
       "aaa",
       spend.none(),
+      duration.measured(1_204),
       derivation.gate("typecheck", "1", "r"),
       {},
     );
@@ -94,6 +113,7 @@ describe("checkStale", () => {
       "typecheck",
       "aaa",
       spend.none(),
+      duration.measured(1_204),
       derivation.gate("typecheck", "1", "r"),
       {},
     );

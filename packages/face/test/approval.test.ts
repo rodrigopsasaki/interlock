@@ -3,6 +3,7 @@ import { join } from "node:path";
 import {
   createReceipt,
   derivation,
+  duration,
   fold,
   gate,
   nodeKey,
@@ -53,6 +54,7 @@ describe("stale-approval", () => {
       "approved",
       "deadbeef",
       spend.none(),
+      duration.unknown(),
       derivation.human("Rodrigo Sasaki"),
       { because: "approved for the stale-approval test" },
     );

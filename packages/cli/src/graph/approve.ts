@@ -12,6 +12,7 @@ import {
   createLedger,
   createReceipt,
   derivation,
+  duration,
   gate,
   nodeKey,
   proposeGateMove,
@@ -97,6 +98,7 @@ export async function runGraphApprove(
     "approved",
     commitSha,
     spend.none(),
+    duration.unknown(),
     derivation.human(by),
     { because },
   );

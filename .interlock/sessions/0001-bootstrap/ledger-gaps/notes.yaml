@@ -1,0 +1,103 @@
+interlock: notes@v0
+node: ledger-gaps
+entries:
+  - kind: choice
+    at: "2026-09-09T22:00:00Z"
+    chose: >
+      Modeled a voluntary hold as a nested union on `held`'s new `on` field:
+      HeldOn = {kind:"gate-failure", failure, disposition} |
+      {kind:"decision", authority}, with `because` and `expiry` staying
+      common fields on `held` itself.
+    because: >
+      The brief's own words rule out a second word ("never as a second
+      word") and AGENTS.md:89 already phrases the two reasons a node waits
+      as one sentence: "a fork that is yours, or a failed gate." Nesting the
+      discriminator inside `on` keeps `held`'s own `kind` a single word and
+      makes a decision-hold carrying a stray `failure`, or a gate-failure
+      hold missing `disposition`, a compile error rather than a runtime
+      check.
+    rejected: >
+      ["making `failure`/`disposition` optional on held and adding a
+      boolean `voluntary` flag (representable-when-wrong: a voluntary hold
+      could still carry a failure)", "a second Outcome kind such as
+      `held-by-decision` (the brief's literal instruction against a second
+      word, and it would fork every switch on Outcome.kind that already
+      handles `held`)"]
+  - kind: choice
+    at: "2026-09-09T22:05:00Z"
+    chose: >
+      Gave `reset` its own `authority` and `because`, exactly the two
+      fields `cancelled` and `superseded` already carry, and split
+      `isOutcome`'s `case "cleared": case "reset": return true;` into two
+      cases.
+    because: >
+      A human-triggered retry is the same shape of fact as a
+      human-triggered cancel: someone, for a stated reason, changed the
+      node's course. Reusing the existing authority/because pair composes
+      instead of inventing a third vocabulary for the same idea.
+  - kind: choice
+    at: "2026-09-09T22:10:00Z"
+    chose: >
+      Typed a receipt's duration as `Duration = {kind:"measured", ms:
+      number} | {kind:"unknown"}`, required on `Receipt`, with
+      `duration.measured(ms)` / `duration.unknown()` factories.
+    because: >
+      The brief says "required" literally; a nested typed field is never
+      absent even when the measured-ness inside it is unknown, so it
+      satisfies "required" without inventing a fake number. It is also the
+      typed-unknown-duration shape the deliverable asks the upcast rule to
+      produce.
+    rejected: >
+      ["an optional `durationMs?: number` (repeats the exact mistake I3
+      already names for derivation: 'an optional field becomes the field
+      everyone skips')", "splitting Receipt itself into measured/unmeasured
+      variants (forces every Receipt consumer -- Gate's satisfied/waived
+      arms, Outcome.receipts, every existing test -- to add a second
+      discriminant it never needed before, for a fact that belongs on the
+      receipt, not the receipt's own identity)"]
+  - kind: choice
+    at: "2026-09-09T22:12:00Z"
+    chose: >
+      Placed the new `duration` parameter between `spend` and `derivation`
+      in both `Receipt` and `createReceipt`'s argument list.
+    because: >
+      `spend` and `duration` are the two facts about what a gate run cost
+      (money/inference, time); grouping them ahead of `derivation` and
+      `proof` reads as "what it cost, then who produced it, then what it
+      proved."
+  - kind: choice
+    at: "2026-09-09T22:15:00Z"
+    chose: >
+      `cli/graph/approve.ts` now passes `duration.unknown()` into
+      `createReceipt` for the human "approved" gate.
+    because: >
+      Nothing about a person typing `interlock graph approve` has a
+      measured wall-clock gate duration the way a command gate's exit does.
+      `unknown()` says exactly that, honestly; a future command-gate runner
+      is the caller that will pass `duration.measured(ms)`.
+  - kind: choice
+    at: "2026-09-09T22:20:00Z"
+    chose: >
+      Named the debrief's new session-producer field `derivation` (matching
+      the brief's own word and the on-disk debrief.yaml's own field name),
+      but typed it as a new `DebriefDerivation` union
+      ({kind:"agent",runtime,model} | {kind:"human",who}), not ledger's
+      existing `Derivation` (gate | model | human).
+    because: >
+      The on-disk shape {kind:"agent", runtime, model} has no
+      correspondence in ledger's existing Derivation arms at all -- it
+      names which agent ran a whole SESSION, not who produced one receipt
+      or mark. Reusing the type would either force a field mismatch or
+      silently widen Derivation's meaning; a new type sharing the word
+      names the tension explicitly instead of coining or colliding
+      silently, per I3. Recorded under `open`.
+  - kind: choice
+    at: "2026-09-09T22:22:00Z"
+    chose: >
+      Typed `gatesRunByAgent` as `GateRun {id, result: "pass" | "fail",
+      invocation?, note?}`.
+    because: >
+      This is exactly the shape every entry in both real debrief.yaml files
+      (the ledger session's and face-read's) already carries under
+      `gates_run_by_agent:` -- the type says what those files already are,
+      not a new invention.

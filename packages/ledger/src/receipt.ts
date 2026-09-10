@@ -4,11 +4,35 @@ import { isDerivation, type Derivation } from "./derivation.ts";
 import { isSpend, type Spend } from "./spend.ts";
 import { isRecord, isString, prop } from "./validate.ts";
 
+export type Duration =
+  | { readonly kind: "measured"; readonly ms: number }
+  | { readonly kind: "unknown" };
+
+export const duration = {
+  measured: (ms: number): Duration => ({ kind: "measured", ms }),
+  unknown: (): Duration => ({ kind: "unknown" }),
+};
+
+export function isDuration(value: unknown): value is Duration {
+  if (!isRecord(value)) return false;
+  const kind = prop(value, "kind");
+  if (typeof kind !== "string") return false;
+  switch (kind) {
+    case "measured":
+      return typeof prop(value, "ms") === "number";
+    case "unknown":
+      return true;
+    default:
+      return false;
+  }
+}
+
 export interface Receipt {
   readonly id: string;
   readonly gate: string;
   readonly commitSha: string;
   readonly spend: Spend;
+  readonly duration: Duration;
   readonly derivation: Derivation;
   readonly proof: Readonly<Record<string, unknown>>;
 }
@@ -31,11 +55,12 @@ export async function createReceipt(
   gate: string,
   commitSha: string,
   spend: Spend,
+  duration: Duration,
   derivation: Derivation,
   proof: Readonly<Record<string, unknown>>,
 ): Promise<Receipt> {
   const id = await receiptId(scope, gate);
-  return { id, gate, commitSha, spend, derivation, proof };
+  return { id, gate, commitSha, spend, duration, derivation, proof };
 }
 
 export function isReceipt(value: unknown): value is Receipt {
@@ -45,6 +70,7 @@ export function isReceipt(value: unknown): value is Receipt {
     isString(prop(value, "gate")) &&
     isString(prop(value, "commitSha")) &&
     isSpend(prop(value, "spend")) &&
+    isDuration(prop(value, "duration")) &&
     isDerivation(prop(value, "derivation")) &&
     isRecord(prop(value, "proof"))
   );
