@@ -237,6 +237,109 @@ describe("herdr adapter", () => {
     expect(startCall?.params["timeout_ms"]).toBe(60_000);
   });
 
+  it("names the agent after the node id when it is herdr-compliant", async () => {
+    const fake = await fixture();
+    const created = await createHerdrRuntime(fake.socketPath);
+    if (isErr(created)) throw new Error("expected a runtime");
+    const pane = await created.value.openPane("/repo");
+    if (isErr(pane)) throw new Error("expected a pane");
+
+    const agent = await created.value.startAgent(
+      pane.value,
+      "claude",
+      [],
+      undefined,
+      "runner-command-gate",
+    );
+    if (isErr(agent)) throw new Error("expected an agent");
+    expect(agent.value.id).toBe("runner-command-gate");
+
+    const startCall = fake.calls.find((call) => call.method === "agent.start");
+    expect(startCall?.params["name"]).toBe("runner-command-gate");
+  });
+
+  it("falls back to a generated name when the node id does not fit herdr's rule", async () => {
+    const fake = await fixture();
+    const created = await createHerdrRuntime(fake.socketPath);
+    if (isErr(created)) throw new Error("expected a runtime");
+    const pane = await created.value.openPane("/repo");
+    if (isErr(pane)) throw new Error("expected a pane");
+
+    const agent = await created.value.startAgent(
+      pane.value,
+      "claude",
+      [],
+      undefined,
+      "Runner Command Gate!",
+    );
+    if (isErr(agent)) throw new Error("expected an agent");
+    expect(isCompliantAgentName(agent.value.id)).toBe(true);
+    expect(agent.value.id).not.toBe("Runner Command Gate!");
+
+    const startCalls = fake.calls.filter(
+      (call) => call.method === "agent.start",
+    );
+    expect(startCalls).toHaveLength(1);
+  });
+
+  it("falls back to a generated name once herdr refuses the node id, without retrying that same name", async () => {
+    const fake = await fixture();
+    const created = await createHerdrRuntime(fake.socketPath);
+    if (isErr(created)) throw new Error("expected a runtime");
+    const pane = await created.value.openPane("/repo");
+    if (isErr(pane)) throw new Error("expected a pane");
+
+    fake.failNextCall("agent_name_taken", "an agent named that already exists");
+    const agent = await created.value.startAgent(
+      pane.value,
+      "claude",
+      [],
+      undefined,
+      "runner-command-gate",
+    );
+    if (isErr(agent)) throw new Error("expected an agent");
+    expect(agent.value.id).not.toBe("runner-command-gate");
+    expect(isCompliantAgentName(agent.value.id)).toBe(true);
+
+    const startCalls = fake.calls.filter(
+      (call) => call.method === "agent.start",
+    );
+    expect(startCalls.map((call) => call.params["name"])).toEqual([
+      "runner-command-gate",
+      agent.value.id,
+    ]);
+  });
+
+  it("does not retry a busy pane refusal as a name-fallback: it keeps the preferred name", async () => {
+    const fake = await fixture();
+    const created = await createHerdrRuntime(fake.socketPath);
+    if (isErr(created)) throw new Error("expected a runtime");
+    const pane = await created.value.openPane("/repo");
+    if (isErr(pane)) throw new Error("expected a pane");
+
+    fake.failNextCall(
+      "agent_pane_busy",
+      "agent target pane fake-pane-1 is not an available shell",
+      1,
+    );
+    const agent = await created.value.startAgent(
+      pane.value,
+      "claude",
+      [],
+      undefined,
+      "runner-command-gate",
+    );
+    if (isErr(agent)) throw new Error("expected an agent");
+    expect(agent.value.id).toBe("runner-command-gate");
+
+    const startCalls = fake.calls.filter(
+      (call) => call.method === "agent.start",
+    );
+    expect(
+      startCalls.every((call) => call.params["name"] === "runner-command-gate"),
+    ).toBe(true);
+  });
+
   it("settles a call with herdr's own code and message when it answers with an error frame", async () => {
     const fake = await fixture();
     const created = await createHerdrRuntime(fake.socketPath);
