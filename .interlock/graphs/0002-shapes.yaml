@@ -1,0 +1,84 @@
+# Interlock's second graph: the shapes, made precise enough to build docs, views and a
+# substrate against. Runs beside 0001-bootstrap and touches none of its files.
+
+interlock: graph@v0
+id: 0002-shapes
+
+ask: >
+  Make every artifact shape precise and published, define the shape the two protocols meet in,
+  and write the substrate protocol, so that documentation, visual presentation, teaching, and a
+  second substrate can be built in parallel against typed outputs rather than prose.
+
+derivation:
+  kind: human
+  who: Rodrigo Sasaki
+  with: Claude, in a design conversation on 2026-09-10
+
+read: >
+  Two protocols meet in the brief: the session protocol (brief in, notes during, diff and debrief
+  out) and the substrate protocol (context, absorb, and declared capabilities). The brief is the
+  one shape neither side owns alone, so it is defined first. Every other shape already exists as
+  a type or a file and needs a schema and a page. The substrate protocol is a design note first
+  and a client second, so a substrate can implement it before interlock consumes it.
+
+gates:
+  - id: approved
+    kind: human
+
+nodes:
+  - id: brief-shape
+    acceptance: >
+      `brief@v1`: YAML front matter the runner reads (graph, node, role, graph base SHA, the gates
+      the runner will run, the scope paths receipts address, the substrate address and its walk
+      handle when present) followed by a markdown body the session reads: the acceptance verbatim,
+      the context slice rendered as sections whose items carry provenance, constraints, and the
+      deliverable. A reader validates a brief and yields its typed front matter; a hand-written
+      brief with no front matter validates as `brief@v0`, legacy, and the runner refuses to run a
+      node whose brief is legacy. The runner writes the front matter when it creates a session's
+      brief from a graph, the standing table and the node. `interlock brief validate <graph>
+      <node>`. Every existing brief under `.interlock/sessions/` validates as `brief@v0`.
+    depends_on: []
+    gates:
+      - id: brief-legacy
+        kind: command
+        run: pnpm --filter debrief test --testNamePattern brief
+
+  - id: schemas
+    acceptance: >
+      A JSON Schema for every artifact shape and version interlock reads or writes today, under
+      `schemas/`: graph@v0, brief@v0 and brief@v1, notes@v0, debrief@v0, debrief@v1, debrief@v2,
+      event@v1 and event@v2 with receipt, derivation, mark, outcome, gate and lease, config@v0,
+      local@v0. Every real file under `.interlock/` and every line of the repository's journal
+      validates against its schema, and a test proves the TypeScript guards and the schemas agree
+      on the corpus: what one accepts the other accepts. A schema names its shape tag and version
+      in its `$id`.
+    depends_on: [brief-shape]
+    gates:
+      - id: corpus-agrees
+        kind: command
+        run: pnpm --filter schemas test --testNamePattern corpus
+
+  - id: shapes-reference
+    acceptance: >
+      `docs/shapes.md`, generated from the schemas by a script the standing gates run, one section
+      per artifact: its purpose in one sentence from the vocabulary, its versions and what changed
+      between them, its fields with types and whether required, and one real example taken from
+      the corpus. Regenerating it changes nothing when the schemas have not changed, and the test
+      fails when it is stale.
+    depends_on: [schemas]
+    gates:
+      - id: reference-fresh
+        kind: command
+        run: pnpm --filter schemas test --testNamePattern reference
+
+  - id: substrate-protocol
+    acceptance: >
+      `docs/design/0003-substrate.md` defines `substrate@v1`: the two required verbs, `context`
+      and `absorb`; the declared capabilities `consult`, `query`, `why`, `note`, `open`, `close`,
+      `propose`, `ratify`, `contest`, `judge`; the payload shape of each in terms of the artifact
+      schemas; what interlock does when a capability is absent; and how the protocol is versioned
+      independently of the artifacts it carries. A schema for each payload lives under
+      `schemas/substrate/`. The note names one reference implementation once and maps its doors
+      to the verbs. Nothing in interlock consumes the protocol yet; that is the next graph.
+    depends_on: [schemas]
+    gates: []
