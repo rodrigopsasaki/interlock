@@ -1,0 +1,379 @@
+interlock: debrief@v2
+graph: 0002-shapes
+node: brief-shape
+role: worker
+graph_base_sha: 95a672046a5cfca8bb356e15e63ba433f54c9920
+session_start_sha: 95a672046a5cfca8bb356e15e63ba433f54c9920
+head_sha: 71c6e759e74356ae4daede694be5275dc4cd7e70
+derivation:
+  kind: agent
+  runtime: claude-code
+  model: claude-sonnet-5
+discoveries:
+  - id: d1
+    what: >
+      This node's own brief.md carries two descriptions of the same case that read as
+      contradictory on a literal parse: the Readers paragraph says a front-matter block "lacking
+      the shape tag" validates as brief@v0 legacy, while the Errors bullet two sentences later
+      lists "missing tag" as one of the reader's refusal kinds.
+    found_at: >
+      .interlock/sessions/0002-shapes/brief-shape/brief.md, the "Readers" paragraph against the
+      "Errors are sentences with file and line" sentence immediately after it, read side by side
+      while designing packages/debrief/src/brief.ts's dispatch.
+    mattered_because: >
+      The two readings produce different refusal unions and different behavior for a real,
+      plausible file (front matter with no "interlock" key). Resolved in favor of the Readers
+      paragraph, recorded as notes:1; the tension itself is worth a maintainer's eyes since a
+      future brief@v2 could sharpen the wording rather than leave two paragraphs to disagree.
+  - id: d2
+    what: >
+      packages/ledger/src/receipt.ts already implements the exact absolute-path/escapes-root
+      check a scope path needs, as an unexported helper (resolveScopePath) behind the exported
+      ScopeRefusal/explainScopeRefusal pair used for receipt identity.
+    found_at: >
+      packages/ledger/src/receipt.ts:42-74, found while searching the repository for existing
+      scope-path validation before writing packages/debrief/src/briefScopePath.ts.
+    mattered_because: >
+      Composition over creation asks this to be reused first; it was not, and notes:11 records
+      why (exporting a receipt-identity internal for a front-matter concern couples two packages
+      that only need to agree informally). Recorded here as the honest alternative that was
+      available and set aside, not missed.
+  - id: d3
+    what: >
+      Vitest's --testNamePattern filters by each test's full describe-plus-it name, not by its
+      file name.
+    found_at: >
+      Running "mise exec -- pnpm --filter debrief --fail-if-no-match test --testNamePattern
+      brief" directly and reading its output (17 tests matched, from the "readBriefFile" and
+      "every existing brief under .interlock/sessions" describe blocks) rather than trusting the
+      flag's name.
+    mattered_because: >
+      This node's own brief-legacy gate depends on that exact invocation producing at least one
+      passed test; the coverage is real, but it depends on test names containing "brief", a fact
+      neither this brief nor AGENTS.md states, and future test renames could silently break the
+      gate.
+  - id: d4
+    what: >
+      git ls-files returns tracked paths in the git index's own byte-sorted lexicographic order.
+    found_at: >
+      A throwaway fixture repository built by hand (four files under .interlock/, committed,
+      then "git ls-files" run against it) before writing packages/cli/test/run.test.ts's fixture
+      brief; packages/runner/src/scope.ts itself documents the rule ("receipts address every
+      tracked file") but not the order gitTrackedFiles returns them in.
+    mattered_because: >
+      Let the fixture brief's scope: list be hand-matched, with confidence, to what
+      writeBriefIntoWorktree computes as authoritative, so the existing "narrates each step"
+      test keeps asserting an exact, unchanged narration array (notes:16).
+  - id: d5
+    what: >
+      face's GateDeclaration.run is optional (a human gate has no run command at all), so a
+      node's own declared gates cannot all be spread into a BriefGate the same way.
+    found_at: >
+      packages/face/src/document.ts:9-13 (GateDeclaration) read against
+      .interlock/graphs/0002-shapes.yaml's "approved" gate (kind: human, no run), while writing
+      authoritativeBriefGates in packages/runner/src/briefRewrite.ts.
+    mattered_because: >
+      exactOptionalPropertyTypes forbids writing run: undefined into a BriefGate literal;
+      authoritativeBriefGates conditionally spreads run in only when the source declaration
+      carries one, the same pattern packages/debrief/src/briefGate.ts already uses for its own
+      optional fields.
+decisions:
+  - id: c1
+    what: >
+      Added packages/debrief/src/role.ts (isPlainWord) and briefScopePath.ts (isValidScopePath)
+      as two small, single-purpose predicate files.
+    because: >
+      Mirrors packages/debrief/src/sha.ts's own shape (one predicate, one file, named for the
+      vocabulary) rather than folding either check inline into brief.ts.
+    rests_on:
+      - "brief:Small single-purpose files named for the vocabulary"
+      - "packages/debrief/src/sha.ts"
+    hunks:
+      - "packages/debrief/src/role.ts:1-3"
+      - "packages/debrief/src/briefScopePath.ts:1-9"
+
+  - id: c2
+    what: >
+      Added packages/debrief/src/briefGate.ts (BriefGate, parseBriefGate) and
+      briefSubstrate.ts (BriefSubstrate, parseBriefSubstrate), one typed field parser per file.
+    because: >
+      Mirrors decision.ts and discovery.ts's own parse-function pattern exactly: a Result-typed
+      parser, a plain error string, one file per shape the brief's front matter carries.
+    rests_on:
+      - "brief:gates, a list of { id, kind, run, expect_output? }"
+      - "brief:substrate, { address, handle? }"
+      - "packages/debrief/src/decision.ts"
+    hunks:
+      - "packages/debrief/src/briefGate.ts:1-39"
+      - "packages/debrief/src/briefSubstrate.ts:1-23"
+
+  - id: c3
+    what: >
+      Added packages/debrief/src/brief.ts: BRIEF_V1, the BriefFrontMatter/BriefRunnerFields/
+      LegacyBrief/V1Brief/BriefRead types, BriefRefusal, explainBriefRefusal,
+      explainLegacyBrief, and readBriefFile.
+    because: notes:1
+    rests_on:
+      - "brief:Readers"
+      - "notes:1"
+      - "notes:2"
+      - "notes:3"
+      - "d1"
+    hunks:
+      - "packages/debrief/src/brief.ts:1-251"
+
+  - id: c4
+    what: >
+      Added packages/debrief/src/slice.ts: Item/ItemKind/ItemScope/ItemStanding and renderSlice,
+      a pure function from typed items to the context-slice markdown.
+    because: notes:4
+    rests_on:
+      - "brief:The slice is rendered from typed items"
+      - "docs/design/0003-substrate.md:context(node, scope, role) -> slice"
+      - "notes:4"
+    hunks:
+      - "packages/debrief/src/slice.ts:1-88"
+
+  - id: c5
+    what: >
+      Added briefFilePath to packages/debrief/src/paths.ts and exported every new brief/slice
+      symbol from packages/debrief/src/index.ts.
+    because: >
+      debriefFilePath and notesFilePath already give this package one canonical place to compute
+      a session file's path; briefFilePath belongs beside them rather than being recomputed
+      elsewhere, and runner's own briefPath (c12) is an alias of it, not a second implementation.
+    rests_on:
+      - "packages/debrief/src/paths.ts"
+    hunks:
+      - "packages/debrief/src/paths.ts:26-33"
+      - "packages/debrief/src/index.ts:18-50"
+
+  - id: c6
+    what: >
+      Added packages/debrief/test/brief.test.ts, covering the reader's legacy/v1 dispatch,
+      every listed refusal, and a corpus test reading all seven 0001-bootstrap briefs plus this
+      node's own 0002-shapes/brief-shape brief; added the required brief@v1 fixture under
+      packages/debrief/test/fixtures/brief-v1.md.
+    because: >
+      "brief:Deliverable" names both requirements directly: every existing brief must validate
+      as brief@v0, and a brief@v1 fixture must exist under packages/debrief/test/fixtures/.
+    rests_on:
+      - "brief:Deliverable 4"
+      - "brief:Every existing brief under .interlock/sessions/ validates as brief@v0"
+    hunks:
+      - "packages/debrief/test/brief.test.ts:1-248"
+      - "packages/debrief/test/fixtures/brief-v1.md:1-36"
+
+  - id: c7
+    what: >
+      Added packages/debrief/test/slice.test.ts, testing renderSlice over a fixture slice: the
+      substrate-none sentence, per-kind grouping and ordering, the derivation-last-line
+      convention, and provenance (because/scope/standing) rendering.
+    because: >
+      "brief:The renderer is a pure function from items to markdown with tests over a fixture
+      slice" is a direct, literal requirement.
+    rests_on:
+      - "brief:no substrate client exists yet and none is built here"
+    hunks:
+      - "packages/debrief/test/slice.test.ts:1-69"
+
+  - id: c8
+    what: >
+      Added packages/cli/src/brief/validate.ts (validateBrief) and wired "brief validate" into
+      packages/cli/src/main.ts's dispatch, beside the existing "debrief validate".
+    because: >
+      "brief:interlock brief validate <graph> <node>" names the command; mirroring
+      packages/cli/src/debrief/validate.ts's exact shape (graph/node lookup via findRepoRoot,
+      --file for a single path, a fixed sentence for the legacy case) reuses a pattern already
+      proven rather than inventing a second CLI shape.
+    rests_on:
+      - "brief:interlock brief validate <graph> <node>"
+      - "packages/cli/src/debrief/validate.ts"
+      - "notes:6"
+    hunks:
+      - "packages/cli/src/brief/validate.ts:1-66"
+      - "packages/cli/src/main.ts:2,21-24"
+
+  - id: c9
+    what: >
+      Added packages/cli/test/brief/validate.test.ts, covering both usage refusals, a brief@v0
+      repository copy, a brief@v1 repository copy, a relative (not absolute) path in the message,
+      a missing brief, and --file against both a hand-written file and the shipped fixture.
+    because: >
+      Direct coverage of every branch validateBrief has, mirroring the depth
+      packages/cli/test/debrief/validate.test.ts already gives the sibling command.
+    rests_on:
+      - "packages/cli/test/debrief/validate.test.ts"
+    hunks:
+      - "packages/cli/test/brief/validate.test.ts:1-118"
+
+  - id: c10
+    what: >
+      Added a required "kind" field to runner's StandingGate interface and its isStandingGate
+      validator in packages/runner/src/standingGates.ts.
+    because: notes:9
+    rests_on:
+      - "brief:gates, a list of { id, kind, run, expect_output? } ... standing table first"
+      - ".interlock/config.yaml:13-19"
+      - "notes:9"
+    hunks:
+      - "packages/runner/src/standingGates.ts:7-11"
+      - "packages/runner/src/standingGates.ts:35-42"
+
+  - id: c11
+    what: >
+      Added packages/runner/src/briefRewrite.ts: authoritativeBriefGates, diffGates, diffScope,
+      and renderBriefFile, as pure functions separate from the file-system-touching
+      sessionBrief.ts.
+    because: >
+      "brief:the runner's view is authoritative and the two are compared: a difference is
+      narrated, never silently overwritten" needs a function that can be unit-tested without a
+      worktree on disk; keeping it apart from sessionBrief.ts's I/O keeps each file
+      single-purpose (notes:10, notes:12, notes:13, d5).
+    rests_on:
+      - "brief:rewrites the gates and scope from the graph and standing table"
+      - "notes:10"
+      - "notes:12"
+      - "notes:13"
+      - "d5"
+    hunks:
+      - "packages/runner/src/briefRewrite.ts:1-129"
+
+  - id: c12
+    what: >
+      Rewrote packages/runner/src/sessionBrief.ts: writeBriefIntoWorktree now reads the
+      repository's brief@v1 through debrief's readBriefFile, refuses a legacy brief with the
+      exact sentence the acceptance names, and otherwise fills graph_base_sha/session and
+      rewrites gates/scope before writing the worktree copy; the old write-only BriefRefusal is
+      renamed SessionBriefRefusal; briefPath becomes a direct alias of debrief's briefFilePath.
+      Exported the new symbols from packages/runner/src/index.ts.
+    because: notes:14
+    rests_on:
+      - "brief:The runner writes the front matter"
+      - "brief:brief for <graph>/<node> is brief@v0; the runner requires brief@v1; add front matter"
+      - "notes:14"
+      - "notes:15"
+    hunks:
+      - "packages/runner/src/sessionBrief.ts:1-115"
+      - "packages/runner/src/index.ts:58-73"
+
+  - id: c13
+    what: >
+      Added packages/runner/test/briefRewrite.test.ts (authoritativeBriefGates' ordering,
+      diffGates/diffScope narrating only on a real difference, renderBriefFile round-tripping
+      through readBriefFile), packages/runner/test/sessionBrief.test.ts (the exact legacy
+      refusal sentence, zero narration when the repository copy already agrees, narration and a
+      rewritten gate list when it does not, the body preserved verbatim), and
+      packages/runner/test/standingGates.test.ts (kind parsed, and refused when absent).
+    because: >
+      Direct unit coverage of the runner behavior "brief:Deliverable" asks for -- filling
+      fields, narrating differences, refusing a v0 brief -- underneath the slower, indirect
+      coverage packages/cli/test/run.test.ts already gives it end to end.
+    rests_on:
+      - "brief:the runner tested filling fields + narrating differences, and refusing v0"
+    hunks:
+      - "packages/runner/test/briefRewrite.test.ts:1-143"
+      - "packages/runner/test/sessionBrief.test.ts:1-170"
+      - "packages/runner/test/standingGates.test.ts:1-60"
+
+  - id: c14
+    what: >
+      Added "kind: \"command\"" to the StandingGate literals in
+      packages/runner/test/gateCommand.test.ts and packages/runner/test/backfill.test.ts.
+    because: >
+      Mechanical fallout of c10: both files construct a StandingGate literal typed against the
+      exported interface, and the compiler refuses one missing a now-required field.
+    rests_on:
+      - "c10"
+    hunks:
+      - "packages/runner/test/gateCommand.test.ts:14"
+      - "packages/runner/test/backfill.test.ts:103,134"
+
+  - id: c15
+    what: >
+      Wired packages/cli/src/run.ts's writeBriefIntoWorktree call through the new signature
+      (graphBaseSha, sessionId, standingGates.value, declaration.gates), narrated every line the
+      call returns after "brief written", and renamed the refusal import/call to
+      explainSessionBriefRefusal.
+    because: >
+      graphBaseSha and sessionId are already computed earlier in runInterlockRun (for the
+      ledger's own session-started event); reusing them here rather than recomputing is the
+      only place they can plug into the rewritten brief, exactly as scouted.
+    rests_on:
+      - "packages/cli/src/run.ts:currentCommitSha, randomUUID"
+    hunks:
+      - "packages/cli/src/run.ts:239-254"
+
+  - id: c16
+    what: >
+      Updated packages/cli/test/run.test.ts: the shared fixture()'s brief.md is now a brief@v1
+      front matter whose gates and scope match the runner's authoritative computation exactly
+      (d4, notes:16); the byte-identical worktree-copy assertion in "writes the brief into the
+      worktree..." is replaced with a parsed check that the copy reads as brief@v1 with its
+      runner fields filled; added a test pinning the exact refusal sentence for a brief@v0 node.
+    because: notes:16
+    rests_on:
+      - "notes:16"
+      - "d4"
+    hunks:
+      - "packages/cli/test/run.test.ts:71-100"
+      - "packages/cli/test/run.test.ts:145"
+      - "packages/cli/test/run.test.ts:240-266"
+      - "packages/cli/test/run.test.ts:419"
+      - "packages/cli/test/run.test.ts:441-446"
+
+  - id: c17
+    what: >
+      Appended .interlock/sessions/0002-shapes/brief-shape/notes.yaml across four commits, one
+      choice or surprise at the point it was made, rather than writing it once at the end.
+    because: >
+      "brief:notes.yaml appended while you work, committed with the code" is a process
+      requirement, not only a deliverable one.
+    rests_on:
+      - "brief:Deliverable 2"
+    hunks:
+      - ".interlock/sessions/0002-shapes/brief-shape/notes.yaml:1-193"
+
+  - id: c18
+    what: >
+      Filed this debrief (debrief@v2), closing the notes with a because on every decision and a
+      manifest covering every file this session changed.
+    because: >
+      "brief:Deliverable 3" requires debrief@v2 as the final commit, head_sha the last code
+      commit, a because on every decision, decisions a manifest of every changed file.
+    rests_on:
+      - "brief:Deliverable 3"
+    hunks:
+      - ".interlock/sessions/0002-shapes/brief-shape/debrief.yaml"
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: "mise exec -- pnpm typecheck"
+  - id: test
+    result: pass
+    invocation: "mise exec -- pnpm test"
+    note: "289 tests across ledger, face, debrief, runner, cli; run twice at the same head_sha, both green"
+  - id: debrief-valid
+    result: pass
+    invocation: "mise exec -- pnpm interlock debrief validate 0002-shapes brief-shape"
+    note: "run against this debrief@v2 and notes@v0 file"
+  - id: brief-legacy
+    result: pass
+    invocation: "mise exec -- pnpm --filter debrief --fail-if-no-match test --testNamePattern brief"
+    note: "17 tests passed (d3); at least one, as the gate's expect_output requires"
+open:
+  - >
+    face's GateDeclaration does not parse expect_output, so a rewritten brief's gates never
+    carry it even though every test gate in both .interlock/graphs/*.yaml declares one
+    (notes:10). The brief-legacy gate's own expect_output is therefore descriptive intent on
+    this graph today, not a runner-enforced check; wiring it belongs to whichever node next
+    touches face's graph parser and the gate judge together.
+  - >
+    diffGates and diffScope narrate by id and by count, never by full path or full command,
+    to keep the common case readable. If a team wants the exact before/after values (not just
+    that something changed), that is a richer narration shape to design deliberately, not a
+    gap to patch quietly.
+  - >
+    The tension between this node's own Readers paragraph and Errors bullet over what "missing
+    tag" means (d1) is worth a maintainer's read; brief@v1's reader resolved it one way, and
+    the design note could say so explicitly rather than leaving two paragraphs to disagree.
