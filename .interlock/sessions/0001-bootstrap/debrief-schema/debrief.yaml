@@ -1,0 +1,458 @@
+interlock: debrief@v2
+graph: 0001-bootstrap
+node: debrief-schema
+role: worker
+graph_base_sha: a22166b9695e695e8f846934088c71d3ea4d6578
+session_start_sha: 0a02b4d01300ddb1415dbc00e776d9742b715e12
+head_sha: e3a988ebe25076087909c0a1839a14199fd6ed9d
+derivation:
+  kind: agent
+  runtime: claude-code
+  model: claude-sonnet-5
+discoveries:
+  - id: d1
+    what: >
+      scaffold, the very first hand-authored session, has no notes.yaml at
+      all -- only brief.md and debrief.yaml.
+    found_at: >
+      .interlock/sessions/0001-bootstrap/scaffold/ (directory listing),
+      confirmed by running this node's own validator against it before
+      the leniency below existed.
+    mattered_because: >
+      the notes@v0 reader and the "graph/node" validate command both had
+      to treat a missing notes.yaml as zero notes rather than a refusal,
+      or scaffold -- one of the five directories the brief requires to
+      validate -- could never pass.
+  - id: d2
+    what: >
+      ledger-gaps and runner-command-gate's debrief@v1 files already carry
+      a "because" on every decision, despite the v1 tag; ledger and
+      face-read do not.
+    found_at: >
+      grepping "because:" inside the decisions: block of all four
+      debrief@v1 fixtures -- ledger-gaps 35/35, runner-command-gate 46/46,
+      ledger 0/28, face-read 0/19.
+    mattered_because: >
+      confirms legacy-valid has to be decided purely by the literal shape
+      tag, never by field completeness, or the two content-complete files
+      would wrongly read as ingestable v2 debriefs under a version they
+      never declared.
+  - id: d3
+    what: >
+      Eight notes.yaml entries across ledger-gaps and runner-command-gate
+      write "rejected: >", a YAML folded block scalar whose body looks
+      like a JSON array but parses to a single string.
+    found_at: >
+      ledger-gaps/notes.yaml entries 1, 3, 18 and runner-command-gate/notes.yaml
+      entries 1, 2, 18, 19, 20 (1-based, counted by "- kind:" markers).
+    mattered_because: >
+      ledger's own isNote guard rejects all eight entries outright over
+      that one optional field; the notes@v0 reader this node builds had
+      to be more lenient there to keep the corpus valid, rather than
+      inventing structure the file never had or failing an otherwise
+      honest entry.
+  - id: d4
+    what: >
+      runner-command-gate's seven discoveries all spell the field
+      "matters_because" (present tense), not "mattered_because".
+    found_at: "runner-command-gate/debrief.yaml, discoveries d1-d7."
+    mattered_because: >
+      a legacy reader that deep-checks every discovery field against the
+      current Discovery type would fail this file for a spelling slip
+      that mattered nothing when it was written; legacy validation stays
+      shallow (id and what only) at the per-item level because of this.
+  - id: d5
+    what: >
+      packages/ledger/src/projection.ts's withSession is a no-op when the
+      session id it is given was never seen in a prior session-started
+      event.
+    found_at: >
+      packages/ledger/src/projection.ts's withSession, found while writing
+      the ingestion test in packages/runner/test/gateJudge.test.ts.
+    mattered_because: >
+      a node ingested through interlock backfill, which never appends
+      session-started, writes real debrief-filed and note-appended events
+      to the journal but leaves no SessionView for them; only a node
+      judged after interlock run gets both the events and the live view.
+      Recorded under open rather than changed, since projection.ts belongs
+      to the ledger node, not this one.
+  - id: d6
+    what: >
+      The debrief-valid validator, run for real against all six session
+      directories -- the five prior ones and this session's own -- at
+      this session's head_sha, plus the exact sentence a missing debrief
+      produces.
+    found_at: |
+      $ mise exec -- pnpm interlock debrief validate 0001-bootstrap scaffold
+      .interlock/sessions/0001-bootstrap/scaffold/debrief.yaml: valid as debrief@v0; not ingested. debrief@v2 would additionally require: role, session_start_sha, "because" on 8 of 8 decisions.
+      .interlock/sessions/0001-bootstrap/scaffold/notes.yaml: no notes were appended.
+      (exit 0)
+
+      $ mise exec -- pnpm interlock debrief validate 0001-bootstrap ledger
+      .interlock/sessions/0001-bootstrap/ledger/debrief.yaml: valid as debrief@v1; not ingested. debrief@v2 would additionally require: "because" on 28 of 28 decisions.
+      .interlock/sessions/0001-bootstrap/ledger/notes.yaml: valid as notes@v0.
+      (exit 0)
+
+      $ mise exec -- pnpm interlock debrief validate 0001-bootstrap face-read
+      .interlock/sessions/0001-bootstrap/face-read/debrief.yaml: valid as debrief@v1; not ingested. debrief@v2 would additionally require: "because" on 19 of 19 decisions.
+      .interlock/sessions/0001-bootstrap/face-read/notes.yaml: valid as notes@v0.
+      (exit 0)
+
+      $ mise exec -- pnpm interlock debrief validate 0001-bootstrap ledger-gaps
+      .interlock/sessions/0001-bootstrap/ledger-gaps/debrief.yaml: valid as debrief@v1; not ingested.
+      .interlock/sessions/0001-bootstrap/ledger-gaps/notes.yaml: valid as notes@v0.
+      (exit 0)
+
+      $ mise exec -- pnpm interlock debrief validate 0001-bootstrap runner-command-gate
+      .interlock/sessions/0001-bootstrap/runner-command-gate/debrief.yaml: valid as debrief@v1; not ingested.
+      .interlock/sessions/0001-bootstrap/runner-command-gate/notes.yaml: valid as notes@v0.
+      (exit 0)
+
+      $ mise exec -- pnpm interlock debrief validate 0001-bootstrap debrief-schema
+      (before this debrief existed)
+      no debrief was filed for 0001-bootstrap/debrief-schema; the session is interrupted.
+      (exit 1)
+
+      $ mise exec -- pnpm interlock debrief validate 0001-bootstrap debrief-schema
+      (after this debrief and notes.yaml were committed)
+      .interlock/sessions/0001-bootstrap/debrief-schema/debrief.yaml: valid as debrief@v2.
+      .interlock/sessions/0001-bootstrap/debrief-schema/notes.yaml: valid as notes@v0.
+      (exit 0)
+    mattered_because: >
+      ledger-gaps and runner-command-gate report no missing "because" at
+      all (matching discovery d2) while still reading as debrief@v1, not
+      ingested -- proof that legacy-valid is keyed off the tag, not
+      content completeness, on the real corpus rather than a synthetic
+      fixture. scaffold's "no notes were appended" line is the leniency
+      decision c10/notes:8 exists for. This is debrief-valid's real
+      mechanism, replacing the fail-closed stub every prior session's
+      debrief-valid gate recorded as failing.
+decisions:
+  - id: c1
+    what: >
+      Scaffolded packages/debrief as a new workspace package
+      (package.json, tsconfig.json, vitest.config.ts, mirroring
+      packages/ledger's own shape) rather than adding the readers to an
+      existing package.
+    because: notes:1
+    rests_on: ["brief:Place the readers where they belong", "notes:1"]
+    hunks:
+      - "packages/debrief/package.json:1-22"
+      - "packages/debrief/tsconfig.json:1-8"
+      - "packages/debrief/vitest.config.ts:1"
+    produces: ["pnpm-lock.yaml"]
+  - id: c2
+    what: >
+      Wrote packages/debrief/src/validate.ts's own isRecord/isString/isStringArray/prop
+      guards, a package-private copy rather than an import across a
+      package boundary.
+    because: "brief:packages/face/src/document.ts and validate.ts"
+    rests_on: ["packages/face/src/validate.ts", "packages/ledger/src/validate.ts"]
+    hunks:
+      - "packages/debrief/src/validate.ts:1-18"
+  - id: c3
+    what: >
+      Added packages/debrief/src/sha.ts (a bare 40-hex-character check) and
+      packages/debrief/src/paths.ts (sessionDirectory/debriefFilePath/notesFilePath),
+      small single-purpose files the reader, the CLI command and the
+      runner's ingestion all share.
+    because: >
+      "brief:Errors are sentences" names head_sha not a SHA by name; the
+      CLI validate command and the runner's ingestion both need the same
+      two file paths under .interlock/sessions/<graph>/<node>/, so the
+      path-building lives once.
+    rests_on: ["brief:What this node builds", "AGENTS.md:vocabulary#debrief"]
+    hunks:
+      - "packages/debrief/src/sha.ts:1-3"
+      - "packages/debrief/src/paths.ts:1-25"
+  - id: c4
+    what: >
+      Wrote parseDecision, parseDiscovery and parseGateRun as three small
+      field-by-field parsers for debrief@v2's own item shapes, each
+      producing a real ledger type (Decision, Discovery, GateRun) or a
+      sentence naming exactly what is wrong.
+    because: notes:5
+    rests_on: ["packages/ledger/src/debrief.ts", "notes:5"]
+    hunks:
+      - "packages/debrief/src/decision.ts:1-47"
+      - "packages/debrief/src/discovery.ts:1-30"
+      - "packages/debrief/src/gateRun.ts:1-33"
+  - id: c5
+    what: >
+      Wrote readDebriefFile: reads and parses the YAML, reads the literal
+      shape tag, and dispatches to a shallow legacy walk for debrief@v0/v1
+      or the strict field-by-field v2 parse, mirroring
+      packages/face/src/document.ts's read-parse-shape pipeline.
+    because: notes:2
+    rests_on: [
+      "brief:Readers for every version",
+      "docs/design/0001-interlock.md#Compatibility",
+      "packages/face/src/document.ts",
+      "notes:2",
+    ]
+    hunks:
+      - "packages/debrief/src/debrief.ts:1-286"
+  - id: c6
+    what: >
+      Wrote readNotesFile and its per-entry parser: a choice needs chose
+      and because, a surprise needs expected and observed, and an
+      otherwise-valid rejected field is kept only when it parses as a real
+      string array.
+    because: notes:4
+    rests_on: [
+      "brief:notes@v0 reader",
+      "packages/ledger/src/note.ts",
+      "notes:3",
+      "notes:4",
+    ]
+    hunks:
+      - "packages/debrief/src/notes.ts:1-141"
+  - id: c7
+    what: "Exported the package's public surface through packages/debrief/src/index.ts."
+    because: "one import path for the cli and runner packages, matching every sibling package's own index.ts"
+    rests_on: ["packages/ledger/src/index.ts", "packages/face/src/index.ts"]
+    hunks:
+      - "packages/debrief/src/index.ts:1-18"
+  - id: c8
+    what: >
+      Unit tests for readDebriefFile and readNotesFile: missing file,
+      unknown shape tag, v0 and v1 legacy-valid (including one where every
+      decision already has because), a well-formed v2 file, a v2 decision
+      missing because, a hand-authored head_sha that is not a SHA (the
+      corpus has no real example of this), a drafted marker, a choice/
+      surprise pair, the folded-scalar rejected leniency, and an entry
+      missing a required field.
+    because: "brief:Deliverable — tests (a)-(d) and (h)'s file-level half"
+    rests_on: ["brief:Deliverable"]
+    hunks:
+      - "packages/debrief/test/debrief.test.ts:1-271"
+      - "packages/debrief/test/notes.test.ts:1-164"
+  - id: c9
+    what: >
+      Added an optional drafted?: Drafted field ({by, from}) to ledger's
+      Debrief interface, with an isDrafted guard and an updated isDebrief,
+      exported from the package.
+    because: notes:6
+    rests_on: [
+      "brief:What this node builds",
+      "docs/design/0001-interlock.md#Compatibility",
+      "notes:6",
+    ]
+    hunks:
+      - "packages/ledger/src/debrief.ts:20-31"
+      - "packages/ledger/src/debrief.ts:51"
+      - "packages/ledger/src/debrief.ts:95-102"
+      - "packages/ledger/src/debrief.ts:116-137"
+      - "packages/ledger/src/index.ts:8"
+      - "packages/ledger/src/index.ts:16"
+  - id: c10
+    what: >
+      Replaced validateDebrief's hardcoded not-implemented stub with the
+      real command: resolves the session directory via face's
+      findRepoRoot, gives the brief's exact missing-debrief sentence,
+      validates debrief.yaml at any known version and notes.yaml
+      (tolerating a missing notes.yaml), and supports --file <path> for
+      one file by hand, dispatched by the file's own shape tag.
+    because: notes:7, notes:8
+    rests_on: [
+      "brief:interlock debrief validate <graph> <node>",
+      "notes:7",
+      "notes:8",
+    ]
+    hunks:
+      - "packages/cli/src/debrief/validate.ts:1-126"
+  - id: c11
+    what: >
+      main.ts's dispatch now threads argv.slice(2) into validateDebrief
+      instead of calling it with no arguments and hardcoding exitCode 1,
+      matching every sibling command's own dispatch line.
+    because: "the stub ignored argv entirely; every other command in main.ts already threads its remaining argv down"
+    rests_on: ["packages/cli/src/main.ts"]
+    hunks:
+      - "packages/cli/src/main.ts:16-18"
+  - id: c12
+    what: "Added debrief and yaml as direct dependencies of packages/cli."
+    because: "validate.ts imports readDebriefFile/readNotesFile from debrief and parse from yaml directly, not only transitively"
+    rests_on: ["packages/debrief/package.json"]
+    hunks:
+      - "packages/cli/package.json:13"
+      - "packages/cli/package.json:16-17"
+    produces: ["pnpm-lock.yaml"]
+  - id: c13
+    what: >
+      Updated the one existing test asserting the old stub's
+      "not implemented" message into a test of the new no-arguments
+      refusal.
+    because: "the stub's own message this test asserted against no longer exists"
+    rests_on: ["packages/cli/test/main.test.ts"]
+    hunks:
+      - "packages/cli/test/main.test.ts:8"
+      - "packages/cli/test/main.test.ts:12"
+  - id: c14
+    what: >
+      New tests for validateDebrief: no arguments, --file with no path,
+      the exact missing-debrief sentence, v0/v1/v2 fixtures (including the
+      because-count report and the scaffold-shaped missing-notes.yaml
+      case), a broken note entry naming its index, --file for both a
+      debrief and a notes file, and that printed paths stay relative to
+      the repository.
+    because: "brief:Deliverable — tests (e), (f) and (g)"
+    rests_on: ["brief:Deliverable"]
+    hunks:
+      - "packages/cli/test/debrief/validate.test.ts:1-209"
+  - id: c15
+    what: >
+      Added substituteGateCommand: fills in {graph} and {node} from the
+      node being judged, and refuses, naming the token, on any other
+      {...} left in the command.
+    because: "brief:Placeholders in gate commands"
+    rests_on: [".interlock/config.yaml", "brief:Placeholders in gate commands"]
+    hunks:
+      - "packages/runner/src/gateCommand.ts:1-30"
+  - id: c16
+    what: >
+      judgeGates now substitutes every gate's command before spawning it,
+      refusing the whole judgement on an unknown placeholder; and, right
+      before the single outcome-set append at the tail of the function, a
+      cleared node's debrief.yaml is read from the worktree just graded,
+      and when it is debrief@v2, debrief-filed then one note-appended per
+      notes.yaml entry are appended through the ledger, before the
+      outcome. A legacy-valid debrief or a read failure appends nothing
+      extra.
+    because: notes:9, notes:10
+    rests_on: [
+      "brief:Ingestion",
+      "docs/design/0001-interlock.md#The verifier",
+      "notes:9",
+      "notes:10",
+    ]
+    hunks:
+      - "packages/runner/src/gateJudge.ts:1-33"
+      - "packages/runner/src/gateJudge.ts:36-58"
+      - "packages/runner/src/gateJudge.ts:83-114"
+      - "packages/runner/src/gateJudge.ts:165-221"
+  - id: c17
+    what: >
+      backfill.ts now passes a per-node session id, `${runnerId}-${declaration.id}`,
+      into judgeGates -- the field the new ingestion path requires.
+    because: notes:9
+    rests_on: ["notes:9"]
+    hunks:
+      - "packages/runner/src/backfill.ts:115"
+  - id: c18
+    what: "cli/run.ts now passes the real sessionId it already holds into judgeGates."
+    because: notes:9
+    rests_on: ["notes:9"]
+    hunks:
+      - "packages/cli/src/run.ts:289"
+  - id: c19
+    what: "Exported substituteGateCommand and PlaceholderRefusal from runner's index.ts."
+    because: "the CLI and this session's own tests need the function through the package's public surface, matching every other runner export"
+    rests_on: ["packages/runner/src/index.ts"]
+    hunks:
+      - "packages/runner/src/index.ts:35-40"
+  - id: c20
+    what: "Added debrief as a direct dependency of packages/runner."
+    because: "judgeGates now imports readDebriefFile/readNotesFile/debriefFilePath/notesFilePath from the debrief package directly"
+    rests_on: ["packages/debrief/package.json"]
+    hunks:
+      - "packages/runner/package.json:15"
+    produces: ["pnpm-lock.yaml"]
+  - id: c21
+    what: >
+      New tests for substituteGateCommand: fills in both placeholders,
+      leaves a plain command untouched, refuses an unknown one naming it.
+    because: "brief:Deliverable — test (h), including the unknown-placeholder case"
+    rests_on: ["brief:Deliverable"]
+    hunks:
+      - "packages/runner/test/gateCommand.test.ts:1-56"
+  - id: c22
+    what: >
+      Threaded the new session field through every existing judgeGates
+      test call, and added tests for placeholder substitution end to end,
+      an unknown-placeholder refusal from judgeGates itself, a cleared v2
+      node's debrief-filed and every note-appended landing before
+      outcome-set (proven by event order and by the resulting
+      SessionView), and a legacy-valid node appending nothing beyond the
+      outcome.
+    because: notes:9, notes:10, notes:11
+    rests_on: ["brief:Deliverable", "notes:9", "notes:10", "notes:11"]
+    hunks:
+      - "packages/runner/test/gateJudge.test.ts:1-10"
+      - "packages/runner/test/gateJudge.test.ts:37-201"
+      - "packages/runner/test/gateJudge.test.ts:203-404"
+  - id: c23
+    what: >
+      Added memoryLedgerWithLog alongside the existing memoryLedger,
+      returning the same Ledger plus the raw event list, so a test can
+      prove append order without reaching into the ledger's internals or
+      changing any production code.
+    because: notes:11
+    rests_on: ["notes:11"]
+    hunks:
+      - "packages/runner/test/support/memoryLedger.ts:1-32"
+  - id: c24
+    what: >
+      Made interlock debrief validate's own two success lines name the
+      debrief and notes paths relative to the repository root instead of
+      the absolute filesystem path findRepoRoot resolves.
+    because: notes:12
+    rests_on: ["notes:12"]
+    hunks:
+      - "packages/cli/src/debrief/validate.ts:1-126"
+      - "packages/cli/test/debrief/validate.test.ts:1-209"
+  - id: c25
+    what: "This session's own notes.yaml, appended at every choice and surprise across all four code commits."
+    because: "brief:Deliverable 2"
+    rests_on: ["brief:Deliverable"]
+    hunks:
+      - ".interlock/sessions/0001-bootstrap/debrief-schema/notes.yaml:1-179"
+  - id: c26
+    what: "This debrief, filed as the final commit in the new debrief@v2 shape this node defines."
+    because: "brief:Deliverable 3"
+    rests_on: ["brief:Deliverable"]
+    hunks:
+      - ".interlock/sessions/0001-bootstrap/debrief-schema/debrief.yaml"
+gates_run_by_agent:
+  - { id: typecheck, result: pass, invocation: "mise exec -- pnpm typecheck" }
+  - { id: test, result: pass, invocation: "mise exec -- pnpm test", note: "251 tests across ledger, face, debrief, runner, cli" }
+  - { id: debrief-valid, result: pass, invocation: "mise exec -- pnpm interlock debrief validate 0001-bootstrap debrief-schema", note: "run for real against this session's own files after they were written; see d1" }
+open:
+  - >
+    packages/ledger/src/projection.ts's withSession stays a no-op for a
+    session id that never appeared in a session-started event (d5). A
+    node judged through interlock backfill therefore writes real
+    debrief-filed and note-appended events for a v2 debrief but shows no
+    SessionView for them; a node judged through interlock run does, since
+    it always appends session-started first. Fixing this is projection.ts's
+    own decision -- either session-started becomes optional for
+    withSession to adopt a session on first sight, or backfill starts
+    appending its own session-started events -- and belongs to whichever
+    node next touches the ledger's projection or the face's session views.
+  - >
+    This node depended on ledger, held (not cleared) on debrief-valid, as
+    a recorded bootstrap exception the brief itself named. Once this
+    node's own gates clear, the four nodes runner-command-gate's backfill
+    left held purely on debrief-valid's fail-closed stub -- scaffold,
+    ledger, ledger-gaps, face-read -- are eligible to re-backfill and
+    clear for real; that re-run is not part of this node's acceptance and
+    was not performed here.
+  - >
+    "drafted" exists on the type and the v2 reader (accepts and round-trips
+    a drafted: {by, from} block) but nothing in this session produces one,
+    per the brief. The post-hoc drafted-debrief command itself -- a model
+    drafting one from the diff, on request only -- is still unbuilt.
+  - >
+    The corpus has no real example of a malformed SHA field (every
+    base_sha/graph_base_sha/session_start_sha/head_sha across all five
+    prior sessions is exactly 40 hex characters), so the "head_sha not a
+    SHA" sentence the brief requires is proven only by a hand-authored
+    fixture in packages/debrief/test/debrief.test.ts, not by a real
+    session.
+  - >
+    verifier-hunks (the inverse check: every hunk has a decision) is out
+    of scope for this node and was not run against this debrief. The
+    manifest claim above -- every changed file named in some decision's
+    hunks or produces -- is self-asserted against `git diff --name-only`,
+    not machine-verified; that check is exactly what verifier-hunks is
+    for.
