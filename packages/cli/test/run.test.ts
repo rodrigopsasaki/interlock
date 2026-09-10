@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -8,7 +9,8 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
-import { ok } from "@phyxiusjs/fp";
+import { err, ok } from "@phyxiusjs/fp";
+import { isLedgerEvent } from "ledger";
 import type { Runtime } from "runner";
 import { afterEach, describe, expect, it } from "vitest";
 import { commitAll, gitInitFixture } from "./graph/gitFixture.ts";
@@ -90,6 +92,13 @@ function fixture(
   gitInitFixture(directory);
   commitAll(directory, "fixture content");
   return directory;
+}
+
+function headSha(cwd: string): string {
+  return execFileSync("git", ["rev-parse", "HEAD"], {
+    cwd,
+    encoding: "utf-8",
+  }).trim();
 }
 
 function stubRuntime(): Runtime {
@@ -189,6 +198,48 @@ describe("interlock run", () => {
     expect(existsSync(join(cwd, ".worktrees", "a"))).toBe(true);
   }, 30_000);
 
+  it("bases the worktree on the repository's HEAD at run time, not the approval receipt's commit", async () => {
+    const cwd = fixture();
+    await runGraphApprove(
+      ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
+      { cwd },
+    );
+    const approvalSha = headSha(cwd);
+
+    writeFileSync(join(cwd, "merged-after-approval.txt"), "a later merge\n");
+    commitAll(cwd, "merge landed after approval");
+    const headAtRunTime = headSha(cwd);
+    expect(headAtRunTime).not.toBe(approvalSha);
+
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime: stubRuntime(),
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(headSha(join(cwd, ".worktrees", "a"))).toBe(headAtRunTime);
+    expect(
+      existsSync(join(cwd, ".worktrees", "a", "merged-after-approval.txt")),
+    ).toBe(true);
+
+    const journal = readFileSync(
+      join(cwd, ".interlock", "ledger", "journal.jsonl"),
+      "utf-8",
+    );
+    const started = journal
+      .trim()
+      .split("\n")
+      .map((line): unknown => JSON.parse(line))
+      .filter(isLedgerEvent)
+      .find((event) => event.kind === "session-started");
+    if (started === undefined || started.kind !== "session-started") {
+      throw new Error("expected a session-started event in the journal");
+    }
+    expect(started.graphBaseSha).toBe(headAtRunTime);
+    expect(started.graphBaseSha).not.toBe(approvalSha);
+  }, 30_000);
+
   it("sends the opening prompt exactly once, after reportIdentity and before waitUntil, naming the brief path", async () => {
     const cwd = fixture();
     await runGraphApprove(
@@ -230,7 +281,7 @@ describe("interlock run", () => {
     expect(promptText).toContain(".interlock/sessions/demo/a/brief.md");
   }, 30_000);
 
-  it("writes the brief into the worktree even though the node's brief is committed after the graph's own base SHA", async () => {
+  it("writes the brief into the worktree even though it is not yet committed in the repository", async () => {
     directory = mkdtempSync(join(runsRoot, "run-"));
     const cwd = directory;
     mkdirSync(join(cwd, ".interlock", "graphs"), { recursive: true });
@@ -245,6 +296,8 @@ describe("interlock run", () => {
       { cwd },
     );
 
+    // Deliberately left uncommitted: the base is HEAD at run time, which cannot carry a file
+    // that was only ever written to the working tree.
     mkdirSync(join(cwd, ".interlock", "sessions", "demo", "a"), {
       recursive: true,
     });
@@ -252,7 +305,6 @@ describe("interlock run", () => {
       join(cwd, ".interlock", "sessions", "demo", "a", "brief.md"),
       "# brief\n",
     );
-    commitAll(cwd, "brief for node a");
 
     const result = await runInterlockRun(["demo", "a"], {
       cwd,
@@ -274,5 +326,77 @@ describe("interlock run", () => {
     );
     expect(existsSync(briefInWorktree)).toBe(true);
     expect(readFileSync(briefInWorktree, "utf-8")).toBe("# brief\n");
+  }, 30_000);
+
+  it("narrates each step to stdout as it happens, ending on the wait before the judgement", async () => {
+    const cwd = fixture();
+    await runGraphApprove(
+      ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
+      { cwd },
+    );
+
+    const lines: string[] = [];
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock({ initialTime: 0 }),
+      runtime: stubRuntime(),
+      narrate: (line) => lines.push(line),
+    });
+
+    expect(result.exitCode).toBe(0);
+    const sessionMatch = result.message.match(/session ([^,]+),/);
+    if (sessionMatch === null) {
+      throw new Error("expected a session id in the result message");
+    }
+    const [, sessionId] = sessionMatch;
+
+    expect(lines).toEqual([
+      `leased a (session ${sessionId}, expires 1970-01-01T00:01:00.000Z)`,
+      `worktree at ${join(cwd, ".worktrees", "a")} on ${headSha(cwd)}`,
+      "brief written",
+      "pane pane-1 opened",
+      "agent agent-1 started (claude)",
+      "identity reported",
+      "prompt sent",
+      "waiting for idle, blocked or done (timeout 5000ms)",
+    ]);
+  }, 30_000);
+
+  it("narrates a runtime refusal at the moment it happens and does not leave the lease dangling silently", async () => {
+    const cwd = fixture();
+    await runGraphApprove(
+      ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
+      { cwd },
+    );
+
+    const runtime: Runtime = {
+      ...stubRuntime(),
+      startAgent: () =>
+        Promise.resolve(
+          err({ kind: "transport", because: "agent CLI crashed" }),
+        ),
+    };
+
+    const lines: string[] = [];
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock({ initialTime: 0 }),
+      runtime,
+      narrate: (line) => lines.push(line),
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.message).toBe("agent start refused: agent CLI crashed");
+    expect(lines).toHaveLength(6);
+    expect(lines[0]).toMatch(
+      /^leased a \(session .+, expires 1970-01-01T00:01:00\.000Z\)$/,
+    );
+    expect(lines.slice(1)).toEqual([
+      `worktree at ${join(cwd, ".worktrees", "a")} on ${headSha(cwd)}`,
+      "brief written",
+      "pane pane-1 opened",
+      "agent start refused: agent CLI crashed",
+      "lease not renewed; the sweeper will collect it at 1970-01-01T00:01:00.000Z",
+    ]);
   }, 30_000);
 });

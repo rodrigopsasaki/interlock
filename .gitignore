@@ -6,5 +6,6 @@ packages/ledger/test/.runs/
 packages/face/test/.runs/
 packages/cli/test/.runs/
 packages/runner/test/.runs/
+packages/runner/test/.worktree-runs/
 .interlock/ledger/
 .interlock/local.yaml
