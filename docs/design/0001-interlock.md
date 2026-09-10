@@ -221,6 +221,23 @@ speed that keeps its receipts and its way back.
 criteria has to be re-read when the record says it was wrong.
 *Revisit:* the three sources are the starting set. A fourth needs a written justification here.
 
+**D26. A judgement reads a commit; a blocked agent is a person's turn; a pane closes only on
+cleared.** Gates judge commits, never a working tree: before any gate runs, the runner checks the
+worktree for uncommitted paths, and any at all holds the node on that fact alone, no gate spent,
+no receipt written. The runner commits the brief it writes into the worktree before the agent
+starts, so the check holds the same way on a node's first run and a resumed one. Separately, an
+agent's `blocked` status from its runtime is not the runner's own end-of-session signal; it is a
+person's turn at the keyboard, so the runner narrates the pane and the last screen line and keeps
+waiting, returning to judgement only once the agent settles on idle or done or the run's own
+timeout, set once and never reset by the transition, is spent. Because a blocked or held session
+may already have a person looking at its pane, the pane closes only when the node clears; a hold
+or a refusal after the prompt is taken leaves it open for drilldown, and only a startup refusal,
+before any of this is true, closes it as before.
+*Cost:* real, correct work left uncommitted is held rather than judged, and stays held until
+someone commits it; a pane that would have closed on a bad run now waits for a person to close it.
+*Revisit:* if held-on-uncommitted-work becomes the common outcome rather than the rare one, the
+runner commits on the agent's behalf instead of holding on it.
+
 ## Invariants
 
 These do not bend. When one is in the way, the design around it is wrong. Each names what breaking
@@ -577,6 +594,7 @@ bend against an invariant means we redesign, and the entry says how.
 | 2026-09-09 | `face-read` cleared. `interlock graph show` renders the bootstrap graph with `scaffold` as ready and `ledger` as blocked on it, although both are cleared and merged: their gates ran by hand and their receipts live in pull-request bodies, not in the journal. The ledger package now resolves under raw Node through explicit `.ts` specifiers and a `main` pointing at source, a consequence of running the CLI without a build step | D14, D5, receipts | The face reads the journal and nothing else, so a receipt that was never written to it does not exist for the face. That is correct, and it exposes that the first two nodes were cleared outside the ledger. | Yes, the receipts are in PRs #2 and #4 | The runner's first act is to re-run the standing gates for every cleared node at main and write their receipts, so the position stops depending on anyone's memory. `approved` enters the vocabulary as a gate id and a three-valued state. |
 | 2026-09-09 | `face` split into `face-read` (depends on `ledger`) and `face` (depends on the runner); graph-level human gate `approved` added to the bootstrap graph; D20 written | Graph, D20 | Every plan is read and approved before any of it runs. The read-only slice of the face needs the ledger and the graph file, not the runner, as 0002 argued; the approval gate is the interlocking applied to plans. | Yes, previous graph in history | The first plan approved under the new gate is the one that builds the approver. |
 | 2026-09-09 | Carried over from a prior work algebra: five gate states; cancelled and superseded terminals; failure / disposition / because; conserved retry budget; spend on receipts and spend-driven revival; empty receipt ≠ absent; abandoned written by a sweeper; lease bounds silence; outbox with an honest uncertain state; typed notes during the session; interrupted gets no invented debrief; role supplied by the brief; mandate spelled | D8, D12, I7, gates, verifier, lifecycle, vocabulary | The same laws were written a month earlier inside the substrate and each carried an incident that earned it. Carry what makes sense, leave what does not: the substrate's belief analysis and ratification doors stay on its side. | Yes, v0.2 in history | I7 had promised exactly once. Nothing can. Promise no lost intent and honest doubt instead. |
+| 2026-09-10 | A live run treated an agent's `blocked` status as the session's end, read the screen once, and judged gates in a worktree the agent had left with uncommitted work at a stale base; the receipts it wrote named a commit that held none of that work. The runner's own rewrite of `brief.md` also left the worktree dirty before the agent typed a key, and the per-judgement screen snapshot was never excluded from the tree it judges. `ensureNodeWorktree` reset a resumed worktree's branch over a tip that was simply ahead of its base, not diverged from it, discarding real prior work as a side effect of treating any non-identical tip as unsafe | D5, D21, I1, vocabulary | A receipt is a proof the harness produced; one written against uncommitted content proves nothing the receipt claims. `blocked` already named a herdr agent status before this fix gave it a second meaning as a wait state, and the runner had been treating the first as if it were a terminal outcome. A pane closed on a refusal takes the agent's unanswered question, and the context to answer it, with it | Yes, the pre-fix run's journal lines and receipts are unchanged; nothing is retracted, only judged differently from here on | `blocked` now names two things: a gate's own state, and an agent runtime's status surfaced through herdr. The runner reads the second as a person's turn and never conflates it with the first, but the tension between one word carrying two meanings is left standing, not resolved. The shape change (`held`'s new uncommitted-work reason) moved the persisted event to `event@v3`; the real production journal, v1 and v2 mixed, replays under it losslessly. D26 written |
 
 ---
 
