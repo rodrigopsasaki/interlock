@@ -67,14 +67,21 @@ export {
 export type { LeaseHandle } from "./lease.ts";
 export { takeLease } from "./lease.ts";
 
-export type { BriefRefusal } from "./sessionBrief.ts";
+export type { BriefWriteOutcome, SessionBriefRefusal } from "./sessionBrief.ts";
 export {
   briefExists,
   briefPath,
   buildBrief,
-  explainBriefRefusal,
+  explainSessionBriefRefusal,
   writeBriefIntoWorktree,
 } from "./sessionBrief.ts";
+
+export {
+  authoritativeBriefGates,
+  diffGates,
+  diffScope,
+  renderBriefFile,
+} from "./briefRewrite.ts";
 
 export type { GateJudgeRefusal, GateJudgeRequest } from "./gateJudge.ts";
 export {

@@ -23,3 +23,11 @@ export function notesFilePath(
 ): string {
   return join(sessionDirectory(repoRoot, graph, node), "notes.yaml");
 }
+
+export function briefFilePath(
+  repoRoot: string,
+  graph: string,
+  node: string,
+): string {
+  return join(sessionDirectory(repoRoot, graph, node), "brief.md");
+}

@@ -4,7 +4,7 @@ import { isErr, isOk } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
 import { loadStandingGates } from "../src/standingGates.ts";
 
-const runsRoot = join(import.meta.dirname, ".standinggates-runs");
+const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
 
 let directory: string | undefined;
@@ -16,11 +16,48 @@ afterEach(() => {
 });
 
 function fixtureRepo(configYaml: string): string {
-  directory = mkdtempSync(join(runsRoot, "standinggates-"));
+  directory = mkdtempSync(join(runsRoot, "standing-"));
   mkdirSync(join(directory, ".interlock"), { recursive: true });
   writeFileSync(join(directory, ".interlock", "config.yaml"), configYaml);
   return directory;
 }
+
+describe("loadStandingGates", () => {
+  it("reads each standing gate's id, kind and run", async () => {
+    const repoRoot = fixtureRepo(
+      [
+        "interlock: config@v0",
+        "standing_gates:",
+        "  - id: typecheck",
+        "    kind: command",
+        "    run: pnpm typecheck",
+        "",
+      ].join("\n"),
+    );
+    const result = await loadStandingGates(repoRoot);
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) return;
+    expect(result.value).toEqual([
+      { id: "typecheck", kind: "command", run: "pnpm typecheck" },
+    ]);
+  });
+
+  it("refuses an entry that predates kind, naming the required shape", async () => {
+    const repoRoot = fixtureRepo(
+      [
+        "interlock: config@v0",
+        "standing_gates:",
+        "  - id: typecheck",
+        "    run: pnpm typecheck",
+        "",
+      ].join("\n"),
+    );
+    const result = await loadStandingGates(repoRoot);
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) return;
+    expect(result.error.kind).toBe("malformed");
+  });
+});
 
 describe("loadStandingGates expect_output", () => {
   it("compiles a declared pattern into a RegExp beside its command", async () => {
@@ -51,6 +88,7 @@ describe("loadStandingGates expect_output", () => {
         "interlock: config@v0",
         "standing_gates:",
         "  - id: typecheck",
+        "    kind: command",
         "    run: pnpm typecheck",
         "",
       ].join("\n"),
@@ -59,7 +97,9 @@ describe("loadStandingGates expect_output", () => {
     const result = await loadStandingGates(repoRoot);
     expect(isOk(result)).toBe(true);
     if (!isOk(result)) return;
-    expect(result.value).toEqual([{ id: "typecheck", run: "pnpm typecheck" }]);
+    expect(result.value).toEqual([
+      { id: "typecheck", kind: "command", run: "pnpm typecheck" },
+    ]);
   });
 
   it("refuses a malformed pattern with a sentence naming the gate", async () => {
@@ -68,6 +108,7 @@ describe("loadStandingGates expect_output", () => {
         "interlock: config@v0",
         "standing_gates:",
         "  - id: test",
+        "    kind: command",
         "    run: pnpm test",
         "    expect_output: '(unclosed'",
         "",

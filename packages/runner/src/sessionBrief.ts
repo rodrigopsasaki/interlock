@@ -1,16 +1,25 @@
 import { existsSync } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import { err, ok, type Result } from "@phyxiusjs/fp";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
+import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
+import {
+  briefFilePath,
+  explainBriefRefusal,
+  readBriefFile,
+  type BriefRefusal,
+} from "debrief";
+import type { GateDeclaration } from "face";
 import type { Brief } from "ledger";
+import {
+  authoritativeBriefGates,
+  diffGates,
+  diffScope,
+  renderBriefFile,
+} from "./briefRewrite.ts";
+import { gitTrackedFiles } from "./scope.ts";
+import type { StandingGate } from "./standingGates.ts";
 
-export function briefPath(
-  repoRoot: string,
-  graph: string,
-  node: string,
-): string {
-  return join(repoRoot, ".interlock", "sessions", graph, node, "brief.md");
-}
+export const briefPath = briefFilePath;
 
 export function briefExists(
   repoRoot: string,
@@ -20,29 +29,71 @@ export function briefExists(
   return existsSync(briefPath(repoRoot, graph, node));
 }
 
-export interface BriefRefusal {
-  readonly kind: "write-failed";
+export interface BriefWriteOutcome {
   readonly path: string;
-  readonly because: string;
+  readonly narration: readonly string[];
 }
 
-export function explainBriefRefusal(refusal: BriefRefusal): string {
-  return `${refusal.path}: ${refusal.because}`;
+export type SessionBriefRefusal =
+  | { readonly kind: "read"; readonly refusal: BriefRefusal }
+  | { readonly kind: "legacy"; readonly graph: string; readonly node: string }
+  | {
+      readonly kind: "write-failed";
+      readonly path: string;
+      readonly because: string;
+    };
+
+export function explainSessionBriefRefusal(
+  refusal: SessionBriefRefusal,
+): string {
+  switch (refusal.kind) {
+    case "read":
+      return explainBriefRefusal(refusal.refusal);
+    case "legacy":
+      return `brief for ${refusal.graph}/${refusal.node} is brief@v0; the runner requires brief@v1; add front matter`;
+    case "write-failed":
+      return `${refusal.path}: ${refusal.because}`;
+  }
 }
 
-// The graph base predates the commit that carries the brief, so the runner writes the brief into the worktree.
+// Reads the repository's brief, fills the two runner-only front-matter fields, and rewrites
+// gates and scope from the graph and standing table: the runner's view is authoritative, and a
+// difference from the repository copy is narrated, never silently overwritten without a line.
 export async function writeBriefIntoWorktree(
   repoRoot: string,
   worktreePath: string,
   graph: string,
   node: string,
-): Promise<Result<string, BriefRefusal>> {
+  graphBaseSha: string,
+  session: string,
+  standing: readonly StandingGate[],
+  nodeGates: readonly GateDeclaration[],
+): Promise<Result<BriefWriteOutcome, SessionBriefRefusal>> {
+  const read = await readBriefFile(briefPath(repoRoot, graph, node));
+  if (isErr(read)) return err({ kind: "read", refusal: read.error });
+  if (read.value.kind === "legacy") return err({ kind: "legacy", graph, node });
+
+  const authoritativeGates = authoritativeBriefGates(standing, nodeGates);
+  const authoritativeScope = gitTrackedFiles(repoRoot);
+  const narration = [
+    ...diffGates(read.value.frontMatter.gates, authoritativeGates),
+    ...diffScope(read.value.frontMatter.scope, authoritativeScope),
+  ];
+
+  const content = renderBriefFile(
+    {
+      ...read.value.frontMatter,
+      gates: authoritativeGates,
+      scope: authoritativeScope,
+      runner: { kind: "worktree", graphBaseSha, session },
+    },
+    read.value.body,
+  );
+
   const destination = briefPath(worktreePath, graph, node);
   try {
-    const content = await readFile(briefPath(repoRoot, graph, node), "utf-8");
     await mkdir(dirname(destination), { recursive: true });
     await writeFile(destination, content, "utf-8");
-    return ok(destination);
   } catch (error) {
     return err({
       kind: "write-failed",
@@ -50,6 +101,7 @@ export async function writeBriefIntoWorktree(
       because: error instanceof Error ? error.message : String(error),
     });
   }
+  return ok({ path: destination, narration });
 }
 
 export function buildBrief(

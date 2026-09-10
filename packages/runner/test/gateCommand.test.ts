@@ -11,7 +11,7 @@ import type { StandingGate } from "../src/standingGates.ts";
 describe("gateCommand", () => {
   it("standing gates come before the node's own", () => {
     const standing: readonly StandingGate[] = [
-      { id: "typecheck", run: "pnpm typecheck" },
+      { id: "typecheck", kind: "command", run: "pnpm typecheck" },
     ];
     const node: readonly GateDeclaration[] = [
       { id: "reviewed", kind: "command", run: "pnpm review" },
@@ -28,6 +28,7 @@ describe("gateCommand", () => {
     const standing: readonly StandingGate[] = [
       {
         id: "test",
+        kind: "command",
         run: "pnpm test",
         expectOutput: /Tests +[1-9][0-9]* passed/,
       },
@@ -42,7 +43,12 @@ describe("gateCommand", () => {
 
   it("carries a node gate's own expect_output pattern, overriding the standing entry's", () => {
     const standing: readonly StandingGate[] = [
-      { id: "test", run: "pnpm test", expectOutput: /standing pattern/ },
+      {
+        id: "test",
+        kind: "command",
+        run: "pnpm test",
+        expectOutput: /standing pattern/,
+      },
     ];
     const node: readonly GateDeclaration[] = [
       {
@@ -62,7 +68,7 @@ describe("gateCommand", () => {
 
   it("omits expect_output from a command entry when no pattern was declared", () => {
     const standing: readonly StandingGate[] = [
-      { id: "typecheck", run: "pnpm typecheck" },
+      { id: "typecheck", kind: "command", run: "pnpm typecheck" },
     ];
 
     const table = gateCommandTable(standing, []);

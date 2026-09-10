@@ -1,0 +1,268 @@
+interlock: notes@v0
+node: brief-shape
+entries:
+  - kind: choice
+    at: "2026-09-10T14:00:00Z"
+    chose: >
+      A front-matter block present but with no "interlock" key, and a file with no front matter
+      block at all, both validate as brief@v0 legacy. Only a present-and-wrong tag value is an
+      "unknown-tag" refusal.
+    because: >
+      The brief's own Readers paragraph says "no front matter, or with front matter lacking the
+      shape tag" both validate as legacy-valid; that is the more specific, authoritative reading
+      over the terser Errors bullet listing "missing tag" beside "unknown tag", and it keeps the
+      reader's dispatch a single small decision instead of forking on file-layout accidents like
+      an empty front-matter block.
+    rejected:
+      - treating a present-but-tagless front-matter mapping as a hard "missing-tag" refusal
+
+  - kind: choice
+    at: "2026-09-10T14:05:00Z"
+    chose: >
+      BriefRefusal has four kinds (missing-file, malformed-front-matter, unknown-tag,
+      invalid-front-matter), folding missing-field, malformed-gate, bad-scope-path and
+      not-a-plain-word-role into invalid-front-matter's free-text reason.
+    because: >
+      packages/debrief/src/debrief.ts already proves this shape scales for every structural
+      failure; no caller anywhere discriminates on a finer refusal kind, so a wider union would
+      be surface with no reader.
+
+  - kind: choice
+    at: "2026-09-10T14:10:00Z"
+    chose: >
+      Gate and scope errors cite a list index ("gates[2]", "scope[0]"), never a physical line
+      number.
+    because: >
+      Nothing in this codebase tracks real YAML source positions; every existing "line" in a
+      debrief sentence error is actually a list index. The brief reader mirrors that same
+      convention rather than inventing line tracking that would be the only one of its kind here.
+
+  - kind: choice
+    at: "2026-09-10T14:35:00Z"
+    chose: >
+      renderSlice returns only the per-kind subsections (### Convention, ### Risk, ...) or the
+      one-sentence "no substrate" text, with no outer "## Context slice" heading of its own.
+    because: >
+      Assembling the brief's full four-section body (acceptance, slice, constraints, deliverable)
+      from an ask is the interpreter's job, explicitly out of scope here. The renderer only needs
+      to be a pure, independently testable function from items to the slice's own markdown.
+
+  - kind: surprise
+    at: "2026-09-10T15:00:00Z"
+    expected: >
+      The brief's "Errors" list (missing tag, unknown tag, missing field, malformed gate, bad
+      scope path, bad role) reads as six independent, mutually exclusive refusal kinds.
+    observed: >
+      "Missing tag" and the Readers paragraph's "front matter lacking the shape tag" describe the
+      same case, and the Readers paragraph explicitly calls that case legacy-valid, not a
+      refusal. Read literally, the two paragraphs only agree if "missing tag" in the Errors list
+      is shorthand for that already-covered case rather than a fifth, competing refusal kind.
+
+  - kind: choice
+    at: "2026-09-10T15:15:00Z"
+    chose: >
+      interlock brief validate does not pre-check the brief file's existence with existsSync the
+      way interlock debrief validate does for a missing debrief; it calls readBriefFile directly
+      and lets its own missing-file refusal produce the sentence.
+    because: >
+      Debrief has two distinct outcomes for an absent file (no debrief filed at all, meaning the
+      session is interrupted, versus a real read failure); a brief has only one, since every node
+      is required to carry a brief before it can be leased. The extra existsSync branch debrief's
+      command needs would be a distinction with no second outcome to draw here.
+
+  - kind: surprise
+    at: "2026-09-10T15:05:00Z"
+    expected: >
+      "pnpm --filter debrief --fail-if-no-match test --testNamePattern brief" selects tests by
+      file name, so brief.test.ts would be the thing making the gate pass.
+    observed: >
+      Vitest's --testNamePattern filters by the concatenated describe/it text, not the file name;
+      the gate's coverage depends on test names containing "brief" (e.g. the "readBriefFile" and
+      "every existing brief under .interlock/sessions" describe blocks), confirmed empirically by
+      running the exact gate command rather than assumed from the flag's name.
+
+  - kind: choice
+    at: "2026-09-10T15:20:00Z"
+    chose: >
+      Kept packages/debrief's package.json "name" as "debrief" and put the brief reader and
+      renderer inside it, rather than renaming the package to "session".
+    because: >
+      The approved graph .interlock/graphs/0002-shapes.yaml and this node's own immutable
+      brief.md both bake in the literal command "pnpm --filter debrief ..." for the brief-legacy
+      gate. Renaming package.json's name would desync that filter from two files this node
+      cannot edit, making its own acceptance gate unsatisfiable. A directory-only rename would
+      have been safe but bought nothing real, since pnpm resolves --filter by package name, not
+      directory.
+    rejected:
+      - renaming packages/debrief's package.json name to "session"
+      - a cosmetic directory-only rename with the name kept as "debrief"
+
+  - kind: choice
+    at: "2026-09-10T15:25:00Z"
+    chose: >
+      Added a required "kind" field to runner's StandingGate and its config.yaml parser.
+    because: >
+      brief@v1's gates list needs "kind" on every gate, including standing ones, and
+      .interlock/config.yaml already declares "kind: command" on every standing gate; the old
+      loader silently dropped it. Reading the field that was already on disk, instead of
+      hardcoding "command" for every standing gate, keeps the brief honest if a non-command
+      standing gate is ever declared.
+
+  - kind: choice
+    at: "2026-09-10T15:30:00Z"
+    chose: >
+      The runner leaves a gate's "expect_output" unfilled (always absent) when it rebuilds a
+      node's gates from face's GateDeclaration.
+    because: >
+      GateDeclaration does not parse expect_output today, and extending face's graph parser is
+      out of scope for this node ("the face" is listed under Out of scope). BriefGate's
+      expectOutput stays optional so a later face change can fill it without another shape
+      version.
+
+  - kind: choice
+    at: "2026-09-10T15:32:00Z"
+    chose: >
+      Scope-path validation (isValidScopePath) is a small local function in packages/debrief
+      built on node:path/posix, rather than exporting and reusing ledger's unexported
+      resolveScopePath.
+    because: >
+      Exporting a receipt-identity internal for an unrelated front-matter concern would couple
+      two packages that only need to agree informally; the posix-normalize check is
+      self-contained, dependency-free, and reads in one line.
+
+  - kind: choice
+    at: "2026-09-10T15:35:00Z"
+    chose: >
+      diffScope narrates a count-based summary ("N path(s) ... M") rather than listing every
+      added or removed path.
+    because: >
+      Scope is every git-tracked file today (scope.ts's existing rule), often hundreds of paths;
+      a full per-path diff would turn "narrated, never silently overwritten" into an unreadable
+      wall of text on the common case where the runner simply grows the repository.
+
+  - kind: choice
+    at: "2026-09-10T15:37:00Z"
+    chose: >
+      diffGates and diffScope emit no narration line at all when the repository copy already
+      agrees with the runner's authoritative view.
+    because: >
+      "A difference is narrated" reads as conditional on there being one; narrating "no change"
+      on every single run would be noise standing where signal should be.
+
+  - kind: choice
+    at: "2026-09-10T15:40:00Z"
+    chose: >
+      runner's briefPath is now a direct alias of debrief's briefFilePath, instead of a second
+      independent join() computing the same .interlock/sessions/<graph>/<node>/brief.md path.
+    because: >
+      Two packages independently computing the same path is exactly the kind of untracked
+      duplication that drifts silently. Aliasing keeps runner's existing public name (used by
+      cli/src/run.ts and elsewhere) stable while there is only one real implementation.
+
+  - kind: choice
+    at: "2026-09-10T15:42:00Z"
+    chose: >
+      Renamed runner's old write-only BriefRefusal/explainBriefRefusal (one kind: write-failed)
+      to SessionBriefRefusal/explainSessionBriefRefusal.
+    because: >
+      The refusal now also covers a front-matter read failure and a legacy-brief refusal, and
+      debrief's own BriefRefusal (the reader's refusal) needed the plain name without a
+      collision. The shape changed enough that the name should too.
+
+  - kind: choice
+    at: "2026-09-10T15:50:00Z"
+    chose: >
+      Updated packages/cli/test/run.test.ts's shared fixture() brief.md from the placeholder
+      "# brief\n" (legacy) to a full brief@v1 front matter whose gates and scope are engineered
+      to exactly equal what the runner computes as authoritative for that fixture (standing gate
+      "standing" plus the node's own "own-gate"; scope the four files the fixture commits).
+    because: >
+      Once the runner refuses a v0 brief outright, every existing happy-path test needs a v1
+      brief to get past that step at all, and matching the authoritative values exactly keeps the
+      existing "narrates each step" test's exact-array assertion true without adding narration
+      noise to tests that were never about narration in the first place.
+
+  - kind: surprise
+    at: "2026-09-10T15:55:00Z"
+    expected: >
+      git ls-files' ordering would need to be treated as unspecified when hand-matching a test
+      fixture's declared scope to the runner's authoritative gitTrackedFiles() output.
+    observed: >
+      Empirically (verified against a throwaway fixture repo), git ls-files returns paths in the
+      git index's own byte-sorted order, which let the fixture brief above declare a scope list
+      that exactly matches the runner's authoritative computation.
+
+  - kind: choice
+    at: "2026-09-10T16:05:00Z"
+    chose: >
+      In packages/debrief/test/brief.test.ts's legacy-front-matter test, replaced
+      "const legacy = result.value as LegacyBrief" with an "if (result.value.kind !== \"legacy\")
+      throw ..." guard, letting TypeScript narrow BriefRead to LegacyBrief on its own, and
+      dropped the now-unused LegacyBrief import.
+    because: >
+      A fix-round verifier flagged the cast as real narrowing work standing in for a type guard,
+      not decoration: the runtime assertion two lines above it (expect(...).toBe("legacy")) does
+      not narrow the union, so the cast was the only thing making "legacy.missingFields" compile.
+      The same file already uses the correct idiom two lines up for the Result union
+      ("if (!isOk(result)) return;"); the kind-check guard is the same idiom applied to
+      BriefRead, with zero casts.
+    rejected:
+      - "leaving the cast and adding a comment explaining why it was safe"
+
+  - kind: choice
+    at: "2026-09-10T16:10:00Z"
+    chose: >
+      Recorded Deliverable 4's required evidence (the interlock brief validate output for every
+      existing brief@v0 and for the brief@v1 fixture, verbatim, plus the fixture's exact front
+      matter) as a new debrief decision (c19) whose "what" field is the evidence itself, rather
+      than as a new top-level debrief field or only as a hunk citation.
+    because: >
+      A fix-round verifier found that decision c6's hunk citation
+      ("packages/debrief/test/fixtures/brief-v1.md:1-36") pointed at the fixture without quoting
+      it, and that no gate or section embedded the validator output the brief asks for verbatim.
+      debrief@v2's schema (packages/debrief/src/debrief.ts) has no field for arbitrary evidence
+      blocks, but a decision's "what" is already free text with no shape constraint beyond being
+      a string, so it is the one place in the existing shape that can carry exact command output
+      and file content without inventing a sixth debrief@v2 field this node was never asked to
+      add.
+    rejected:
+      - "a new top-level debrief.yaml field (e.g. validator_outputs) outside decisions/discoveries"
+      - "leaving the evidence only as a hunk citation, trusting the reader to open the fixture"
+
+  - kind: choice
+    at: "2026-09-10T16:20:00Z"
+    chose: >
+      Rebased onto origin/main (PR #26, expect_output on command gates) by keeping main's
+      loop-based loadStandingGates parser -- required once compiling expect_output can fail --
+      and adding this branch's required "kind" field into that same loop, rather than keeping
+      this branch's every()-predicate parser and bolting expect_output compilation on beside it.
+      One merged standingGates.test.ts keeps every test from both sides; the two that asserted
+      contradictory behavior for a kind-less entry (main: parses to a gate with no kind; this
+      branch: refuses as malformed) were reconciled in favor of refusal, since kind stayed
+      required.
+    because: >
+      A pure isStandingGate(value): value is StandingGate predicate cannot report which specific
+      field failed or run parseExpectOutput's compile step, which can itself fail and needs its
+      own malformed-with-reason path; main already solved that with a manual field-by-field loop,
+      so extending it was less code than reintroducing a predicate main had already moved away
+      from.
+    rejected:
+      - "keeping the every(isStandingGate) predicate and validating expect_output in a second pass"
+
+  - kind: choice
+    at: "2026-09-10T16:25:00Z"
+    chose: >
+      Once rebased, authoritativeBriefGates in briefRewrite.ts now carries a StandingGate's or
+      GateDeclaration's compiled expect_output through into the rewritten brief's BriefGate, as
+      RegExp.source (a string), rather than leaving it always absent. Also fixed four
+      StandingGate literals in gateCommand.test.ts and backfill.test.ts, written on main after
+      this branch's fork, that predated the "kind" field this branch requires.
+    because: >
+      This closes the open item this branch filed at notes:10 and debrief.yaml's open list: face's
+      GateDeclaration did not parse expect_output at the time, so nothing could fill it; main's
+      PR #26 (merged after this branch forked) added exactly that parsing to
+      packages/face/src/document.ts. BriefGate.expectOutput is already typed as a front-matter
+      string (packages/debrief/src/briefGate.ts), so .source round-trips a RegExp built with
+      new RegExp(source) and no flags (packages/ledger/src/expectOutput.ts) back to its original
+      text exactly. The four literals were tsc-caught, not chosen: the two StandingGate shapes
+      merging made "kind" required everywhere.
