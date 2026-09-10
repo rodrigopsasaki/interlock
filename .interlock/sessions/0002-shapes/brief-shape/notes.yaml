@@ -191,3 +191,20 @@ entries:
       Empirically (verified against a throwaway fixture repo), git ls-files returns paths in the
       git index's own byte-sorted order, which let the fixture brief above declare a scope list
       that exactly matches the runner's authoritative computation.
+
+  - kind: choice
+    at: "2026-09-10T16:05:00Z"
+    chose: >
+      In packages/debrief/test/brief.test.ts's legacy-front-matter test, replaced
+      "const legacy = result.value as LegacyBrief" with an "if (result.value.kind !== \"legacy\")
+      throw ..." guard, letting TypeScript narrow BriefRead to LegacyBrief on its own, and
+      dropped the now-unused LegacyBrief import.
+    because: >
+      A fix-round verifier flagged the cast as real narrowing work standing in for a type guard,
+      not decoration: the runtime assertion two lines above it (expect(...).toBe("legacy")) does
+      not narrow the union, so the cast was the only thing making "legacy.missingFields" compile.
+      The same file already uses the correct idiom two lines up for the Result union
+      ("if (!isOk(result)) return;"); the kind-check guard is the same idiom applied to
+      BriefRead, with zero casts.
+    rejected:
+      - "leaving the cast and adding a comment explaining why it was safe"

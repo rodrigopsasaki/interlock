@@ -7,7 +7,6 @@ import {
   explainBriefRefusal,
   explainLegacyBrief,
   readBriefFile,
-  type LegacyBrief,
 } from "../src/brief.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
@@ -68,8 +67,9 @@ describe("readBriefFile", () => {
     const result = await readBriefFile(path);
     expect(isOk(result)).toBe(true);
     if (!isOk(result)) return;
-    expect(result.value.kind).toBe("legacy");
-    const legacy = result.value as LegacyBrief;
+    if (result.value.kind !== "legacy")
+      throw new Error("expected a legacy brief");
+    const legacy = result.value;
     expect(legacy.missingFields).toEqual([
       "graph",
       "node",
