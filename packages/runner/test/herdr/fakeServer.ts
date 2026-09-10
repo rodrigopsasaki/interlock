@@ -16,16 +16,20 @@ export interface FakeHerdrServer {
   close(): Promise<void>;
 }
 
+// Mirrors herdr's own rule: one request per connection, socket closed once its response is
+// written.
 function respond(
   socket: Socket,
   id: string,
   result: Record<string, unknown>,
 ): void {
-  socket.write(`${JSON.stringify({ id, result })}\n`);
+  socket.write(`${JSON.stringify({ id, result })}\n`, () => socket.end());
 }
 
 function fail(socket: Socket, id: string, code: string, message: string): void {
-  socket.write(`${JSON.stringify({ id, error: { code, message } })}\n`);
+  socket.write(`${JSON.stringify({ id, error: { code, message } })}\n`, () =>
+    socket.end(),
+  );
 }
 
 function panePayload(paneId: string): Record<string, unknown> {
