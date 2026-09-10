@@ -58,6 +58,12 @@ export {
   runSetupCommand,
 } from "./worktreeSetup.ts";
 
+export {
+  lastNonEmptyLine,
+  screenPath,
+  writeScreenSnapshot,
+} from "./sessionScreen.ts";
+
 export type { LeaseHandle } from "./lease.ts";
 export { takeLease } from "./lease.ts";
 

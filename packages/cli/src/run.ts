@@ -30,6 +30,7 @@ import {
   gateCommandTable,
   gitTrackedFiles,
   judgeGates,
+  lastNonEmptyLine,
   loadLocalConfig,
   loadStandingGates,
   matchesScreen,
@@ -37,6 +38,7 @@ import {
   takeLease,
   unmetDependencies,
   writeBriefIntoWorktree,
+  writeScreenSnapshot,
   type Agent,
   type Pane,
   type Runtime,
@@ -424,6 +426,18 @@ export async function runInterlockRun(
       const result = refuse("wait", explainRuntimeRefusal(waited.error));
       abandonLease();
       return result;
+    }
+
+    const screenRead = await runtime.read(agent);
+    if (isErr(screenRead)) {
+      narrate(
+        `agent screen read refused: ${explainRuntimeRefusal(screenRead.error)}`,
+      );
+    } else {
+      await writeScreenSnapshot(worktreePath, graph, node, screenRead.value);
+      narrate(
+        `agent screen: ${lastNonEmptyLine(screenRead.value) ?? "(no output)"}`,
+      );
     }
 
     const debriefedSha = currentCommitSha(worktreePath);

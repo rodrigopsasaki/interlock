@@ -400,7 +400,7 @@ describe("interlock run", () => {
     expect(readFileSync(briefInWorktree, "utf-8")).toBe("# brief\n");
   }, 30_000);
 
-  it("narrates each step to stdout as it happens, ending on the wait before the judgement", async () => {
+  it("narrates each step to stdout as it happens, ending on the agent's screen at judgement", async () => {
     const cwd = fixture();
     await runGraphApprove(
       ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
@@ -432,6 +432,7 @@ describe("interlock run", () => {
       "agent ready (idle)",
       "prompt sent",
       "waiting for idle, blocked or done (timeout 5000ms)",
+      "agent screen: (no output)",
     ]);
   }, 30_000);
 
@@ -476,6 +477,7 @@ describe("interlock run", () => {
       "prompt sent",
       "agent working",
       "waiting for idle, blocked or done (timeout 5000ms)",
+      "agent screen: (no output)",
     ]);
   }, 30_000);
 
@@ -734,5 +736,83 @@ describe("interlock run", () => {
     expect(lines.at(-1)).toBe(
       "lease not renewed; the sweeper will collect it at 1970-01-01T00:01:00.000Z",
     );
+  }, 30_000);
+
+  it("writes the agent's screen into the worktree and narrates its last non-empty line before judgement", async () => {
+    const cwd = fixture();
+    await runGraphApprove(
+      ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
+      { cwd },
+    );
+
+    const runtime: Runtime = {
+      ...stubRuntime(),
+      read: () =>
+        Promise.resolve(ok("> ran the gates\n> summarised the diff\n\n")),
+    };
+    const lines: string[] = [];
+
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime,
+      narrate: (line) => lines.push(line),
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(lines).toContain("agent screen: > summarised the diff");
+    const screenPath = join(
+      cwd,
+      ".worktrees",
+      "a",
+      ".interlock",
+      "sessions",
+      "demo",
+      "a",
+      "screen.txt",
+    );
+    expect(existsSync(screenPath)).toBe(true);
+    expect(readFileSync(screenPath, "utf-8")).toBe(
+      "> ran the gates\n> summarised the diff\n\n",
+    );
+  }, 30_000);
+
+  it("narrates a failed screen read and still reaches judgement", async () => {
+    const cwd = fixture();
+    await runGraphApprove(
+      ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
+      { cwd },
+    );
+
+    const runtime: Runtime = {
+      ...stubRuntime(),
+      read: () =>
+        Promise.resolve(
+          err({ kind: "transport", because: "the pane vanished" }),
+        ),
+    };
+    const lines: string[] = [];
+
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime,
+      narrate: (line) => lines.push(line),
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.message).toContain("cleared");
+    expect(lines).toContain("agent screen read refused: the pane vanished");
+    const screenPath = join(
+      cwd,
+      ".worktrees",
+      "a",
+      ".interlock",
+      "sessions",
+      "demo",
+      "a",
+      "screen.txt",
+    );
+    expect(existsSync(screenPath)).toBe(false);
   }, 30_000);
 });
