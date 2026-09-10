@@ -275,3 +275,25 @@ entries:
       taking bare strings -- the exact shape of the original bug: nothing
       would stop a third caller from passing an absolute path straight
       through and silently hashing it again"]
+  - kind: choice
+    at: "2026-09-09T23:55:00Z"
+    chose: >
+      Deleted five comments that only restated what a name, a type or a
+      test already said (root.ts's journal-sharing note, receipt.ts's
+      ScopeRefusal note, criticalPath.ts's order-precondition note,
+      upcast/v1.ts's per-kind-switch note), renaming `journalDirectory` to
+      `sharedJournalDirectory` and criticalPath's `order` parameter to
+      `topologicallyOrdered` so each name now carries what the deleted
+      comment said, and shortened gitFixture.ts's comment and
+      upcast/v1.ts's debrief-filed refusal to one line each. Left every
+      comment stating a why the code cannot -- validate.ts's compiler
+      constraint, replay.ts's truncated-tail rule, mandate.ts's word
+      collision, projection.ts's policy, debrief.ts's vocabulary tension,
+      upcast/v1.ts's frozen-v1-shapes and reset-refusal notes, and
+      replay.test.ts's assertion-design note -- untouched.
+    because: >
+      AGENTS.md:135 ("No README, docs or comments that explain what the
+      code plainly says. Docs explain why.") and the repository owner's
+      own instruction for this pass: as few comments as possible, since
+      this is a public face and names, types and module boundaries already
+      carry the meaning.
