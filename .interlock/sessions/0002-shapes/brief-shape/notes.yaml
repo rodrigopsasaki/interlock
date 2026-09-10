@@ -57,3 +57,26 @@ entries:
       same case, and the Readers paragraph explicitly calls that case legacy-valid, not a
       refusal. Read literally, the two paragraphs only agree if "missing tag" in the Errors list
       is shorthand for that already-covered case rather than a fifth, competing refusal kind.
+
+  - kind: choice
+    at: "2026-09-10T15:15:00Z"
+    chose: >
+      interlock brief validate does not pre-check the brief file's existence with existsSync the
+      way interlock debrief validate does for a missing debrief; it calls readBriefFile directly
+      and lets its own missing-file refusal produce the sentence.
+    because: >
+      Debrief has two distinct outcomes for an absent file (no debrief filed at all, meaning the
+      session is interrupted, versus a real read failure); a brief has only one, since every node
+      is required to carry a brief before it can be leased. The extra existsSync branch debrief's
+      command needs would be a distinction with no second outcome to draw here.
+
+  - kind: surprise
+    at: "2026-09-10T15:05:00Z"
+    expected: >
+      "pnpm --filter debrief --fail-if-no-match test --testNamePattern brief" selects tests by
+      file name, so brief.test.ts would be the thing making the gate pass.
+    observed: >
+      Vitest's --testNamePattern filters by the concatenated describe/it text, not the file name;
+      the gate's coverage depends on test names containing "brief" (e.g. the "readBriefFile" and
+      "every existing brief under .interlock/sessions" describe blocks), confirmed empirically by
+      running the exact gate command rather than assumed from the flag's name.

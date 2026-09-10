@@ -1,4 +1,5 @@
 import { runInterlockBackfill } from "./backfill.ts";
+import { validateBrief } from "./brief/validate.ts";
 import { validateDebrief } from "./debrief/validate.ts";
 import { runGraphApprove } from "./graph/approve.ts";
 import { runGraphShow } from "./graph/show.ts";
@@ -15,6 +16,10 @@ export async function run(argv: readonly string[]): Promise<CommandResult> {
 
   if (group === "debrief" && action === "validate") {
     return validateDebrief(argv.slice(2));
+  }
+
+  if (group === "brief" && action === "validate") {
+    return validateBrief(argv.slice(2));
   }
 
   if (group === "graph" && action === "show") {
