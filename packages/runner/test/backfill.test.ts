@@ -185,7 +185,7 @@ describe("backfill", () => {
       document: documentWithExpectOutput,
       ledger,
       clock: createControlledClock(),
-      standingGates: [{ id: "standing", run: passCommand }],
+      standingGates: [{ id: "standing", kind: "command", run: passCommand }],
       worktreeRoot: ".worktrees",
     });
 

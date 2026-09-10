@@ -3,8 +3,9 @@ import type { GateDeclaration } from "face";
 import { stringify } from "yaml";
 import type { StandingGate } from "./standingGates.ts";
 
-// Standing table first, then the node's own; add-never-remove. `expect_output` stays absent:
-// face's GateDeclaration does not parse it yet, so nothing here can fill it.
+// Standing table first, then the node's own; add-never-remove. A compiled expect_output is
+// stored as its source string in the brief: the front matter is text the repository reads back,
+// not a runtime RegExp.
 export function authoritativeBriefGates(
   standing: readonly StandingGate[],
   nodeGates: readonly GateDeclaration[],
@@ -15,13 +16,20 @@ export function authoritativeBriefGates(
         id: entry.id,
         kind: entry.kind,
         run: entry.run,
+        ...(entry.expectOutput === undefined
+          ? {}
+          : { expectOutput: entry.expectOutput.source }),
       }),
     ),
     ...nodeGates.map(
-      (entry): BriefGate =>
-        entry.run === undefined
-          ? { id: entry.id, kind: entry.kind }
-          : { id: entry.id, kind: entry.kind, run: entry.run },
+      (entry): BriefGate => ({
+        id: entry.id,
+        kind: entry.kind,
+        ...(entry.run === undefined ? {} : { run: entry.run }),
+        ...(entry.expectOutput === undefined
+          ? {}
+          : { expectOutput: entry.expectOutput.source }),
+      }),
     ),
   ];
 }

@@ -40,6 +40,42 @@ describe("authoritativeBriefGates", () => {
       { id: "human-gate", kind: "human" },
     ]);
   });
+
+  it("carries a declared expect_output through as its source string", () => {
+    const standingWithPattern: readonly StandingGate[] = [
+      {
+        id: "test",
+        kind: "command",
+        run: "pnpm test",
+        expectOutput: /Tests +[1-9][0-9]* passed/,
+      },
+    ];
+    const nodeGatesWithPattern: readonly GateDeclaration[] = [
+      {
+        id: "own-gate",
+        kind: "command",
+        run: "pnpm review",
+        expectOutput: /reviewed/,
+      },
+    ];
+
+    expect(
+      authoritativeBriefGates(standingWithPattern, nodeGatesWithPattern),
+    ).toEqual([
+      {
+        id: "test",
+        kind: "command",
+        run: "pnpm test",
+        expectOutput: "Tests +[1-9][0-9]* passed",
+      },
+      {
+        id: "own-gate",
+        kind: "command",
+        run: "pnpm review",
+        expectOutput: "reviewed",
+      },
+    ]);
+  });
 });
 
 describe("diffGates", () => {
@@ -119,6 +155,44 @@ describe("renderBriefFile", () => {
     if (!isOk(read) || read.value.kind !== "v1") throw new Error("expected v1");
     expect(read.value.frontMatter).toEqual(frontMatter);
     expect(read.value.body).toBe("\n# brief\n");
+  });
+
+  it("round-trips a gate's expect_output through the rendered front matter", async () => {
+    const standingWithPattern: readonly StandingGate[] = [
+      {
+        id: "test",
+        kind: "command",
+        run: "pnpm test",
+        expectOutput: /Tests +[1-9][0-9]* passed/,
+      },
+    ];
+    const frontMatter: BriefFrontMatter = {
+      graph: "g",
+      node: "n",
+      role: "worker",
+      gates: authoritativeBriefGates(standingWithPattern, []),
+      scope: [],
+      substrate: { address: "none" },
+      runner: {
+        kind: "worktree",
+        graphBaseSha: "a".repeat(40),
+        session: "session-1",
+      },
+    };
+
+    const content = renderBriefFile(frontMatter, "\n# brief\n");
+    const path = write(content);
+    const read = await readBriefFile(path);
+    expect(isOk(read)).toBe(true);
+    if (!isOk(read) || read.value.kind !== "v1") throw new Error("expected v1");
+    expect(read.value.frontMatter.gates).toEqual([
+      {
+        id: "test",
+        kind: "command",
+        run: "pnpm test",
+        expectOutput: "Tests +[1-9][0-9]* passed",
+      },
+    ]);
   });
 
   it("omits graph_base_sha and session for a repository-state front matter", async () => {
