@@ -20,6 +20,7 @@ export function defaultHerdrSocketPath(): string {
 const DEFAULT_CALL_TIMEOUT_MS = 30_000;
 const AGENT_START_TIMEOUT_MS = 60_000;
 const CALL_DEADLINE_MARGIN_MS = 5_000;
+export const WAIT_SLICE_MS = 60_000;
 
 // A pane's shell is not guaranteed to have reached its prompt the instant workspace.create
 // returns; herdr refuses agent.start with this code until it has. Retried, not fatal.
@@ -206,6 +207,7 @@ export async function createHerdrRuntime(
   socketPath: string = defaultHerdrSocketPath(),
   defaultCallTimeoutMs: number = DEFAULT_CALL_TIMEOUT_MS,
   paneReadyTimeoutMs: number = AGENT_START_TIMEOUT_MS,
+  waitSliceMs: number = WAIT_SLICE_MS,
 ): Promise<Result<Runtime, RuntimeRefusal>> {
   const verified = await verifyHerdrSocket(socketPath);
   if (isErr(verified)) return verified;
@@ -339,21 +341,47 @@ export async function createHerdrRuntime(
       until: readonly AgentStatus[],
       timeoutMs: number,
     ) {
-      const waited = await call(
-        "agent.wait",
-        { target: agent.id, until, timeout_ms: timeoutMs },
-        timeoutMs + CALL_DEADLINE_MARGIN_MS,
-      );
-      if (isErr(waited)) return waited;
-      const status = stringAt(waited.value, "agent", "agent_status");
-      return isAgentStatus(status) && until.includes(status)
-        ? ok(status)
-        : err({
-            kind: "timeout",
-            until,
-            timeoutMs,
-            status: isAgentStatus(status) ? status : "unknown",
-          });
+      const startedAtMs = Date.now();
+      let lastStatus: AgentStatus = "unknown";
+
+      for (;;) {
+        const elapsedBeforeGetMs = Date.now() - startedAtMs;
+        if (elapsedBeforeGetMs >= timeoutMs) {
+          return err({ kind: "timeout", until, timeoutMs, status: lastStatus });
+        }
+
+        const got = await call("agent.get", { target: agent.id });
+        if (isErr(got)) {
+          if (got.error.kind !== "call-timeout") return got;
+        } else {
+          const status = stringAt(got.value, "agent", "agent_status");
+          if (isAgentStatus(status)) {
+            lastStatus = status;
+            if (until.includes(status)) return ok(status);
+          }
+        }
+
+        const remainingMs = timeoutMs - (Date.now() - startedAtMs);
+        if (remainingMs <= 0) {
+          return err({ kind: "timeout", until, timeoutMs, status: lastStatus });
+        }
+
+        const sliceMs = Math.min(waitSliceMs, remainingMs);
+        const waited = await call(
+          "agent.wait",
+          { target: agent.id, until, timeout_ms: sliceMs },
+          sliceMs + CALL_DEADLINE_MARGIN_MS,
+        );
+        if (isErr(waited)) {
+          if (waited.error.kind !== "call-timeout") return waited;
+        } else {
+          const status = stringAt(waited.value, "agent", "agent_status");
+          if (isAgentStatus(status)) {
+            lastStatus = status;
+            if (until.includes(status)) return ok(status);
+          }
+        }
+      }
     },
 
     async read(agent: Agent) {

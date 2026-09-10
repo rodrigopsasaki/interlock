@@ -11,8 +11,14 @@ export interface FakeHerdrServer {
   readonly socketPath: string;
   readonly calls: readonly RecordedCall[];
   agentStatus: string;
-  failNextCall(code: string, message: string, times?: number): void;
-  withholdNextCall(): void;
+  delayAgentWaitToRequestedTimeout: boolean;
+  failNextCall(
+    code: string,
+    message: string,
+    times?: number,
+    method?: string,
+  ): void;
+  withholdNextCall(method?: string): void;
   close(): Promise<void>;
 }
 
@@ -30,6 +36,13 @@ function fail(socket: Socket, id: string, code: string, message: string): void {
   socket.write(`${JSON.stringify({ id, error: { code, message } })}\n`, () =>
     socket.end(),
   );
+}
+
+function matchesPending(
+  pendingMethod: string | undefined,
+  incomingMethod: string,
+): boolean {
+  return pendingMethod === undefined || pendingMethod === incomingMethod;
 }
 
 function panePayload(paneId: string): Record<string, unknown> {
@@ -50,12 +63,20 @@ export function startFakeHerdrServer(
   if (existsSync(socketPath)) unlinkSync(socketPath);
 
   const calls: RecordedCall[] = [];
-  const state = { agentStatus: "idle" };
+  const state = {
+    agentStatus: "idle",
+    delayAgentWaitToRequestedTimeout: false,
+  };
   const sockets = new Set<Socket>();
   let nextFailure:
-    | { code: string; message: string; remaining: number }
+    | {
+        code: string;
+        message: string;
+        remaining: number;
+        method: string | undefined;
+      }
     | undefined;
-  let withholdNext = false;
+  let withhold: { method: string | undefined } | undefined;
 
   const server: Server = createServer((socket: Socket) => {
     sockets.add(socket);
@@ -82,11 +103,14 @@ export function startFakeHerdrServer(
     if (!isString(id) || !isString(method) || !isRecord(params)) return;
     calls.push({ method, params });
 
-    if (withholdNext) {
-      withholdNext = false;
+    if (withhold !== undefined && matchesPending(withhold.method, method)) {
+      withhold = undefined;
       return;
     }
-    if (nextFailure !== undefined) {
+    if (
+      nextFailure !== undefined &&
+      matchesPending(nextFailure.method, method)
+    ) {
       const { code, message } = nextFailure;
       nextFailure =
         nextFailure.remaining > 1
@@ -117,9 +141,23 @@ export function startFakeHerdrServer(
       case "agent.send_keys":
         respond(socket, id, {});
         return;
-      case "agent.wait":
+      case "agent.get":
         respond(socket, id, { agent: { agent_status: state.agentStatus } });
         return;
+      case "agent.wait": {
+        const respondToWait = () =>
+          respond(socket, id, { agent: { agent_status: state.agentStatus } });
+        if (!state.delayAgentWaitToRequestedTimeout) {
+          respondToWait();
+          return;
+        }
+        const requestedTimeoutMs = prop(params, "timeout_ms");
+        setTimeout(
+          respondToWait,
+          typeof requestedTimeoutMs === "number" ? requestedTimeoutMs : 0,
+        );
+        return;
+      }
       case "agent.read":
         respond(socket, id, { read: { text: "fake agent output" } });
         return;
@@ -144,11 +182,17 @@ export function startFakeHerdrServer(
         set agentStatus(value: string) {
           state.agentStatus = value;
         },
-        failNextCall(code, message, times = 1) {
-          nextFailure = { code, message, remaining: times };
+        get delayAgentWaitToRequestedTimeout() {
+          return state.delayAgentWaitToRequestedTimeout;
         },
-        withholdNextCall() {
-          withholdNext = true;
+        set delayAgentWaitToRequestedTimeout(value: boolean) {
+          state.delayAgentWaitToRequestedTimeout = value;
+        },
+        failNextCall(code, message, times = 1, method = undefined) {
+          nextFailure = { code, message, remaining: times, method };
+        },
+        withholdNextCall(method = undefined) {
+          withhold = { method };
         },
         close() {
           for (const socket of sockets) socket.destroy();

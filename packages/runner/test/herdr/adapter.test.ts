@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { isErr } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  WAIT_SLICE_MS,
   createHerdrRuntime,
   generateAgentName,
   isCompliantAgentName,
@@ -103,7 +104,7 @@ describe("herdr adapter", () => {
       "workspace.create",
       "agent.start",
       "pane.report_metadata",
-      "agent.wait",
+      "agent.get",
       "agent.read",
       "pane.close",
     ]);
@@ -206,6 +207,130 @@ describe("herdr adapter", () => {
     );
     expect(isErr(waited)).toBe(true);
     if (isErr(waited)) expect(waited.error.kind).toBe("timeout");
+  });
+
+  it("returns at once, without ever calling agent.wait, when the status is already in until", async () => {
+    const fake = await fixture();
+    fake.agentStatus = "idle";
+    const created = await createHerdrRuntime(fake.socketPath);
+    if (isErr(created)) throw new Error("expected a runtime");
+    const pane = await created.value.openPane("/repo");
+    if (isErr(pane)) throw new Error("expected a pane");
+    const agent = await created.value.startAgent(pane.value, "claude", []);
+    if (isErr(agent)) throw new Error("expected an agent");
+
+    const waited = await created.value.waitUntil(
+      agent.value,
+      ["idle", "blocked", "done"],
+      5_000,
+    );
+    expect(waited).toEqual({ _tag: "Ok", value: "idle" });
+    expect(fake.calls.some((call) => call.method === "agent.wait")).toBe(false);
+  });
+
+  it("loops past a slice herdr never answers, returning the status the next agent.get reports", async () => {
+    const fake = await fixture();
+    fake.agentStatus = "working";
+    fake.withholdNextCall("agent.wait");
+    setTimeout(() => {
+      fake.agentStatus = "idle";
+    }, 300);
+    const created = await createHerdrRuntime(
+      fake.socketPath,
+      30_000,
+      60_000,
+      100,
+    );
+    if (isErr(created)) throw new Error("expected a runtime");
+    const pane = await created.value.openPane("/repo");
+    if (isErr(pane)) throw new Error("expected a pane");
+    const agent = await created.value.startAgent(pane.value, "claude", []);
+    if (isErr(agent)) throw new Error("expected an agent");
+
+    const waited = await created.value.waitUntil(
+      agent.value,
+      ["idle", "blocked", "done"],
+      7_000,
+    );
+    expect(waited).toEqual({ _tag: "Ok", value: "idle" });
+    expect(
+      fake.calls.filter((call) => call.method === "agent.wait"),
+    ).toHaveLength(1);
+    expect(
+      fake.calls.filter((call) => call.method === "agent.get"),
+    ).toHaveLength(2);
+  }, 10_000);
+
+  it("refuses with a timeout naming the caller's budget once two slices pass with nothing changing", async () => {
+    const fake = await fixture();
+    fake.agentStatus = "working";
+    fake.delayAgentWaitToRequestedTimeout = true;
+    const created = await createHerdrRuntime(
+      fake.socketPath,
+      30_000,
+      60_000,
+      60,
+    );
+    if (isErr(created)) throw new Error("expected a runtime");
+    const pane = await created.value.openPane("/repo");
+    if (isErr(pane)) throw new Error("expected a pane");
+    const agent = await created.value.startAgent(pane.value, "claude", []);
+    if (isErr(agent)) throw new Error("expected an agent");
+
+    const waited = await created.value.waitUntil(
+      agent.value,
+      ["idle", "done"],
+      100,
+    );
+    expect(isErr(waited)).toBe(true);
+    if (isErr(waited)) {
+      expect(waited.error).toEqual({
+        kind: "timeout",
+        until: ["idle", "done"],
+        timeoutMs: 100,
+        status: "working",
+      });
+    }
+    expect(
+      fake.calls.filter((call) => call.method === "agent.wait"),
+    ).toHaveLength(2);
+  }, 10_000);
+
+  it("returns a remote refusal from agent.wait without retrying", async () => {
+    const fake = await fixture();
+    fake.agentStatus = "working";
+    fake.failNextCall("agent_gone", "no such agent", 1, "agent.wait");
+    const created = await createHerdrRuntime(fake.socketPath);
+    if (isErr(created)) throw new Error("expected a runtime");
+    const pane = await created.value.openPane("/repo");
+    if (isErr(pane)) throw new Error("expected a pane");
+    const agent = await created.value.startAgent(pane.value, "claude", []);
+    if (isErr(agent)) throw new Error("expected an agent");
+
+    const waited = await created.value.waitUntil(
+      agent.value,
+      ["idle", "done"],
+      5_000,
+    );
+    expect(isErr(waited)).toBe(true);
+    if (isErr(waited)) {
+      expect(waited.error).toEqual({
+        kind: "remote",
+        code: "agent_gone",
+        message: "no such agent",
+      });
+    }
+    expect(
+      fake.calls.filter((call) => call.method === "agent.wait"),
+    ).toHaveLength(1);
+  });
+
+  // WAIT_SLICE_MS bounds a single agent.wait request to herdr. The incident that motivated R1
+  // staked a whole run's remaining budget, up to an hour, on one such call ever answering; sixty
+  // seconds is short enough that the adapter is back checking agent.get long before any real
+  // session's own wait budget could plausibly be spent on herdr going quiet mid-call.
+  it("bounds a single agent.wait request to sixty seconds", () => {
+    expect(WAIT_SLICE_MS).toBe(60_000);
   });
 
   it("sends a herdr-compliant agent name on agent.start", async () => {
