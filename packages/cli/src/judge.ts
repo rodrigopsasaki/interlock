@@ -127,7 +127,7 @@ export async function runInterlockJudge(
     if (approval !== "approved") {
       return {
         exitCode: 1,
-        message: `${graph}: graph is ${approval}, not approved for its current content; refusing to lease "${node}".`,
+        message: `${graph}: graph is ${approval}, not approved for its current content; refusing to judge "${node}".`,
       };
     }
 
