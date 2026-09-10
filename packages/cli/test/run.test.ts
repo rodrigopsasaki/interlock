@@ -422,8 +422,8 @@ describe("interlock run", () => {
 
     expect(result.exitCode).toBe(0);
     // The worktree's own HEAD sits one commit ahead of headAtRunTime: the runner's own brief
-    // commit (R3). The graph base it was cut from is still headAtRunTime, asserted below via
-    // the session-started event, which is the claim this test is actually about.
+    // commit. The graph base it was cut from is still headAtRunTime, asserted below via the
+    // session-started event, which is the claim this test is actually about.
     const commitsBeyondRunTime = execFileSync(
       "git",
       ["rev-list", "--count", `${headAtRunTime}..HEAD`],
