@@ -41,7 +41,8 @@ nodes:
     gates:
       - id: brief-legacy
         kind: command
-        run: pnpm --filter debrief test --testNamePattern brief
+        run: pnpm --filter debrief --fail-if-no-match test --testNamePattern brief
+        expect_output: 'Tests +[1-9][0-9]* passed'
 
   - id: schemas
     acceptance: >
@@ -56,7 +57,8 @@ nodes:
     gates:
       - id: corpus-agrees
         kind: command
-        run: pnpm --filter schemas test --testNamePattern corpus
+        run: pnpm --filter schemas --fail-if-no-match test --testNamePattern corpus
+        expect_output: 'Tests +[1-9][0-9]* passed'
 
   - id: shapes-reference
     acceptance: >
@@ -69,7 +71,8 @@ nodes:
     gates:
       - id: reference-fresh
         kind: command
-        run: pnpm --filter schemas test --testNamePattern reference
+        run: pnpm --filter schemas --fail-if-no-match test --testNamePattern reference
+        expect_output: 'Tests +[1-9][0-9]* passed'
 
   - id: substrate-protocol
     acceptance: >

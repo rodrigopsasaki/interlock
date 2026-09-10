@@ -53,10 +53,12 @@ nodes:
     gates:
       - id: replay
         kind: command
-        run: pnpm --filter ledger test --testNamePattern replay
+        run: pnpm --filter ledger --fail-if-no-match test --testNamePattern replay
+        expect_output: 'Tests +[1-9][0-9]* passed'
       - id: illegal-states
         kind: command
-        run: pnpm --filter ledger test --testNamePattern unrepresentable
+        run: pnpm --filter ledger --fail-if-no-match test --testNamePattern unrepresentable
+        expect_output: 'Tests +[1-9][0-9]* passed'
         # Tests that assert the type-level claims by attempting to construct the illegal
         # values and expecting the compiler to refuse.
 
@@ -73,7 +75,8 @@ nodes:
     gates:
       - id: upcast-v1
         kind: command
-        run: pnpm --filter ledger test --testNamePattern upcast
+        run: pnpm --filter ledger --fail-if-no-match test --testNamePattern upcast
+        expect_output: 'Tests +[1-9][0-9]* passed'
 
   - id: runner-command-gate
     acceptance: >
@@ -90,11 +93,13 @@ nodes:
     gates:
       - id: one-adapter
         kind: command
-        run: pnpm --filter runner test --testNamePattern adapter-boundary
+        run: pnpm --filter runner --fail-if-no-match test --testNamePattern adapter-boundary
+        expect_output: 'Tests +[1-9][0-9]* passed'
         # Fails if any file outside the adapter references the herdr socket.
       - id: receipt-idempotent
         kind: command
-        run: pnpm --filter runner test --testNamePattern idempotent
+        run: pnpm --filter runner --fail-if-no-match test --testNamePattern idempotent
+        expect_output: 'Tests +[1-9][0-9]* passed'
 
   - id: debrief-schema
     acceptance: >
@@ -116,7 +121,8 @@ nodes:
     gates:
       - id: inverse-check
         kind: command
-        run: pnpm --filter verifier test --testNamePattern unexplained
+        run: pnpm --filter verifier --fail-if-no-match test --testNamePattern unexplained
+        expect_output: 'Tests +[1-9][0-9]* passed'
 
   - id: face-read
     acceptance: >
@@ -131,7 +137,8 @@ nodes:
     gates:
       - id: stale-approval
         kind: command
-        run: pnpm --filter face test --testNamePattern stale-approval
+        run: pnpm --filter face --fail-if-no-match test --testNamePattern stale-approval
+        expect_output: 'Tests +[1-9][0-9]* passed'
         # Editing an approved graph flips its approval to stale.
 
   - id: face
