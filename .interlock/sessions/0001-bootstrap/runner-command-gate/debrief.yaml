@@ -4,7 +4,7 @@ node: runner-command-gate
 role: worker
 graph_base_sha: 1833f7950a28cf17ea02790cf7b13e70471ee323
 session_start_sha: ac425eb067638f52631de59f21c61583438c5189
-head_sha: d88e6c43edca4cc77c19d8296116489573e68ced
+head_sha: e819a1e079c6e1c58251e1ad59dd17042b086af5
 derivation:
   kind: agent
   runtime: claude-code
@@ -745,12 +745,107 @@ decisions:
     rests_on: ["brief:Deliverable"]
     hunks:
       - ".interlock/sessions/0001-bootstrap/runner-command-gate/debrief.yaml"
+  - id: c41
+    what: >
+      Fix round (verifier finding 1). Added `writeBriefIntoWorktree`,
+      `BriefRefusal` and `explainBriefRefusal` to
+      packages/runner/src/sessionBrief.ts: reads the brief.md
+      `briefExists`/`briefPath` already establish as present on the
+      caller's own disk and writes it to the same relative
+      `.interlock/sessions/<graph>/<node>/brief.md` path under a given
+      worktree root, creating the directory; a read or write failure comes
+      back as a typed refusal, never a throw. Exported both from
+      packages/runner/src/index.ts, matching the manifest rule c26 set.
+    because: >
+      Finding 1 proved, against the live shared journal (the current
+      approved-gate commitSha, 1833f7950a28cf17ea02790cf7b13e70471ee323,
+      re-confirmed by hand this round) and
+      docs/design/0001-interlock.md's own 2026-09-09 bend log ("a session
+      starts at the commit that contains its brief, which cannot be known
+      while writing it"), that a node's brief is committed strictly after
+      the graph's base SHA in the general case, so `createNodeWorktree`'s
+      checkout structurally never contains it. `briefExists` already
+      treats the caller's disk, not a git ref, as this brief's source of
+      truth, so the fix reads from the same place rather than inventing a
+      second, git-object-based read path.
+    rests_on:
+      [
+        "verifier finding 1",
+        "docs/design/0001-interlock.md bend log 2026-09-09",
+        "notes:19",
+      ]
+    hunks:
+      - "packages/runner/src/sessionBrief.ts"
+      - "packages/runner/src/index.ts"
+  - id: c42
+    what: >
+      Fix round. Wired `writeBriefIntoWorktree` into cli/src/run.ts,
+      called with `(repoRoot, worktreePath, graph, node)` immediately
+      after `createNodeWorktree` succeeds and before the herdr runtime is
+      created or a pane opened; a write failure stops the lease and
+      returns `explainBriefRefusal`'s sentence, the same refusal shape
+      every other step in this function's try body already uses.
+    because: >
+      "brief:Acceptance -- writes the brief into the worktree", literally
+      unimplemented before this fix round: nothing between worktree
+      creation and `runtime.openPane` wrote brief.md in, which is finding
+      1's exact defect.
+    rests_on: ["verifier finding 1", "brief:Acceptance", "c41"]
+    hunks:
+      - "packages/cli/src/run.ts"
+  - id: c43
+    what: >
+      Fix round. Replaced packages/cli/test/run.test.ts's happy-path
+      test's assertion (which only checked
+      `existsSync(join(cwd, ".worktrees", "a"))`, the worktree directory
+      itself) with a new test that commits the graph/config/local content
+      as one commit, approves against that commit, THEN commits the
+      node's brief.md as a separate, later commit -- reproducing exactly
+      the real ordering this repository's own commits follow, which the
+      prior single-commit `fixture()` did not -- and asserts the brief's
+      own bytes exist at the worktree's session-relative brief path.
+      Confirmed by hand that this test fails against the pre-fix code
+      (`expected false to be true` on the brief's `existsSync`) and passes
+      once c41/c42 are restored.
+    because: >
+      Finding 1's own critique of this exact test: "writing brief.md to
+      disk BEFORE gitInitFixture()/commitAll() run, so the brief is baked
+      into the same commit that becomes the approved base SHA -- a setup
+      that does not match how briefs are actually authored in this
+      repository" and "checks only that the worktree directory exists,
+      never that brief.md is inside it."
+    rests_on: ["verifier finding 1"]
+    hunks:
+      - "packages/cli/test/run.test.ts"
+  - id: c44
+    what: >
+      Fix round. Appended notes.yaml with this round's choice: writing the
+      brief into the worktree between `createNodeWorktree` and the first
+      herdr call, reading from the caller's disk, and the two rejected
+      alternatives (moving the worktree's checkout SHA; reading brief
+      content from a git ref instead of disk).
+    because: "brief:Deliverable item 2 -- notes.yaml is appended while working and committed with the code it belongs to"
+    rests_on: ["brief:Deliverable"]
+    hunks:
+      - ".interlock/sessions/0001-bootstrap/runner-command-gate/notes.yaml"
+  - id: c45
+    what: >
+      Fix round. Updated this debrief: `head_sha` bumped to the fix
+      commit e819a1e079c6e1c58251e1ad59dd17042b086af5, decisions c41-c45
+      cover every file this round's diff touched, `gates_run_by_agent`
+      re-recorded after re-running all five gates against the fixed code,
+      and a closing line added to `open` noting finding 1 is fixed rather
+      than left as a gap.
+    because: "brief:Deliverable item 3 -- the manifest rule, checked before filing"
+    rests_on: ["brief:Deliverable"]
+    hunks:
+      - ".interlock/sessions/0001-bootstrap/runner-command-gate/debrief.yaml"
 gates_run_by_agent:
-  - { id: typecheck, result: pass, invocation: "mise exec -- pnpm typecheck" }
-  - { id: test, result: pass, invocation: "mise exec -- pnpm test" }
-  - { id: debrief-valid, result: fail, invocation: "mise exec -- pnpm interlock debrief validate", note: "fails closed by design until the debrief-schema node lands" }
-  - { id: one-adapter, result: pass, invocation: "mise exec -- pnpm --filter runner test --testNamePattern adapter-boundary" }
-  - { id: receipt-idempotent, result: pass, invocation: "mise exec -- pnpm --filter runner test --testNamePattern idempotent" }
+  - { id: typecheck, result: pass, invocation: "mise exec -- pnpm typecheck", note: "re-run at e819a1e (fix round, finding 1)" }
+  - { id: test, result: pass, invocation: "mise exec -- pnpm test", note: "re-run at e819a1e; 137 tests, including the new run.test.ts case that fails without c41/c42 and passes with them" }
+  - { id: debrief-valid, result: fail, invocation: "mise exec -- pnpm interlock debrief validate", note: "fails closed by design until the debrief-schema node lands; unchanged by this fix round" }
+  - { id: one-adapter, result: pass, invocation: "mise exec -- pnpm --filter runner test --testNamePattern adapter-boundary", note: "re-run at e819a1e" }
+  - { id: receipt-idempotent, result: pass, invocation: "mise exec -- pnpm --filter runner test --testNamePattern idempotent", note: "re-run at e819a1e" }
 open:
   - >
     No `abandoned` Outcome kind exists (event@v2's Outcome union has six
@@ -830,3 +925,24 @@ open:
     AGENTS.md's conserved retry budget and the failure/disposition/because
     healing loop's retry-repair-cancel machinery are out of this node's
     acceptance and not built here.
+  - >
+    Fix round, blocking finding 1 (interlock run never wrote a node's
+    brief into the worktree it creates, because the worktree is checked
+    out at the graph's base SHA and a node's own brief is committed in a
+    later, node-specific commit in the general case): fixed, not left
+    open. `packages/runner/src/sessionBrief.ts` gained
+    `writeBriefIntoWorktree`, called from `cli/src/run.ts` between
+    `createNodeWorktree` and the first herdr call; `packages/cli/test/
+    run.test.ts`'s happy-path test now commits the graph content and the
+    node's brief as two separate commits, matching how briefs are
+    actually authored in this repository, and asserts the brief's own
+    bytes land inside the created worktree. The immutable node brief's own
+    "What the runner is" section still says "copies nothing, the brief is
+    already in the tree" -- the assumption this finding disproved -- and
+    the wall rules forbid editing brief.md to correct it; the acceptance's
+    own "writes the brief into the worktree" clause is the binding text
+    this fix follows, and the contradiction is recorded here rather than
+    silently resolved. This round did not re-run the real backfill
+    (unaffected: `interlock backfill` never opens a herdr pane or reads a
+    brief) or re-capture `interlock graph show`; the before/after output
+    already on record above is unchanged by this fix.
