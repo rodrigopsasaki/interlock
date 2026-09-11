@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/substrate@v1/context.response.json",
+  "title": "context.response@substrate@v1",
+  "description": "The slice context returns: typed items with provenance, plus the substrate's own vocabulary version so the interpreter can translate.",
+  "type": "object",
+  "properties": {
+    "items": { "type": "array", "items": { "$ref": "../item@v1.json" } },
+    "vocabulary": { "type": "string" }
+  },
+  "required": ["items", "vocabulary"],
+  "additionalProperties": false
+}

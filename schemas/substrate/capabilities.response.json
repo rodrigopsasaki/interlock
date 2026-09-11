@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/substrate@v1/capabilities.response.json",
+  "title": "capabilities.response@substrate@v1",
+  "description": "What a substrate declares beyond its two required verbs, context and absorb: which of the ten optional capabilities it implements. interlock degrades per capability absent from this list; no request payload carries this call, since it takes no argument beyond the address itself.",
+  "type": "object",
+  "properties": {
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "consult",
+          "query",
+          "why",
+          "note",
+          "open",
+          "close",
+          "propose",
+          "ratify",
+          "contest",
+          "judge"
+        ]
+      },
+      "uniqueItems": true
+    }
+  },
+  "required": ["capabilities"],
+  "additionalProperties": false
+}

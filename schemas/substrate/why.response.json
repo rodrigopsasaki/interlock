@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/substrate@v1/why.response.json",
+  "title": "why.response@substrate@v1",
+  "description": "The chain that justifies one item, as marks: rooted names the hunk a step was observed in, unrooted names the because it rests on instead, gap names a step that named no vocabulary term. Reuses the verifier's own mark shape rather than a parallel one, since a chain is the same way-back a debrief claim carries.",
+  "type": "object",
+  "properties": {
+    "chain": { "type": "array", "items": { "$ref": "../parts/mark.json" } }
+  },
+  "required": ["chain"],
+  "additionalProperties": false
+}

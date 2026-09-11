@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/substrate@v1/query.response.json",
+  "title": "query.response@substrate@v1",
+  "description": "The items a walk returns: the same shape a slice carries, since a walk is a discovery of more of the same knowledge.",
+  "type": "object",
+  "properties": {
+    "items": { "type": "array", "items": { "$ref": "../item@v1.json" } }
+  },
+  "required": ["items"],
+  "additionalProperties": false
+}

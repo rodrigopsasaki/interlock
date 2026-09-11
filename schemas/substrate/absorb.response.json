@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/substrate@v1/absorb.response.json",
+  "title": "absorb.response@substrate@v1",
+  "description": "What the substrate did with a debrief: which decisions became beliefs, how each discovery was placed, and the discoveries it could not place, which feed the gap log.",
+  "type": "object",
+  "properties": {
+    "decisions_absorbed": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "ids of debrief decisions, matching decision.id, that the substrate adopted as beliefs."
+    },
+    "discoveries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "placement": { "enum": ["known", "new", "unplaced"] }
+        },
+        "required": ["id", "placement"],
+        "additionalProperties": false
+      },
+      "description": "one entry per debrief discovery, matching discovery.id."
+    },
+    "gaps": { "type": "array", "items": { "$ref": "../parts/gap.json" } }
+  },
+  "required": ["decisions_absorbed", "discoveries", "gaps"],
+  "additionalProperties": false
+}

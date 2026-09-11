@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/substrate@v1/ratify.response.json",
+  "title": "ratify.response@substrate@v1",
+  "description": "The rule, now a ratified item in the substrate's own vocabulary.",
+  "type": "object",
+  "properties": {
+    "item": { "$ref": "../item@v1.json" }
+  },
+  "required": ["item"],
+  "additionalProperties": false
+}

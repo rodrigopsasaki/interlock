@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/substrate@v1/close.request.json",
+  "title": "close.request@substrate@v1",
+  "description": "What close takes at session end: the session id and why it ended.",
+  "type": "object",
+  "properties": {
+    "session": { "type": "string" },
+    "reason": { "type": "string" }
+  },
+  "required": ["session", "reason"],
+  "additionalProperties": false
+}

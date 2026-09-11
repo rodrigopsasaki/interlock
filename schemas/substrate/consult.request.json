@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/substrate@v1/consult.request.json",
+  "title": "consult.request@substrate@v1",
+  "description": "What consult takes mid-session, on a stated intent: a fork the agent is about to take, and which paths it bears on.",
+  "type": "object",
+  "properties": {
+    "intent": { "type": "string" },
+    "scope": { "type": "array", "items": { "type": "string" } }
+  },
+  "required": ["intent", "scope"],
+  "additionalProperties": false
+}
