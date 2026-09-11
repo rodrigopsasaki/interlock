@@ -42,7 +42,12 @@ describe("corpus: position@v1, produced by the real positionOf", () => {
       },
     ]);
 
-    const position = positionOf(document, projection, "content-hash");
+    const position = positionOf(
+      document,
+      projection,
+      "content-hash",
+      Date.now(),
+    );
     const registry = buildRegistry();
     const validate = registry.ajv.getSchema(
       "https://github.com/rodrigopsasaki/interlock/schemas/position@v1.json",

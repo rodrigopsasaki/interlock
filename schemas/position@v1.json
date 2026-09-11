@@ -154,15 +154,40 @@
       "required": ["id", "state"],
       "additionalProperties": false
     },
+    "leaseState": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": { "kind": { "const": "none" } },
+          "required": ["kind"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": { "kind": { "const": "live" } },
+          "required": ["kind"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "expired" },
+            "agoMs": { "type": "number" }
+          },
+          "required": ["kind", "agoMs"],
+          "additionalProperties": false
+        }
+      ]
+    },
     "positionAttempt": {
       "type": "object",
       "properties": {
         "session": { "type": "string" },
         "outcome": { "$ref": "parts/outcome.json" },
-        "lease": { "$ref": "parts/lease.json" },
+        "leaseState": { "$ref": "#/$defs/leaseState" },
         "agentStatus": { "enum": ["idle", "working", "blocked", "done", "unknown"] }
       },
-      "required": ["session"],
+      "required": ["session", "leaseState"],
       "additionalProperties": false
     }
   }
