@@ -111,6 +111,17 @@ entries:
       new payload -- discoveries the substrate could not place -- is exactly gap.json, already
       required reading by the "gap" vocabulary term, so "gaps: gap.json[]" carries that part.
   - kind: surprise
+    at: "2026-09-11T18:32:00Z"
+    expected: >
+      docs/design/0003-substrate.md would name the reference implementation once, per the
+      brief's own fence and AGENTS.md's wall.
+    observed: >
+      It named it twice: once in the header table's "Reference implementation" row, and once
+      in the "Mapping the reference implementation" section's opening sentence. Fixed by
+      pointing the header row at the mapping section instead of repeating the name there, and
+      added a row to the bend log recording it. grepped docs/design/0003-substrate.md for the
+      name afterward to confirm exactly one occurrence remains.
+  - kind: surprise
     at: "2026-09-11T18:30:00Z"
     expected: >
       docs/design/0003-substrate.md's verb table and Payloads section would say, somewhere, how
