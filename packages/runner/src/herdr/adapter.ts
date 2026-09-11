@@ -108,8 +108,6 @@ type HerdrCall = (
   timeoutMs?: number,
 ) => Promise<Result<Record<string, unknown>, RuntimeRefusal>>;
 
-// agent.list's own entries carry both `tokens` and `agent_status` in one record, so both
-// reportedAgentStatus and resolvePane share this lookup instead of each re-walking the list.
 async function findReportedAgent(
   call: HerdrCall,
   query: AgentIdentityQuery,

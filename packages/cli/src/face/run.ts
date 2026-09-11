@@ -141,10 +141,12 @@ export async function runInterlockFace(
       verbCommand(effect.verb, { by: effect.by, because: effect.because }),
     );
     await refreshWorld();
-    state = {
-      ...state,
-      status: `exit ${result.exitCode}: ${result.lastLine}`,
-    } as FaceState;
+    if (state.kind === "browsing") {
+      state = {
+        ...state,
+        status: `exit ${result.exitCode}: ${result.lastLine}`,
+      };
+    }
     draw();
     return true;
   }
