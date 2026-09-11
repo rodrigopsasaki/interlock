@@ -23,6 +23,8 @@ export type { Float } from "./float.ts";
 export { floatOf } from "./float.ts";
 export type { PositionAttempt } from "./attempts.ts";
 export { attemptsFor } from "./attempts.ts";
+export type { LeaseState } from "./leaseState.ts";
+export { leaseStateOf, renderAgo } from "./leaseState.ts";
 export type {
   ApprovalState,
   NodeState,

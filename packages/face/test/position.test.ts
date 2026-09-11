@@ -59,19 +59,19 @@ function nodeIn(position: Position, id: string): PositionNode {
 
 describe("positionOf", () => {
   it("names the shape on every value it produces", () => {
-    const position = positionOf(document, fold([]), "some-hash");
+    const position = positionOf(document, fold([]), "some-hash", Date.now());
     expect(position.interlock).toBe("position@v1");
   });
 
   it("shows a node with no upstream state as ready, and pending gates, when the projection knows nothing", () => {
-    const position = positionOf(document, fold([]), "some-hash");
+    const position = positionOf(document, fold([]), "some-hash", Date.now());
     const a = nodeIn(position, "a");
     expect(a.state).toEqual({ kind: "ready" });
     expect(a.gates).toEqual([{ id: "typecheck", state: { kind: "pending" } }]);
   });
 
   it("blocks a node on every dependency that is not cleared, naming them", () => {
-    const position = positionOf(document, fold([]), "some-hash");
+    const position = positionOf(document, fold([]), "some-hash", Date.now());
     expect(nodeIn(position, "b").state).toEqual({
       kind: "blocked",
       on: ["a"],
@@ -99,7 +99,7 @@ describe("positionOf", () => {
         outcome: { kind: "cleared", receipts: [] },
       },
     ]);
-    const position = positionOf(document, cleared, "some-hash");
+    const position = positionOf(document, cleared, "some-hash", Date.now());
     expect(nodeIn(position, "b").state).toEqual({ kind: "ready" });
   });
 
@@ -118,7 +118,7 @@ describe("positionOf", () => {
         outcome: heldOutcome,
       },
     ]);
-    const position = positionOf(document, projection, "some-hash");
+    const position = positionOf(document, projection, "some-hash", Date.now());
     expect(nodeIn(position, "a").state).toEqual({
       kind: "outcome",
       outcome: heldOutcome,
@@ -136,7 +136,7 @@ describe("positionOf", () => {
         to: satisfied,
       },
     ]);
-    const position = positionOf(document, projection, "some-hash");
+    const position = positionOf(document, projection, "some-hash", Date.now());
     expect(nodeIn(position, "a").gates).toEqual([
       {
         id: "typecheck",
@@ -153,17 +153,17 @@ describe("positionOf", () => {
   });
 
   it("is the graph document's declared node order, topologically", () => {
-    const position = positionOf(document, fold([]), "some-hash");
+    const position = positionOf(document, fold([]), "some-hash", Date.now());
     expect(position.nodes.map((node) => node.id)).toEqual(["a", "b", "c"]);
   });
 
   it("computes the unweighted critical path over the document's own edges when no receipt is measured", () => {
-    const position = positionOf(document, fold([]), "some-hash");
+    const position = positionOf(document, fold([]), "some-hash", Date.now());
     expect(position.criticalPath).toEqual(["a", "b", "c"]);
   });
 
   it("reports not-approved when the graph pseudo-node carries no approved gate", () => {
-    const position = positionOf(document, fold([]), "some-hash");
+    const position = positionOf(document, fold([]), "some-hash", Date.now());
     expect(position.approval).toBe("not-approved");
   });
 
@@ -178,7 +178,12 @@ describe("positionOf", () => {
         to: gate.satisfied(approvedReceipt),
       },
     ]);
-    const position = positionOf(document, projection, "current-hash");
+    const position = positionOf(
+      document,
+      projection,
+      "current-hash",
+      Date.now(),
+    );
     expect(position.approval).toBe("approved");
   });
 
@@ -193,7 +198,7 @@ describe("positionOf", () => {
         to: gate.satisfied(approvedReceipt),
       },
     ]);
-    const position = positionOf(document, projection, "new-hash");
+    const position = positionOf(document, projection, "new-hash", Date.now());
     expect(position.approval).toBe("stale");
   });
 
@@ -233,7 +238,7 @@ describe("positionOf", () => {
         graphBaseSha: "deadbeef",
       },
     ]);
-    const position = positionOf(document, projection, "some-hash");
+    const position = positionOf(document, projection, "some-hash", Date.now());
     const attempts = nodeIn(position, "a").attempts;
     expect(attempts.map((attempt) => attempt.session)).toEqual([
       "session-1",
@@ -247,6 +252,7 @@ describe("positionOf", () => {
   });
 
   it("resolves a live session's agent status through the supplied lookup, never guessing when it returns nothing", () => {
+    const now = Date.now();
     const projection = fold([
       { kind: "node-created", node: { graph: "demo", id: "a" } },
       {
@@ -259,13 +265,14 @@ describe("positionOf", () => {
         kind: "lease-taken",
         node: { graph: "demo", id: "a" },
         session: "session-1",
-        expiry: 1,
+        expiry: now + 60_000,
       },
     ]);
     const withStatus = positionOf(
       document,
       projection,
       "some-hash",
+      now,
       () => "working",
     );
     expect(nodeIn(withStatus, "a").attempts[0]?.agentStatus).toBe("working");
@@ -274,11 +281,12 @@ describe("positionOf", () => {
       document,
       projection,
       "some-hash",
+      now,
       () => undefined,
     );
     expect(nodeIn(withoutStatus, "a").attempts[0]?.agentStatus).toBeUndefined();
 
-    const withoutLookup = positionOf(document, projection, "some-hash");
+    const withoutLookup = positionOf(document, projection, "some-hash", now);
     expect(nodeIn(withoutLookup, "a").attempts[0]?.agentStatus).toBeUndefined();
   });
 });

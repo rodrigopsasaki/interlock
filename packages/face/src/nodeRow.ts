@@ -14,5 +14,7 @@ export function nodeRowsOf(node: PositionNode): readonly NodeRow[] {
 }
 
 export function isLiveAttempt(attempt: PositionAttempt): boolean {
-  return attempt.lease !== undefined && attempt.agentStatus !== undefined;
+  return (
+    attempt.leaseState.kind === "live" && attempt.agentStatus !== undefined
+  );
 }

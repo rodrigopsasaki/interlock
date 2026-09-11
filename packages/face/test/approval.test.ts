@@ -82,7 +82,7 @@ describe("stale-approval", () => {
       await receiptId(directory, ["graph.yaml"], "approved"),
     );
     expect(
-      positionOf(document, projection, contentHashBeforeEdit).approval,
+      positionOf(document, projection, contentHashBeforeEdit, Date.now()).approval,
     ).toBe("approved");
 
     writeFileSync(
@@ -95,7 +95,7 @@ describe("stale-approval", () => {
     );
     expect(contentHashAfterEdit).not.toBe(contentHashBeforeEdit);
     expect(
-      positionOf(document, projection, contentHashAfterEdit).approval,
+      positionOf(document, projection, contentHashAfterEdit, Date.now()).approval,
     ).toBe("stale");
   });
 });

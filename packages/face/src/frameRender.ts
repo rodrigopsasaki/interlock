@@ -1,6 +1,7 @@
 import { isLiveAttempt, nodeRowsOf, type NodeRow } from "./nodeRow.ts";
 import { HELP_TEXT } from "./helpText.ts";
 import type { PositionAttempt } from "./attempts.ts";
+import { renderAgo } from "./leaseState.ts";
 import type { PlansEntry } from "./plansEntry.ts";
 import type { Position, PositionNode } from "./position.ts";
 import type { PositionGate, PositionGateState } from "./positionGate.ts";
@@ -109,12 +110,22 @@ function renderGateRow(gate: PositionGate): string {
   return `${gate.id} — ${renderGateStateText(gate.state)}${receipt}`;
 }
 
+function renderLeaseState(attempt: PositionAttempt): string {
+  switch (attempt.leaseState.kind) {
+    case "none":
+      return "no lease";
+    case "live":
+      return "live lease";
+    case "expired":
+      return `lease expired ${renderAgo(attempt.leaseState.agoMs)}`;
+  }
+}
+
 function renderAttemptRow(attempt: PositionAttempt): string {
   const outcome =
     attempt.outcome === undefined ? "no outcome yet" : attempt.outcome.kind;
-  const lease = attempt.lease === undefined ? "no lease" : "live lease";
   const status = attempt.agentStatus ?? "unknown";
-  return `${attempt.session} — outcome ${outcome}, ${lease}, agent ${status}`;
+  return `${attempt.session} — outcome ${outcome}, ${renderLeaseState(attempt)}, agent ${status}`;
 }
 
 function indexed(
