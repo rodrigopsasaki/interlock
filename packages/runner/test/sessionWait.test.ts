@@ -21,48 +21,55 @@ function stubRuntime(overrides: Partial<Runtime> = {}): Runtime {
 }
 
 describe("waitForSession", () => {
-  it("waits through blocked, then working, before settling on idle", async () => {
+  it("re-arms the grace window on every settle after a person's turn, and resumes clear it", async () => {
     const clock = createControlledClock({ initialTime: 0 });
-    const statuses: AgentStatus[] = ["blocked", "working", "idle"];
-    const untilSeen: (readonly AgentStatus[])[] = [];
+    const graceMs = 5_000;
+    const script: AgentStatus[] = ["blocked", "done", "working", "idle"];
     const runtime = stubRuntime({
-      waitUntil: (_agent, until) => {
-        untilSeen.push(until);
-        return Promise.resolve(ok(statuses.shift() ?? "idle"));
+      waitUntil: (_agent, until, timeoutMs) => {
+        const next = script.shift();
+        if (next !== undefined) return Promise.resolve(ok(next));
+        clock.advanceBy(ms(timeoutMs));
+        return Promise.resolve(
+          err({ kind: "timeout", until, timeoutMs, status: "idle" }),
+        );
       },
-      read: () =>
-        Promise.resolve(ok("> ran the gates\n> needs a shell approval\n\n")),
+      read: () => Promise.resolve(ok("")),
     });
     const lines: string[] = [];
 
-    const deadline = deadlineFrom(clock.now().monoMs, ms(60_000));
+    const deadline = deadlineFrom(clock.now().monoMs, ms(600_000));
     const result = await waitForSession(
       runtime,
       agent,
       clock,
       deadline,
-      60_000,
+      600_000,
+      graceMs,
       (line) => lines.push(line),
     );
 
     expect(result).toEqual({ _tag: "Ok", value: "idle" });
-    expect(statuses).toHaveLength(0);
-    expect(untilSeen).toEqual([
-      ["idle", "blocked", "done"],
-      ["working", "idle", "done"],
-      ["idle", "blocked", "done"],
-    ]);
     expect(lines).toEqual([
-      "agent blocked; answer in pane pane-1: > needs a shell approval",
+      "agent blocked; answer in pane pane-1: (no output)",
+      "agent settled after a person's turn; judging in 5s unless it resumes",
       "agent working",
+      "agent settled after a person's turn; judging in 5s unless it resumes",
     ]);
   });
 
   it("narrates a screen-read failure inline rather than losing the blocked turn", async () => {
     const clock = createControlledClock({ initialTime: 0 });
-    const statuses: AgentStatus[] = ["blocked", "idle"];
+    const script: AgentStatus[] = ["blocked", "idle"];
     const runtime = stubRuntime({
-      waitUntil: () => Promise.resolve(ok(statuses.shift() ?? "idle")),
+      waitUntil: (_agent, until, timeoutMs) => {
+        const next = script.shift();
+        if (next !== undefined) return Promise.resolve(ok(next));
+        clock.advanceBy(ms(timeoutMs));
+        return Promise.resolve(
+          err({ kind: "timeout", until, timeoutMs, status: "idle" }),
+        );
+      },
       read: () =>
         Promise.resolve(
           err({ kind: "transport", because: "the pane vanished" }),
@@ -77,13 +84,109 @@ describe("waitForSession", () => {
       clock,
       deadline,
       60_000,
+      5_000,
       (line) => lines.push(line),
     );
 
     expect(result).toEqual({ _tag: "Ok", value: "idle" });
     expect(lines).toEqual([
       "agent blocked; answer in pane pane-1: (screen unreadable: the pane vanished)",
+      "agent settled after a person's turn; judging in 5s unless it resumes",
     ]);
+  });
+
+  it("does not settle on done until the grace window actually elapses", async () => {
+    const clock = createControlledClock({ initialTime: 0 });
+    const graceMs = 120_000;
+    const requestedWaits: number[] = [];
+    const script: AgentStatus[] = ["blocked", "done"];
+    const runtime = stubRuntime({
+      waitUntil: (_agent, until, timeoutMs) => {
+        requestedWaits.push(timeoutMs);
+        const next = script.shift();
+        if (next !== undefined) return Promise.resolve(ok(next));
+        clock.advanceBy(ms(timeoutMs));
+        return Promise.resolve(
+          err({ kind: "timeout", until, timeoutMs, status: "done" }),
+        );
+      },
+      read: () => Promise.resolve(ok("")),
+    });
+
+    const deadline = deadlineFrom(clock.now().monoMs, ms(3_600_000));
+    const result = await waitForSession(
+      runtime,
+      agent,
+      clock,
+      deadline,
+      3_600_000,
+      graceMs,
+      () => {},
+    );
+
+    expect(result).toEqual({ _tag: "Ok", value: "done" });
+    expect(requestedWaits[2]).toBe(graceMs);
+    expect(clock.now().monoMs).toBe(graceMs);
+  });
+
+  it("returns idle at once when no blocked turn preceded it", async () => {
+    const clock = createControlledClock({ initialTime: 0 });
+    const runtime = stubRuntime({
+      waitUntil: () => Promise.resolve(ok("idle")),
+    });
+    const lines: string[] = [];
+
+    const deadline = deadlineFrom(clock.now().monoMs, ms(60_000));
+    const result = await waitForSession(
+      runtime,
+      agent,
+      clock,
+      deadline,
+      60_000,
+      300_000,
+      (line) => lines.push(line),
+    );
+
+    expect(result).toEqual({ _tag: "Ok", value: "idle" });
+    expect(lines).toEqual([]);
+  });
+
+  it("caps the grace window at the run's own deadline", async () => {
+    const clock = createControlledClock({ initialTime: 0 });
+    const runTimeoutMs = 10_000;
+    const graceMs = 300_000;
+    const requestedWaits: number[] = [];
+    const script: AgentStatus[] = ["blocked", "done"];
+    const runtime = stubRuntime({
+      waitUntil: (_agent, until, timeoutMs) => {
+        requestedWaits.push(timeoutMs);
+        const next = script.shift();
+        if (next !== undefined) {
+          clock.advanceBy(ms(1_000));
+          return Promise.resolve(ok(next));
+        }
+        clock.advanceBy(ms(timeoutMs));
+        return Promise.resolve(
+          err({ kind: "timeout", until, timeoutMs, status: "done" }),
+        );
+      },
+      read: () => Promise.resolve(ok("")),
+    });
+
+    const deadline = deadlineFrom(clock.now().monoMs, ms(runTimeoutMs));
+    const result = await waitForSession(
+      runtime,
+      agent,
+      clock,
+      deadline,
+      runTimeoutMs,
+      graceMs,
+      () => {},
+    );
+
+    expect(result).toEqual({ _tag: "Ok", value: "done" });
+    expect(requestedWaits[2]).toBe(8_000);
+    expect(clock.now().monoMs).toBe(runTimeoutMs);
   });
 
   it("times out against its own deadline while the agent alternates blocked and working forever", async () => {
@@ -111,6 +214,7 @@ describe("waitForSession", () => {
       clock,
       deadline,
       3_500,
+      300_000,
       () => {},
     );
 
@@ -139,6 +243,7 @@ describe("waitForSession", () => {
       clock,
       deadline,
       60_000,
+      300_000,
       () => {},
     );
 
@@ -167,6 +272,7 @@ describe("waitForSession", () => {
       clock,
       deadline,
       1_000,
+      300_000,
       () => {},
     );
 
