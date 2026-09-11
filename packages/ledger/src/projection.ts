@@ -50,6 +50,14 @@ export function isInterrupted(view: SessionView): boolean {
   return view.leaseExpired && view.debrief === undefined;
 }
 
+export function leaseIsLive(session: SessionView, nowWallMs: number): boolean {
+  return (
+    session.lease !== undefined &&
+    !session.leaseExpired &&
+    session.lease.expiry > nowWallMs
+  );
+}
+
 function emptyNodeView(node: Node): NodeView {
   return {
     node,
