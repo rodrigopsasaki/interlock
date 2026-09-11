@@ -167,6 +167,12 @@ export function startFakeHerdrServer(
       case "pane.list":
         respond(socket, id, { panes: state.panes });
         return;
+      case "agent.list":
+        respond(socket, id, { agents: state.panes });
+        return;
+      case "pane.focus":
+        respond(socket, id, {});
+        return;
       default:
         fail(
           socket,

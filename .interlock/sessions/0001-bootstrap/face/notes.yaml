@@ -1,0 +1,52 @@
+interlock: notes@v0
+node: face
+entries:
+  - kind: surprise
+    at: "2026-09-11T16:05:00Z"
+    expected: >
+      The herdr adapter's existing `reportedAgentStatus` (built by
+      position-model, calling `pane.list` and reading `tokens` off each
+      `PaneInfo`) would be the call this node reuses as-is for the status
+      join, per the brief's own read-first instruction.
+    observed: >
+      The brief itself flags that `pane.list`'s `tokens` field, for a pane
+      carrying interlock's metadata, was never seen live -- only inferred
+      from the socket schema -- while `agent.list`'s `AgentInfo` entries
+      are named as known to carry both `tokens` and `agent_status`
+      together. Decided to move the join onto `agent.list`.
+  - kind: choice
+    at: "2026-09-11T16:10:00Z"
+    chose: >
+      Switched `Runtime.reportedAgentStatus` from `pane.list` to
+      `agent.list`, and added two new optional `Runtime` methods --
+      `resolvePane(query)` (same token match, returns the `Pane`) and
+      `focusPane(pane)` (calls `pane.focus`) -- factoring the token-match
+      loop into one private `findReportedAgent(call, query)` helper shared
+      by both `reportedAgentStatus` and `resolvePane` so the match logic
+      lives once.
+    because: >
+      D16 names `pane.report_metadata`'s tokens as the identity a later
+      reader resolves a pane from "through herdr's own pane reads" --
+      `agent.list` is a pane read that already carries both fields this
+      node needs (status for the join, pane_id for the live-session
+      Enter-to-focus verb), so one call and one matcher serve both
+      existing and new needs instead of teaching two list shapes.
+    rejected: >
+      Keeping `pane.list` for the status join and introducing a second,
+      differently-shaped call for pane resolution -- doubles the socket
+      surface the one adapter has to cover for a single underlying
+      question ("what does herdr know about this graph/node/session's
+      pane"), for no benefit once one call already answers both.
+  - kind: choice
+    at: "2026-09-11T16:15:00Z"
+    chose: >
+      Added `pane.focus` to `adapterBoundary.test.ts`'s FORBIDDEN pattern
+      list (`/pane\.focus\b/`), matching how `pane.list`, `pane.close` and
+      every other herdr method name this repository has introduced so far
+      is kept inside the one adapter file.
+    because: >
+      I6 ("no herdr socket call in any file that is not the adapter for
+      it") is enforced today by an allowlist of forbidden strings scanned
+      across `packages/runner/src` and `packages/cli/src`; a new method
+      name the adapter starts using has to join that list itself, or the
+      boundary test silently stops covering it.
