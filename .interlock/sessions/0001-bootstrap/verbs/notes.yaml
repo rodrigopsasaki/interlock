@@ -116,3 +116,21 @@ entries:
       `pause` gap in prose; this session's build is the first place a
       real verb session confirms it against working code rather than
       design-time reasoning alone, which is what a bend-log entry is for.
+  - kind: choice
+    at: "2026-09-11T15:20:00Z"
+    chose: >
+      Captured each verb's `--because`-missing refusal sentence by
+      running the built CLI (`node packages/cli/src/bin.ts ...`) against
+      a real scratch git repository under
+      `packages/cli/test/.runs/verbs-refusal-scratch` (gitignored, a
+      sibling of every test suite's own `.runs`), rather than only citing
+      the unit tests that assert the same string.
+    because: >
+      The brief asks for these sentences "verbatim, from a scratch
+      repository" as a debrief requirement distinct from the gate suite
+      itself; running the real binary end to end is the only way to see
+      exactly what a person would see, not what a test's `expect(...)`
+      happens to assert. The scratch repository was removed with a plain
+      `rm -r` on the exact path this session created, once the three
+      sentences were captured; `git status` confirms nothing it touched
+      is tracked.
