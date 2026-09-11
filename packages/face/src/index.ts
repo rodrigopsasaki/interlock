@@ -37,3 +37,44 @@ export {
   graphFilePath,
   sharedJournalDirectory,
 } from "./root.ts";
+export { listGraphIds } from "./graphs.ts";
+export type { PlansEntry } from "./plansEntry.ts";
+export { plansEntryOf } from "./plansEntry.ts";
+export type { NodeRow } from "./nodeRow.ts";
+export { isLiveAttempt, nodeRowsOf } from "./nodeRow.ts";
+export type { Accountable, Verb } from "./verb.ts";
+export { verbCommand, verbNeedsAccountability } from "./verb.ts";
+export type { SessionColumnsInput } from "./sessionColumns.ts";
+export {
+  renderBrief,
+  renderContext,
+  renderDebriefBackedSection,
+  renderDecision,
+  renderDerivation,
+  renderDiscovery,
+  renderGate,
+  renderNarrated,
+  renderNote,
+  renderOutcome,
+  renderSessionColumns,
+} from "./sessionColumns.ts";
+export { HELP_TEXT } from "./helpText.ts";
+export type {
+  FaceEffect,
+  FaceKey,
+  FaceState,
+  FaceWorld,
+  Level,
+  PromptField,
+  PromptState,
+  Reduced,
+  Selection,
+} from "./faceState.ts";
+export { initialFaceState } from "./faceState.ts";
+export { reduce } from "./faceReducer.ts";
+export {
+  renderGraphFrame,
+  renderHelpOverlay,
+  renderNodeFrame,
+  renderPlansFrame,
+} from "./frameRender.ts";

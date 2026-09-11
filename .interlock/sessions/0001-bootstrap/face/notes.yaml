@@ -50,3 +50,109 @@ entries:
       across `packages/runner/src` and `packages/cli/src`; a new method
       name the adapter starts using has to join that list itself, or the
       boundary test silently stops covering it.
+  - kind: choice
+    at: "2026-09-11T16:35:00Z"
+    chose: >
+      Read the brief's scope list literally as the union of files this
+      node's own acceptance and its neighbors already touch, not as an
+      allowlist that forbids new file paths -- `packages/cli/src/face/*`
+      is created even though no exact filename under it appears in the
+      brief's `scope:` block, because the brief's own prose says in so
+      many words to put "the process, the raw-mode keys, the timer, the
+      file watch, the subprocess dispatch and the herdr calls" there.
+    because: >
+      A scope list authored before a node's own session runs cannot name
+      files an interpreter or a worker will invent during that session --
+      `packages/runner/src/herdr/adapter.ts` is itself in this brief's
+      scope despite being created by an earlier session, confirming scope
+      tracks what a node's work is expected to touch (and gates its
+      receipt hashing), not a pre-enumerated ACL. `briefScopePath.ts`'s
+      own check (`isValidScopePath`) only refuses an absolute path or one
+      that climbs above the repository root -- nothing in the codebase
+      treats scope as a closed file list.
+  - kind: choice
+    at: "2026-09-11T16:40:00Z"
+    chose: >
+      Modeled the Node level as one combined, cursor-addressed row list --
+      gates first, then attempts (`nodeRowsOf`) -- rather than two
+      independently-cursored lists or a single list that mixes verbs
+      across kinds.
+    because: >
+      The brief names exactly one verb per level below Plans/Graph ("`w`
+      waive the gate under the cursor") but also names two kinds of thing
+      the Node level shows (gates and attempts) and one thing Enter does
+      there ("Enter goes down" -- into Session, or focuses a live pane).
+      A single ordered row list lets one cursor and one Enter/`w` handler
+      serve both without a second cursor axis or a level-specific keymap;
+      `w` no-ops on an attempt row and Enter no-ops on a gate row, both
+      cheap and legible rather than inventing UI modes.
+  - kind: choice
+    at: "2026-09-11T16:45:00Z"
+    chose: >
+      Assigned each of the eight verbs to exactly one level by what it
+      targets, not left as a free-floating global keymap: `a`
+      approve and `s` sweep at Plans (graph-scoped and ledger-wide,
+      neither needs a node); `R` run, `J` judge, `c` cancel, `x` reset and
+      `b` backfill at Graph (node- or graph-under-cursor); `w` waive at
+      Node (gate-under-cursor row). Enter's own meaning is level- and
+      row-dependent: Plans/Graph drill down, a live attempt row at Node
+      focuses the pane instead of drilling into Session.
+    because: >
+      The brief lists all eight verbs once, "on the level they belong to,"
+      without pinning each one -- a genuinely load-bearing fork the brief
+      left for this session to decide from the shape of what each verb
+      needs (a graph id, a node id, or nothing) rather than a menu to hand
+      back. This is recorded here as the decision, not asked, per the
+      standing instruction to decide the forks a session is equipped to
+      decide.
+  - kind: surprise
+    at: "2026-09-11T16:55:00Z"
+    expected: >
+      `PositionAttempt.lease` being present would be a safe proxy for "an
+      attempt with a live agent," for counting live sessions in a Plans
+      row.
+    observed: >
+      `attemptsFor` (packages/face/src/attempts.ts) attaches `.lease`
+      whenever `session.lease !== undefined`, even when that lease has
+      since expired -- liveness is a *separate* computed flag
+      (`isLive = lease !== undefined && !leaseExpired`) used only to
+      decide whether to look up `agentStatus`, which is the field that
+      actually only gets set for a genuinely live session. First draft of
+      `plansEntryOf` counted `lease !== undefined` and would have reported
+      an abandoned, expired-lease session as live. Fixed to reuse
+      `isLiveAttempt` (`lease !== undefined && agentStatus !== undefined`)
+      instead of inventing a second, looser liveness test.
+  - kind: choice
+    at: "2026-09-11T17:00:00Z"
+    chose: >
+      Extracted `liveSessionsOf`/`resolveAgentStatuses`
+      (`packages/cli/src/herdrStatus.ts`) out of `graph/show.ts`, and
+      `legacyDebriefLine` (`packages/cli/src/legacyDebriefLine.ts`) out of
+      `session/show.ts`, so the face's Plans/Graph and Session frames
+      reuse the exact herdr-status join and legacy-debrief fallback that
+      `graph show` and `session show` already established, instead of a
+      second copy.
+    because: >
+      Both pieces are the join this node's own acceptance already leans
+      on ("herdr's agent status for a live session joins the view only
+      where the one herdr adapter already is, never in a second file" --
+      position-model's own acceptance, still true one layer up) and a
+      literal restatement of `describeDebriefRead`'s legacy fallback. The
+      alternative was a second, drifting copy of both inside
+      `packages/cli/src/face/world.ts`.
+  - kind: choice
+    at: "2026-09-11T17:10:00Z"
+    chose: >
+      `packages/cli/src/face/run.ts` accepts an injectable `keys?:
+      AsyncIterable<FaceKey>` that, when supplied, replaces real stdin
+      raw-mode reading *and* skips wiring the redraw timer, the journal
+      file watcher and the resize listener entirely.
+    because: >
+      The brief's own acceptance says plainly "you cannot open the face in
+      a pane yourself: you are in one, and you may not touch herdr" -- the
+      interactive loop has no real TTY to test against in this session.
+      Injecting the key source is the seam that keeps the orchestration
+      (`handle`, `refreshWorld`, effect dispatch) testable end-to-end with
+      a scripted key sequence and a fake dispatcher/runtime, while the
+      true raw-mode wiring stays a thin, separately-reviewed tail that a
+      person exercises live after this session stops.
