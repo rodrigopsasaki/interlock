@@ -1,0 +1,218 @@
+interlock: notes@v0
+node: attempts
+entries:
+  - kind: surprise
+    at: "2026-09-11T14:10:00Z"
+    expected: >
+      That this worktree's "1 commit beyond the graph base" meant an earlier
+      attempt had left real, resumable work behind.
+    observed: >
+      Both commits on the branch (193f7bb, fb94cd0) only rewrote this
+      session's own brief.md front matter; no code, no notes.yaml existed.
+      Treated as a fresh start rather than a resumption.
+  - kind: choice
+    at: "2026-09-11T14:12:00Z"
+    chose: >
+      Spawned one Explore subagent to gather the design-doc quotes, the
+      existing backfill/judgeWorktree/sessionBrief/debrief-package
+      internals, the session directory version table, and the CLI's own
+      dispatch/show conventions, in parallel with reading the ledger
+      package's own core files myself.
+    because: >
+      This node touches five packages (ledger, runner, cli, debrief, face)
+      and needs deep, literal familiarity with several existing readers and
+      one whole CLI command's worth of precedent before writing anything;
+      splitting the fan-out research from the sequential core-package
+      reading kept both moving without either blocking the other.
+  - kind: choice
+    at: "2026-09-11T14:22:00Z"
+    chose: >
+      Produced the debrief's required "interlock session show 0001-bootstrap
+      verifier-hunks" output by reading the real shared journal
+      (read-only, via readReplay), rather than running `interlock backfill`
+      for real first.
+    because: >
+      The shared journal already carries a fully-ingested real session for
+      verifier-hunks (052f6500-4932-4fd9-bfba-0e646e60a2e3: session-started,
+      debrief-filed and every note-appended all present), because that node
+      was run and judged live through `interlock run`/`interlock judge`,
+      not backfilled -- found by cross-referencing session-started,
+      debrief-filed and note-appended session ids for node verifier-hunks
+      across .interlock/ledger/journal.jsonl. Running `interlock backfill`
+      for real would append new events to a journal every other worktree
+      and session shares, which this brief's own constraints steer away
+      from ("never append to the shared journal by hand; the tests use
+      fixtures and scratch directories") and which nothing in the
+      deliverable actually requires once a real session already exists.
+  - kind: choice
+    at: "2026-09-11T14:30:00Z"
+    chose: >
+      Keyed backfill's session id as `backfill-${graph}-${nodeId}` (stable,
+      deterministic, one per node per graph) instead of the prior
+      per-run-random key (`${runnerId}-${nodeId}`, runnerId itself a fresh
+      randomUUID every backfillGraph call), and guarded the new
+      session-started append -- and the legacy-debrief narration beside it
+      -- behind `!ledger.projection().sessions.has(session)`.
+    because: >
+      "Backfill stays idempotent: a second run records nothing new for a
+      session it already recorded; say how you key that" is the brief's own
+      instruction. A random key can never be recognized as "already
+      recorded" on a later run; a deterministic key keyed on the one thing
+      that identifies a backfilled session (which node, in which graph) can.
+      backfillGraph's own runnerId stays random for receipt derivation
+      (unrelated, pre-existing, out of scope to change).
+  - kind: surprise
+    at: "2026-09-11T14:33:00Z"
+    expected: >
+      That giving backfill's session a real, persistent SessionView (via a
+      session-started event) would be a purely additive fix with no other
+      consequence.
+    observed: >
+      packages/runner/src/gateJudge.ts's shared ingestDebrief helper (called
+      by judgeGates -- and so by run, judge and backfill alike -- whenever a
+      node's outcome resolves to "cleared") has no idempotency guard of its
+      own: appending a real session-started for backfill's session, left
+      unguarded, means a second backfillGraph run over an already-cleared
+      node calls judgeGates -> ingestDebrief again on the same, now-known
+      session, re-appending every note-appended a second time. The
+      receipt/gate layer already guards itself (skips a satisfied gate,
+      matches receipt ids); the debrief-ingestion layer did not, because no
+      caller had ever given it a session already known before.
+  - kind: choice
+    at: "2026-09-11T14:35:00Z"
+    chose: >
+      Fixed the idempotency gap inside ingestDebrief itself (gateJudge.ts),
+      with one guard -- return before reading the on-disk debrief at all
+      when `ledger.projection().sessions.get(session)?.debrief` is already
+      defined -- rather than only inside backfillGraph.
+    because: >
+      ingestDebrief is shared by run, judge and backfill alike; run/judge
+      already share the same latent gap (re-judging an already-debriefed
+      session, e.g. `interlock judge` called twice on a settled worktree,
+      would double the notes the same way). One fix at the shared seam
+      covers every caller instead of only the one this node's acceptance
+      names by name, and composes rather than duplicating a second guard in
+      backfill.ts.
+  - kind: choice
+    at: "2026-09-11T14:38:00Z"
+    chose: >
+      Wrapped `interlock run`'s and `interlock judge`'s own local `narrate`
+      closures in place: `let narrate = ...` (was `const`), reassigned once
+      to `recordingNarrate(ledger, clock, sessionId, narrate)` immediately
+      after the point each verb's session is known to exist in the journal
+      (right after the session-started append in run.ts; right after
+      sessionId is resolved in judge.ts), rather than touching any of the
+      dozens of individual `narrate(...)` call sites in either file or in
+      judgeWorktree.ts.
+    because: >
+      Every existing narrate call in both files already flows through this
+      one shared binding (including the ones threaded down into
+      judgeWorktree via the `narrate` option), so reassigning it once
+      upgrades every downstream call for free and keeps the diff to two
+      lines per file plus the import. run.ts has no narrate(...) call
+      before its own session-started append (the first is "leased ...
+      (session ...)", immediately after), so no line it narrates is
+      print-only; judge.ts resolves sessionId before its first narrate call
+      too.
+  - kind: surprise
+    at: "2026-09-11T14:41:00Z"
+    expected: >
+      That a judge.test.ts assertion on the journal's session-narrated
+      lines for a session would equal exactly judge's own two
+      uncommitted-work lines.
+    observed: >
+      It failed, showing the whole run of `interlock run`'s own narration
+      ahead of them: `interlock judge`'s narration lands on the very same
+      session id `interlock run` already used and already narrated to, not
+      a fresh, judge-only list -- narration accumulates on the session,
+      across whichever verb (run, then later judge) drives it. Fixed the
+      test to assert only the tail of the array; this is exactly what the
+      acceptance's own words describe ("interlock judge appends its lines
+      on the session it judges").
+  - kind: choice
+    at: "2026-09-11T14:47:00Z"
+    chose: >
+      upcastV3 is a byte-for-byte copy of upcastV2's own body
+      (`isLedgerEvent(raw) ? raw : undefined`).
+    because: >
+      "event@v3 upcasts through a superset check the way v2 does" is the
+      brief's own instruction, and it is literally true here: session-
+      narrated is a wholly new, additive union arm, so every event@v3
+      payload the real journal has ever recorded already satisfies the
+      current (v4) LedgerEvent type without translation.
+  - kind: choice
+    at: "2026-09-11T14:50:00Z"
+    chose: >
+      Copied the live shared journal (297 lines at copy time: 2 event@v1,
+      154 event@v2, 141 event@v3) into
+      packages/ledger/test/fixtures/journal-v3-v4-2026-09-11.jsonl, and
+      added a replay test asserting every line parses and upcasts under
+      event@v4 with the graph's own "approved" gate still satisfied.
+    because: >
+      Mirrors the ledger node's own precedent (journal-v1-v2-2026-09-10.jsonl)
+      exactly: a dated fixture capturing the real production journal at the
+      moment a new event version is introduced, replayed losslessly under
+      the new shape.
+  - kind: choice
+    at: "2026-09-11T14:55:00Z"
+    chose: >
+      `interlock session show <graph> <node>` reads the projection through
+      `readReplay` only (never `createLedger`), the same as
+      packages/cli/src/graph/show.ts.
+    because: >
+      A show command is a pure read with nothing to append; readReplay
+      needs no journal directory to be created or held open, and matches
+      D14's read-only posture for a drilldown view even though session
+      show is a CLI command rather than "the face" itself (out of scope
+      here) -- the same discipline still applies.
+  - kind: choice
+    at: "2026-09-11T15:00:00Z"
+    chose: >
+      Added a further, honest, non-cached read of the on-disk debrief.yaml
+      (via the existing "debrief" package's readDebriefFile, not a new
+      parser) to session show, used only when the ledger shows no ingested
+      debrief for a session AND that session is the node's latest -- one
+      debrief.yaml exists per node, so it can only truthfully speak for
+      whichever session most recently wrote it; an older `--session <id>`
+      gets no such fallback and reports "no debrief filed for this
+      session" plainly instead.
+    because: >
+      A debrief-filed event is only ever recorded for a debrief@v2 file
+      (packages/runner/src/gateJudge.ts's ingestDebrief returns early for
+      any other kind, appending nothing); from the ledger's own data alone,
+      a session with a legacy debrief and a session with no debrief
+      whatsoever are indistinguishable. The brief requires "Legacy debriefs
+      print what they carry and say which version they are", which the
+      ledger's projection cannot answer on its own.
+  - kind: choice
+    at: "2026-09-11T15:02:00Z"
+    chose: >
+      Exported `describeDebriefRead` from packages/cli/src/debrief/validate.ts
+      (was a private top-of-file helper) and reused it, unchanged, from
+      session/show.ts's legacy-debrief fallback.
+    because: >
+      It already renders exactly "which version" plus what a legacy debrief
+      carries (missing top-level fields, decisions missing a because) --
+      the brief's own two asks for this line -- so writing a second version
+      of the same logic would be pure duplication.
+  - kind: choice
+    at: "2026-09-11T15:04:00Z"
+    chose: >
+      `--because` prints a decision's because on the same line as its id
+      and hunks, appended after a "; because:" separator, rather than a
+      second line.
+    because: >
+      Keeps "Decisions (id, hunks, one line each; the because on request
+      with --because)" literally true in both the default and --because
+      forms.
+  - kind: choice
+    at: "2026-09-11T15:06:00Z"
+    chose: >
+      Removed a comment explaining the `alreadyIngested` guard in
+      ingestDebrief once written; the guard's own name and this commit's
+      body carry the why instead.
+    because: >
+      This brief's own constraint, "Comments: none in packages/*/src",
+      applies to code this session writes even though the file already
+      carries older comments from before this node; those are left as
+      they were, out of scope to strip.
