@@ -10,6 +10,9 @@ packages/runner/test/.runs/
 packages/runner/test/.worktree-runs/
 packages/runner/test/.herdr-runs/
 packages/runner/test/.localconfig-runs/
+packages/runner/test/.git-ceiling-runs/
+packages/runner/test/.session-screen-runs/
+packages/runner/test/.worktree-setup-runs/
 .interlock/ledger/
 .interlock/local.yaml
 .interlock/sessions/**/screen.txt

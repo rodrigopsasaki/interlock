@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { join, relative } from "node:path";
 import { randomUUID } from "node:crypto";
 import { isErr, type Result } from "@phyxiusjs/fp";
@@ -17,28 +17,36 @@ import type {
 } from "../../src/runtime.ts";
 import { startFakeHerdrServer, type FakeHerdrServer } from "./fakeServer.ts";
 
-// A Unix socket path is capped at ~104 bytes (macOS sockaddr_un): short and relative to this
-// process's own cwd (vitest runs each package from its own directory), not this worktree's
-// full absolute path, which alone can exceed the limit. Its own directory, never the one
-// gateJudge.test.ts and backfill.test.ts mkdtemp under: this file wipes the whole thing every
-// test, which would delete their live fixtures if the two were the same directory.
 const runsRoot = join(import.meta.dirname, "..", ".herdr-runs");
 mkdirSync(runsRoot, { recursive: true });
 
+let directory: string | undefined;
 let server: FakeHerdrServer | undefined;
 
 afterEach(async () => {
   await server?.close();
   server = undefined;
-  rmSync(runsRoot, { recursive: true, force: true });
-  mkdirSync(runsRoot, { recursive: true });
+  if (directory !== undefined)
+    rmSync(directory, { recursive: true, force: true });
+  directory = undefined;
 });
 
+// A Unix socket path is capped at ~104 bytes (macOS sockaddr_un): the fixture keeps it short
+// and relative to this process's own cwd (vitest runs each package from its own directory),
+// never this worktree's full absolute path, which alone can exceed the limit.
+const SUN_PATH_LIMIT = 100;
+
 async function fixture(): Promise<FakeHerdrServer> {
+  directory = mkdtempSync(join(runsRoot, "sock-"));
   const socketPath = relative(
     process.cwd(),
-    join(runsRoot, `${randomUUID().slice(0, 8)}.sock`),
+    join(directory, `${randomUUID().slice(0, 8)}.sock`),
   );
+  if (socketPath.length > SUN_PATH_LIMIT) {
+    throw new Error(
+      `fixture socket path "${socketPath}" is ${socketPath.length} bytes, over the ${SUN_PATH_LIMIT}-byte sun_path budget this fixture keeps to`,
+    );
+  }
   server = await startFakeHerdrServer(socketPath);
   return server;
 }
