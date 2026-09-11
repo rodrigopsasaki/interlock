@@ -35,6 +35,9 @@ lease_ms: 900000
 # The wall timeout the runner waits for the agent to go idle, blocked or done.
 run_timeout_ms: 3600000
 
+# Optional. How long an idle or done stays open for the agent to resume after a person has answered a blocked turn, before it is judged settled. Defaults to 300000.
+# answer_grace_ms: 300000
+
 # The substrate address. Unused by this node; present so the shape is one.
 substrate:
   address: none

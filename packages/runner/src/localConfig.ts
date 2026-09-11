@@ -12,6 +12,7 @@ export const LOCAL_CONFIG_SHAPE = "local@v0";
 
 const DEFAULT_STARTUP_TIMEOUT_MS = 60_000;
 const DEFAULT_PROMPT_TAKEN_TIMEOUT_MS = 20_000;
+const DEFAULT_ANSWER_GRACE_MS = 300_000;
 
 export interface LocalConfig {
   readonly runtime: {
@@ -25,6 +26,7 @@ export interface LocalConfig {
   readonly worktreeSetup: readonly string[];
   readonly leaseMs: number;
   readonly runTimeoutMs: number;
+  readonly answerGraceMs: number;
   readonly substrateAddress: string;
 }
 
@@ -47,6 +49,8 @@ const FIELD_GUIDE =
   "worktree_setup (optional; commands run in a node's worktree before its pane opens), " +
   "lease_ms (how long a lease lasts before a sweep may call it abandoned), " +
   "run_timeout_ms (the wall timeout waiting for the agent to go idle, blocked or done), " +
+  "answer_grace_ms (optional; once a person has answered a blocked turn, how long an idle or " +
+  "done that follows stays open for the agent to resume before it is judged settled), " +
   "substrate.address (unused by this node, present so the shape is one).";
 
 export function explainLocalConfigRefusal(refusal: LocalConfigRefusal): string {
@@ -220,6 +224,19 @@ function parseShape(
     });
   }
 
+  const answerGraceMsField = prop(parsed, "answer_grace_ms");
+  if (
+    answerGraceMsField !== undefined &&
+    typeof answerGraceMsField !== "number"
+  ) {
+    return err({
+      kind: "malformed",
+      path,
+      reason: '"answer_grace_ms" must be a number',
+    });
+  }
+  const answerGraceMs = answerGraceMsField ?? DEFAULT_ANSWER_GRACE_MS;
+
   const substrate = prop(parsed, "substrate");
   const substrateAddress = isRecord(substrate)
     ? prop(substrate, "address")
@@ -244,6 +261,7 @@ function parseShape(
     worktreeSetup,
     leaseMs,
     runTimeoutMs,
+    answerGraceMs,
     substrateAddress,
   });
 }
