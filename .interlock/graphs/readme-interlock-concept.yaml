@@ -1,0 +1,49 @@
+interlock: graph@v0
+id: readme-interlock-concept
+
+ask: >
+  Turn the approved local presentation into a GitHub-native README on a separate branch,
+  preserving the selected keystone identity and explaining interlocks, proof, plan control,
+  critical-path visibility, and the intended evolution from human judgment to bounded automation.
+
+derivation:
+  kind: agent
+  runtime: codex
+  model: unknown
+
+read: >
+  One documentation node. Keep prose in Markdown, embed the existing wordmark and diagrams
+  as repository assets, refresh implementation claims against this branch, and open a draft PR.
+  Do not merge, change runtime behavior, or disturb the active development checkout.
+
+gates:
+  - id: approved
+    kind: human
+
+nodes:
+  - id: readme
+    acceptance: >
+      README.md presents the interlock concept using GitHub-supported Markdown and HTML.
+      The selected blue open loop and gold-completed loop are reused in the checked-in
+      wordmark and explanatory diagrams. Prose remains searchable and accessible; unsupported
+      CSS layouts become native tables, lists, or quotations. Relative image and documentation
+      links resolve. Current capabilities are distinguished from planned work, including the
+      newly implemented cancel, reset, and gate-waiver commands. No verbatim session history,
+      dossier excerpts, private filesystem paths, or celebratory metrics appear in the public
+      presentation. GitHub's rendered README and artwork are visually inspected. The branch
+      is pushed and a draft PR is opened for human review; no merge is performed.
+    depends_on: []
+    gates:
+      - id: readme-whitespace
+        kind: command
+        run: git diff 1aef03d --check
+      - id: readme-assets
+        kind: command
+        run: >-
+          node --input-type=module -e "import {readFileSync,existsSync} from 'node:fs';
+          const text=readFileSync('README.md','utf8');
+          const files=['docs/brand/interlock-wordmark.png','docs/brand/interlock-concept.svg','docs/brand/interlock-concept-mobile.svg','docs/brand/interlock-critical-path.svg'];
+          if(files.some(file=>!existsSync(file)||!text.includes(file)))throw Error('A README asset is missing or unused');
+          if(/<style|<script|style=|class=|file:\/\/|127\.0\.0\.1|\/Users\//i.test(text))throw Error('README contains local-only styling or paths');
+          console.log('README assets and markup checked');"
+        expect_output: README assets and markup checked
