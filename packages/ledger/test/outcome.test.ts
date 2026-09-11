@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { derivation } from "../src/derivation.js";
 import { gate } from "../src/gate.js";
-import { buildCleared, heldOn, outcome } from "../src/outcome.js";
+import {
+  buildCleared,
+  heldOn,
+  outcome,
+  proposeOutcomeMove,
+  type Outcome,
+} from "../src/outcome.js";
 import { duration, type Receipt } from "../src/receipt.js";
 import { spend } from "../src/spend.js";
 
@@ -125,4 +131,62 @@ describe("outcome factories", () => {
       because: "acceptance re-versioned",
     });
   });
+});
+
+describe("proposeOutcomeMove", () => {
+  const cancelled = outcome.cancelled([], "Rodrigo Sasaki", "because");
+  const reset = outcome.reset([], "Rodrigo Sasaki", "because");
+
+  it("allows a move when no outcome is recorded yet", () => {
+    const result = proposeOutcomeMove(undefined, cancelled);
+    expect(result).toEqual({ _tag: "Ok", value: cancelled });
+  });
+
+  it("allows a move off a held outcome", () => {
+    const held = outcome.held(
+      [],
+      heldOn.decision("Rodrigo Sasaki"),
+      "waiting on a call only a person makes",
+      30_000,
+    );
+    expect(proposeOutcomeMove(held, reset)).toEqual({
+      _tag: "Ok",
+      value: reset,
+    });
+  });
+
+  it("allows a move off a reset outcome", () => {
+    expect(proposeOutcomeMove(reset, cancelled)).toEqual({
+      _tag: "Ok",
+      value: cancelled,
+    });
+  });
+
+  const terminalOutcomes: readonly Outcome[] = [
+    { kind: "cleared", receipts: [] },
+    {
+      kind: "failed",
+      receipts: [],
+      failure: "typecheck failed",
+      disposition: "terminal-failure",
+      because: "budget spent",
+    },
+    cancelled,
+    outcome.superseded([], "Rodrigo Sasaki", "acceptance re-versioned"),
+  ];
+
+  it.each(terminalOutcomes)(
+    "refuses a move off a terminal $kind outcome, naming the rule",
+    (terminal) => {
+      const result = proposeOutcomeMove(terminal, reset);
+      expect(result).toEqual({
+        _tag: "Err",
+        error: {
+          kind: "illegal-transition",
+          from: terminal.kind,
+          to: "reset",
+        },
+      });
+    },
+  );
 });
