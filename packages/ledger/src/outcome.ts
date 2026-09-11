@@ -53,6 +53,33 @@ export interface ClearRefusal {
   readonly missing: readonly string[];
 }
 
+export interface OutcomeRefusal {
+  readonly kind: "illegal-transition";
+  readonly from: Outcome["kind"];
+  readonly to: Outcome["kind"];
+}
+
+const TERMINAL_OUTCOME_KINDS: ReadonlySet<Outcome["kind"]> = new Set([
+  "cleared",
+  "cancelled",
+  "superseded",
+  "failed",
+]);
+
+export function proposeOutcomeMove(
+  current: Outcome | undefined,
+  next: Outcome,
+): Result<Outcome, OutcomeRefusal> {
+  if (current !== undefined && TERMINAL_OUTCOME_KINDS.has(current.kind)) {
+    return err({
+      kind: "illegal-transition",
+      from: current.kind,
+      to: next.kind,
+    });
+  }
+  return ok(next);
+}
+
 export function buildCleared(
   declaredGates: readonly string[],
   gates: ReadonlyMap<string, Gate>,

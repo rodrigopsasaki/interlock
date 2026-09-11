@@ -16,6 +16,12 @@ export interface AgentIdentity {
   readonly sessionPath?: string;
 }
 
+export interface AgentIdentityQuery {
+  readonly graph: string;
+  readonly node: string;
+  readonly session: string;
+}
+
 export type RuntimeRefusal =
   | { readonly kind: "no-socket"; readonly path: string }
   | { readonly kind: "unknown-agent-kind"; readonly agentKind: string }
@@ -77,4 +83,7 @@ export interface Runtime {
     keys: readonly string[],
   ): Promise<Result<void, RuntimeRefusal>>;
   closePane(pane: Pane): Promise<Result<void, RuntimeRefusal>>;
+  reportedAgentStatus?(
+    query: AgentIdentityQuery,
+  ): Promise<Result<AgentStatus | undefined, RuntimeRefusal>>;
 }

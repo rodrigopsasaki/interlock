@@ -22,6 +22,33 @@ describe("interlock session show", () => {
   });
 });
 
+describe("interlock node cancel", () => {
+  it("routes by its group and action, refusing before touching disk when no graph or node is given", async () => {
+    const result = await run(["node", "cancel"]);
+
+    expect(result.exitCode).not.toBe(0);
+    expect(result.message).toContain("interlock node cancel");
+  });
+});
+
+describe("interlock node reset", () => {
+  it("routes by its group and action, refusing before touching disk when no graph or node is given", async () => {
+    const result = await run(["node", "reset"]);
+
+    expect(result.exitCode).not.toBe(0);
+    expect(result.message).toContain("interlock node reset");
+  });
+});
+
+describe("interlock gate waive", () => {
+  it("routes by its group and action, refusing before touching disk when no graph, node or gate is given", async () => {
+    const result = await run(["gate", "waive"]);
+
+    expect(result.exitCode).not.toBe(0);
+    expect(result.message).toContain("interlock gate waive");
+  });
+});
+
 describe("an unknown command", () => {
   it("also fails closed rather than exiting quietly", async () => {
     const result = await run(["graph", "status"]);

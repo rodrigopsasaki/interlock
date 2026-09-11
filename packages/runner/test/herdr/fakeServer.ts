@@ -12,6 +12,7 @@ export interface FakeHerdrServer {
   readonly calls: readonly RecordedCall[];
   agentStatus: string;
   delayAgentWaitToRequestedTimeout: boolean;
+  panes: readonly Record<string, unknown>[];
   failNextCall(
     code: string,
     message: string,
@@ -66,6 +67,7 @@ export function startFakeHerdrServer(
   const state = {
     agentStatus: "idle",
     delayAgentWaitToRequestedTimeout: false,
+    panes: [] as readonly Record<string, unknown>[],
   };
   const sockets = new Set<Socket>();
   let nextFailure:
@@ -162,6 +164,9 @@ export function startFakeHerdrServer(
       case "agent.read":
         respond(socket, id, { read: { text: "fake agent output" } });
         return;
+      case "pane.list":
+        respond(socket, id, { panes: state.panes });
+        return;
       default:
         fail(
           socket,
@@ -188,6 +193,12 @@ export function startFakeHerdrServer(
         },
         set delayAgentWaitToRequestedTimeout(value: boolean) {
           state.delayAgentWaitToRequestedTimeout = value;
+        },
+        get panes() {
+          return state.panes;
+        },
+        set panes(value: readonly Record<string, unknown>[]) {
+          state.panes = value;
         },
         failNextCall(code, message, times = 1, method = undefined) {
           nextFailure = { code, message, remaining: times, method };

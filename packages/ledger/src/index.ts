@@ -39,13 +39,19 @@ export type { Gap, Mark } from "./mark.ts";
 export { isGap, isMark, mark } from "./mark.ts";
 export type { Note } from "./note.ts";
 export { isNote, note } from "./note.ts";
-export type { ClearRefusal, HeldOn, Outcome } from "./outcome.ts";
+export type {
+  ClearRefusal,
+  HeldOn,
+  Outcome,
+  OutcomeRefusal,
+} from "./outcome.ts";
 export {
   buildCleared,
   heldOn,
   isHeldOn,
   isOutcome,
   outcome,
+  proposeOutcomeMove,
 } from "./outcome.ts";
 export type {
   LedgerProjection,
