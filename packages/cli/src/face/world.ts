@@ -1,4 +1,5 @@
 import { relative } from "node:path";
+import { createSystemClock, type Clock } from "@phyxiusjs/clock";
 import { isErr, isOk, ok, type Result } from "@phyxiusjs/fp";
 import {
   graphFilePath,
@@ -31,10 +32,12 @@ async function contentHashOf(
 export async function buildPlansWorld(
   repoRoot: string,
   runtime: Runtime | undefined,
+  clock: Clock = createSystemClock(),
 ): Promise<FaceWorld> {
   const journal = sharedJournalDirectory(repoRoot);
   const replayed = await readReplay(journal);
   const projection = isErr(replayed) ? emptyProjection() : replayed.value;
+  const nowWallMs = clock.now().wallMs;
 
   const graphIds = await listGraphIds(repoRoot);
   const plans = [];
@@ -46,13 +49,14 @@ export async function buildPlansWorld(
     if (contentHash === undefined) continue;
     const statuses = await resolveAgentStatuses(
       graphId,
-      liveSessionsOf(graphId, projection.sessions),
+      liveSessionsOf(graphId, projection.sessions, nowWallMs),
       runtime,
     );
     const position = positionOf(
       document.value,
       projection,
       contentHash,
+      nowWallMs,
       (session) => statuses.get(session),
     );
     plans.push(plansEntryOf(position));
@@ -64,6 +68,7 @@ export async function buildGraphWorld(
   repoRoot: string,
   graphId: string,
   runtime: Runtime | undefined,
+  clock: Clock = createSystemClock(),
 ): Promise<Result<FaceWorld, GraphRefusal>> {
   const path = graphFilePath(repoRoot, graphId);
   const document = await loadGraphDocument(path);
@@ -72,17 +77,19 @@ export async function buildGraphWorld(
   const journal = sharedJournalDirectory(repoRoot);
   const replayed = await readReplay(journal);
   const projection = isErr(replayed) ? emptyProjection() : replayed.value;
+  const nowWallMs = clock.now().wallMs;
 
   const contentHash = (await contentHashOf(repoRoot, path)) ?? "";
   const statuses = await resolveAgentStatuses(
     graphId,
-    liveSessionsOf(graphId, projection.sessions),
+    liveSessionsOf(graphId, projection.sessions, nowWallMs),
     runtime,
   );
   const position = positionOf(
     document.value,
     projection,
     contentHash,
+    nowWallMs,
     (session) => statuses.get(session),
   );
   return ok({ plans: [], position });
