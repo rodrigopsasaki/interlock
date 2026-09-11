@@ -1,9 +1,12 @@
 import { runInterlockBackfill } from "./backfill.ts";
 import { validateBrief } from "./brief/validate.ts";
 import { validateDebrief } from "./debrief/validate.ts";
+import { runGateWaive } from "./gate/waive.ts";
 import { runGraphApprove } from "./graph/approve.ts";
 import { runGraphShow } from "./graph/show.ts";
 import { runInterlockJudge } from "./judge.ts";
+import { runNodeCancel } from "./node/cancel.ts";
+import { runNodeReset } from "./node/reset.ts";
 import { runInterlockRun } from "./run.ts";
 import { runSessionShow } from "./session/show.ts";
 import { runInterlockSweep } from "./sweep.ts";
@@ -35,6 +38,18 @@ export async function run(argv: readonly string[]): Promise<CommandResult> {
 
   if (group === "session" && action === "show") {
     return runSessionShow(argv.slice(2));
+  }
+
+  if (group === "node" && action === "cancel") {
+    return runNodeCancel(argv.slice(2));
+  }
+
+  if (group === "node" && action === "reset") {
+    return runNodeReset(argv.slice(2));
+  }
+
+  if (group === "gate" && action === "waive") {
+    return runGateWaive(argv.slice(2));
   }
 
   if (group === "run") {

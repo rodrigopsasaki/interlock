@@ -1,0 +1,230 @@
+interlock: debrief@v2
+graph: 0001-bootstrap
+node: verbs
+role: worker
+graph_base_sha: df184a2738ba9c652cdb760631a0590d7bc6d36a
+session_start_sha: 789564dadf537cb1f1d599c88b69d90c19da1cc0
+head_sha: b807e24f3a0b1608579c16a464244a2f0bfe5773
+derivation:
+  kind: agent
+  runtime: claude-code
+  model: claude-sonnet-5
+discoveries:
+  - id: d1
+    what: >
+      interlock run never checks a node's own current outcome before
+      leasing it -- only that every dependency's outcome is cleared, and
+      that a brief file exists. There is no "own outcome" gate on
+      leasing at all today.
+    found_at: |
+      $ grep -n "outcome" packages/cli/src/run.ts packages/runner/src/dependencies.ts
+      run.ts: no match. dependencies.ts:10 is the only outcome check in
+      either file, and it reads a dependency's outcome, never the target
+      node's own.
+    mattered_because: >
+      the brief's own words for reset ("so the runner may lease the node
+      again") read as if reset lifts a mechanical block; there is none to
+      lift. reset is the accountable record that a person authorized
+      trying again (I10: accountability is a recorded reason, not a
+      restriction), not what makes leasing possible -- a node with any
+      other outcome, including no outcome at all, was always leasable by
+      run's current logic. Recorded under open below; changing run.ts to
+      gate on the node's own outcome is a runner decision, not this
+      session's, and position@v1/run.ts are both out of scope here.
+  - id: d2
+    what: >
+      packages/ledger/src/projection.ts's withSession silently drops any
+      event for a session id the projection has not seen via a prior
+      session-started event -- lease-taken included.
+    found_at: |
+      $ grep -n "function withSession" packages/ledger/src/projection.ts
+      projection.ts:76; its body returns the projection unchanged when
+      the given session id is not already a key of projection.sessions.
+      Found while writing node reset's live-lease refusal test: a
+      lease-taken event appended alone left the projection with zero
+      sessions, so the test first fell through to the wrong refusal
+      until session-started was appended before it.
+    mattered_because: >
+      confirms this session's live-lease check (mirroring judge.ts's own
+      pattern) is reading real projection state correctly, and that any
+      future direct-ledger test setup for a "live lease" scenario needs
+      both events, not lease-taken alone.
+  - id: d3
+    what: >
+      packages/runner/src/sweep.ts already writes
+      outcome.cancelled(receipts, authority, because) with receipts read
+      from NodeView.receipts (the node's accumulated receipt list), not
+      from any prior outcome's own .receipts field.
+    found_at: "packages/runner/src/sweep.ts:53-63"
+    mattered_because: >
+      Outcome.receipts has no documented meaning beyond its type; this is
+      the one place an existing verb (the sweeper's own abandon-write)
+      already answers "what receipts does a person-authored terminal
+      outcome carry." node cancel and node reset both reuse it rather
+      than inventing a second interpretation.
+  - id: d4
+    what: >
+      packages/runner/src/gateJudge.ts appends receipt-written for every
+      gate it runs before deciding satisfied or blocked -- a blocked
+      gate has a real receipt in the node's receipt list even though
+      Gate's own "blocked" variant carries no receipt field.
+    found_at: "packages/runner/src/gateJudge.ts:156-192"
+    mattered_because: >
+      gate waive needs "the gate's latest receipt" for exactly the case
+      a person waives past: a gate currently blocked on a real failure.
+      Reading receipts off NodeView.receipts (filtered by gate id) reaches
+      that case; reading only the current Gate value's own receipt field
+      would not have.
+  - id: d5
+    what: >
+      proposeGateMove already refuses an undeclared gate id and any move
+      off an already-waived or -superseded gate, with no change needed
+      to gate.ts itself.
+    found_at: "packages/ledger/src/gate.ts:86-107"
+    mattered_because: >
+      gate waive needed no new transition rule of its own, unlike
+      Outcome -- it only had to build the right gate.waived(...) value
+      and pass it through the existing function, and could reuse
+      graph/approve.ts's exact refusal-message shape for the
+      undeclared-gate and illegal-transition cases.
+decisions:
+  - id: c1
+    what: >
+      Added proposeOutcomeMove(current, next) to
+      packages/ledger/src/outcome.ts, exported it from the package, and
+      covered it with new tests in outcome.test.ts.
+    because: notes:1
+    rests_on:
+      - "brief:the ledger's own transition rules decide what is legal; an illegal move is a sentence"
+      - "packages/ledger/src/gate.ts"
+      - "notes:1"
+    hunks:
+      - "packages/ledger/src/outcome.ts:56-82"
+      - "packages/ledger/src/index.ts:42-47"
+      - "packages/ledger/src/index.ts:54"
+      - "packages/ledger/test/outcome.test.ts:4-10"
+      - "packages/ledger/test/outcome.test.ts:135-192"
+  - id: c2
+    what: >
+      Built interlock node cancel (packages/cli/src/node/cancel.ts) and
+      its fixture-backed test suite.
+    because: >
+      brief:interlock node cancel <graph> <node> --by <who> --because
+      <why> appends outcome-set with kind cancelled, the node's current
+      receipts, the authority and the because
+    rests_on:
+      - "packages/cli/src/graph/approve.ts"
+      - "packages/ledger/src/outcome.ts"
+      - "notes:2"
+    hunks:
+      - "packages/cli/src/node/cancel.ts:1-108"
+      - "packages/cli/test/node/cancel.test.ts:1-211"
+  - id: c3
+    what: >
+      Built interlock node reset (packages/cli/src/node/reset.ts), with
+      its live-lease and nothing-to-reset refusals, and its test suite.
+    because: >
+      brief:sets reset ... and the node reads as ready to the runner ...
+      a node with a live lease for reset (name the session and its
+      expiry)
+    rests_on:
+      - "packages/cli/src/judge.ts"
+      - "packages/ledger/src/outcome.ts"
+      - "notes:3"
+      - "notes:4"
+    hunks:
+      - "packages/cli/src/node/reset.ts:1-135"
+      - "packages/cli/test/node/reset.test.ts:1-213"
+  - id: c4
+    what: >
+      Built interlock gate waive (packages/cli/src/gate/waive.ts) and
+      its test suite.
+    because: >
+      brief:moves the gate to waived over its latest receipt, and
+      refuses when there is none
+    rests_on:
+      - "packages/ledger/src/gate.ts"
+      - "packages/runner/src/gateCommand.ts"
+      - "notes:5"
+    hunks:
+      - "packages/cli/src/gate/waive.ts:1-150"
+      - "packages/cli/test/gate/waive.test.ts:1-292"
+  - id: c5
+    what: >
+      Wired node cancel, node reset and gate waive into
+      packages/cli/src/main.ts's group/action dispatch, and added
+      routing coverage to main.test.ts.
+    because: "brief:packages/cli/src/main.ts (the group and action dispatch)"
+    rests_on:
+      - "packages/cli/src/main.ts"
+    hunks:
+      - "packages/cli/src/main.ts:4"
+      - "packages/cli/src/main.ts:8-9"
+      - "packages/cli/src/main.ts:43-54"
+      - "packages/cli/test/main.test.ts:25-51"
+  - id: c6
+    what: >
+      Pulled graph/approve.ts's local parseFlag into
+      packages/cli/src/flags.ts and pointed all four verbs at the shared
+      copy.
+    because: notes:6
+    rests_on:
+      - "packages/cli/src/graph/approve.ts"
+      - "notes:6"
+    hunks:
+      - "packages/cli/src/flags.ts:1-7"
+      - "packages/cli/src/graph/approve.ts:24"
+  - id: c7
+    what: >
+      Added one bend-log row to docs/design/0002-face.md recording that
+      the three verbs exist and that pause is not built, naming the
+      missing Outcome kind and that it needs its own event version.
+    because: >
+      brief:Add one bend-log row in docs/design/0002-face.md ... That
+      row is the only design-note edit you make
+    rests_on:
+      - "docs/design/0002-face.md"
+      - "notes:7"
+    hunks:
+      - "docs/design/0002-face.md:255"
+  - id: c8
+    what: >
+      This session's own notes.yaml, appended at every choice and
+      surprise across this session's code commits.
+    because: >
+      brief:notes.yaml beside this brief (notes@v0), appended at every
+      choice and surprise, committed
+    rests_on: []
+    hunks:
+      - ".interlock/sessions/0001-bootstrap/verbs/notes.yaml:1-118"
+gates_run_by_agent:
+  - { id: typecheck, result: pass, invocation: "mise exec -- pnpm typecheck", note: "6 of 7 workspace packages carry a typecheck script; all report Done" }
+  - { id: test, result: pass, invocation: "mise exec -- pnpm test", note: "472 tests across ledger, face, debrief, verifier, runner, cli (99+38+41+42+129+123)" }
+  - { id: cancel-writes-outcome, result: pass, invocation: "mise exec -- pnpm --filter cli --fail-if-no-match test --testNamePattern cancel", note: "Tests 8 passed (8) -- test/node/cancel.test.ts's 7 cases plus main.test.ts's node-cancel routing case" }
+  - { id: debrief-valid, result: pass, invocation: "mise exec -- pnpm interlock debrief validate 0001-bootstrap verbs", note: "run for real against this debrief and notes.yaml at head_sha, after this file was written" }
+open:
+  - >
+    interlock run leases a node without ever reading that node's own
+    current outcome (d1) -- only its dependencies' outcomes and brief
+    presence. node reset therefore does not mechanically unblock
+    leasing; it only records who authorized trying again and why. A
+    node cancelled or held is, today, exactly as leasable as one reset
+    or never run. Whether run.ts should refuse to lease a node carrying
+    a non-terminal-but-unresolved outcome (held, say) without a reset in
+    between is a runner decision this session did not make -- run.ts and
+    position@v1 are both out of scope for verbs.
+  - >
+    pause has no truthful mapping (recorded in the bend log, c7): no
+    Outcome kind states a voluntary, non-failure hold. It needs a
+    seventh Outcome kind with its own event version -- a union-arm shape
+    change, not a verb session's call to make alone.
+  - >
+    projection.ts's withSession stays a no-op for a session id that
+    never appeared in a session-started event (d2), the same gap
+    debrief-schema's own debrief already recorded against backfill.
+    node reset's live-lease check reads the same projection and is
+    correct given that behavior, but inherits the same blind spot: a
+    node whose only session came through interlock backfill would read
+    as lease-free to reset even if some other process held it, since no
+    SessionView would exist to check. Not observed in practice this
+    session; noted because reset is a new reader of that same shape.
