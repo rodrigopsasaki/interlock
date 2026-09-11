@@ -241,7 +241,7 @@ scope:
 substrate:
   address: none
 graph_base_sha: e551ae699c64ec4c2f6798976a519027ceed624e
-session: 011ab81b-399c-421c-8e19-437fadbecc1d
+session: 485f21a3-ffc2-43e4-a9bd-48939785e81f
 ---
 
 # Brief · node `attempts` · graph `0001-bootstrap`
