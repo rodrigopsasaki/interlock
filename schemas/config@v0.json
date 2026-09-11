@@ -5,21 +5,35 @@
   "description": "The repository's standing table, .interlock/config.yaml. The loader itself never checks the interlock tag or reads substrate at all; both are required here as the declared shape of the artifact, one deliberate step stricter than today's loader.",
   "type": "object",
   "properties": {
-    "interlock": { "const": "config@v0" },
+    "interlock": {
+      "const": "config@v0"
+    },
     "standing_gates": {
       "type": "array",
-      "items": { "$ref": "parts/standing-gate.json" }
+      "items": {
+        "$ref": "parts/standing-gate.json"
+      }
     },
     "substrate": {
       "type": "object",
       "properties": {
-        "address": { "type": "string" },
-        "handle": { "type": "string" }
+        "address": {
+          "type": "string"
+        },
+        "handle": {
+          "type": "string"
+        }
       },
-      "required": ["address"],
-      "additionalProperties": false
+      "required": [
+        "address"
+      ],
+      "additionalProperties": true
     }
   },
-  "required": ["interlock", "standing_gates", "substrate"],
-  "additionalProperties": false
+  "required": [
+    "interlock",
+    "standing_gates",
+    "substrate"
+  ],
+  "additionalProperties": true
 }

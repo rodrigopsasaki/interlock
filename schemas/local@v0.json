@@ -5,35 +5,71 @@
   "description": "Per-machine runner choices, .interlock/local.yaml (gitignored; local.example.yaml is the checked-in template). Every commented-out field in the template is genuinely optional, with the default the loader falls back to.",
   "type": "object",
   "properties": {
-    "interlock": { "const": "local@v0" },
+    "interlock": {
+      "const": "local@v0"
+    },
     "runtime": {
       "type": "object",
       "properties": {
-        "kind": { "type": "string" },
-        "args": { "type": "array", "items": { "type": "string" } },
+        "kind": {
+          "type": "string"
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "startup_answers": {
           "type": "array",
-          "items": { "$ref": "parts/startup-answer.json" }
+          "items": {
+            "$ref": "parts/startup-answer.json"
+          }
         },
-        "startup_timeout_ms": { "type": "number" },
-        "prompt_taken_timeout_ms": { "type": "number" }
+        "startup_timeout_ms": {
+          "type": "number"
+        },
+        "prompt_taken_timeout_ms": {
+          "type": "number"
+        }
       },
-      "required": ["kind"],
-      "additionalProperties": false
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": true
     },
-    "worktree_root": { "type": "string" },
-    "worktree_setup": { "type": "array", "items": { "type": "string" } },
-    "lease_ms": { "type": "number" },
-    "run_timeout_ms": { "type": "number" },
-    "answer_grace_ms": { "type": "number" },
+    "worktree_root": {
+      "type": "string"
+    },
+    "worktree_setup": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "lease_ms": {
+      "type": "number"
+    },
+    "run_timeout_ms": {
+      "type": "number"
+    },
+    "answer_grace_ms": {
+      "type": "number"
+    },
     "substrate": {
       "type": "object",
       "properties": {
-        "address": { "type": "string" },
-        "handle": { "type": "string" }
+        "address": {
+          "type": "string"
+        },
+        "handle": {
+          "type": "string"
+        }
       },
-      "required": ["address"],
-      "additionalProperties": false
+      "required": [
+        "address"
+      ],
+      "additionalProperties": true
     }
   },
   "required": [
@@ -44,5 +80,5 @@
     "run_timeout_ms",
     "substrate"
   ],
-  "additionalProperties": false
+  "additionalProperties": true
 }

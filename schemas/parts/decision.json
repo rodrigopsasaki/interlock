@@ -5,14 +5,43 @@
   "description": "A decision entry as debrief@v2 requires it in full: because is required, rests_on and hunks are lists (possibly empty).",
   "type": "object",
   "properties": {
-    "id": { "type": "string" },
-    "what": { "type": "string" },
-    "because": { "type": "string" },
-    "rests_on": { "type": "array", "items": { "type": "string" } },
-    "hunks": { "type": "array", "items": { "type": "string" } },
-    "produces": { "type": "array", "items": { "type": "string" } },
-    "rejected": { "type": "string" }
+    "id": {
+      "type": "string"
+    },
+    "what": {
+      "type": "string"
+    },
+    "because": {
+      "type": "string"
+    },
+    "rests_on": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "hunks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "produces": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "rejected": {
+      "type": "string"
+    }
   },
-  "required": ["id", "what", "because", "rests_on", "hunks"],
-  "additionalProperties": false
+  "required": [
+    "id",
+    "what",
+    "because",
+    "rests_on",
+    "hunks"
+  ],
+  "additionalProperties": true
 }

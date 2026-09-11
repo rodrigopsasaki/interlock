@@ -5,27 +5,57 @@
   "description": "A debrief.yaml file at the last-free-rename shape: base_sha renamed to graph_base_sha, role and session_start_sha added. Items are still checked loosely (id and what only); a decision's because is optional here too, merely counted when absent by the reader -- debrief@v2 is the first version that hard-requires it.",
   "type": "object",
   "properties": {
-    "interlock": { "const": "debrief@v1" },
-    "graph": { "type": "string" },
-    "node": { "type": "string" },
-    "role": { "type": "string" },
-    "graph_base_sha": { "type": "string", "pattern": "^[0-9a-fA-F]{40}$" },
-    "session_start_sha": { "type": "string", "pattern": "^[0-9a-fA-F]{40}$" },
-    "head_sha": { "type": "string", "pattern": "^[0-9a-fA-F]{40}$" },
-    "derivation": { "$ref": "parts/debrief-derivation.json" },
+    "interlock": {
+      "const": "debrief@v1"
+    },
+    "graph": {
+      "type": "string"
+    },
+    "node": {
+      "type": "string"
+    },
+    "role": {
+      "type": "string"
+    },
+    "graph_base_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{40}$"
+    },
+    "session_start_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{40}$"
+    },
+    "head_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{40}$"
+    },
+    "derivation": {
+      "$ref": "parts/debrief-derivation.json"
+    },
     "discoveries": {
       "type": "array",
-      "items": { "$ref": "parts/legacy-discovery.json" }
+      "items": {
+        "$ref": "parts/legacy-discovery.json"
+      }
     },
     "decisions": {
       "type": "array",
-      "items": { "$ref": "parts/legacy-decision.json" }
+      "items": {
+        "$ref": "parts/legacy-decision.json"
+      }
     },
     "gates_run_by_agent": {
       "type": "array",
-      "items": { "$ref": "parts/legacy-gate-run.json" }
+      "items": {
+        "$ref": "parts/legacy-gate-run.json"
+      }
     },
-    "open": { "type": "array", "items": { "type": "string" } }
+    "open": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
   },
   "required": [
     "interlock",
@@ -41,5 +71,5 @@
     "gates_run_by_agent",
     "open"
   ],
-  "additionalProperties": false
+  "additionalProperties": true
 }

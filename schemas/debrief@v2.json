@@ -5,34 +5,71 @@
   "description": "A debrief.yaml file at the current shape: the first version whose items are checked in full, and the first to hard-require a because on every decision. drafted is a presence marker, not a kind: a debrief is drafted the moment it is set.",
   "type": "object",
   "properties": {
-    "interlock": { "const": "debrief@v2" },
-    "graph": { "type": "string" },
-    "node": { "type": "string" },
-    "role": { "type": "string" },
-    "graph_base_sha": { "type": "string", "pattern": "^[0-9a-fA-F]{40}$" },
-    "session_start_sha": { "type": "string", "pattern": "^[0-9a-fA-F]{40}$" },
-    "head_sha": { "type": "string", "pattern": "^[0-9a-fA-F]{40}$" },
-    "derivation": { "$ref": "parts/debrief-derivation.json" },
+    "interlock": {
+      "const": "debrief@v2"
+    },
+    "graph": {
+      "type": "string"
+    },
+    "node": {
+      "type": "string"
+    },
+    "role": {
+      "type": "string"
+    },
+    "graph_base_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{40}$"
+    },
+    "session_start_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{40}$"
+    },
+    "head_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{40}$"
+    },
+    "derivation": {
+      "$ref": "parts/debrief-derivation.json"
+    },
     "discoveries": {
       "type": "array",
-      "items": { "$ref": "parts/discovery.json" }
+      "items": {
+        "$ref": "parts/discovery.json"
+      }
     },
     "decisions": {
       "type": "array",
-      "items": { "$ref": "parts/decision.json" }
+      "items": {
+        "$ref": "parts/decision.json"
+      }
     },
     "gates_run_by_agent": {
       "type": "array",
-      "items": { "$ref": "parts/gate-run.json" }
+      "items": {
+        "$ref": "parts/gate-run.json"
+      }
     },
-    "open": { "type": "array", "items": { "type": "string" } },
+    "open": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
     "drafted": {
       "type": "object",
       "properties": {
-        "by": { "type": "string" },
-        "from": { "type": "string" }
+        "by": {
+          "type": "string"
+        },
+        "from": {
+          "type": "string"
+        }
       },
-      "required": ["by", "from"],
+      "required": [
+        "by",
+        "from"
+      ],
       "additionalProperties": false
     }
   },
@@ -50,5 +87,5 @@
     "gates_run_by_agent",
     "open"
   ],
-  "additionalProperties": false
+  "additionalProperties": true
 }

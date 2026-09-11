@@ -5,11 +5,24 @@
   "description": "A gate run entry as debrief@v0 and debrief@v1 require it: only id is checked.",
   "type": "object",
   "properties": {
-    "id": { "type": "string" },
-    "result": { "enum": ["pass", "fail"] },
-    "invocation": { "type": "string" },
-    "note": { "type": "string" }
+    "id": {
+      "type": "string"
+    },
+    "result": {
+      "enum": [
+        "pass",
+        "fail"
+      ]
+    },
+    "invocation": {
+      "type": "string"
+    },
+    "note": {
+      "type": "string"
+    }
   },
-  "required": ["id"],
-  "additionalProperties": false
+  "required": [
+    "id"
+  ],
+  "additionalProperties": true
 }

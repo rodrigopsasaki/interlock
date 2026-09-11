@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/rodrigopsasaki/interlock/schemas/notes@v0.json",
   "title": "notes@v0",
-  "description": "A session's notes.yaml, appended at every choice and surprise. A choice's rejected is left untyped when present, since the file reader silently drops it rather than refusing the file when a YAML folded scalar (a real pattern in this repository's own history) parses to a plain string instead of a list; the ledger's own event-embedded note is the stricter shape, since it is always constructed in code, never hand-typed.",
+  "description": "A session's notes.yaml, appended at every choice and surprise. additionalProperties is open throughout: packages/debrief/src/notes.ts reads only the fields it recognizes and never rejects an extra one, and real files in this repository's history carry extra top-level keys (graph, open) and an extra field on a surprise entry (mattered_because) that the reader silently ignores. A choice's rejected is left untyped when present for the same reason, plus one more: a YAML folded scalar (a real pattern in this repository's own history) can parse to a plain string instead of a list, and the reader drops it rather than refusing the file. The ledger's own event-embedded note is the stricter shape, since it is always constructed in code from the fields the reader did keep, never hand-typed.",
   "type": "object",
   "properties": {
     "interlock": { "const": "notes@v0" },
@@ -21,7 +21,7 @@
               "rejected": {}
             },
             "required": ["kind", "at", "chose", "because"],
-            "additionalProperties": false
+            "additionalProperties": true
           },
           {
             "type": "object",
@@ -32,12 +32,12 @@
               "observed": { "type": "string" }
             },
             "required": ["kind", "at", "expected", "observed"],
-            "additionalProperties": false
+            "additionalProperties": true
           }
         ]
       }
     }
   },
   "required": ["interlock", "node", "entries"],
-  "additionalProperties": false
+  "additionalProperties": true
 }

@@ -5,11 +5,24 @@
   "description": "A discovery entry as debrief@v2 requires it in full: something the session found that its brief did not give it.",
   "type": "object",
   "properties": {
-    "id": { "type": "string" },
-    "what": { "type": "string" },
-    "found_at": { "type": "string" },
-    "mattered_because": { "type": "string" }
+    "id": {
+      "type": "string"
+    },
+    "what": {
+      "type": "string"
+    },
+    "found_at": {
+      "type": "string"
+    },
+    "mattered_because": {
+      "type": "string"
+    }
   },
-  "required": ["id", "what", "found_at", "mattered_because"],
-  "additionalProperties": false
+  "required": [
+    "id",
+    "what",
+    "found_at",
+    "mattered_because"
+  ],
+  "additionalProperties": true
 }

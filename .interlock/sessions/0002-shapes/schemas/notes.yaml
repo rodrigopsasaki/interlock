@@ -198,3 +198,66 @@ entries:
       with plain rm/rmdir (no rm -rf), confirmed nothing remained under /tmp/ajv-check, and
       created packages/schemas/test/.runs/ as the correct scratch location for anything similar
       for the rest of this session.
+
+  - kind: surprise
+    at: "2026-09-11T19:10:00Z"
+    expected: >
+      Setting additionalProperties: false on every closed shape (per the brief's own
+      instruction) and then running the file corpus test would need at most a couple of
+      hand-authored fixture corrections.
+    observed: >
+      Running the corpus test against every real file under .interlock/ immediately refused
+      six real, already-accepted files: a notes.yaml with a top-level "graph" key
+      (readme-interlock-concept/readme), one with a top-level "open" key (position-model), a
+      debrief@v2 with three extra top-level keys carrying evidence text
+      (graph_show_text/graph_show_json/node_floats, position-model), a debrief@v1 whose
+      discoveries write "matters_because" instead of "mattered_because"
+      (runner-command-gate), and a surprise note entry carrying an extra "mattered_because"
+      field beside "expected"/"observed" (verifier-hunks). Confirmed by reading
+      packages/debrief/src/notes.ts and packages/debrief/src/debrief.ts in full a second time:
+      neither reader, at any version, ever checks for or rejects an unknown key -- every one of
+      them plucks the fields it wants with prop() and ignores the rest. The same is true of
+      packages/face/src/document.ts, packages/runner/src/localConfig.ts and
+      packages/runner/src/standingGates.ts for their own hand-authored formats.
+    mattered_because: >
+      Following the brief's additionalProperties instruction literally, everywhere, would have
+      shipped schemas that refuse this repository's own real, already-valid history -- directly
+      contradicting the acceptance's "every real file... validates against its schema." Per the
+      brief's own resolution rule for a guard/schema disagreement ("make the schema follow the
+      guard"), additionalProperties went back to true on every hand-authored file format and
+      every array item nested inside one (notes@v0 top level and both entry kinds; debrief@v0/
+      v1/v2 top level and every discovery/decision/gate-run shape, legacy and full; brief@v1
+      top level and its substrate object; graph@v0's node declarations; config@v0's and
+      local@v0's substrate/runtime objects; the shared gate-declaration and standing-gate
+      parts). It stayed false only where the shape is always constructed in code from a
+      literal object -- the ledger's own discriminated unions (Gate, Outcome, HeldOn, Spend,
+      Duration, Derivation, Note, Mark) and the event-embedded session-brief/debrief-event
+      parts -- since nothing anywhere hand-types those with a stray field, and the ten guards
+      this node's corpus-agreement test reconciles against are all in that second group.
+
+  - kind: choice
+    at: "2026-09-11T19:20:00Z"
+    chose: >
+      Built the guard-agreement corpus test (packages/schemas/test/corpus.guards.test.ts) using
+      the ledger package's own factory functions (gate.satisfied, outcome.held, note.choice,
+      derivation.gate, mark.gap, ...) to construct every "valid" example, rather than hand-typed
+      object literals.
+    because: >
+      A factory call is exactly what the real production code path uses to build these values
+      before they ever reach isGate/isOutcome/isNote/etc; using the same factories keeps the
+      corpus honest to how these shapes actually get made, and any future factory signature
+      change surfaces here as a compile error instead of a silently stale literal.
+
+  - kind: choice
+    at: "2026-09-11T19:25:00Z"
+    chose: >
+      The position@v1 corpus test builds its example by calling the real positionOf over a
+      small GraphDocument and a projection folded from real LedgerEvent values
+      (packages/schemas/test/corpus.position.test.ts), rather than hand-typing a Position
+      literal.
+    because: >
+      position@v1 has no reader to reconcile against -- positionOf is the only producer that
+      exists. A hand-typed literal could drift from what positionOf actually emits without any
+      test ever catching it; calling the real function is the only way this schema is checked
+      against its actual, current shape rather than this session's memory of reading the
+      source.

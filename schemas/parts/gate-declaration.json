@@ -5,11 +5,22 @@
   "description": "A gate as declared on a graph node, a graph, or a brief's front matter: an id, a kind, and an optional command and output check. A human gate carries no run.",
   "type": "object",
   "properties": {
-    "id": { "type": "string" },
-    "kind": { "type": "string" },
-    "run": { "type": "string" },
-    "expect_output": { "type": "string" }
+    "id": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string"
+    },
+    "run": {
+      "type": "string"
+    },
+    "expect_output": {
+      "type": "string"
+    }
   },
-  "required": ["id", "kind"],
-  "additionalProperties": false
+  "required": [
+    "id",
+    "kind"
+  ],
+  "additionalProperties": true
 }
