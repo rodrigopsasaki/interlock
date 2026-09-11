@@ -91,9 +91,6 @@ export async function runGraphStatus(
     );
     if (view?.outcome?.kind === expect) continue;
 
-    // The node under judgement is leased by this very run while its gates execute, so a graph
-    // can only ever be checked from inside itself by letting a live lease stand in for the
-    // outcome it does not have yet.
     const leasedLive = [...projection.sessions.values()].some(
       (session) =>
         session.node.graph === id &&
