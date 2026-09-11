@@ -27,3 +27,92 @@ entries:
       (Outcome is a plain discriminated union everywhere else in this
       package; Gate's own transition rule is a free function, not a
       method, so this matches the established shape)"]
+  - kind: choice
+    at: "2026-09-11T14:20:00Z"
+    chose: >
+      Sourced the `receipts` field on the `cancelled`/`reset` outcome
+      `node cancel`/`node reset` write from `NodeView.receipts` (the
+      node's full accumulated receipt list), never from the prior
+      outcome's own `.receipts`.
+    because: >
+      `packages/runner/src/sweep.ts`'s existing abandon-on-expiry write
+      already answers exactly this question the same way --
+      `ledger.projection().nodes.get(nodeKey(session.node))?.receipts ??
+      []` -- for the same `outcome.cancelled(...)` call. Reusing that
+      precedent keeps one reading of an otherwise ambiguous field
+      (`Outcome.receipts` is not documented as "carried forward from the
+      prior outcome" anywhere) instead of a second, invented one.
+  - kind: choice
+    at: "2026-09-11T14:25:00Z"
+    chose: >
+      `node reset` refuses with a distinct sentence, "has no outcome yet;
+      nothing to reset", when the node has never had an outcome-set event
+      at all, rather than treating that as a legal `proposeOutcomeMove`
+      source the way `node cancel` does.
+    because: >
+      The node lifecycle diagram draws `queued --> cancelled: authorized,
+      with because` explicitly -- cancelling a never-run node is a real,
+      named path. No edge anywhere reads a never-run node back into
+      `reset`; the verb's own acceptance text ("so the runner may lease
+      the node again") presumes something to un-stick. `cleared` /
+      `cancelled` / `superseded` / `failed` stay refused by the shared
+      `proposeOutcomeMove` terminal rule underneath this check, the same
+      as for `cancel`.
+  - kind: surprise
+    at: "2026-09-11T14:35:00Z"
+    expected: >
+      Appending a `lease-taken` event alone, with no prior
+      `session-started`, would be enough to make a node read as under a
+      live lease in the projection, for a `node reset` live-lease test.
+    observed: >
+      `packages/ledger/src/projection.ts`'s `withSession` silently no-ops
+      any event for a session id the projection has never seen via
+      `session-started` -- `lease-taken` included. The test had to append
+      `session-started` first (a stub `Brief`) for the lease to register
+      at all. Recorded here rather than in the ledger's own files: this
+      package is in scope for other work this session did
+      (`outcome.ts`), but `projection.ts`'s behavior itself is unchanged,
+      an existing constraint this session had to work around, not
+      redesign.
+  - kind: choice
+    at: "2026-09-11T14:45:00Z"
+    chose: >
+      `gate waive` finds "the gate's latest receipt" by filtering
+      `NodeView.receipts` (every receipt ever written for the node) to
+      `receipt.gate === gateId` and taking the last match, rather than
+      reading the receipt off the current `Gate` value (which only
+      `satisfied` and `waived` carry).
+    because: >
+      `packages/runner/src/gateJudge.ts` writes a gate's receipt via
+      `receipt-written` before deciding `satisfied` or `blocked` --
+      confirmed by reading it in full. A gate stuck `blocked` on a real
+      failure still has a real receipt in the journal; that is exactly
+      the case a person waiving a gate needs to reach. Reading only
+      `Gate.receipt` would make waive unable to waive the one state it
+      exists for.
+  - kind: choice
+    at: "2026-09-11T14:50:00Z"
+    chose: >
+      Pulled `graph/approve.ts`'s local `parseFlag(args, flag)` into
+      `packages/cli/src/flags.ts` and had all four verbs (`approve`,
+      `node cancel`, `node reset`, `gate waive`) import it from there.
+    because: >
+      Three new call sites needing the identical four-line
+      `--flag value` reader made the duplication real rather than
+      speculative; AGENTS.md's own convention calls for "small
+      single-purpose files named for the vocabulary," which a one-function
+      `flags.ts` is. Refactoring `approve.ts` too keeps one definition
+      instead of one now-stale copy sitting beside the shared one.
+  - kind: choice
+    at: "2026-09-11T15:10:00Z"
+    chose: >
+      Added exactly one bend-log row to `docs/design/0002-face.md`
+      recording that `node cancel`, `node reset` and `gate waive` are
+      built and `pause` is not, naming the missing `Outcome` kind and
+      that it needs its own event version -- no other edit to that file.
+    because: >
+      The brief asks for this literally ("Add one bend-log row... That
+      row is the only design-note edit you make"). D15 already names the
+      `pause` gap in prose; this session's build is the first place a
+      real verb session confirms it against working code rather than
+      design-time reasoning alone, which is what a bend-log entry is for.
