@@ -1,0 +1,481 @@
+interlock: debrief@v2
+graph: 0002-shapes
+node: schemas
+role: worker
+graph_base_sha: 562e22ea16f090ac82becf01003fc5a56d18747a
+session_start_sha: 7778c70af4486de0b030fef0353ee76012da9461
+head_sha: 107f8db199167a802404e32bc4e9facd07f8d79c
+derivation:
+  kind: agent
+  runtime: claude-code
+  model: claude-sonnet-5
+discoveries:
+  - id: d1
+    what: >
+      Every real brief@v0 file in this repository's history (0001-bootstrap/scaffold, /ledger,
+      /ledger-gaps, /runner-command-gate, /face-read, /debrief-schema, and
+      0002-shapes/brief-shape) is free-form Markdown prose with no "---" front-matter block at
+      all -- not a partial or malformed front matter, none whatsoever.
+    found_at: >
+      Reading all seven files directly, e.g. .interlock/sessions/0001-bootstrap/scaffold/brief.md:1-20
+      and .interlock/sessions/0002-shapes/brief-shape/brief.md:1-8.
+    mattered_because: >
+      There is no partial structure to validate for brief@v0; schemas/brief@v0.json is the
+      permissive schema {}, and interlock schema validate's brief.md handling dispatches on
+      whether a "---" front-matter block exists at all, before ever trying to read an
+      "interlock" key.
+  - id: d2
+    what: >
+      packages/ledger/src/upcast/v2.ts and v3.ts are both, in full, "isLedgerEvent(raw) ? raw :
+      undefined" -- a pure identity check against today's guard, with no version-specific
+      transformation coded anywhere.
+    found_at: "packages/ledger/src/upcast/v2.ts:1-6, packages/ledger/src/upcast/v3.ts:1-6."
+    mattered_because: >
+      schemas/event@v2.json and event@v3.json could be, and are, byte-identical to
+      event@v4.json except for $id/title/description -- one real shape, three declared
+      versions, rather than three independently-reasoned guesses that might have drifted from
+      each other.
+  - id: d3
+    what: >
+      No guard in packages/ledger, and no reader in packages/debrief, packages/face or
+      packages/runner for a hand-authored file format, ever rejects an object for carrying an
+      unknown key. Running the file-corpus test against every real file under .interlock/
+      confirmed this is exercised, not theoretical: it refused six already-valid files on first
+      run -- two notes.yaml files with an extra top-level key (graph, open), a debrief@v2 with
+      three extra top-level keys carrying evidence text, a debrief@v1 whose discoveries write
+      "matters_because" instead of "mattered_because", and a surprise note entry carrying an
+      extra "mattered_because" field.
+    found_at: >
+      packages/debrief/src/notes.ts, packages/debrief/src/debrief.ts, packages/face/src/document.ts,
+      packages/runner/src/standingGates.ts and packages/runner/src/localConfig.ts read in full;
+      the six refusals surfaced by packages/schemas/test/corpus.files.test.ts against
+      .interlock/sessions/0001-bootstrap/{position-model,runner-command-gate,verifier-hunks}
+      and .interlock/sessions/readme-interlock-concept/readme.
+    mattered_because: >
+      Reversed this session's own first-draft stance of additionalProperties: false everywhere
+      a TypeScript type is closed. That instruction still holds for the ledger's own
+      discriminated unions (always code-constructed), but every hand-authored file format
+      needed additionalProperties: true to keep validating this repository's own real history.
+  - id: d4
+    what: >
+      A debrief-filed journal event embeds the ledger's Debrief in camelCase
+      (graphBaseSha, gatesRunByAgent, ...); the debrief.yaml file on disk carries the same
+      artifact in snake_case (graph_base_sha, gates_run_by_agent, ...). They are not the same
+      bytes.
+    found_at: >
+      packages/ledger/test/fixtures/journal-v3-v4-2026-09-11.jsonl:77 (a debrief-filed event's
+      "debrief" field, camelCase) compared against
+      .interlock/sessions/0001-bootstrap/face/debrief.yaml:1-12 (snake_case) and
+      packages/ledger/src/debrief.ts's isDebrief guard.
+    mattered_because: >
+      One artifact needed two schemas at two serialization layers: schemas/debrief@v0.json,
+      v1.json and v2.json for the file; schemas/parts/debrief-event.json, always the full
+      current shape, for the event (event@v1 refuses debrief-filed outright, so no legacy
+      variant of the event-embedded shape exists to schema).
+  - id: d5
+    what: >
+      packages/debrief/src/notes.ts's own note-entry reader silently drops a "rejected" field
+      that is present but not a string array, rather than refusing the file; packages/ledger's
+      isNote refuses the same shape outright. Real notes.yaml history relies on the lenient
+      side: several entries write "rejected: >" as a YAML folded scalar, which parses to one
+      long string, not a list.
+    found_at: >
+      packages/debrief/src/notes.ts:52-79 against packages/ledger/src/note.ts:36-56;
+      .interlock/sessions/0001-bootstrap/{ledger-gaps,runner-command-gate,verbs}/notes.yaml's
+      own "rejected: >" entries.
+    mattered_because: >
+      Not a bug on either side -- one reader is deliberately lenient for hand-typed YAML, the
+      other deliberately strict for code-constructed values -- but it meant schemas/notes@v0.json
+      (the file) and schemas/parts/note.json (the event-embedded note) could not share one
+      "rejected" definition.
+  - id: d6
+    what: >
+      packages/runner/src/standingGates.ts's loader never reads or checks either the
+      "interlock" key or the "substrate" key of .interlock/config.yaml at all -- confirmed by
+      reading the file in full; no branch touches either key.
+    found_at: "packages/runner/src/standingGates.ts:41-109 (loadStandingGates), read in full."
+    mattered_because: >
+      config@v0 has no dedicated ledger guard for the corpus-agreement test to reconcile
+      against, so schemas/config@v0.json still requires both fields as the artifact's declared
+      shape (every artifact names its shape on its first line, per this repository's own
+      compatibility convention). Listed under open below, since here the loader looks
+      under-specified, not the schema.
+  - id: d7
+    what: >
+      Neither position@v1 nor item@v1 has a reader anywhere in this repository. position@v1 is
+      serialized only by "interlock graph show --json" (positionOf -> JSON.stringify); item@v1
+      is a pure in-memory shape a test fixture or a future substrate client constructs directly.
+    found_at: >
+      Grepping the whole repository for a loader/parser of either shape found none;
+      packages/cli/src/graph/show.ts:76-81 is the only place a Position is ever turned into
+      text, and packages/debrief/src/slice.ts has no parser for Item at all.
+    mattered_because: >
+      Both schemas, and their corpus tests, had to be built from producers
+      (packages/face/src/position.ts's positionOf, called for real in
+      packages/schemas/test/corpus.position.test.ts) and test fixtures
+      (packages/debrief/test/slice.test.ts's own Item literals), not from files under
+      .interlock/, since none exist for either shape.
+decisions:
+  - id: c1
+    what: >
+      Scaffolded packages/schemas as a workspace package, copying packages/debrief's exact
+      package.json/tsconfig.json/vitest.config.ts pattern, and added ajv (^8.17.1, verified on
+      npm: MIT, 8.20.0 current, four small transitive dependencies) as its only new dependency.
+    because: notes:1
+    rests_on:
+      - "brief: packages/schemas, a workspace package"
+      - "brief: ajv is the one to take, as a dev dependency of this package only"
+      - notes:1
+    hunks:
+      - packages/schemas/package.json
+      - packages/schemas/tsconfig.json
+      - packages/schemas/vitest.config.ts
+      - pnpm-lock.yaml
+  - id: c2
+    what: >
+      Gave every schema file an $id of the form
+      "https://github.com/rodrigopsasaki/interlock/schemas/<path>", mirroring the schemas/
+      directory layout (parts/ included) exactly, and used those same strings as every $ref
+      target so ajv resolves across files without a configured base URI.
+    because: notes:2
+    rests_on:
+      - "README.md's own https://github.com/rodrigopsasaki/phyxius link"
+      - notes:2
+    hunks:
+      - schemas/graph@v0.json
+      - schemas/brief@v0.json
+      - schemas/brief@v1.json
+      - schemas/notes@v0.json
+      - schemas/debrief@v0.json
+      - schemas/debrief@v1.json
+      - schemas/debrief@v2.json
+      - schemas/event@v1.json
+      - schemas/event@v2.json
+      - schemas/event@v3.json
+      - schemas/event@v4.json
+      - schemas/config@v0.json
+      - schemas/local@v0.json
+      - schemas/position@v1.json
+      - schemas/item@v1.json
+  - id: c3
+    what: >
+      Built one schema file per shared part an event carries or a receipt/gate/outcome is made
+      of: node, session, session-brief (the ledger's own reduced Brief), derivation,
+      disposition, spend, duration, receipt and receipt-v1, gate and gate-v1, outcome and
+      outcome-v1, held-on, lease, note, mark, gap, debrief-derivation and debrief-event (the
+      ledger's own full Debrief, camelCase) -- versioned only where event@v1's upcaster shows
+      the wire shape actually differed (receipt, gate, outcome), shared everywhere else.
+    because: >
+      Mirrors exactly what packages/ledger/src/upcast/v1.ts upcasts and what it passes through
+      unchanged (PASS_THROUGH_KINDS): a receipt gained duration, a gate's satisfied/waived
+      nested the old receipt, an outcome's held and reset shapes changed; derivation, spend,
+      note, session and the graph-node reference never did.
+    rests_on:
+      - packages/ledger/src/upcast/v1.ts
+      - packages/ledger/src/envelope.ts
+    hunks:
+      - schemas/parts/node.json
+      - schemas/parts/session.json
+      - schemas/parts/session-brief.json
+      - schemas/parts/derivation.json
+      - schemas/parts/disposition.json
+      - schemas/parts/spend.json
+      - schemas/parts/duration.json
+      - schemas/parts/receipt.json
+      - schemas/parts/receipt-v1.json
+      - schemas/parts/gate.json
+      - schemas/parts/gate-v1.json
+      - schemas/parts/outcome.json
+      - schemas/parts/outcome-v1.json
+      - schemas/parts/held-on.json
+      - schemas/parts/lease.json
+      - schemas/parts/note.json
+      - schemas/parts/mark.json
+      - schemas/parts/gap.json
+      - schemas/parts/debrief-derivation.json
+      - schemas/parts/debrief-event.json
+  - id: c4
+    what: >
+      Built schemas/event@v1.json distinctly (referencing the v1-only receipt/gate/outcome
+      parts, with no debrief-filed or session-narrated kind in its oneOf), and made
+      event@v2.json/v3.json byte-identical to event@v4.json bar their $id/title/description.
+    because: notes:4
+    rests_on:
+      - notes:4
+      - "packages/ledger/src/upcast/v1.ts (debrief-filed and a v1 reset are unconditionally refused)"
+    hunks:
+      - schemas/event@v1.json
+      - schemas/event@v2.json
+      - schemas/event@v3.json
+      - schemas/event@v4.json
+  - id: c5
+    what: >
+      Built schemas/graph@v0.json, brief@v0.json and brief@v1.json, plus the shared
+      schemas/parts/gate-declaration.json (id, kind, optional run and expect_output) and
+      schemas/parts/standing-gate.json (the same shape with run required, via allOf), reused by
+      graph@v0's node/graph gates, brief@v1's front-matter gates, and config@v0's standing
+      gates respectively.
+    because: notes:12
+    rests_on:
+      - "packages/face/src/document.ts (GateDeclaration)"
+      - "packages/debrief/src/briefGate.ts (BriefGate)"
+      - "packages/runner/src/standingGates.ts (StandingGate, run required)"
+      - notes:12
+    hunks:
+      - schemas/graph@v0.json
+      - schemas/brief@v0.json
+      - schemas/brief@v1.json
+      - schemas/parts/gate-declaration.json
+      - schemas/parts/standing-gate.json
+  - id: c6
+    what: >
+      Built schemas/notes@v0.json and schemas/debrief@v0.json, v1.json and v2.json, plus their
+      item parts: legacy-discovery, legacy-decision and legacy-gate-run.json (the loose id/what
+      -only checks debrief@v0 and v1 actually run) and discovery, decision and gate-run.json
+      (the full shape debrief@v2 requires).
+    because: notes:5
+    rests_on:
+      - "packages/debrief/src/notes.ts"
+      - "packages/debrief/src/debrief.ts (parseLegacy, parseV2)"
+      - notes:5
+    hunks:
+      - schemas/notes@v0.json
+      - schemas/debrief@v0.json
+      - schemas/debrief@v1.json
+      - schemas/debrief@v2.json
+      - schemas/parts/legacy-discovery.json
+      - schemas/parts/legacy-decision.json
+      - schemas/parts/legacy-gate-run.json
+      - schemas/parts/discovery.json
+      - schemas/parts/decision.json
+      - schemas/parts/gate-run.json
+  - id: c7
+    what: >
+      Built schemas/config@v0.json and local@v0.json, plus schemas/parts/startup-answer.json
+      for local@v0's runtime.startup_answers.
+    because: notes:11
+    rests_on:
+      - "packages/runner/src/standingGates.ts"
+      - "packages/runner/src/localConfig.ts"
+      - notes:11
+    hunks:
+      - schemas/config@v0.json
+      - schemas/local@v0.json
+      - schemas/parts/startup-answer.json
+  - id: c8
+    what: >
+      Built schemas/position@v1.json (with local $defs for its face-only sub-shapes:
+      positionNode, nodeState, float, positionGateState, receiptSummary, positionGate,
+      positionAttempt) and schemas/item@v1.json.
+    because: notes:9
+    rests_on:
+      - "packages/face/src/position.ts"
+      - "packages/face/src/positionGate.ts"
+      - "packages/debrief/src/slice.ts"
+      - notes:9
+    hunks:
+      - schemas/position@v1.json
+      - schemas/item@v1.json
+  - id: c9
+    what: >
+      Relaxed additionalProperties from false back to true across every hand-authored file
+      format and its nested item shapes: notes@v0's top level and both entry kinds; debrief@v0/
+      v1/v2's top level and every discovery/decision/gate-run shape, legacy and full; brief@v1's
+      top level and its substrate object; graph@v0's node declarations; config@v0's and
+      local@v0's substrate/runtime objects; gate-declaration and standing-gate.
+    because: notes:14
+    rests_on:
+      - notes:14
+      - "brief: a disagreement between a guard and its schema is a finding ... make the schema follow the guard"
+    hunks:
+      - schemas/notes@v0.json
+      - schemas/debrief@v0.json
+      - schemas/debrief@v1.json
+      - schemas/debrief@v2.json
+      - schemas/brief@v1.json
+      - schemas/graph@v0.json
+      - schemas/config@v0.json
+      - schemas/local@v0.json
+      - schemas/parts/legacy-discovery.json
+      - schemas/parts/legacy-decision.json
+      - schemas/parts/legacy-gate-run.json
+      - schemas/parts/discovery.json
+      - schemas/parts/decision.json
+      - schemas/parts/gate-run.json
+      - schemas/parts/gate-declaration.json
+      - schemas/parts/standing-gate.json
+      - schemas/parts/startup-answer.json
+  - id: c10
+    what: >
+      Built packages/schemas/src/registry.ts (loads every file under schemas/ into one ajv
+      instance, keyed for lookup by shape tag), validate.ts (the small script: picks a schema by
+      tag or, for brief.md, by whether a front-matter block exists at all; reports one sentence
+      per ajv finding with its JSON pointer; reports a legacy tag the same words the existing
+      readers use), frontMatter.ts (the one-regex front-matter splitter) and index.ts.
+    because: >
+      "brief: A small script, packages/schemas/src/validate.ts, exposed as interlock schema
+      validate <file>" names this file and its job directly; frontMatter.ts's regex is copied
+      from packages/debrief/src/brief.ts's own front-matter split rather than re-derived, since
+      it is already this repository's one definition of what counts as a front-matter block.
+    rests_on:
+      - "brief: A small script, packages/schemas/src/validate.ts"
+      - packages/debrief/src/brief.ts
+    hunks:
+      - packages/schemas/src/registry.ts
+      - packages/schemas/src/validate.ts
+      - packages/schemas/src/frontMatter.ts
+      - packages/schemas/src/index.ts
+  - id: c11
+    what: >
+      Added the corpus proof: registry.test.ts (every schema loads, every $ref resolves, every
+      brief-listed tag is present); corpus.files.test.ts (every real file under .interlock/
+      validates); corpus.journal.test.ts (every line of the three ledger fixture journals
+      validates against its event@vN schema); corpus.guards.test.ts (the ten ledger guards this
+      node's brief names agree with their schemas, built from the ledger's own factory
+      functions); corpus.position.test.ts (calls the real positionOf); corpus.item.test.ts
+      (debrief's own Item fixtures). Every test file's name contains "corpus" except
+      registry.test.ts, and every describe block does.
+    because: >
+      "brief: for every file under .interlock/ and every line of the journal, the schema for
+      its tag accepts it; for every guard ... a generated corpus of accepted and refused values
+      ... gets the same verdict from the guard and from the schema" and "Name the tests so the
+      gate finds them: every one of them contains corpus" are both literal requirements.
+    rests_on:
+      - "brief: packages/schemas, a workspace package whose tests are the proof"
+      - "brief: Name the tests so the gate finds them"
+    hunks:
+      - packages/schemas/test/registry.test.ts
+      - packages/schemas/test/corpus.files.test.ts
+      - packages/schemas/test/corpus.journal.test.ts
+      - packages/schemas/test/corpus.guards.test.ts
+      - packages/schemas/test/corpus.position.test.ts
+      - packages/schemas/test/corpus.item.test.ts
+  - id: c12
+    what: >
+      Wired "schema validate" into packages/cli/src/main.ts beside the existing brief/debrief
+      validate commands, added the "schemas" workspace dependency to packages/cli/package.json,
+      and added packages/cli/test/schema/validate.test.ts covering no-arguments, a valid
+      notes@v0 file, a schema refusal with a JSON pointer, a legacy brief.md, the shipped
+      brief@v1 fixture, and a two-line journal file with one valid and one refused line.
+    because: >
+      Mirrors packages/cli/src/brief/validate.ts's and debrief/validate.ts's own shape (a plain
+      async function taking args and an options.cwd, returning CommandResult) and
+      packages/cli/test/debrief/validate.test.ts's own fixture-directory test pattern, since
+      both already exist and this command is the same kind of thing.
+    rests_on:
+      - packages/cli/src/debrief/validate.ts
+      - packages/cli/test/debrief/validate.test.ts
+    hunks:
+      - packages/cli/src/schema/validate.ts
+      - packages/cli/src/main.ts
+      - packages/cli/package.json
+      - packages/cli/test/schema/validate.test.ts
+  - id: c13
+    what: >
+      Added packages/schemas/test/.runs/ to .gitignore, matching every sibling package's own
+      scratch-directory line.
+    because: >
+      packages/cli/test/.runs/, packages/ledger/test/.runs/ and the other four packages'
+      equivalents are already there; this package's own test fixtures needed the same line, and
+      .gitignore is in this node's declared scope.
+    rests_on:
+      - .gitignore
+    hunks:
+      - .gitignore
+  - id: c14
+    what: |
+      The deliverable requires, verbatim: the count of corpus files and journal lines
+      validated per shape tag. Recorded here in full, computed by walking .interlock/ and
+      the three packages/ledger/test/fixtures/*.jsonl files with the same tag-reading logic
+      packages/schemas/src/validate.ts uses (confirmed against
+      packages/schemas/test/corpus.files.test.ts and corpus.journal.test.ts, both green at
+      this head_sha).
+
+      Real files under .interlock/, per shape tag (48 total):
+        brief@v0    7
+        brief@v1   10
+        config@v0   1
+        debrief@v0  1
+        debrief@v1  4
+        debrief@v2  8   (includes this session's own debrief.yaml)
+        graph@v0    3
+        local@v0    1
+        notes@v0   13   (includes this session's own notes.yaml)
+
+      Journal fixture lines, per event tag, across journal-v1-approved.jsonl,
+      journal-v1-v2-2026-09-10.jsonl and journal-v3-v4-2026-09-11.jsonl (455 total):
+        event@v1     6
+        event@v2   308
+        event@v3   141
+        event@v4     0  (no event@v4 line exists in any fixture on disk; this shape is
+                         validated instead by hand-built literals in
+                         corpus.guards.test.ts and corpus.position.test.ts's own use of it)
+    because: >
+      "brief: In the debrief: the count of corpus files and journal lines validated per shape
+      tag" requires this exact accounting, the same way brief-shape's own debrief embedded its
+      deliverable-4 evidence as a decision (c19) rather than inventing a new top-level field
+      debrief@v2 does not carry.
+    rests_on:
+      - "brief: the count of corpus files and journal lines validated per shape tag"
+    hunks:
+      - packages/schemas/test/corpus.files.test.ts
+      - packages/schemas/test/corpus.journal.test.ts
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: "mise exec -- pnpm typecheck"
+    note: "clean across all seven packages (ledger, face, debrief, verifier, runner, schemas, cli)"
+  - id: test
+    result: pass
+    invocation: "mise exec -- pnpm test"
+    note: "1111 tests across all seven packages; one clean run, no flake"
+  - id: corpus-agrees
+    result: pass
+    invocation: "mise exec -- pnpm --filter schemas --fail-if-no-match test --testNamePattern corpus"
+    note: "555 tests passed: 49 real .interlock files (48 files plus one meta-assertion, this session's own debrief.yaml and notes.yaml included), 459 journal-fixture lines, 39 guard-agreement cases, 6 registry cases, 1 position@v1 case, 5 item@v1 cases"
+  - id: debrief-valid
+    result: pass
+    invocation: "mise exec -- pnpm interlock debrief validate 0002-shapes schemas"
+open:
+  - >
+    Mandate (packages/ledger/src/mandate.ts, isMandate) has no schema here and is not part of
+    this node's corpus-agreement test: it is not in the brief's own ten-guard list, it is never
+    embedded in any LedgerEvent kind, and upcastTable carries no tag for it. "mandate" is a
+    ratified vocabulary term with no persisted shape behind it yet -- a real gap between the
+    vocabulary and the ledger, not an oversight of this node's schema set.
+  - >
+    schemas/config@v0.json requires both "interlock" and "substrate", but
+    packages/runner/src/standingGates.ts's loadStandingGates (read in full) checks neither --
+    confirmed at packages/ledger/src/upcast (n/a) and packages/runner/src/standingGates.ts:41-109.
+    This is a case where the loader looks under-specified against this repository's own
+    compatibility convention (every artifact names its shape on its first line) rather than the
+    schema being wrong; left as declared-shape-ahead-of-loader rather than laundered into the
+    schema, per this node's scope (which does not include changing runner code).
+  - >
+    A real, already-accepted debrief@v1 file
+    (.interlock/sessions/0001-bootstrap/runner-command-gate/debrief.yaml) writes
+    "matters_because" on every discovery instead of the type's "mattered_because". The v0/v1
+    reader never checks this field's name at all, so nothing is broken today, but a future
+    debrief@v2 upcast of this exact history would need to decide whether that is a typo to
+    carry forward as-is or a field this session's schema should special-case; left as-is here
+    since debrief@v1's own schema (built to match the loose reader) does not require the field
+    to exist at all.
+  - >
+    graph@v0's two referential checks -- every depends_on id names a real node in the same
+    document, and the dependency edges form a DAG -- are whole-document, cross-field
+    constraints that JSON Schema draft 2020-12 has no keyword to express; documented as
+    loader-only checks in schemas/graph@v0.json's own description rather than approximated.
+  - >
+    Two incompatible "is this string a valid regex/matcher" grammars exist side by side --
+    graph@v0/config@v0's expect_output is always a bare regex body compiled with new
+    RegExp(source); local@v0's startup_answers[].matches is either a plain substring or a
+    "/body/flags" delimited literal. Both are typed as plain strings in their schemas: JSON
+    Schema's pattern keyword validates a value against a regex, it cannot assert that the value
+    itself is a well-formed regex source, and neither grammar is validated by the code either.
+  - >
+    schemas/notes@v0.json's choice.rejected and schemas/parts/note.json's rejected intentionally
+    disagree (untyped vs. strict string array) because packages/debrief/src/notes.ts and
+    packages/ledger/src/note.ts disagree on the same question for the same conceptual field, at
+    two different serialization layers (hand-typed YAML vs. code-constructed value). Neither
+    reader looks wrong for its own layer; worth a maintainer's read since it is a real, load-
+    bearing behavioral difference between two packages that is easy to lose track of.
