@@ -219,6 +219,10 @@ async function ingestDebrief(
   worktree: string,
   node: Node,
 ): Promise<void> {
+  const alreadyIngested =
+    ledger.projection().sessions.get(session)?.debrief !== undefined;
+  if (alreadyIngested) return;
+
   const debriefRead = await readDebriefFile(
     debriefFilePath(worktree, node.graph, node.id),
   );
