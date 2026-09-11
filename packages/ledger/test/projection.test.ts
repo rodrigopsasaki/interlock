@@ -156,3 +156,30 @@ describe("fold", () => {
     ).toBe(1);
   });
 });
+
+describe("session-narrated events", () => {
+  it("appends each narrated line to the session's narration, in order", () => {
+    const events: readonly LedgerEvent[] = [
+      { kind: "session-started", session: { id: "session-1", node }, brief },
+      { kind: "session-narrated", session: "session-1", at: 10, line: "a" },
+      { kind: "session-narrated", session: "session-1", at: 20, line: "b" },
+    ];
+    const view = fold(events).sessions.get("session-1");
+    expect(view?.narration).toEqual([
+      { at: 10, line: "a" },
+      { at: 20, line: "b" },
+    ]);
+  });
+
+  it("drops a narrated line for a session that never started, matching every other session-keyed event", () => {
+    const projection = fold([
+      {
+        kind: "session-narrated",
+        session: "no-such-session",
+        at: 10,
+        line: "a",
+      },
+    ]);
+    expect(projection.sessions.size).toBe(0);
+  });
+});
