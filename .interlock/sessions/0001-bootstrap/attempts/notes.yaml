@@ -216,3 +216,14 @@ entries:
       applies to code this session writes even though the file already
       carries older comments from before this node; those are left as
       they were, out of scope to strip.
+  - kind: choice
+    at: "2026-09-11T15:08:00Z"
+    chose: >
+      Added `Narrated` as a named, exported type (`{at, line}`) on
+      packages/ledger's public surface for SessionView's new `narration`
+      field, rather than an inline anonymous field type.
+    because: >
+      packages/cli's session-show renderer needs a stable name to import
+      for its own render helper's parameter type, matching how every other
+      session-view field (Brief, Debrief, Note) already has a named,
+      exported type rather than an inline shape.
