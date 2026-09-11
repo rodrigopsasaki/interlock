@@ -1,0 +1,40 @@
+interlock: notes@v0
+graph: readme-interlock-concept
+node: readme
+entries:
+  - kind: choice
+    at: "2026-09-11T13:24:03-03:00"
+    chose: Keep the presentation in Markdown with separate image assets.
+    because: >
+      GitHub removes custom page styling. Native headings, tables, quotations, and lists keep
+      explanations readable, searchable, and editable while the artwork carries the identity.
+  - kind: surprise
+    at: "2026-09-11T13:24:03-03:00"
+    expected: The proposed quoted inline asset check could run as a command gate.
+    observed: >
+      packages/runner/src/gateJudge.ts splits the command on whitespace without shell parsing.
+      The quoted script is therefore split into unrelated arguments. A standalone check file
+      is needed. The original approved graph and brief are retained; a corrected invocation
+      requires a separately recorded approval.
+  - kind: choice
+    at: "2026-09-11T13:24:03-03:00"
+    chose: Refresh the status claims to include cancel, reset, and gate waive.
+    because: >
+      Those commands are present at this branch's base, although the local presentation still
+      listed human-control commands as work in progress. Rich position and assisted planning
+      remain separate, unfinished capabilities.
+  - kind: choice
+    at: "2026-09-11"
+    chose: Correct the notes envelope to the existing notes@v0 reader before ingestion.
+    because: >
+      The first saved draft used notes/what instead of entries/chose and omitted at. Its
+      contents are preserved here and in git; the first three timestamps identify their
+      original recording commit rather than claiming separate observation times.
+  - kind: choice
+    at: "2026-09-11"
+    chose: Push codex/readme-interlock-concept and create one draft PR targeting main.
+    because: >
+      The user explicitly authorized publishing this branch for GitHub review. The stable
+      identity is rodrigopsasaki/interlock plus this head branch; query for an existing PR
+      before creating one. Keep it draft, report unfinished gate approval honestly, and do
+      not merge. Inspect the rendered README on the branch before declaring visual QA done.

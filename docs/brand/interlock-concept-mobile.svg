@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="396" viewBox="0 0 360 396" role="img" aria-labelledby="title desc">
+  <title id="title">A condition, its evidence, and permission to continue</title>
+  <desc id="desc">The same blue open loop plus a matching golden keystone becomes a completed loop. Work can continue when the condition is satisfied, and the receipt remains attached.</desc>
+  <defs>
+    <path id="body" d="M 76.604 64.279 A 100 100 0 1 1 76.604 -64.279 L 63.198 -53.027 L 67.581 -47.319 L 53.245 -37.282 A 65 65 0 1 0 53.245 37.282 L 67.581 47.319 L 63.198 53.027 Z"/>
+    <path id="key" d="M 76.604 -64.279 A 100 100 0 0 1 76.604 64.279 L 63.198 53.027 L 67.581 47.319 L 53.245 37.282 A 65 65 0 0 0 53.245 -37.282 L 67.581 -47.319 L 63.198 -53.027 Z"/>
+  </defs>
+  <rect width="360" height="396" fill="#faf8f2"/>
+  <g transform="translate(77 68) scale(.42)"><use href="#body" fill="#1559b1"/></g>
+  <g transform="translate(44 198) scale(.42)"><use href="#key" fill="#e4af31"/></g>
+  <g transform="translate(77 328) scale(.42)"><use href="#body" fill="#1559b1"/><use href="#key" fill="#e4af31"/></g>
+  <g stroke="#9a9b94" stroke-width="1.5" stroke-linecap="round"><path d="M70 135H84M77 128V142M70 261H84M70 267H84"/></g>
+  <g fill="#292d30" font-family="Georgia, serif" font-size="20">
+    <text x="143" y="61">A condition to meet</text>
+    <text x="143" y="191">Evidence that fits</text>
+    <text x="143" y="321">Work can continue</text>
+  </g>
+  <g fill="#61676c" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="15">
+    <text x="143" y="86">The next action waits.</text>
+    <text x="143" y="216">The declared check</text><text x="143" y="237">supplies it.</text>
+    <text x="143" y="346">The receipt stays</text><text x="143" y="367">attached.</text>
+  </g>
+</svg>

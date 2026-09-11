@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="300" viewBox="0 0 1000 300" role="img" aria-labelledby="title desc">
+  <title id="title">An interlock: a condition, evidence that fits, and permission to continue</title>
+  <desc id="desc">A blue open loop has stepped ends. A matching golden keystone completes exactly that loop. The completed loop represents a satisfied condition, permitting the next action. The open and closed symbols are the c and o of Interlock's wordmark.</desc>
+  <defs>
+    <path id="body" d="M 76.604 64.279 A 100 100 0 1 1 76.604 -64.279 L 63.198 -53.027 L 67.581 -47.319 L 53.245 -37.282 A 65 65 0 1 0 53.245 37.282 L 67.581 47.319 L 63.198 53.027 Z"/>
+    <path id="key" d="M 76.604 -64.279 A 100 100 0 0 1 76.604 64.279 L 63.198 53.027 L 67.581 47.319 L 53.245 37.282 A 65 65 0 0 0 53.245 -37.282 L 67.581 -47.319 L 63.198 -53.027 Z"/>
+    <filter id="paper"><feTurbulence type="fractalNoise" baseFrequency=".55" numOctaves="3" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="linear" slope=".028"/></feComponentTransfer><feBlend in="SourceGraphic" mode="multiply"/></filter>
+  </defs>
+  <rect width="1000" height="300" fill="#faf8f2"/>
+  <g filter="url(#paper)">
+    <g fill="none" stroke="#d7dce1" stroke-width="3"><path d="M 37 126 H 160"/><path d="M 840 126 H 962"/><path d="M 954 120 L 962 126 L 954 132" stroke-linejoin="round"/></g>
+    <g transform="translate(230 126) scale(.73)"><use href="#body" fill="#1559b1"/></g>
+    <g transform="translate(468 126) scale(.73)"><use href="#key" fill="#e4af31"/></g>
+    <g transform="translate(770 126) scale(.73)"><use href="#body" fill="#1559b1"/><use href="#key" fill="#e4af31"/></g>
+    <g stroke="#9a9b94" stroke-width="2" stroke-linecap="round"><path d="M 379 126 H 395 M 387 118 V 134"/><path d="M 605 121 H 622 M 605 131 H 622"/></g>
+  </g>
+  <g text-anchor="middle" fill="#292d30" font-family="Georgia, serif" font-size="25">
+    <text x="230" y="242">A condition to meet</text>
+    <text x="528" y="242">Evidence that fits</text>
+    <text x="770" y="242">Work can continue</text>
+  </g>
+  <g text-anchor="middle" fill="#61676c" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="16">
+    <text x="230" y="273">The next action waits.</text>
+    <text x="528" y="273">The declared check supplies it.</text>
+    <text x="770" y="273">The receipt stays attached.</text>
+  </g>
+</svg>
