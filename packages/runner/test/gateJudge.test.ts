@@ -528,4 +528,46 @@ describe("debrief ingestion", () => {
     expect(kinds).not.toContain("debrief-filed");
     expect(kinds).not.toContain("note-appended");
   });
+
+  it("ingests a v2 debrief only once, when the same session is judged a second time", async () => {
+    const root = fixture();
+    writeSession(root, "fixture", "n1", v2Debrief, notesYaml);
+    const { ledger, events } = memoryLedgerWithLog();
+    ledger.append({
+      kind: "session-started",
+      session: { id: "s1", node },
+      brief: {
+        graph: node.graph,
+        node: node.id,
+        role: "worker",
+        acceptance: "fixture",
+        gates: ["always-pass"],
+        scope: [],
+      },
+    });
+
+    const options = {
+      ledger,
+      clock: createControlledClock(),
+      node,
+      session: "s1",
+      declaredGateIds: ["always-pass"],
+      commandFor: new Map([["always-pass", { run: passCommand }]]),
+      worktree: root,
+      scopeRoot: root,
+      scopePaths: ["content.txt"],
+      commitSha: "deadbeef",
+      runnerId: "run-1",
+      holdMs: 60_000,
+    };
+
+    const first = await judgeGates(options);
+    if (isErr(first)) throw new Error("expected an outcome");
+    const second = await judgeGates(options);
+    if (isErr(second)) throw new Error("expected an outcome");
+
+    const kinds = events.map((event) => event.kind);
+    expect(kinds.filter((kind) => kind === "debrief-filed")).toHaveLength(1);
+    expect(kinds.filter((kind) => kind === "note-appended")).toHaveLength(1);
+  });
 });

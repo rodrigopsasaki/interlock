@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type { Clock } from "@phyxiusjs/clock";
 import { err, isErr, isOk, ok, type Result } from "@phyxiusjs/fp";
+import { debriefFilePath, readDebriefFile } from "debrief";
 import {
   topologicalOrder,
   type GraphDocument,
@@ -17,6 +18,7 @@ import {
   type GateJudgeRefusal,
 } from "./gateJudge.ts";
 import { gitTrackedFiles } from "./scope.ts";
+import { buildBrief } from "./sessionBrief.ts";
 import type { StandingGate } from "./standingGates.ts";
 import {
   createDetachedWorktree,
@@ -53,6 +55,10 @@ function hasDebrief(repoRoot: string, graph: string, nodeId: string): boolean {
   return existsSync(
     join(repoRoot, ".interlock", "sessions", graph, nodeId, "debrief.yaml"),
   );
+}
+
+export function backfillSessionId(graph: string, nodeId: string): string {
+  return `backfill-${graph}-${nodeId}`;
 }
 
 export interface BackfillOptions {
@@ -108,12 +114,42 @@ export async function backfillGraph(
     if (undebriefedDependency !== undefined) continue;
 
     const node: Node = { graph: document.id, id: declaration.id };
+    const session = backfillSessionId(document.id, declaration.id);
+    const declaredIds = declaredGateIds(standingGates, declaration.gates);
+
+    if (!ledger.projection().sessions.has(session)) {
+      ledger.append({
+        kind: "session-started",
+        session: { id: session, node },
+        brief: buildBrief(
+          document.id,
+          declaration.id,
+          declaration.acceptance ?? "",
+          declaredIds,
+          scopePaths,
+        ),
+        graphBaseSha: mainSha,
+      });
+
+      const debriefRead = await readDebriefFile(
+        debriefFilePath(worktreePath, document.id, declaration.id),
+      );
+      if (isOk(debriefRead) && debriefRead.value.kind === "legacy") {
+        ledger.append({
+          kind: "session-narrated",
+          session,
+          at: clock.now().wallMs,
+          line: `debrief.yaml reads as ${debriefRead.value.version}, legacy; not ingested`,
+        });
+      }
+    }
+
     const judged = await judgeGates({
       ledger,
       clock,
       node,
-      session: `${runnerId}-${declaration.id}`,
-      declaredGateIds: declaredGateIds(standingGates, declaration.gates),
+      session,
+      declaredGateIds: declaredIds,
       commandFor: gateCommandTable(standingGates, declaration.gates),
       worktree: worktreePath,
       scopeRoot: worktreePath,

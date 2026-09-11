@@ -1,7 +1,14 @@
-import { mkdirSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+  rmSync,
+} from "node:fs";
 import { join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
 import { ok } from "@phyxiusjs/fp";
+import { isLedgerEvent } from "ledger";
 import type { Runtime } from "runner";
 import { afterEach, describe, expect, it } from "vitest";
 import { commitAll, gitInitFixture } from "./graph/gitFixture.ts";
@@ -264,6 +271,22 @@ describe("interlock judge", () => {
       "1 uncommitted path(s) in the worktree; gates judge commits only",
     );
     expect(lines).toContain("  uncommitted.txt");
+
+    const journal = readFileSync(
+      join(cwd, ".interlock", "ledger", "journal.jsonl"),
+      "utf-8",
+    );
+    const narrated = journal
+      .trim()
+      .split("\n")
+      .map((line): unknown => JSON.parse(line))
+      .filter(isLedgerEvent)
+      .filter((event) => event.kind === "session-narrated");
+    expect(narrated.every((event) => event.session === sessionId)).toBe(true);
+    expect(narrated.map((event) => event.line).slice(-2)).toEqual([
+      "1 uncommitted path(s) in the worktree; gates judge commits only",
+      "  uncommitted.txt",
+    ]);
   }, 30_000);
 
   it("refuses a node whose lease has not expired", async () => {

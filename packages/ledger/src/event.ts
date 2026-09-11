@@ -65,6 +65,12 @@ export type LedgerEvent =
       readonly node: Node;
       readonly id: string;
       readonly intent: string;
+    }
+  | {
+      readonly kind: "session-narrated";
+      readonly session: string;
+      readonly at: number;
+      readonly line: string;
     };
 
 export function isLedgerEvent(value: unknown): value is LedgerEvent {
@@ -112,6 +118,12 @@ export function isLedgerEvent(value: unknown): value is LedgerEvent {
         isNode(prop(value, "node")) &&
         isString(prop(value, "id")) &&
         isString(prop(value, "intent"))
+      );
+    case "session-narrated":
+      return (
+        isString(prop(value, "session")) &&
+        typeof prop(value, "at") === "number" &&
+        isString(prop(value, "line"))
       );
     default:
       return false;

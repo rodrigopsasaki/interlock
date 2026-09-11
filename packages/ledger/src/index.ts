@@ -47,7 +47,12 @@ export {
   isOutcome,
   outcome,
 } from "./outcome.ts";
-export type { LedgerProjection, NodeView, SessionView } from "./projection.ts";
+export type {
+  LedgerProjection,
+  Narrated,
+  NodeView,
+  SessionView,
+} from "./projection.ts";
 export {
   applyEvent,
   emptyProjection,

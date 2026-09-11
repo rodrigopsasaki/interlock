@@ -21,6 +21,7 @@ import {
   judgeWorktree,
   loadLocalConfig,
   loadStandingGates,
+  recordingNarrate,
 } from "runner";
 import type { CommandResult } from "./main.ts";
 
@@ -50,7 +51,7 @@ export async function runInterlockJudge(
     };
   }
 
-  const narrate =
+  let narrate =
     options.narrate ??
     ((line: string) => {
       process.stdout.write(`${line}\n`);
@@ -165,6 +166,7 @@ export async function runInterlockJudge(
         message: `${node}: no session recorded for this node; name one with --session <id>.`,
       };
     }
+    narrate = recordingNarrate(ledger, clock, sessionId, narrate);
 
     const gateIds = declaredGateIds(standingGates.value, declaration.gates);
     const judged = await judgeWorktree({

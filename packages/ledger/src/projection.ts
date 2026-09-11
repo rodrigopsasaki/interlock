@@ -18,6 +18,11 @@ export interface NodeView {
   readonly outcomeSetAtGeneration: number | undefined;
 }
 
+export interface Narrated {
+  readonly at: number;
+  readonly line: string;
+}
+
 export interface SessionView {
   readonly session: string;
   readonly node: Node;
@@ -28,6 +33,7 @@ export interface SessionView {
   readonly lease: Lease | undefined;
   readonly leaseExpired: boolean;
   readonly leaseGeneration: number | undefined;
+  readonly narration: readonly Narrated[];
 }
 
 export interface LedgerProjection {
@@ -136,6 +142,7 @@ export function applyEvent(
         lease: undefined,
         leaseExpired: false,
         leaseGeneration: undefined,
+        narration: [],
       });
       return { ...withNodeCreated, sessions };
     }
@@ -143,6 +150,11 @@ export function applyEvent(
       return withSession(projection, event.session, (view) => ({
         ...view,
         notes: [...view.notes, event.note],
+      }));
+    case "session-narrated":
+      return withSession(projection, event.session, (view) => ({
+        ...view,
+        narration: [...view.narration, { at: event.at, line: event.line }],
       }));
     case "debrief-filed":
       return withSession(projection, event.session, (view) => ({

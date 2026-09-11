@@ -13,6 +13,15 @@ describe("interlock debrief validate", () => {
   });
 });
 
+describe("interlock session show", () => {
+  it("routes by its group and action, refusing before touching disk when no graph or node is given", async () => {
+    const result = await run(["session", "show"]);
+
+    expect(result.exitCode).not.toBe(0);
+    expect(result.message).toContain("interlock session show");
+  });
+});
+
 describe("an unknown command", () => {
   it("also fails closed rather than exiting quietly", async () => {
     const result = await run(["graph", "status"]);

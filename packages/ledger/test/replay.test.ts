@@ -414,4 +414,23 @@ describe("replay's versioned upcast seam", () => {
       error: { tag: "event@v1", line: 1 },
     });
   });
+
+  it("replays the real journal fixture under v4 without loss, narration events included", () => {
+    const raw = readFileSync(
+      join(import.meta.dirname, "fixtures", "journal-v3-v4-2026-09-11.jsonl"),
+      "utf-8",
+    );
+    const lines = raw.split("\n").filter((line) => line.trim().length > 0);
+
+    const replayed = replayFromRaw(raw);
+    expect(replayed._tag).toBe("Ok");
+    expect(parseableEventCount(raw)).toBe(lines.length);
+
+    const graphNode: Node = { graph: "0001-bootstrap", id: "0001-bootstrap" };
+    if (replayed._tag !== "Ok") return;
+    const approved = replayed.value.nodes
+      .get(nodeKey(graphNode))
+      ?.gates.get("approved");
+    expect(approved?.kind).toBe("satisfied");
+  });
 });
