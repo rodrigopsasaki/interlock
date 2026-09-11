@@ -11,7 +11,12 @@ import {
 } from "ledger";
 import { describe, expect, it } from "vitest";
 import type { GraphDocument } from "../src/document.ts";
-import { approvalState, computePosition } from "../src/position.ts";
+import {
+  approvalState,
+  positionOf,
+  type Position,
+  type PositionNode,
+} from "../src/position.ts";
 
 const document: GraphDocument = {
   id: "demo",
@@ -35,20 +40,46 @@ function receipt(gateId: string): Receipt {
   };
 }
 
-describe("computePosition", () => {
+function brief(node: string) {
+  return {
+    graph: "demo",
+    node,
+    role: "worker",
+    acceptance: "x",
+    gates: [],
+    scope: [],
+  };
+}
+
+function nodeIn(position: Position, id: string): PositionNode {
+  const found = position.nodes.find((node) => node.id === id);
+  if (found === undefined) throw new Error(`no node "${id}" in position`);
+  return found;
+}
+
+describe("positionOf", () => {
+  it("names the shape on every value it produces", () => {
+    const position = positionOf(document, fold([]), "some-hash");
+    expect(position.interlock).toBe("position@v1");
+  });
+
   it("shows a node with no upstream state as ready, and pending gates, when the projection knows nothing", () => {
-    const position = computePosition(document, fold([]), "some-hash");
-    const a = position.nodes.find((node) => node.id === "a");
-    expect(a?.state).toEqual({ kind: "ready" });
-    expect(a?.gates).toEqual([{ id: "typecheck", gate: gate.pending() }]);
+    const position = positionOf(document, fold([]), "some-hash");
+    const a = nodeIn(position, "a");
+    expect(a.state).toEqual({ kind: "ready" });
+    expect(a.gates).toEqual([{ id: "typecheck", state: { kind: "pending" } }]);
   });
 
   it("blocks a node on every dependency that is not cleared, naming them", () => {
-    const position = computePosition(document, fold([]), "some-hash");
-    const b = position.nodes.find((node) => node.id === "b");
-    expect(b?.state).toEqual({ kind: "blocked", on: ["a"] });
-    const c = position.nodes.find((node) => node.id === "c");
-    expect(c?.state).toEqual({ kind: "blocked", on: ["a", "b"] });
+    const position = positionOf(document, fold([]), "some-hash");
+    expect(nodeIn(position, "b").state).toEqual({
+      kind: "blocked",
+      on: ["a"],
+    });
+    expect(nodeIn(position, "c").state).toEqual({
+      kind: "blocked",
+      on: ["a", "b"],
+    });
   });
 
   it("is ready once every dependency's outcome is cleared", () => {
@@ -68,10 +99,8 @@ describe("computePosition", () => {
         outcome: { kind: "cleared", receipts: [] },
       },
     ]);
-    const position = computePosition(document, cleared, "some-hash");
-    expect(position.nodes.find((node) => node.id === "b")?.state).toEqual({
-      kind: "ready",
-    });
+    const position = positionOf(document, cleared, "some-hash");
+    expect(nodeIn(position, "b").state).toEqual({ kind: "ready" });
   });
 
   it("shows a node's own recorded outcome instead of computing ready/blocked", () => {
@@ -89,14 +118,14 @@ describe("computePosition", () => {
         outcome: heldOutcome,
       },
     ]);
-    const position = computePosition(document, projection, "some-hash");
-    expect(position.nodes.find((node) => node.id === "a")?.state).toEqual({
+    const position = positionOf(document, projection, "some-hash");
+    expect(nodeIn(position, "a").state).toEqual({
       kind: "outcome",
       outcome: heldOutcome,
     });
   });
 
-  it("reads a node's gate state from the projection where present", () => {
+  it("reads a node's gate state from the projection, splitting the receipt out as a summary", () => {
     const satisfied = gate.satisfied(receipt("typecheck"));
     const projection = fold([
       { kind: "node-created", node: { graph: "demo", id: "a" } },
@@ -107,24 +136,34 @@ describe("computePosition", () => {
         to: satisfied,
       },
     ]);
-    const position = computePosition(document, projection, "some-hash");
-    expect(position.nodes.find((node) => node.id === "a")?.gates).toEqual([
-      { id: "typecheck", gate: satisfied },
+    const position = positionOf(document, projection, "some-hash");
+    expect(nodeIn(position, "a").gates).toEqual([
+      {
+        id: "typecheck",
+        state: { kind: "satisfied" },
+        receipt: {
+          id: "receipt-typecheck",
+          commit: "deadbeef",
+          duration: duration.unknown(),
+          spend: spend.none(),
+          derivation: "gate",
+        },
+      },
     ]);
   });
 
   it("is the graph document's declared node order, topologically", () => {
-    const position = computePosition(document, fold([]), "some-hash");
+    const position = positionOf(document, fold([]), "some-hash");
     expect(position.nodes.map((node) => node.id)).toEqual(["a", "b", "c"]);
   });
 
-  it("computes the unweighted critical path over the document's own edges", () => {
-    const position = computePosition(document, fold([]), "some-hash");
+  it("computes the unweighted critical path over the document's own edges when no receipt is measured", () => {
+    const position = positionOf(document, fold([]), "some-hash");
     expect(position.criticalPath).toEqual(["a", "b", "c"]);
   });
 
   it("reports not-approved when the graph pseudo-node carries no approved gate", () => {
-    const position = computePosition(document, fold([]), "some-hash");
+    const position = positionOf(document, fold([]), "some-hash");
     expect(position.approval).toBe("not-approved");
   });
 
@@ -139,7 +178,7 @@ describe("computePosition", () => {
         to: gate.satisfied(approvedReceipt),
       },
     ]);
-    const position = computePosition(document, projection, "current-hash");
+    const position = positionOf(document, projection, "current-hash");
     expect(position.approval).toBe("approved");
   });
 
@@ -154,8 +193,93 @@ describe("computePosition", () => {
         to: gate.satisfied(approvedReceipt),
       },
     ]);
-    const position = computePosition(document, projection, "new-hash");
+    const position = positionOf(document, projection, "new-hash");
     expect(position.approval).toBe("stale");
+  });
+
+  it("carries every session as an attempt, joining the node's outcome only to the session that earned it", () => {
+    const clearedReceipt = {
+      ...receipt("typecheck"),
+      duration: duration.measured(1000),
+    };
+    const projection = fold([
+      { kind: "node-created", node: { graph: "demo", id: "a" } },
+      {
+        kind: "session-started",
+        session: { id: "session-1", node: { graph: "demo", id: "a" } },
+        brief: brief("a"),
+        graphBaseSha: "deadbeef",
+      },
+      {
+        kind: "lease-taken",
+        node: { graph: "demo", id: "a" },
+        session: "session-1",
+        expiry: 1,
+      },
+      {
+        kind: "lease-expired",
+        node: { graph: "demo", id: "a" },
+        session: "session-1",
+      },
+      {
+        kind: "outcome-set",
+        node: { graph: "demo", id: "a" },
+        outcome: { kind: "cleared", receipts: [clearedReceipt] },
+      },
+      {
+        kind: "session-started",
+        session: { id: "session-2", node: { graph: "demo", id: "a" } },
+        brief: brief("a"),
+        graphBaseSha: "deadbeef",
+      },
+    ]);
+    const position = positionOf(document, projection, "some-hash");
+    const attempts = nodeIn(position, "a").attempts;
+    expect(attempts.map((attempt) => attempt.session)).toEqual([
+      "session-1",
+      "session-2",
+    ]);
+    expect(attempts[0]?.outcome).toEqual({
+      kind: "cleared",
+      receipts: [clearedReceipt],
+    });
+    expect(attempts[1]?.outcome).toBeUndefined();
+  });
+
+  it("resolves a live session's agent status through the supplied lookup, never guessing when it returns nothing", () => {
+    const projection = fold([
+      { kind: "node-created", node: { graph: "demo", id: "a" } },
+      {
+        kind: "session-started",
+        session: { id: "session-1", node: { graph: "demo", id: "a" } },
+        brief: brief("a"),
+        graphBaseSha: "deadbeef",
+      },
+      {
+        kind: "lease-taken",
+        node: { graph: "demo", id: "a" },
+        session: "session-1",
+        expiry: 1,
+      },
+    ]);
+    const withStatus = positionOf(
+      document,
+      projection,
+      "some-hash",
+      () => "working",
+    );
+    expect(nodeIn(withStatus, "a").attempts[0]?.agentStatus).toBe("working");
+
+    const withoutStatus = positionOf(
+      document,
+      projection,
+      "some-hash",
+      () => undefined,
+    );
+    expect(nodeIn(withoutStatus, "a").attempts[0]?.agentStatus).toBeUndefined();
+
+    const withoutLookup = positionOf(document, projection, "some-hash");
+    expect(nodeIn(withoutLookup, "a").attempts[0]?.agentStatus).toBeUndefined();
   });
 });
 

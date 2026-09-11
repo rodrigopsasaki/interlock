@@ -1,10 +1,6 @@
-import type { Gate } from "ledger";
-import type {
-  ApprovalState,
-  NodeState,
-  Position,
-  PositionGate,
-} from "./position.ts";
+import type { Float } from "./float.ts";
+import type { PositionGate, PositionGateState } from "./positionGate.ts";
+import type { ApprovalState, NodeState, Position } from "./position.ts";
 
 function renderApproval(approval: ApprovalState): string {
   switch (approval) {
@@ -30,24 +26,24 @@ function renderState(state: NodeState): string {
   }
 }
 
-function renderGateState(value: Gate): string {
-  switch (value.kind) {
+function renderGateState(state: PositionGateState): string {
+  switch (state.kind) {
     case "pending":
       return "pending";
     case "satisfied":
       return "satisfied";
     case "blocked":
-      return `blocked (${value.because})`;
+      return `blocked (${state.because})`;
     case "waived":
-      return `waived by ${value.authority}`;
+      return `waived by ${state.authority}`;
     case "superseded":
-      return `superseded by ${value.authority}`;
+      return `superseded by ${state.authority}`;
   }
 }
 
 function renderGates(gates: readonly PositionGate[]): string {
   if (gates.length === 0) return "gates: none declared";
-  return `gates: ${gates.map((entry) => `${entry.id} ${renderGateState(entry.gate)}`).join(", ")}`;
+  return `gates: ${gates.map((entry) => `${entry.id} ${renderGateState(entry.state)}`).join(", ")}`;
 }
 
 export function renderPosition(position: Position): string {
@@ -59,6 +55,9 @@ export function renderPosition(position: Position): string {
   for (const node of position.nodes) {
     lines.push(`${node.id} — ${renderState(node.state)}`);
     lines.push(`  ${renderGates(node.gates)}`);
+    if (node.float.kind === "measured") {
+      lines.push(`  ${renderFloat(node.float)}`);
+    }
   }
 
   lines.push("");
@@ -69,4 +68,8 @@ export function renderPosition(position: Position): string {
   );
 
   return lines.join("\n");
+}
+
+function renderFloat(float: Extract<Float, { kind: "measured" }>): string {
+  return `float: ${Math.round(float.ms)}ms`;
 }
