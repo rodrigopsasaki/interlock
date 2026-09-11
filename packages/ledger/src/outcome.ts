@@ -10,7 +10,8 @@ export type HeldOn =
       readonly failure: string;
       readonly disposition: Disposition;
     }
-  | { readonly kind: "decision"; readonly authority: string };
+  | { readonly kind: "decision"; readonly authority: string }
+  | { readonly kind: "uncommitted-work"; readonly paths: number };
 
 export type Outcome =
   | { readonly kind: "cleared"; readonly receipts: readonly Receipt[] }
@@ -78,6 +79,10 @@ export const heldOn = {
     disposition,
   }),
   decision: (authority: string): HeldOn => ({ kind: "decision", authority }),
+  uncommittedWork: (paths: number): HeldOn => ({
+    kind: "uncommitted-work",
+    paths,
+  }),
 };
 
 export const outcome = {
@@ -153,6 +158,8 @@ export function isHeldOn(value: unknown): value is HeldOn {
       );
     case "decision":
       return isString(prop(value, "authority"));
+    case "uncommitted-work":
+      return typeof prop(value, "paths") === "number";
     default:
       return false;
   }

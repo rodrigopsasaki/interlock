@@ -24,7 +24,9 @@ function renderState(state: NodeState): string {
     case "blocked":
       return `blocked on ${state.on.join(", ")}`;
     case "outcome":
-      return state.outcome.kind;
+      return state.outcome.kind === "held"
+        ? `held: ${state.outcome.because}`
+        : state.outcome.kind;
   }
 }
 

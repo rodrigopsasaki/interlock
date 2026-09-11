@@ -216,7 +216,7 @@ describe("readBriefFile", () => {
 
 const REPO_ROOT = join(import.meta.dirname, "..", "..", "..");
 
-const existingBriefs: readonly [string, string][] = [
+const legacyBriefs: readonly [string, string][] = [
   ["0001-bootstrap", "debrief-schema"],
   ["0001-bootstrap", "face-read"],
   ["0001-bootstrap", "ledger-gaps"],
@@ -226,39 +226,24 @@ const existingBriefs: readonly [string, string][] = [
   ["0002-shapes", "brief-shape"],
 ];
 
-describe("every existing brief under .interlock/sessions", () => {
-  it.each(existingBriefs)(
-    "%s/%s validates as brief@v0",
-    async (graph, node) => {
-      const path = join(
-        REPO_ROOT,
-        ".interlock",
-        "sessions",
-        graph,
-        node,
-        "brief.md",
-      );
-      const result = await readBriefFile(path);
-      expect(isOk(result)).toBe(true);
-      if (!isOk(result)) return;
-      expect(result.value.kind).toBe("legacy");
-    },
-  );
+function existingBriefPath(graph: string, node: string): string {
+  return join(REPO_ROOT, ".interlock", "sessions", graph, node, "brief.md");
+}
 
-  // verifier-hunks is the first node `interlock run` itself has leased: the runner rewrites
-  // brief.md into a real brief@v1 in the worktree before the session starts, so this one
-  // session directory's file is no longer the scaffolded legacy placeholder every other one
-  // still is.
-  it("0001-bootstrap/verifier-hunks validates as brief@v1, rewritten by the runner", async () => {
-    const path = join(
-      REPO_ROOT,
-      ".interlock",
-      "sessions",
-      "0001-bootstrap",
-      "verifier-hunks",
-      "brief.md",
+describe("every existing brief under .interlock/sessions", () => {
+  it.each(legacyBriefs)("%s/%s validates as brief@v0", async (graph, node) => {
+    const result = await readBriefFile(existingBriefPath(graph, node));
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) return;
+    expect(result.value.kind).toBe("legacy");
+  });
+
+  // verifier-hunks carries brief@v1 front matter from the moment the runner became the one
+  // to drive it live; every other brief here predates that and stays legacy-valid.
+  it("0001-bootstrap/verifier-hunks validates as brief@v1", async () => {
+    const result = await readBriefFile(
+      existingBriefPath("0001-bootstrap", "verifier-hunks"),
     );
-    const result = await readBriefFile(path);
     expect(isOk(result)).toBe(true);
     if (!isOk(result)) return;
     expect(result.value.kind).toBe("v1");

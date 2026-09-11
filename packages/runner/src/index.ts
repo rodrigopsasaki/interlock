@@ -8,7 +8,10 @@ export type {
 } from "./runtime.ts";
 export { explainRuntimeRefusal } from "./runtime.ts";
 
+export type { PriorWork } from "./openingPrompt.ts";
 export { buildOpeningPrompt } from "./openingPrompt.ts";
+
+export { waitForSession } from "./sessionWait.ts";
 
 export { createHerdrRuntime, defaultHerdrSocketPath } from "./herdr/adapter.ts";
 export {
@@ -44,12 +47,14 @@ export {
   substituteGateCommand,
 } from "./gateCommand.ts";
 
-export type { WorktreeRefusal } from "./worktree.ts";
+export type { WorktreeOutcome, WorktreeRefusal } from "./worktree.ts";
 export {
+  commitBriefIfChanged,
   createDetachedWorktree,
   ensureNodeWorktree,
   explainWorktreeRefusal,
   removeWorktree,
+  uncommittedPaths,
 } from "./worktree.ts";
 
 export type { WorktreeSetupRefusal } from "./worktreeSetup.ts";
@@ -89,6 +94,16 @@ export {
   explainGateJudgeRefusal,
   judgeGates,
 } from "./gateJudge.ts";
+
+export type {
+  JudgeWorktreeRefusal,
+  JudgeWorktreeRequest,
+} from "./judgeWorktree.ts";
+export {
+  HELD_REVISIT_MS,
+  explainJudgeWorktreeRefusal,
+  judgeWorktree,
+} from "./judgeWorktree.ts";
 
 export { ABANDONED_AUTHORITY, sweepExpiredLeases } from "./sweep.ts";
 
