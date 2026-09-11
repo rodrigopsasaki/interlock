@@ -1,0 +1,71 @@
+interlock: notes@v0
+node: self-run
+entries:
+  - kind: choice
+    at: "2026-09-11T19:45:00Z"
+    chose: >
+      Read `graph status`'s "leased by a live session" test entirely off
+      `LedgerProjection.sessions`: a session whose `node` matches, whose
+      `lease` is defined, whose `leaseExpired` is false, and whose
+      `lease.expiry` is still ahead of the clock's `now()` -- the exact
+      three-part check `judge.ts` already uses to refuse judging a node
+      someone else is mid-session on -- rather than adding a fourth
+      `NodeState` variant to `position.ts` for "leased".
+    because: >
+      The brief says `graph status` reads position "through `positionOf`
+      and nothing else," but `positionOf`'s own `NodeState` union
+      (outcome / ready / blocked) has no arm for "currently leased" --
+      liveness lives on the session view, not the node view, and
+      `graph show`'s own `liveSessionsOf` helper already computes it the
+      same way for its agent-status join. Reusing the established
+      predicate keeps one definition of "live" instead of inventing a
+      second, and leaves `position@v1`'s shape alone, which is out of
+      scope for this node.
+  - kind: choice
+    at: "2026-09-11T19:46:00Z"
+    chose: >
+      Opened the journal read-only through `readReplay(sharedJournalDirectory(repoRoot))`,
+      the same call `graph show` and `session show` make, never
+      `createLedger`.
+    because: >
+      The brief is explicit: "Never append to the shared journal; `graph
+      status` reads it through replay like `graph show` does." `judge.ts`
+      opens a writable `Ledger` because it appends narration and
+      receipts; `graph status` produces no receipt of its own and must
+      not touch the file other sessions and the runner are writing to
+      concurrently.
+  - kind: choice
+    at: "2026-09-11T19:47:00Z"
+    chose: >
+      Validated `--expect`'s value against the closed set of `Outcome["kind"]`
+      values (cleared, held, reset, failed, cancelled, superseded) with a
+      small local `ReadonlySet<string>` and a type guard, refusing an
+      unrecognized value by name before reading anything from disk,
+      rather than accepting any string and comparing it loosely.
+    because: >
+      "`--expect` accepts an outcome kind" is the acceptance's own
+      phrase; a typo like `--expect clear` should read as a mistake, not
+      silently compare against every node's outcome and report all of
+      them as mismatched. `disposition.ts`'s `isDisposition` is the same
+      shape in this package (a `ReadonlySet<string>` plus a guard) for
+      the same kind of closed string union, so this follows the
+      established pattern rather than inventing `as const` plus a mapped
+      type for six literals.
+  - kind: choice
+    at: "2026-09-11T19:50:00Z"
+    chose: >
+      Read the shared journal directly (via the built CLI, not this
+      package's own code) before writing anything, to establish which of
+      the twelve nodes were cleared by a live `run`/`judge` session versus
+      `backfill` alone, and how many attempts each took, rather than
+      relying on the design note's bend log prose for the account this
+      node's acceptance asks for.
+    because: >
+      The brief says "The acceptance is judged on the journal, not on
+      the story; you are making the story checkable." The bend log
+      narrates *why* things bent; it does not enumerate session ids,
+      attempt counts or which verb (`run` vs `judge` vs `backfill`)
+      produced each node's final `cleared`. `receipt-written`'s own
+      `derivation.runner` field (`run-<session>`, `judge-<session>` or
+      `backfill-<uuid>`) is the ground truth for that question, so this
+      session read it before writing the debrief's table.
