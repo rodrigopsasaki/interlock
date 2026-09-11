@@ -1,0 +1,273 @@
+interlock: debrief@v2
+graph: 0002-shapes
+node: shapes-reference
+role: worker
+graph_base_sha: 65ec684b7e067ff57423dfafc95b745a78eb6d8e
+session_start_sha: e6925a7db6b9d0dcf3f5c0c33b1cf2b81c1b7a8e
+head_sha: 7d7816d212633ad38c730896e1a2848ab3ab441c
+derivation:
+  kind: agent
+  runtime: claude-code
+  model: claude-sonnet-5
+discoveries:
+  - id: d1
+    what: >
+      registry.ts's buildRegistry() only registers a schema file's tag into
+      registry.tags when the file is NOT under schemas/parts/ (its isPart()
+      guard); registry.test.ts's own "names a schema for every shape this
+      node's brief lists" then enumerates exactly 15 tags across 9 term
+      families. That set is the precise, code-defined boundary of "artifact"
+      the brief's "groups files by artifact" describes.
+    found_at: packages/schemas/src/registry.ts:25-45 and packages/schemas/test/registry.test.ts:9-27.
+    mattered_because: >
+      Fixed the generator's grouping to exactly these 9 top-level terms
+      (brief, config, debrief, event, graph, item, local, notes, position)
+      rather than inventing a separate grouping rule, and confirmed schemas
+      under schemas/parts/ (derivation, receipt, gate, outcome, ...) are
+      documented only as a referenced field's type, never as their own
+      section.
+  - id: d2
+    what: >
+      Only 4 of the 9 artifact terms have an exact-match row in AGENTS.md's
+      Vocabulary table: brief, debrief, graph, position. config, event, item
+      and local have no row at all; notes (the artifact/file) only has a
+      singular "note" row (one entry within the file, a different concept),
+      so it is also unmatched under exact-term lookup.
+    found_at: AGENTS.md's "## Vocabulary" table, cross-checked against the 9 artifact terms d1 names.
+    mattered_because: >
+      The brief's own instruction ("a term missing from the table is a
+      sentence in the output and a finding in the debrief, never a
+      coinage") only has teeth once the actual gap is known; five gaps
+      is more than half the terms not covered by the table, worth
+      surfacing plainly rather than papering over with fuzzy matching.
+  - id: d3
+    what: >
+      Three of the 15 registered tags have zero examples anywhere in the
+      corpus this node was told to read: item@v1 and position@v1 (both
+      schemas' own descriptions say so directly -- "there is no file on
+      disk in this shape" / "produced by positionOf and emitted as JSON
+      only by interlock graph show --json"), and event@v4 (the current
+      event version), since the three named ledger fixture journals
+      (journal-v1-approved.jsonl, journal-v1-v2-2026-09-10.jsonl,
+      journal-v3-v4-2026-09-11.jsonl) top out at event@v3 lines.
+    found_at: >
+      A scan of every .interlock/ file's shape tag plus every line of the
+      three ledger fixture journals (run by hand before writing corpus.ts),
+      and item@v1.json's / position@v1.json's own "description" fields.
+    mattered_because: >
+      The generator has to render something honest for these three instead
+      of crashing or fabricating an example; it prints
+      "_No example of `<tag>` was found in the corpus._" and stays
+      deterministic since that sentence is itself derived from what is
+      actually committed.
+  - id: d4
+    what: >
+      packages/schemas/test/corpus.files.test.ts's own filesUnder() walks
+      readdirSync entries in raw, unsorted OS directory order -- fine for a
+      test that only checks every file validates, but not a well-defined
+      "first file" for a generator whose acceptance requires byte-identical
+      regeneration across machines.
+    found_at: packages/schemas/test/corpus.files.test.ts:14-22.
+    mattered_because: >
+      corpus.ts sorts every directory's entries by name before recursing,
+      making "the first file in the corpus that carries that tag" a
+      portable fact instead of an accident of filesystem entry order.
+  - id: d5
+    what: >
+      packages/schemas/src/validate.ts's judgeBriefMarkdown already defines
+      exactly what a legacy vs. current brief.md means: no front-matter
+      fence at all reads as brief@v0 (free-form prose, the whole file is
+      the shape); a fence with interlock: brief@v1 reads as brief@v1 (only
+      the front matter between the fences is the shape, per brief@v1's own
+      schema description).
+    found_at: packages/schemas/src/validate.ts:46-58.
+    mattered_because: >
+      corpus.ts reuses this rule instead of re-deriving it, and it directly
+      answers the brief's "trimmed to the example's own artifact" for
+      brief.md files: the brief@v1 example quotes only its front matter,
+      never the markdown body below it.
+  - id: d6
+    what: >
+      findRepoRoot walks upward from a given cwd looking for a .interlock
+      directory; a fresh mkdtempSync() directory created under
+      packages/cli/test/.runs/ is itself inside this repository, so the
+      walk finds this worktree's own .interlock instead of refusing. None
+      of the other CLI commands' own test files test their identical "no
+      .interlock directory found" refusal message either, for the same
+      structural reason.
+    found_at: >
+      packages/face/src/root.ts:5-13, and a grep of
+      "no .interlock directory found" across every packages/cli/test/*
+      file, which returned zero matches.
+    mattered_because: >
+      Dropped that refusal case from packages/cli/test/schema/reference.test.ts
+      rather than inventing a workaround no sibling command bothers with;
+      kept only the read-only --check assertions against this repository's
+      own already-fresh docs/shapes.md.
+  - id: d7
+    what: >
+      docs/shapes.md's generated section list, in the order loadArtifacts
+      produces them (alphabetical by term): brief, config, debrief, event,
+      graph, item, local, notes, position -- one `## <term>` section each.
+    found_at: docs/shapes.md (this session's own generated output), packages/schemas/src/reference/artifacts.ts's sort.
+    mattered_because: this brief's Deliverable #4 asks for the section list in the debrief.
+  - id: d8
+    what: >
+      The five artifact terms the generator found no AGENTS.md vocabulary
+      row for, confirmed by generateReference's own missingVocabularyTerms
+      and asserted in reference.test.ts: config, event, item, local, notes.
+    found_at: packages/schemas/test/reference.test.ts's "lists every artifact term..." assertion.
+    mattered_because: this brief's Deliverable #4 asks for this list in the debrief; same finding as d2, restated here in the field the deliverable names.
+decisions:
+  - id: c1
+    what: >
+      Loaded every schema file (top-level and parts/) into a path-keyed map
+      and resolved $ref strings against it (a relative file path, or a
+      local #/$defs/NAME pointer) using isRecord/isString/prop helpers over
+      unknown values, mirroring debrief's, ledger's and face's own
+      validate.ts pattern, instead of `as`-casting JSON.parse's output.
+    because: the brief's own constraint ("Strict TypeScript; no as, !, any, as unknown as. Narrow it or write a real adapter.") plus matching this repository's established idiom for the same problem.
+    rests_on: ["brief:Constraints"]
+    hunks: [packages/schemas/src/reference/json.ts, packages/schemas/src/reference/schemaFiles.ts]
+  - id: c2
+    what: >
+      artifacts.ts groups only the top-level, non-part schema files into
+      term families (by the `${term}@v${n}` pattern in each file's own
+      "title"), sorted alphabetically by term and ascending by version.
+    because: matches registry.ts's own isPart-excluded tag set exactly (d1), so "artifact" means the same thing here as everywhere else in this package.
+    rests_on: ["d1"]
+    hunks: [packages/schemas/src/reference/artifacts.ts]
+  - id: c3
+    what: >
+      describe.ts renders a field's type/description: a $ref to a part
+      becomes that part's own title and top-level description verbatim,
+      never expanded further; an inline nested object (substrate, runtime,
+      drafted, a local #/$defs/* fragment) is compacted one level into the
+      row's description as "field (type, required|optional); ..."; a
+      property-level oneOf lists its kind branches and their extra fields.
+      fields.ts turns event@v4's root-level oneOf into one field table per
+      kind branch instead of one flat table.
+    because: >
+      every schemas/parts/*.json file already carries a real top-level
+      description, so reusing it verbatim is literally "the schema's
+      description" from the acceptance text with nothing invented; not
+      expanding a referenced part's own fields keeps widely-shared parts
+      (derivation, receipt, gate, outcome...) documented once instead of
+      re-documented in every artifact that references them; one level of
+      compaction keeps every table a short, literal listing of the
+      version's own declared properties while still surfacing real nested
+      structure (verified against position@v1, the deepest-nested shape)
+      instead of a bare "object".
+    rests_on: []
+    hunks: [packages/schemas/src/reference/describe.ts, packages/schemas/src/reference/fields.ts]
+  - id: c4
+    what: >
+      diff.ts diffs two versions of an artifact by comparing declared
+      properties (added, removed, required-flag changed, retyped by raw
+      structural inequality), always skipping the "interlock" tag field;
+      event's root oneOf is diffed by first matching branches across
+      versions on their "kind" const/enum identity, then running the same
+      property diff inside each matched branch.
+    because: >
+      "interlock" changes its literal const on every version by
+      construction, so diffing it would print a no-information "retyped
+      interlock" on every single version transition; event is the only
+      top-level schema whose root is oneOf rather than a plain object, and
+      a branch's kind is the only stable identity across event@v1 through
+      event@v4 (checked by diffing the four event@vN.json files directly:
+      every branch's kind set is stable once introduced).
+    rests_on: []
+    hunks: [packages/schemas/src/reference/diff.ts]
+  - id: c5
+    what: >
+      corpus.ts finds each tag's example by a deterministic sorted walk of
+      .interlock/ followed by the three named ledger fixture journals (the
+      same three, same order, as corpus.journal.test.ts), and treats a
+      brief.md's tag exactly as judgeBriefMarkdown does.
+    because: "d4 (unsorted walk is not a well-defined \"first\") and d5 (reuse the repository's one existing definition of legacy vs. current brief.md)."
+    rests_on: ["d4", "d5"]
+    hunks: [packages/schemas/src/reference/corpus.ts]
+  - id: c6
+    what: >
+      vocabulary.ts parses only the text between AGENTS.md's "## Vocabulary"
+      heading and the next "## " heading at run time, never hardcoding a
+      row in source; render.ts uses the first sentence (split on the first
+      ". ") of a matched row as the purpose line, or a plain
+      "No vocabulary entry for `<term>`." sentence when there is none.
+    because: >
+      the brief forbids quoting AGENTS.md inside code ("the generator reads
+      the vocabulary table at run time instead"); scoping to the Vocabulary
+      section specifically (rather than every "| a | b |" line in the file)
+      avoids the file's separate 3-column Seams table being misread as
+      2-column rows; "one sentence" is taken literally, and the first
+      sentence alone is already a complete, accurate purpose statement for
+      all four terms that do match (checked by hand).
+    rests_on: ["d2"]
+    hunks: [packages/schemas/src/reference/vocabulary.ts, packages/schemas/src/reference/render.ts]
+  - id: c7
+    what: >
+      packages/schemas/src/reference.ts is the public
+      generateReference/checkReference/docsShapesPath surface, exported
+      from the package's index.ts; checkReference compares the two
+      documents line by line and reports the first line that differs.
+    because: the brief names this exact file path as the generator's entry point.
+    rests_on: ["brief:What this node builds"]
+    hunks: [packages/schemas/src/reference.ts, packages/schemas/src/index.ts]
+  - id: c8
+    what: >
+      Wired `interlock schema reference [--check]` into the CLI: with no
+      flag it writes docs/shapes.md; with --check it regenerates in memory
+      and reports freshness or the first stale line, without touching disk.
+    because: the brief's exact command shape; d6 explains why the CLI test skips the "outside a repository" refusal case.
+    rests_on: ["d6"]
+    hunks: [packages/cli/src/schema/reference.ts, packages/cli/src/main.ts, packages/cli/test/schema/reference.test.ts]
+  - id: c9
+    what: >
+      Added the "reference" freshness test (byte equality against the
+      committed page, double-regeneration stability, the five missing
+      vocabulary terms, two purpose sentences) and generated docs/shapes.md
+      itself by running the real `interlock schema reference` command, not
+      by hand-writing it.
+    because: >
+      the "reference" gate's testNamePattern needs a matching describe
+      block to find; running the real command instead of hand-authoring
+      docs/shapes.md is the only way to guarantee the committed page is
+      exactly what the generator produces.
+    rests_on: ["d3"]
+    hunks: [packages/schemas/test/reference.test.ts]
+    produces: [docs/shapes.md]
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+  - id: test
+    result: pass
+    invocation: mise exec -- pnpm test
+  - id: reference
+    result: pass
+    invocation: mise exec -- pnpm --filter schemas --fail-if-no-match test --testNamePattern reference
+    note: "6 tests passed, matching the gate's expected output pattern."
+open:
+  - >
+    "Quoted verbatim" is taken literally: the brief@v1, debrief@v0,
+    debrief@v1 and notes@v0 examples are the largest real files of their
+    shape in the corpus, so docs/shapes.md ends up roughly 2,260 lines, most
+    of it those four examples. No size cap or truncation was applied since
+    the acceptance says "quoted verbatim" with no size qualifier and
+    trimming further would mean choosing what to cut, which the brief does
+    not authorize. Worth a person's opinion if the page's size ever becomes
+    its own problem.
+  - >
+    item@v1, position@v1 and event@v4 currently render
+    "_No example of `<tag>` was found in the corpus._" (d3). This resolves
+    itself automatically the next time any session commits a real example
+    of one of these three shapes under .interlock/ or the ledger fixtures --
+    regenerating will then pick it up and the freshness test will fail
+    until docs/shapes.md is regenerated, exactly as the acceptance intends.
+  - >
+    Five artifact terms have no AGENTS.md vocabulary row (d2, d8): config,
+    event, item, local, notes. Whether AGENTS.md's Vocabulary table should
+    grow rows for these, or whether they are deliberately left as
+    implementation-level shapes beneath the vocabulary's domain language,
+    is a call for whoever owns that table next -- out of this node's scope
+    (AGENTS.md is explicitly not editable here).

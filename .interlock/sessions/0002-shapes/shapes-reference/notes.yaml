@@ -1,0 +1,193 @@
+interlock: notes@v0
+node: shapes-reference
+entries:
+  - kind: choice
+    at: "2026-09-11T20:56:00Z"
+    chose: >
+      "artifact" grouping only covers the 9 top-level tags registry.ts registers
+      (brief, config, debrief, event, graph, item, local, notes, position) -- files
+      under schemas/parts/ are never their own section, only referenced.
+    because: >
+      registry.ts's buildRegistry() explicitly skips schemas/parts/* when populating
+      registry.tags (isPart() guard), and registry.test.ts's own "names a schema for
+      every shape this node's brief lists" enumerates exactly these 15 tag values
+      across 9 term families. The brief's "groups files by artifact (event, debrief,
+      brief, ...)" matches this registry-defined boundary exactly, so following it is
+      reading the code, not inventing a grouping.
+  - kind: choice
+    at: "2026-09-11T20:58:00Z"
+    chose: >
+      "a field table per current version" means only the artifact's latest version
+      gets a full field table; older versions get only their diff-from-previous text,
+      not a repeated field table.
+    because: >
+      The acceptance's detailed clause says "current version" (singular), distinct
+      from "its versions ... each with what changed" (plural, every version) and "one
+      real example per version" (plural, every version). Building a full field table
+      for every historical version would also just re-derive what the diff text
+      already says, so the literal reading is also the non-redundant one.
+  - kind: choice
+    at: "2026-09-11T21:00:00Z"
+    chose: >
+      The generic property-diff between two versions always skips the "interlock"
+      field.
+    because: >
+      Every top-level schema's "interlock" property is a const literal that changes
+      on every single version bump by construction (e.g. "debrief@v1" -> "debrief@v2");
+      diffing it would print "retyped `interlock`" on every version transition with
+      zero information, since the version list itself already names each tag.
+  - kind: choice
+    at: "2026-09-11T21:02:00Z"
+    chose: >
+      event@v1's root oneOf is diffed by matching branches across versions by their
+      "kind" const/enum identity (e.g. "node-created", "lease-taken|lease-renewed"),
+      then running the same property-diff inside each matched branch; a branch whose
+      identity has no match in the previous version is reported as an added kind.
+    because: >
+      event is the only top-level artifact whose schema root is oneOf rather than a
+      plain object with properties; diffing "properties" generically does not apply
+      to it, and the branch's own kind is the only stable identity across event@v1
+      through event@v4 (verified no branch's kind set changes once introduced, by
+      diffing the four event@vN.json files directly).
+  - kind: choice
+    at: "2026-09-11T21:04:00Z"
+    chose: >
+      A field whose schema is `{"$ref": "parts/X.json"}` is documented as type `X`
+      (the referenced schema's own title) with that schema's own top-level
+      "description" reused verbatim as the field's description; the referenced
+      part's own fields are never expanded into the calling field table.
+    because: >
+      Every file under schemas/parts/ carries a non-empty top-level "description"
+      (verified across all 24 part files), so this rule is both literally "the
+      schema's description" from the acceptance text and needs no invented prose.
+      Expanding a referenced part's fields inline would make deeply-shared parts
+      (derivation, receipt, gate, outcome, spend, duration...) re-documented dozens
+      of times across many artifacts' field tables instead of described once by
+      reference.
+  - kind: choice
+    at: "2026-09-11T21:06:00Z"
+    chose: >
+      An inline nested object (no $ref, no title) -- e.g. brief@v1/config@v0/local@v0's
+      "substrate", local@v0's "runtime", debrief@v2's "drafted", graph@v0's node-list
+      item, and position@v1's local #/$defs/* fragments -- gets exactly one row in the
+      parent's field table; its own sub-fields are compacted into that row's
+      description as "field (type, required|optional); ..." one level deep, not
+      flattened into further dotted rows and not recursed past that one level for
+      *their own* nested description text (only their type name surfaces further in).
+    because: >
+      position@v1 nests several of these several levels deep (positionNode -> state
+      -> nodeState -> outcome, or positionNode -> gates -> positionGate -> receipt ->
+      receiptSummary -> duration); flattening every level into the table would produce
+      dotted rows several artifacts deep for a shape with, per its own schema
+      description, "no reader ... anywhere" -- one level of compaction keeps every
+      field table a small, readable, literal listing of the version's own declared
+      properties while still surfacing real nested structure instead of a bare
+      "object".
+  - kind: choice
+    at: "2026-09-11T21:08:00Z"
+    chose: >
+      The vocabulary purpose sentence for an artifact term is the first sentence of
+      the matching AGENTS.md row's "means" cell (split on the first ". "), not the
+      whole cell.
+    because: >
+      The acceptance says "its purpose in one sentence from the vocabulary"; several
+      vocabulary rows (brief, debrief) are two or three sentences, and taking the
+      first one is a mechanical, deterministic rule that needs no editorial judgment
+      about which clause matters most. Checked the four terms that do match (brief,
+      debrief, graph, position): each one's first sentence alone is already a
+      complete, accurate purpose statement.
+  - kind: surprise
+    at: "2026-09-11T21:10:00Z"
+    expected: >
+      Every artifact term (the word before "@vN" in each top-level schema's title)
+      would appear in AGENTS.md's Vocabulary table, since the brief's Read First
+      points at that table as the source of purpose sentences.
+    observed: >
+      Only 4 of the 9 artifact terms match a vocabulary row exactly: brief, debrief,
+      graph, position. config, event, item and local have no vocabulary row at all,
+      and notes (the artifact/file) only has a singular "note" row (one entry within
+      the file), which is a different concept, not a plural-form match -- so it is
+      also treated as a gap rather than fuzzy-matched. Handled per the brief's own
+      instruction ("a term missing from the table is a sentence in the output and a
+      finding in the debrief, never a coinage"): each of these five gets a plain "No
+      vocabulary entry for `<term>`." line instead of an invented definition, and all
+      five are listed in the debrief.
+  - kind: surprise
+    at: "2026-09-11T21:12:00Z"
+    expected: >
+      Every one of the 15 registered tags would have at least one real example under
+      .interlock/ or the ledger's fixture journals.
+    observed: >
+      item@v1 and position@v1 have zero examples anywhere in the corpus -- both
+      schemas' own descriptions say so directly ("there is no file on disk in this
+      shape" / "There is no reader for this shape anywhere in the repository ...
+      produced by positionOf and emitted as JSON only by interlock graph show
+      --json"). event@v4 (the current event version) also has zero examples: the
+      three named ledger fixture journals top out at event@v3 lines. The generator
+      renders "_No example of `<tag>` was found in the corpus._" for these three
+      rather than failing or fabricating one; still deterministic since it is driven
+      by what is actually committed.
+  - kind: choice
+    at: "2026-09-11T21:14:00Z"
+    chose: >
+      Corpus file order is a fully deterministic sorted directory walk under
+      .interlock/ (each directory's own entries sorted by name before recursing),
+      followed by the three ledger fixture journals in the fixed order
+      corpus.journal.test.ts already uses (journal-v1-approved.jsonl,
+      journal-v1-v2-2026-09-10.jsonl, journal-v3-v4-2026-09-11.jsonl); "the first file
+      in the corpus that carries that tag" is the first match in that walk.
+    because: >
+      packages/schemas/test/corpus.files.test.ts's own filesUnder() walks readdirSync
+      entries in raw, unsorted OS order, which is not guaranteed stable across
+      machines/filesystems -- fine for a test that only checks every file validates,
+      but wrong for a generator that must regenerate byte-identical output every run
+      (the acceptance's own words). Explicit sorting makes "first" a well-defined,
+      portable fact instead of an accident of directory-entry order.
+  - kind: choice
+    at: "2026-09-11T21:16:00Z"
+    chose: >
+      A .md file's tag for corpus purposes mirrors packages/schemas/src/validate.ts's
+      judgeBriefMarkdown exactly: no --- front matter at all means the file is an
+      example of brief@v0 (the whole trimmed file body is the example, since v0 is
+      free-form prose); front matter present with interlock: brief@v1 means the file
+      is an example of brief@v1, and only the front-matter block (not the markdown
+      body below it) is quoted, matching the brief's "trimmed to the example's own
+      artifact".
+    because: >
+      Reuses the one place this repository already defines what a legacy vs. current
+      brief.md means (validate.ts) instead of re-deriving the rule; brief@v1's own
+      schema description confirms the split ("Acceptance, constraints and deliverable
+      live only in the unstructured Markdown body ... and are not covered here").
+  - kind: surprise
+    at: "2026-09-11T21:20:00Z"
+    expected: >
+      That manually verifying `interlock schema reference --check` reports staleness
+      correctly (by appending a stray line to the generated docs/shapes.md and
+      re-running --check) could be cleaned up afterward with `git checkout --
+      docs/shapes.md`.
+    observed: >
+      docs/shapes.md was not yet committed at that point in the session (this is the
+      commit that first adds it), so it was untracked; `git checkout -- docs/shapes.md`
+      correctly refused ("pathspec did not match") instead of silently doing nothing
+      destructive, and the stray line stayed until regenerated for real. Also used
+      `/tmp` for a one-line, never-actually-read scratch copy during this same probe,
+      which the brief's constraints forbid ("No `/tmp`"); deleted it immediately and
+      confirmed it is gone. No file under this worktree or outside it was left
+      touched by either slip; docs/shapes.md was regenerated cleanly via the real
+      command right after.
+  - kind: surprise
+    at: "2026-09-11T21:24:00Z"
+    expected: >
+      A CLI test could exercise runSchemaReference's "no .interlock directory found"
+      refusal the same way other CLI unit tests use a fresh mkdtempSync() directory
+      as cwd.
+    observed: >
+      findRepoRoot walks upward from cwd looking for a .interlock directory; a fresh
+      tmpdir created under packages/cli/test/.runs/ is itself inside this repository,
+      so the walk finds this worktree's own .interlock instead of refusing. Grepped
+      every other command's own test file for this same refusal message and found
+      none of them test it either, for the same structural reason -- so dropped that
+      case rather than inventing a workaround (e.g. chroot-like isolation) no sibling
+      command bothers with; packages/cli/test/schema/reference.test.ts covers only
+      the `--check` path against this repository's own real, already-fresh
+      docs/shapes.md, which is read-only and safe under concurrent test runs.
