@@ -256,7 +256,7 @@ describe("expect_output", () => {
     expect(message).toContain("(unclosed");
   });
 
-  it("parses the real bootstrap graph's expect_output criteria", async () => {
+  it("reads the enclosing repository's own bootstrap graph (read-only) and parses its expect_output criteria", async () => {
     const repoRoot = findRepoRoot(import.meta.dirname);
     if (repoRoot === undefined) throw new Error("expected a repo root");
 
