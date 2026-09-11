@@ -28,9 +28,6 @@ const AGENT_PANE_BUSY_CODE = "agent_pane_busy";
 const PANE_READY_INITIAL_BACKOFF_MS = 500;
 const PANE_READY_MAX_BACKOFF_MS = 2_000;
 
-// herdr answers an agent.wait whose timeout_ms elapsed with this code before the status ever
-// changed. That is the slice elapsing, the same as the adapter's own call-timeout, never a
-// refusal: waitUntil's loop goes round again rather than surfacing it as a remote error.
 const AGENT_WAIT_SLICE_TIMEOUT_CODE = "timeout";
 
 function sleep(ms: number): Promise<void> {
