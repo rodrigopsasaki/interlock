@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/substrate@v1/note.response.json",
+  "title": "note.response@substrate@v1",
+  "description": "Acknowledgement of one live note, carrying the derivation the substrate attributed it to. This is what a live envelope buys over absorb: attribution at the moment of the note, not after the fact.",
+  "type": "object",
+  "properties": {
+    "accepted": { "type": "boolean" },
+    "derivation": { "$ref": "../parts/derivation.json" }
+  },
+  "required": ["accepted", "derivation"],
+  "additionalProperties": false
+}

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/substrate@v1/contest.request.json",
+  "title": "contest.request@substrate@v1",
+  "description": "What contest takes when a session disagrees with a belief: the item it disagrees with, its stance, and why.",
+  "type": "object",
+  "properties": {
+    "ref": { "type": "string" },
+    "stance": { "enum": ["agree", "disagree"] },
+    "because": { "type": "string" }
+  },
+  "required": ["ref", "stance", "because"],
+  "additionalProperties": false
+}

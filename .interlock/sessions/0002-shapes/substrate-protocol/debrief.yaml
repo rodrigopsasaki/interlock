@@ -1,0 +1,294 @@
+interlock: debrief@v2
+graph: 0002-shapes
+node: substrate-protocol
+role: worker
+graph_base_sha: 65ec684b7e067ff57423dfafc95b745a78eb6d8e
+session_start_sha: 7c751e10c894816ebdf5699cf688c51c6a5c4037
+head_sha: 2ce4f5cad13842464ff04d02fad533d3de2f799d
+derivation:
+  kind: agent
+  runtime: claude-code
+  model: claude-sonnet-5
+discoveries:
+  - id: d1
+    what: >
+      docs/design/0003-substrate.md named the reference implementation twice: once in the
+      header table's "Reference implementation" row, once more in the "Mapping the reference
+      implementation" section's opening sentence -- against the brief's own fence and
+      AGENTS.md's wall ("named in the design note once and nowhere else").
+    found_at: >
+      grep -n "Preston" docs/design/0003-substrate.md against the draft, before any edit; two
+      matches, at what were then lines 16 and 116.
+    mattered_because: >
+      The brief treats this as binding ("the reference implementation is named exactly once in
+      the note and nowhere in code, schema or test"); left uncorrected, bringing the note to
+      v1.0 would have carried the violation forward as final rather than fixing it.
+  - id: d2
+    what: >
+      brief@v1.json already carries an optional substrate.handle field
+      (packages/debrief/src/briefSubstrate.ts's BriefSubstrate.handle), but this node's own
+      brief text narrows context's response to "a slice of items plus the substrate's
+      vocabulary version" -- no verb in the twelve this protocol defines returns a walk handle.
+    found_at: >
+      packages/debrief/src/briefSubstrate.ts:1-22 and schemas/brief@v1.json's substrate
+      property, read against this session's brief ("What this node builds" > context bullet)
+      while shaping context.response.json.
+    mattered_because: >
+      The draft note's D23/D24 prose ("puts ... a walk handle in the brief's front matter ...
+      It passes the handle") reads as if some verb mints that handle. None does, in the payload
+      set this brief actually asked for. Corrected in the note (docs/design/0003-substrate.md:28-38,
+      135-139) rather than left to contradict the schemas silently.
+  - id: d3
+    what: >
+      The journal already carries each session note as its own event, independent of whether a
+      substrate has a live envelope: event@v4.json's oneOf includes a "note-appended" kind.
+    found_at: "schemas/event@v4.json:55-65 (grep -n '\"const\":' schemas/event@v4.json)."
+    mattered_because: >
+      Grounds the note verb's "if absent" story concretely: a note is durable via the journal
+      either way; a live envelope only buys attribution at the moment it happens rather than
+      after the session ends. Folded into the Payloads section's note bullet
+      (docs/design/0003-substrate.md:101-108).
+  - id: d4
+    what: >
+      packages/schemas/src/registry.ts's buildRegistry walks schemas/ recursively
+      (jsonFilesUnder) and tags every non-parts schema by title, so adding schemas/substrate/
+      required no change to the registry, the corpus.files.test.ts scan, or any package.json.
+    found_at: "packages/schemas/src/registry.ts:14-45."
+    mattered_because: >
+      Confirmed before writing any schema file that the acceptance's "every substrate schema
+      compiles" would be exercised by the existing test machinery once the files existed,
+      rather than needing new plumbing this brief put out of scope.
+  - id: d5
+    what: >
+      A relative $ref from a file under schemas/substrate/ to a sibling top-level schema needs
+      "../name.json" (not "name.json"), and to a parts schema needs "../parts/name.json" (not
+      "parts/name.json"), because ajv resolves a relative $ref against the schema's own $id as a
+      URI -- and every substrate@v1 schema's $id carries an extra "substrate@v1" path segment
+      that "../" must pop, even though no schemas/substrate@v1/ directory exists on disk.
+    found_at: >
+      Verified empirically: buildRegistry() (ajv strict: true, which throws on any unresolved
+      $ref) against schemas/substrate/context.response.json's "../item@v1.json" succeeded, and
+      every one of corpus.substrate.test.ts's 32 assertions against real fixtures passed on the
+      first run.
+    mattered_because: >
+      Got this right on the first attempt by reasoning about URI resolution semantics before
+      writing the 25 files, rather than discovering a systemic $ref bug across all of them
+      after the fact.
+decisions:
+  - id: dec1
+    what: >
+      Built one request and one response schema per verb under schemas/substrate/ (24 files),
+      plus schemas/substrate/capabilities.response.json (no matching request schema), all draft
+      2020-12, $id ending in substrate@v1/<verb>.request.json / <verb>.response.json. Full list
+      with $ids: schemas/substrate/context.request.json
+      (.../schemas/substrate@v1/context.request.json), context.response.json, absorb.request.json,
+      absorb.response.json, consult.request.json, consult.response.json, query.request.json,
+      query.response.json, why.request.json, why.response.json, note.request.json,
+      note.response.json, open.request.json, open.response.json, close.request.json,
+      close.response.json, propose.request.json, propose.response.json, ratify.request.json,
+      ratify.response.json, contest.request.json, contest.response.json, judge.request.json,
+      judge.response.json, capabilities.response.json (each $id
+      https://github.com/rodrigopsasaki/interlock/schemas/substrate@v1/<filename>).
+    because: >
+      The brief names this file layout, $id pattern and verb set explicitly ("What this node
+      builds"), matching the design note's verb table (docs/design/0003-substrate.md:45-56) and
+      D22's two-required-plus-ten-declared shape.
+    rests_on:
+      - .interlock/sessions/0002-shapes/substrate-protocol/brief.md
+      - docs/design/0003-substrate.md
+    hunks:
+      - schemas/substrate/context.request.json:1-14
+      - schemas/substrate/absorb.response.json:1-27
+      - schemas/substrate/capabilities.response.json:1-25
+    produces:
+      - schemas/substrate/context.request.json
+      - schemas/substrate/context.response.json
+      - schemas/substrate/absorb.request.json
+      - schemas/substrate/absorb.response.json
+      - schemas/substrate/consult.request.json
+      - schemas/substrate/consult.response.json
+      - schemas/substrate/query.request.json
+      - schemas/substrate/query.response.json
+      - schemas/substrate/why.request.json
+      - schemas/substrate/why.response.json
+      - schemas/substrate/note.request.json
+      - schemas/substrate/note.response.json
+      - schemas/substrate/open.request.json
+      - schemas/substrate/open.response.json
+      - schemas/substrate/close.request.json
+      - schemas/substrate/close.response.json
+      - schemas/substrate/propose.request.json
+      - schemas/substrate/propose.response.json
+      - schemas/substrate/ratify.request.json
+      - schemas/substrate/ratify.response.json
+      - schemas/substrate/contest.request.json
+      - schemas/substrate/contest.response.json
+      - schemas/substrate/judge.request.json
+      - schemas/substrate/judge.response.json
+  - id: dec2
+    what: >
+      context, consult and query all type their "scope" parameter as an array of plain path
+      strings, matching brief@v1.json's own "scope" field, rather than item@v1's ItemScope union
+      ({kind: repository|path|organisation}).
+    because: >
+      All three calls ask the substrate to consider a set of repository paths -- the same thing
+      a brief's own scope already names. item@v1's "scope" property classifies a returned item's
+      own tier, a different concept behind the same English word; conflating the two would make
+      one field do two jobs.
+    rests_on:
+      - schemas/brief@v1.json
+      - schemas/item@v1.json
+    hunks:
+      - schemas/substrate/context.request.json:8
+      - schemas/substrate/consult.request.json:9
+      - schemas/substrate/query.request.json:9
+  - id: dec3
+    what: >
+      consult.response returns items only (no separate "prior decisions" field); a prior
+      decision that bears on the intent is simply an item whose kind is "decision".
+    because: >
+      item@v1's kind enum already includes "decision" (schemas/item@v1.json,
+      packages/debrief/src/slice.ts's ItemKind). A parallel decision-item shape for consult's
+      response would duplicate a distinction the artifact schema already draws.
+    rests_on:
+      - schemas/item@v1.json
+    hunks:
+      - schemas/substrate/consult.response.json:1-13
+  - id: dec4
+    what: >
+      why.response's "chain" is an array of parts/mark.json entries (rooted, unrooted, gap),
+      not a bespoke "chain step" shape.
+    because: >
+      The note's own description of a chain -- "how it was observed, what it rests on, who
+      produced each step" -- is exactly mark.json's oneOf. Reusing it gives parts/mark.json a
+      direct, load-bearing $ref (one of the six artifacts the brief requires this protocol to
+      reference) instead of a payload that never actually touches it.
+    rests_on:
+      - schemas/parts/mark.json
+      - docs/design/0003-substrate.md
+    hunks:
+      - schemas/substrate/why.response.json:1-13
+  - id: dec5
+    what: >
+      judge.response.json is a bare top-level $ref to parts/receipt.json -- no wrapper object,
+      no "verdict" key.
+    because: >
+      The note is literal: "The verdict is a gate receipt of kind review." Draft 2020-12 allows
+      $id/title/description as siblings of a top-level $ref, so the schema says exactly that
+      without redefining or wrapping receipt.json.
+    rests_on:
+      - schemas/parts/receipt.json
+    hunks:
+      - schemas/substrate/judge.response.json:1-8
+  - id: dec6
+    what: >
+      Added capabilities.response.json with no matching capabilities.request schema, and
+      documented it in the design note as an answer outside the twelve-verb table rather than a
+      thirteenth verb.
+    because: >
+      The brief asks only for "a capabilities response schema"; the note's verb table has no
+      capabilities row at all, yet D22 depends on interlock discovering a substrate's declared
+      capabilities somehow. The call takes no argument beyond the address interlock already
+      holds, so a request schema would have nothing honest to require.
+    rests_on:
+      - .interlock/sessions/0002-shapes/substrate-protocol/brief.md
+    hunks:
+      - schemas/substrate/capabilities.response.json:1-25
+      - docs/design/0003-substrate.md:58-62
+  - id: dec7
+    what: >
+      open, close and note all type "session" as a plain string id, not parts/session.json's
+      {id, node} object.
+    because: >
+      open's request already carries the full brief (which names graph, node and role); a
+      second, independent node reference inside "session" could disagree with the brief's own
+      and nothing here would catch it. A bare id string matches what brief@v1.json already
+      calls "session".
+    rests_on:
+      - schemas/brief@v1.json
+      - schemas/parts/session.json
+    hunks:
+      - schemas/substrate/open.request.json:1-13
+      - schemas/substrate/note.request.json:1-12
+  - id: dec8
+    what: >
+      note.response carries "derivation" (parts/derivation.json) alongside "accepted"; open,
+      close and contest responses carry only a boolean ack.
+    because: >
+      The note's justification for the note verb is attribution -- "a substrate that has one
+      can attribute notes as they happen" -- so note's ack is the one response that must say
+      who/what it attributed the note to. The others have no equivalent claim in the note.
+    rests_on:
+      - docs/design/0003-substrate.md
+    hunks:
+      - schemas/substrate/note.response.json:1-13
+  - id: dec9
+    what: >
+      absorb.response identifies decisions and discoveries by id (decisions_absorbed: string[];
+      discoveries: {id, placement: known|new|unplaced}[]) rather than embedding full objects; the
+      one genuinely new content it returns is gaps: parts/gap.json[].
+    because: >
+      The note describes categorizing what the substrate was handed, not minting new content;
+      ids that round-trip against the debrief's own decision.id/discovery.id are the smallest
+      honest shape. Discoveries the substrate could not place are exactly what the "gap"
+      vocabulary term already names.
+    rests_on:
+      - schemas/debrief@v2.json
+      - schemas/parts/gap.json
+    hunks:
+      - schemas/substrate/absorb.response.json:1-27
+  - id: dec10
+    what: >
+      Corrected docs/design/0003-substrate.md's header table to name the reference
+      implementation once (redirecting to the mapping section) instead of twice, and logged the
+      fix as a bend-log row.
+    because: >
+      The brief's fence and AGENTS.md's wall both require exactly one mention in the note; the
+      draft, read in full per this session's own read-first instruction, had two.
+    rests_on:
+      - AGENTS.md
+      - .interlock/sessions/0002-shapes/substrate-protocol/brief.md
+    hunks:
+      - docs/design/0003-substrate.md:16
+      - docs/design/0003-substrate.md:179
+  - id: dec11
+    what: >
+      Corrected D23/D24 and the "Two protocols" section to state that no verb returns a walk
+      handle, and that the brief's existing, optional substrate.handle is a client-minted detail
+      outside this protocol's typed payloads; logged as a second bend-log row.
+    because: >
+      The draft's prose implied a payload field ("a walk handle in the brief's front matter ...
+      it passes the handle") that this session's own brief -- and the schema built against it
+      -- never produces. Left uncorrected, the note would contradict the shapes it now points at.
+    rests_on:
+      - docs/design/0003-substrate.md
+      - schemas/brief@v1.json
+    hunks:
+      - docs/design/0003-substrate.md:28-38
+      - docs/design/0003-substrate.md:135-139
+      - docs/design/0003-substrate.md:180
+  - id: dec12
+    what: >
+      Confirmed debrief@v2, notes@v0, item@v1 and the event schema (event@v4) are all still
+      current against schemas/ as the schemas node left it, and made no other corrections to
+      the note's claims about accepted artifact versions.
+    because: >
+      The brief's read-first instruction asks the note to be read against real shapes and
+      corrected where it lags; these did not lag, so D25's "accepts debrief@v2 and notes@v0"
+      and the absorb bullet's artifact references needed only the schema paths added, not a
+      version correction.
+    rests_on:
+      - schemas/debrief@v2.json
+      - schemas/notes@v0.json
+      - schemas/item@v1.json
+      - schemas/event@v4.json
+    hunks:
+      - docs/design/0003-substrate.md:82-87
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+  - id: test
+    result: pass
+    invocation: pnpm test
+open: []

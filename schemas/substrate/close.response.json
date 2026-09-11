@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/substrate@v1/close.response.json",
+  "title": "close.response@substrate@v1",
+  "description": "Acknowledgement that a substrate's live envelope is closed for this session.",
+  "type": "object",
+  "properties": {
+    "accepted": { "type": "boolean" }
+  },
+  "required": ["accepted"],
+  "additionalProperties": false
+}

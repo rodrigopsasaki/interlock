@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/substrate@v1/contest.response.json",
+  "title": "contest.response@substrate@v1",
+  "description": "Acknowledgement that a stance was recorded. Contest resolves nothing by itself.",
+  "type": "object",
+  "properties": {
+    "recorded": { "type": "boolean" }
+  },
+  "required": ["recorded"],
+  "additionalProperties": false
+}

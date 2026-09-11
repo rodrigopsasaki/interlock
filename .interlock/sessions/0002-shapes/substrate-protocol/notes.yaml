@@ -1,0 +1,136 @@
+interlock: notes@v0
+node: substrate-protocol
+entries:
+  - kind: choice
+    at: "2026-09-11T18:00:00Z"
+    chose: >
+      Every schemas/substrate/*.json file sits one directory below schemas/, so a $ref to a
+      sibling top-level artifact schema (item@v1.json, debrief@v2.json, notes@v0.json,
+      brief@v1.json) is written "../item@v1.json" etc., and a $ref to a parts schema is written
+      "../parts/derivation.json" etc., rather than repeating the absolute $id string everywhere.
+    because: >
+      Ajv resolves a relative $ref against the containing schema's own $id as a URI, not
+      against the file's location on disk; "substrate@v1" in the $id is a URI path segment for
+      that resolution, so "../" pops it correctly even though no schemas/substrate@v1/
+      directory exists on disk. Verified directly: buildRegistry() (ajv strict: true, which
+      throws on any unresolved $ref) succeeds and reports 25 new tags, one per file.
+  - kind: choice
+    at: "2026-09-11T18:05:00Z"
+    chose: >
+      context(node, scope, role), consult(intent, scope) and query(question, scope) all type
+      "scope" as an array of plain path strings.
+    because: >
+      This is exactly brief@v1's own "scope" field shape (schemas/brief@v1.json's scope
+      property), and all three calls are asking the substrate to consider a set of repository
+      paths, the same thing a brief's own scope already names. item@v1 also has a field called
+      "scope", but that one classifies a returned item's own tier (repository, path,
+      organisation) -- a different concept reusing the same English word, not the same shape.
+      Kept the two apart rather than overloading one type for both.
+    rejected:
+      - "reusing item@v1's ItemScope union (kind repository, path or organisation) for the
+        request-side \"scope\" parameter as well"
+  - kind: choice
+    at: "2026-09-11T18:10:00Z"
+    chose: >
+      consult.response has no separate field for "prior decisions that bear on it"; it returns
+      items, same as a slice, and a prior decision is simply an item whose kind is "decision".
+    because: >
+      item@v1's kind enum already includes "decision" (schemas/item@v1.json, and
+      packages/debrief/src/slice.ts's ItemKind). Inventing a parallel decision-item shape for
+      consult's response would duplicate a distinction the artifact schema already draws,
+      against "compose, don't reinvent" in AGENTS.md's axioms.
+  - kind: choice
+    at: "2026-09-11T18:15:00Z"
+    chose: >
+      why.response's "chain" is an array of parts/mark.json entries, not a bespoke "chain step"
+      shape.
+    because: >
+      The note describes a chain as "how [a claim] was observed, what it rests on, who produced
+      each step" -- precisely what mark.json's oneOf already encodes: rooted (a derivation plus
+      the hunk it was observed in), unrooted (a derivation plus the because it rests on instead
+      of a hunk), and gap (a derivation plus a vocabulary gap). This also gives parts/mark.json
+      the direct $ref the brief requires ("every artifact they carry referenced by $ref ...
+      mark") without a payload that only touches it accidentally.
+  - kind: choice
+    at: "2026-09-11T18:20:00Z"
+    chose: >
+      judge.response.json is a bare top-level $ref to parts/receipt.json -- no wrapper object,
+      no "verdict" key.
+    because: >
+      The note is explicit and literal: "The verdict is a gate receipt of kind review." Draft
+      2020-12 allows $id/title/description as siblings of a top-level $ref, so the schema can
+      say exactly that without redefining receipt.json or wrapping it in a shape the note never
+      describes.
+  - kind: choice
+    at: "2026-09-11T18:22:00Z"
+    chose: >
+      Added schemas/substrate/capabilities.response.json with no matching capabilities.request
+      schema.
+    because: >
+      The brief asks only for "a capabilities response schema", and the design note's verb
+      table has no "capabilities" row at all -- D22 depends on interlock discovering a
+      substrate's declared capabilities, but the draft never says how. Treated this as a real
+      gap in the note (corrected in docs/design/0003-substrate.md's Payloads section: a short
+      paragraph naming the response schema, distinct from the twelve request/response verb
+      pairs) rather than inventing a request payload the note gives no basis for. The call takes
+      no argument beyond the address interlock already holds.
+  - kind: choice
+    at: "2026-09-11T18:24:00Z"
+    chose: >
+      open(session, brief), close(session, reason) and note(session, note) all type "session"
+      as a plain string, not parts/session.json's {id, node} object.
+    because: >
+      open's own request already carries the full brief (which names graph, node and role), and
+      note's request rides alongside notes@v0.node; embedding a second, independent node
+      reference in "session" would let the two disagree with no schema-level way to catch it.
+      A bare id string is what a brief's own front matter already calls "session"
+      (schemas/brief@v1.json's session field), so this keeps the same word meaning the same
+      thing across both schemas.
+  - kind: choice
+    at: "2026-09-11T18:26:00Z"
+    chose: >
+      note.response carries "derivation" (parts/derivation.json) alongside "accepted"; open,
+      close and contest responses carry only a boolean ack ("accepted" / "recorded").
+    because: >
+      The note's own justification for the note verb is attribution -- "a substrate that has
+      one can attribute notes as they happen" -- so note's ack is the one response that must
+      say who/what it attributed the note to. open/close/contest have no equivalent
+      attribution claim in the note, so a bare ack is the smallest honest shape for them; adding
+      an unused derivation field there would be ceremony the note gives no reason for.
+  - kind: choice
+    at: "2026-09-11T18:28:00Z"
+    chose: >
+      absorb.response identifies decisions and discoveries by their debrief ids
+      (decisions_absorbed: string[]; discoveries: {id, placement}[]) rather than embedding full
+      decision/discovery objects or item@v1 objects.
+    because: >
+      The note describes categorization of what the substrate was handed ("which decisions
+      became beliefs, which discoveries were known, new, or could not be placed"), not new
+      content the substrate is minting; ids that round-trip against decision.id/discovery.id in
+      the debrief@v2 the request just carried are the smallest honest shape. The one genuinely
+      new payload -- discoveries the substrate could not place -- is exactly gap.json, already
+      required reading by the "gap" vocabulary term, so "gaps: gap.json[]" carries that part.
+  - kind: surprise
+    at: "2026-09-11T18:32:00Z"
+    expected: >
+      docs/design/0003-substrate.md would name the reference implementation once, per the
+      brief's own fence and AGENTS.md's wall.
+    observed: >
+      It named it twice: once in the header table's "Reference implementation" row, and once
+      in the "Mapping the reference implementation" section's opening sentence. Fixed by
+      pointing the header row at the mapping section instead of repeating the name there, and
+      added a row to the bend log recording it. grepped docs/design/0003-substrate.md for the
+      name afterward to confirm exactly one occurrence remains.
+  - kind: surprise
+    at: "2026-09-11T18:30:00Z"
+    expected: >
+      docs/design/0003-substrate.md's verb table and Payloads section would say, somewhere, how
+      interlock learns which of the ten optional capabilities a given substrate address
+      actually implements.
+    observed: >
+      Nothing in the draft says this; D22 ("everything else is optional and interlock degrades
+      per capability") presumes the discovery mechanism exists but never names it, and the verb
+      table has no capabilities row. The brief's own ask for "a capabilities response schema"
+      is the only place this repository states it should exist. Corrected in the note's v1.0
+      pass: a short paragraph under Payloads naming schemas/substrate/capabilities.response.json,
+      kept separate from the twelve verb rows since it answers no verb in the table.
