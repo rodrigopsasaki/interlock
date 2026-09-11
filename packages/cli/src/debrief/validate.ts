@@ -21,7 +21,7 @@ import type { CommandResult } from "../main.ts";
 const USAGE =
   'interlock debrief validate: expected a graph id and a node id, e.g. "interlock debrief validate 0001-bootstrap debrief-schema", or "interlock debrief validate --file <path>".';
 
-function describeDebriefRead(read: DebriefRead): string {
+export function describeDebriefRead(read: DebriefRead): string {
   if (read.kind === "v2") return `valid as ${DEBRIEF_V2}.`;
 
   const extra = [...read.missingTopLevel];

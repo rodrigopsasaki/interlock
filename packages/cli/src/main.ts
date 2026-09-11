@@ -5,6 +5,7 @@ import { runGraphApprove } from "./graph/approve.ts";
 import { runGraphShow } from "./graph/show.ts";
 import { runInterlockJudge } from "./judge.ts";
 import { runInterlockRun } from "./run.ts";
+import { runSessionShow } from "./session/show.ts";
 import { runInterlockSweep } from "./sweep.ts";
 import { runInterlockVerify } from "./verify.ts";
 
@@ -30,6 +31,10 @@ export async function run(argv: readonly string[]): Promise<CommandResult> {
 
   if (group === "graph" && action === "approve") {
     return runGraphApprove(argv.slice(2));
+  }
+
+  if (group === "session" && action === "show") {
+    return runSessionShow(argv.slice(2));
   }
 
   if (group === "run") {
