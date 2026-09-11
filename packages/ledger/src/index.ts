@@ -64,6 +64,7 @@ export {
   emptyProjection,
   fold,
   isInterrupted,
+  leaseIsLive,
 } from "./projection.ts";
 export type { Duration, Receipt, ScopeRefusal, Stale } from "./receipt.ts";
 export {

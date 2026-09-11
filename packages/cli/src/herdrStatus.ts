@@ -1,17 +1,16 @@
 import { isErr, ok } from "@phyxiusjs/fp";
 import type { AgentStatus } from "face";
-import type { SessionView } from "ledger";
+import { leaseIsLive, type SessionView } from "ledger";
 import { createHerdrRuntime, type Runtime } from "runner";
 
 export function liveSessionsOf(
   graphId: string,
   sessions: ReadonlyMap<string, SessionView>,
+  nowWallMs: number,
 ): readonly SessionView[] {
   return [...sessions.values()].filter(
     (session) =>
-      session.node.graph === graphId &&
-      session.lease !== undefined &&
-      !session.leaseExpired,
+      session.node.graph === graphId && leaseIsLive(session, nowWallMs),
   );
 }
 

@@ -1,4 +1,5 @@
 import { relative } from "node:path";
+import { createSystemClock, type Clock } from "@phyxiusjs/clock";
 import { isErr } from "@phyxiusjs/fp";
 import {
   explainGraphRefusal,
@@ -16,7 +17,11 @@ import type { CommandResult } from "../main.ts";
 
 export async function runGraphShow(
   args: readonly string[],
-  options: { readonly cwd?: string; readonly runtime?: Runtime } = {},
+  options: {
+    readonly cwd?: string;
+    readonly runtime?: Runtime;
+    readonly clock?: Clock;
+  } = {},
 ): Promise<CommandResult> {
   const [id] = args;
   if (id === undefined) {
@@ -60,9 +65,11 @@ export async function runGraphShow(
     return { exitCode: 1, message: explainScopeRefusal(contentHash.error) };
   }
 
+  const clock = options.clock ?? createSystemClock();
+  const nowWallMs = clock.now().wallMs;
   const statuses = await resolveAgentStatuses(
     id,
-    liveSessionsOf(id, replayed.value.sessions),
+    liveSessionsOf(id, replayed.value.sessions, nowWallMs),
     options.runtime,
   );
 
@@ -70,6 +77,7 @@ export async function runGraphShow(
     document.value,
     replayed.value,
     contentHash.value,
+    nowWallMs,
     (session) => statuses.get(session),
   );
 

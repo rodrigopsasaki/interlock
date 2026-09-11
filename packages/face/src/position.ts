@@ -86,6 +86,7 @@ export function positionOf(
   document: GraphDocument,
   projection: LedgerProjection,
   contentHash: string,
+  nowWallMs: number,
   agentStatusFor?: (session: string) => AgentStatus | undefined,
 ): Position {
   const ordered = topologicalOrder(document.nodes);
@@ -103,22 +104,25 @@ export function positionOf(
   const weightOf = (id: string) => nodeWeight(id, outcomeByNode.get(id));
   const floats = floatOf(order, weightOf);
 
-  const nodes = order.map((declaration): PositionNode => ({
-    id: declaration.id,
-    dependsOn: declaration.dependsOn,
-    state: nodeState(declaration, outcomeByNode),
-    gates: nodeGates(declaration, projection, document.id),
-    attempts: attemptsFor(
-      document.id,
-      declaration.id,
-      projection,
-      agentStatusFor,
-    ),
-    float: floats.get(declaration.id) ?? {
-      kind: "unknown",
-      because: `${declaration.id}: no outcome yet`,
-    },
-  }));
+  const nodes = order.map(
+    (declaration): PositionNode => ({
+      id: declaration.id,
+      dependsOn: declaration.dependsOn,
+      state: nodeState(declaration, outcomeByNode),
+      gates: nodeGates(declaration, projection, document.id),
+      attempts: attemptsFor(
+        document.id,
+        declaration.id,
+        projection,
+        nowWallMs,
+        agentStatusFor,
+      ),
+      float: floats.get(declaration.id) ?? {
+        kind: "unknown",
+        because: `${declaration.id}: no outcome yet`,
+      },
+    }),
+  );
 
   const graphNodeView = projection.nodes.get(
     nodeKey({ graph: document.id, id: document.id }),

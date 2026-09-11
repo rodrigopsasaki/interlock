@@ -51,9 +51,19 @@ describe("interlock gate waive", () => {
 
 describe("an unknown command", () => {
   it("also fails closed rather than exiting quietly", async () => {
+    const result = await run(["nonsense", "verb"]);
+
+    expect(result.exitCode).not.toBe(0);
+    expect(result.message).toContain("unknown command");
+  });
+});
+
+describe("interlock graph status", () => {
+  it("routes by its group and action, refusing before touching disk when no graph id is given", async () => {
     const result = await run(["graph", "status"]);
 
     expect(result.exitCode).not.toBe(0);
+    expect(result.message).toContain("interlock graph status");
   });
 });
 

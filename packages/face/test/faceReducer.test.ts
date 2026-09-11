@@ -31,14 +31,10 @@ const position: Position = {
         },
       ],
       attempts: [
-        { session: "s-done" },
+        { session: "s-done", leaseState: { kind: "none" } },
         {
           session: "s-live",
-          lease: {
-            node: { graph: "g1", id: "b" },
-            session: "s-live",
-            expiry: 999,
-          },
+          leaseState: { kind: "live" },
           agentStatus: "working",
         },
       ],
