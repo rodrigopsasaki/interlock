@@ -49,7 +49,7 @@ The graph is a file. You can change the decomposition, dependencies, acceptance,
 whether the proposal came from you, a script, or a model. The runner requires your approval of that
 exact file before starting work; an edit requires approval again.
 
-**The worker cannot quietly lower the bar.** It can challenge a gate and explain why. A person, or
+**The worker cannot quietly lower the bar.** It can say in its debrief that a gate is wrong, and why. A person, or
 a policy a person has ratified, owns the exception and its reason. The CLI now records cancellation,
 reset, and gate waivers with who authorized them and why; a waiver keeps the receipt it applies to.
 
@@ -106,9 +106,10 @@ you thought you had made.
 The intended position brings those consequences into view, then lets you descend into the node,
 its work, and its receipts. Technical detail remains available without becoming the whole conversation.
 
-*Today, the CLI shows dependencies, node state, and an unweighted critical path. Duration-aware
-scheduling and the richer position are being built. Intent-sensitive summaries are a design goal;
-all graph-file changes currently require renewed approval.*
+*Today, the CLI shows dependencies, node state, the critical path weighted by measured gate
+durations, and float where every duration on the path is measured; `--json` emits the same
+position. The interactive face is being built. Intent-sensitive summaries are a design goal;
+every graph-file change requires renewed approval.*
 
 ## Let experience refine the interlocks
 
@@ -142,9 +143,11 @@ now require matching output as well as a successful exit. The condition became m
 an actual failure mode demanded it.
 
 - **Working:** content-specific graph approval, immutable briefs, runner-executed command gates,
-  recorded outcomes, debrief verification, journal-backed session inspection, and human cancellation,
-  reset, and gate waivers.
-- **In progress:** a richer position with timing and float, and the read-only face.
+  recorded outcomes, a duration-weighted position with float, debrief verification, journal-backed
+  session inspection, judgement of a settled worktree by hand, and human cancellation, reset, and
+  gate waivers.
+- **In progress:** the read-only face, a terminal view that descends from plans to a graph's
+  position, a node, a session, and the live pane.
 - **Design direction:** assisted planning, composite review and human gates, and strategies revised
   from evidence.
 
@@ -154,8 +157,8 @@ Read the bootstrap graph from a development checkout:
 pnpm interlock graph show 0001-bootstrap
 ```
 
-The graph describes the work; its local journal supplies observed progress. The repository does
-not yet run its bootstrap end to end unattended.
+The graph describes the work; its local journal supplies observed progress. Several of its nodes
+have run unattended from lease to cleared outcome; the graph as a whole has not yet.
 
 ### One layer in a larger system
 
