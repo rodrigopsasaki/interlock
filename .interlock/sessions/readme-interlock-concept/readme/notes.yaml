@@ -1,0 +1,22 @@
+interlock: notes@v0
+graph: readme-interlock-concept
+node: readme
+notes:
+  - kind: choice
+    what: Keep the presentation in Markdown with separate image assets.
+    because: >
+      GitHub removes custom page styling. Native headings, tables, quotations, and lists keep
+      explanations readable, searchable, and editable while the artwork carries the identity.
+  - kind: surprise
+    expected: The proposed quoted inline asset check could run as a command gate.
+    observed: >
+      packages/runner/src/gateJudge.ts splits the command on whitespace without shell parsing.
+      The quoted script is therefore split into unrelated arguments. A standalone check file
+      is needed. The original approved graph and brief are retained; a corrected invocation
+      requires a separately recorded approval.
+  - kind: choice
+    what: Refresh the status claims to include cancel, reset, and gate waive.
+    because: >
+      Those commands are present at this branch's base, although the local presentation still
+      listed human-control commands as work in progress. Rich position and assisted planning
+      remain separate, unfinished capabilities.
