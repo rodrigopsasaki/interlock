@@ -1,0 +1,297 @@
+interlock: notes@v0
+node: position-model
+entries:
+  - kind: choice
+    at: "2026-09-11T15:05:00Z"
+    chose: >
+      Kept `positionOf(document, projection, contentHash, agentStatusFor?)`
+      with `contentHash` as an explicit, required third parameter, rather
+      than the brief's own shorter gloss `positionOf(graphDocument,
+      projection, agentStatusFor?)`.
+    because: >
+      Approval state can only be decided by comparing the graph's approved
+      receipt id against the current content hash of the graph file, and
+      hashing a file is a filesystem read - face's own position function
+      has to stay pure (no fs, no git) per D14 and D2, exactly like the
+      computePosition it supersedes. `graph show` already computes this
+      hash itself (via ledger's `receiptId`) before calling into face; the
+      brief's own acceptance prose is a gloss of the shape, not a literal
+      signature - the same pattern computePosition already used.
+    rejected: >
+      ["reading the graph file's bytes inside positionOf to hash it itself
+      (moves an fs read into a package that must stay a pure view over
+      already-loaded data, breaking the same purity the prior session's
+      computePosition already established and this node's own acceptance
+      names as 'one typed, pure view')"]
+  - kind: surprise
+    at: "2026-09-11T15:20:00Z"
+    expected: >
+      The herdr adapter already exposed some way to look a pane up by the
+      graph/node/session tokens `pane.report_metadata` writes, since D16's
+      own text says "the face resolves 'which pane is session X' by
+      reading that metadata back through herdr's own pane reads."
+    observed: >
+      Every existing `Runtime` method (openPane, startAgent, reportIdentity,
+      prompt, waitUntil, read, sendKeys, closePane) needs an already-known
+      `Agent` or `Pane` value; none of them can find a pane from tokens
+      alone. The capability the design note describes in prose does not
+      exist in code yet - this node is the first consumer to need it.
+  - kind: choice
+    at: "2026-09-11T15:25:00Z"
+    chose: >
+      Added `Runtime.reportedAgentStatus(query)` to
+      `packages/runner/src/runtime.ts`, implemented in the herdr adapter
+      with one `pane.list` call filtered by `tokens.graph`/`tokens.node`/
+      `tokens.session`, and declared it optional on the interface.
+    because: >
+      `packages/face` never imports the adapter or the runner package at
+      all (runner already depends on face, so the reverse import would
+      cycle - confirmed by reading both package.json files), so the CLI is
+      the only place that can resolve herdr status and hand it to
+      `positionOf` as a plain synchronous lookup, per the brief's own "the
+      optional agentStatusFor(session) is supplied by the CLI." Optional
+      on the interface, rather than required, means every unrelated fake
+      `Runtime` object already in run.test.ts, judge.test.ts,
+      sessionWait.test.ts and liveSmoke.test.ts keeps typechecking
+      untouched - adding a required method would have forced edits across
+      four files this node has no acceptance reason to touch.
+    rejected: >
+      ["a required Runtime method (ripples into every existing fake
+      Runtime across the test suite for a capability only graph show
+      uses today)", "resolving agent status inside packages/face by
+      importing runner directly (impossible: runner already depends on
+      face, so face depending on runner is a cycle; also forbidden by I6
+      and by the brief's own 'packages/face never imports the adapter')"]
+  - kind: surprise
+    at: "2026-09-11T15:30:00Z"
+    expected: >
+      pane.list's success response would be documented in the herdr
+      socket schema fixture the same way agent.get's is (a named
+      PaneListResult def, or at least a method-to-result mapping).
+    observed: >
+      packages/runner/test/fixtures/herdr-socket-schema.json's `request`
+      and `success_response` schemas name every method's params and every
+      payload shape (PaneInfo included, with its own `tokens` and
+      `agent_status` fields) but carry no explicit method-to-result
+      mapping for `pane.list` itself. Inferred the response shape as
+      `{ panes: PaneInfo[] }` by the same `{ agent: AgentInfo }` pattern
+      `agent.get` already uses in this file, and the same `stringAt`-style
+      defensive parsing every other adapter call already applies (no
+      assumed field is read without an `isRecord`/`isString` check first).
+      Recorded as a risk in the debrief's `open`, since this environment
+      has no live herdr to verify the wire against, the way a prior
+      session's own bend-log entry ("the design was written from herdr's
+      docs; the wire said otherwise") already flags as a real failure mode
+      for this exact kind of inference.
+  - kind: choice
+    at: "2026-09-11T15:45:00Z"
+    chose: >
+      Split each declared gate's receipt into a `ReceiptSummary` (id,
+      commit, duration, spend, derivation's kind only) carried separately
+      from a `PositionGateState` that mirrors ledger's `Gate` minus the
+      receipt it already embeds, rather than re-exposing ledger's `Gate`
+      (and its full `Receipt`, `proof` blob included) verbatim.
+    because: >
+      The acceptance is explicit: "gates as `{ id, state, receipt? }`
+      where the receipt summary is id, commit, duration, spend and
+      derivation kind" - a deliberate simplification distinct from
+      attempts' own `outcome`/`lease` fields, which the acceptance does
+      not call a summary and which this node therefore reuses from ledger
+      unchanged.
+    rejected: []
+  - kind: choice
+    at: "2026-09-11T15:50:00Z"
+    chose: >
+      face declares its own local `AgentStatus` string union
+      (`"idle" | "working" | "blocked" | "done" | "unknown"`) in
+      `agentStatus.ts` instead of importing runner's identically-shaped
+      type.
+    because: >
+      Same as the `reportedAgentStatus` choice above - runner depends on
+      face, so face importing runner's `runtime.ts` type would cycle at
+      the package level even though it is "only a type." Both unions are
+      literal string unions with the same members, so TypeScript accepts
+      a value flowing from runner's type into face's without any cast.
+    rejected: []
+  - kind: choice
+    at: "2026-09-11T16:00:00Z"
+    chose: >
+      A node's weight (`weight.ts`) is the sum of only the receipts in its
+      outcome whose `duration.kind` is `"measured"`; a node whose outcome
+      has zero such receipts (no outcome at all, or every receipt's
+      duration unknown) weighs `unknown`, named by the node itself.
+    because: >
+      The acceptance's own words, read literally: "A node's weight is the
+      sum of the measured durations of the receipts in its outcome; a
+      node without them weighs unknown ... Never a number nobody
+      measured." A receipt with an unknown duration is silently excluded
+      from the sum rather than poisoning the whole node to unknown, since
+      the acceptance names "the measured durations," not "every
+      duration."
+    rejected: []
+  - kind: choice
+    at: "2026-09-11T16:10:00Z"
+    chose: >
+      `criticalPath` keeps its existing unweighted, hop-count algorithm as
+      the default (`weightOf` omitted, all four pre-existing tests
+      untouched) and gains an optional weight lookup that only overrides a
+      comparison when BOTH candidate chains have a fully known weight,
+      falling back to hop count the moment either side's weight is not
+      fully known.
+    because: >
+      The real bootstrap graph already answers this: its unweighted
+      critical path (checked against the pre-session baseline) has more
+      hops than every alternative path through the graph, so hop count and
+      weight agree on the real data today, and no invented "unknown beats
+      known" or "known beats unknown" ordering is needed to get the real
+      answer right. Falling back to hop count whenever data is missing,
+      rather than picking a side, avoids fabricating an ordering between a
+      genuinely unmeasured branch and a measured one - matching "never a
+      number nobody measured" extended to the ordering itself, not just
+      the number.
+    rejected: >
+      ["treating unknown as always the longest possible chain (would make
+      every not-yet-run node's branch \"the\" critical path merely by
+      virtue of being unmeasured, which is a guess dressed as a
+      computation)", "treating unknown as always the shortest (hides a
+      genuinely long-running unmeasured branch behind a short measured
+      one)"]
+  - kind: surprise
+    at: "2026-09-11T16:15:00Z"
+    expected: >
+      Falling back to strict-greater-than weight comparison, with hop
+      count only when a weight is missing, would be sufficient.
+    observed: >
+      A weighted-critical-path test failed: a terminus node contributing
+      zero of its own weight tied its own ancestor's cumulative weight
+      exactly, and strict `>` kept the earlier (shorter, wrong) node as
+      the selected end of the path because it was visited first. Fixed by
+      falling through to hop count specifically on a weight tie, not only
+      on a missing weight - `packages/face/src/criticalPath.ts`'s
+      `longer()` now reads `a.weight !== b.weight` before trusting the
+      weight comparison at all.
+  - kind: choice
+    at: "2026-09-11T16:30:00Z"
+    chose: >
+      Float is computed by a real forward/backward CPM pass
+      (`float.ts`'s earliest-finish then latest-finish, float =
+      latest - earliest) over the whole graph, not just a per-node "how
+      long did this node's own receipts take."
+    because: >
+      AGENTS.md's own vocabulary entry: "float: how long a node can wait
+      without moving the graph's finish" - this is a graph-wide slack
+      concept, not a per-node duration, and the acceptance's own phrase
+      "each node's float ... a number only where every duration on the
+      path is measured" only makes sense as CPM slack: a node's float
+      depends on every duration between it and the graph's actual finish,
+      not on its own weight alone.
+    rejected: []
+  - kind: surprise
+    at: "2026-09-11T16:40:00Z"
+    expected: >
+      Rendering the real bootstrap graph after this change would print no
+      new `float:` lines at all, since the three not-yet-run nodes
+      (position-model, face, self-run) would make every node's float
+      unknown.
+    observed: >
+      `verbs` printed `float: 0ms`. `verbs` has no dependents in this
+      graph (nothing declares it in `depends_on`) - a dead-end branch off
+      `runner-command-gate` that self-run's own gate never consumes. The
+      first `latestFinish` implementation set every dependent-less node's
+      own latest-finish to its own earliest-finish, treating it as its own
+      separate, always-zero-float project end - correct for a graph with
+      one true sink, wrong the moment a second, orphaned one exists.
+  - kind: choice
+    at: "2026-09-11T16:45:00Z"
+    chose: >
+      Rewrote `latestFinish` to compute one shared makespan first (the
+      latest earliest-finish among every node with zero dependents, not
+      just the graph's intended final node) and anchor every such sink's
+      latest-finish to that one shared value, before working backward from
+      there.
+    because: >
+      Standard CPM: when a DAG has more than one node nothing depends on,
+      every one of them shares the project's real finish line: `verbs`'
+      real slack is how long it can wait relative to when `self-run`
+      actually finishes, not relative to its own already-measured
+      duration. Verified with a new test (two sinks off one root, a short
+      dead-end and a long real branch) asserting the dead-end gets real
+      slack, not zero, and confirmed the real graph's render goes back to
+      byte-identical with the pre-session baseline once every node's float
+      is correctly unknown today (nothing has reached self-run yet).
+    rejected: >
+      ["leaving every dependent-less node anchored to its own
+      earliest-finish (silently wrong the moment a graph has more than one
+      true sink, and this graph already does)"]
+  - kind: choice
+    at: "2026-09-11T16:50:00Z"
+    chose: >
+      `renderPosition` prints a `float:` line under a node only when its
+      value is `{ kind: "measured" }`, never a `"float: unknown (...)"`
+      line.
+    because: >
+      The brief's own words: "the rendered text for the real bootstrap
+      graph stays identical to today's for every line it prints today,
+      plus float where it is measured" - read literally as an instruction
+      to add lines only where a number exists, not to always add a line.
+      Verified against a captured pre-session baseline: after the
+      multi-sink fix above, the real graph's rendered text is byte-for-
+      byte identical to what `graph show` printed before this session,
+      because every node's true finish (self-run) genuinely has not run
+      yet.
+    rejected: []
+  - kind: choice
+    at: "2026-09-11T17:00:00Z"
+    chose: >
+      A session's own outcome inside its node's `attempts` list is the
+      node's current outcome only when that session's `leaseGeneration`
+      equals the node's `outcomeSetAtGeneration`; every other attempt
+      carries no `outcome` at all.
+    because: >
+      `NodeView` already carries both fields for exactly this join - its
+      own inline comment reads "Lets a later lease tell whether the
+      node's outcome is its own or a stale one left by an earlier,
+      abandoned attempt" - but nothing in the codebase read them before
+      this node; `session show` (built by `attempts`) always shows the
+      node's current outcome regardless of which session earned it, which
+      is correct for a single-session node but wrong the moment a node has
+      more than one attempt, exactly the case `position@v1`'s own
+      "attempts with outcome and lease" (plural) exists to show correctly.
+    rejected: >
+      ["reusing session show's own pattern (attaching the node's current
+      outcome to every attempt) - reads correctly for one attempt and
+      silently wrong for every earlier one on a node with a retry history"]
+  - kind: choice
+    at: "2026-09-11T17:10:00Z"
+    chose: >
+      An attempt's `agentStatus` is only looked up for a session whose
+      lease exists and has not expired; `graph show` itself only dials
+      herdr at all when the graph has at least one such live session, and
+      swallows any herdr refusal into an empty status map rather than
+      failing the command.
+    because: >
+      D16's own cost line: "the overlay renders blank, not guessed" and
+      I5's shape generalized past the substrate: a missing or unreachable
+      external dependency degrades, never errors. A dead session has no
+      live pane to ask about; probing herdr for every historical session
+      on every `graph show` invocation would also be pure waste.
+    rejected: []
+open:
+  - >
+    `Runtime.reportedAgentStatus`'s `pane.list` response shape
+    (`{ panes: PaneInfo[] }`) is inferred from the herdr socket schema
+    fixture's own per-field types and the `{ agent: AgentInfo }` pattern
+    `agent.get` already establishes in the same adapter, not verified
+    against a live herdr instance - none is reachable in this environment.
+    A prior session's own bend-log entry against D16 already records
+    exactly this failure mode once before ("the design was written from
+    herdr's docs; the wire said otherwise"); this is the same kind of risk,
+    flagged rather than assumed silently.
+  - >
+    `renderPosition` never prints a node's `attempts` (session, outcome,
+    lease, agentStatus); the brief's own "stays identical ... plus float"
+    line names only float as the one new thing the text renderer grows,
+    and the acceptance's own out-of-scope list reserves session detail for
+    `session show` (attempts) and the future interactive `face`. Attempts
+    are fully present in `positionOf`'s return value and in `--json`, just
+    not in the plain-text view.

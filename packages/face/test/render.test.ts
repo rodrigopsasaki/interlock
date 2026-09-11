@@ -1,7 +1,7 @@
-import { fold, heldOn, outcome, type LedgerEvent } from "ledger";
+import { duration, fold, heldOn, outcome, type LedgerEvent } from "ledger";
 import { describe, expect, it } from "vitest";
 import type { GraphDocument } from "../src/document.ts";
-import { computePosition } from "../src/position.ts";
+import { positionOf } from "../src/position.ts";
 import { renderPosition } from "../src/render.ts";
 
 const document: GraphDocument = {
@@ -15,12 +15,12 @@ const document: GraphDocument = {
 
 describe("renderPosition", () => {
   it("is a pure function of the position value: same input, same text", () => {
-    const position = computePosition(document, fold([]), "hash");
+    const position = positionOf(document, fold([]), "hash");
     expect(renderPosition(position)).toBe(renderPosition(position));
   });
 
   it("names every node, its approval line, and the critical path, so nothing in the value is silently dropped", () => {
-    const position = computePosition(document, fold([]), "hash");
+    const position = positionOf(document, fold([]), "hash");
     const text = renderPosition(position);
     expect(text).toContain("demo");
     expect(text).toContain("not approved");
@@ -42,10 +42,56 @@ describe("renderPosition", () => {
         ),
       },
     ];
-    const position = computePosition(document, fold(events), "hash");
+    const position = positionOf(document, fold(events), "hash");
     const text = renderPosition(position);
     expect(text).toContain(
       "a — held: 3 uncommitted path(s) in the worktree; gates judge commits only",
     );
+  });
+
+  it("prints a float line only for a node whose float is measured, silent otherwise", () => {
+    const unmeasuredText = renderPosition(
+      positionOf(document, fold([]), "hash"),
+    );
+    expect(unmeasuredText).not.toContain("float:");
+
+    const solo: GraphDocument = {
+      id: "demo",
+      gates: [],
+      nodes: [
+        {
+          id: "solo",
+          dependsOn: [],
+          gates: [{ id: "typecheck", kind: "command" }],
+        },
+      ],
+    };
+    const events: readonly LedgerEvent[] = [
+      {
+        kind: "outcome-set",
+        node: { graph: "demo", id: "solo" },
+        outcome: {
+          kind: "cleared",
+          receipts: [
+            {
+              id: "receipt-typecheck",
+              gate: "typecheck",
+              commitSha: "deadbeef",
+              spend: { kind: "none" },
+              duration: duration.measured(1500),
+              derivation: {
+                kind: "gate",
+                gate: "typecheck",
+                version: "1",
+                runner: "test",
+              },
+              proof: {},
+            },
+          ],
+        },
+      },
+    ];
+    const measuredText = renderPosition(positionOf(solo, fold(events), "hash"));
+    expect(measuredText).toContain("float: 0ms");
   });
 });

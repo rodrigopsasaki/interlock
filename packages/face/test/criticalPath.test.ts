@@ -54,4 +54,48 @@ describe("criticalPath", () => {
   it("is empty for an empty graph", () => {
     expect(criticalPath([])).toEqual([]);
   });
+
+  it("picks the heavier branch by weight even when it has fewer hops", () => {
+    const nodes = [
+      node("start"),
+      node("shortHeavy", ["start"]),
+      node("longLight1", ["start"]),
+      node("longLight2", ["longLight1"]),
+      node("end", ["shortHeavy", "longLight2"]),
+    ];
+    const weights: Record<string, number> = {
+      start: 0,
+      shortHeavy: 1000,
+      longLight1: 1,
+      longLight2: 1,
+      end: 0,
+    };
+    expect(criticalPath(orderedNodes(nodes), (id) => weights[id])).toEqual([
+      "start",
+      "shortHeavy",
+      "end",
+    ]);
+  });
+
+  it("falls back to the unweighted hop count when a branch's weight is not fully known", () => {
+    const nodes = [
+      node("start"),
+      node("unmeasuredHeavy", ["start"]),
+      node("longLight1", ["start"]),
+      node("longLight2", ["longLight1"]),
+      node("end", ["unmeasuredHeavy", "longLight2"]),
+    ];
+    const weights: Record<string, number> = {
+      start: 0,
+      longLight1: 1,
+      longLight2: 1,
+      end: 0,
+    };
+    expect(criticalPath(orderedNodes(nodes), (id) => weights[id])).toEqual([
+      "start",
+      "longLight1",
+      "longLight2",
+      "end",
+    ]);
+  });
 });

@@ -1,0 +1,2045 @@
+interlock: debrief@v2
+graph: 0001-bootstrap
+node: position-model
+role: worker
+graph_base_sha: 1aef03d99288daa614c822557f1a537744dca5b5
+session_start_sha: 458da58b04ed5b89cda6fab8371b9d4b7e79cf3f
+head_sha: f9553697440dd13d430d7b389990c49ac129ff30
+derivation:
+  kind: agent
+  runtime: claude-code
+  model: claude-sonnet-5
+discoveries:
+  - id: d1
+    what: >
+      The herdr adapter (packages/runner/src/herdr/adapter.ts) exposed no
+      way to find a pane from the graph/node/session tokens
+      pane.report_metadata writes -- every existing Runtime method needs
+      an already-known Agent or Pane value. D16's own prose ("the face
+      resolves 'which pane is session X' by reading that metadata back
+      through herdr's own pane reads") describes a capability that did
+      not exist in code before this session.
+    found_at: >
+      packages/runner/src/runtime.ts's Runtime interface (openPane,
+      startAgent, reportIdentity, prompt, waitUntil, read, sendKeys,
+      closePane -- all operate on an Agent/Pane the caller already holds)
+    mattered_because: >
+      This node's own acceptance names herdr status as something
+      "supplied by the CLI, which resolves a session's pane through the
+      existing adapter's reads" -- the reads did not exist yet, so this
+      session had to add Runtime.reportedAgentStatus rather than only
+      wire an existing one. Recorded as an unverified-against-live-herdr
+      risk in open.
+  - id: d2
+    what: >
+      NodeView already carries leaseGeneration and outcomeSetAtGeneration
+      specifically so a later reader can tell whether a node's current
+      outcome belongs to a given session or is a stale one left by an
+      earlier, abandoned attempt -- but nothing in the codebase read them
+      before this session. session show (built by attempts) always shows
+      a node's current outcome regardless of which session earned it,
+      correct for one attempt and silently wrong for an earlier one on a
+      node with a retry history.
+    found_at: "packages/ledger/src/projection.ts:11-19"
+    mattered_because: >
+      position@v1's own "attempts with outcome and lease" (plural, one
+      per session) needed exactly this join to be correct; reusing
+      session show's simpler pattern would have attached the node's
+      current outcome to every attempt, including ones that never earned
+      it.
+  - id: d3
+    what: >
+      Every one of the 156 receipt-written events in the repository's own
+      shared journal already carries duration.kind === "measured" --
+      ledger-gaps' own work already wired real timing into every receipt
+      this repository has produced so far.
+    found_at: >
+      .interlock/ledger/journal.jsonl, inspected directly: 156
+      receipt-written events, 156 with duration.kind "measured", 0
+      "unknown"
+    mattered_because: >
+      Weight and float compute real numbers against the real graph
+      immediately for every cleared node, not just placeholders exercised
+      only by this session's own tests -- and the real graph's own float
+      still reads unknown for every node today only because its three
+      not-yet-run nodes (position-model, face, self-run) haven't produced
+      a receipt yet, never because duration data is missing upstream.
+  - id: d4
+    what: >
+      packages/runner/package.json already depends on face
+      ("face": "workspace:*"); packages/face/package.json depends on
+      neither runner nor ledger's runtime concerns. face importing
+      runner, even for a type, would be a package-level cycle.
+    found_at: >
+      packages/face/package.json and packages/runner/package.json,
+      dependencies fields
+    mattered_because: >
+      Settles, structurally rather than by convention alone, that the
+      CLI (not face) must be the place that resolves herdr status and
+      hands positionOf a plain synchronous lookup -- and that face's own
+      AgentStatus type has to be declared locally rather than imported.
+  - id: d5
+    what: >
+      packages/runner/test/fixtures/herdr-socket-schema.json documents
+      every method's params and every named payload shape (PaneInfo
+      included, with its own tokens and agent_status fields) but carries
+      no explicit result shape for pane.list itself, unlike some other
+      calls.
+    found_at: >
+      packages/runner/test/fixtures/herdr-socket-schema.json's
+      success_response.$defs (no PaneListResult entry)
+    mattered_because: >
+      The { panes: PaneInfo[] } response shape this session's adapter
+      code assumes is inferred from the { agent: AgentInfo } pattern
+      agent.get already uses in the same file, not confirmed against a
+      live herdr instance -- flagged in open, the same failure mode a
+      prior session's own bend-log entry against D16 already recorded
+      once.
+decisions:
+  - id: c1
+    what: >
+      positionOf(document, projection, contentHash, agentStatusFor?)
+      keeps contentHash as an explicit required parameter (computePosition's
+      own shape), rather than the brief's shorter gloss.
+    because: notes:1
+    rests_on:
+      - "brief:One function. positionOf(graphDocument, projection, agentStatusFor?) in packages/face, pure"
+      - "packages/face/src/position.ts (prior computePosition)"
+      - "notes:1"
+    hunks:
+      - "packages/face/src/position.ts:1-16"
+      - "packages/face/src/position.ts:84-138"
+  - id: c2
+    what: >
+      Split each declared gate's ledger Gate into a PositionGateState
+      (positionGate.ts) plus an optional ReceiptSummary (receiptSummary.ts:
+      id, commit, duration, spend, derivation's kind only -- no proof).
+    because: >
+      brief:gates as { id, state, receipt? } where the receipt summary is
+      id, commit, duration, spend and derivation kind
+    rests_on:
+      - "packages/ledger/src/gate.ts"
+      - "packages/ledger/src/receipt.ts"
+    hunks:
+      - "packages/face/src/receiptSummary.ts:1-19"
+      - "packages/face/src/positionGate.ts:1-68"
+  - id: c3
+    what: >
+      face declares its own local AgentStatus string union
+      (agentStatus.ts) instead of importing runner's identically-shaped
+      type.
+    because: notes:6
+    rests_on:
+      - "packages/face/package.json"
+      - "packages/runner/package.json"
+      - "notes:6"
+    hunks:
+      - "packages/face/src/agentStatus.ts:1"
+  - id: c4
+    what: >
+      nodeWeight (weight.ts) sums only the receipts in a node's outcome
+      whose duration is measured; zero such receipts (no outcome, or
+      every duration unknown) weighs unknown, named by the node itself.
+    because: notes:7
+    rests_on:
+      - "brief:A node's weight is the sum of the measured durations of the receipts in its outcome; a node without them weighs unknown"
+      - "notes:7"
+    hunks:
+      - "packages/face/src/weight.ts:1-24"
+      - "packages/face/test/weight.test.ts:1-60"
+  - id: c5
+    what: >
+      floatOf (float.ts) runs a real forward (earliest-finish) then
+      backward (latest-finish) CPM pass over the whole graph, anchoring
+      every sink node -- not just the graph's intended final node -- to
+      one shared makespan (the latest earliest-finish among all of them),
+      so a dead-end branch nothing depends on shares the graph's real
+      finish line instead of its own always-zero-float one.
+    because: notes:9,11,12
+    rests_on:
+      - "AGENTS.md:float: How long a node can wait without moving the graph's finish."
+      - "brief:each node's float, a number only where every duration on the path is measured and unknown otherwise"
+      - "notes:9"
+      - "notes:11"
+      - "notes:12"
+    hunks:
+      - "packages/face/src/float.ts:1-145"
+      - "packages/face/test/float.test.ts:1-106"
+  - id: c6
+    what: >
+      criticalPath gains an optional weight lookup: both candidate chains
+      need a fully known weight before it overrides the existing hop-count
+      comparison, and a weight tie falls through to hop count rather than
+      trusting the tie.
+    because: notes:8,10
+    rests_on:
+      - "packages/face/test/criticalPath.test.ts (four pre-existing unweighted cases)"
+      - "notes:8"
+      - "notes:10"
+    hunks:
+      - "packages/face/src/criticalPath.ts:1-64"
+      - "packages/face/test/criticalPath.test.ts:54-101"
+  - id: c7
+    what: >
+      renderPosition prints a float: line under a node only when its
+      value is measured; verified byte-identical against a captured
+      pre-session baseline for the real bootstrap graph's rendered text.
+    because: notes:13
+    rests_on:
+      - "brief:the rendered text for the real bootstrap graph stays identical to today's for every line it prints today, plus float where it is measured"
+      - "notes:13"
+    hunks:
+      - "packages/face/src/render.ts:58-75"
+      - "packages/face/test/render.test.ts:52-97"
+  - id: c8
+    what: >
+      attemptsFor (attempts.ts) joins a session to the node's current
+      outcome only when the session's leaseGeneration equals the node's
+      outcomeSetAtGeneration; agentStatus is only looked up for a live
+      (leased, unexpired) session.
+    because: notes:14,15
+    rests_on:
+      - "packages/ledger/src/projection.ts:11-19"
+      - "notes:14"
+      - "notes:15"
+    hunks:
+      - "packages/face/src/attempts.ts:1-43"
+      - "packages/face/test/position.test.ts:190-268"
+  - id: c9
+    what: >
+      Added Runtime.reportedAgentStatus(query), optional on the interface,
+      implemented in the herdr adapter with one pane.list call matching
+      tokens against the query and returning the matching pane's
+      agent_status or undefined -- never a guess. pane.list joined the
+      adapter-boundary test's forbidden-pattern list.
+    because: notes:3
+    rests_on:
+      - "docs/design/0002-face.md:D16"
+      - "packages/runner/test/adapterBoundary.test.ts (one-adapter boundary)"
+      - "notes:2"
+      - "notes:3"
+    hunks:
+      - "packages/runner/src/runtime.ts:19-25"
+      - "packages/runner/src/runtime.ts:83-89"
+      - "packages/runner/src/herdr/adapter.ts:428-448"
+      - "packages/runner/test/adapterBoundary.test.ts:17-19"
+      - "packages/runner/test/herdr/fakeServer.ts:14-16"
+      - "packages/runner/test/herdr/fakeServer.ts:69-71"
+      - "packages/runner/test/herdr/fakeServer.ts:166-171"
+      - "packages/runner/test/herdr/fakeServer.ts:196-204"
+      - "packages/runner/test/herdr/adapter.test.ts:665-740"
+  - id: c10
+    what: >
+      graph show calls positionOf instead of the superseded
+      computePosition, adds --json (stable key order, verbatim object),
+      and resolves live sessions' herdr agent status through an
+      injectable runtime option before calling positionOf, so positionOf
+      itself stays synchronous.
+    because: notes:16
+    rests_on:
+      - "brief:interlock graph show <id> --json prints the object, stable key order"
+      - "packages/cli/src/run.ts (the injectable-runtime pattern this reuses)"
+      - "notes:16"
+    hunks:
+      - "packages/cli/src/graph/show.ts:1-126"
+      - "packages/cli/test/graph/show.test.ts:94-203"
+  - id: c11
+    what: >
+      This session's own notes.yaml, appended at every choice and
+      surprise across this session's code commits.
+    because: >
+      brief:notes.yaml beside this brief (notes@v0), appended at every
+      choice and surprise, committed
+    rests_on: []
+    hunks:
+      - ".interlock/sessions/0001-bootstrap/position-model/notes.yaml:1-297"
+gates_run_by_agent:
+  - { id: typecheck, result: pass, invocation: "mise exec -- pnpm typecheck", note: "6 of 6 workspace packages with a typecheck script report Done" }
+  - { id: test, result: pass, invocation: "mise exec -- pnpm test", note: "493 tests across ledger, face, debrief, verifier, runner, cli (99+54+41+42+132+125), exit 0" }
+  - { id: position-shape, result: pass, invocation: "mise exec -- pnpm --filter face test --testNamePattern position", note: "Tests 14 passed | 40 skipped (54)" }
+  - { id: debrief-valid, result: pass, invocation: "mise exec -- pnpm interlock debrief validate 0001-bootstrap position-model", note: "run for real against this debrief and notes.yaml at head_sha, after this file was written" }
+open:
+  - >
+    Runtime.reportedAgentStatus's pane.list response shape
+    ({ panes: PaneInfo[] }) is inferred, not verified against a live
+    herdr instance -- none is reachable in this environment. Recorded in
+    d1, d5 and notes:2-3.
+  - >
+    renderPosition never prints a node's attempts (session, outcome,
+    lease, agentStatus) in plain text -- the brief's own "stays identical
+    ... plus float" names only float as the new thing the text view
+    grows, and attempts are out of scope for the text renderer per the
+    acceptance's own reservation of session detail to session show
+    (attempts) and the future interactive face. Attempts are fully
+    present in positionOf's return value and in --json.
+  - >
+    Float and criticalPath's weighting are both new, real algorithms
+    (CPM forward/backward pass; a weight-or-hop-count comparator) built
+    for a graph this session found already has an orphaned branch
+    (verbs) -- correct against the two dedicated tests and the real
+    graph's own render, but with only this one small real graph and this
+    session's own synthetic test graphs to check them against. A larger
+    or more tangled real graph, once one exists, is the next real
+    exercise of both.
+graph_show_text: |
+  graph 0001-bootstrap — approved
+
+  scaffold — cleared
+    gates: none declared
+  ledger — cleared
+    gates: replay satisfied, illegal-states satisfied
+  ledger-gaps — cleared
+    gates: upcast-v1 satisfied
+  debrief-schema — cleared
+    gates: none declared
+  face-read — cleared
+    gates: stale-approval satisfied
+  runner-command-gate — cleared
+    gates: one-adapter satisfied, receipt-idempotent satisfied
+  verifier-hunks — cleared
+    gates: inverse-check satisfied
+  attempts — cleared
+    gates: narration-events satisfied
+  verbs — cleared
+    gates: cancel-writes-outcome satisfied
+  position-model — ready
+    gates: position-shape pending
+  face — blocked on position-model
+    gates: no-write-surface pending
+  self-run — blocked on face
+    gates: dogfood pending
+
+  critical path: scaffold -> ledger -> ledger-gaps -> runner-command-gate -> attempts -> position-model -> face -> self-run
+graph_show_json: |
+  {
+    "interlock": "position@v1",
+    "graph": "0001-bootstrap",
+    "approval": "approved",
+    "nodes": [
+      {
+        "id": "scaffold",
+        "dependsOn": [],
+        "state": {
+          "kind": "outcome",
+          "outcome": {
+            "kind": "cleared",
+            "receipts": [
+              {
+                "id": "3e0c1e7cf89ecfa0c6d7eb8a925a6478b42902ed54e0c8885fbedba0644081c2",
+                "gate": "typecheck",
+                "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 4519.934584
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "typecheck",
+                  "version": "runner@0",
+                  "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "243e1084d56e7c848c307b25e27ca898025f5ff85dc9186edea49f2753811f43"
+                }
+              },
+              {
+                "id": "4ceb2c9dff33908d1dbb31163e7bbbe62ad1c1f8adecc630bccf564baf4c14b3",
+                "gate": "test",
+                "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 30355.414291999998
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "test",
+                  "version": "runner@0",
+                  "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "b0d23ed1aef2c9bea5d7ff7d20ceec2fb385bd923b2b44c9059a6d520f823020"
+                }
+              },
+              {
+                "id": "85773dcb67a2fdbc78996b5ee94b1907bfc3ed333b6e01d4ba3dc2192c4f96d5",
+                "gate": "debrief-valid",
+                "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 331.2276670000065
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "debrief-valid",
+                  "version": "runner@0",
+                  "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "34e3c88262b728def57049afb215414cdd2a0b901f4b19bafddf171f19d3b2e9"
+                }
+              }
+            ]
+          }
+        },
+        "gates": [],
+        "attempts": [
+          {
+            "session": "backfill-0001-bootstrap-scaffold"
+          }
+        ],
+        "float": {
+          "kind": "unknown",
+          "because": "self-run: no outcome yet"
+        }
+      },
+      {
+        "id": "ledger",
+        "dependsOn": [
+          "scaffold"
+        ],
+        "state": {
+          "kind": "outcome",
+          "outcome": {
+            "kind": "cleared",
+            "receipts": [
+              {
+                "id": "3e0c1e7cf89ecfa0c6d7eb8a925a6478b42902ed54e0c8885fbedba0644081c2",
+                "gate": "typecheck",
+                "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 2520.215083000003
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "typecheck",
+                  "version": "runner@0",
+                  "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "53a85e54e23177bbe1c88a6eec647dee7f9469f2f092e1715bc3b62bb82de1a3"
+                }
+              },
+              {
+                "id": "4ceb2c9dff33908d1dbb31163e7bbbe62ad1c1f8adecc630bccf564baf4c14b3",
+                "gate": "test",
+                "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 28718.743875
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "test",
+                  "version": "runner@0",
+                  "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "360fd418ec5debc0246a3f89d0943a445cc55b4a7210e08b7cd5782014e930a0"
+                }
+              },
+              {
+                "id": "85773dcb67a2fdbc78996b5ee94b1907bfc3ed333b6e01d4ba3dc2192c4f96d5",
+                "gate": "debrief-valid",
+                "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 334.57954099999915
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "debrief-valid",
+                  "version": "runner@0",
+                  "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "d4533fa5fb01c2f925b8177266e1eb4428225de2a908b32f37ab61bb9ee2de9f"
+                }
+              },
+              {
+                "id": "743009c969863fcc29aacc3fda147250c08aad745855812113b0c5cb0220328b",
+                "gate": "replay",
+                "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 921.5289160000102
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "replay",
+                  "version": "runner@0",
+                  "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "f7de0f4587431fc7e4f1e20f4c07d9cf8fd291e7789676648b582a6adfefc7d4",
+                  "outputMatched": true,
+                  "pattern": "Tests +[1-9][0-9]* passed"
+                }
+              },
+              {
+                "id": "0990280edc6ce1f291815fe04bb8234fce951fe8225b8dca6ebd976ea9eb377d",
+                "gate": "illegal-states",
+                "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 799.1521670000075
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "illegal-states",
+                  "version": "runner@0",
+                  "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "056e3ab2f821f8402880dce10f4d8be1094b93c84dbc0815ff8ab78c69f43f72",
+                  "outputMatched": true,
+                  "pattern": "Tests +[1-9][0-9]* passed"
+                }
+              }
+            ]
+          }
+        },
+        "gates": [
+          {
+            "id": "replay",
+            "state": {
+              "kind": "satisfied"
+            },
+            "receipt": {
+              "id": "743009c969863fcc29aacc3fda147250c08aad745855812113b0c5cb0220328b",
+              "commit": "1aef03d99288daa614c822557f1a537744dca5b5",
+              "duration": {
+                "kind": "measured",
+                "ms": 921.5289160000102
+              },
+              "spend": {
+                "kind": "none"
+              },
+              "derivation": "gate"
+            }
+          },
+          {
+            "id": "illegal-states",
+            "state": {
+              "kind": "satisfied"
+            },
+            "receipt": {
+              "id": "0990280edc6ce1f291815fe04bb8234fce951fe8225b8dca6ebd976ea9eb377d",
+              "commit": "1aef03d99288daa614c822557f1a537744dca5b5",
+              "duration": {
+                "kind": "measured",
+                "ms": 799.1521670000075
+              },
+              "spend": {
+                "kind": "none"
+              },
+              "derivation": "gate"
+            }
+          }
+        ],
+        "attempts": [
+          {
+            "session": "backfill-0001-bootstrap-ledger"
+          }
+        ],
+        "float": {
+          "kind": "unknown",
+          "because": "self-run: no outcome yet"
+        }
+      },
+      {
+        "id": "ledger-gaps",
+        "dependsOn": [
+          "ledger"
+        ],
+        "state": {
+          "kind": "outcome",
+          "outcome": {
+            "kind": "cleared",
+            "receipts": [
+              {
+                "id": "3e0c1e7cf89ecfa0c6d7eb8a925a6478b42902ed54e0c8885fbedba0644081c2",
+                "gate": "typecheck",
+                "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 2531.6436669999966
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "typecheck",
+                  "version": "runner@0",
+                  "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "ffb0db613b5436074dcefa11d62186026ea275611edfefa28d60173ac41f20a0"
+                }
+              },
+              {
+                "id": "4ceb2c9dff33908d1dbb31163e7bbbe62ad1c1f8adecc630bccf564baf4c14b3",
+                "gate": "test",
+                "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 31039.12999999999
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "test",
+                  "version": "runner@0",
+                  "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "fff047ff20ee9d27659370b14e18e149e7da73903cc40c2c0945646156217a0c"
+                }
+              },
+              {
+                "id": "85773dcb67a2fdbc78996b5ee94b1907bfc3ed333b6e01d4ba3dc2192c4f96d5",
+                "gate": "debrief-valid",
+                "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 339.0409579999978
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "debrief-valid",
+                  "version": "runner@0",
+                  "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "a2085a774bbc2ae3051dc358db13020675a64e64d10397c57bcb5c36d15a048f"
+                }
+              },
+              {
+                "id": "d799b0259ec9858f02b8a713d96e48021669cb56f631e05b1e5fb4dfd3ec1569",
+                "gate": "upcast-v1",
+                "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 891.59466599999
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "upcast-v1",
+                  "version": "runner@0",
+                  "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "936f7744a790d0f635967cc7bc960bd30c681dc1d3bb2ee29be68f1738a3ed66",
+                  "outputMatched": true,
+                  "pattern": "Tests +[1-9][0-9]* passed"
+                }
+              }
+            ]
+          }
+        },
+        "gates": [
+          {
+            "id": "upcast-v1",
+            "state": {
+              "kind": "satisfied"
+            },
+            "receipt": {
+              "id": "d799b0259ec9858f02b8a713d96e48021669cb56f631e05b1e5fb4dfd3ec1569",
+              "commit": "1aef03d99288daa614c822557f1a537744dca5b5",
+              "duration": {
+                "kind": "measured",
+                "ms": 891.59466599999
+              },
+              "spend": {
+                "kind": "none"
+              },
+              "derivation": "gate"
+            }
+          }
+        ],
+        "attempts": [
+          {
+            "session": "backfill-0001-bootstrap-ledger-gaps"
+          }
+        ],
+        "float": {
+          "kind": "unknown",
+          "because": "self-run: no outcome yet"
+        }
+      },
+      {
+        "id": "debrief-schema",
+        "dependsOn": [
+          "ledger"
+        ],
+        "state": {
+          "kind": "outcome",
+          "outcome": {
+            "kind": "cleared",
+            "receipts": [
+              {
+                "id": "3e0c1e7cf89ecfa0c6d7eb8a925a6478b42902ed54e0c8885fbedba0644081c2",
+                "gate": "typecheck",
+                "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 2582.9825409999903
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "typecheck",
+                  "version": "runner@0",
+                  "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "bf655889bcd66c06f2914d89667f04825495683db804d0d48a9f05aebeae9957"
+                }
+              },
+              {
+                "id": "4ceb2c9dff33908d1dbb31163e7bbbe62ad1c1f8adecc630bccf564baf4c14b3",
+                "gate": "test",
+                "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 29666.765458999973
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "test",
+                  "version": "runner@0",
+                  "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "04db02ea47088d5e35fef7720a5d4a2816ed3ad311b06b7424f6ca10a4a29e06"
+                }
+              },
+              {
+                "id": "85773dcb67a2fdbc78996b5ee94b1907bfc3ed333b6e01d4ba3dc2192c4f96d5",
+                "gate": "debrief-valid",
+                "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 347.1711249999935
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "debrief-valid",
+                  "version": "runner@0",
+                  "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "ac10b2f84ff4c98136fc843e2176001074b8e8f94d27864278dbaefa64e55411"
+                }
+              }
+            ]
+          }
+        },
+        "gates": [],
+        "attempts": [
+          {
+            "session": "backfill-0001-bootstrap-debrief-schema"
+          }
+        ],
+        "float": {
+          "kind": "unknown",
+          "because": "self-run: no outcome yet"
+        }
+      },
+      {
+        "id": "face-read",
+        "dependsOn": [
+          "ledger"
+        ],
+        "state": {
+          "kind": "outcome",
+          "outcome": {
+            "kind": "cleared",
+            "receipts": [
+              {
+                "id": "3e0c1e7cf89ecfa0c6d7eb8a925a6478b42902ed54e0c8885fbedba0644081c2",
+                "gate": "typecheck",
+                "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 2595.0362909999967
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "typecheck",
+                  "version": "runner@0",
+                  "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "182b3b43ea0ad762a0e793769a3e88be746c3bd87dd85db2a84f2637cbb2820d"
+                }
+              },
+              {
+                "id": "4ceb2c9dff33908d1dbb31163e7bbbe62ad1c1f8adecc630bccf564baf4c14b3",
+                "gate": "test",
+                "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 30039.792749999993
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "test",
+                  "version": "runner@0",
+                  "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "b51e7c4184f624ed72378d9d3c7d9e6e468c5739b5bbc2ff0cb2a5dc32573018"
+                }
+              },
+              {
+                "id": "85773dcb67a2fdbc78996b5ee94b1907bfc3ed333b6e01d4ba3dc2192c4f96d5",
+                "gate": "debrief-valid",
+                "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 349.35808299999917
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "debrief-valid",
+                  "version": "runner@0",
+                  "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "352e85a6636112cf210e524c29e596864bff14612088a2b02293f43e23dbf903"
+                }
+              },
+              {
+                "id": "b8eceaf1d9db9a4ffa4bab0dc46535a82361e94ceb68e24f67034832cca5137b",
+                "gate": "stale-approval",
+                "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 801.6420410000137
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "stale-approval",
+                  "version": "runner@0",
+                  "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "8e3c02f798d6c5bd6a5da95fcb7e09e62cc40592b12fe3ce181857702cdedda2",
+                  "outputMatched": true,
+                  "pattern": "Tests +[1-9][0-9]* passed"
+                }
+              }
+            ]
+          }
+        },
+        "gates": [
+          {
+            "id": "stale-approval",
+            "state": {
+              "kind": "satisfied"
+            },
+            "receipt": {
+              "id": "b8eceaf1d9db9a4ffa4bab0dc46535a82361e94ceb68e24f67034832cca5137b",
+              "commit": "1aef03d99288daa614c822557f1a537744dca5b5",
+              "duration": {
+                "kind": "measured",
+                "ms": 801.6420410000137
+              },
+              "spend": {
+                "kind": "none"
+              },
+              "derivation": "gate"
+            }
+          }
+        ],
+        "attempts": [
+          {
+            "session": "backfill-0001-bootstrap-face-read"
+          }
+        ],
+        "float": {
+          "kind": "unknown",
+          "because": "self-run: no outcome yet"
+        }
+      },
+      {
+        "id": "runner-command-gate",
+        "dependsOn": [
+          "ledger-gaps"
+        ],
+        "state": {
+          "kind": "outcome",
+          "outcome": {
+            "kind": "cleared",
+            "receipts": [
+              {
+                "id": "3e0c1e7cf89ecfa0c6d7eb8a925a6478b42902ed54e0c8885fbedba0644081c2",
+                "gate": "typecheck",
+                "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 2596.7102920000034
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "typecheck",
+                  "version": "runner@0",
+                  "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "619cd18c9846ed9da107a0049afa0e504f256064e6b3ccc1ddd27fa8fecad422"
+                }
+              },
+              {
+                "id": "4ceb2c9dff33908d1dbb31163e7bbbe62ad1c1f8adecc630bccf564baf4c14b3",
+                "gate": "test",
+                "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 30789.557082999992
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "test",
+                  "version": "runner@0",
+                  "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "af52c64efb228c3d9c6513ed4372c3a186e5ac7f926670fd76a1c65645abdd9e"
+                }
+              },
+              {
+                "id": "85773dcb67a2fdbc78996b5ee94b1907bfc3ed333b6e01d4ba3dc2192c4f96d5",
+                "gate": "debrief-valid",
+                "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 351.42004199998337
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "debrief-valid",
+                  "version": "runner@0",
+                  "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "571c48cd4caf779775fe18c526c43d204fb5eb91013555cd10f467f42f9d9f57"
+                }
+              },
+              {
+                "id": "ae6f00652bd612a0f59dbd77660e525d9fb3354656b2d1ee2aa0988777ab21d0",
+                "gate": "one-adapter",
+                "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 1202.7387499999895
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "one-adapter",
+                  "version": "runner@0",
+                  "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "4052a08acad8eae6acfeb0f230c8d033244f61160c383515f30fd138849f9920",
+                  "outputMatched": true,
+                  "pattern": "Tests +[1-9][0-9]* passed"
+                }
+              },
+              {
+                "id": "c074476f16bd868dda927905b6309113b51408c89c65386186cf8dc7d722b424",
+                "gate": "receipt-idempotent",
+                "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 2050.484124999988
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "receipt-idempotent",
+                  "version": "runner@0",
+                  "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "ec8ca45b52e13f22b550ef0abc1d7ad8335c49592ef6604703c121d44b2a018a",
+                  "outputMatched": true,
+                  "pattern": "Tests +[1-9][0-9]* passed"
+                }
+              }
+            ]
+          }
+        },
+        "gates": [
+          {
+            "id": "one-adapter",
+            "state": {
+              "kind": "satisfied"
+            },
+            "receipt": {
+              "id": "ae6f00652bd612a0f59dbd77660e525d9fb3354656b2d1ee2aa0988777ab21d0",
+              "commit": "1aef03d99288daa614c822557f1a537744dca5b5",
+              "duration": {
+                "kind": "measured",
+                "ms": 1202.7387499999895
+              },
+              "spend": {
+                "kind": "none"
+              },
+              "derivation": "gate"
+            }
+          },
+          {
+            "id": "receipt-idempotent",
+            "state": {
+              "kind": "satisfied"
+            },
+            "receipt": {
+              "id": "c074476f16bd868dda927905b6309113b51408c89c65386186cf8dc7d722b424",
+              "commit": "1aef03d99288daa614c822557f1a537744dca5b5",
+              "duration": {
+                "kind": "measured",
+                "ms": 2050.484124999988
+              },
+              "spend": {
+                "kind": "none"
+              },
+              "derivation": "gate"
+            }
+          }
+        ],
+        "attempts": [
+          {
+            "session": "backfill-0001-bootstrap-runner-command-gate"
+          }
+        ],
+        "float": {
+          "kind": "unknown",
+          "because": "self-run: no outcome yet"
+        }
+      },
+      {
+        "id": "verifier-hunks",
+        "dependsOn": [
+          "debrief-schema",
+          "runner-command-gate"
+        ],
+        "state": {
+          "kind": "outcome",
+          "outcome": {
+            "kind": "cleared",
+            "receipts": [
+              {
+                "id": "3e0c1e7cf89ecfa0c6d7eb8a925a6478b42902ed54e0c8885fbedba0644081c2",
+                "gate": "typecheck",
+                "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 2676.257750000019
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "typecheck",
+                  "version": "runner@0",
+                  "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "ffb0db613b5436074dcefa11d62186026ea275611edfefa28d60173ac41f20a0"
+                }
+              },
+              {
+                "id": "4ceb2c9dff33908d1dbb31163e7bbbe62ad1c1f8adecc630bccf564baf4c14b3",
+                "gate": "test",
+                "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 30189.871083000005
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "test",
+                  "version": "runner@0",
+                  "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "e3999ee4394fdf6f9d355547c55c7d051c8de4a0343f777bf0bd23ab2a54f4e7"
+                }
+              },
+              {
+                "id": "85773dcb67a2fdbc78996b5ee94b1907bfc3ed333b6e01d4ba3dc2192c4f96d5",
+                "gate": "debrief-valid",
+                "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 341.3734159999876
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "debrief-valid",
+                  "version": "runner@0",
+                  "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "44604fb44b687a435e2223eb5c975153948ffd54e3127a401c2eb576c724e1c7"
+                }
+              },
+              {
+                "id": "fff5cada9482077a2997087a4ff165ae6633a37235a361d5e2b8b053f085e6fb",
+                "gate": "inverse-check",
+                "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 957.0177499999991
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "inverse-check",
+                  "version": "runner@0",
+                  "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "0860648206616785052f2ca73cd2e2331c71642802bc7b6c5845a3be2977de76",
+                  "outputMatched": true,
+                  "pattern": "Tests +[1-9][0-9]* passed"
+                }
+              }
+            ]
+          }
+        },
+        "gates": [
+          {
+            "id": "inverse-check",
+            "state": {
+              "kind": "satisfied"
+            },
+            "receipt": {
+              "id": "fff5cada9482077a2997087a4ff165ae6633a37235a361d5e2b8b053f085e6fb",
+              "commit": "1aef03d99288daa614c822557f1a537744dca5b5",
+              "duration": {
+                "kind": "measured",
+                "ms": 957.0177499999991
+              },
+              "spend": {
+                "kind": "none"
+              },
+              "derivation": "gate"
+            }
+          }
+        ],
+        "attempts": [
+          {
+            "session": "71b8ec63-5917-45b7-b61e-759fa987bda9",
+            "lease": {
+              "node": {
+                "graph": "0001-bootstrap",
+                "id": "verifier-hunks"
+              },
+              "session": "71b8ec63-5917-45b7-b61e-759fa987bda9",
+              "expiry": 1789044800725
+            }
+          },
+          {
+            "session": "3cca2a8b-a11c-41f5-b5c3-f7e71ce5d285",
+            "lease": {
+              "node": {
+                "graph": "0001-bootstrap",
+                "id": "verifier-hunks"
+              },
+              "session": "3cca2a8b-a11c-41f5-b5c3-f7e71ce5d285",
+              "expiry": 1789049774901
+            }
+          },
+          {
+            "session": "9e325fd6-b714-4b7e-8d16-a6c55c1eff24",
+            "lease": {
+              "node": {
+                "graph": "0001-bootstrap",
+                "id": "verifier-hunks"
+              },
+              "session": "9e325fd6-b714-4b7e-8d16-a6c55c1eff24",
+              "expiry": 1789051673618
+            }
+          },
+          {
+            "session": "23066e18-0994-4167-b8ae-23bf18c8625f",
+            "lease": {
+              "node": {
+                "graph": "0001-bootstrap",
+                "id": "verifier-hunks"
+              },
+              "session": "23066e18-0994-4167-b8ae-23bf18c8625f",
+              "expiry": 1789054836519
+            }
+          },
+          {
+            "session": "44629d86-5c86-4714-a338-24063e3dff67",
+            "lease": {
+              "node": {
+                "graph": "0001-bootstrap",
+                "id": "verifier-hunks"
+              },
+              "session": "44629d86-5c86-4714-a338-24063e3dff67",
+              "expiry": 1789056146361
+            }
+          },
+          {
+            "session": "2be3015b-4ccd-4753-b8e2-40a8cbe845b3",
+            "lease": {
+              "node": {
+                "graph": "0001-bootstrap",
+                "id": "verifier-hunks"
+              },
+              "session": "2be3015b-4ccd-4753-b8e2-40a8cbe845b3",
+              "expiry": 1789057124583
+            }
+          },
+          {
+            "session": "1e9fb180-f7f4-49f4-b204-1c1f3307b95c",
+            "lease": {
+              "node": {
+                "graph": "0001-bootstrap",
+                "id": "verifier-hunks"
+              },
+              "session": "1e9fb180-f7f4-49f4-b204-1c1f3307b95c",
+              "expiry": 1789067760702
+            }
+          },
+          {
+            "session": "c2c6a4ea-e91b-4e82-91f6-84b60021e103",
+            "lease": {
+              "node": {
+                "graph": "0001-bootstrap",
+                "id": "verifier-hunks"
+              },
+              "session": "c2c6a4ea-e91b-4e82-91f6-84b60021e103",
+              "expiry": 1789069029564
+            }
+          },
+          {
+            "session": "052f6500-4932-4fd9-bfba-0e646e60a2e3",
+            "outcome": {
+              "kind": "cleared",
+              "receipts": [
+                {
+                  "id": "3e0c1e7cf89ecfa0c6d7eb8a925a6478b42902ed54e0c8885fbedba0644081c2",
+                  "gate": "typecheck",
+                  "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                  "spend": {
+                    "kind": "none"
+                  },
+                  "duration": {
+                    "kind": "measured",
+                    "ms": 2676.257750000019
+                  },
+                  "derivation": {
+                    "kind": "gate",
+                    "gate": "typecheck",
+                    "version": "runner@0",
+                    "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                  },
+                  "proof": {
+                    "exitCode": 0,
+                    "outputHash": "ffb0db613b5436074dcefa11d62186026ea275611edfefa28d60173ac41f20a0"
+                  }
+                },
+                {
+                  "id": "4ceb2c9dff33908d1dbb31163e7bbbe62ad1c1f8adecc630bccf564baf4c14b3",
+                  "gate": "test",
+                  "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                  "spend": {
+                    "kind": "none"
+                  },
+                  "duration": {
+                    "kind": "measured",
+                    "ms": 30189.871083000005
+                  },
+                  "derivation": {
+                    "kind": "gate",
+                    "gate": "test",
+                    "version": "runner@0",
+                    "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                  },
+                  "proof": {
+                    "exitCode": 0,
+                    "outputHash": "e3999ee4394fdf6f9d355547c55c7d051c8de4a0343f777bf0bd23ab2a54f4e7"
+                  }
+                },
+                {
+                  "id": "85773dcb67a2fdbc78996b5ee94b1907bfc3ed333b6e01d4ba3dc2192c4f96d5",
+                  "gate": "debrief-valid",
+                  "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                  "spend": {
+                    "kind": "none"
+                  },
+                  "duration": {
+                    "kind": "measured",
+                    "ms": 341.3734159999876
+                  },
+                  "derivation": {
+                    "kind": "gate",
+                    "gate": "debrief-valid",
+                    "version": "runner@0",
+                    "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                  },
+                  "proof": {
+                    "exitCode": 0,
+                    "outputHash": "44604fb44b687a435e2223eb5c975153948ffd54e3127a401c2eb576c724e1c7"
+                  }
+                },
+                {
+                  "id": "fff5cada9482077a2997087a4ff165ae6633a37235a361d5e2b8b053f085e6fb",
+                  "gate": "inverse-check",
+                  "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                  "spend": {
+                    "kind": "none"
+                  },
+                  "duration": {
+                    "kind": "measured",
+                    "ms": 957.0177499999991
+                  },
+                  "derivation": {
+                    "kind": "gate",
+                    "gate": "inverse-check",
+                    "version": "runner@0",
+                    "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                  },
+                  "proof": {
+                    "exitCode": 0,
+                    "outputHash": "0860648206616785052f2ca73cd2e2331c71642802bc7b6c5845a3be2977de76",
+                    "outputMatched": true,
+                    "pattern": "Tests +[1-9][0-9]* passed"
+                  }
+                }
+              ]
+            },
+            "lease": {
+              "node": {
+                "graph": "0001-bootstrap",
+                "id": "verifier-hunks"
+              },
+              "session": "052f6500-4932-4fd9-bfba-0e646e60a2e3",
+              "expiry": 1789081047400
+            }
+          },
+          {
+            "session": "backfill-0001-bootstrap-verifier-hunks"
+          }
+        ],
+        "float": {
+          "kind": "unknown",
+          "because": "self-run: no outcome yet"
+        }
+      },
+      {
+        "id": "attempts",
+        "dependsOn": [
+          "runner-command-gate",
+          "debrief-schema"
+        ],
+        "state": {
+          "kind": "outcome",
+          "outcome": {
+            "kind": "cleared",
+            "receipts": [
+              {
+                "id": "3e0c1e7cf89ecfa0c6d7eb8a925a6478b42902ed54e0c8885fbedba0644081c2",
+                "gate": "typecheck",
+                "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 2495.9254579999833
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "typecheck",
+                  "version": "runner@0",
+                  "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "abf7f479a49d1fb5b0ae6a30d72f6468cf7a9e21d50dc255b6d208bcfc250f2c"
+                }
+              },
+              {
+                "id": "4ceb2c9dff33908d1dbb31163e7bbbe62ad1c1f8adecc630bccf564baf4c14b3",
+                "gate": "test",
+                "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 28918.770791999967
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "test",
+                  "version": "runner@0",
+                  "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "15af1550f81340c5fd0c0ea49e0c5e8445bc487a96d1d11d490776645810ea8a"
+                }
+              },
+              {
+                "id": "85773dcb67a2fdbc78996b5ee94b1907bfc3ed333b6e01d4ba3dc2192c4f96d5",
+                "gate": "debrief-valid",
+                "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 335.13562499999534
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "debrief-valid",
+                  "version": "runner@0",
+                  "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "bc3b89bb0a1331d36876a439c69de6b8a25d44016154a4e1b48db04f81629bf8"
+                }
+              },
+              {
+                "id": "d6a740845b0e3023a8298bf6ac097e137750d27e1be0d65c63d4a479e5170c47",
+                "gate": "narration-events",
+                "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 846.797750000027
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "narration-events",
+                  "version": "runner@0",
+                  "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "57bab23d926d84d6ff495410b69e886925730465d44d77d5eafa5edd2ff1c0cc",
+                  "outputMatched": true,
+                  "pattern": "Tests +[1-9][0-9]* passed"
+                }
+              }
+            ]
+          }
+        },
+        "gates": [
+          {
+            "id": "narration-events",
+            "state": {
+              "kind": "satisfied"
+            },
+            "receipt": {
+              "id": "d6a740845b0e3023a8298bf6ac097e137750d27e1be0d65c63d4a479e5170c47",
+              "commit": "1aef03d99288daa614c822557f1a537744dca5b5",
+              "duration": {
+                "kind": "measured",
+                "ms": 846.797750000027
+              },
+              "spend": {
+                "kind": "none"
+              },
+              "derivation": "gate"
+            }
+          }
+        ],
+        "attempts": [
+          {
+            "session": "011ab81b-399c-421c-8e19-437fadbecc1d",
+            "lease": {
+              "node": {
+                "graph": "0001-bootstrap",
+                "id": "attempts"
+              },
+              "session": "011ab81b-399c-421c-8e19-437fadbecc1d",
+              "expiry": 1789136328284
+            }
+          },
+          {
+            "session": "485f21a3-ffc2-43e4-a9bd-48939785e81f",
+            "outcome": {
+              "kind": "cleared",
+              "receipts": [
+                {
+                  "id": "3e0c1e7cf89ecfa0c6d7eb8a925a6478b42902ed54e0c8885fbedba0644081c2",
+                  "gate": "typecheck",
+                  "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                  "spend": {
+                    "kind": "none"
+                  },
+                  "duration": {
+                    "kind": "measured",
+                    "ms": 2495.9254579999833
+                  },
+                  "derivation": {
+                    "kind": "gate",
+                    "gate": "typecheck",
+                    "version": "runner@0",
+                    "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                  },
+                  "proof": {
+                    "exitCode": 0,
+                    "outputHash": "abf7f479a49d1fb5b0ae6a30d72f6468cf7a9e21d50dc255b6d208bcfc250f2c"
+                  }
+                },
+                {
+                  "id": "4ceb2c9dff33908d1dbb31163e7bbbe62ad1c1f8adecc630bccf564baf4c14b3",
+                  "gate": "test",
+                  "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                  "spend": {
+                    "kind": "none"
+                  },
+                  "duration": {
+                    "kind": "measured",
+                    "ms": 28918.770791999967
+                  },
+                  "derivation": {
+                    "kind": "gate",
+                    "gate": "test",
+                    "version": "runner@0",
+                    "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                  },
+                  "proof": {
+                    "exitCode": 0,
+                    "outputHash": "15af1550f81340c5fd0c0ea49e0c5e8445bc487a96d1d11d490776645810ea8a"
+                  }
+                },
+                {
+                  "id": "85773dcb67a2fdbc78996b5ee94b1907bfc3ed333b6e01d4ba3dc2192c4f96d5",
+                  "gate": "debrief-valid",
+                  "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                  "spend": {
+                    "kind": "none"
+                  },
+                  "duration": {
+                    "kind": "measured",
+                    "ms": 335.13562499999534
+                  },
+                  "derivation": {
+                    "kind": "gate",
+                    "gate": "debrief-valid",
+                    "version": "runner@0",
+                    "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                  },
+                  "proof": {
+                    "exitCode": 0,
+                    "outputHash": "bc3b89bb0a1331d36876a439c69de6b8a25d44016154a4e1b48db04f81629bf8"
+                  }
+                },
+                {
+                  "id": "d6a740845b0e3023a8298bf6ac097e137750d27e1be0d65c63d4a479e5170c47",
+                  "gate": "narration-events",
+                  "commitSha": "1aef03d99288daa614c822557f1a537744dca5b5",
+                  "spend": {
+                    "kind": "none"
+                  },
+                  "duration": {
+                    "kind": "measured",
+                    "ms": 846.797750000027
+                  },
+                  "derivation": {
+                    "kind": "gate",
+                    "gate": "narration-events",
+                    "version": "runner@0",
+                    "runner": "backfill-1d85e7a2-bc01-4955-8a0e-6e17d988b298"
+                  },
+                  "proof": {
+                    "exitCode": 0,
+                    "outputHash": "57bab23d926d84d6ff495410b69e886925730465d44d77d5eafa5edd2ff1c0cc",
+                    "outputMatched": true,
+                    "pattern": "Tests +[1-9][0-9]* passed"
+                  }
+                }
+              ]
+            },
+            "lease": {
+              "node": {
+                "graph": "0001-bootstrap",
+                "id": "attempts"
+              },
+              "session": "485f21a3-ffc2-43e4-a9bd-48939785e81f",
+              "expiry": 1789139272435
+            }
+          },
+          {
+            "session": "backfill-0001-bootstrap-attempts"
+          }
+        ],
+        "float": {
+          "kind": "unknown",
+          "because": "self-run: no outcome yet"
+        }
+      },
+      {
+        "id": "verbs",
+        "dependsOn": [
+          "runner-command-gate"
+        ],
+        "state": {
+          "kind": "outcome",
+          "outcome": {
+            "kind": "cleared",
+            "receipts": [
+              {
+                "id": "3e0c1e7cf89ecfa0c6d7eb8a925a6478b42902ed54e0c8885fbedba0644081c2",
+                "gate": "typecheck",
+                "commitSha": "df7d8bbda5dce435e76ad69bd4c82a3989abf886",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 2692.268875
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "typecheck",
+                  "version": "runner@0",
+                  "runner": "judge-ee7f079c-e7dc-4bc1-9e10-9cec76d713cb"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "bf655889bcd66c06f2914d89667f04825495683db804d0d48a9f05aebeae9957"
+                }
+              },
+              {
+                "id": "4ceb2c9dff33908d1dbb31163e7bbbe62ad1c1f8adecc630bccf564baf4c14b3",
+                "gate": "test",
+                "commitSha": "df7d8bbda5dce435e76ad69bd4c82a3989abf886",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 28589.231458
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "test",
+                  "version": "runner@0",
+                  "runner": "judge-ee7f079c-e7dc-4bc1-9e10-9cec76d713cb"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "66b5b90563122b415fd0319286d76e2448cc4f632e6a610d45c722fe6141fa8d"
+                }
+              },
+              {
+                "id": "85773dcb67a2fdbc78996b5ee94b1907bfc3ed333b6e01d4ba3dc2192c4f96d5",
+                "gate": "debrief-valid",
+                "commitSha": "df7d8bbda5dce435e76ad69bd4c82a3989abf886",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 334.9903750000012
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "debrief-valid",
+                  "version": "runner@0",
+                  "runner": "judge-ee7f079c-e7dc-4bc1-9e10-9cec76d713cb"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "e113bfc84d8d2884e07b0fbf8f0479b6b2f772942f0e62ac02b4b05442153f05"
+                }
+              },
+              {
+                "id": "858e960cbfb4f0a0d7508fffee58696995c2a5f97b536ebdfe260e3259708fb1",
+                "gate": "cancel-writes-outcome",
+                "commitSha": "df7d8bbda5dce435e76ad69bd4c82a3989abf886",
+                "spend": {
+                  "kind": "none"
+                },
+                "duration": {
+                  "kind": "measured",
+                  "ms": 1289.1268329999984
+                },
+                "derivation": {
+                  "kind": "gate",
+                  "gate": "cancel-writes-outcome",
+                  "version": "runner@0",
+                  "runner": "judge-ee7f079c-e7dc-4bc1-9e10-9cec76d713cb"
+                },
+                "proof": {
+                  "exitCode": 0,
+                  "outputHash": "6b4f5d6bac7ab20c0d4c2431095b7bf495efaf292c5dac51afe359e9a3bae5db",
+                  "outputMatched": true,
+                  "pattern": "Tests +[1-9][0-9]* passed"
+                }
+              }
+            ]
+          }
+        },
+        "gates": [
+          {
+            "id": "cancel-writes-outcome",
+            "state": {
+              "kind": "satisfied"
+            },
+            "receipt": {
+              "id": "858e960cbfb4f0a0d7508fffee58696995c2a5f97b536ebdfe260e3259708fb1",
+              "commit": "df7d8bbda5dce435e76ad69bd4c82a3989abf886",
+              "duration": {
+                "kind": "measured",
+                "ms": 1289.1268329999984
+              },
+              "spend": {
+                "kind": "none"
+              },
+              "derivation": "gate"
+            }
+          }
+        ],
+        "attempts": [
+          {
+            "session": "ee7f079c-e7dc-4bc1-9e10-9cec76d713cb",
+            "outcome": {
+              "kind": "cleared",
+              "receipts": [
+                {
+                  "id": "3e0c1e7cf89ecfa0c6d7eb8a925a6478b42902ed54e0c8885fbedba0644081c2",
+                  "gate": "typecheck",
+                  "commitSha": "df7d8bbda5dce435e76ad69bd4c82a3989abf886",
+                  "spend": {
+                    "kind": "none"
+                  },
+                  "duration": {
+                    "kind": "measured",
+                    "ms": 2692.268875
+                  },
+                  "derivation": {
+                    "kind": "gate",
+                    "gate": "typecheck",
+                    "version": "runner@0",
+                    "runner": "judge-ee7f079c-e7dc-4bc1-9e10-9cec76d713cb"
+                  },
+                  "proof": {
+                    "exitCode": 0,
+                    "outputHash": "bf655889bcd66c06f2914d89667f04825495683db804d0d48a9f05aebeae9957"
+                  }
+                },
+                {
+                  "id": "4ceb2c9dff33908d1dbb31163e7bbbe62ad1c1f8adecc630bccf564baf4c14b3",
+                  "gate": "test",
+                  "commitSha": "df7d8bbda5dce435e76ad69bd4c82a3989abf886",
+                  "spend": {
+                    "kind": "none"
+                  },
+                  "duration": {
+                    "kind": "measured",
+                    "ms": 28589.231458
+                  },
+                  "derivation": {
+                    "kind": "gate",
+                    "gate": "test",
+                    "version": "runner@0",
+                    "runner": "judge-ee7f079c-e7dc-4bc1-9e10-9cec76d713cb"
+                  },
+                  "proof": {
+                    "exitCode": 0,
+                    "outputHash": "66b5b90563122b415fd0319286d76e2448cc4f632e6a610d45c722fe6141fa8d"
+                  }
+                },
+                {
+                  "id": "85773dcb67a2fdbc78996b5ee94b1907bfc3ed333b6e01d4ba3dc2192c4f96d5",
+                  "gate": "debrief-valid",
+                  "commitSha": "df7d8bbda5dce435e76ad69bd4c82a3989abf886",
+                  "spend": {
+                    "kind": "none"
+                  },
+                  "duration": {
+                    "kind": "measured",
+                    "ms": 334.9903750000012
+                  },
+                  "derivation": {
+                    "kind": "gate",
+                    "gate": "debrief-valid",
+                    "version": "runner@0",
+                    "runner": "judge-ee7f079c-e7dc-4bc1-9e10-9cec76d713cb"
+                  },
+                  "proof": {
+                    "exitCode": 0,
+                    "outputHash": "e113bfc84d8d2884e07b0fbf8f0479b6b2f772942f0e62ac02b4b05442153f05"
+                  }
+                },
+                {
+                  "id": "858e960cbfb4f0a0d7508fffee58696995c2a5f97b536ebdfe260e3259708fb1",
+                  "gate": "cancel-writes-outcome",
+                  "commitSha": "df7d8bbda5dce435e76ad69bd4c82a3989abf886",
+                  "spend": {
+                    "kind": "none"
+                  },
+                  "duration": {
+                    "kind": "measured",
+                    "ms": 1289.1268329999984
+                  },
+                  "derivation": {
+                    "kind": "gate",
+                    "gate": "cancel-writes-outcome",
+                    "version": "runner@0",
+                    "runner": "judge-ee7f079c-e7dc-4bc1-9e10-9cec76d713cb"
+                  },
+                  "proof": {
+                    "exitCode": 0,
+                    "outputHash": "6b4f5d6bac7ab20c0d4c2431095b7bf495efaf292c5dac51afe359e9a3bae5db",
+                    "outputMatched": true,
+                    "pattern": "Tests +[1-9][0-9]* passed"
+                  }
+                }
+              ]
+            },
+            "lease": {
+              "node": {
+                "graph": "0001-bootstrap",
+                "id": "verbs"
+              },
+              "session": "ee7f079c-e7dc-4bc1-9e10-9cec76d713cb",
+              "expiry": 1789142041911
+            }
+          },
+          {
+            "session": "backfill-0001-bootstrap-verbs"
+          }
+        ],
+        "float": {
+          "kind": "unknown",
+          "because": "self-run: no outcome yet"
+        }
+      },
+      {
+        "id": "position-model",
+        "dependsOn": [
+          "face-read",
+          "attempts"
+        ],
+        "state": {
+          "kind": "ready"
+        },
+        "gates": [
+          {
+            "id": "position-shape",
+            "state": {
+              "kind": "pending"
+            }
+          }
+        ],
+        "attempts": [
+          {
+            "session": "bb67a691-0733-4446-90cf-93507377a67b",
+            "lease": {
+              "node": {
+                "graph": "0001-bootstrap",
+                "id": "position-model"
+              },
+              "session": "bb67a691-0733-4446-90cf-93507377a67b",
+              "expiry": 1789145709083
+            },
+            "agentStatus": "working"
+          }
+        ],
+        "float": {
+          "kind": "unknown",
+          "because": "position-model: no outcome yet"
+        }
+      },
+      {
+        "id": "face",
+        "dependsOn": [
+          "runner-command-gate",
+          "face-read",
+          "attempts",
+          "position-model"
+        ],
+        "state": {
+          "kind": "blocked",
+          "on": [
+            "position-model"
+          ]
+        },
+        "gates": [
+          {
+            "id": "no-write-surface",
+            "state": {
+              "kind": "pending"
+            }
+          }
+        ],
+        "attempts": [],
+        "float": {
+          "kind": "unknown",
+          "because": "face: no outcome yet"
+        }
+      },
+      {
+        "id": "self-run",
+        "dependsOn": [
+          "face",
+          "verifier-hunks"
+        ],
+        "state": {
+          "kind": "blocked",
+          "on": [
+            "face"
+          ]
+        },
+        "gates": [
+          {
+            "id": "dogfood",
+            "state": {
+              "kind": "pending"
+            }
+          }
+        ],
+        "attempts": [],
+        "float": {
+          "kind": "unknown",
+          "because": "self-run: no outcome yet"
+        }
+      }
+    ],
+    "criticalPath": [
+      "scaffold",
+      "ledger",
+      "ledger-gaps",
+      "runner-command-gate",
+      "attempts",
+      "position-model",
+      "face",
+      "self-run"
+    ]
+  }
+node_floats:
+  - { id: scaffold, kind: unknown, because: "self-run: no outcome yet" }
+  - { id: ledger, kind: unknown, because: "self-run: no outcome yet" }
+  - { id: ledger-gaps, kind: unknown, because: "self-run: no outcome yet" }
+  - { id: debrief-schema, kind: unknown, because: "self-run: no outcome yet" }
+  - { id: face-read, kind: unknown, because: "self-run: no outcome yet" }
+  - { id: runner-command-gate, kind: unknown, because: "self-run: no outcome yet" }
+  - { id: verifier-hunks, kind: unknown, because: "self-run: no outcome yet" }
+  - { id: attempts, kind: unknown, because: "self-run: no outcome yet" }
+  - { id: verbs, kind: unknown, because: "self-run: no outcome yet" }
+  - { id: position-model, kind: unknown, because: "position-model: no outcome yet" }
+  - { id: face, kind: unknown, because: "face: no outcome yet" }
+  - { id: self-run, kind: unknown, because: "self-run: no outcome yet" }

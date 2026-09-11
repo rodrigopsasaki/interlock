@@ -1,20 +1,66 @@
 import { relative } from "node:path";
-import { isErr } from "@phyxiusjs/fp";
+import { isErr, ok } from "@phyxiusjs/fp";
 import {
-  computePosition,
   explainGraphRefusal,
   findRepoRoot,
   graphFilePath,
   sharedJournalDirectory,
   loadGraphDocument,
+  positionOf,
   renderPosition,
+  type AgentStatus,
 } from "face";
-import { explainScopeRefusal, readReplay, receiptId } from "ledger";
+import {
+  explainScopeRefusal,
+  readReplay,
+  receiptId,
+  type SessionView,
+} from "ledger";
+import { createHerdrRuntime, type Runtime } from "runner";
 import type { CommandResult } from "../main.ts";
+
+function liveSessions(
+  graphId: string,
+  sessions: ReadonlyMap<string, SessionView>,
+): readonly SessionView[] {
+  return [...sessions.values()].filter(
+    (session) =>
+      session.node.graph === graphId &&
+      session.lease !== undefined &&
+      !session.leaseExpired,
+  );
+}
+
+async function resolveAgentStatuses(
+  graphId: string,
+  sessions: readonly SessionView[],
+  injectedRuntime: Runtime | undefined,
+): Promise<ReadonlyMap<string, AgentStatus>> {
+  const statuses = new Map<string, AgentStatus>();
+  if (sessions.length === 0) return statuses;
+
+  const runtime =
+    injectedRuntime === undefined
+      ? await createHerdrRuntime()
+      : ok(injectedRuntime);
+  if (isErr(runtime)) return statuses;
+
+  for (const session of sessions) {
+    const status = await runtime.value.reportedAgentStatus?.({
+      graph: graphId,
+      node: session.node.id,
+      session: session.session,
+    });
+    if (status !== undefined && !isErr(status) && status.value !== undefined) {
+      statuses.set(session.session, status.value);
+    }
+  }
+  return statuses;
+}
 
 export async function runGraphShow(
   args: readonly string[],
-  options: { readonly cwd?: string } = {},
+  options: { readonly cwd?: string; readonly runtime?: Runtime } = {},
 ): Promise<CommandResult> {
   const [id] = args;
   if (id === undefined) {
@@ -58,10 +104,23 @@ export async function runGraphShow(
     return { exitCode: 1, message: explainScopeRefusal(contentHash.error) };
   }
 
-  const position = computePosition(
+  const statuses = await resolveAgentStatuses(
+    id,
+    liveSessions(id, replayed.value.sessions),
+    options.runtime,
+  );
+
+  const position = positionOf(
     document.value,
     replayed.value,
     contentHash.value,
+    (session) => statuses.get(session),
   );
-  return { exitCode: 0, message: renderPosition(position) };
+
+  return {
+    exitCode: 0,
+    message: args.includes("--json")
+      ? JSON.stringify(position, null, 2)
+      : renderPosition(position),
+  };
 }
