@@ -156,3 +156,40 @@ entries:
       a scripted key sequence and a fake dispatcher/runtime, while the
       true raw-mode wiring stays a thin, separately-reviewed tail that a
       person exercises live after this session stops.
+  - kind: surprise
+    at: "2026-09-11T17:30:00Z"
+    expected: >
+      A `lease-taken` event followed by a `session-started` event for the
+      same session, in that order, would fold to the same
+      `SessionView.lease` as the reverse order -- both are just facts
+      about one session.
+    observed: >
+      `projection.ts`'s `withSession` is a no-op when the session key is
+      not already in the map ("if (current === undefined) return
+      projection"), and only `session-started` creates that map entry --
+      a `lease-taken` event applied before its session's own
+      `session-started` is silently dropped, leaving `SessionView.lease`
+      `undefined` even though a real runner always emits
+      `session-started` before it ever takes a lease. The first draft of
+      this node's own frame-render fixture built events in the wrong
+      order and got a Plans-level live count of 0 instead of 1 until this
+      was caught by the test itself, not by inspection.
+  - kind: surprise
+    at: "2026-09-11T17:40:00Z"
+    expected: >
+      `findRepoRoot`, used against a fresh `mkdtempSync` fixture directory
+      with no `.interlock` of its own, would return `undefined`, the way
+      `graph show`'s own "no .interlock directory found" refusal is
+      normally exercised.
+    observed: >
+      `findRepoRoot` walks every ancestor directory with no boundary at a
+      nested git repository's edge, and this worktree's own fixture roots
+      (`packages/cli/test/.runs/...`) are themselves inside this
+      repository's checkout -- so a fixture directory with no `.interlock`
+      of its own still resolves to the outer, real `.interlock` a few
+      parents up. `runInterlockFace`'s own "no .interlock directory
+      found" refusal is exercised by every other command's identical
+      code path already (all read `findRepoRoot` the same way); a
+      dedicated test for it here would need a directory outside this
+      worktree, which the brief's own constraints forbid. Dropped the
+      test rather than build one that cannot pass honestly.
