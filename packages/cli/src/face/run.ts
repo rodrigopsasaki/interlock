@@ -1,4 +1,5 @@
 import { watch, type FSWatcher } from "node:fs";
+import { createSystemClock, type Clock } from "@phyxiusjs/clock";
 import { isErr } from "@phyxiusjs/fp";
 import {
   findRepoRoot,
@@ -9,6 +10,7 @@ import {
   type FaceKey,
   type FaceState,
   type FaceWorld,
+  type Selection,
 } from "face";
 import type { Runtime } from "runner";
 import type { CommandResult } from "../main.ts";
@@ -24,6 +26,7 @@ const REDRAW_INTERVAL_MS = 2000;
 export interface FaceOptions {
   readonly cwd?: string;
   readonly runtime?: Runtime;
+  readonly clock?: Clock;
   readonly dispatch?: Dispatcher;
   readonly stdin?: NodeJS.ReadStream;
   readonly stdout?: NodeJS.WriteStream;
@@ -35,13 +38,59 @@ function worldWithBy(world: FaceWorld, by: string | undefined): FaceWorld {
   return by === undefined ? world : { ...world, by };
 }
 
-async function* realKeys(stdin: NodeJS.ReadStream): AsyncIterable<FaceKey> {
-  if (stdin.isTTY) stdin.setRawMode(true);
-  stdin.resume();
-  stdin.setEncoding("utf-8");
-  for await (const chunk of stdin) {
-    for (const key of decodeKeys(String(chunk))) yield key;
+function selectionsEqual(a: Selection, b: Selection): boolean {
+  return a.graph === b.graph && a.node === b.node && a.session === b.session;
+}
+
+function needsWorldRefresh(previous: FaceState, next: FaceState): boolean {
+  return (
+    previous.kind !== next.kind ||
+    previous.level !== next.level ||
+    !selectionsEqual(previous.selection, next.selection)
+  );
+}
+
+function bufferedKeys(stdin: NodeJS.ReadStream): AsyncIterable<FaceKey> {
+  const queue: FaceKey[] = [];
+  const waiters: ((result: IteratorResult<FaceKey>) => void)[] = [];
+  let ended = false;
+
+  function push(key: FaceKey): void {
+    const waiter = waiters.shift();
+    if (waiter === undefined) {
+      queue.push(key);
+    } else {
+      waiter({ value: key, done: false });
+    }
   }
+
+  if (stdin.isTTY) stdin.setRawMode(true);
+  stdin.setEncoding("utf-8");
+  stdin.on("data", (chunk: string) => {
+    for (const key of decodeKeys(chunk)) push(key);
+  });
+  stdin.on("end", () => {
+    ended = true;
+    for (const waiter of waiters.splice(0)) {
+      waiter({ value: undefined, done: true });
+    }
+  });
+  stdin.resume();
+
+  return {
+    [Symbol.asyncIterator](): AsyncIterator<FaceKey> {
+      return {
+        next(): Promise<IteratorResult<FaceKey>> {
+          const queued = queue.shift();
+          if (queued !== undefined) {
+            return Promise.resolve({ value: queued, done: false });
+          }
+          if (ended) return Promise.resolve({ value: undefined, done: true });
+          return new Promise((resolve) => waiters.push(resolve));
+        },
+      };
+    },
+  };
 }
 
 function watchJournalDirectory(
@@ -73,6 +122,7 @@ export async function runInterlockFace(
   const stdout = options.stdout ?? process.stdout;
   const dispatch = options.dispatch ?? createDispatcher();
   const by = options.by ?? process.env["INTERLOCK_BY"];
+  const clock = options.clock ?? createSystemClock();
 
   let state: FaceState =
     graph === undefined
@@ -83,12 +133,20 @@ export async function runInterlockFace(
 
   async function refreshWorld(): Promise<void> {
     if (state.level === "plans") {
-      world = worldWithBy(await buildPlansWorld(repoRoot, options.runtime), by);
+      world = worldWithBy(
+        await buildPlansWorld(repoRoot, options.runtime, clock),
+        by,
+      );
       return;
     }
     const graphId = state.selection.graph ?? graph;
     if (graphId === undefined) return;
-    const built = await buildGraphWorld(repoRoot, graphId, options.runtime);
+    const built = await buildGraphWorld(
+      repoRoot,
+      graphId,
+      options.runtime,
+      clock,
+    );
     world = worldWithBy(isErr(built) ? { plans: [] } : built.value, by);
 
     if (
@@ -112,11 +170,12 @@ export async function runInterlockFace(
   }
 
   async function handle(key: FaceKey): Promise<boolean> {
+    const previous = state;
     const reduced = reduce(state, key, world);
     state = reduced.state;
     const effect = reduced.effect;
     if (effect === undefined) {
-      await refreshWorld();
+      if (needsWorldRefresh(previous, state)) await refreshWorld();
       draw();
       return true;
     }
@@ -154,7 +213,7 @@ export async function runInterlockFace(
   await refreshWorld();
 
   const usingRealKeys = options.keys === undefined;
-  const keys = options.keys ?? realKeys(options.stdin ?? process.stdin);
+  const keys = options.keys ?? bufferedKeys(options.stdin ?? process.stdin);
 
   enterAltScreen(stdout);
   draw();

@@ -1,5 +1,6 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { Readable } from "node:stream";
 import { afterEach, describe, expect, it } from "vitest";
 import { gitInitFixture } from "../graph/gitFixture.ts";
 import { runInterlockFace } from "../../src/face/run.ts";
@@ -35,12 +36,45 @@ function fixture(): string {
   return directory;
 }
 
+function fixtureManyIndependentNodes(count: number): string {
+  directory = mkdtempSync(join(runsRoot, "run-"));
+  gitInitFixture(directory);
+  mkdirSync(join(directory, ".interlock", "graphs"), { recursive: true });
+  const ids = Array.from({ length: count }, (_, index) => `n${index}`);
+  writeFileSync(
+    join(directory, ".interlock", "graphs", "many.yaml"),
+    [
+      "interlock: graph@v0",
+      "id: many",
+      "nodes:",
+      ...ids.map((id) => `  - id: ${id}\n    depends_on: []`),
+      "",
+    ].join("\n"),
+  );
+  return directory;
+}
+
+function nodeIdsOf(lines: readonly string[]): readonly string[] {
+  return lines
+    .map((line) => /^[>\s]{2}(?:● |  )?([^\s]+) — /.exec(line)?.[1])
+    .filter((id): id is string => id !== undefined);
+}
+
+function cursorRowIndex(frame: string): number {
+  const lines = frame.split("\n");
+  const cursorAt = lines.findIndex((line) => /^> /.test(line));
+  if (cursorAt < 0) throw new Error("no cursor row in this frame");
+  return nodeIdsOf(lines.slice(0, cursorAt + 1)).length - 1;
+}
+
 async function* keysOf(keys: readonly FaceKey[]): AsyncIterable<FaceKey> {
   for (const key of keys) yield key;
 }
 
 function fakeStdout(): {
   write(text: string): boolean;
+  on(event: string, listener: () => void): void;
+  off(event: string, listener: () => void): void;
   writes: readonly string[];
 } {
   const writes: string[] = [];
@@ -49,6 +83,8 @@ function fakeStdout(): {
       writes.push(text);
       return true;
     },
+    on() {},
+    off() {},
     writes,
   };
 }
@@ -126,5 +162,55 @@ describe("runInterlockFace", () => {
     expect(calls).toEqual([
       ["node", "cancel", "demo", "a", "--by", "rodrigo", "--because", "no"],
     ]);
+  });
+
+  it("a burst of six j keys, yielded without awaiting between them, moves the cursor six rows", async () => {
+    const cwd = fixtureManyIndependentNodes(8);
+    const stdout = fakeStdout();
+
+    await runInterlockFace(["many"], {
+      cwd,
+      stdout: stdout as unknown as NodeJS.WriteStream,
+      keys: keysOf([
+        { name: "char", char: "j" },
+        { name: "char", char: "j" },
+        { name: "char", char: "j" },
+        { name: "char", char: "j" },
+        { name: "char", char: "j" },
+        { name: "char", char: "j" },
+        { name: "char", char: "q" },
+      ]),
+    });
+
+    const CLEAR_AND_HOME = "\x1b[2J\x1b[H";
+    const lastFrame = stdout.writes
+      .filter((chunk) => chunk.startsWith(CLEAR_AND_HOME))
+      .at(-1);
+    if (lastFrame === undefined) throw new Error("expected a drawn frame");
+    expect(cursorRowIndex(lastFrame.slice(CLEAR_AND_HOME.length))).toBe(6);
+  });
+
+  it("decoded keys from real stdin queue rather than vanish, even pushed as separate reads before anything consumes them", async () => {
+    const cwd = fixtureManyIndependentNodes(8);
+    const stdout = fakeStdout();
+    const stdin = new Readable({ read() {} });
+    Object.assign(stdin, { isTTY: false });
+
+    for (const char of "jjjjjj") stdin.push(char);
+    stdin.push("q");
+    stdin.push(null);
+
+    await runInterlockFace(["many"], {
+      cwd,
+      stdout: stdout as unknown as NodeJS.WriteStream,
+      stdin: stdin as unknown as NodeJS.ReadStream,
+    });
+
+    const CLEAR_AND_HOME = "\x1b[2J\x1b[H";
+    const lastFrame = stdout.writes
+      .filter((chunk) => chunk.startsWith(CLEAR_AND_HOME))
+      .at(-1);
+    if (lastFrame === undefined) throw new Error("expected a drawn frame");
+    expect(cursorRowIndex(lastFrame.slice(CLEAR_AND_HOME.length))).toBe(6);
   });
 });
