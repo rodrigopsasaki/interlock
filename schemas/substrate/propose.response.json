@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/substrate@v1/propose.response.json",
+  "title": "propose.response@substrate@v1",
+  "description": "The handle propose returns: a reference to the candidate rule, adopted only by a person's later ratify call. The substrate never adopts a rule on its own.",
+  "type": "object",
+  "properties": {
+    "handle": { "type": "string" }
+  },
+  "required": ["handle"],
+  "additionalProperties": false
+}

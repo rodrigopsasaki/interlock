@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/substrate@v1/why.request.json",
+  "title": "why.request@substrate@v1",
+  "description": "What why takes to justify one item: an opaque reference to it. item@v1 carries no id of its own; minting and returning a ref for each item it renders is left to each substrate's own transport, outside this protocol.",
+  "type": "object",
+  "properties": {
+    "ref": { "type": "string" }
+  },
+  "required": ["ref"],
+  "additionalProperties": false
+}

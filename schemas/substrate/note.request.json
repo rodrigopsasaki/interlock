@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/substrate@v1/note.request.json",
+  "title": "note.request@substrate@v1",
+  "description": "One choice or surprise, live, for a substrate that keeps an envelope open across a session.",
+  "type": "object",
+  "properties": {
+    "session": { "type": "string" },
+    "note": { "$ref": "../parts/note.json" }
+  },
+  "required": ["session", "note"],
+  "additionalProperties": false
+}

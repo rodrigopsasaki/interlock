@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/substrate@v1/context.request.json",
+  "title": "context.request@substrate@v1",
+  "description": "What context takes when a brief is composed for a node: which node, which paths its session may touch, and the role it carries.",
+  "type": "object",
+  "properties": {
+    "node": { "$ref": "../parts/node.json" },
+    "scope": { "type": "array", "items": { "type": "string" } },
+    "role": { "type": "string" }
+  },
+  "required": ["node", "scope", "role"],
+  "additionalProperties": false
+}

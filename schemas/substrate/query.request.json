@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/substrate@v1/query.request.json",
+  "title": "query.request@substrate@v1",
+  "description": "What query takes for a mid-session walk beyond the brief's slice: a question in the team's words, and which paths it bears on.",
+  "type": "object",
+  "properties": {
+    "question": { "type": "string" },
+    "scope": { "type": "array", "items": { "type": "string" } }
+  },
+  "required": ["question", "scope"],
+  "additionalProperties": false
+}

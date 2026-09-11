@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/substrate@v1/open.request.json",
+  "title": "open.request@substrate@v1",
+  "description": "What open takes at session start: the session id and the brief its session was given.",
+  "type": "object",
+  "properties": {
+    "session": { "type": "string" },
+    "brief": { "$ref": "../brief@v1.json" }
+  },
+  "required": ["session", "brief"],
+  "additionalProperties": false
+}
