@@ -5,6 +5,7 @@ import { runInterlockFace } from "./face/run.ts";
 import { runGateWaive } from "./gate/waive.ts";
 import { runGraphApprove } from "./graph/approve.ts";
 import { runGraphShow } from "./graph/show.ts";
+import { runGraphStatus } from "./graph/status.ts";
 import { runInterlockJudge } from "./judge.ts";
 import { runNodeCancel } from "./node/cancel.ts";
 import { runNodeReset } from "./node/reset.ts";
@@ -35,6 +36,10 @@ export async function run(argv: readonly string[]): Promise<CommandResult> {
 
   if (group === "graph" && action === "approve") {
     return runGraphApprove(argv.slice(2));
+  }
+
+  if (group === "graph" && action === "status") {
+    return runGraphStatus(argv.slice(2));
   }
 
   if (group === "session" && action === "show") {
