@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/parts/legacy-discovery.json",
+  "title": "legacy-discovery",
+  "description": "A discovery entry as debrief@v0 and debrief@v1 require it: only id and what are checked; found_at and mattered_because are not, though real files carry them.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "what": {
+      "type": "string"
+    },
+    "found_at": {
+      "type": "string"
+    },
+    "mattered_because": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "what"
+  ],
+  "additionalProperties": true
+}

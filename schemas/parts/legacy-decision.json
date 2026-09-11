@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/parts/legacy-decision.json",
+  "title": "legacy-decision",
+  "description": "A decision entry as debrief@v0 and debrief@v1 require it: only id and what are checked; because is merely counted when absent, not required until debrief@v2.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "what": {
+      "type": "string"
+    },
+    "because": {
+      "type": "string"
+    },
+    "rests_on": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "hunks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "produces": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "rejected": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "what"
+  ],
+  "additionalProperties": true
+}

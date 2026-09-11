@@ -13,6 +13,7 @@ packages/runner/test/.localconfig-runs/
 packages/runner/test/.git-ceiling-runs/
 packages/runner/test/.session-screen-runs/
 packages/runner/test/.worktree-setup-runs/
+packages/schemas/test/.runs/
 .interlock/ledger/
 .interlock/local.yaml
 .interlock/sessions/**/screen.txt

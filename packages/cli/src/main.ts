@@ -10,6 +10,7 @@ import { runInterlockJudge } from "./judge.ts";
 import { runNodeCancel } from "./node/cancel.ts";
 import { runNodeReset } from "./node/reset.ts";
 import { runInterlockRun } from "./run.ts";
+import { runSchemaValidate } from "./schema/validate.ts";
 import { runSessionShow } from "./session/show.ts";
 import { runInterlockSweep } from "./sweep.ts";
 import { runInterlockVerify } from "./verify.ts";
@@ -56,6 +57,10 @@ export async function run(argv: readonly string[]): Promise<CommandResult> {
 
   if (group === "gate" && action === "waive") {
     return runGateWaive(argv.slice(2));
+  }
+
+  if (group === "schema" && action === "validate") {
+    return runSchemaValidate(argv.slice(2));
   }
 
   if (group === "run") {

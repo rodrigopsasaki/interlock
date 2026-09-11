@@ -1,0 +1,6 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/brief@v0.json",
+  "title": "brief@v0",
+  "description": "A brief predating front matter: every real brief@v0 in this repository's history is free-form Markdown prose with no --- front-matter block at all, so there is no structure left to validate. A file also reads as legacy when its front matter exists but carries no interlock key, or an interlock key that is not the string brief@v1. This schema accepts anything; interlock schema validate reports a brief@v0 file as legacy-valid without running it through here."
+}

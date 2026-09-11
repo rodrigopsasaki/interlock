@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/parts/gate.json",
+  "title": "gate",
+  "description": "A gate's evidence lifecycle: pending, satisfied, blocked, waived, or superseded.",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": { "kind": { "const": "pending" } },
+      "required": ["kind"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "satisfied" },
+        "receipt": { "$ref": "receipt.json" }
+      },
+      "required": ["kind", "receipt"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "blocked" },
+        "evidence": { "type": "string" },
+        "because": { "type": "string" }
+      },
+      "required": ["kind", "evidence", "because"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "waived" },
+        "authority": { "type": "string" },
+        "because": { "type": "string" },
+        "receipt": { "$ref": "receipt.json" }
+      },
+      "required": ["kind", "authority", "because", "receipt"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "superseded" },
+        "authority": { "type": "string" },
+        "because": { "type": "string" }
+      },
+      "required": ["kind", "authority", "because"],
+      "additionalProperties": false
+    }
+  ]
+}

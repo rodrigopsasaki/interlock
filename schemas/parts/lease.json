@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/parts/lease.json",
+  "title": "lease",
+  "description": "A runner's claim on a node with a typed expiry, renewed by heartbeat.",
+  "type": "object",
+  "properties": {
+    "node": { "$ref": "node.json" },
+    "session": { "type": "string" },
+    "expiry": { "type": "number" }
+  },
+  "required": ["node", "session", "expiry"],
+  "additionalProperties": false
+}

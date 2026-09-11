@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/event@v2.json",
+  "title": "event@v2",
+  "description": "One line of the journal, at event@v2: identical in shape to event@v4, since the code's own upcasters for v2 and v3 are both a pure identity check against today's guards. The version was bumped for compatibility policy, not because the wire shape changed.",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "interlock": { "const": "event@v2" },
+        "kind": { "const": "node-created" },
+        "node": { "$ref": "parts/node.json" }
+      },
+      "required": ["interlock", "kind", "node"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "interlock": { "const": "event@v2" },
+        "kind": { "enum": ["lease-taken", "lease-renewed"] },
+        "node": { "$ref": "parts/node.json" },
+        "session": { "type": "string" },
+        "expiry": { "type": "number" }
+      },
+      "required": ["interlock", "kind", "node", "session", "expiry"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "interlock": { "const": "event@v2" },
+        "kind": { "const": "lease-expired" },
+        "node": { "$ref": "parts/node.json" },
+        "session": { "type": "string" }
+      },
+      "required": ["interlock", "kind", "node", "session"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "interlock": { "const": "event@v2" },
+        "kind": { "const": "session-started" },
+        "session": { "$ref": "parts/session.json" },
+        "brief": { "$ref": "parts/session-brief.json" },
+        "graphBaseSha": { "type": "string" }
+      },
+      "required": ["interlock", "kind", "session", "brief"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "interlock": { "const": "event@v2" },
+        "kind": { "const": "note-appended" },
+        "session": { "type": "string" },
+        "note": { "$ref": "parts/note.json" }
+      },
+      "required": ["interlock", "kind", "session", "note"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "interlock": { "const": "event@v2" },
+        "kind": { "const": "debrief-filed" },
+        "session": { "type": "string" },
+        "debrief": { "$ref": "parts/debrief-event.json" }
+      },
+      "required": ["interlock", "kind", "session", "debrief"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "interlock": { "const": "event@v2" },
+        "kind": { "const": "gate-moved" },
+        "node": { "$ref": "parts/node.json" },
+        "gate": { "type": "string" },
+        "to": { "$ref": "parts/gate.json" }
+      },
+      "required": ["interlock", "kind", "node", "gate", "to"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "interlock": { "const": "event@v2" },
+        "kind": { "const": "receipt-written" },
+        "node": { "$ref": "parts/node.json" },
+        "receipt": { "$ref": "parts/receipt.json" }
+      },
+      "required": ["interlock", "kind", "node", "receipt"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "interlock": { "const": "event@v2" },
+        "kind": { "const": "outcome-set" },
+        "node": { "$ref": "parts/node.json" },
+        "outcome": { "$ref": "parts/outcome.json" }
+      },
+      "required": ["interlock", "kind", "node", "outcome"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "interlock": { "const": "event@v2" },
+        "kind": { "const": "outbox-intent-recorded" },
+        "node": { "$ref": "parts/node.json" },
+        "id": { "type": "string" },
+        "intent": { "type": "string" }
+      },
+      "required": ["interlock", "kind", "node", "id", "intent"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "interlock": { "const": "event@v2" },
+        "kind": { "const": "session-narrated" },
+        "session": { "type": "string" },
+        "at": { "type": "number" },
+        "line": { "type": "string" }
+      },
+      "required": ["interlock", "kind", "session", "at", "line"],
+      "additionalProperties": false
+    }
+  ]
+}

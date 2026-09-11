@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/parts/gate-v1.json",
+  "title": "gate@v1",
+  "description": "A gate's evidence lifecycle as event@v1 carried it: satisfied and waived nest a receipt@v1.",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": { "kind": { "const": "pending" } },
+      "required": ["kind"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "satisfied" },
+        "receipt": { "$ref": "receipt-v1.json" }
+      },
+      "required": ["kind", "receipt"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "blocked" },
+        "evidence": { "type": "string" },
+        "because": { "type": "string" }
+      },
+      "required": ["kind", "evidence", "because"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "waived" },
+        "authority": { "type": "string" },
+        "because": { "type": "string" },
+        "receipt": { "$ref": "receipt-v1.json" }
+      },
+      "required": ["kind", "authority", "because", "receipt"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "superseded" },
+        "authority": { "type": "string" },
+        "because": { "type": "string" }
+      },
+      "required": ["kind", "authority", "because"],
+      "additionalProperties": false
+    }
+  ]
+}

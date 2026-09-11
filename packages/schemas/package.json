@@ -1,25 +1,25 @@
 {
-  "name": "cli",
+  "name": "schemas",
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
-    "@phyxiusjs/clock": "^0.3.0",
     "@phyxiusjs/fp": "^0.2.1",
     "debrief": "workspace:*",
     "face": "workspace:*",
     "ledger": "workspace:*",
     "runner": "workspace:*",
-    "schemas": "workspace:*",
-    "verifier": "workspace:*",
     "yaml": "2.9.0"
   },
   "devDependencies": {
     "@types/node": "24.13.3",
+    "ajv": "^8.17.1",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   }

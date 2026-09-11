@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/parts/legacy-gate-run.json",
+  "title": "legacy-gate-run",
+  "description": "A gate run entry as debrief@v0 and debrief@v1 require it: only id is checked.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "result": {
+      "enum": [
+        "pass",
+        "fail"
+      ]
+    },
+    "invocation": {
+      "type": "string"
+    },
+    "note": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "additionalProperties": true
+}

@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/parts/standing-gate.json",
+  "title": "standing-gate",
+  "description": "A gate in the repository's standing table. Unlike a node's own gate declaration, run is required: every standing gate is a command.",
+  "type": "object",
+  "allOf": [{ "$ref": "gate-declaration.json" }],
+  "required": ["run"]
+}

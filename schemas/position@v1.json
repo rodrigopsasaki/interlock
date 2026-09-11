@@ -1,0 +1,194 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/position@v1.json",
+  "title": "position@v1",
+  "description": "The current read of a graph, composed above the ledger. There is no reader for this shape anywhere in the repository: it is produced by positionOf and emitted as JSON only by interlock graph show --json. This schema describes that producer's output, not a file ever read back in. A gate's receipt is only ever present when its state is satisfied or waived, but that correlation is left to the producer rather than enforced here.",
+  "type": "object",
+  "properties": {
+    "interlock": { "const": "position@v1" },
+    "graph": { "type": "string" },
+    "approval": { "enum": ["approved", "stale", "not-approved"] },
+    "nodes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/positionNode" }
+    },
+    "criticalPath": { "type": "array", "items": { "type": "string" } }
+  },
+  "required": ["interlock", "graph", "approval", "nodes", "criticalPath"],
+  "additionalProperties": false,
+  "$defs": {
+    "positionNode": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "dependsOn": { "type": "array", "items": { "type": "string" } },
+        "state": { "$ref": "#/$defs/nodeState" },
+        "gates": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/positionGate" }
+        },
+        "attempts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/positionAttempt" }
+        },
+        "float": { "$ref": "#/$defs/float" }
+      },
+      "required": ["id", "dependsOn", "state", "gates", "attempts", "float"],
+      "additionalProperties": false
+    },
+    "nodeState": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "outcome" },
+            "outcome": { "$ref": "parts/outcome.json" }
+          },
+          "required": ["kind", "outcome"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": { "kind": { "const": "ready" } },
+          "required": ["kind"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "blocked" },
+            "on": { "type": "array", "items": { "type": "string" } }
+          },
+          "required": ["kind", "on"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "float": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "measured" },
+            "ms": { "type": "number" }
+          },
+          "required": ["kind", "ms"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "unknown" },
+            "because": { "type": "string" }
+          },
+          "required": ["kind", "because"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "positionGateState": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": { "kind": { "const": "pending" } },
+          "required": ["kind"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": { "kind": { "const": "satisfied" } },
+          "required": ["kind"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "blocked" },
+            "evidence": { "type": "string" },
+            "because": { "type": "string" }
+          },
+          "required": ["kind", "evidence", "because"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "waived" },
+            "authority": { "type": "string" },
+            "because": { "type": "string" }
+          },
+          "required": ["kind", "authority", "because"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "superseded" },
+            "authority": { "type": "string" },
+            "because": { "type": "string" }
+          },
+          "required": ["kind", "authority", "because"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "receiptSummary": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "commit": { "type": "string" },
+        "duration": { "$ref": "parts/duration.json" },
+        "spend": { "$ref": "parts/spend.json" },
+        "derivation": { "enum": ["gate", "model", "human"] }
+      },
+      "required": ["id", "commit", "duration", "spend", "derivation"],
+      "additionalProperties": false
+    },
+    "positionGate": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "state": { "$ref": "#/$defs/positionGateState" },
+        "receipt": { "$ref": "#/$defs/receiptSummary" }
+      },
+      "required": ["id", "state"],
+      "additionalProperties": false
+    },
+    "leaseState": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": { "kind": { "const": "none" } },
+          "required": ["kind"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": { "kind": { "const": "live" } },
+          "required": ["kind"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "expired" },
+            "agoMs": { "type": "number" }
+          },
+          "required": ["kind", "agoMs"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "positionAttempt": {
+      "type": "object",
+      "properties": {
+        "session": { "type": "string" },
+        "outcome": { "$ref": "parts/outcome.json" },
+        "leaseState": { "$ref": "#/$defs/leaseState" },
+        "agentStatus": { "enum": ["idle", "working", "blocked", "done", "unknown"] }
+      },
+      "required": ["session", "leaseState"],
+      "additionalProperties": false
+    }
+  }
+}

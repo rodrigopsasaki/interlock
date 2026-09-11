@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/graph@v0.json",
+  "title": "graph@v0",
+  "description": "The directed acyclic graph of nodes produced from one ask. The loader reads only interlock, id, gates and nodes; other top-level keys (an ask, its derivation, read instructions) are real, accepted, unvalidated data the interpreter leaves behind, so this schema stays open at the top level. A node's dependency edges must form a DAG and every depends_on id must name a real node; neither is expressible here and both stay loader-only checks.",
+  "type": "object",
+  "properties": {
+    "interlock": {
+      "const": "graph@v0"
+    },
+    "id": {
+      "type": "string"
+    },
+    "gates": {
+      "type": "array",
+      "items": {
+        "$ref": "parts/gate-declaration.json"
+      },
+      "default": []
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "acceptance": {
+            "type": "string"
+          },
+          "depends_on": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "gates": {
+            "type": "array",
+            "items": {
+              "$ref": "parts/gate-declaration.json"
+            }
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": true
+      }
+    }
+  },
+  "required": [
+    "interlock",
+    "id",
+    "nodes"
+  ],
+  "additionalProperties": true
+}

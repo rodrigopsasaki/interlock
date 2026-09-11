@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/parts/session.json",
+  "title": "session",
+  "description": "The ledger's own session reference: an id and the node it works.",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string" },
+    "node": { "$ref": "node.json" }
+  },
+  "required": ["id", "node"],
+  "additionalProperties": false
+}

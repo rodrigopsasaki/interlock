@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/parts/spend.json",
+  "title": "spend",
+  "description": "What a receipt cost: none, metered, or local.",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": { "kind": { "const": "none" } },
+      "required": ["kind"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": { "kind": { "const": "local" } },
+      "required": ["kind"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "metered" },
+        "amountUsdMicros": { "type": "number" },
+        "unmeteredCalls": { "type": "number" }
+      },
+      "required": ["kind", "amountUsdMicros", "unmeteredCalls"],
+      "additionalProperties": false
+    }
+  ]
+}

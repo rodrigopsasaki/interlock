@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/parts/derivation.json",
+  "title": "derivation",
+  "description": "Who produced a receipt or a mark: a gate run, a model, or a person.",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "gate" },
+        "gate": { "type": "string" },
+        "version": { "type": "string" },
+        "runner": { "type": "string" }
+      },
+      "required": ["kind", "gate", "version", "runner"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "model" },
+        "model": { "type": "string" },
+        "promptId": { "type": "string" },
+        "lens": { "type": "string" }
+      },
+      "required": ["kind", "model", "promptId", "lens"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "human" },
+        "who": { "type": "string" }
+      },
+      "required": ["kind", "who"],
+      "additionalProperties": false
+    }
+  ]
+}
