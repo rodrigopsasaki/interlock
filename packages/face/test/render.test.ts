@@ -15,12 +15,12 @@ const document: GraphDocument = {
 
 describe("renderPosition", () => {
   it("is a pure function of the position value: same input, same text", () => {
-    const position = positionOf(document, fold([]), "hash");
+    const position = positionOf(document, fold([]), "hash", Date.now());
     expect(renderPosition(position)).toBe(renderPosition(position));
   });
 
   it("names every node, its approval line, and the critical path, so nothing in the value is silently dropped", () => {
-    const position = positionOf(document, fold([]), "hash");
+    const position = positionOf(document, fold([]), "hash", Date.now());
     const text = renderPosition(position);
     expect(text).toContain("demo");
     expect(text).toContain("not approved");
@@ -42,7 +42,7 @@ describe("renderPosition", () => {
         ),
       },
     ];
-    const position = positionOf(document, fold(events), "hash");
+    const position = positionOf(document, fold(events), "hash", Date.now());
     const text = renderPosition(position);
     expect(text).toContain(
       "a — held: 3 uncommitted path(s) in the worktree; gates judge commits only",
@@ -51,7 +51,7 @@ describe("renderPosition", () => {
 
   it("prints a float line only for a node whose float is measured, silent otherwise", () => {
     const unmeasuredText = renderPosition(
-      positionOf(document, fold([]), "hash"),
+      positionOf(document, fold([]), "hash", Date.now()),
     );
     expect(unmeasuredText).not.toContain("float:");
 
@@ -91,7 +91,7 @@ describe("renderPosition", () => {
         },
       },
     ];
-    const measuredText = renderPosition(positionOf(solo, fold(events), "hash"));
+    const measuredText = renderPosition(positionOf(solo, fold(events), "hash", Date.now()));
     expect(measuredText).toContain("float: 0ms");
   });
 });

@@ -135,6 +135,7 @@ describe("frames over the real bootstrap graph", () => {
       document,
       projection,
       "some-hash",
+      Date.now(),
       agentStatusFor,
     );
     const entry = plansEntryOf(position);
@@ -156,6 +157,7 @@ describe("frames over the real bootstrap graph", () => {
       document,
       projection,
       "some-hash",
+      Date.now(),
       agentStatusFor,
     );
     const runnerIndex = position.nodes.findIndex(
@@ -184,6 +186,7 @@ describe("frames over the real bootstrap graph", () => {
       document,
       projection,
       "some-hash",
+      Date.now(),
       agentStatusFor,
     );
     const runner = nodeIn(position.nodes, "runner-command-gate");
@@ -246,8 +249,48 @@ describe("plansEntryOf", () => {
       document,
       projection,
       "some-hash",
+      Date.now(),
       agentStatusFor,
     );
     expect(plansEntryOf(position).liveSessions).toBe(0);
+  });
+
+  it("counts a lease whose expiry has passed the clock as not live even when no sweeper ever recorded lease-expired", async () => {
+    const document = await loadRealDocument();
+    const now = Date.now();
+    const unsweptSession = "sess-unswept-1";
+    const unsweptEvents: readonly LedgerEvent[] = [
+      {
+        kind: "session-started",
+        session: {
+          id: unsweptSession,
+          node: { graph: GRAPH_ID, id: "runner-command-gate" },
+        },
+        brief: {
+          graph: GRAPH_ID,
+          node: "runner-command-gate",
+          role: "worker",
+          acceptance: "a fixture acceptance",
+          gates: [],
+          scope: [],
+        },
+      },
+      {
+        kind: "lease-taken",
+        node: { graph: GRAPH_ID, id: "runner-command-gate" },
+        session: unsweptSession,
+        expiry: now - 3_600_000,
+      },
+    ];
+    const projection = fold(unsweptEvents);
+    const position = positionOf(document, projection, "some-hash", now);
+    expect(plansEntryOf(position).liveSessions).toBe(0);
+
+    const runner = nodeIn(position.nodes, "runner-command-gate");
+    const attemptLine = renderNodeFrame(runner, 0)
+      .split("\n")
+      .find((line) => line.includes(unsweptSession));
+    expect(attemptLine).toContain("lease expired 1h ago");
+    expect(attemptLine).not.toContain("live lease");
   });
 });

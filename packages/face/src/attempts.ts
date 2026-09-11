@@ -1,15 +1,16 @@
 import {
+  leaseIsLive,
   nodeKey,
-  type Lease,
   type LedgerProjection,
   type Outcome,
 } from "ledger";
 import type { AgentStatus } from "./agentStatus.ts";
+import { leaseStateOf, type LeaseState } from "./leaseState.ts";
 
 export interface PositionAttempt {
   readonly session: string;
   readonly outcome?: Outcome;
-  readonly lease?: Lease;
+  readonly leaseState: LeaseState;
   readonly agentStatus?: AgentStatus;
 }
 
@@ -17,6 +18,7 @@ export function attemptsFor(
   graph: string,
   node: string,
   projection: LedgerProjection,
+  nowWallMs: number,
   agentStatusFor?: (session: string) => AgentStatus | undefined,
 ): readonly PositionAttempt[] {
   const nodeView = projection.nodes.get(nodeKey({ graph, id: node }));
@@ -29,13 +31,13 @@ export function attemptsFor(
       session.leaseGeneration === nodeView.outcomeSetAtGeneration
         ? nodeView.outcome
         : undefined;
-    const isLive = session.lease !== undefined && !session.leaseExpired;
+    const isLive = leaseIsLive(session, nowWallMs);
     const agentStatus = isLive ? agentStatusFor?.(session.session) : undefined;
 
     attempts.push({
       session: session.session,
       ...(ownOutcome === undefined ? {} : { outcome: ownOutcome }),
-      ...(session.lease === undefined ? {} : { lease: session.lease }),
+      leaseState: leaseStateOf(session, nowWallMs),
       ...(agentStatus === undefined ? {} : { agentStatus }),
     });
   }
