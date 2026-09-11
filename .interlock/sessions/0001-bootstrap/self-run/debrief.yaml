@@ -1,0 +1,252 @@
+interlock: debrief@v2
+graph: 0001-bootstrap
+node: self-run
+role: worker
+graph_base_sha: 5c0940bbcd9f296277229a63648f40988a611aa1
+session_start_sha: 82fb6bd0da3b002f5a6b35119566880055f8bb90
+head_sha: 7848334b442480c4e57de6c520e6f9b94e37a83d
+derivation:
+  kind: agent
+  runtime: claude-code
+  model: claude-sonnet-5
+discoveries:
+  - id: d1
+    what: >
+      `position.ts`'s `NodeState` union (`outcome` / `ready` / `blocked`) has
+      no arm for "currently leased" -- liveness of a lease lives entirely on
+      `LedgerProjection.sessions`, read through the session's own `node`,
+      `lease` and `leaseExpired` fields, never through `positionOf`'s
+      per-node state.
+    found_at: |
+      $ grep -n "NodeState" packages/face/src/position.ts
+      position.ts:22-25 declares the union with exactly those three arms;
+      nothing in packages/face reads or writes a fourth. `graph show`'s own
+      liveness join (packages/cli/src/herdrStatus.ts's liveSessionsOf) and
+      judge.ts's live-lease refusal (packages/cli/src/judge.ts:147-153) both
+      read the same three SessionView fields directly instead.
+    mattered_because: >
+      The brief says `graph status` reads position "through `positionOf`
+      and nothing else," but that function alone cannot answer "is this
+      node leased right now" -- confirms the design had to read the
+      projection's sessions directly for that half of the check, mirroring
+      `judge.ts`'s existing predicate rather than growing `position@v1`'s
+      shape, which is out of this node's scope.
+  - id: d2
+    what: >
+      Replaying the shared journal shows the graph's own acceptance,
+      "every node above leased by the runner," is not literally true of
+      this graph's own run: 6 of the 12 nodes hold their `cleared` outcome
+      from `backfill` alone, with no `session-started` event ever paired
+      with a real `run`- or `judge`-derived receipt. A further 5 nodes each
+      carry a real live session (`run`, sometimes followed by `judge`) but
+      also carry a second, later `backfill-...` session layered on top of
+      the same, already-cleared node -- read, not chased down (open, below).
+    found_at: |
+      $ python3 -c "..." .interlock/ledger/journal.jsonl   # grouped
+        session-started events by node, then cross-referenced each
+        receipt-written event's derivation.runner field
+      scaffold, ledger, ledger-gaps, debrief-schema, face-read,
+      runner-command-gate: only session id "backfill-0001-bootstrap-<node>",
+      derivation.runner "backfill-<uuid>".
+      verifier-hunks: 9 live session-started events (one `cancelled` on
+      lease expiry, two `held` on gate failure), the final one
+      (052f6500-4932-4fd9-bfba-0e646e60a2e3) cleared via
+      derivation.runner "judge-052f6500-...", plus one later backfill
+      session.
+      attempts: 2 live sessions, cleared on the second via
+      "run-485f21a3-...", plus one later backfill session.
+      verbs: 1 live session, held via "run-ee7f079c-...", cleared via
+      "judge-ee7f079c-...", plus one later backfill session.
+      position-model: 1 live session, cleared via "run-bb67a691-...", plus
+      one later backfill session.
+      face: 1 live session, held twice via "run-41680329-...", cleared via
+      "judge-41680329-...", plus one later backfill session.
+      self-run: 1 live session (this one), no outcome yet.
+    mattered_because: >
+      This is exactly what the brief calls "judged on the journal, not the
+      story" -- the account below states the discrepancy plainly instead of
+      repeating the acceptance's own wording as if it were what happened,
+      and is the source for both the bend-log row and the node table this
+      debrief's deliverable asks for.
+  - id: d3
+    what: >
+      The dogfood gate command run for real, from this worktree, against
+      the real shared journal, before the runner's own gate run does the
+      same.
+    found_at: |
+      $ mise exec -- pnpm interlock graph status 0001-bootstrap --expect cleared
+      0001-bootstrap: every node is cleared or leased by a live session (12 node(s)).
+      exit code: 0
+    mattered_because: >
+      Confirms `graph status` reads the eleven already-cleared nodes as
+      `cleared` and this node itself, not yet cleared, as excused by its
+      own live lease -- the one case the acceptance's "the node under
+      judgement is leased while its own gates run" describes, proven
+      against this session's own real lease rather than a fixture.
+  - id: d4
+    what: >
+      Every node cleared before this one already stands on `main`: `git log
+      --oneline main` shows a merged pull request for each
+      (`graph/0001-bootstrap/<node>` branches through `#40`, the `face`
+      merge), and this worktree's own base commit
+      (5c0940bbcd9f296277229a63648f40988a611aa1) is itself a commit on
+      `main`'s own history.
+    found_at: |
+      $ git log --oneline main | grep "Merge pull request"
+      #40 graph/0001-bootstrap/face, #36 graph/0001-bootstrap/position-model,
+      #34 graph/0001-bootstrap/verbs, #33 graph/0001-bootstrap/attempts,
+      #31 graph/0001-bootstrap/verifier-hunks, and earlier PRs for the six
+      backfilled nodes, all ancestors of `main`'s current tip (#43, merged
+      after this session's brief was written).
+    mattered_because: >
+      Answers "which receipts stand at main" plainly: all of them for every
+      node above this one. `main` has moved past this session's own
+      `graph_base_sha` in the meantime (an unrelated `fix/face-hygiene`
+      merge, #43) -- expected drift, not a fact this node's gates read,
+      since they run inside this worktree at this branch's own tip.
+decisions:
+  - id: c1
+    what: >
+      Built `interlock graph status <graph> --expect <outcome>`
+      (packages/cli/src/graph/status.ts): reads the graph document and the
+      journal through `readReplay`, never opens the ledger for writing,
+      and treats a node as satisfying `--expect` when its outcome matches
+      or when a session holds a live, unexpired lease on it whose expiry
+      is still ahead of the clock -- the same three-field check
+      `judge.ts` already uses to refuse judging a live node, read the
+      other way around.
+    because: notes:1, notes:2
+    rests_on:
+      - "packages/cli/src/judge.ts"
+      - "packages/cli/src/graph/show.ts"
+      - "packages/cli/src/herdrStatus.ts"
+      - "packages/ledger/src/projection.ts"
+      - "notes:1"
+      - "notes:2"
+    hunks:
+      - "packages/cli/src/graph/status.ts:1-118"
+    rejected: >
+      Adding a fourth `NodeState` arm to `position.ts` for "leased" so
+      `graph status` could read it through `positionOf` literally; rejected
+      because `position@v1`'s shape is out of this node's scope (Out of
+      scope names "any other package beyond the `graph status` command and
+      its tests"), and the projection's own session view already answers
+      the same question without it.
+  - id: c2
+    what: >
+      Validated `--expect`'s value against the closed set of
+      `Outcome["kind"]` values with a small `ReadonlySet<string>` and a
+      type guard, refusing an unrecognized value by name before reading
+      the graph or the journal.
+    because: notes:3
+    rests_on:
+      - "packages/ledger/src/disposition.ts"
+      - "packages/ledger/src/outcome.ts"
+      - "notes:3"
+    hunks:
+      - "packages/cli/src/graph/status.ts:1-118"
+  - id: c3
+    what: >
+      Wired `graph status` into `packages/cli/src/main.ts`'s group/action
+      dispatch, alongside `graph show` and `graph approve`.
+    because: "the dispatch table is the only place a new group/action pair is registered; every other verb follows this same two-line pattern"
+    rests_on:
+      - "packages/cli/src/main.ts"
+    hunks:
+      - "packages/cli/src/main.ts:8"
+      - "packages/cli/src/main.ts:41-43"
+  - id: c4
+    what: >
+      Built packages/cli/test/graph/status.test.ts over a fixture journal:
+      all-cleared passes; a held node fails and is named in the message; a
+      node with no outcome but a live, far-future lease passes; a node
+      with no outcome and no lease fails; an expired lease does not count
+      as live; and the four argument-refusal paths (missing graph id,
+      missing --expect, an unrecognized --expect value) each get their own
+      case.
+    because: "brief:Tests in packages/cli over a fixture journal: all cleared passes; one held fails naming it; a node leased live passes; a node with no outcome fails"
+    rests_on:
+      - "packages/cli/test/graph/show.test.ts"
+      - "packages/cli/test/graph/gitFixture.ts"
+      - "packages/cli/src/graph/status.ts"
+    hunks:
+      - "packages/cli/test/graph/status.test.ts:1-204"
+  - id: c5
+    what: >
+      Fixed packages/cli/test/main.test.ts's own "an unknown command" case,
+      which had asserted `["graph", "status"]` failed closed precisely
+      because that command did not exist yet; it now asserts a genuinely
+      unknown command, and a new "interlock graph status" describe block
+      covers the new command's own dispatch and missing-graph-id refusal.
+    because: >
+      Once `graph status` is wired in, `run(["graph", "status"])` no
+      longer exercises the "unknown command" fallback -- it exercises
+      `runGraphStatus([])`'s own missing-graph-id refusal, which happens
+      to also exit non-zero, so the old test would keep passing for the
+      wrong reason. Leaving it unfixed would mean the one test guarding
+      "an unknown command fails closed" silently stopped testing that the
+      moment this node landed.
+    rests_on:
+      - "packages/cli/src/main.ts"
+      - "packages/cli/src/graph/status.ts"
+    hunks:
+      - "packages/cli/test/main.test.ts:52-67"
+  - id: c6
+    what: >
+      Added one bend-log row to docs/design/0001-interlock.md recording
+      that the acceptance's "every node above leased by the runner" is not
+      literally true of this graph's own run, naming the backfill/run/judge
+      split and why the dogfood gate's live-lease exception exists.
+    because: notes:4
+    rests_on:
+      - "notes:4"
+      - ".interlock/ledger/journal.jsonl"
+    hunks:
+      - "docs/design/0001-interlock.md:615"
+  - id: c7
+    what: >
+      This session's own notes.yaml, appended at every choice this session
+      made across its code commits.
+    because: "every session's notes.yaml closes under the debrief it files; recording the choice-and-because as each one was made is cheaper and more honest than reconstructing it afterward"
+    rests_on: []
+    hunks:
+      - ".interlock/sessions/0001-bootstrap/self-run/notes.yaml:1-71"
+  - id: c8
+    what: >
+      This debrief itself: the account of which of the graph's twelve
+      nodes were leased by the runner versus cleared through `backfill` or
+      `judge`, the verbatim dogfood gate output, and which receipts stand
+      at main.
+    because: "brief:The account of the run ... you are making the story checkable"
+    rests_on:
+      - "notes:1"
+      - "notes:2"
+      - "notes:3"
+      - "notes:4"
+    hunks:
+      - ".interlock/sessions/0001-bootstrap/self-run/debrief.yaml"
+gates_run_by_agent:
+  - { id: typecheck, result: pass, invocation: "mise exec -- pnpm typecheck", note: "6 of 7 workspace packages carry a typecheck script; all report Done" }
+  - { id: test, result: pass, invocation: "mise exec -- pnpm test", note: "559 tests across ledger, debrief, face, verifier, runner, cli (99+41+81+42+142+154)" }
+  - { id: dogfood, result: pass, invocation: "mise exec -- pnpm interlock graph status 0001-bootstrap --expect cleared", note: "0001-bootstrap: every node is cleared or leased by a live session (12 node(s))." }
+  - { id: debrief-valid, result: pass, invocation: "mise exec -- pnpm interlock debrief validate 0001-bootstrap self-run", note: "run for real against this debrief and notes.yaml, after both files were written" }
+open:
+  - >
+    Five nodes (verifier-hunks, attempts, verbs, position-model, face) each
+    carry a real live session that cleared them, and also a later, second
+    `backfill-...` session-started plus a repeated `outcome-set: cleared`
+    layered on top of the same node (d2). `Outcome`'s own transition rule
+    refuses a second move off a terminal kind, so either `backfillGraph`'s
+    write path does not route through it, or the replayed projection
+    tolerates a repeated terminal write silently. Neither was chased down:
+    it did not block this node's own acceptance, and `backfill`'s write
+    path is out of scope for a session limited to the `graph status`
+    command and its tests.
+  - >
+    `graph status`'s live-lease exception reads a lease as live whenever
+    its recorded expiry is still ahead of the clock, exactly like
+    `judge.ts`'s own check -- so a node whose runner died mid-lease without
+    the sweeper ever reclaiming it would read as satisfying any `--expect`
+    forever, the same blind spot `judge` already has. Inherited, not
+    resolved: the sweeper that would eventually expire such a lease is a
+    different node's concern.
