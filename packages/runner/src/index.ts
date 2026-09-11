@@ -1,6 +1,7 @@
 export type {
   Agent,
   AgentIdentity,
+  AgentIdentityQuery,
   AgentStatus,
   Pane,
   Runtime,

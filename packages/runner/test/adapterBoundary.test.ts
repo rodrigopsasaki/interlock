@@ -15,6 +15,7 @@ const FORBIDDEN: readonly RegExp[] = [
   /agent\.wait/,
   /agent\.read/,
   /agent\.list/,
+  /pane\.list/,
   /pane\.close/,
   /events\.subscribe/,
   /herdr\.sock/,
