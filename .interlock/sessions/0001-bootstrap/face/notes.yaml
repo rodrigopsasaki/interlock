@@ -193,3 +193,51 @@ entries:
       dedicated test for it here would need a directory outside this
       worktree, which the brief's own constraints forbid. Dropped the
       test rather than build one that cannot pass honestly.
+  - kind: choice
+    at: "2026-09-11T17:45:00Z"
+    chose: >
+      Hand-rolled the three ANSI sequences the process needs (alternate
+      screen + hide/show cursor, clear-and-home) in
+      `packages/cli/src/face/terminal.ts` instead of taking a dependency
+      on a terminal-UI library (ink, blessed, or similar).
+    because: >
+      The brief's own default is "no terminal-UI library unless you
+      record in the debrief what it buys that a hundred lines of ANSI
+      does not," and every render here is a full redraw of plain text
+      (D17: text is the primary surface) -- no partial updates, no
+      layout engine, no component tree. The surface actually needed is
+      four escape sequences and one `write` call; a library's value
+      (diffed re-renders, a widget system, mouse handling) buys nothing
+      this design uses and adds a dependency with none of interlock's own
+      judgment in it, against axiom 4.
+    rejected: >
+      ink (React-for-terminals) and blessed, both evaluated against what
+      this screen actually needs: neither offers anything beyond what
+      `terminal.ts`'s existing ~15 lines already do for a full-redraw
+      view with no interactive widgets.
+  - kind: choice
+    at: "2026-09-11T17:50:00Z"
+    chose: >
+      Placed "on a live session, its herdr pane, focused" as Enter's
+      behavior on a live attempt row at Node level, not as a fifth
+      navigable level reached by drilling further from Session.
+    because: >
+      The acceptance's own Levels bullet lists Plans, Graph, Node, Session
+      and then, separately, "and, on a live session, its herdr pane,
+      focused" -- grammatically a fifth item in the same list, but one
+      with no state of its own to browse (raw attach is herdr's, D1's own
+      floor, never re-typed here) and no natural drill-further point once
+      you are looking at a live session's five columns. Node level is
+      where an attempt's liveness is already visible (`agentStatus`), so
+      Enter there branching on liveness -- focus if live, open Session if
+      not -- reads the acceptance's fifth "level" as a verb's effect
+      rather than a place with its own frame, matching D2's "the face
+      owns zero state" more literally: nothing about a focused pane is
+      ever rendered by the face itself.
+    rejected: >
+      A true fifth `FaceState` level ("pane") that Session's own Enter
+      would drill into on a live session -- rejected because it would
+      need to render something (a frame) for a pane the face is
+      forbidden from reading (raw attach bypasses the face entirely per
+      D1), leaving that level's own frame permanently empty by
+      construction.
