@@ -359,6 +359,46 @@ describe("interlock run", () => {
     expect(closed).toBe(true);
   }, 30_000);
 
+  it("appends a session-narrated event for every line narrated once the session exists", async () => {
+    const cwd = fixture();
+    await runGraphApprove(
+      ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
+      { cwd },
+    );
+    const lines: string[] = [];
+
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime: stubRuntime(),
+      narrate: (line) => lines.push(line),
+    });
+    expect(result.exitCode).toBe(0);
+
+    const journal = readFileSync(
+      join(cwd, ".interlock", "ledger", "journal.jsonl"),
+      "utf-8",
+    );
+    const events = journal
+      .trim()
+      .split("\n")
+      .map((line): unknown => JSON.parse(line))
+      .filter(isLedgerEvent);
+    const started = events.find((event) => event.kind === "session-started");
+    if (started === undefined || started.kind !== "session-started") {
+      throw new Error("expected a session-started event in the journal");
+    }
+    const narrated = events.filter(
+      (event) => event.kind === "session-narrated",
+    );
+    expect(narrated.length).toBe(lines.length);
+    expect(
+      narrated.every((event) => event.session === started.session.id),
+    ).toBe(true);
+    expect(narrated.map((event) => event.line)).toEqual(lines);
+    expect(narrated.every((event) => typeof event.at === "number")).toBe(true);
+  }, 30_000);
+
   it("holds a node whose gate command exits zero but its output does not match the graph's declared expect_output, leaving the pane open", async () => {
     const cwd = fixture({ graphYaml: graphYamlWithExpectOutput });
     await runGraphApprove(

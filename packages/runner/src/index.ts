@@ -69,8 +69,9 @@ export {
   writeScreenSnapshot,
 } from "./sessionScreen.ts";
 
-export type { LeaseHandle } from "./lease.ts";
+export type { AppendsEvents, LeaseHandle } from "./lease.ts";
 export { takeLease } from "./lease.ts";
+export { recordingNarrate } from "./narration.ts";
 
 export type { BriefWriteOutcome, SessionBriefRefusal } from "./sessionBrief.ts";
 export {

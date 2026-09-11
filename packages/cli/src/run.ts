@@ -41,6 +41,7 @@ import {
   loadLocalConfig,
   loadStandingGates,
   matchesScreen,
+  recordingNarrate,
   runSetupCommand,
   takeLease,
   unmetDependencies,
@@ -88,7 +89,7 @@ export async function runInterlockRun(
     };
   }
 
-  const narrate =
+  let narrate =
     options.narrate ??
     ((line: string) => {
       process.stdout.write(`${line}\n`);
@@ -225,6 +226,7 @@ export async function runInterlockRun(
       brief,
       graphBaseSha,
     });
+    narrate = recordingNarrate(ledger, clock, sessionId, narrate);
 
     const lease = takeLease(
       ledger,
