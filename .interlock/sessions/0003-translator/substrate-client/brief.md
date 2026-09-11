@@ -86,8 +86,11 @@ No substrate is addressed. This section is empty.
   judgement, `run` and `judge` call `absorb(debrief, notes, receipts)` for a `debrief@v2` session,
   cleared or held, and narrate the acknowledgement's counts (decisions absorbed, discoveries known,
   new, unplaced, gaps) on the session. Every call is one narrated line: verb, address, outcome.
-- **Config.** `substrate.address` in `.interlock/local.yaml` accepts `none` or an `http(s)` URL;
-  `local.example.yaml` documents both in one line each. `.interlock/config.yaml` stays untouched.
+- **Config.** `substrate.address` in `.interlock/local.yaml` accepts `none` or an `http(s)` URL, and an
+  optional `substrate.key_file`, a path to a file whose first line is a bearer token the client sends as
+  `Authorization: Bearer …` on every call; a missing file or an empty token is a refusal sentence at
+  the first call, never a silent unauthenticated request. `local.example.yaml` documents all three in
+  one line each. `.interlock/config.yaml` stays untouched; nothing committed carries an address or a key.
 - **Tests.** A fake substrate server (an `http` listener in the test's own directory, port from
   the OS) that answers each verb with fixtures validated by the schemas; `none` renders nothing
   and every existing run test passes unchanged; a declared-absent capability degrades; a
