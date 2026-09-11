@@ -102,6 +102,35 @@ function isAgentStatus(value: unknown): value is AgentStatus {
   return isString(value) && AGENT_STATUSES.has(value);
 }
 
+type HerdrCall = (
+  method: string,
+  params: Readonly<Record<string, unknown>>,
+  timeoutMs?: number,
+) => Promise<Result<Record<string, unknown>, RuntimeRefusal>>;
+
+// agent.list's own entries carry both `tokens` and `agent_status` in one record, so both
+// reportedAgentStatus and resolvePane share this lookup instead of each re-walking the list.
+async function findReportedAgent(
+  call: HerdrCall,
+  query: AgentIdentityQuery,
+): Promise<Result<Record<string, unknown> | undefined, RuntimeRefusal>> {
+  const listed = await call("agent.list", {});
+  if (isErr(listed)) return listed;
+  const agents = prop(listed.value, "agents");
+  if (!Array.isArray(agents)) return ok(undefined);
+  for (const agent of agents) {
+    if (!isRecord(agent)) continue;
+    const tokens = prop(agent, "tokens");
+    if (!isRecord(tokens)) continue;
+    const matches =
+      prop(tokens, "graph") === query.graph &&
+      prop(tokens, "node") === query.node &&
+      prop(tokens, "session") === query.session;
+    if (matches) return ok(agent);
+  }
+  return ok(undefined);
+}
+
 interface RpcSuccess {
   readonly id: string;
   readonly result: Record<string, unknown>;
@@ -427,23 +456,24 @@ export async function createHerdrRuntime(
     },
 
     async reportedAgentStatus(query: AgentIdentityQuery) {
-      const listed = await call("pane.list", { workspace_id: null });
-      if (isErr(listed)) return listed;
-      const panes = prop(listed.value, "panes");
-      if (!Array.isArray(panes)) return ok(undefined);
-      for (const pane of panes) {
-        if (!isRecord(pane)) continue;
-        const tokens = prop(pane, "tokens");
-        if (!isRecord(tokens)) continue;
-        const matches =
-          prop(tokens, "graph") === query.graph &&
-          prop(tokens, "node") === query.node &&
-          prop(tokens, "session") === query.session;
-        if (!matches) continue;
-        const status = prop(pane, "agent_status");
-        return ok(isAgentStatus(status) ? status : undefined);
-      }
-      return ok(undefined);
+      const found = await findReportedAgent(call, query);
+      if (isErr(found)) return found;
+      if (found.value === undefined) return ok(undefined);
+      const status = prop(found.value, "agent_status");
+      return ok(isAgentStatus(status) ? status : undefined);
+    },
+
+    async resolvePane(query: AgentIdentityQuery) {
+      const found = await findReportedAgent(call, query);
+      if (isErr(found)) return found;
+      if (found.value === undefined) return ok(undefined);
+      const paneId = prop(found.value, "pane_id");
+      return ok(isString(paneId) ? { id: paneId } : undefined);
+    },
+
+    async focusPane(pane: Pane) {
+      const focused = await call("pane.focus", { pane_id: pane.id });
+      return isErr(focused) ? focused : ok(undefined);
     },
   });
 }

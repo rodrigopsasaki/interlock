@@ -12,6 +12,7 @@ import {
 import type {
   AgentIdentityQuery,
   AgentStatus,
+  Pane,
   Runtime,
   RuntimeRefusal,
 } from "../../src/runtime.ts";
@@ -734,7 +735,7 @@ describe("reportedAgentStatus", () => {
 
   it("propagates a herdr failure instead of guessing a status", async () => {
     const fake = await fixture();
-    fake.failNextCall("unavailable", "pane.list is unavailable");
+    fake.failNextCall("unavailable", "agent.list is unavailable");
     const created = await createHerdrRuntime(fake.socketPath);
     if (isErr(created)) throw new Error("expected a runtime");
 
@@ -744,5 +745,95 @@ describe("reportedAgentStatus", () => {
       session: "s1",
     });
     expect(isErr(found)).toBe(true);
+  });
+});
+
+function resolvePane(
+  runtime: Runtime,
+  query: AgentIdentityQuery,
+): Promise<Result<Pane | undefined, RuntimeRefusal>> {
+  if (runtime.resolvePane === undefined) {
+    throw new Error("expected the herdr adapter to implement resolvePane");
+  }
+  return runtime.resolvePane(query);
+}
+
+describe("resolvePane", () => {
+  it("finds the pane whose reported tokens name the graph, node and session", async () => {
+    const fake = await fixture();
+    fake.panes = [
+      {
+        pane_id: "fake-pane-1",
+        tokens: { graph: "0001-bootstrap", node: "other-node", session: "s0" },
+        agent_status: "idle",
+      },
+      {
+        pane_id: "fake-pane-2",
+        tokens: {
+          graph: "0001-bootstrap",
+          node: "position-model",
+          session: "s1",
+        },
+        agent_status: "working",
+      },
+    ];
+    const created = await createHerdrRuntime(fake.socketPath);
+    if (isErr(created)) throw new Error("expected a runtime");
+
+    const found = await resolvePane(created.value, {
+      graph: "0001-bootstrap",
+      node: "position-model",
+      session: "s1",
+    });
+    expect(found).toEqual({ _tag: "Ok", value: { id: "fake-pane-2" } });
+  });
+
+  it("resolves undefined, never a guess, when no pane's tokens match", async () => {
+    const fake = await fixture();
+    fake.panes = [];
+    const created = await createHerdrRuntime(fake.socketPath);
+    if (isErr(created)) throw new Error("expected a runtime");
+
+    const found = await resolvePane(created.value, {
+      graph: "0001-bootstrap",
+      node: "position-model",
+      session: "s1",
+    });
+    expect(found).toEqual({ _tag: "Ok", value: undefined });
+  });
+});
+
+function focusPane(
+  runtime: Runtime,
+  pane: Pane,
+): Promise<Result<void, RuntimeRefusal>> {
+  if (runtime.focusPane === undefined) {
+    throw new Error("expected the herdr adapter to implement focusPane");
+  }
+  return runtime.focusPane(pane);
+}
+
+describe("focusPane", () => {
+  it("asks herdr to focus the pane and records nothing else", async () => {
+    const fake = await fixture();
+    const created = await createHerdrRuntime(fake.socketPath);
+    if (isErr(created)) throw new Error("expected a runtime");
+
+    const focused = await focusPane(created.value, { id: "fake-pane-2" });
+    expect(isErr(focused)).toBe(false);
+    expect(fake.calls).toContainEqual({
+      method: "pane.focus",
+      params: { pane_id: "fake-pane-2" },
+    });
+  });
+
+  it("propagates a herdr failure instead of pretending the pane focused", async () => {
+    const fake = await fixture();
+    fake.failNextCall("unavailable", "pane.focus is unavailable");
+    const created = await createHerdrRuntime(fake.socketPath);
+    if (isErr(created)) throw new Error("expected a runtime");
+
+    const focused = await focusPane(created.value, { id: "fake-pane-2" });
+    expect(isErr(focused)).toBe(true);
   });
 });

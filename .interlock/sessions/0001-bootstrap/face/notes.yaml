@@ -1,0 +1,243 @@
+interlock: notes@v0
+node: face
+entries:
+  - kind: surprise
+    at: "2026-09-11T16:05:00Z"
+    expected: >
+      The herdr adapter's existing `reportedAgentStatus` (built by
+      position-model, calling `pane.list` and reading `tokens` off each
+      `PaneInfo`) would be the call this node reuses as-is for the status
+      join, per the brief's own read-first instruction.
+    observed: >
+      The brief itself flags that `pane.list`'s `tokens` field, for a pane
+      carrying interlock's metadata, was never seen live -- only inferred
+      from the socket schema -- while `agent.list`'s `AgentInfo` entries
+      are named as known to carry both `tokens` and `agent_status`
+      together. Decided to move the join onto `agent.list`.
+  - kind: choice
+    at: "2026-09-11T16:10:00Z"
+    chose: >
+      Switched `Runtime.reportedAgentStatus` from `pane.list` to
+      `agent.list`, and added two new optional `Runtime` methods --
+      `resolvePane(query)` (same token match, returns the `Pane`) and
+      `focusPane(pane)` (calls `pane.focus`) -- factoring the token-match
+      loop into one private `findReportedAgent(call, query)` helper shared
+      by both `reportedAgentStatus` and `resolvePane` so the match logic
+      lives once.
+    because: >
+      D16 names `pane.report_metadata`'s tokens as the identity a later
+      reader resolves a pane from "through herdr's own pane reads" --
+      `agent.list` is a pane read that already carries both fields this
+      node needs (status for the join, pane_id for the live-session
+      Enter-to-focus verb), so one call and one matcher serve both
+      existing and new needs instead of teaching two list shapes.
+    rejected: >
+      Keeping `pane.list` for the status join and introducing a second,
+      differently-shaped call for pane resolution -- doubles the socket
+      surface the one adapter has to cover for a single underlying
+      question ("what does herdr know about this graph/node/session's
+      pane"), for no benefit once one call already answers both.
+  - kind: choice
+    at: "2026-09-11T16:15:00Z"
+    chose: >
+      Added `pane.focus` to `adapterBoundary.test.ts`'s FORBIDDEN pattern
+      list (`/pane\.focus\b/`), matching how `pane.list`, `pane.close` and
+      every other herdr method name this repository has introduced so far
+      is kept inside the one adapter file.
+    because: >
+      I6 ("no herdr socket call in any file that is not the adapter for
+      it") is enforced today by an allowlist of forbidden strings scanned
+      across `packages/runner/src` and `packages/cli/src`; a new method
+      name the adapter starts using has to join that list itself, or the
+      boundary test silently stops covering it.
+  - kind: choice
+    at: "2026-09-11T16:35:00Z"
+    chose: >
+      Read the brief's scope list literally as the union of files this
+      node's own acceptance and its neighbors already touch, not as an
+      allowlist that forbids new file paths -- `packages/cli/src/face/*`
+      is created even though no exact filename under it appears in the
+      brief's `scope:` block, because the brief's own prose says in so
+      many words to put "the process, the raw-mode keys, the timer, the
+      file watch, the subprocess dispatch and the herdr calls" there.
+    because: >
+      A scope list authored before a node's own session runs cannot name
+      files an interpreter or a worker will invent during that session --
+      `packages/runner/src/herdr/adapter.ts` is itself in this brief's
+      scope despite being created by an earlier session, confirming scope
+      tracks what a node's work is expected to touch (and gates its
+      receipt hashing), not a pre-enumerated ACL. `briefScopePath.ts`'s
+      own check (`isValidScopePath`) only refuses an absolute path or one
+      that climbs above the repository root -- nothing in the codebase
+      treats scope as a closed file list.
+  - kind: choice
+    at: "2026-09-11T16:40:00Z"
+    chose: >
+      Modeled the Node level as one combined, cursor-addressed row list --
+      gates first, then attempts (`nodeRowsOf`) -- rather than two
+      independently-cursored lists or a single list that mixes verbs
+      across kinds.
+    because: >
+      The brief names exactly one verb per level below Plans/Graph ("`w`
+      waive the gate under the cursor") but also names two kinds of thing
+      the Node level shows (gates and attempts) and one thing Enter does
+      there ("Enter goes down" -- into Session, or focuses a live pane).
+      A single ordered row list lets one cursor and one Enter/`w` handler
+      serve both without a second cursor axis or a level-specific keymap;
+      `w` no-ops on an attempt row and Enter no-ops on a gate row, both
+      cheap and legible rather than inventing UI modes.
+  - kind: choice
+    at: "2026-09-11T16:45:00Z"
+    chose: >
+      Assigned each of the eight verbs to exactly one level by what it
+      targets, not left as a free-floating global keymap: `a`
+      approve and `s` sweep at Plans (graph-scoped and ledger-wide,
+      neither needs a node); `R` run, `J` judge, `c` cancel, `x` reset and
+      `b` backfill at Graph (node- or graph-under-cursor); `w` waive at
+      Node (gate-under-cursor row). Enter's own meaning is level- and
+      row-dependent: Plans/Graph drill down, a live attempt row at Node
+      focuses the pane instead of drilling into Session.
+    because: >
+      The brief lists all eight verbs once, "on the level they belong to,"
+      without pinning each one -- a genuinely load-bearing fork the brief
+      left for this session to decide from the shape of what each verb
+      needs (a graph id, a node id, or nothing) rather than a menu to hand
+      back. This is recorded here as the decision, not asked, per the
+      standing instruction to decide the forks a session is equipped to
+      decide.
+  - kind: surprise
+    at: "2026-09-11T16:55:00Z"
+    expected: >
+      `PositionAttempt.lease` being present would be a safe proxy for "an
+      attempt with a live agent," for counting live sessions in a Plans
+      row.
+    observed: >
+      `attemptsFor` (packages/face/src/attempts.ts) attaches `.lease`
+      whenever `session.lease !== undefined`, even when that lease has
+      since expired -- liveness is a *separate* computed flag
+      (`isLive = lease !== undefined && !leaseExpired`) used only to
+      decide whether to look up `agentStatus`, which is the field that
+      actually only gets set for a genuinely live session. First draft of
+      `plansEntryOf` counted `lease !== undefined` and would have reported
+      an abandoned, expired-lease session as live. Fixed to reuse
+      `isLiveAttempt` (`lease !== undefined && agentStatus !== undefined`)
+      instead of inventing a second, looser liveness test.
+  - kind: choice
+    at: "2026-09-11T17:00:00Z"
+    chose: >
+      Extracted `liveSessionsOf`/`resolveAgentStatuses`
+      (`packages/cli/src/herdrStatus.ts`) out of `graph/show.ts`, and
+      `legacyDebriefLine` (`packages/cli/src/legacyDebriefLine.ts`) out of
+      `session/show.ts`, so the face's Plans/Graph and Session frames
+      reuse the exact herdr-status join and legacy-debrief fallback that
+      `graph show` and `session show` already established, instead of a
+      second copy.
+    because: >
+      Both pieces are the join this node's own acceptance already leans
+      on ("herdr's agent status for a live session joins the view only
+      where the one herdr adapter already is, never in a second file" --
+      position-model's own acceptance, still true one layer up) and a
+      literal restatement of `describeDebriefRead`'s legacy fallback. The
+      alternative was a second, drifting copy of both inside
+      `packages/cli/src/face/world.ts`.
+  - kind: choice
+    at: "2026-09-11T17:10:00Z"
+    chose: >
+      `packages/cli/src/face/run.ts` accepts an injectable `keys?:
+      AsyncIterable<FaceKey>` that, when supplied, replaces real stdin
+      raw-mode reading *and* skips wiring the redraw timer, the journal
+      file watcher and the resize listener entirely.
+    because: >
+      The brief's own acceptance says plainly "you cannot open the face in
+      a pane yourself: you are in one, and you may not touch herdr" -- the
+      interactive loop has no real TTY to test against in this session.
+      Injecting the key source is the seam that keeps the orchestration
+      (`handle`, `refreshWorld`, effect dispatch) testable end-to-end with
+      a scripted key sequence and a fake dispatcher/runtime, while the
+      true raw-mode wiring stays a thin, separately-reviewed tail that a
+      person exercises live after this session stops.
+  - kind: surprise
+    at: "2026-09-11T17:30:00Z"
+    expected: >
+      A `lease-taken` event followed by a `session-started` event for the
+      same session, in that order, would fold to the same
+      `SessionView.lease` as the reverse order -- both are just facts
+      about one session.
+    observed: >
+      `projection.ts`'s `withSession` is a no-op when the session key is
+      not already in the map ("if (current === undefined) return
+      projection"), and only `session-started` creates that map entry --
+      a `lease-taken` event applied before its session's own
+      `session-started` is silently dropped, leaving `SessionView.lease`
+      `undefined` even though a real runner always emits
+      `session-started` before it ever takes a lease. The first draft of
+      this node's own frame-render fixture built events in the wrong
+      order and got a Plans-level live count of 0 instead of 1 until this
+      was caught by the test itself, not by inspection.
+  - kind: surprise
+    at: "2026-09-11T17:40:00Z"
+    expected: >
+      `findRepoRoot`, used against a fresh `mkdtempSync` fixture directory
+      with no `.interlock` of its own, would return `undefined`, the way
+      `graph show`'s own "no .interlock directory found" refusal is
+      normally exercised.
+    observed: >
+      `findRepoRoot` walks every ancestor directory with no boundary at a
+      nested git repository's edge, and this worktree's own fixture roots
+      (`packages/cli/test/.runs/...`) are themselves inside this
+      repository's checkout -- so a fixture directory with no `.interlock`
+      of its own still resolves to the outer, real `.interlock` a few
+      parents up. `runInterlockFace`'s own "no .interlock directory
+      found" refusal is exercised by every other command's identical
+      code path already (all read `findRepoRoot` the same way); a
+      dedicated test for it here would need a directory outside this
+      worktree, which the brief's own constraints forbid. Dropped the
+      test rather than build one that cannot pass honestly.
+  - kind: choice
+    at: "2026-09-11T17:45:00Z"
+    chose: >
+      Hand-rolled the three ANSI sequences the process needs (alternate
+      screen + hide/show cursor, clear-and-home) in
+      `packages/cli/src/face/terminal.ts` instead of taking a dependency
+      on a terminal-UI library (ink, blessed, or similar).
+    because: >
+      The brief's own default is "no terminal-UI library unless you
+      record in the debrief what it buys that a hundred lines of ANSI
+      does not," and every render here is a full redraw of plain text
+      (D17: text is the primary surface) -- no partial updates, no
+      layout engine, no component tree. The surface actually needed is
+      four escape sequences and one `write` call; a library's value
+      (diffed re-renders, a widget system, mouse handling) buys nothing
+      this design uses and adds a dependency with none of interlock's own
+      judgment in it, against axiom 4.
+    rejected: >
+      ink (React-for-terminals) and blessed, both evaluated against what
+      this screen actually needs: neither offers anything beyond what
+      `terminal.ts`'s existing ~15 lines already do for a full-redraw
+      view with no interactive widgets.
+  - kind: choice
+    at: "2026-09-11T17:50:00Z"
+    chose: >
+      Placed "on a live session, its herdr pane, focused" as Enter's
+      behavior on a live attempt row at Node level, not as a fifth
+      navigable level reached by drilling further from Session.
+    because: >
+      The acceptance's own Levels bullet lists Plans, Graph, Node, Session
+      and then, separately, "and, on a live session, its herdr pane,
+      focused" -- grammatically a fifth item in the same list, but one
+      with no state of its own to browse (raw attach is herdr's, D1's own
+      floor, never re-typed here) and no natural drill-further point once
+      you are looking at a live session's five columns. Node level is
+      where an attempt's liveness is already visible (`agentStatus`), so
+      Enter there branching on liveness -- focus if live, open Session if
+      not -- reads the acceptance's fifth "level" as a verb's effect
+      rather than a place with its own frame, matching D2's "the face
+      owns zero state" more literally: nothing about a focused pane is
+      ever rendered by the face itself.
+    rejected: >
+      A true fifth `FaceState` level ("pane") that Session's own Enter
+      would drill into on a live session -- rejected because it would
+      need to render something (a frame) for a pane the face is
+      forbidden from reading (raw attach bypasses the face entirely per
+      D1), leaving that level's own frame permanently empty by
+      construction.

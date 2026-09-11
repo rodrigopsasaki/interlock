@@ -1,0 +1,275 @@
+interlock: debrief@v2
+graph: 0001-bootstrap
+node: face
+role: worker
+graph_base_sha: 3cf6baf6b1897881ca48d3d988be8dc1cc86f22d
+session_start_sha: 2e98f2a9b5dfd9c2c8ca474e16b2f48020c55ff6
+head_sha: a46a8bae2728c339396fd95fccc0e4816495c361
+derivation:
+  kind: agent
+  runtime: claude-code
+  model: claude-sonnet-5
+discoveries:
+  - id: d1
+    what: >
+      Runtime.reportedAgentStatus (built by position-model) called
+      pane.list and read tokens off PaneInfo, a shape inferred from the
+      socket schema but never seen against a live herdr instance. The
+      brief itself names this and steers toward agent.list, whose
+      AgentInfo entries are known to carry both tokens and agent_status.
+    found_at: >
+      packages/runner/src/herdr/adapter.ts's reportedAgentStatus before
+      this session's edit; the brief's own "Live status" paragraph
+    mattered_because: >
+      This node also needed to resolve a pane id (to focus it on a live
+      attempt's Enter), not just a status -- one call and one matcher
+      (agent.list, factored into findReportedAgent) serves both needs
+      instead of the adapter growing two differently-shaped list calls
+      for the same underlying question.
+  - id: d2
+    what: >
+      PositionAttempt.lease is attached whenever a session's lease was
+      ever taken, even after it expired -- liveness is a second,
+      independently-computed fact (lease present AND agentStatus
+      present), not implied by lease presence alone.
+    found_at: >
+      packages/face/src/attempts.ts's attemptsFor: `isLive = lease !==
+      undefined && !leaseExpired` gates only whether agentStatus gets
+      looked up, but `.lease` itself is attached whenever
+      `session.lease !== undefined`, expired or not
+    mattered_because: >
+      The first draft of plansEntryOf's live-session count used `lease
+      !== undefined` as its liveness test and would have reported an
+      abandoned, expired-lease session as live in the Plans row. Fixed to
+      reuse isLiveAttempt (lease present AND agentStatus present), the
+      same test the Node-level frame and the reducer's live/non-live
+      Enter branch both already needed.
+  - id: d3
+    what: >
+      applyEvent's withSession is a no-op for any event on a session that
+      has no session-started entry in the projection yet -- a lease-taken
+      recorded before its own session-started is silently dropped, not
+      queued or reordered.
+    found_at: >
+      packages/ledger/src/projection.ts's withSession: "if (current ===
+      undefined) return projection"
+    mattered_because: >
+      This node's own fixture events (built for frameRender.test.ts) put
+      lease-taken before session-started and got a silently-empty
+      `.lease`, undercounting live sessions until the test itself caught
+      it. A real runner always emits session-started before it ever
+      takes a lease, so this never surfaces outside a hand-built fixture,
+      but the ledger's own projection giving no signal when an event
+      arrives for a session it does not yet know is worth a brief
+      mentioning for the next session that hand-builds journal fixtures.
+  - id: d4
+    what: >
+      findRepoRoot walks every ancestor with no stop at a nested git
+      repository's boundary, so a fresh fixture directory created under
+      this worktree's own test .runs/ folders still resolves to the real,
+      outer .interlock a few parents up.
+    found_at: >
+      packages/face/src/root.ts's findRepoRoot; packages/cli/test/.runs
+      fixture roots are themselves inside this checkout
+    mattered_because: >
+      Made "refuses with a sentence when run outside an interlock
+      repository" untestable for interlock face inside this constrained
+      environment (no /tmp, no path outside the worktree per the brief's
+      own constraints) -- the same as every other command's identical
+      code path, so this is a pre-existing shape of findRepoRoot, not a
+      new gap this node introduces, and the debrief's open section names
+      it rather than building a test that could not pass honestly.
+decisions:
+  - id: dec1
+    what: >
+      Moved the herdr status join from pane.list to agent.list, and added
+      Runtime.resolvePane/focusPane sharing one findReportedAgent(call,
+      query) matcher with reportedAgentStatus.
+    because: >
+      D16's own text says the face resolves which pane a session is in
+      "by reading that metadata back through herdr's own pane reads";
+      agent.list is the read the brief steers toward as known to carry
+      both tokens and agent_status, and factoring the token-match walk
+      into one helper keeps the one-adapter file from growing two
+      near-duplicate list-and-match blocks for one question.
+    rests_on: [d1]
+    hunks:
+      - packages/runner/src/herdr/adapter.ts
+      - packages/runner/src/runtime.ts
+    produces: [resolvePane, focusPane, reportedAgentStatus]
+  - id: dec2
+    what: >
+      Added /pane\.focus\b/ to adapterBoundary.test.ts's FORBIDDEN
+      pattern list.
+    because: >
+      I6 is enforced by an allowlist of forbidden method-name strings
+      scanned across packages/runner/src and packages/cli/src; a new
+      herdr method name the adapter starts using has to join that list
+      itself or the boundary test silently stops covering it.
+    rests_on: []
+    hunks:
+      - packages/runner/test/adapterBoundary.test.ts
+  - id: dec3
+    what: >
+      Read the brief's scope list as the set of files this node's own
+      work and its neighbors already touch, not a closed allowlist, and
+      created packages/cli/src/face/* even though no exact filename under
+      it is named in scope.
+    because: >
+      A scope list authored before this session ran cannot name files an
+      interpreter or worker invents during the session --
+      packages/runner/src/herdr/adapter.ts is itself in this brief's
+      scope despite being created by an earlier session. The brief's own
+      "Where the code lives" section names this directory in so many
+      words, and briefScopePath's own isValidScopePath only refuses an
+      absolute path or one climbing above the repository root, never a
+      closed list.
+    rests_on: []
+    hunks:
+      - packages/cli/src/face/run.ts
+  - id: dec4
+    what: >
+      Modeled the Node level as one combined, cursor-addressed row list
+      (nodeRowsOf: gates then attempts) instead of two independently
+      cursored lists.
+    because: >
+      The brief names exactly one verb below Graph level (w, on "the gate
+      under the cursor") but two kinds of thing Node level shows; one
+      ordered row list lets one cursor and one Enter/w handler serve
+      both, no-opping on the wrong row kind, without a second cursor axis
+      or a level-specific keymap.
+    rests_on: []
+    hunks:
+      - packages/face/src/nodeRow.ts
+      - packages/face/src/faceReducer.ts
+  - id: dec5
+    what: >
+      Assigned each of the eight verbs to exactly one level by what it
+      targets: a/s at Plans, R/J/c/x/b at Graph, w at Node.
+    because: >
+      The brief lists all eight verbs once, "on the level they belong
+      to," without pinning each one to a level -- a load-bearing fork left
+      for this session to decide from what each verb's own CLI subcommand
+      needs (a graph id, a node id, or nothing), not a menu to hand back.
+    rests_on: [dec4]
+    hunks:
+      - packages/face/src/faceReducer.ts
+      - packages/face/src/verb.ts
+  - id: dec6
+    what: >
+      Extracted liveSessionsOf/resolveAgentStatuses out of graph/show.ts
+      and legacyDebriefLine out of session/show.ts into shared modules
+      both those commands and the new face world builder import.
+    because: >
+      Both pieces are the exact join this repository already established
+      (herdr status through the one adapter; the legacy-debrief fallback
+      describeDebriefRead already renders) -- a second, drifting copy
+      inside packages/cli/src/face/world.ts would be the trap D2/axiom 4
+      name.
+    rests_on: [d2]
+    hunks:
+      - packages/cli/src/herdrStatus.ts
+      - packages/cli/src/legacyDebriefLine.ts
+      - packages/cli/src/graph/show.ts
+      - packages/cli/src/session/show.ts
+  - id: dec7
+    what: >
+      packages/cli/src/face/run.ts accepts an injectable keys?:
+      AsyncIterable<FaceKey> that, when present, replaces real stdin
+      raw-mode reading and skips the redraw timer, journal file watcher
+      and resize listener entirely.
+    because: >
+      The acceptance itself says this session cannot open a pane to test
+      the interactive loop against. Injecting the key source keeps the
+      real orchestration (handle, refreshWorld, effect dispatch) tested
+      end to end with a scripted key sequence and a fake dispatcher and
+      runtime, while the true raw-mode wiring stays a thin tail a person
+      exercises live once this session stops.
+    rests_on: []
+    hunks:
+      - packages/cli/src/face/run.ts
+    rejected: >
+      Testing only the pure reducer and frame renderers and leaving the
+      process itself unverified beyond typechecking -- rejected because
+      it would leave the actual subprocess-dispatch and pane-focus wiring,
+      the parts D15/D16 most care about, unexercised by anything.
+  - id: dec8
+    what: >
+      Hand-rolled the alternate-screen, hide/show-cursor and
+      clear-and-home ANSI sequences in packages/cli/src/face/terminal.ts
+      instead of a terminal-UI library dependency.
+    because: >
+      The brief's own default is no library unless this debrief records
+      what one buys; every render here is a full redraw of plain text
+      (D17), so the surface needed is four escape sequences and one
+      write call -- a library's value (diffed re-renders, widgets, mouse
+      handling) buys nothing this design uses.
+    rests_on: []
+    hunks:
+      - packages/cli/src/face/terminal.ts
+    rejected: >
+      ink and blessed, both evaluated against what this screen actually
+      needs and found to offer nothing beyond terminal.ts's own ~15
+      lines for a full-redraw view with no interactive widgets.
+  - id: dec9
+    what: >
+      Placed "on a live session, its herdr pane, focused" as Enter's own
+      behavior on a live attempt row at Node level, not as a fifth
+      navigable FaceState level reached from Session.
+    because: >
+      The acceptance's Levels bullet lists Plans/Graph/Node/Session and
+      then, separately, the live-pane behavior -- grammatically a fifth
+      item, but one with no state of its own to render (raw attach stays
+      herdr's, D1's own floor) and no natural drill-further point past
+      Session. Node level already carries an attempt's liveness
+      (agentStatus), so branching Enter there reads the acceptance's
+      fifth "level" as a verb's effect, matching D2's "the face owns
+      zero state" more literally: nothing about a focused pane is ever
+      rendered.
+    rests_on: [dec4]
+    hunks:
+      - packages/face/src/faceReducer.ts
+    rejected: >
+      A true fifth "pane" FaceState level drilled into from Session --
+      rejected because it would need to render a frame for a pane the
+      face is forbidden from reading, leaving that level's own frame
+      permanently empty by construction.
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+  - id: test
+    result: pass
+    invocation: pnpm test
+  - id: no-write-surface
+    result: pass
+    invocation: >-
+      pnpm --filter face --fail-if-no-match test --testNamePattern
+      write-surface
+open:
+  - >
+    Runtime.resolvePane and Runtime.focusPane, like the reportedAgentStatus
+    they share a matcher with, are unverified against a live herdr
+    instance in this environment -- their agent.list response shape is
+    inferred from packages/runner/test/fixtures/herdr-socket-schema.json,
+    same open item d1/d5 already named for position-model's own
+    reportedAgentStatus, now extended to the two new methods.
+  - >
+    The interactive loop itself (raw-mode key reading, the ~2s timer, the
+    journal file watcher, resize) is wired and typechecks but was never
+    run against a real terminal or a real herdr pane, per the acceptance's
+    own "you cannot open the face in a pane yourself." A person exercising
+    it live is the next real test of that tail; everything upstream of it
+    (the reducer, the frame renderers, verb dispatch, pane focus) is
+    covered by content and behavior tests instead.
+  - >
+    Plans level's live-session count and every Graph-level live marker
+    call resolveAgentStatuses once per session per render; over three
+    small graphs today this is cheap, but it has not been exercised
+    against a graph large enough for the herdr round-trip cost to matter.
+  - >
+    No frame renders a decision's hunk through git show/diff (0002-face's
+    own "Decision → hunk" view) -- out of this node's own acceptance,
+    which asks only for the five columns as session show already prints
+    them, matching D14's own phrasing that this second read stays a
+    future seam.

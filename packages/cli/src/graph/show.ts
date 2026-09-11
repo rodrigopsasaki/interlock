@@ -1,5 +1,5 @@
 import { relative } from "node:path";
-import { isErr, ok } from "@phyxiusjs/fp";
+import { isErr } from "@phyxiusjs/fp";
 import {
   explainGraphRefusal,
   findRepoRoot,
@@ -8,55 +8,11 @@ import {
   loadGraphDocument,
   positionOf,
   renderPosition,
-  type AgentStatus,
 } from "face";
-import {
-  explainScopeRefusal,
-  readReplay,
-  receiptId,
-  type SessionView,
-} from "ledger";
-import { createHerdrRuntime, type Runtime } from "runner";
+import { explainScopeRefusal, readReplay, receiptId } from "ledger";
+import type { Runtime } from "runner";
+import { liveSessionsOf, resolveAgentStatuses } from "../herdrStatus.ts";
 import type { CommandResult } from "../main.ts";
-
-function liveSessions(
-  graphId: string,
-  sessions: ReadonlyMap<string, SessionView>,
-): readonly SessionView[] {
-  return [...sessions.values()].filter(
-    (session) =>
-      session.node.graph === graphId &&
-      session.lease !== undefined &&
-      !session.leaseExpired,
-  );
-}
-
-async function resolveAgentStatuses(
-  graphId: string,
-  sessions: readonly SessionView[],
-  injectedRuntime: Runtime | undefined,
-): Promise<ReadonlyMap<string, AgentStatus>> {
-  const statuses = new Map<string, AgentStatus>();
-  if (sessions.length === 0) return statuses;
-
-  const runtime =
-    injectedRuntime === undefined
-      ? await createHerdrRuntime()
-      : ok(injectedRuntime);
-  if (isErr(runtime)) return statuses;
-
-  for (const session of sessions) {
-    const status = await runtime.value.reportedAgentStatus?.({
-      graph: graphId,
-      node: session.node.id,
-      session: session.session,
-    });
-    if (status !== undefined && !isErr(status) && status.value !== undefined) {
-      statuses.set(session.session, status.value);
-    }
-  }
-  return statuses;
-}
 
 export async function runGraphShow(
   args: readonly string[],
@@ -106,7 +62,7 @@ export async function runGraphShow(
 
   const statuses = await resolveAgentStatuses(
     id,
-    liveSessions(id, replayed.value.sessions),
+    liveSessionsOf(id, replayed.value.sessions),
     options.runtime,
   );
 
