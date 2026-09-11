@@ -16,14 +16,7 @@ import {
   loadGraphDocument,
   sharedJournalDirectory,
 } from "face";
-import {
-  createLedger,
-  explainScopeRefusal,
-  heldOn,
-  nodeKey,
-  outcome,
-  receiptId,
-} from "ledger";
+import { createLedger, explainScopeRefusal, nodeKey, receiptId } from "ledger";
 import {
   briefExists,
   briefPath,
@@ -42,14 +35,14 @@ import {
   explainWorktreeSetupRefusal,
   gateCommandTable,
   gitTrackedFiles,
-  judgeGates,
+  HELD_REVISIT_MS,
+  judgeWorktree,
   lastNonEmptyLine,
   loadLocalConfig,
   loadStandingGates,
   matchesScreen,
   runSetupCommand,
   takeLease,
-  uncommittedPaths,
   unmetDependencies,
   waitForSession,
   writeBriefIntoWorktree,
@@ -61,8 +54,6 @@ import {
   type WorktreeOutcome,
 } from "runner";
 import type { CommandResult } from "./main.ts";
-
-const HELD_REVISIT_MS = 24 * 60 * 60 * 1000;
 
 function isoOf(wallMs: number): string {
   return new Date(wallMs).toISOString();
@@ -515,42 +506,7 @@ export async function runInterlockRun(
       );
     }
 
-    const dirty = uncommittedPaths(worktreePath);
-    if (isErr(dirty)) {
-      const result = refuse(
-        "worktree status",
-        explainWorktreeRefusal(dirty.error),
-      );
-      abandonLease();
-      return result;
-    }
-
-    if (isOk(screenRead)) {
-      await writeScreenSnapshot(worktreePath, graph, node, screenRead.value);
-      narrate(
-        `agent screen: ${lastNonEmptyLine(screenRead.value) ?? "(no output)"}`,
-      );
-    }
-
-    if (dirty.value.length > 0) {
-      const because = `${dirty.value.length} uncommitted path(s) in the worktree; gates judge commits only`;
-      narrate(because);
-      for (const path of dirty.value.slice(0, 5)) narrate(`  ${path}`);
-      const held = outcome.held(
-        [],
-        heldOn.uncommittedWork(dirty.value.length),
-        because,
-        clock.now().wallMs + HELD_REVISIT_MS,
-      );
-      ledger.append({ kind: "outcome-set", node: targetNode, outcome: held });
-      return {
-        exitCode: 0,
-        message: `${node}: ${held.kind} (session ${sessionId}, agent status ${waited.value}).`,
-      };
-    }
-
-    const debriefedSha = currentCommitSha(worktreePath);
-    const judged = await judgeGates({
+    const judged = await judgeWorktree({
       ledger,
       clock,
       node: targetNode,
@@ -558,17 +514,29 @@ export async function runInterlockRun(
       declaredGateIds: gateIds,
       commandFor: gateCommandTable(standingGates.value, declaration.gates),
       worktree: worktreePath,
-      scopeRoot: worktreePath,
-      scopePaths: gitTrackedFiles(worktreePath),
-      commitSha: debriefedSha,
+      narrate,
       runnerId: `run-${sessionId}`,
       holdMs: HELD_REVISIT_MS,
+      onWorktreeRead: async () => {
+        if (!isOk(screenRead)) return;
+        await writeScreenSnapshot(worktreePath, graph, node, screenRead.value);
+        narrate(
+          `agent screen: ${lastNonEmptyLine(screenRead.value) ?? "(no output)"}`,
+        );
+      },
     });
     if (isErr(judged)) {
-      const result = refuse("gates", explainGateJudgeRefusal(judged.error));
+      const result =
+        judged.error.kind === "worktree-status"
+          ? refuse(
+              "worktree status",
+              explainWorktreeRefusal(judged.error.refusal),
+            )
+          : refuse("gates", explainGateJudgeRefusal(judged.error.refusal));
       abandonLease();
       return result;
     }
+
     if (judged.value.kind === "cleared") paneCustody = "runner";
 
     return {
