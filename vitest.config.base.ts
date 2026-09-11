@@ -4,5 +4,6 @@ export const baseConfig = defineConfig({
   test: {
     globals: false,
     environment: "node",
+    setupFiles: ["../../vitest.setup.ts"],
   },
 });
