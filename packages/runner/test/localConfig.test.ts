@@ -280,6 +280,41 @@ describe("loadLocalConfig runtime.prompt_taken_timeout_ms", () => {
   });
 });
 
+describe("loadLocalConfig answer_grace_ms", () => {
+  it("defaults to 300000 when the field is absent", async () => {
+    const repoRoot = fixtureRepo(baseFields.join("\n"));
+
+    const result = await loadLocalConfig(repoRoot);
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) expect(result.value.answerGraceMs).toBe(300_000);
+  });
+
+  it("refuses with a sentence error naming the field when it is not a number", async () => {
+    const yaml = [
+      "interlock: local@v0",
+      "runtime:",
+      "  kind: claude",
+      "  args: []",
+      "worktree_root: .worktrees",
+      "lease_ms: 900000",
+      "run_timeout_ms: 3600000",
+      "answer_grace_ms: soon",
+      "substrate:",
+      "  address: none",
+      "",
+    ].join("\n");
+    const repoRoot = fixtureRepo(yaml);
+
+    const result = await loadLocalConfig(repoRoot);
+
+    expect(isErr(result)).toBe(true);
+    if (isErr(result) && result.error.kind === "malformed") {
+      expect(result.error.reason).toContain('"answer_grace_ms"');
+    }
+  });
+});
+
 describe("loadLocalConfig worktree_setup", () => {
   it("defaults to an empty list when the field is absent", async () => {
     const repoRoot = fixtureRepo(baseFields.join("\n"));
