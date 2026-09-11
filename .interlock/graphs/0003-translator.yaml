@@ -1,0 +1,91 @@
+# Interlock's third graph: the translator. Two directions across one boundary, the closed
+# vocabulary. Runs after 0002-shapes clears; its nodes are checked against the schemas that graph
+# produces. The first non-none substrate address is dogfooded on this repository.
+
+interlock: graph@v0
+id: 0003-translator
+
+ask: >
+  Let a substrate learn from the work and inform it: turn a judged session's artifacts into evidence
+  with provenance that a substrate absorbs without ratifying anything, render a substrate's slice
+  into the brief a session reads, and let an ask become a graph through a session whose role is
+  interpreter, so the harness plans with the same discipline it runs with.
+
+derivation:
+  kind: human
+  who: Rodrigo Sasaki
+  with: Claude, in a design conversation on 2026-09-11
+
+read: >
+  The upward translation is mostly deterministic: a decision already has an item's shape, a receipt
+  is an observed item with gate derivation, a person's verb with its because is a professed item
+  with human derivation. The model is needed only where words cross vocabularies, and that is
+  where gaps are counted. The downward translation, an ask into a graph, is the model-heavy one
+  and runs as a session with role interpreter, not as a new model adapter. Nothing here ratifies:
+  evidence adds, corroborates or creates tension; a standing rule enters by a person's second call.
+
+gates:
+  - id: approved
+    kind: human
+
+nodes:
+  - id: substrate-client
+    acceptance: >
+      `packages/substrate`: a client for `substrate@v1` with `context` and `absorb` required and
+      capabilities discovered; the address `none` is a client that renders nothing and absorbs
+      nothing while everything still runs; an `http` address speaks JSON over HTTP per
+      `schemas/substrate/`. The runner calls `context` when it composes a brief and renders the
+      slice into the body with the renderer that exists, and calls `absorb` at judgement, cleared
+      or held. Every call is narrated on the session with the address and the verb; a refusal is
+      a sentence; an absent capability degrades per capability, never fails the run.
+    depends_on: []
+    gates:
+      - id: context-renders
+        kind: command
+        run: pnpm --filter substrate --fail-if-no-match test --testNamePattern context
+        expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: evidence
+    acceptance: >
+      The upward translation, deterministic: from a judged session, `item@v1` evidence with
+      provenance. Receipts become observed items with gate derivation; decisions and discoveries
+      become hypotheses with model derivation, each carrying the rooted hunk or location, unrooted
+      marks excluded and counted; a person's verbs with their because become professed items with
+      human derivation. `interlock evidence <graph> <node>` prints the items and the gap count;
+      `absorb` sends them. Nothing here ratifies.
+    depends_on: [substrate-client]
+    gates:
+      - id: evidence-provenance
+        kind: command
+        run: pnpm --filter substrate --fail-if-no-match test --testNamePattern evidence
+        expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: interpreter
+    acceptance: >
+      An ask becomes a graph through a session. `interlock plan <graph-id> --ask <text>` leases a
+      planning node, composes a brief with role `interpreter`, the ask, the substrate's slice and
+      the shapes reference, and starts a session whose deliverable is `.interlock/graphs/<id>.yaml`
+      and a debrief. The CLI validates the graph; it lands not approved; a person approves it or
+      corrects it with a reason, and a correction reopens the interpreter with the reason in its
+      brief. The interpreter never runs a node.
+    depends_on: [substrate-client]
+    gates:
+      - id: plan-lands-unapproved
+        kind: command
+        run: pnpm --filter cli --fail-if-no-match test --testNamePattern plan
+        expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: first-address
+    acceptance: >
+      This repository runs with a substrate at a local `http` address: the briefs of this graph's
+      later sessions carry a rendered slice; their debriefs are absorbed and the acknowledgement
+      narrated; each debrief's discoveries are counted against its slice. A person witnesses one
+      brief with a slice and one absorbed debrief and records it as a receipt.
+    depends_on: [evidence, interpreter]
+    gates:
+      - id: witnessed
+        kind: human
+      - id: absorb-acknowledged
+        kind: command
+        run: pnpm --filter substrate --fail-if-no-match test --testNamePattern acknowledged
+        expect_output: 'Tests +[1-9][0-9]* passed'
