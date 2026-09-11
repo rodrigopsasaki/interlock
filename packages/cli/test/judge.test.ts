@@ -176,6 +176,7 @@ describe("interlock judge", () => {
 
     expect(judged.exitCode).not.toBe(0);
     expect(judged.message).toContain("not approved");
+    expect(judged.message).toContain('refusing to judge "a"');
   });
 
   it("refuses a graph whose approval is stale", async () => {
@@ -191,6 +192,7 @@ describe("interlock judge", () => {
 
     expect(judged.exitCode).not.toBe(0);
     expect(judged.message).toContain("graph is stale");
+    expect(judged.message).toContain('refusing to judge "a"');
   });
 
   it("clears a clean worktree that carries a committed debrief", async () => {
