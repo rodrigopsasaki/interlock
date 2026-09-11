@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/parts/note.json",
+  "title": "note",
+  "description": "A typed entry a session appends while it works: a choice with its because, or a surprise with expected and observed.",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "choice" },
+        "at": { "type": "string" },
+        "chose": { "type": "string" },
+        "because": { "type": "string" },
+        "rejected": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["kind", "at", "chose", "because"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "surprise" },
+        "at": { "type": "string" },
+        "expected": { "type": "string" },
+        "observed": { "type": "string" }
+      },
+      "required": ["kind", "at", "expected", "observed"],
+      "additionalProperties": false
+    }
+  ]
+}

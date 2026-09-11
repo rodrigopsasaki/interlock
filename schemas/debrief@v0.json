@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/debrief@v0.json",
+  "title": "debrief@v0",
+  "description": "A debrief.yaml file at the oldest recorded shape: base_sha and head_sha, no role, no session_start_sha. Items are checked loosely (id and what only); a decision's because is optional here, merely counted when absent by the reader.",
+  "type": "object",
+  "properties": {
+    "interlock": { "const": "debrief@v0" },
+    "graph": { "type": "string" },
+    "node": { "type": "string" },
+    "base_sha": { "type": "string", "pattern": "^[0-9a-fA-F]{40}$" },
+    "head_sha": { "type": "string", "pattern": "^[0-9a-fA-F]{40}$" },
+    "derivation": { "$ref": "parts/debrief-derivation.json" },
+    "discoveries": {
+      "type": "array",
+      "items": { "$ref": "parts/legacy-discovery.json" }
+    },
+    "decisions": {
+      "type": "array",
+      "items": { "$ref": "parts/legacy-decision.json" }
+    },
+    "gates_run_by_agent": {
+      "type": "array",
+      "items": { "$ref": "parts/legacy-gate-run.json" }
+    },
+    "open": { "type": "array", "items": { "type": "string" } }
+  },
+  "required": [
+    "interlock",
+    "graph",
+    "node",
+    "base_sha",
+    "head_sha",
+    "derivation",
+    "discoveries",
+    "decisions",
+    "gates_run_by_agent",
+    "open"
+  ],
+  "additionalProperties": false
+}

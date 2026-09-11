@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/item@v1.json",
+  "title": "item@v1",
+  "description": "One entry of a substrate context slice: a statement in the team's words, with its provenance. Produced in memory today, by a test fixture or a substrate client; there is no file on disk in this shape.",
+  "type": "object",
+  "properties": {
+    "kind": {
+      "enum": [
+        "convention",
+        "discipline",
+        "decision",
+        "risk",
+        "value",
+        "tension",
+        "absence"
+      ]
+    },
+    "statement": { "type": "string" },
+    "because": { "type": "string" },
+    "scope": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": { "kind": { "const": "repository" } },
+          "required": ["kind"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "path" },
+            "path": { "type": "string" }
+          },
+          "required": ["kind", "path"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": { "kind": { "const": "organisation" } },
+          "required": ["kind"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "standing": {
+      "enum": ["ratified", "professed", "observed", "hypothesis"]
+    },
+    "derivation": { "type": "string" }
+  },
+  "required": ["kind", "statement", "derivation"],
+  "additionalProperties": false
+}

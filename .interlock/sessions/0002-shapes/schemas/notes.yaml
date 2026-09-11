@@ -1,0 +1,200 @@
+interlock: notes@v0
+node: schemas
+entries:
+  - kind: choice
+    at: "2026-09-11T18:00:00Z"
+    chose: >
+      Took ajv (checked on the npm registry: MIT license, 8.20.0, published within the last
+      few months, four small transitive dependencies, ships a dedicated Ajv2020 export for
+      draft 2020-12) as the JSON Schema validator, rather than writing one.
+    because: >
+      Draft 2020-12 carries real, easy-to-get-wrong semantics -- $ref/$id resolution across
+      files, oneOf discriminant matching, allOf composition for the standing-gate override --
+      that a hand-rolled validator would very likely mis-implement silently, which is exactly
+      the "premature compression" this repository's conventions warn against. Composing an
+      audited, widely used implementation behind one small adapter (packages/schemas/src)
+      matches "compose, don't reinvent" directly, and the brief names ajv by name as the
+      expected choice pending this verification.
+    rejected:
+      - a hand-rolled recursive validator covering only the subset of draft 2020-12 this
+        package's own schemas happen to use
+
+  - kind: choice
+    at: "2026-09-11T18:05:00Z"
+    chose: >
+      Every schema's $id is "https://github.com/rodrigopsasaki/interlock/schemas/<path>",
+      mirroring the schemas/ directory layout (parts/ included) exactly.
+    because: >
+      Nothing in the repository names a canonical domain or URI base for interlock's own
+      artifacts; README.md already links Phyxius as https://github.com/rodrigopsasaki/phyxius,
+      so the same author/namespace convention was reused rather than inventing an
+      interlock.dev-style domain that resolves nowhere. $id values never need to be
+      dereferenced over the network -- ajv resolves every $ref locally against the schemas it
+      was given -- so this is purely an identity string, not a live endpoint.
+
+  - kind: surprise
+    at: "2026-09-11T18:10:00Z"
+    expected: >
+      brief@v0 (every brief.md predating front-matter versioning) would have some recognizable
+      partial structure to validate, the way debrief@v0/v1 still carry a real, checkable field
+      set.
+    observed: >
+      Every real brief@v0 file in this repository's history (0001-bootstrap/scaffold,
+      /ledger, /ledger-gaps, /runner-command-gate, /face-read, /debrief-schema, and
+      0002-shapes/brief-shape) is free-form Markdown prose with no "---" front-matter block at
+      all -- confirmed by reading each one directly, not inferred. There is nothing left to
+      schema-validate once a file lacks that block; schemas/brief@v0.json is therefore the
+      permissive schema {} (accepts anything), and interlock schema validate reports a v0 file
+      as legacy-valid without meaningfully running ajv against it, mirroring the wording
+      packages/debrief/src/brief.ts's own explainLegacyBrief already uses.
+
+  - kind: choice
+    at: "2026-09-11T18:15:00Z"
+    chose: >
+      schemas/event@v2.json and schemas/event@v3.json are byte-for-byte identical to
+      schemas/event@v4.json except for their $id, title and description.
+    because: >
+      packages/ledger/src/upcast/v2.ts and v3.ts are both literally
+      "isLedgerEvent(raw) ? raw : undefined" -- a pure identity check against today's guard,
+      with no version-specific structural transformation coded anywhere. The version number
+      was bumped for compatibility policy (a new optional capability, e.g. held's
+      uncommitted-work reason at v3) even though the guard that accepts the wire bytes never
+      changed for v2/v3/v4. Only event@v1 has a real structural delta (a receipt with no
+      duration, a flat pre-HeldOn outcome shape, no debrief-filed kind at all), which is why it
+      alone gets its own receipt-v1/gate-v1/outcome-v1 parts.
+
+  - kind: choice
+    at: "2026-09-11T18:20:00Z"
+    chose: >
+      Mandate (packages/ledger/src/mandate.ts, isMandate) is not one of this node's schemas.
+    because: >
+      The brief's own guard list to read (isLedgerEvent, isReceipt, isDerivation, isMark,
+      isOutcome, isGate, isLease, isDebrief, isNote, isBrief) does not include isMandate, and
+      confirmed by reading every LedgerEvent kind and every upcaster: Mandate is never embedded
+      in any persisted event, has no shape tag in upcastTable, and is not part of "the parts
+      events carry" the brief lists. Recording it here, and again as an open item in the
+      debrief, since "mandate" is a ratified vocabulary term with no persisted shape behind it
+      yet -- a real gap, not an oversight of this node's.
+
+  - kind: choice
+    at: "2026-09-11T18:25:00Z"
+    chose: >
+      A debrief has two distinct schemas at two serialization layers: schemas/debrief@v0.json,
+      v1.json and v2.json describe the on-disk debrief.yaml file (snake_case keys --
+      graph_base_sha, gates_run_by_agent, found_at); schemas/parts/debrief-event.json describes
+      the same artifact as packages/ledger/src/event.ts embeds it inside a debrief-filed event
+      (camelCase -- graphBaseSha, gatesRunByAgent), always at the full, current shape.
+    because: >
+      packages/ledger/src/upcast/v1.ts refuses debrief-filed unconditionally ("v1 never
+      recorded debrief-filed's fields"), so no legacy debrief ever reaches the journal; only
+      debrief.yaml files on disk carry the legacy v0/v1 shapes, read by
+      packages/debrief/src/debrief.ts's own snake_case parser. Confirmed against a real
+      fixture line (packages/ledger/test/fixtures/journal-v3-v4-2026-09-11.jsonl:77): a
+      debrief-filed event's debrief field is genuinely camelCase JSON, not the YAML file's
+      snake_case. One schema for each real serialization, not one schema pretending both are
+      the same bytes.
+
+  - kind: choice
+    at: "2026-09-11T18:30:00Z"
+    chose: >
+      additionalProperties is false on every discriminated-union variant and every
+      fully-enumerated interface (Receipt, Gate, Outcome, Note, Mark, Lease, Session, the
+      ledger's Brief and Debrief, Discovery, Decision, GateRun, Item, BriefGate, StartupAnswer,
+      and every position@v1 sub-shape), matching the brief's instruction directly. It is left
+      open (true) only at graph@v0's top level.
+    because: >
+      No guard anywhere in packages/ledger, packages/debrief, packages/face or packages/runner
+      rejects an unknown top-level key -- but every real graph file under .interlock/graphs/
+      carries extra top-level keys (ask, derivation, read) that packages/face/src/document.ts's
+      parseShape reads for none of its four fields and never rejects for their presence. Setting
+      additionalProperties: false at graph@v0's top level would fail every real graph file in
+      this repository against its own schema, which the acceptance requires to pass. Every
+      nested shape below the top level is fully consumed by its guard/reader with a closed,
+      enumerated field set, so those stay strict.
+
+  - kind: choice
+    at: "2026-09-11T18:35:00Z"
+    chose: >
+      notes@v0's choice.rejected is schema'd as untyped (any value, when present) at the file
+      level, while the ledger's own event-embedded note (schemas/parts/note.json) requires it
+      to be a string array when present, matching isNote exactly.
+    because: >
+      packages/debrief/src/notes.ts's own parseEntry keeps rejected only when
+      isStringArray(rejected) is true and silently drops it otherwise -- it never refuses the
+      file for a wrongly-shaped rejected. Several real notes.yaml files
+      (0001-bootstrap/ledger-gaps, /runner-command-gate, /verbs) write
+      "rejected: >\n  [\"...\", \"...\"]", a YAML folded scalar that parses to one long string,
+      not a list -- confirmed by reading verbs/notes.yaml directly. A strict string-array
+      schema at the file level would refuse real, already-accepted files; the stricter shape
+      belongs only to the part that is always constructed in code (a note-appended event),
+      never hand-typed with a folded scalar.
+
+  - kind: choice
+    at: "2026-09-11T18:40:00Z"
+    chose: >
+      schemas/position@v1.json and schemas/item@v1.json are built from their producers and
+      test fixtures (packages/face/src/position.ts, packages/face/test/position.test.ts,
+      packages/debrief/src/slice.ts, packages/debrief/test/slice.test.ts), not from any file
+      under .interlock/.
+    because: >
+      Neither shape has a reader anywhere in the repository. position@v1 is serialized only by
+      "interlock graph show --json" (packages/cli/src/graph/show.ts); nothing writes it to
+      disk or reads it back. item@v1 is a pure in-memory shape a substrate client or a test
+      fixture constructs directly; packages/debrief/src/slice.ts has no parser for it at all.
+      Both are real, exercised shapes -- worth a schema per the brief -- but their corpus has
+      to be literal test-asserted objects, not files, and is recorded as such rather than
+      pretended otherwise.
+
+  - kind: choice
+    at: "2026-09-11T18:45:00Z"
+    chose: >
+      graph@v0's two referential checks -- every depends_on id names a real node in the same
+      document, and the dependency edges form a DAG -- are documented as loader-only
+      constraints and are not encoded in the schema.
+    because: >
+      Both are whole-document, cross-field checks (packages/face/src/document.ts:189-204,
+      packages/face/src/topology.ts's cycle detection); JSON Schema draft 2020-12 has no
+      keyword that can compare one array element's contents against the set of every other
+      array element's id, so this is a real expressiveness boundary, not a shortcut.
+
+  - kind: choice
+    at: "2026-09-11T18:50:00Z"
+    chose: >
+      config@v0's schema requires both "interlock" and "substrate", even though
+      packages/runner/src/standingGates.ts's loader checks neither.
+    because: >
+      config@v0 is not one of the ten guards the corpus-agreement test reconciles against (no
+      "isConfig" exists to disagree with), and every real .interlock/config.yaml carries both
+      fields; requiring them keeps the schema describing the artifact's intended, declared
+      shape (every artifact names its shape on its first line, per this repository's own
+      compatibility convention) one step ahead of a loader that happens not to check it yet,
+      rather than laundering that gap into the schema silently.
+
+  - kind: choice
+    at: "2026-09-11T18:55:00Z"
+    chose: >
+      One shared schemas/parts/gate-declaration.json (id, kind, optional run, optional
+      expect_output) backs graph@v0's node/graph gates and brief@v1's front-matter gates;
+      config@v0's standing gates reuse it through schemas/parts/standing-gate.json, an allOf
+      that adds "run" to the required list rather than redeclaring the four fields.
+    because: >
+      packages/face/src/document.ts's GateDeclaration and packages/debrief/src/briefGate.ts's
+      BriefGate are structurally identical (both id/kind required, run/expect_output optional),
+      confirmed by reading both; packages/runner/src/standingGates.ts's StandingGate is the same
+      shape with run checked unconditionally instead of behind an "if present" guard
+      (standingGates.test.ts proves a run-less standing entry is refused as malformed). allOf
+      plus an extra required array expresses that one-field difference without a second,
+      drifting copy of the base four fields.
+
+  - kind: surprise
+    at: "2026-09-11T19:00:00Z"
+    expected: >
+      An early ajv-vs-draft-2020-12 sanity check (does the npm package actually ship a 2020-12
+      entry point) could be done anywhere convenient.
+    observed: >
+      Ran "npm pack ajv@8.17.1" and inspected the tarball under /tmp/ajv-check -- a direct
+      violation of this brief's own "No /tmp" constraint, caught only when the user's mid-session
+      reminder named it explicitly. Cleaned up every file and directory that command created
+      with plain rm/rmdir (no rm -rf), confirmed nothing remained under /tmp/ajv-check, and
+      created packages/schemas/test/.runs/ as the correct scratch location for anything similar
+      for the rest of this session.

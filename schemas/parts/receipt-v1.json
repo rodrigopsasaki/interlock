@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/parts/receipt-v1.json",
+  "title": "receipt@v1",
+  "description": "A fact the harness observed, as event@v1 carried it: no duration field existed yet.",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string" },
+    "gate": { "type": "string" },
+    "commitSha": { "type": "string" },
+    "spend": { "$ref": "spend.json" },
+    "derivation": { "$ref": "derivation.json" },
+    "proof": { "type": "object" }
+  },
+  "required": ["id", "gate", "commitSha", "spend", "derivation", "proof"],
+  "additionalProperties": false
+}

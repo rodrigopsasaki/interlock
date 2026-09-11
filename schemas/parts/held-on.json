@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/parts/held-on.json",
+  "title": "held-on",
+  "description": "What a held outcome is waiting on: a failed gate, a decision only a person makes, or uncommitted work.",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "gate-failure" },
+        "failure": { "type": "string" },
+        "disposition": { "$ref": "disposition.json" }
+      },
+      "required": ["kind", "failure", "disposition"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "decision" },
+        "authority": { "type": "string" }
+      },
+      "required": ["kind", "authority"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "uncommitted-work" },
+        "paths": { "type": "number" }
+      },
+      "required": ["kind", "paths"],
+      "additionalProperties": false
+    }
+  ]
+}

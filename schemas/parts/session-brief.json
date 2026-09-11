@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/parts/session-brief.json",
+  "title": "session-brief",
+  "description": "The ledger's own reduced view of a brief, embedded in a session-started event: gates and scope as plain id lists, not the richer brief@v1 front matter.",
+  "type": "object",
+  "properties": {
+    "graph": { "type": "string" },
+    "node": { "type": "string" },
+    "role": { "type": "string" },
+    "acceptance": { "type": "string" },
+    "gates": { "type": "array", "items": { "type": "string" } },
+    "scope": { "type": "array", "items": { "type": "string" } }
+  },
+  "required": ["graph", "node", "role", "acceptance", "gates", "scope"],
+  "additionalProperties": false
+}

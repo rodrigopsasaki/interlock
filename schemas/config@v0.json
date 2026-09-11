@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/config@v0.json",
+  "title": "config@v0",
+  "description": "The repository's standing table, .interlock/config.yaml. The loader itself never checks the interlock tag or reads substrate at all; both are required here as the declared shape of the artifact, one deliberate step stricter than today's loader.",
+  "type": "object",
+  "properties": {
+    "interlock": { "const": "config@v0" },
+    "standing_gates": {
+      "type": "array",
+      "items": { "$ref": "parts/standing-gate.json" }
+    },
+    "substrate": {
+      "type": "object",
+      "properties": {
+        "address": { "type": "string" },
+        "handle": { "type": "string" }
+      },
+      "required": ["address"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["interlock", "standing_gates", "substrate"],
+  "additionalProperties": false
+}

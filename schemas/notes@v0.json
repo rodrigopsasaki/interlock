@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/notes@v0.json",
+  "title": "notes@v0",
+  "description": "A session's notes.yaml, appended at every choice and surprise. A choice's rejected is left untyped when present, since the file reader silently drops it rather than refusing the file when a YAML folded scalar (a real pattern in this repository's own history) parses to a plain string instead of a list; the ledger's own event-embedded note is the stricter shape, since it is always constructed in code, never hand-typed.",
+  "type": "object",
+  "properties": {
+    "interlock": { "const": "notes@v0" },
+    "node": { "type": "string" },
+    "entries": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": { "const": "choice" },
+              "at": { "type": "string" },
+              "chose": { "type": "string" },
+              "because": { "type": "string" },
+              "rejected": {}
+            },
+            "required": ["kind", "at", "chose", "because"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": { "const": "surprise" },
+              "at": { "type": "string" },
+              "expected": { "type": "string" },
+              "observed": { "type": "string" }
+            },
+            "required": ["kind", "at", "expected", "observed"],
+            "additionalProperties": false
+          }
+        ]
+      }
+    }
+  },
+  "required": ["interlock", "node", "entries"],
+  "additionalProperties": false
+}

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/brief@v1.json",
+  "title": "brief@v1",
+  "description": "The front matter of a brief.md file, between its --- fences. Acceptance, constraints and deliverable live only in the unstructured Markdown body below the fence and are not covered here. graph_base_sha and session are either both absent (a repository brief) or both present (a worktree copy); scope entries are plain strings here, not escape-checked, since the reader's own normalize()-based path check has no faithful regex equivalent and every real scope path in this repository is already a plain relative one.",
+  "type": "object",
+  "properties": {
+    "interlock": { "const": "brief@v1" },
+    "graph": { "type": "string" },
+    "node": { "type": "string" },
+    "role": { "type": "string", "pattern": "^\\S+$" },
+    "gates": {
+      "type": "array",
+      "items": { "$ref": "parts/gate-declaration.json" }
+    },
+    "scope": { "type": "array", "items": { "type": "string" } },
+    "substrate": {
+      "type": "object",
+      "properties": {
+        "address": { "type": "string" },
+        "handle": { "type": "string" }
+      },
+      "required": ["address"],
+      "additionalProperties": false
+    },
+    "graph_base_sha": { "type": "string", "pattern": "^[0-9a-fA-F]{40}$" },
+    "session": { "type": "string" }
+  },
+  "required": ["interlock", "graph", "node", "role", "gates", "scope", "substrate"],
+  "dependentRequired": {
+    "graph_base_sha": ["session"],
+    "session": ["graph_base_sha"]
+  },
+  "additionalProperties": false
+}

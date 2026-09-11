@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/parts/mark.json",
+  "title": "mark",
+  "description": "What the verifier attaches to a debrief claim: rooted, unrooted, unexplained, or a gap. Never a verdict.",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "rooted" },
+        "derivation": { "$ref": "derivation.json" },
+        "hunk": { "type": "string" }
+      },
+      "required": ["kind", "derivation", "hunk"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "unrooted" },
+        "derivation": { "$ref": "derivation.json" },
+        "because": { "type": "string" }
+      },
+      "required": ["kind", "derivation", "because"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "unexplained" },
+        "derivation": { "$ref": "derivation.json" },
+        "hunk": { "type": "string" }
+      },
+      "required": ["kind", "derivation", "hunk"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "gap" },
+        "derivation": { "$ref": "derivation.json" },
+        "gap": { "$ref": "gap.json" }
+      },
+      "required": ["kind", "derivation", "gap"],
+      "additionalProperties": false
+    }
+  ]
+}

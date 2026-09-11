@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/parts/debrief-derivation.json",
+  "title": "debrief-derivation",
+  "description": "Who ran the session that produced a debrief: an agent or a person. Narrower than, and distinct from, a receipt's derivation.",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "agent" },
+        "runtime": { "type": "string" },
+        "model": { "type": "string" }
+      },
+      "required": ["kind", "runtime", "model"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "human" },
+        "who": { "type": "string" }
+      },
+      "required": ["kind", "who"],
+      "additionalProperties": false
+    }
+  ]
+}

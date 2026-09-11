@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/parts/outcome.json",
+  "title": "outcome",
+  "description": "How a node ended: cleared, held, reset, failed, cancelled, or superseded. Always with its receipts.",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "cleared" },
+        "receipts": { "type": "array", "items": { "$ref": "receipt.json" } }
+      },
+      "required": ["kind", "receipts"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "held" },
+        "receipts": { "type": "array", "items": { "$ref": "receipt.json" } },
+        "on": { "$ref": "held-on.json" },
+        "because": { "type": "string" },
+        "expiry": { "type": "number" }
+      },
+      "required": ["kind", "receipts", "on", "because", "expiry"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "reset" },
+        "receipts": { "type": "array", "items": { "$ref": "receipt.json" } },
+        "authority": { "type": "string" },
+        "because": { "type": "string" }
+      },
+      "required": ["kind", "receipts", "authority", "because"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "failed" },
+        "receipts": { "type": "array", "items": { "$ref": "receipt.json" } },
+        "failure": { "type": "string" },
+        "disposition": { "$ref": "disposition.json" },
+        "because": { "type": "string" }
+      },
+      "required": ["kind", "receipts", "failure", "disposition", "because"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "cancelled" },
+        "receipts": { "type": "array", "items": { "$ref": "receipt.json" } },
+        "authority": { "type": "string" },
+        "because": { "type": "string" }
+      },
+      "required": ["kind", "receipts", "authority", "because"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "superseded" },
+        "receipts": { "type": "array", "items": { "$ref": "receipt.json" } },
+        "authority": { "type": "string" },
+        "because": { "type": "string" }
+      },
+      "required": ["kind", "receipts", "authority", "because"],
+      "additionalProperties": false
+    }
+  ]
+}

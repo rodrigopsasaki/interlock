@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/parts/startup-answer.json",
+  "title": "startup-answer",
+  "description": "One scripted reply for a runtime's startup prompt: matches is a plain substring, or a /body/flags delimited regex literal, that the runner compiles; that grammar is distinct from a gate's bare-regex-body expect_output and is not re-validated here beyond being a string.",
+  "type": "object",
+  "properties": {
+    "matches": { "type": "string" },
+    "keys": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    }
+  },
+  "required": ["matches", "keys"],
+  "additionalProperties": false
+}

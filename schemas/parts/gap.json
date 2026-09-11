@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/parts/gap.json",
+  "title": "gap",
+  "description": "An ask or debrief phrase that maps to no vocabulary term.",
+  "type": "object",
+  "properties": {
+    "term": { "type": "string" },
+    "nearest": { "type": "string" },
+    "difference": { "type": "string" }
+  },
+  "required": ["term", "nearest", "difference"],
+  "additionalProperties": false
+}

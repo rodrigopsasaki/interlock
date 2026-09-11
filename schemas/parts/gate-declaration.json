@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/parts/gate-declaration.json",
+  "title": "gate-declaration",
+  "description": "A gate as declared on a graph node, a graph, or a brief's front matter: an id, a kind, and an optional command and output check. A human gate carries no run.",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string" },
+    "kind": { "type": "string" },
+    "run": { "type": "string" },
+    "expect_output": { "type": "string" }
+  },
+  "required": ["id", "kind"],
+  "additionalProperties": false
+}
