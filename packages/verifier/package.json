@@ -1,21 +1,17 @@
 {
-  "name": "cli",
+  "name": "verifier",
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
-    "@phyxiusjs/clock": "^0.3.0",
     "@phyxiusjs/fp": "^0.2.1",
-    "debrief": "workspace:*",
-    "face": "workspace:*",
-    "ledger": "workspace:*",
-    "runner": "workspace:*",
-    "verifier": "workspace:*",
-    "yaml": "2.9.0"
+    "ledger": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "24.13.3",

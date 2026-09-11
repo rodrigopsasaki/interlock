@@ -1,0 +1,424 @@
+interlock: debrief@v2
+graph: 0001-bootstrap
+node: verifier-hunks
+role: worker
+graph_base_sha: 043c78a0bea483de7d212031255b771d493a7ab5
+session_start_sha: 043c78a0bea483de7d212031255b771d493a7ab5
+head_sha: c7df7bda8503caace6a0d22640bc0be9b4e5e626
+derivation:
+  kind: agent
+  runtime: claude-code
+  model: claude-sonnet-5
+discoveries:
+  - id: d1
+    what: >
+      packages/ledger/src/event.ts's LedgerEvent union has no arm for a mark;
+      the last kind it declares is outbox-intent-recorded.
+    found_at: >
+      packages/ledger/src/event.ts, the LedgerEvent union -- grepped for
+      "mark" across the whole file, no match; the union's final arm is
+      "outbox-intent-recorded".
+    mattered_because: >
+      the brief's own Ingestion section names this exact fork: "if event@v2
+      has none, adding one is a new union arm, a shape change you are not
+      licensed to make; record the exact proposal under open and print
+      marks without persisting them." This node builds the verifier
+      library and interlock verify only, and does not touch gateJudge.ts's
+      ingestion path or event.ts.
+  - id: d2
+    what: >
+      .interlock/config.yaml (config@v0) has only two top-level keys; no
+      field exists anywhere in the repository for a team's professed
+      domain vocabulary, the second of the acceptance's "two vocabularies."
+    found_at: >
+      .interlock/config.yaml -- "standing_gates" and "substrate" are its
+      only top-level keys.
+    mattered_because: >
+      verifyDebrief's professedDomainVocabulary option is real and tested,
+      but interlock verify always calls it with the CLI's own default
+      (empty), since there is nowhere in this repository to read a real
+      one from; every domain term not already in AGENTS.md's own
+      Vocabulary table or plain programming English becomes a gap today,
+      not a false negative -- exactly the "err toward gap" posture the
+      brief asks for, but worth naming so a future team does not read a
+      wave of gaps as this verifier being wrong.
+  - id: d3
+    what: >
+      packages/debrief/test/brief.test.ts's own "every existing brief
+      under .interlock/sessions" suite failed the moment this worktree
+      existed, on exactly the one entry for this node's own session,
+      before this session changed anything.
+    found_at: |
+      $ mise exec -- pnpm --filter debrief exec vitest run test/brief.test.ts
+      (with brief.test.ts reverted to its content at graph_base_sha, to
+      reproduce the floor exactly as the interrupted session found it)
+       × every existing brief under .interlock/sessions > 0001-bootstrap/verifier-hunks validates as brief@v0
+      AssertionError: expected 'v1' to be 'legacy'
+        Expected: "legacy"
+        Received: "v1"
+      Tests  1 failed | 20 passed (21)
+    mattered_because: >
+      that suite's own table asserted every session directory's brief.md
+      is still the scaffolded legacy placeholder -- true for every prior
+      node, but false for this one the moment the runner rewrote this
+      session's own brief.md into brief@v1 (this brief's own front matter
+      says as much: "this is the first node run by interlock run itself").
+      The floor failure was the corpus catching up to its own newest fact,
+      fixed by the interrupted session (c19 below) before this session
+      began, not a break either session caused; re-verified here by
+      reproducing it fresh against the pre-fix file and restoring the
+      fix immediately after, leaving no working-tree change behind.
+  - id: d4
+    what: >
+      Every real interlock verify run sprayed several git "fatal: path
+      '...' does not exist" lines onto this process's own stderr, from
+      foundAt.ts's candidatePaths trying several substrings per
+      discovery, most of which are not real paths by design.
+    found_at: |
+      $ mise exec -- pnpm interlock verify 0001-bootstrap debrief-schema
+      (before the fix in c6 below)
+      fatal: path '35/35' does not exist in '910f8a19eab255813b36ce90d20fdd08d3905660'
+      fatal: path '.interlock/sessions/0001-bootstrap/35/35' does not exist in '910f8a19eab255813b36ce90d20fdd08d3905660'
+      fatal: path 'ledger-gaps/notes.yaml' does not exist in '910f8a19eab255813b36ce90d20fdd08d3905660'
+      fatal: path 'runner-command-gate/notes.yaml' does not exist in '910f8a19eab255813b36ce90d20fdd08d3905660'
+      fatal: path 'runner-command-gate/debrief.yaml' does not exist in '910f8a19eab255813b36ce90d20fdd08d3905660'
+      rooted 54, unrooted 0, unexplained 0, gap 76
+    mattered_because: >
+      node's execFileSync inherits stderr by default; the try/catch in
+      git.ts caught the thrown error fine on every one of these speculative
+      probes, but git had already written to this process's own stderr
+      first. A command the acceptance says "never blocks" should not look,
+      on every real run, like it is failing.
+  - id: d5
+    what: >
+      packages/verifier/test/.runs/ was untracked from this session's very
+      first `git status`, before anything in this session changed -- every
+      sibling package (ledger, face, cli, runner) already has its own
+      "test/.runs/" line in .gitignore; verifier never got one.
+    found_at: >
+      .gitignore lists "packages/cli/test/.runs/" and
+      "packages/runner/test/.runs/" but, before this session's fix, no
+      "packages/verifier/test/.runs/" line.
+    mattered_because: >
+      left alone, every future `pnpm --filter verifier test` run in any
+      checkout would keep surfacing this as untracked noise.
+  - id: d6
+    what: >
+      This machine's own global git config sets diff.renames=copies;
+      diffFiles' `git diff -U0` (no --no-renames) reported
+      packages/verifier/package.json, a brand-new file, as a 62%-similar
+      "copy from packages/cli/package.json" instead of a plain new file,
+      because cli's own package.json also changed in the same commit.
+    found_at: |
+      $ git diff -U0 043c78a0be..<pre-fix head> -- packages/verifier/package.json packages/cli/package.json
+      diff --git a/packages/cli/package.json b/packages/verifier/package.json
+      similarity index 62%
+      copy from packages/cli/package.json
+      copy to packages/verifier/package.json
+      index 2a72c14..0c0948b 100644
+      --- a/packages/cli/package.json
+      +++ b/packages/verifier/package.json
+      @@ -2 +2 @@
+      -  "name": "cli",
+      +  "name": "verifier",
+    mattered_because: >
+      a hunk citation against a copy-detected file compares against the
+      wrong line numbering (relative to the copy source, not the true
+      new-file numbering), and the same command against the same
+      repository state would mark differently on a different engineer's
+      machine -- exactly the non-determinism the acceptance rules out
+      ("Deterministic marks over a debrief against its diff").
+  - id: d7
+    what: >
+      interlock verify run for real against both v2 debriefs that exist in
+      this corpus: debrief-schema's own, and this debrief, at this head_sha.
+    found_at: |
+      $ mise exec -- pnpm interlock verify 0001-bootstrap debrief-schema
+      rooted 54, unrooted 0, unexplained 0, gap 76
+      (exit 0)
+
+      $ mise exec -- pnpm interlock verify 0001-bootstrap verifier-hunks
+      rooted 42, unrooted 1, unexplained 0, gap 69
+      unrooted: ".interlock/sessions/0001-bootstrap/verifier-hunks/debrief.yaml" is not a file changed in this range
+      (exit 0)
+    mattered_because: >
+      this is the brief's own Deliverable 4: proof the verifier runs
+      clean, deterministically, against the one other real v2 debrief in
+      the corpus and against its own. The one unrooted mark is c21 (this
+      debrief's own decision, citing its own path) -- structurally
+      unavoidable, not a bug: head_sha is "the last code commit," which by
+      definition precedes the commit that files this debrief, so the
+      debrief can never appear inside its own diffed range. Recorded
+      rather than hidden, since marks never block and this is exactly the
+      kind of honest, expected unrooted mark the acceptance's "err toward
+      gap" posture extends to unrooted too. See gates_run_by_agent for
+      the inverse-check gate's own run.
+decisions:
+  - id: c1
+    what: >
+      This session's own brief.md, rewritten by the runner from the
+      scaffolded placeholder into real front matter (and, later in the
+      same range, given its full "substrate" and "scope" fields) before
+      this session began. Recorded here as a factual account of the
+      runner's own action, since brief.md sits inside this debrief's own
+      range and this session may not edit it.
+    because: notes:15, notes:16
+    rests_on: ["brief:how this session runs", "notes:15", "notes:16"]
+    hunks:
+      - ".interlock/sessions/0001-bootstrap/verifier-hunks/brief.md:18-20"
+      - ".interlock/sessions/0001-bootstrap/verifier-hunks/brief.md:22-212"
+      - ".interlock/sessions/0001-bootstrap/verifier-hunks/brief.md:215-216"
+  - id: c2
+    what: "Added packages/verifier/test/.runs/ to .gitignore, matching every sibling package's own entry."
+    because: notes:12
+    rests_on: ["notes:12", "d5"]
+    hunks:
+      - ".gitignore:8"
+  - id: c3
+    what: >
+      Scaffolded packages/verifier as a new workspace package
+      (package.json, tsconfig.json, vitest.config.ts), depending only on
+      ledger and @phyxiusjs/fp -- no dependency on debrief, since the
+      verifier reads an already-parsed Debrief the CLI hands it, not raw
+      YAML.
+    because: "brief:What the verifier is — \"A library in packages/verifier and one CLI command\""
+    rests_on: ["brief:What the verifier is"]
+    hunks:
+      - "packages/verifier/package.json:1-21"
+      - "packages/verifier/tsconfig.json:1-8"
+      - "packages/verifier/vitest.config.ts:1"
+    produces: ["pnpm-lock.yaml"]
+  - id: c4
+    what: >
+      Wrote git.ts's four primitives: isCommit/isAncestor (range
+      validity), pathExistsAt/fileContentAt (discovery roots), each a
+      thin try/catch over one git subcommand; and the HUNK_HEADER regex
+      and stripPrefix helper diffFiles itself parses hunks with.
+    because: "brief:Read first item 3 — every Mark kind is rooted or not against a real git fact"
+    rests_on: ["brief:Marks, one per claim, plus the inverse"]
+    hunks:
+      - "packages/verifier/src/git.ts:1-13"
+      - "packages/verifier/src/git.ts:25-77"
+  - id: c5
+    what: >
+      Fixed git.ts's shared git() helper to pipe stderr instead of
+      inheriting it, so a probing call's own "fatal: ..." (isCommit,
+      isAncestor, pathExistsAt and fileContentAt all probe paths and shas
+      expected to fail as often as they succeed) lands in the caught
+      error, not on this process's own stderr. Verified with a standalone
+      node -e reproduction before and after (see d4); no automated test
+      -- intercepting a synchronous child process's inherited fd 2 from
+      inside vitest is not a proportionate test for a two-line stdio
+      option.
+    because: notes:10, notes:11
+    rests_on: ["notes:10", "notes:11", "d4"]
+    hunks:
+      - "packages/verifier/src/git.ts:14-23"
+  - id: c6
+    what: >
+      Added --no-renames to diffFiles' own git diff invocation, and a
+      regression test reproducing the exact shape that triggered d6: one
+      file modified and a second, textually-similar new one added in the
+      same commit, with diff.renames=copies set on the fixture repo so
+      the test does not depend on the machine running it. Confirmed
+      failing (reports one changed line, not the new file's whole
+      content) with the flag removed, passing with it restored.
+    because: notes:13, notes:14
+    rests_on: ["notes:13", "notes:14", "d6"]
+    hunks:
+      - "packages/verifier/src/git.ts:79-94"
+      - "packages/verifier/test/git.test.ts:1-1"
+      - "packages/verifier/test/git.test.ts:106-141"
+  - id: c7
+    what: >
+      Wrote foundAt.ts's checkFoundAt: a discovery's found_at is a
+      command (a "$ "-prefixed line), a path (repo-root-relative or,
+      failing that, relative to this graph's own sessions directory),
+      checked against a quoted excerpt when one is given, or a quoted
+      out-of-band citation when no path resolves.
+    because: notes:4
+    rests_on: ["brief:Read first item 6", "notes:4"]
+    hunks:
+      - "packages/verifier/src/foundAt.ts:1-83"
+  - id: c8
+    what: >
+      Wrote hunkCitation.ts's parseHunkCitation and checkHunkCitation: a
+      citation is "path" or "path:start-end"; rooted when the path changed
+      in the range and, if a range was given, it overlaps at least one
+      added hunk's new-file line range for that path.
+    because: notes:3
+    rests_on: ["notes:3"]
+    hunks:
+      - "packages/verifier/src/hunkCitation.ts:1-101"
+  - id: c9
+    what: "Exported the package's public surface through packages/verifier/src/index.ts."
+    because: "one import path for the cli package, matching every sibling package's own index.ts"
+    rests_on: ["packages/ledger/src/index.ts", "packages/debrief/src/index.ts"]
+    hunks:
+      - "packages/verifier/src/index.ts:1-33"
+  - id: c10
+    what: >
+      Wrote inverse.ts's unexplainedMarks: every file changed in the
+      range not covered by some decision's hunks or produces becomes an
+      unexplained mark, at whole-file granularity.
+    because: notes:2
+    rests_on: ["brief:What the verifier is — the inverse check", "notes:2"]
+    hunks:
+      - "packages/verifier/src/inverse.ts:1-26"
+  - id: c11
+    what: >
+      Wrote render.ts's renderVerification: counts per kind on one line,
+      then each unrooted and unexplained mark with what was expected.
+    because: "brief:What the verifier is — \"printed as a position of the debrief: counts per kind, then each unrooted and unexplained mark with what was expected\""
+    rests_on: ["brief:interlock verify <graph> <node>"]
+    hunks:
+      - "packages/verifier/src/render.ts:1-42"
+  - id: c12
+    what: >
+      Wrote verify.ts's verifyDebrief: validates the range is real commits
+      with sessionStartSha an ancestor of headSha, then composes
+      diffFiles, checkHunkCitation over every decision's hunks,
+      checkFoundAt over every discovery, unexplainedMarks, and
+      vocabularyGaps into one flat mark list, tagged with one gate
+      derivation.
+    because: "brief:What the verifier is — the whole mechanism, one paragraph"
+    rests_on: ["brief:What the verifier is", "notes:6"]
+    hunks:
+      - "packages/verifier/src/verify.ts:1-77"
+  - id: c13
+    what: >
+      Wrote vocabulary.ts: harnessVocabulary reads AGENTS.md's own
+      "## Vocabulary" table at read time rather than a duplicated list;
+      PLAIN_PROGRAMMING_ENGLISH is a fixed, shipped list; acceptedForms
+      matches a term's raw, PascalCase and camelCase spellings; extractWords
+      pulls declaration, type-position, generic-argument and module-specifier
+      names from added TypeScript lines; vocabularyGaps reports every
+      unmatched word as a gap with its nearest known term by edit distance.
+    because: notes:5
+    rests_on: ["brief:What the verifier is — the vocabulary check", "notes:5"]
+    hunks:
+      - "packages/verifier/src/vocabulary.ts:1-289"
+  - id: c14
+    what: >
+      Unit tests for the whole library: foundAt.test.ts, hunkCitation.test.ts,
+      inverse.test.ts, render.test.ts, vocabulary.test.ts, verify.test.ts
+      (end to end against a real git fixture), the shared gitFixture.ts
+      helper, and git.test.ts's own original suite (isCommit/isAncestor,
+      pathExistsAt/fileContentAt, and diffFiles against a new file, a
+      multi-hunk modification, and a pure deletion).
+    because: "brief:Deliverable 1 — commits satisfying the acceptance, gates green"
+    rests_on: ["brief:Deliverable"]
+    hunks:
+      - "packages/verifier/test/foundAt.test.ts:1-124"
+      - "packages/verifier/test/hunkCitation.test.ts:1-112"
+      - "packages/verifier/test/inverse.test.ts:1-68"
+      - "packages/verifier/test/render.test.ts:1-34"
+      - "packages/verifier/test/support/gitFixture.ts:1-33"
+      - "packages/verifier/test/verify.test.ts:1-117"
+      - "packages/verifier/test/vocabulary.test.ts:1-140"
+      - "packages/verifier/test/git.test.ts:2-104"
+  - id: c15
+    what: "Added verifier as a direct dependency of packages/cli."
+    because: "verify.ts imports checkFoundAt/verifyDebrief/renderVerification from verifier directly, not only transitively"
+    rests_on: ["packages/verifier/package.json"]
+    hunks:
+      - "packages/cli/package.json:17"
+    produces: ["pnpm-lock.yaml"]
+  - id: c16
+    what: "Wired verify into main.ts's dispatch, matching every other command's own dispatch line."
+    because: "every other command in main.ts already threads its remaining argv down; verify follows the same one-line pattern"
+    rests_on: ["packages/cli/src/main.ts"]
+    hunks:
+      - "packages/cli/src/main.ts:8"
+      - "packages/cli/src/main.ts:46-49"
+  - id: c17
+    what: >
+      Added the interlock verify <graph> <node> CLI command: resolves the
+      session directory via face's findRepoRoot, gives the exact
+      missing-debrief sentence debrief validate already uses, and
+      dispatches on the debrief's own read kind -- a legacy debrief prints
+      one sentence naming that marks require debrief@v2; a v2 debrief runs
+      verifyDebrief and renders its marks. Exits zero for a legacy or v2
+      read, since marks never block; non-zero only for a missing debrief,
+      a malformed one, or a range that fails to resolve in this
+      repository's history (verifyDebrief's own range-not-in-history
+      refusal), matching the brief's "Errors are sentences" list.
+    because: notes:9
+    rests_on: ["brief:interlock verify <graph> <node>", "packages/cli/src/debrief/validate.ts", "notes:9"]
+    hunks:
+      - "packages/cli/src/verify.ts:1-64"
+  - id: c18
+    what: >
+      New tests for runInterlockVerify: no arguments, missing debrief, a
+      malformed debrief, a legacy v1 debrief reported as a sentence
+      without computing marks, a v2 debrief whose range is not in this
+      repository's history, and a real v2 debrief against a git fixture
+      rendering its rooted/gap marks position.
+    because: "brief:Deliverable — tests covering the new command"
+    rests_on: ["brief:Deliverable"]
+    hunks:
+      - "packages/cli/test/verify.test.ts:1-198"
+  - id: c19
+    what: >
+      Pulled verifier-hunks out of packages/debrief/test/brief.test.ts's
+      shared legacy-brief table and gave it its own test asserting
+      brief@v1, naming the runner's rewrite as the reason in a comment.
+      Made, and committed, by the interrupted session this one resumed;
+      recorded here since its own debrief never got filed (see notes:8
+      for the reasoning).
+    because: notes:8
+    rests_on: ["notes:7", "notes:8", "d3"]
+    hunks:
+      - "packages/debrief/test/brief.test.ts:247-265"
+  - id: c20
+    what: >
+      This session's own notes.yaml: every choice and surprise recorded
+      across the interrupted session's own work (entries 1-8) and this
+      session's continuation of it (entries 9 onward), appended across
+      every commit in this range. Entries recorded after this decision's
+      own head_sha (the reasoning behind session_start_sha itself, and the
+      brief.md surprise it surfaces -- notes:15, notes:16) land in the
+      same commit as this debrief; cited from "because" fields as
+      narrative, not claimed as rooted hunks, since "because" is not
+      itself hunk-checked.
+    because: "brief:Deliverable 2"
+    rests_on: ["brief:Deliverable"]
+    hunks:
+      - ".interlock/sessions/0001-bootstrap/verifier-hunks/notes.yaml:1-281"
+  - id: c21
+    what: "This debrief, filed as the final commit in this range, in the debrief@v2 shape debrief-schema defined."
+    because: "brief:Deliverable 3"
+    rests_on: ["brief:Deliverable"]
+    hunks:
+      - ".interlock/sessions/0001-bootstrap/verifier-hunks/debrief.yaml"
+gates_run_by_agent:
+  - { id: typecheck, result: pass, invocation: "mise exec -- pnpm typecheck" }
+  - { id: test, result: pass, invocation: "mise exec -- pnpm test", note: "378 tests across ledger, debrief, face, verifier, runner, cli" }
+  - { id: debrief-valid, result: pass, invocation: "mise exec -- pnpm interlock debrief validate 0001-bootstrap verifier-hunks" }
+  - { id: inverse-check, result: pass, invocation: "mise exec -- pnpm --filter verifier --fail-if-no-match test --testNamePattern unexplained", note: "7 tests passed, matching expect_output" }
+open:
+  - >
+    No LedgerEvent arm exists for a mark (d1). The exact proposal: either a
+    new "mark-recorded" event kind ({ kind: "mark-recorded", session:
+    string, mark: Mark }), appended by gateJudge.ts's ingestion path
+    alongside debrief-filed and note-appended for a cleared v2 session; or
+    marks are never persisted at all and stay a pure read-side computation
+    interlock verify performs on demand against the ledger's own
+    debrief-filed event. Deciding between those two is gateJudge.ts's and
+    event.ts's own call, not this node's -- this node prints marks without
+    persisting them, per the brief's own instruction.
+  - >
+    Professed domain vocabulary (d2) has nowhere to live: config@v0 has no
+    field for it. verifyDebrief's professedDomainVocabulary option is real
+    and tested but always called empty by the CLI today. A team that wants
+    its own domain terms recognized, rather than gapped, needs a
+    "vocabulary:" field added to .interlock/config.yaml -- a config-shape
+    decision for whichever node next owns that file.
+  - >
+    This session found and fixed one environment-dependent diffFiles bug
+    (d6, --no-renames for diff.renames). Other git config knobs that can
+    change `git diff`'s own output shape (diff.algorithm, whitespace
+    handling, core.autocrlf) were not separately audited, since none
+    surfaced against the real corpus this session ran against; worth a
+    follow-up sweep of diffFiles' own git invocation if a future session
+    hits another machine-dependent mark.

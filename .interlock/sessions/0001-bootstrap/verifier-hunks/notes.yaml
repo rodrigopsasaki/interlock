@@ -1,0 +1,339 @@
+interlock: notes@v0
+node: verifier-hunks
+entries:
+  - kind: choice
+    at: "2026-09-10T16:00:00Z"
+    chose: >
+      No ledger event kind carries a mark (event.ts's LedgerEvent union has no
+      "mark-*" arm). Per the brief's own instruction, this is a shape question
+      for `open`, not a coinage: this node builds the verifier library and the
+      `interlock verify` CLI command only, and does not touch gateJudge.ts's
+      ingestion path or event.ts. The exact proposal (a new event kind, or
+      folding marks into debrief-filed) is recorded under this debrief's
+      `open`, not built.
+    because: >
+      "brief:Ingestion" is explicit: "if event@v2 has none, adding one is a
+      new union arm, a shape change you are not licensed to make; record the
+      exact proposal under open and print marks without persisting them."
+    rejected: >
+      Adding a "mark-recorded" event arm myself, reasoning that it is
+      additive (Compatibility's own rule: "a new field is optional... a rename
+      is a new version" suggests new arms are cheap) -- rejected because the
+      brief names this exact fork and answers it directly; the brief is
+      binding.
+  - kind: choice
+    at: "2026-09-10T16:10:00Z"
+    chose: >
+      The inverse check (every changed file covered by a decision or marked
+      unexplained) operates at whole-file granularity, using
+      `git diff --name-only` semantics, not at the sub-file @@ hunk
+      granularity `git diff -U0` exposes.
+    because: >
+      "What the verifier is" states the inverse check as "For every file
+      changed in the range: covered by some decision's hunks or produces, or
+      marked unexplained" -- file, not hunk. The acceptance's own sentence
+      ("every hunk has a decision... unexplained") is the informal restating
+      of the same rule one paragraph later in the design note, not a second,
+      stricter check; the "What the verifier is" section is this node's own
+      brief and is the more specific of the two.
+  - kind: choice
+    at: "2026-09-10T16:15:00Z"
+    chose: >
+      A decision's cited hunk ("path" or "path:start-end") is `rooted` when
+      the path is a file changed in the range AND, if a line range is given,
+      that range *overlaps* at least one added hunk's new-file line range for
+      that path -- not when it matches a hunk exactly.
+    because: >
+      Proven against debrief-schema's own debrief.yaml, my first real
+      fixture: decision c9 cites "packages/ledger/src/debrief.ts:116-137" as
+      one citation, but the real diff at that range (session_start_sha
+      0a02b4d0..head_sha 910f8a19, checked with `git diff -U0`) has two
+      separate hunks in that span -- `+121` (a single line) and `+136,2`.
+      An exact-match rule would call this citation unrooted, and citation
+      c9:20-31 against the real hunk `+26,6` (26-31) would too -- both are
+      genuine, honest citations of real changes, rounded generously. A
+      verifier that marks the very first real v2 debrief mostly unrooted on
+      its first run has a threshold set wrong, and "err toward gap" (the
+      brief's own words for the vocabulary check) reads as the general
+      posture: a mark is telemetry, not a verdict, so the rooted check should
+      confirm genuine overlap, not demand line-for-line precision no agent
+      is asked to produce.
+  - kind: choice
+    at: "2026-09-10T16:25:00Z"
+    chose: >
+      A discovery's `found_at` is classified in this order: (1) command form,
+      if the trimmed text (or a line within it) starts with "$ "; (2) path
+      form, if a path-shaped token extracted from the free text resolves to a
+      real path at head_sha, tried first as repo-root-relative, then as
+      relative to `.interlock/sessions/<graph>/` (sibling-session shorthand);
+      when a quoted substring is also present, its content must appear in the
+      resolved file, or the mark is `unrooted` instead of `rooted`; (3) quoted
+      out-of-band citation, if no path resolved but a quoted substring is
+      present anywhere in the text; (4) otherwise `unrooted`, naming what
+      none of the three forms matched.
+    because: >
+      "Read first" item 6 names the four forms literally: "found_at as a
+      path, a path with lines, a command, or a quoted out-of-band citation".
+      debrief-schema's own six discoveries (the only real v2 fixture besides
+      this session's own) are free prose, not clean single-form strings --
+      d1 embeds a directory path mid-sentence, d2 has no path at all but
+      quotes a grep term, d3 embeds two paths that are valid only relative to
+      the sessions directory, d4-d5 embed clean repo-root paths mid-sentence,
+      d6 is a `$`-prefixed shell transcript. A classifier has to extract
+      candidates from prose, not expect a bare citation, or it marks the
+      exemplar debrief mostly unrooted on the corpus it was written to
+      demonstrate.
+    rejected: >
+      Requiring found_at to be *exactly* one of the four forms (no prose)
+      -- rejected because every real found_at in the corpus is prose; that
+      rule would make every real discovery unrooted and only a
+      hand-crafted fixture rooted, which contradicts the "measured on real
+      sessions" promise in D6.
+  - kind: choice
+    at: "2026-09-10T16:35:00Z"
+    chose: >
+      Harness vocabulary for the gap check is read from AGENTS.md's own
+      "## Vocabulary" markdown table at read time (the `term` column, parsed
+      as a real table, not hardcoded as a duplicate list in code), then
+      matched against extracted words as PascalCase, camelCase and the raw
+      term, case-insensitively. "Plain programming English" is a small fixed
+      list this node defines and ships in `src/vocabulary.ts`, covering
+      TS/JS reserved words, primitive and standard utility types, and common
+      single-letter generic parameters. The professed domain vocabulary is
+      read as an empty list: `.interlock/config.yaml` (the only place a team
+      could profess one) has no such field today, and this node may not add
+      one (config.yaml is out of scope).
+    because: >
+      Hardcoding a second copy of AGENTS.md's vocabulary table would drift
+      the moment AGENTS.md's table does, and AGENTS.md is the copy that
+      binds (AGENTS.md's own first paragraph). Reading it directly keeps the
+      verifier's harness vocabulary honestly derived rather than invented.
+      "Plain programming English is a fixed list you define and record" is
+      the brief's own instruction to hardcode that half.
+  - kind: surprise
+    at: "2026-09-10T16:40:00Z"
+    expected: >
+      That "professed domain vocabulary" would have some existing config
+      shape to read from, since the brief's Acceptance names it as one of
+      "the two vocabularies".
+    observed: >
+      `.interlock/config.yaml` (config@v0) has only `standing_gates` and
+      `substrate`; no field for a professed domain vocabulary exists
+      anywhere in the repo. This node treats it as an always-empty list and
+      records the gap under `open`: a team that wants domain terms
+      recognized (rather than gapped) needs a config field this node is not
+      licensed to add.
+  - kind: surprise
+    at: "2026-09-10T16:45:00Z"
+    expected: >
+      `pnpm test` to pass clean before touching anything, as a floor to gate
+      new work against.
+    observed: >
+      packages/debrief/test/brief.test.ts's own "every existing brief under
+      .interlock/sessions" suite fails on "0001-bootstrap/verifier-hunks
+      validates as brief@v0" the moment this worktree exists, because that
+      table asserts every session directory's brief.md is still the
+      scaffolded legacy placeholder -- true for every prior node, but this
+      brief's own front matter says the runner rewrote brief.md into a real
+      brief@v1 in this worktree before the session started (this is the
+      first node `interlock run` itself has leased). The floor failure is
+      the corpus catching up to its own newest fact, not a break this
+      session caused.
+  - kind: choice
+    at: "2026-09-10T16:47:00Z"
+    chose: >
+      Pulled "verifier-hunks" out of brief.test.ts's shared legacy table and
+      gave it its own test asserting brief@v1, naming the runner rewrite as
+      the reason in a comment.
+    because: >
+      packages/debrief/test/brief.test.ts is in this brief's own scope
+      list, and the test's premise (every session's brief.md is untouched
+      since scaffolding) is now false for exactly one entry, for a reason
+      this node's own brief documents. Correcting the one stale assertion,
+      rather than reverting the runner's real rewrite or leaving the floor
+      red, is the fix at the cause.
+    rejected: >
+      Leaving the test red and noting it under `open` -- rejected because
+      the fix is a one-line scope move with a clear, checkable reason, not
+      an open design question, and "gate every change against that
+      baseline" means a red floor gets fixed, not carried.
+  - kind: choice
+    at: "2026-09-10T18:44:00Z"
+    chose: >
+      Resumed from the prior session's checkpoint commit by verifying its
+      floor first: `pnpm typecheck` and `pnpm test` both green, and
+      `pnpm --filter verifier test --testNamePattern unexplained` already
+      matches `inverse-check`'s expect_output. The library
+      (packages/verifier) and its 41 tests were complete; only the CLI
+      command (`interlock verify <graph> <node>`) named in the brief's
+      Deliverable 4 and "What the verifier is" was still unbuilt. Added
+      packages/cli/src/verify.ts (mirroring debrief/validate.ts's own
+      shape: resolve repoRoot, missing-debrief sentence, dispatch on the
+      DebriefRead's kind) and wired it into main.ts and cli's package.json.
+    because: >
+      The brief's Deliverable 4 requires "the output of interlock verify
+      ... verbatim" for both debrief-schema and this node's own debrief --
+      a command that did not exist yet. Re-deriving the library instead of
+      reading what was already there would have redone finished work the
+      interlock instructions explicitly forbid.
+  - kind: surprise
+    at: "2026-09-10T18:47:00Z"
+    expected: >
+      `interlock verify 0001-bootstrap debrief-schema` to print only its
+      one position line, since the verifier never fails a gate and every
+      internal git check is wrapped in try/catch.
+    observed: >
+      Running it against the real corpus printed several `fatal: path
+      '...' does not exist in '<sha>'` lines to stderr -- git's own
+      diagnostic for a failed `cat-file -e`, from foundAt.ts's
+      candidatePaths trying several substrings per discovery, most of
+      which are not real paths by design (that is how the classifier
+      recognizes prose). node's execFileSync inherits stderr by default;
+      the try/catch in git.ts caught the *thrown error* fine, but git had
+      already written to the parent's own stderr before that.
+  - kind: choice
+    at: "2026-09-10T18:49:00Z"
+    chose: >
+      Fixed git.ts's shared `git()` helper to pass
+      `stdio: ["ignore", "pipe", "pipe"]`, so a probing git call's stderr
+      is captured for the caller (still available on a thrown error, still
+      inert here since every caller catches and discards it) rather than
+      inherited onto this process's own stderr. Verified empirically with
+      a standalone node -e reproduction before and after, then re-ran
+      `interlock verify 0001-bootstrap debrief-schema`: identical marks,
+      clean stderr.
+    because: >
+      "Comments: as few as possible. This is a public face" is this
+      brief's own constraint on the code; the same posture applies to what
+      the CLI prints. A command that never fails a gate should not spray
+      five lines of git's own fatal-looking diagnostics on every real run
+      -- that is confusing noise a fix-at-the-cause, not a symptom patch,
+      since the probing behavior it was breaking (try several candidate
+      paths, expect most to miss) is correct and stays exactly as it was.
+    rejected: >
+      Redirecting stderr only at the two probing call sites (foundAt.ts's
+      resolveCandidate) instead of in the shared helper -- rejected
+      because isCommit and isAncestor probe just as speculatively
+      (checking a sha or ancestry that may not hold) and would leak the
+      same noise; the fix belongs in the one function all four callers
+      share, not duplicated at each call site.
+  - kind: surprise
+    at: "2026-09-10T18:52:00Z"
+    expected: >
+      This worktree's own `git status` to be clean except for tracked
+      changes, matching the runner-started session's promise.
+    observed: >
+      `packages/verifier/test/.runs/` showed as untracked from the very
+      first `git status` this session ran, before this session touched
+      anything -- every sibling package (ledger, face, cli, runner) has
+      its own `test/.runs/` line in .gitignore, but the prior session
+      never added verifier's.
+    mattered_because: >
+      Left alone, every future `pnpm --filter verifier test` run in any
+      checkout would keep surfacing this as untracked noise; one line in
+      the already-in-scope .gitignore, matching every sibling package's
+      own entry, closes the gap at its cause.
+  - kind: surprise
+    at: "2026-09-10T18:55:00Z"
+    expected: >
+      `git diff -U0 <from>..<to>` in git.ts's diffFiles to always show a
+      brand-new file as one clean `--- /dev/null` / `+++ b/<path>` hunk
+      covering its whole content, per the acceptance's "Deterministic
+      marks over a debrief against its diff."
+    observed: >
+      This machine's own global git config sets `diff.renames = copies`.
+      Diffing this session's own first real range (043c78a0..the
+      pre-fix head) showed `packages/verifier/package.json` not as a new
+      file but as a "copy from packages/cli/package.json" (62%
+      similarity, since I had just added a dependency line to cli's own
+      package.json in the same commit): a handful of changed-line hunks
+      relative to cli/package.json's content, not the true `+1,21` new-file
+      hunk. git.ts's own comment ("no -M requested") assumed plain `git
+      diff` never does this, which is only true when the invoking user's
+      git config leaves renames off -- not guaranteed, and not something
+      this repository controls.
+    mattered_because: >
+      A hunk citation against a copy-detected file's line numbers would
+      compare against the wrong range (relative to the copy source, not
+      the true new-file numbering), and the same command run by a
+      different engineer with a different global gitconfig would produce
+      different marks from the identical repository state -- exactly the
+      non-determinism the acceptance rules out ("Deterministic marks").
+  - kind: choice
+    at: "2026-09-10T18:57:00Z"
+    chose: >
+      Added `--no-renames` to diffFiles' own `git diff` invocation, and a
+      regression test (git.test.ts) that sets `diff.renames: copies` on a
+      fixture repo, modifies one file and adds a second, textually-similar
+      one in the same commit -- the exact shape that triggered this in the
+      real corpus -- and asserts the new file's full content comes back as
+      addedLines. Confirmed by temporarily reverting the flag: the new
+      test fails (reports one changed line, not the whole file) without
+      it, passes with it.
+    because: >
+      Determinism is this node's own acceptance criterion, verbatim
+      ("Deterministic marks over a debrief against its diff"); a mark that
+      depends on which engineer's machine ran the command is not
+      deterministic. `--no-renames` is the direct, one-flag fix at the
+      cause -- the parser in diffFiles already handles a rename as a
+      delete-plus-add correctly (per its own docstring and the pure-delete
+      test beside it); the bug was only ever the invocation letting git
+      pick a different diff shape than the one that parser expects.
+  - kind: choice
+    at: "2026-09-10T19:00:00Z"
+    chose: >
+      Set this debrief's `session_start_sha` to `graph_base_sha`
+      (043c78a0bea483de7d212031255b771d493a7ab5), not to `git rev-parse
+      HEAD` at the literal moment this conversation began (3f39411, the
+      commit that rewrote brief.md for this resumption). The whole range
+      from the graph base through every commit on this branch --
+      c2c6a4ea's checkpointed work, the brief rewrite, and this session's
+      own three commits -- is treated as one debrief's own diff.
+    because: >
+      The checkpoint commit's own message is explicit and specific to
+      this exact hand-off, overriding the brief's generic "HEAD before
+      you change anything" phrasing (written for the ordinary case of a
+      session starting clean at the graph base, not a resumption):
+      "These are the files that session had staged, committed as they
+      were so the node can resume on its own branch. The resuming
+      session owns these hunks: its debrief cites them, its notes
+      already describe the choices behind them." A debrief whose
+      session_start_sha excluded that commit could never cite those
+      hunks at all (checkHunkCitation only roots a citation against a
+      path that changed within the debrief's own range) -- the entire
+      verifier library would sit undocumented forever, in the one node
+      whose whole purpose is proving decisions are grounded in real
+      diffs. The top-level task instructions given at this session's
+      start point the same way: "This worktree carries work from an
+      earlier session of this node... do not redo finished work" --
+      framing it as one continuing node-level effort, not two
+      independent, disjoint sessions.
+    rejected: >
+      session_start_sha = 3f39411 (HEAD at the literal moment this
+      conversation's context began), mirroring debrief-schema's own
+      pattern of placing session_start_sha right after the runner's
+      brief-write commit precisely to exclude it from the diff -- rejected
+      because it would also exclude the checkpoint commit that precedes
+      it, orphaning 1748 lines of real, already-reviewed work that the
+      checkpoint commit's own message explicitly assigns to this debrief.
+      Every file that range would still show as changed relative to an
+      even earlier graph_base_sha, but citing them from a debrief whose
+      own session_start_sha starts later would make every such citation
+      unrooted (the path never changed within the declared range) -- the
+      opposite of what "the resuming session owns these hunks" asks for.
+  - kind: surprise
+    at: "2026-09-10T19:01:00Z"
+    expected: >
+      That fixing session_start_sha to graph_base_sha would leave a clean
+      range where every file's presence traces to an agent's own decision.
+    observed: >
+      brief.md itself is a changed file in this debrief's own range once
+      session_start_sha = graph_base_sha -- the runner's own rewrite from
+      the scaffolded placeholder to real front matter, plus its later
+      field updates, both sit inside a range that is necessarily
+      contiguous. Given a decision below (c1) describing it as a factual
+      account of the runner's own action, rather than left `unexplained`:
+      "or it is marked unexplained" is a legitimate, honest outcome too
+      (it costs nothing, per this node's own design), but a one-line
+      factual decision costs a reader less confusion than an unexplained
+      mark on the one file this whole session was forbidden to edit.
