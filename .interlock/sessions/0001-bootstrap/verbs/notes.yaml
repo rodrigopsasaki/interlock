@@ -134,3 +134,23 @@ entries:
       `rm -r` on the exact path this session created, once the three
       sentences were captured; `git status` confirms nothing it touched
       is tracked.
+  - kind: surprise
+    at: "2026-09-11T15:30:00Z"
+    expected: >
+      Running `interlock verify 0001-bootstrap verbs` against this
+      session's own debrief once filed would root every discovery's
+      `found_at`, since each one names a real file this session actually
+      read.
+    observed: >
+      Two discoveries' `found_at` prose each quoted a string in double
+      quotes that named the *finding* (a word not present, or another
+      file's own message text) rather than content literally present in
+      the file the prose also named --
+      `packages/verifier/src/foundAt.ts`'s `checkFoundAt` treats any
+      quoted substring beside a resolvable path as a claim that the quote
+      is literally in that file's content at `head_sha`, and marks it
+      unrooted otherwise. Rewrote both as a `$ grep -n ...`-prefixed
+      command citation instead (`checkFoundAt`'s command form roots
+      unconditionally) with the real grep output quoted beneath it,
+      confirmed by re-running `interlock verify`: unrooted dropped from 2
+      to 0.
