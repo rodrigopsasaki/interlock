@@ -492,6 +492,7 @@ export async function runInterlockRun(
       clock,
       deadline,
       localConfig.value.runTimeoutMs,
+      localConfig.value.answerGraceMs,
       narrate,
     );
     lease.stop();

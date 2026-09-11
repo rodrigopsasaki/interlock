@@ -1,7 +1,7 @@
 import { mkdirSync, rmSync } from "node:fs";
 import { join, relative } from "node:path";
 import { randomUUID } from "node:crypto";
-import { isErr } from "@phyxiusjs/fp";
+import { isErr, type Result } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   WAIT_SLICE_MS,
@@ -9,6 +9,12 @@ import {
   generateAgentName,
   isCompliantAgentName,
 } from "../../src/herdr/adapter.ts";
+import type {
+  AgentIdentityQuery,
+  AgentStatus,
+  Runtime,
+  RuntimeRefusal,
+} from "../../src/runtime.ts";
 import { startFakeHerdrServer, type FakeHerdrServer } from "./fakeServer.ts";
 
 // A Unix socket path is capped at ~104 bytes (macOS sockaddr_un): short and relative to this
@@ -659,5 +665,76 @@ describe("herdr agent name compliance", () => {
     expect(isCompliantAgentName("il on")).toBe(false);
     expect(isCompliantAgentName("a".repeat(33))).toBe(false);
     expect(isCompliantAgentName(`interlock-${randomUUID()}`)).toBe(false);
+  });
+});
+
+function reportedAgentStatus(
+  runtime: Runtime,
+  query: AgentIdentityQuery,
+): Promise<Result<AgentStatus | undefined, RuntimeRefusal>> {
+  if (runtime.reportedAgentStatus === undefined) {
+    throw new Error(
+      "expected the herdr adapter to implement reportedAgentStatus",
+    );
+  }
+  return runtime.reportedAgentStatus(query);
+}
+
+describe("reportedAgentStatus", () => {
+  it("finds the pane whose reported tokens name the graph, node and session", async () => {
+    const fake = await fixture();
+    fake.panes = [
+      {
+        pane_id: "fake-pane-1",
+        tokens: { graph: "0001-bootstrap", node: "other-node", session: "s0" },
+        agent_status: "idle",
+      },
+      {
+        pane_id: "fake-pane-2",
+        tokens: {
+          graph: "0001-bootstrap",
+          node: "position-model",
+          session: "s1",
+        },
+        agent_status: "working",
+      },
+    ];
+    const created = await createHerdrRuntime(fake.socketPath);
+    if (isErr(created)) throw new Error("expected a runtime");
+
+    const found = await reportedAgentStatus(created.value, {
+      graph: "0001-bootstrap",
+      node: "position-model",
+      session: "s1",
+    });
+    expect(found).toEqual({ _tag: "Ok", value: "working" });
+  });
+
+  it("resolves undefined, never a guess, when no pane's tokens match", async () => {
+    const fake = await fixture();
+    fake.panes = [];
+    const created = await createHerdrRuntime(fake.socketPath);
+    if (isErr(created)) throw new Error("expected a runtime");
+
+    const found = await reportedAgentStatus(created.value, {
+      graph: "0001-bootstrap",
+      node: "position-model",
+      session: "s1",
+    });
+    expect(found).toEqual({ _tag: "Ok", value: undefined });
+  });
+
+  it("propagates a herdr failure instead of guessing a status", async () => {
+    const fake = await fixture();
+    fake.failNextCall("unavailable", "pane.list is unavailable");
+    const created = await createHerdrRuntime(fake.socketPath);
+    if (isErr(created)) throw new Error("expected a runtime");
+
+    const found = await reportedAgentStatus(created.value, {
+      graph: "0001-bootstrap",
+      node: "position-model",
+      session: "s1",
+    });
+    expect(isErr(found)).toBe(true);
   });
 });

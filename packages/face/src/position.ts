@@ -6,9 +6,16 @@ import {
   type LedgerProjection,
   type Outcome,
 } from "ledger";
+import type { AgentStatus } from "./agentStatus.ts";
+import { attemptsFor, type PositionAttempt } from "./attempts.ts";
 import { criticalPath } from "./criticalPath.ts";
 import type { GraphDocument, NodeDeclaration } from "./document.ts";
+import { floatOf, type Float } from "./float.ts";
+import { positionGate, type PositionGate } from "./positionGate.ts";
 import { topologicalOrder } from "./topology.ts";
+import { nodeWeight } from "./weight.ts";
+
+export const POSITION_SHAPE = "position@v1";
 
 export type ApprovalState = "approved" | "stale" | "not-approved";
 
@@ -17,19 +24,17 @@ export type NodeState =
   | { readonly kind: "ready" }
   | { readonly kind: "blocked"; readonly on: readonly string[] };
 
-export interface PositionGate {
-  readonly id: string;
-  readonly gate: Gate;
-}
-
 export interface PositionNode {
   readonly id: string;
   readonly dependsOn: readonly string[];
   readonly state: NodeState;
   readonly gates: readonly PositionGate[];
+  readonly attempts: readonly PositionAttempt[];
+  readonly float: Float;
 }
 
 export interface Position {
+  readonly interlock: typeof POSITION_SHAPE;
   readonly graph: string;
   readonly approval: ApprovalState;
   readonly nodes: readonly PositionNode[];
@@ -72,16 +77,16 @@ function nodeGates(
   const view = projection.nodes.get(
     nodeKey({ graph: graphId, id: declaration.id }),
   );
-  return declaration.gates.map((declared) => ({
-    id: declared.id,
-    gate: view?.gates.get(declared.id) ?? gate.pending(),
-  }));
+  return declaration.gates.map((declared) =>
+    positionGate(declared.id, view?.gates.get(declared.id) ?? gate.pending()),
+  );
 }
 
-export function computePosition(
+export function positionOf(
   document: GraphDocument,
   projection: LedgerProjection,
   contentHash: string,
+  agentStatusFor?: (session: string) => AgentStatus | undefined,
 ): Position {
   const ordered = topologicalOrder(document.nodes);
   const order = isOk(ordered) ? ordered.value : document.nodes;
@@ -95,14 +100,25 @@ export function computePosition(
       outcomeByNode.set(declaration.id, view.outcome);
   }
 
-  const nodes = order.map(
-    (declaration): PositionNode => ({
-      id: declaration.id,
-      dependsOn: declaration.dependsOn,
-      state: nodeState(declaration, outcomeByNode),
-      gates: nodeGates(declaration, projection, document.id),
-    }),
-  );
+  const weightOf = (id: string) => nodeWeight(id, outcomeByNode.get(id));
+  const floats = floatOf(order, weightOf);
+
+  const nodes = order.map((declaration): PositionNode => ({
+    id: declaration.id,
+    dependsOn: declaration.dependsOn,
+    state: nodeState(declaration, outcomeByNode),
+    gates: nodeGates(declaration, projection, document.id),
+    attempts: attemptsFor(
+      document.id,
+      declaration.id,
+      projection,
+      agentStatusFor,
+    ),
+    float: floats.get(declaration.id) ?? {
+      kind: "unknown",
+      because: `${declaration.id}: no outcome yet`,
+    },
+  }));
 
   const graphNodeView = projection.nodes.get(
     nodeKey({ graph: document.id, id: document.id }),
@@ -110,9 +126,13 @@ export function computePosition(
   const approvalGate = graphNodeView?.gates.get("approved");
 
   return {
+    interlock: POSITION_SHAPE,
     graph: document.id,
     approval: approvalState(approvalGate, contentHash),
     nodes,
-    criticalPath: criticalPath(order),
+    criticalPath: criticalPath(order, (id) => {
+      const weight = weightOf(id);
+      return weight.kind === "measured" ? weight.ms : undefined;
+    }),
   };
 }

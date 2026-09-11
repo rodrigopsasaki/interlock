@@ -14,7 +14,7 @@ import {
 } from "ledger";
 import { afterEach, describe, expect, it } from "vitest";
 import type { GraphDocument } from "../src/document.ts";
-import { computePosition } from "../src/position.ts";
+import { positionOf } from "../src/position.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -82,7 +82,7 @@ describe("stale-approval", () => {
       await receiptId(directory, ["graph.yaml"], "approved"),
     );
     expect(
-      computePosition(document, projection, contentHashBeforeEdit).approval,
+      positionOf(document, projection, contentHashBeforeEdit).approval,
     ).toBe("approved");
 
     writeFileSync(
@@ -95,7 +95,7 @@ describe("stale-approval", () => {
     );
     expect(contentHashAfterEdit).not.toBe(contentHashBeforeEdit);
     expect(
-      computePosition(document, projection, contentHashAfterEdit).approval,
+      positionOf(document, projection, contentHashAfterEdit).approval,
     ).toBe("stale");
   });
 });

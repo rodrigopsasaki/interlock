@@ -1047,6 +1047,10 @@ describe("interlock run", () => {
         if (call === 3) return Promise.resolve(ok("blocked")); // the long wait, first pass
         if (call === 4) return Promise.resolve(ok("working")); // back to work
         if (call === 5) return Promise.resolve(ok("idle")); // settles
+        if (call === 6)
+          return Promise.resolve(
+            err({ kind: "timeout", until, timeoutMs, status: "idle" }),
+          ); // the answer-grace window closes with no further resume
         return stubRuntime().waitUntil(agent, until, timeoutMs);
       },
       read: () =>

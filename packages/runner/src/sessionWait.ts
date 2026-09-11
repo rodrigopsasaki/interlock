@@ -1,6 +1,6 @@
 import type { Clock, MonoMs } from "@phyxiusjs/clock";
-import { elapsedSince, hasPassed } from "@phyxiusjs/clock";
-import { err, isErr, type Result } from "@phyxiusjs/fp";
+import { deadlineFrom, elapsedSince, hasPassed, ms } from "@phyxiusjs/clock";
+import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import { lastNonEmptyLine } from "./sessionScreen.ts";
 import {
   explainRuntimeRefusal,
@@ -12,6 +12,12 @@ import {
 
 const AFTER_BLOCKED: readonly AgentStatus[] = ["working", "idle", "done"];
 const AFTER_WORKING: readonly AgentStatus[] = ["idle", "blocked", "done"];
+const AFTER_SETTLED: readonly AgentStatus[] = ["working"];
+
+interface AnswerGrace {
+  readonly deadline: MonoMs;
+  readonly settled: AgentStatus;
+}
 
 export async function waitForSession(
   runtime: Runtime,
@@ -19,14 +25,19 @@ export async function waitForSession(
   clock: Clock,
   deadline: MonoMs,
   runTimeoutMs: number,
+  answerGraceMs: number,
   narrate: (line: string) => void,
 ): Promise<Result<AgentStatus, RuntimeRefusal>> {
   let until = AFTER_WORKING;
   let lastStatus: AgentStatus = "unknown";
+  let seenBlocked = false;
+  let grace: AnswerGrace | undefined;
 
   for (;;) {
     const now = clock.now().monoMs;
-    if (hasPassed(now, deadline)) {
+    const boundDeadline = grace?.deadline ?? deadline;
+    if (hasPassed(now, boundDeadline)) {
+      if (grace !== undefined) return ok(grace.settled);
       return err({
         kind: "timeout",
         until,
@@ -35,9 +46,14 @@ export async function waitForSession(
       });
     }
 
-    const remaining = elapsedSince(deadline, now);
+    const remaining = elapsedSince(boundDeadline, now);
     const waited = await runtime.waitUntil(agent, until, remaining);
-    if (isErr(waited)) return waited;
+    if (isErr(waited)) {
+      if (grace !== undefined && waited.error.kind === "timeout") {
+        return ok(grace.settled);
+      }
+      return waited;
+    }
     lastStatus = waited.value;
 
     if (waited.value === "blocked") {
@@ -47,12 +63,28 @@ export async function waitForSession(
         : (lastNonEmptyLine(screen.value) ?? "(no output)");
       narrate(`agent blocked; answer in pane ${agent.pane.id}: ${summary}`);
       until = AFTER_BLOCKED;
+      seenBlocked = true;
+      grace = undefined;
       continue;
     }
 
     if (waited.value === "working") {
       narrate("agent working");
       until = AFTER_WORKING;
+      grace = undefined;
+      continue;
+    }
+
+    if (seenBlocked) {
+      const candidate = deadlineFrom(now, ms(answerGraceMs));
+      const graceDeadline = hasPassed(candidate, deadline)
+        ? deadline
+        : candidate;
+      narrate(
+        `agent settled after a person's turn; judging in ${Math.round(answerGraceMs / 1000)}s unless it resumes`,
+      );
+      grace = { deadline: graceDeadline, settled: waited.value };
+      until = AFTER_SETTLED;
       continue;
     }
 

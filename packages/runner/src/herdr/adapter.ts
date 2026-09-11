@@ -6,6 +6,7 @@ import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import type {
   Agent,
   AgentIdentity,
+  AgentIdentityQuery,
   AgentStatus,
   Pane,
   Runtime,
@@ -423,6 +424,26 @@ export async function createHerdrRuntime(
     async closePane(pane: Pane) {
       const closed = await call("pane.close", { pane_id: pane.id });
       return isErr(closed) ? closed : ok(undefined);
+    },
+
+    async reportedAgentStatus(query: AgentIdentityQuery) {
+      const listed = await call("pane.list", { workspace_id: null });
+      if (isErr(listed)) return listed;
+      const panes = prop(listed.value, "panes");
+      if (!Array.isArray(panes)) return ok(undefined);
+      for (const pane of panes) {
+        if (!isRecord(pane)) continue;
+        const tokens = prop(pane, "tokens");
+        if (!isRecord(tokens)) continue;
+        const matches =
+          prop(tokens, "graph") === query.graph &&
+          prop(tokens, "node") === query.node &&
+          prop(tokens, "session") === query.session;
+        if (!matches) continue;
+        const status = prop(pane, "agent_status");
+        return ok(isAgentStatus(status) ? status : undefined);
+      }
+      return ok(undefined);
     },
   });
 }
