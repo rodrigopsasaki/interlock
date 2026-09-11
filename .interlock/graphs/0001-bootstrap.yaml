@@ -141,13 +141,71 @@ nodes:
         expect_output: 'Tests +[1-9][0-9]* passed'
         # Editing an approved graph flips its approval to stale.
 
+  - id: attempts
+    acceptance: >
+      Every attempt of a node is legible from the journal alone. Each line the runner or the judge
+      narrates about a session is an event on that session with its wall time, so a face can tell
+      an attempt's story without a log file. Every session the ledger knows has a session view,
+      including the ones backfill records: backfill writes the session from the session
+      directory's brief and ingests a `debrief@v2` when one is there. `interlock session show
+      <graph> <node> [--session <id>]` prints a session's five columns, its notes and its
+      narration, latest session by default. The persisted shape moves to the next event version
+      with an upcaster; the real journal replays under it without loss.
+    depends_on: [runner-command-gate, debrief-schema]
+    gates:
+      - id: narration-events
+        kind: command
+        run: pnpm --filter ledger --fail-if-no-match test --testNamePattern narrat
+        expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: position-model
+    acceptance: >
+      `position@v1`: one typed, pure view over a graph file and the journal, per node its state,
+      its gates with receipt summaries, its attempts with outcome and lease, its dependencies; the
+      critical path weighted by the measured durations of each node's receipts, and each node's
+      float, a number only where every duration on the path is measured and `unknown` otherwise.
+      `interlock graph show` renders from it and from nothing else, and `--json` emits it. A
+      later renderer reads the same function. herdr's agent status for a live session joins the
+      view only where the one herdr adapter already is, never in a second file.
+    depends_on: [face-read, attempts]
+    gates:
+      - id: position-shape
+        kind: command
+        run: pnpm --filter face --fail-if-no-match test --testNamePattern position
+        expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: verbs
+    acceptance: >
+      A person's verbs over a node, each writing the outcome or gate state it is named for and
+      refusing without a recorded who and why: `interlock node cancel <graph> <node> --by --because`
+      sets the outcome `cancelled`; `interlock node reset <graph> <node> --by --because` sets
+      `reset`, so the runner may lease the node again; `interlock gate waive <graph> <node> <gate>
+      --by --because` moves the gate to `waived` over its latest receipt, and refuses when there
+      is none. The ledger's own transition rules decide what is legal; an illegal move is a
+      sentence. `pause` is not built: no outcome kind states a voluntary hold truthfully, and the
+      design note records the gap where it already names it.
+    depends_on: [runner-command-gate]
+    gates:
+      - id: cancel-writes-outcome
+        kind: command
+        run: pnpm --filter cli --fail-if-no-match test --testNamePattern cancel
+        expect_output: 'Tests +[1-9][0-9]* passed'
+
   - id: face
     acceptance: >
-      A process that runs in a herdr pane. Above: the position of a graph, with critical path and
-      float, and the five columns of any session on request. Below: the six verbs. It owns no
-      state; killing the pane loses scrollback and nothing else.
-    depends_on: [runner-command-gate, face-read]
-    gates: []
+      A process that runs in a herdr pane and reads the journal, the graph files and herdr fresh
+      on every render. Levels, one key down and one key up: every graph with its approval and
+      cleared count; a graph's position, `position@v1`, with critical path and float; a node with
+      its gates, receipts and attempts; a session's five columns, notes and narration; and, on a
+      live session, its herdr pane, focused. Verbs on keys dispatch as subprocesses into the same
+      binary: approve, run, judge, cancel, reset, waive, sweep, backfill. It owns no state;
+      killing the pane loses scrollback and nothing else.
+    depends_on: [runner-command-gate, face-read, attempts, position-model]
+    gates:
+      - id: no-write-surface
+        kind: command
+        run: pnpm --filter face --fail-if-no-match test --testNamePattern write-surface
+        expect_output: 'Tests +[1-9][0-9]* passed'
 
   - id: self-run
     acceptance: >
