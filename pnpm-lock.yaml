@@ -28,6 +28,9 @@ importers:
       runner:
         specifier: workspace:*
         version: link:../runner
+      schemas:
+        specifier: workspace:*
+        version: link:../schemas
       verifier:
         specifier: workspace:*
         version: link:../verifier
