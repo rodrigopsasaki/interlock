@@ -21,12 +21,8 @@ import {
   spend,
   type Node,
 } from "ledger";
+import { parseFlag } from "../flags.ts";
 import type { CommandResult } from "../main.ts";
-
-function parseFlag(args: readonly string[], flag: string): string | undefined {
-  const index = args.indexOf(flag);
-  return index === -1 ? undefined : args[index + 1];
-}
 
 export async function runGraphApprove(
   args: readonly string[],

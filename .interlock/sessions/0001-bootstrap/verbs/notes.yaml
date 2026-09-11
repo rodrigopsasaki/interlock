@@ -1,0 +1,29 @@
+interlock: notes@v0
+node: verbs
+entries:
+  - kind: choice
+    at: "2026-09-11T14:05:00Z"
+    chose: >
+      Added one shared `proposeOutcomeMove(current, next)` to
+      `packages/ledger/src/outcome.ts`, mirroring `proposeGateMove`'s shape:
+      a terminal outcome kind (`cleared`, `cancelled`, `superseded`,
+      `failed`) never accepts another move; anything else, including no
+      outcome yet, does. `node cancel` and `node reset` both call it.
+    because: >
+      The brief says "the ledger's own transition rules decide what is
+      legal; an illegal move is a sentence," but no such rule existed for
+      Outcome before this session -- only Gate had one. The node lifecycle
+      diagram in docs/design/0001-interlock.md draws `cleared`, `cancelled`
+      and `superseded` going to `[*]` with no arrows leaving them, and
+      `failed` (disposition `terminal-failure`) is the same kind of end by
+      name. Putting the rule in `packages/ledger/src/outcome.ts`, which is
+      in scope, keeps one definition of "terminal" instead of one guess per
+      verb, and mirrors `gate.ts`'s existing pattern rather than inventing
+      a new shape.
+    rejected: >
+      ["a bespoke if-chain per verb (duplicates the same terminal-kind
+      judgment twice, and the next verb that needs it would duplicate it a
+      third time)", "encoding the rule as a method on Outcome itself
+      (Outcome is a plain discriminated union everywhere else in this
+      package; Gate's own transition rule is a free function, not a
+      method, so this matches the established shape)"]
