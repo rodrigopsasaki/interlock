@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { extname, join, relative } from "node:path";
 import { shapeTag } from "ledger";
 import { parse as parseYaml } from "yaml";
@@ -7,7 +7,7 @@ import { splitFrontMatter } from "../frontMatter.ts";
 export interface Example {
   readonly sourcePath: string;
   readonly content: string;
-  readonly language: "yaml" | "json" | "markdown";
+  readonly language: "yaml" | "json" | "md";
 }
 
 interface Candidate {
@@ -40,7 +40,7 @@ function filesUnder(directory: string): readonly string[] {
 function candidatesFromMarkdown(content: string): readonly Candidate[] {
   const frontMatter = splitFrontMatter(content);
   if (frontMatter === undefined) {
-    return [{ tag: "brief@v0", content: content.trim(), language: "markdown" }];
+    return [{ tag: "brief@v0", content: content.trim(), language: "md" }];
   }
   const parsed: unknown = parseYaml(frontMatter);
   const tag = shapeTag(parsed);
@@ -77,6 +77,11 @@ function candidatesInFile(absPath: string): readonly Candidate[] {
   return candidatesFromYaml(content);
 }
 
+interface SizedExample {
+  readonly example: Example;
+  readonly fileBytes: number;
+}
+
 export function buildCorpusExamples(
   repoRoot: string,
   ledgerFixturesDirectory: string,
@@ -86,16 +91,24 @@ export function buildCorpusExamples(
     ...LEDGER_FIXTURES.map((name) => join(ledgerFixturesDirectory, name)),
   ];
 
-  const examples = new Map<string, Example>();
+  const smallestByTag = new Map<string, SizedExample>();
   for (const absPath of files) {
+    const fileBytes = statSync(absPath).size;
     for (const candidate of candidatesInFile(absPath)) {
-      if (examples.has(candidate.tag)) continue;
-      examples.set(candidate.tag, {
-        sourcePath: relative(repoRoot, absPath),
-        content: candidate.content,
-        language: candidate.language,
+      const smallest = smallestByTag.get(candidate.tag);
+      if (smallest !== undefined && fileBytes >= smallest.fileBytes) continue;
+      smallestByTag.set(candidate.tag, {
+        fileBytes,
+        example: {
+          sourcePath: relative(repoRoot, absPath),
+          content: candidate.content,
+          language: candidate.language,
+        },
       });
     }
   }
+
+  const examples = new Map<string, Example>();
+  for (const [tag, sized] of smallestByTag) examples.set(tag, sized.example);
   return examples;
 }

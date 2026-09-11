@@ -1,6 +1,7 @@
 import type { Artifact } from "./artifacts.ts";
 import type { Example } from "./corpus.ts";
 import { diffVersions } from "./diff.ts";
+import { codeFence } from "./fence.ts";
 import { fieldTablesFor, type FieldRow } from "./fields.ts";
 import type { SchemaFiles } from "./schemaFiles.ts";
 import { firstSentence } from "./vocabulary.ts";
@@ -55,7 +56,8 @@ function renderExample(
   const example = examples.get(tag);
   if (example === undefined)
     return `_No example of \`${tag}\` was found in the corpus._`;
-  return `Source: \`${example.sourcePath}\`\n\n\`\`\`${example.language}\n${example.content}\n\`\`\``;
+  const fence = codeFence(example.content);
+  return `Source: \`${example.sourcePath}\`\n\n${fence}${example.language}\n${example.content}\n${fence}`;
 }
 
 function renderExamplesSection(

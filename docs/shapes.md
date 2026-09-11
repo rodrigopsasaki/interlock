@@ -29,155 +29,127 @@ What a session is given: node, acceptance, gates, context slice, role.
 
 #### `brief@v0`
 
-Source: `.interlock/sessions/0001-bootstrap/debrief-schema/brief.md`
+Source: `.interlock/sessions/0001-bootstrap/scaffold/brief.md`
 
-```markdown
-# Brief · node `debrief-schema` · graph `0001-bootstrap`
+````md
+# Brief · node `scaffold` · graph `0001-bootstrap`
 
-This brief is immutable once your session starts. If it is wrong, say so in the debrief; do not
-edit it.
+This brief is immutable once your session starts. If it is wrong, say so in the debrief; do not edit it.
 
 ## Node
 
-- **graph:** `0001-bootstrap`, **approved** against content sha256 `d650e7738535cd36…`. Do not
-  edit the graph file.
-- **node:** `debrief-schema`
-- **role:** worker. Supplied here, not chosen by you.
-- **depends on:** `ledger`. The ledger is **held**, not cleared, on exactly one gate:
-  `debrief-valid`, the standing gate whose validator is the stub this node replaces. Running this
-  node before its dependency clears is a recorded bootstrap exception, made once by the harness,
-  because this node is what gives that gate its mechanism. Every other dependency rule holds.
-- **graph base SHA:** `a22166b9695e695e8f846934088c71d3ea4d6578`
-- **session start SHA:** the commit that contains this brief; `git rev-parse HEAD` before you
-  change anything; record it as `session_start_sha`.
-- **branch:** `graph/0001-bootstrap/debrief-schema`. **worktree:** this directory. Work only here.
+- **graph:** `0001-bootstrap` (`.interlock/graphs/0001-bootstrap.yaml`)
+- **node:** `scaffold`
+- **depends on:** nothing
+- **base SHA:** `de6e0499541bbc3999fc97ba2aef46849fa23818` on branch `graph/0001-bootstrap/scaffold`
+- **worktree:** this directory. Work only here.
 
 ## Acceptance (verbatim from the graph)
 
-> The debrief file format and its validator, and the note format it closes: a choice carries
-> its because, a surprise carries expected and observed. The brief tells the agent where to
-> write them and what shape they have. A missing or invalid debrief trips the standing gate and
-> holds the node as interrupted. A drafted debrief is distinguishable from an authored one and
-> is only ever produced when a person asks.
+> A pnpm workspace on the pinned Node with strict TypeScript, vitest, and @phyxiusjs/*
+> dependencies, where `pnpm typecheck` and `pnpm test` run green on an empty package and
+> `pnpm interlock debrief validate` exists as a stub that fails closed.
+
+"Fails closed" means: the command exits non-zero with a message saying validation is not
+implemented yet. It must never exit zero until a validator exists.
 
 ## Gates
 
-Standing gates (note the placeholders, new in `.interlock/config.yaml` as of this brief):
+Standing gates from `.interlock/config.yaml`. The harness runs these at your final commit, not you.
+Run them yourself as often as you like; your runs are informational and go in the debrief.
 
 - `typecheck` — `pnpm typecheck`
 - `test` — `pnpm test`
-- `debrief-valid` — `pnpm interlock debrief validate {graph} {node}`. After this node, this gate
-  runs for real. For this session it validates your own `debrief.yaml` and `notes.yaml`.
+- `debrief-valid` — `pnpm interlock debrief validate` (expected to FAIL closed for this node; the
+  gate is recorded as held-by-design, since the stub is the deliverable)
 
 ## Read first
 
-1. `AGENTS.md`: vocabulary, Compatibility (readers accept every prior version forever; a new
-   required field or rename is a new version with a reader for the old one; a wrong file gets a
-   sentence), the plans-and-approval convention.
-2. `docs/design/0001-interlock.md`: The verifier (notes during, debrief after; interrupted; the
-   post-hoc debrief only on request), Compatibility, D6, D12, D21, the bend-log rows dated
-   2026-09-09 and 2026-09-10.
-3. `docs/design/0002-face.md`: the Views table rows for Session and Decision → hunk.
-4. `packages/ledger/src/debrief.ts`: the `Debrief`, `Decision`, `Discovery`, `GateRun`,
-   `DebriefDerivation` types and guards. That type is the specification of `debrief@v2`; this
-   node writes the file shape that maps onto it and the reader that produces it.
-5. `packages/ledger/src/note.ts` (the `Note` type: choice with because, surprise with expected
-   and observed), `envelope.ts`, `event.ts` (`debrief-filed`, `note-appended`).
-6. `packages/runner/src/gateCommand.ts`, `gateJudge.ts`, `standingGates.ts`, and
-   `packages/cli/src/run.ts` and `backfill.ts`: how gates are executed and how a node is judged;
-   you add placeholder substitution and, after a successful judgement, debrief ingestion.
-7. `packages/cli/src/debrief/validate.ts` and `main.ts`: the stub you replace and the dispatch.
-8. `packages/face/src/document.ts` and `validate.ts`: the graph loader's style for YAML parsing
-   with sentence errors; mirror it.
-9. **The corpus on disk.** Every session directory under `.interlock/sessions/0001-bootstrap/`:
-   `scaffold/debrief.yaml` is `debrief@v0`; `ledger`, `face-read`, `ledger-gaps` and
-   `runner-command-gate` are `debrief@v1`; their `notes.yaml` files are `notes@v0`. These are
-   real files written by real sessions and they are your fixtures. All of them must validate.
-
-## What this node builds
-
-- **The `debrief@v2` file shape**, as YAML, mapping one to one onto the ledger's `Debrief` type:
-  `interlock: debrief@v2`, `graph`, `node`, `role`, `graph_base_sha`, `session_start_sha`,
-  `head_sha`, `derivation` (`kind: agent` with `runtime` and `model`, or `kind: human` with
-  `who`), `discoveries[]` (`id`, `what`, `found_at`, `mattered_because`), `decisions[]` (`id`,
-  `what`, `because` **mandatory**, `rests_on[]`, `hunks[]`, optional `produces[]`, optional
-  `rejected`), `gates_run_by_agent[]` (`id`, `result`, optional `invocation`, `note`), `open[]`.
-  One optional, additive field distinguishes a drafted debrief from an authored one:
-  `drafted: { by: <who or model>, from: <sha the draft was read from> }`; its presence means
-  drafted. Nothing in this node produces a draft; the field exists so a future command can, and
-  only when a person asks.
-- **Readers for every version.** `debrief@v0` (scaffold's: `base_sha`, no role, no because) and
-  `debrief@v1` (no because, `base_sha` renamed) validate as legacy-valid: the gate passes, and
-  the reader reports which fields the newer shape would have required. They do not produce a
-  `Debrief` value, because a decision without a because cannot honestly be given one. `debrief@v2`
-  validates and produces a `Debrief`. Writers write v2. Say this in the CLI's own words when a
-  legacy file passes: valid as `debrief@v1`; not ingested.
-- **`notes@v0` reader.** Every entry is a choice with `chose` and a mandatory `because`, or a
-  surprise with `expected` and `observed`; anything else is a sentence naming the entry index and
-  what is missing.
-- **`interlock debrief validate <graph> <node>`.** Finds `.interlock/sessions/<graph>/<node>/`
-  in the repository root (the current worktree), validates `debrief.yaml` and `notes.yaml`, exits
-  zero when both are valid at any known version, non-zero with sentences otherwise. A missing
-  debrief is the sentence "no debrief was filed for <graph>/<node>; the session is interrupted".
-  Called with no arguments it refuses with a sentence naming the form. Optionally `--file <path>`
-  validates one file for hand use.
-- **Placeholders in gate commands.** The runner substitutes `{graph}` and `{node}` in every gate
-  command it runs; an unknown placeholder is a sentence. `.interlock/config.yaml` already uses
-  them for `debrief-valid` (edited by the harness in the same commit as this brief).
-- **Ingestion.** When the runner judges a node and its gates pass, and the debrief file is
-  `debrief@v2`, the runner appends `debrief-filed` with the parsed `Debrief` and `note-appended`
-  for each note, through the ledger's own append, before the outcome. For a legacy-valid file it
-  appends nothing and the position says so. The face's session views then have data for v2
-  sessions.
-- **Errors are sentences** with file and, where the YAML parser gives one, line: unknown shape
-  tag, missing field, decision without because, note without its required fields, `head_sha`
-  not a SHA.
-- **Vocabulary.** debrief, note, choice, surprise, discovery, decision, because, derivation,
-  gate, held, interrupted (the state a session is in when it ends without a debrief; it is not a
-  new outcome kind, it is held on the `debrief-valid` gate with that failure recorded). `drafted`
-  is the one new field; it is not a new noun.
-
-## Out of scope
-
-Producing a draft (no model is called anywhere in this node); the inverse check of decisions
-against the diff (that is `verifier-hunks`); the face's session views; the substrate. Do not
-edit `AGENTS.md`, either design note, the graph, or this brief. `.interlock/config.yaml` is
-already edited for you; do not change it further.
+1. `AGENTS.md` — axioms, invariants, vocabulary, conventions. Binding.
+2. `docs/design/0001-interlock.md` — sections "The shape", "Seams", "Two seams that cannot be
+   retrofitted". You are laying the floor the `ledger` node will build on: the ledger will be a
+   Phyxius journal with typed handlers, clock, and effect. Choose dependencies and layout so that
+   node does not have to fight you.
+3. `~/dev/private/phyxius` — the Phyxius monorepo. Read `packages/*/package.json` and each
+   package's README or docs to learn which `@phyxiusjs/*` packages exist and what they are for.
+   Verify each one you add is published on npm (`npm view <name> version`). Add only packages
+   the ledger node will plausibly need. Record the choice and why in the debrief.
 
 ## Constraints
 
-- **Comments: as few as possible. This is a public face.** Names, types, tests and module
-  boundaries carry the meaning; a comment exists only where the code cannot say it. Never quote
-  AGENTS.md, the brief or a design note inside code.
-- Small single-purpose files named for the vocabulary. Strict TypeScript; no `as`, `!`, `any`,
-  `as unknown as`. Reuse the `yaml` dependency already present; verify any new dependency on npm.
-- Node pinned by `.node-version`; run everything through `mise exec --`.
-- Conventional Commits, why-subjects, bodies. Commit on this branch. **Do not push.** Every
-  message ends with `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>`.
-- No files outside this worktree. No `/tmp`. No `rm -rf`. Never start or stop herdr.
+- **Comments: as few as possible. This is a public face.** Names, types and module boundaries
+  carry the meaning. A comment is allowed only where the code genuinely cannot say it (a
+  non-obvious why, an external constraint). No banner comments, no restating the code, no
+  section markers, no JSDoc on things whose name and type already say it.
+- Clean, readable, modularized. Small files with one purpose, named for what they are.
+- Strict TypeScript. No `as`, no `!`, no `as unknown as`, no `any`. Narrow or write a real adapter.
+- Node pinned by `.node-version` (24.14.0). If `node -v` disagrees, run through `mise exec --`.
+  Do not change the pin.
+- pnpm workspace. Match conventions in `~/dev/private/phyxius` where they apply (tsup, vitest,
+  strict tsconfig). Do not add Nx or any task runner unless you can justify it in one sentence
+  in the debrief; a plain pnpm workspace is preferred at this size.
+- No README, no docs files, no CHANGELOG. `AGENTS.md` and the design note already exist and are
+  not yours to edit.
+- Do not build anything from later nodes: no ledger, no runner, no herdr adapter, no verifier.
+  A package directory for the CLI stub is expected; a package for the ledger is not.
+- Conventional Commits. Subject states the *why*; body justifies the choice and tradeoffs.
+  Commit on this branch. **Do not push.**
+- Do not create files outside this worktree. Do not use `/tmp`. No `rm -rf`.
 
 ## Deliverable
 
-1. Commits satisfying the acceptance; all standing gates green, including `debrief-valid` run
-   for real against this session's own files: `mise exec -- pnpm interlock debrief validate
-   0001-bootstrap debrief-schema`.
-2. `notes.yaml` beside this brief, `notes@v0`, appended while you work, committed with the code.
-3. `debrief.yaml` beside this brief, in the **new `debrief@v2` shape you define**, final commit,
-   `head_sha` = last code commit, a because on every decision, decisions a manifest of the diff
-   (every changed file in some decision's `hunks` or `produces`, `notes.yaml` and `debrief.yaml`
-   included).
-4. In the debrief: the validator's output for all six session directories (the five prior ones
-   and yours), verbatim; and the exact sentence a missing debrief produces.
+1. Commits on this branch that satisfy the acceptance.
+2. `.interlock/sessions/0001-bootstrap/scaffold/debrief.yaml` in the shape below, committed as
+   the final commit, with `head_sha` set to the commit before it (the last code commit).
+
+## Debrief shape (`debrief@v0`)
+
+This is the first debrief ever written. If the shape cannot express something you need to say,
+put it under `open` and say what the shape lacks. That is a finding, not a failure.
+
+```yaml
+interlock: debrief@v0
+graph: 0001-bootstrap
+node: scaffold
+base_sha: de6e0499541bbc3999fc97ba2aef46849fa23818
+head_sha: <sha of your last code commit>
+derivation:
+  kind: agent
+  runtime: <e.g. claude-code>
+  model: <the model id you are running as, as best you know it>
+discoveries:
+  # Things you had to find out that this brief did not tell you.
+  # Every discovery is a brief deficiency; be generous.
+  - id: d1
+    what: <one sentence>
+    found_at: <path[:lines] | command you ran | url>
+    mattered_because: <one sentence>
+decisions:
+  # Every choice you made. Every hunk in your diff should be explained by at least one decision.
+  - id: c1
+    what: <one sentence>
+    rests_on: [<d-id> | brief:<section name>]
+    hunks: [<path> | <path:start-end>]
+    rejected: <alternatives considered, optional>
+gates_run_by_agent:
+  - { id: typecheck, result: pass | fail, note: <optional> }
+  - { id: test, result: pass | fail }
+  - { id: debrief-valid, result: fail, note: fails closed by design }
+open:
+  # Anything unresolved, anything the acceptance or this brief got wrong, anything the debrief
+  # shape could not express.
+  - <one sentence each>
 ```
+````
 
 #### `brief@v1`
 
-Source: `.interlock/sessions/0001-bootstrap/attempts/brief.md`
+Source: `.interlock/sessions/readme-interlock-concept/readme/brief.md`
 
 ```yaml
 interlock: brief@v1
-graph: 0001-bootstrap
-node: attempts
+graph: readme-interlock-concept
+node: readme
 role: worker
 gates:
   - id: typecheck
@@ -189,235 +161,26 @@ gates:
   - id: debrief-valid
     kind: command
     run: pnpm interlock debrief validate {graph} {node}
-  - id: narration-events
+  - id: readme-whitespace
     kind: command
-    run: pnpm --filter ledger --fail-if-no-match test --testNamePattern narrat
-    expect_output: Tests +[1-9][0-9]* passed
+    run: git diff 1aef03d --check
+  - id: readme-assets
+    kind: command
+    run: >-
+      node --input-type=module -e "import {readFileSync,existsSync} from 'node:fs';
+      const text=readFileSync('README.md','utf8');
+      const files=['docs/brand/interlock-wordmark.png','docs/brand/interlock-concept.svg','docs/brand/interlock-concept-mobile.svg','docs/brand/interlock-critical-path.svg'];
+      if(files.some(file=>!existsSync(file)||!text.includes(file)))throw Error('A README asset is missing or unused');
+      if(/<style|<script|style=|class=|file:\/\/|127\.0\.0\.1|\/Users\//i.test(text))throw Error('README contains local-only styling or paths');
+      console.log('README assets and markup checked');"
+    expect_output: README assets and markup checked
 scope:
-  - .gitignore
-  - .interlock/config.yaml
-  - .interlock/graphs/0001-bootstrap.yaml
-  - .interlock/graphs/0002-shapes.yaml
-  - .interlock/local.example.yaml
-  - .interlock/sessions/0001-bootstrap/attempts/brief.md
-  - .interlock/sessions/0001-bootstrap/debrief-schema/brief.md
-  - .interlock/sessions/0001-bootstrap/debrief-schema/debrief.yaml
-  - .interlock/sessions/0001-bootstrap/debrief-schema/notes.yaml
-  - .interlock/sessions/0001-bootstrap/face-read/brief.md
-  - .interlock/sessions/0001-bootstrap/face-read/debrief.yaml
-  - .interlock/sessions/0001-bootstrap/face-read/notes.yaml
-  - .interlock/sessions/0001-bootstrap/ledger-gaps/brief.md
-  - .interlock/sessions/0001-bootstrap/ledger-gaps/debrief.yaml
-  - .interlock/sessions/0001-bootstrap/ledger-gaps/notes.yaml
-  - .interlock/sessions/0001-bootstrap/ledger/brief.md
-  - .interlock/sessions/0001-bootstrap/ledger/debrief.yaml
-  - .interlock/sessions/0001-bootstrap/ledger/notes.yaml
-  - .interlock/sessions/0001-bootstrap/position-model/brief.md
-  - .interlock/sessions/0001-bootstrap/runner-command-gate/brief.md
-  - .interlock/sessions/0001-bootstrap/runner-command-gate/debrief.yaml
-  - .interlock/sessions/0001-bootstrap/runner-command-gate/notes.yaml
-  - .interlock/sessions/0001-bootstrap/scaffold/brief.md
-  - .interlock/sessions/0001-bootstrap/scaffold/debrief.yaml
-  - .interlock/sessions/0001-bootstrap/verbs/brief.md
-  - .interlock/sessions/0001-bootstrap/verifier-hunks/brief.md
-  - .interlock/sessions/0001-bootstrap/verifier-hunks/debrief.yaml
-  - .interlock/sessions/0001-bootstrap/verifier-hunks/notes.yaml
-  - .interlock/sessions/0002-shapes/brief-shape/brief.md
-  - .interlock/sessions/0002-shapes/brief-shape/debrief.yaml
-  - .interlock/sessions/0002-shapes/brief-shape/notes.yaml
-  - .node-version
-  - AGENTS.md
-  - LICENSE
-  - NOTICE
   - README.md
-  - docs/design/0001-interlock.md
-  - docs/design/0002-face.md
-  - docs/design/0003-substrate.md
-  - package.json
-  - packages/cli/package.json
-  - packages/cli/src/backfill.ts
-  - packages/cli/src/bin.ts
-  - packages/cli/src/brief/validate.ts
-  - packages/cli/src/debrief/validate.ts
-  - packages/cli/src/graph/approve.ts
-  - packages/cli/src/graph/show.ts
-  - packages/cli/src/judge.ts
-  - packages/cli/src/main.ts
-  - packages/cli/src/run.ts
-  - packages/cli/src/sweep.ts
-  - packages/cli/src/verify.ts
-  - packages/cli/test/backfill.test.ts
-  - packages/cli/test/brief/validate.test.ts
-  - packages/cli/test/debrief/validate.test.ts
-  - packages/cli/test/graph/approve.test.ts
-  - packages/cli/test/graph/gitFixture.ts
-  - packages/cli/test/graph/show.test.ts
-  - packages/cli/test/judge.test.ts
-  - packages/cli/test/main.test.ts
-  - packages/cli/test/run.test.ts
-  - packages/cli/test/sweep.test.ts
-  - packages/cli/test/verify.test.ts
-  - packages/cli/tsconfig.json
-  - packages/cli/vitest.config.ts
-  - packages/debrief/package.json
-  - packages/debrief/src/brief.ts
-  - packages/debrief/src/briefGate.ts
-  - packages/debrief/src/briefScopePath.ts
-  - packages/debrief/src/briefSubstrate.ts
-  - packages/debrief/src/debrief.ts
-  - packages/debrief/src/decision.ts
-  - packages/debrief/src/discovery.ts
-  - packages/debrief/src/gateRun.ts
-  - packages/debrief/src/index.ts
-  - packages/debrief/src/notes.ts
-  - packages/debrief/src/paths.ts
-  - packages/debrief/src/role.ts
-  - packages/debrief/src/sha.ts
-  - packages/debrief/src/slice.ts
-  - packages/debrief/src/validate.ts
-  - packages/debrief/test/brief.test.ts
-  - packages/debrief/test/debrief.test.ts
-  - packages/debrief/test/fixtures/brief-v1.md
-  - packages/debrief/test/notes.test.ts
-  - packages/debrief/test/slice.test.ts
-  - packages/debrief/tsconfig.json
-  - packages/debrief/vitest.config.ts
-  - packages/face/package.json
-  - packages/face/src/criticalPath.ts
-  - packages/face/src/document.ts
-  - packages/face/src/index.ts
-  - packages/face/src/position.ts
-  - packages/face/src/render.ts
-  - packages/face/src/root.ts
-  - packages/face/src/topology.ts
-  - packages/face/src/validate.ts
-  - packages/face/test/approval.test.ts
-  - packages/face/test/criticalPath.test.ts
-  - packages/face/test/document.test.ts
-  - packages/face/test/position.test.ts
-  - packages/face/test/render.test.ts
-  - packages/face/test/root.test.ts
-  - packages/face/test/topology.test.ts
-  - packages/face/tsconfig.json
-  - packages/face/vitest.config.ts
-  - packages/ledger/package.json
-  - packages/ledger/src/brief.ts
-  - packages/ledger/src/debrief.ts
-  - packages/ledger/src/derivation.ts
-  - packages/ledger/src/disposition.ts
-  - packages/ledger/src/envelope.ts
-  - packages/ledger/src/event.ts
-  - packages/ledger/src/expectOutput.ts
-  - packages/ledger/src/gate.ts
-  - packages/ledger/src/graph.ts
-  - packages/ledger/src/index.ts
-  - packages/ledger/src/lease.ts
-  - packages/ledger/src/ledger.ts
-  - packages/ledger/src/mandate.ts
-  - packages/ledger/src/mark.ts
-  - packages/ledger/src/note.ts
-  - packages/ledger/src/outcome.ts
-  - packages/ledger/src/projection.ts
-  - packages/ledger/src/receipt.ts
-  - packages/ledger/src/replay.ts
-  - packages/ledger/src/session.ts
-  - packages/ledger/src/sink.ts
-  - packages/ledger/src/spend.ts
-  - packages/ledger/src/upcast/v1.ts
-  - packages/ledger/src/upcast/v2.ts
-  - packages/ledger/src/validate.ts
-  - packages/ledger/test/derivation.test.ts
-  - packages/ledger/test/expectOutput.test.ts
-  - packages/ledger/test/fixtures/journal-v1-approved.jsonl
-  - packages/ledger/test/fixtures/journal-v1-v2-2026-09-10.jsonl
-  - packages/ledger/test/gate.test.ts
-  - packages/ledger/test/lease.test.ts
-  - packages/ledger/test/mandate.test.ts
-  - packages/ledger/test/note.test.ts
-  - packages/ledger/test/outcome.test.ts
-  - packages/ledger/test/projection.test.ts
-  - packages/ledger/test/receipt.test.ts
-  - packages/ledger/test/replay.test.ts
-  - packages/ledger/test/spend.test.ts
-  - packages/ledger/test/unrepresentable.test.ts
-  - packages/ledger/test/wiring.test.ts
-  - packages/ledger/tsconfig.json
-  - packages/ledger/vitest.config.ts
-  - packages/runner/package.json
-  - packages/runner/src/backfill.ts
-  - packages/runner/src/briefRewrite.ts
-  - packages/runner/src/dependencies.ts
-  - packages/runner/src/gateCommand.ts
-  - packages/runner/src/gateJudge.ts
-  - packages/runner/src/herdr/adapter.ts
-  - packages/runner/src/index.ts
-  - packages/runner/src/judgeWorktree.ts
-  - packages/runner/src/lease.ts
-  - packages/runner/src/localConfig.ts
-  - packages/runner/src/openingPrompt.ts
-  - packages/runner/src/runtime.ts
-  - packages/runner/src/scope.ts
-  - packages/runner/src/sessionBrief.ts
-  - packages/runner/src/sessionScreen.ts
-  - packages/runner/src/sessionWait.ts
-  - packages/runner/src/standingGates.ts
-  - packages/runner/src/startupAnswers.ts
-  - packages/runner/src/sweep.ts
-  - packages/runner/src/tmux/adapter.ts
-  - packages/runner/src/validate.ts
-  - packages/runner/src/worktree.ts
-  - packages/runner/src/worktreeSetup.ts
-  - packages/runner/test/adapterBoundary.test.ts
-  - packages/runner/test/backfill.test.ts
-  - packages/runner/test/briefRewrite.test.ts
-  - packages/runner/test/fixtures/herdr-socket-schema.json
-  - packages/runner/test/gateCommand.test.ts
-  - packages/runner/test/gateJudge.test.ts
-  - packages/runner/test/herdr/adapter.test.ts
-  - packages/runner/test/herdr/fakeServer.ts
-  - packages/runner/test/lease.test.ts
-  - packages/runner/test/liveSmoke.test.ts
-  - packages/runner/test/localConfig.test.ts
-  - packages/runner/test/openingPrompt.test.ts
-  - packages/runner/test/sessionBrief.test.ts
-  - packages/runner/test/sessionScreen.test.ts
-  - packages/runner/test/sessionWait.test.ts
-  - packages/runner/test/standingGates.test.ts
-  - packages/runner/test/support/gitFixture.ts
-  - packages/runner/test/support/memoryLedger.ts
-  - packages/runner/test/sweep.test.ts
-  - packages/runner/test/tmux/adapter.test.ts
-  - packages/runner/test/worktree.test.ts
-  - packages/runner/test/worktreeSetup.test.ts
-  - packages/runner/tsconfig.json
-  - packages/runner/vitest.config.ts
-  - packages/verifier/package.json
-  - packages/verifier/src/foundAt.ts
-  - packages/verifier/src/git.ts
-  - packages/verifier/src/hunkCitation.ts
-  - packages/verifier/src/index.ts
-  - packages/verifier/src/inverse.ts
-  - packages/verifier/src/render.ts
-  - packages/verifier/src/verify.ts
-  - packages/verifier/src/vocabulary.ts
-  - packages/verifier/test/foundAt.test.ts
-  - packages/verifier/test/git.test.ts
-  - packages/verifier/test/hunkCitation.test.ts
-  - packages/verifier/test/inverse.test.ts
-  - packages/verifier/test/render.test.ts
-  - packages/verifier/test/support/gitFixture.ts
-  - packages/verifier/test/verify.test.ts
-  - packages/verifier/test/vocabulary.test.ts
-  - packages/verifier/tsconfig.json
-  - packages/verifier/vitest.config.ts
-  - pnpm-lock.yaml
-  - pnpm-workspace.yaml
-  - tsconfig.json
-  - vitest.config.base.ts
+  - docs/brand
+  - scripts/check-readme.ts
+  - .interlock/sessions/readme-interlock-concept/readme
 substrate:
   address: none
-graph_base_sha: e551ae699c64ec4c2f6798976a519027ceed624e
-session: 485f21a3-ffc2-43e4-a9bd-48939785e81f
 ```
 
 ## config
@@ -1024,16 +787,16 @@ open:
 
 #### `debrief@v2`
 
-Source: `.interlock/sessions/0001-bootstrap/attempts/debrief.yaml`
+Source: `.interlock/sessions/0001-bootstrap/verbs/debrief.yaml`
 
 ```yaml
 interlock: debrief@v2
 graph: 0001-bootstrap
-node: attempts
+node: verbs
 role: worker
-graph_base_sha: e551ae699c64ec4c2f6798976a519027ceed624e
-session_start_sha: fb94cd09f68f0f1ea8185e07e6031adcda11a47a
-head_sha: fc09080b5ea2f4d72749ebda16b39cf6d23d1859
+graph_base_sha: df184a2738ba9c652cdb760631a0590d7bc6d36a
+session_start_sha: 789564dadf537cb1f1d599c88b69d90c19da1cc0
+head_sha: b807e24f3a0b1608579c16a464244a2f0bfe5773
 derivation:
   kind: agent
   runtime: claude-code
@@ -1041,452 +804,222 @@ derivation:
 discoveries:
   - id: d1
     what: >
-      The shared journal (main checkout's .interlock/ledger/journal.jsonl,
-      resolved via git-common-dir, not this worktree's own) already carries
-      a fully-ingested real session for verifier-hunks (session
-      052f6500-4932-4fd9-bfba-0e646e60a2e3): session-started, debrief-filed
-      and every note-appended all present, because that node was run and
-      judged live through interlock run/interlock judge, not backfilled.
-    found_at: >
-      Cross-referenced session-started, debrief-filed and note-appended
-      session ids for node verifier-hunks across
-      .interlock/ledger/journal.jsonl (main checkout).
+      interlock run never checks a node's own current outcome before
+      leasing it -- only that every dependency's outcome is cleared, and
+      that a brief file exists. There is no "own outcome" gate on
+      leasing at all today.
+    found_at: |
+      $ grep -n "outcome" packages/cli/src/run.ts packages/runner/src/dependencies.ts
+      run.ts: no match. dependencies.ts:10 is the only outcome check in
+      either file, and it reads a dependency's outcome, never the target
+      node's own.
     mattered_because: >
-      Deliverable 4 asks for the verbatim output of "interlock session show
-      0001-bootstrap verifier-hunks" in this debrief. A real session with
-      real data already existed in the shared journal, so that output could
-      be produced with a pure read (readReplay) against real shared state --
-      no need to run interlock backfill for real first, which would append
-      new events to a journal every other worktree and session shares.
+      the brief's own words for reset ("so the runner may lease the node
+      again") read as if reset lifts a mechanical block; there is none to
+      lift. reset is the accountable record that a person authorized
+      trying again (I10: accountability is a recorded reason, not a
+      restriction), not what makes leasing possible -- a node with any
+      other outcome, including no outcome at all, was always leasable by
+      run's current logic. Recorded under open below; changing run.ts to
+      gate on the node's own outcome is a runner decision, not this
+      session's, and position@v1/run.ts are both out of scope here.
   - id: d2
     what: >
-      packages/runner/src/gateJudge.ts's judgeGates already calls a shared
-      ingestDebrief helper whenever a node's outcome resolves to "cleared",
-      appending debrief-filed and every note-appended on whatever session
-      string the caller passed -- including backfillGraph, which passed a
-      synthetic, per-run-random id ("${runnerId}-${nodeId}", runnerId
-      itself a fresh randomUUID every call) for which no session-started
-      event was ever recorded, so projection.ts's withSession no-op-when-
-      unknown guard silently dropped both events: receipts existed, no
-      session view did.
-    found_at: >
-      packages/runner/src/gateJudge.ts's ingestDebrief and judgeGates;
-      packages/runner/src/backfill.ts's prior judgeGates call (session
-      field); packages/ledger/src/projection.ts's withSession.
+      packages/ledger/src/projection.ts's withSession silently drops any
+      event for a session id the projection has not seen via a prior
+      session-started event -- lease-taken included.
+    found_at: |
+      $ grep -n "function withSession" packages/ledger/src/projection.ts
+      projection.ts:76; its body returns the projection unchanged when
+      the given session id is not already a key of projection.sessions.
+      Found while writing node reset's live-lease refusal test: a
+      lease-taken event appended alone left the projection with zero
+      sessions, so the test first fell through to the wrong refusal
+      until session-started was appended before it.
     mattered_because: >
-      This is exactly the gap the 2026-09-10 bend-log entry for
-      debrief-schema names ("a backfilled session has receipts but no
-      session view") and this node's own acceptance names directly ("Every
-      session the ledger knows has a session view, including the ones
-      backfill records").
+      confirms this session's live-lease check (mirroring judge.ts's own
+      pattern) is reading real projection state correctly, and that any
+      future direct-ledger test setup for a "live lease" scenario needs
+      both events, not lease-taken alone.
   - id: d3
     what: >
-      A debrief-filed event is only ever recorded for a debrief@v2 file
-      (ingestDebrief returns early for any other kind, appending nothing);
-      a legacy (v0/v1) debrief on disk leaves no trace in the ledger. From
-      the ledger's own data, a session with a legacy debrief and a session
-      with no debrief whatsoever are indistinguishable.
-    found_at: >
-      packages/runner/src/gateJudge.ts's ingestDebrief: if (isErr(debriefRead)
-      || debriefRead.value.kind !== "v2") return;
+      packages/runner/src/sweep.ts already writes
+      outcome.cancelled(receipts, authority, because) with receipts read
+      from NodeView.receipts (the node's accumulated receipt list), not
+      from any prior outcome's own .receipts field.
+    found_at: "packages/runner/src/sweep.ts:53-63"
     mattered_because: >
-      The brief requires "Legacy debriefs print what they carry and say
-      which version they are", which the ledger's projection alone cannot
-      answer; interlock session show needed a further, honest read of the
-      on-disk debrief.yaml for exactly this case.
+      Outcome.receipts has no documented meaning beyond its type; this is
+      the one place an existing verb (the sweeper's own abandon-write)
+      already answers "what receipts does a person-authored terminal
+      outcome carry." node cancel and node reset both reuse it rather
+      than inventing a second interpretation.
   - id: d4
     what: >
-      packages/cli/src/run.ts has no narrate(...) call before its own
-      session-started append -- the first is "leased ... (session ...)",
-      immediately after.
-    found_at: >
-      packages/cli/src/run.ts: every narrate(...) call site versus the
-      session-started append's own line number.
+      packages/runner/src/gateJudge.ts appends receipt-written for every
+      gate it runs before deciding satisfied or blocked -- a blocked
+      gate has a real receipt in the node's receipt list even though
+      Gate's own "blocked" variant carries no receipt field.
+    found_at: "packages/runner/src/gateJudge.ts:156-192"
     mattered_because: >
-      The brief asks this session to "record where that boundary falls".
-      For interlock run, the boundary is trivial: every line it narrates is
-      already inside the session's lifetime, so nothing is print-only.
+      gate waive needs "the gate's latest receipt" for exactly the case
+      a person waives past: a gate currently blocked on a real failure.
+      Reading receipts off NodeView.receipts (filtered by gate id) reaches
+      that case; reading only the current Gate value's own receipt field
+      would not have.
   - id: d5
     what: >
-      interlock judge's narration lands on the very same session id
-      interlock run already used and already narrated to, not a fresh,
-      judge-only list -- narration accumulates on the session across
-      whichever verb (run, then later judge) drives it.
-    found_at: >
-      A first draft of a judge.test.ts assertion asserted the journal's
-      session-narrated lines for a session equalled exactly judge's own two
-      uncommitted-work lines; run against the real code, it failed, showing
-      the whole run of interlock run's own narration ahead of them.
+      proposeGateMove already refuses an undeclared gate id and any move
+      off an already-waived or -superseded gate, with no change needed
+      to gate.ts itself.
+    found_at: "packages/ledger/src/gate.ts:86-107"
     mattered_because: >
-      Confirms the acceptance's own framing precisely ("interlock judge
-      appends its lines on the session it judges"); the test was fixed to
-      assert only the tail of the array.
-  - id: d6
-    what: >
-      Ran the required proof commands for real against the actual shared
-      journal and this session's own new replay test, to produce this
-      debrief's Deliverable 4 verbatim.
-    found_at: |
-      $ mise exec -- node packages/cli/src/bin.ts session show 0001-bootstrap verifier-hunks
-      0001-bootstrap/verifier-hunks · session 052f6500-4932-4fd9-bfba-0e646e60a2e3
-      
-      Brief
-        acceptance: Deterministic marks over a debrief against its diff at the debriefed SHA: every decision cites a hunk that exists; every discovery cites a location that exists with the quoted content; every hunk has a decision, or it is marked unexplained; every term is in one of the two vocabularies, or it is a gap. Marks never block. Every mark carries its derivation.
-      
-        gates: typecheck, test, debrief-valid, inverse-check
-      
-      Context
-        graph base sha: 043c78a0bea483de7d212031255b771d493a7ab5
-        derivation: runtime claude-code, model claude-sonnet-5
-        gates:
-        typecheck: satisfied (receipt 1bfbd0b33399276f7964cb8f6f51f99782b618f5449088758f21f78782685018)
-        test: satisfied (receipt ec34e12f61a728722bef29edd116f361001330f49590d4ec5ac6e75bc2b983f9)
-        debrief-valid: satisfied (receipt c65f4a9f15327d1e6d4e2276a5bc659651eac9f1789532fa254187eeeb51b70c)
-        inverse-check: satisfied (receipt e271b23ec55f7321a6f650a85711795f4bc7934b55431c0b299efad543497042)
-      
-      Discoveries
-        d1: packages/ledger/src/event.ts's LedgerEvent union has no arm for a mark; the last kind it declares is outbox-intent-recorded.
-      
-        d2: .interlock/config.yaml (config@v0) has only two top-level keys; no field exists anywhere in the repository for a team's professed domain vocabulary, the second of the acceptance's "two vocabularies."
-      
-        d3: packages/debrief/test/brief.test.ts's own "every existing brief under .interlock/sessions" suite failed the moment this worktree existed, on exactly the one entry for this node's own session, before this session changed anything.
-      
-        d4: Every real interlock verify run sprayed several git "fatal: path '...' does not exist" lines onto this process's own stderr, from foundAt.ts's candidatePaths trying several substrings per discovery, most of which are not real paths by design.
-      
-        d5: packages/verifier/test/.runs/ was untracked from this session's very first `git status`, before anything in this session changed -- every sibling package (ledger, face, cli, runner) already has its own "test/.runs/" line in .gitignore; verifier never got one.
-      
-        d6: This machine's own global git config sets diff.renames=copies; diffFiles' `git diff -U0` (no --no-renames) reported packages/verifier/package.json, a brand-new file, as a 62%-similar "copy from packages/cli/package.json" instead of a plain new file, because cli's own package.json also changed in the same commit.
-      
-        d7: interlock verify run for real against both v2 debriefs that exist in this corpus: debrief-schema's own, and this debrief, at this head_sha.
-      
-      
-      Decisions
-        c1: .interlock/sessions/0001-bootstrap/verifier-hunks/brief.md:18-20, .interlock/sessions/0001-bootstrap/verifier-hunks/brief.md:22-212, .interlock/sessions/0001-bootstrap/verifier-hunks/brief.md:215-216
-        c2: .gitignore:8
-        c3: packages/verifier/package.json:1-21, packages/verifier/tsconfig.json:1-8, packages/verifier/vitest.config.ts:1
-        c4: packages/verifier/src/git.ts:1-13, packages/verifier/src/git.ts:25-77
-        c5: packages/verifier/src/git.ts:14-23
-        c6: packages/verifier/src/git.ts:79-94, packages/verifier/test/git.test.ts:1-1, packages/verifier/test/git.test.ts:106-141
-        c7: packages/verifier/src/foundAt.ts:1-83
-        c8: packages/verifier/src/hunkCitation.ts:1-101
-        c9: packages/verifier/src/index.ts:1-33
-        c10: packages/verifier/src/inverse.ts:1-26
-        c11: packages/verifier/src/render.ts:1-42
-        c12: packages/verifier/src/verify.ts:1-77
-        c13: packages/verifier/src/vocabulary.ts:1-289
-        c14: packages/verifier/test/foundAt.test.ts:1-124, packages/verifier/test/hunkCitation.test.ts:1-112, packages/verifier/test/inverse.test.ts:1-68, packages/verifier/test/render.test.ts:1-34, packages/verifier/test/support/gitFixture.ts:1-33, packages/verifier/test/verify.test.ts:1-117, packages/verifier/test/vocabulary.test.ts:1-140, packages/verifier/test/git.test.ts:2-104
-        c15: packages/cli/package.json:17
-        c16: packages/cli/src/main.ts:8, packages/cli/src/main.ts:46-49
-        c17: packages/cli/src/verify.ts:1-64
-        c18: packages/cli/test/verify.test.ts:1-198
-        c19: packages/debrief/test/brief.test.ts:247-265
-        c20: .interlock/sessions/0001-bootstrap/verifier-hunks/notes.yaml:1-281
-        c21: .interlock/sessions/0001-bootstrap/verifier-hunks/debrief.yaml
-      
-      Outcome
-        cleared (4 receipt(s))
-      
-      Notes
-        [2026-09-10T16:00:00Z] chose: No ledger event kind carries a mark (event.ts's LedgerEvent union has no "mark-*" arm). Per the brief's own instruction, this is a shape question for `open`, not a coinage: this node builds the verifier library and the `interlock verify` CLI command only, and does not touch gateJudge.ts's ingestion path or event.ts. The exact proposal (a new event kind, or folding marks into debrief-filed) is recorded under this debrief's `open`, not built.
-       — because: "brief:Ingestion" is explicit: "if event@v2 has none, adding one is a new union arm, a shape change you are not licensed to make; record the exact proposal under open and print marks without persisting them."
-      
-        [2026-09-10T16:10:00Z] chose: The inverse check (every changed file covered by a decision or marked unexplained) operates at whole-file granularity, using `git diff --name-only` semantics, not at the sub-file @@ hunk granularity `git diff -U0` exposes.
-       — because: "What the verifier is" states the inverse check as "For every file changed in the range: covered by some decision's hunks or produces, or marked unexplained" -- file, not hunk. The acceptance's own sentence ("every hunk has a decision... unexplained") is the informal restating of the same rule one paragraph later in the design note, not a second, stricter check; the "What the verifier is" section is this node's own brief and is the more specific of the two.
-      
-        [2026-09-10T16:15:00Z] chose: A decision's cited hunk ("path" or "path:start-end") is `rooted` when the path is a file changed in the range AND, if a line range is given, that range *overlaps* at least one added hunk's new-file line range for that path -- not when it matches a hunk exactly.
-       — because: Proven against debrief-schema's own debrief.yaml, my first real fixture: decision c9 cites "packages/ledger/src/debrief.ts:116-137" as one citation, but the real diff at that range (session_start_sha 0a02b4d0..head_sha 910f8a19, checked with `git diff -U0`) has two separate hunks in that span -- `+121` (a single line) and `+136,2`. An exact-match rule would call this citation unrooted, and citation c9:20-31 against the real hunk `+26,6` (26-31) would too -- both are genuine, honest citations of real changes, rounded generously. A verifier that marks the very first real v2 debrief mostly unrooted on its first run has a threshold set wrong, and "err toward gap" (the brief's own words for the vocabulary check) reads as the general posture: a mark is telemetry, not a verdict, so the rooted check should confirm genuine overlap, not demand line-for-line precision no agent is asked to produce.
-      
-        [2026-09-10T16:25:00Z] chose: A discovery's `found_at` is classified in this order: (1) command form, if the trimmed text (or a line within it) starts with "$ "; (2) path form, if a path-shaped token extracted from the free text resolves to a real path at head_sha, tried first as repo-root-relative, then as relative to `.interlock/sessions/<graph>/` (sibling-session shorthand); when a quoted substring is also present, its content must appear in the resolved file, or the mark is `unrooted` instead of `rooted`; (3) quoted out-of-band citation, if no path resolved but a quoted substring is present anywhere in the text; (4) otherwise `unrooted`, naming what none of the three forms matched.
-       — because: "Read first" item 6 names the four forms literally: "found_at as a path, a path with lines, a command, or a quoted out-of-band citation". debrief-schema's own six discoveries (the only real v2 fixture besides this session's own) are free prose, not clean single-form strings -- d1 embeds a directory path mid-sentence, d2 has no path at all but quotes a grep term, d3 embeds two paths that are valid only relative to the sessions directory, d4-d5 embed clean repo-root paths mid-sentence, d6 is a `$`-prefixed shell transcript. A classifier has to extract candidates from prose, not expect a bare citation, or it marks the exemplar debrief mostly unrooted on the corpus it was written to demonstrate.
-      
-        [2026-09-10T16:35:00Z] chose: Harness vocabulary for the gap check is read from AGENTS.md's own "## Vocabulary" markdown table at read time (the `term` column, parsed as a real table, not hardcoded as a duplicate list in code), then matched against extracted words as PascalCase, camelCase and the raw term, case-insensitively. "Plain programming English" is a small fixed list this node defines and ships in `src/vocabulary.ts`, covering TS/JS reserved words, primitive and standard utility types, and common single-letter generic parameters. The professed domain vocabulary is read as an empty list: `.interlock/config.yaml` (the only place a team could profess one) has no such field today, and this node may not add one (config.yaml is out of scope).
-       — because: Hardcoding a second copy of AGENTS.md's vocabulary table would drift the moment AGENTS.md's table does, and AGENTS.md is the copy that binds (AGENTS.md's own first paragraph). Reading it directly keeps the verifier's harness vocabulary honestly derived rather than invented. "Plain programming English is a fixed list you define and record" is the brief's own instruction to hardcode that half.
-      
-        [2026-09-10T16:40:00Z] expected That "professed domain vocabulary" would have some existing config shape to read from, since the brief's Acceptance names it as one of "the two vocabularies".
-      , observed `.interlock/config.yaml` (config@v0) has only `standing_gates` and `substrate`; no field for a professed domain vocabulary exists anywhere in the repo. This node treats it as an always-empty list and records the gap under `open`: a team that wants domain terms recognized (rather than gapped) needs a config field this node is not licensed to add.
-      
-        [2026-09-10T16:45:00Z] expected `pnpm test` to pass clean before touching anything, as a floor to gate new work against.
-      , observed packages/debrief/test/brief.test.ts's own "every existing brief under .interlock/sessions" suite fails on "0001-bootstrap/verifier-hunks validates as brief@v0" the moment this worktree exists, because that table asserts every session directory's brief.md is still the scaffolded legacy placeholder -- true for every prior node, but this brief's own front matter says the runner rewrote brief.md into a real brief@v1 in this worktree before the session started (this is the first node `interlock run` itself has leased). The floor failure is the corpus catching up to its own newest fact, not a break this session caused.
-      
-        [2026-09-10T16:47:00Z] chose: Pulled "verifier-hunks" out of brief.test.ts's shared legacy table and gave it its own test asserting brief@v1, naming the runner rewrite as the reason in a comment.
-      
-        [2026-09-10T18:44:00Z] chose: Resumed from the prior session's checkpoint commit by verifying its floor first: `pnpm typecheck` and `pnpm test` both green, and `pnpm --filter verifier test --testNamePattern unexplained` already matches `inverse-check`'s expect_output. The library (packages/verifier) and its 41 tests were complete; only the CLI command (`interlock verify <graph> <node>`) named in the brief's Deliverable 4 and "What the verifier is" was still unbuilt. Added packages/cli/src/verify.ts (mirroring debrief/validate.ts's own shape: resolve repoRoot, missing-debrief sentence, dispatch on the DebriefRead's kind) and wired it into main.ts and cli's package.json.
-       — because: The brief's Deliverable 4 requires "the output of interlock verify ... verbatim" for both debrief-schema and this node's own debrief -- a command that did not exist yet. Re-deriving the library instead of reading what was already there would have redone finished work the interlock instructions explicitly forbid.
-      
-        [2026-09-10T18:47:00Z] expected `interlock verify 0001-bootstrap debrief-schema` to print only its one position line, since the verifier never fails a gate and every internal git check is wrapped in try/catch.
-      , observed Running it against the real corpus printed several `fatal: path '...' does not exist in '<sha>'` lines to stderr -- git's own diagnostic for a failed `cat-file -e`, from foundAt.ts's candidatePaths trying several substrings per discovery, most of which are not real paths by design (that is how the classifier recognizes prose). node's execFileSync inherits stderr by default; the try/catch in git.ts caught the *thrown error* fine, but git had already written to the parent's own stderr before that.
-      
-        [2026-09-10T18:49:00Z] chose: Fixed git.ts's shared `git()` helper to pass `stdio: ["ignore", "pipe", "pipe"]`, so a probing git call's stderr is captured for the caller (still available on a thrown error, still inert here since every caller catches and discards it) rather than inherited onto this process's own stderr. Verified empirically with a standalone node -e reproduction before and after, then re-ran `interlock verify 0001-bootstrap debrief-schema`: identical marks, clean stderr.
-       — because: "Comments: as few as possible. This is a public face" is this brief's own constraint on the code; the same posture applies to what the CLI prints. A command that never fails a gate should not spray five lines of git's own fatal-looking diagnostics on every real run -- that is confusing noise a fix-at-the-cause, not a symptom patch, since the probing behavior it was breaking (try several candidate paths, expect most to miss) is correct and stays exactly as it was.
-      
-      , observed `packages/verifier/test/.runs/` showed as untracked from the very first `git status` this session ran, before this session touched anything -- every sibling package (ledger, face, cli, runner) has its own `test/.runs/` line in .gitignore, but the prior session never added verifier's.
-      
-        [2026-09-10T18:55:00Z] expected `git diff -U0 <from>..<to>` in git.ts's diffFiles to always show a brand-new file as one clean `--- /dev/null` / `+++ b/<path>` hunk covering its whole content, per the acceptance's "Deterministic marks over a debrief against its diff."
-      , observed This machine's own global git config sets `diff.renames = copies`. Diffing this session's own first real range (043c78a0..the pre-fix head) showed `packages/verifier/package.json` not as a new file but as a "copy from packages/cli/package.json" (62% similarity, since I had just added a dependency line to cli's own package.json in the same commit): a handful of changed-line hunks relative to cli/package.json's content, not the true `+1,21` new-file hunk. git.ts's own comment ("no -M requested") assumed plain `git diff` never does this, which is only true when the invoking user's git config leaves renames off -- not guaranteed, and not something this repository controls.
-      
-        [2026-09-10T18:57:00Z] chose: Added `--no-renames` to diffFiles' own `git diff` invocation, and a regression test (git.test.ts) that sets `diff.renames: copies` on a fixture repo, modifies one file and adds a second, textually-similar one in the same commit -- the exact shape that triggered this in the real corpus -- and asserts the new file's full content comes back as addedLines. Confirmed by temporarily reverting the flag: the new test fails (reports one changed line, not the whole file) without it, passes with it.
-       — because: Determinism is this node's own acceptance criterion, verbatim ("Deterministic marks over a debrief against its diff"); a mark that depends on which engineer's machine ran the command is not deterministic. `--no-renames` is the direct, one-flag fix at the cause -- the parser in diffFiles already handles a rename as a delete-plus-add correctly (per its own docstring and the pure-delete test beside it); the bug was only ever the invocation letting git pick a different diff shape than the one that parser expects.
-      
-        [2026-09-10T19:00:00Z] chose: Set this debrief's `session_start_sha` to `graph_base_sha` (043c78a0bea483de7d212031255b771d493a7ab5), not to `git rev-parse HEAD` at the literal moment this conversation began (3f39411, the commit that rewrote brief.md for this resumption). The whole range from the graph base through every commit on this branch -- c2c6a4ea's checkpointed work, the brief rewrite, and this session's own three commits -- is treated as one debrief's own diff.
-       — because: The checkpoint commit's own message is explicit and specific to this exact hand-off, overriding the brief's generic "HEAD before you change anything" phrasing (written for the ordinary case of a session starting clean at the graph base, not a resumption): "These are the files that session had staged, committed as they were so the node can resume on its own branch. The resuming session owns these hunks: its debrief cites them, its notes already describe the choices behind them." A debrief whose session_start_sha excluded that commit could never cite those hunks at all (checkHunkCitation only roots a citation against a path that changed within the debrief's own range) -- the entire verifier library would sit undocumented forever, in the one node whose whole purpose is proving decisions are grounded in real diffs. The top-level task instructions given at this session's start point the same way: "This worktree carries work from an earlier session of this node... do not redo finished work" -- framing it as one continuing node-level effort, not two independent, disjoint sessions.
-      
-        [2026-09-10T19:01:00Z] expected That fixing session_start_sha to graph_base_sha would leave a clean range where every file's presence traces to an agent's own decision.
-      , observed brief.md itself is a changed file in this debrief's own range once session_start_sha = graph_base_sha -- the runner's own rewrite from the scaffolded placeholder to real front matter, plus its later field updates, both sit inside a range that is necessarily contiguous. Given a decision below (c1) describing it as a factual account of the runner's own action, rather than left `unexplained`: "or it is marked unexplained" is a legitimate, honest outcome too (it costs nothing, per this node's own design), but a one-line factual decision costs a reader less confusion than an unexplained mark on the one file this whole session was forbidden to edit.
-      
-      
-      Narration
-        (no narration recorded)
-    mattered_because: >
-      This is the brief's own Deliverable 4, first half: "the output of
-      interlock session show 0001-bootstrap verifier-hunks verbatim".
-  - id: d7
-    what: >
-      The real journal fixture (packages/ledger/test/fixtures/journal-v3-v4-2026-09-11.jsonl,
-      297 non-blank lines: 2 event@v1, 154 event@v2, 141 event@v3, copied
-      from the shared journal at 2026-09-11) replays under event@v4 with
-      zero refusals -- every line accepted, the graph's own "approved" gate
-      still satisfied afterward.
-    found_at: |
-      $ mise exec -- pnpm --filter ledger exec vitest run test/replay.test.ts -t "replays the real journal fixture under v4"
-      Test Files  1 passed (1)
-      Tests  1 passed | 13 skipped (14)
-    mattered_because: >
-      This is the brief's own Deliverable 4, second half: "the replay
-      counts of the real journal fixture under event@v4" -- and its own
-      "What this node builds" instruction that "the real journal replays
-      under it without loss."
+      gate waive needed no new transition rule of its own, unlike
+      Outcome -- it only had to build the right gate.waived(...) value
+      and pass it through the existing function, and could reuse
+      graph/approve.ts's exact refusal-message shape for the
+      undeclared-gate and illegal-transition cases.
 decisions:
   - id: c1
     what: >
-      Added the session-narrated event kind ({session, at, line}) to
-      LedgerEvent, moved the persisted envelope to event@v4, and added
-      upcastV3 -- a byte-for-byte copy of upcastV2's own superset check,
-      since session-narrated is a wholly new, additive union arm.
-    because: notes:9
-    rests_on: ["brief:What this node builds", "notes:9"]
+      Added proposeOutcomeMove(current, next) to
+      packages/ledger/src/outcome.ts, exported it from the package, and
+      covered it with new tests in outcome.test.ts.
+    because: notes:1
+    rests_on:
+      - "brief:the ledger's own transition rules decide what is legal; an illegal move is a sentence"
+      - "packages/ledger/src/gate.ts"
+      - "notes:1"
     hunks:
-      - "packages/ledger/src/event.ts:68-73"
-      - "packages/ledger/src/event.ts:122-127"
-      - "packages/ledger/src/envelope.ts:4"
-      - "packages/ledger/src/envelope.ts:7"
-      - "packages/ledger/src/envelope.ts:27"
-      - "packages/ledger/src/upcast/v3.ts:1-5"
+      - "packages/ledger/src/outcome.ts:56-82"
+      - "packages/ledger/src/index.ts:42-47"
+      - "packages/ledger/src/index.ts:54"
+      - "packages/ledger/test/outcome.test.ts:4-10"
+      - "packages/ledger/test/outcome.test.ts:135-192"
   - id: c2
     what: >
-      Gave SessionView a narration field (Narrated[], {at, line}) and
-      applyEvent a session-narrated case that appends to it in order,
-      initialized empty at session-started.
-    because: "brief:SessionView gains narration, in order"
-    rests_on: ["brief:What this node builds"]
+      Built interlock node cancel (packages/cli/src/node/cancel.ts) and
+      its fixture-backed test suite.
+    because: >
+      brief:interlock node cancel <graph> <node> --by <who> --because
+      <why> appends outcome-set with kind cancelled, the node's current
+      receipts, the authority and the because
+    rests_on:
+      - "packages/cli/src/graph/approve.ts"
+      - "packages/ledger/src/outcome.ts"
+      - "notes:2"
     hunks:
-      - "packages/ledger/src/projection.ts:21-25"
-      - "packages/ledger/src/projection.ts:36"
-      - "packages/ledger/src/projection.ts:145"
-      - "packages/ledger/src/projection.ts:154-158"
+      - "packages/cli/src/node/cancel.ts:1-108"
+      - "packages/cli/test/node/cancel.test.ts:1-211"
   - id: c3
-    what: "Exported Narrated through packages/ledger/src/index.ts, beside SessionView's other field types."
-    because: notes:16
-    rests_on: ["notes:16"]
+    what: >
+      Built interlock node reset (packages/cli/src/node/reset.ts), with
+      its live-lease and nothing-to-reset refusals, and its test suite.
+    because: >
+      brief:sets reset ... and the node reads as ready to the runner ...
+      a node with a live lease for reset (name the session and its
+      expiry)
+    rests_on:
+      - "packages/cli/src/judge.ts"
+      - "packages/ledger/src/outcome.ts"
+      - "notes:3"
+      - "notes:4"
     hunks:
-      - "packages/ledger/src/index.ts:50-55"
+      - "packages/cli/src/node/reset.ts:1-135"
+      - "packages/cli/test/node/reset.test.ts:1-213"
   - id: c4
     what: >
-      Copied the live shared journal (297 lines: 2 event@v1, 154 event@v2,
-      141 event@v3) into
-      packages/ledger/test/fixtures/journal-v3-v4-2026-09-11.jsonl, and
-      added a replay test asserting every line parses and upcasts under
-      event@v4 with the graph's own "approved" gate still satisfied.
-    because: notes:10
-    rests_on: ["brief:What this node builds", "notes:10", "d7"]
+      Built interlock gate waive (packages/cli/src/gate/waive.ts) and
+      its test suite.
+    because: >
+      brief:moves the gate to waived over its latest receipt, and
+      refuses when there is none
+    rests_on:
+      - "packages/ledger/src/gate.ts"
+      - "packages/runner/src/gateCommand.ts"
+      - "notes:5"
     hunks:
-      - "packages/ledger/test/fixtures/journal-v3-v4-2026-09-11.jsonl:1-297"
-      - "packages/ledger/test/replay.test.ts:417-435"
+      - "packages/cli/src/gate/waive.ts:1-150"
+      - "packages/cli/test/gate/waive.test.ts:1-292"
   - id: c5
-    what: "Unit tests for applyEvent's new session-narrated case: appends in order; drops one for a session that never started, matching every other session-keyed event."
-    because: "brief:Deliverable 1"
-    rests_on: ["brief:Deliverable"]
+    what: >
+      Wired node cancel, node reset and gate waive into
+      packages/cli/src/main.ts's group/action dispatch, and added
+      routing coverage to main.test.ts.
+    because: "brief:packages/cli/src/main.ts (the group and action dispatch)"
+    rests_on:
+      - "packages/cli/src/main.ts"
     hunks:
-      - "packages/ledger/test/projection.test.ts:159-185"
+      - "packages/cli/src/main.ts:4"
+      - "packages/cli/src/main.ts:8-9"
+      - "packages/cli/src/main.ts:43-54"
+      - "packages/cli/test/main.test.ts:25-51"
   - id: c6
     what: >
-      Wrote recordingNarrate (packages/runner/src/narration.ts): wraps a
-      narrate callback to append a session-narrated event, stamped from the
-      clock the ledger already receives, then calls through. Exported it
-      through packages/runner/src/index.ts.
-    because: "brief:interlock run appends one for every line it narrates"
-    rests_on: ["brief:What this node builds", "packages/runner/src/lease.ts"]
+      Pulled graph/approve.ts's local parseFlag into
+      packages/cli/src/flags.ts and pointed all four verbs at the shared
+      copy.
+    because: notes:6
+    rests_on:
+      - "packages/cli/src/graph/approve.ts"
+      - "notes:6"
     hunks:
-      - "packages/runner/src/narration.ts:1-19"
-      - "packages/runner/src/index.ts:72"
-      - "packages/runner/src/index.ts:74"
+      - "packages/cli/src/flags.ts:1-7"
+      - "packages/cli/src/graph/approve.ts:24"
   - id: c7
-    what: "Unit test for recordingNarrate: appends the right event, stamped from the clock, and still calls through to the wrapped narrate."
-    because: "brief:Deliverable 1"
-    rests_on: ["brief:Deliverable"]
+    what: >
+      Added one bend-log row to docs/design/0002-face.md recording that
+      the three verbs exist and that pause is not built, naming the
+      missing Outcome kind and that it needs its own event version.
+    because: >
+      brief:Add one bend-log row in docs/design/0002-face.md ... That
+      row is the only design-note edit you make
+    rests_on:
+      - "docs/design/0002-face.md"
+      - "notes:7"
     hunks:
-      - "packages/runner/test/narration.test.ts:1-28"
+      - "docs/design/0002-face.md:255"
   - id: c8
     what: >
-      Wired interlock run to recordingNarrate: its narrate binding changed
-      from const to let and reassigned once, immediately after the
-      session-started append, so every downstream narrate call (including
-      the ones threaded into judgeWorktree) is recorded for free.
-    because: "notes:7, d4"
-    rests_on: ["notes:7", "d4"]
+      This session's own notes.yaml, appended at every choice and
+      surprise across this session's code commits.
+    because: >
+      brief:notes.yaml beside this brief (notes@v0), appended at every
+      choice and surprise, committed
+    rests_on: []
     hunks:
-      - "packages/cli/src/run.ts:44"
-      - "packages/cli/src/run.ts:92"
-      - "packages/cli/src/run.ts:229"
-  - id: c9
-    what: >
-      Wired interlock judge to recordingNarrate the same way, reassigned
-      immediately after sessionId is resolved.
-    because: "notes:7"
-    rests_on: ["notes:7"]
-    hunks:
-      - "packages/cli/src/judge.ts:24"
-      - "packages/cli/src/judge.ts:54"
-      - "packages/cli/src/judge.ts:169"
-  - id: c10
-    what: >
-      New tests: interlock run appends a session-narrated event for every
-      line it narrates, matching the narrate callback's own lines
-      one-for-one; interlock judge's own two uncommitted-work lines land as
-      session-narrated events on the session it judges (asserted against
-      the tail of that session's narration, since run's own narration
-      already precedes it -- d5).
-    because: "brief:Deliverable 1, d5"
-    rests_on: ["brief:Deliverable", "d5"]
-    hunks:
-      - "packages/cli/test/run.test.ts:362-401"
-      - "packages/cli/test/judge.test.ts:1-7"
-      - "packages/cli/test/judge.test.ts:11"
-      - "packages/cli/test/judge.test.ts:274-289"
-  - id: c11
-    what: >
-      backfillGraph now records a session-started for each node it
-      backfills, keyed deterministically as backfill-${graph}-${nodeId}
-      (stable across runs), built the same way the runner builds a brief
-      (buildBrief from the graph declaration, the standing table and the
-      node's own gates, graphBaseSha set to the sha backfill judges at). A
-      legacy (v0/v1) debrief on disk is narrated as not ingested, once. Both
-      guarded behind the session not already being recorded, for
-      idempotency.
-    because: "brief:Backfill records session-started for each node it clears, notes:4"
-    rests_on: ["brief:A session view for every session", "d2", "notes:4"]
-    hunks:
-      - "packages/runner/src/backfill.ts:7"
-      - "packages/runner/src/backfill.ts:21"
-      - "packages/runner/src/backfill.ts:60-63"
-      - "packages/runner/src/backfill.ts:117-146"
-      - "packages/runner/src/backfill.ts:151-152"
-  - id: c12
-    what: >
-      Guarded gateJudge.ts's ingestDebrief against re-ingesting a session it
-      has already filed a debrief for (returns before reading the on-disk
-      debrief at all when the session's own view already carries one),
-      closing the duplicate-notes risk giving backfill's session a
-      persistent view would otherwise have opened, for every caller of
-      judgeGates (run, judge, backfill alike).
-    because: "notes:5, notes:6"
-    rests_on: ["notes:5", "notes:6", "d2"]
-    hunks:
-      - "packages/runner/src/gateJudge.ts:222-225"
-  - id: c13
-    what: >
-      New tests: backfillGraph records a session-started built from the
-      node's own acceptance and gates; narrates a legacy debrief as not
-      ingested, once; a second backfillGraph run over the same graph
-      appends no new session-started or session-narrated for a session it
-      already recorded. A gateJudge.ts test that judging the same,
-      already-debriefed session twice ingests its debrief only once.
-    because: "brief:Deliverable 1, brief:Backfill stays idempotent"
-    rests_on: ["brief:Deliverable", "brief:A session view for every session"]
-    hunks:
-      - "packages/runner/test/backfill.test.ts:8-9"
-      - "packages/runner/test/backfill.test.ts:103-154"
-      - "packages/runner/test/backfill.test.ts:260-332"
-      - "packages/runner/test/gateJudge.test.ts:531-572"
-  - id: c14
-    what: >
-      Added interlock session show <graph> <node> [--session <id>]:
-      Brief, Context, Discoveries, Decisions (--because reveals a
-      decision's because inline), Outcome, Notes, Narration, in that
-      order. Reads the projection through readReplay alone, matching graph
-      show's own precedent. Falls back to a further, honest read of the
-      on-disk debrief.yaml (via describeDebriefRead) only when the ledger
-      shows no ingested debrief for the session in view AND that session
-      is the node's own latest.
-    because: "brief:interlock session show, notes:11, notes:12, notes:14, d3"
-    rests_on: ["brief:interlock session show", "notes:11", "notes:12", "notes:14", "d3", "packages/cli/src/graph/show.ts"]
-    hunks:
-      - "packages/cli/src/session/show.ts:1-273"
-  - id: c15
-    what: "Exported describeDebriefRead from packages/cli/src/debrief/validate.ts (was a private helper), reused unchanged from session/show.ts's legacy-debrief fallback."
-    because: notes:13
-    rests_on: ["notes:13"]
-    hunks:
-      - "packages/cli/src/debrief/validate.ts:24"
-  - id: c16
-    what: "Wired session show into main.ts's dispatch, matching graph show's own two-word group/action pattern."
-    because: "packages/cli/src/main.ts"
-    rests_on: ["packages/cli/src/main.ts"]
-    hunks:
-      - "packages/cli/src/main.ts:8"
-      - "packages/cli/src/main.ts:36-39"
-  - id: c17
-    what: >
-      New tests for interlock session show: no session recorded (a
-      sentence, exit 0); missing arguments; the five columns, notes and
-      narration for the latest session by default; --because revealing a
-      decision's because; --session naming an unrecorded session (a
-      refusal); a legacy debrief's version and content, on the latest
-      session, without ingesting it. A main.ts dispatch test for "session
-      show".
-    because: "brief:Deliverable 1"
-    rests_on: ["brief:Deliverable"]
-    hunks:
-      - "packages/cli/test/session/show.test.ts:1-231"
-      - "packages/cli/test/main.test.ts:16-24"
-  - id: c18
-    what: >
-      This session's own notes.yaml, appended across two commits in this
-      range: every choice and surprise recorded through the four feature
-      commits, plus one further entry (the Narrated export, notes:16)
-      appended once this debrief's own first draft surfaced a because it
-      had no note to cite.
-    because: "brief:Deliverable 2"
-    rests_on: ["brief:Deliverable"]
-    hunks:
-      - ".interlock/sessions/0001-bootstrap/attempts/notes.yaml:1-229"
-  - id: c19
-    what: "This debrief, filed as the final commit in this range, in the debrief@v2 shape."
-    because: "brief:Deliverable 3"
-    rests_on: ["brief:Deliverable"]
-    hunks:
-      - ".interlock/sessions/0001-bootstrap/attempts/debrief.yaml"
+      - ".interlock/sessions/0001-bootstrap/verbs/notes.yaml:1-118"
 gates_run_by_agent:
-  - { id: typecheck, result: pass, invocation: "mise exec -- pnpm typecheck" }
-  - { id: test, result: pass, invocation: "mise exec -- pnpm test", note: "439 tests across ledger, debrief, face, verifier, runner, cli" }
-  - { id: debrief-valid, result: pass, invocation: "mise exec -- pnpm interlock debrief validate 0001-bootstrap attempts" }
-  - { id: narration-events, result: pass, invocation: "mise exec -- pnpm --filter ledger --fail-if-no-match test --testNamePattern narrat", note: "3 tests passed, matching expect_output" }
+  - { id: typecheck, result: pass, invocation: "mise exec -- pnpm typecheck", note: "6 of 7 workspace packages carry a typecheck script; all report Done" }
+  - { id: test, result: pass, invocation: "mise exec -- pnpm test", note: "472 tests across ledger, face, debrief, verifier, runner, cli (99+38+41+42+129+123)" }
+  - { id: cancel-writes-outcome, result: pass, invocation: "mise exec -- pnpm --filter cli --fail-if-no-match test --testNamePattern cancel", note: "Tests 8 passed (8) -- test/node/cancel.test.ts's 7 cases plus main.test.ts's node-cancel routing case" }
+  - { id: debrief-valid, result: pass, invocation: "mise exec -- pnpm interlock debrief validate 0001-bootstrap verbs", note: "run for real against this debrief and notes.yaml at head_sha, after this file was written" }
 open:
   - >
-    backfillGraph's own outcome-set and gate-moved events still append
-    unconditionally on every run over an already-cleared node (pre-existing,
-    unrelated to this node's own fix) -- harmless today since their values
-    are idempotent in effect (buildCleared recomputes the same outcome, a
-    satisfied gate is skipped before it re-runs), but a future cleanup could
-    gate them the same way ingestDebrief now is, so a repeated backfill run
-    appends nothing at all rather than merely nothing that changes meaning.
+    interlock run leases a node without ever reading that node's own
+    current outcome (d1) -- only its dependencies' outcomes and brief
+    presence. node reset therefore does not mechanically unblock
+    leasing; it only records who authorized trying again and why. A
+    node cancelled or held is, today, exactly as leasable as one reset
+    or never run. Whether run.ts should refuse to lease a node carrying
+    a non-terminal-but-unresolved outcome (held, say) without a reset in
+    between is a runner decision this session did not make -- run.ts and
+    position@v1 are both out of scope for verbs.
   - >
-    interlock session show's on-disk legacy-debrief fallback can only ever
-    speak for a node's current, latest session, since exactly one
-    debrief.yaml exists per node on disk. An older session that once carried
-    its own legacy debrief, since overwritten by a later session's file, has
-    no other record of what it said or which version it was -- narrating a
-    legacy debrief's version at read time (mirroring what this node's own
-    backfill fix now does) would close that gap for a live run or judge too.
+    pause has no truthful mapping (recorded in the bend log, c7): no
+    Outcome kind states a voluntary, non-failure hold. It needs a
+    seventh Outcome kind with its own event version -- a union-arm shape
+    change, not a verb session's call to make alone.
+  - >
+    projection.ts's withSession stays a no-op for a session id that
+    never appeared in a session-started event (d2), the same gap
+    debrief-schema's own debrief already recorded against backfill.
+    node reset's live-lease check reads the same projection and is
+    correct given that behavior, but inherits the same blind spot: a
+    node whose only session came through interlock backfill would read
+    as lease-free to reset even if some other process held it, since no
+    SessionView would exist to check. Not observed in practice this
+    session; noted because reset is a new reader of that same shape.
 ```
 
 ## event
@@ -1656,229 +1189,58 @@ The directed acyclic graph of nodes produced from one ask.
 
 #### `graph@v0`
 
-Source: `.interlock/graphs/0001-bootstrap.yaml`
+Source: `.interlock/graphs/readme-interlock-concept.yaml`
 
 ```yaml
-# Interlock's first graph.
-#
-# Authored by hand because the interpreter does not exist yet. Writing this by hand is how the
-# graph format gets designed: every awkwardness here is a finding about the format, and every
-# change to the format after this is a bend to log. The graph is the ledger of this work, not a
-# plan about it. When interlock can run anything, this graph is the first thing it runs.
-
 interlock: graph@v0
-id: 0001-bootstrap
+id: readme-interlock-concept
 
 ask: >
-  Build interlock far enough that this graph can be loaded from this file and run through
-  interlock itself: each node leased, briefed, gated and cleared, with receipts that carry
-  their derivation.
+  Turn the approved local presentation into a GitHub-native README on a separate branch,
+  preserving the selected keystone identity and explaining interlocks, proof, plan control,
+  critical-path visibility, and the intended evolution from human judgment to bounded automation.
 
 derivation:
-  kind: human
-  who: Rodrigo Sasaki
-  with: Claude, in a design conversation on 2026-09-09
-  # The interpreter will fill this with model, prompt id and lens. A human fills it with a name.
-  # It is never empty.
+  kind: agent
+  runtime: codex
+  model: unknown
 
 read: >
-  Six seams, each with the first thing through it, in dependency order. The graph is done when
-  the last node's session was run by the runner this graph builds, and its outcome is cleared.
+  One documentation node. Keep prose in Markdown, embed the existing wordmark and diagrams
+  as repository assets, refresh implementation claims against this branch, and open a draft PR.
+  Do not merge, change runtime behavior, or disturb the active development checkout.
 
 gates:
-  # Graph-level. No node in this graph may be leased, and no session briefed, until this receipt
-  # exists for the CURRENT content of this file. Editing the file stales the receipt; the plan
-  # is then re-read and re-approved. The approval is agnostic of what produced the plan: the
-  # producer's derivation is information that participates in the decision, never a condition.
   - id: approved
     kind: human
 
 nodes:
-  - id: scaffold
+  - id: readme
     acceptance: >
-      A pnpm workspace on the pinned Node with strict TypeScript, vitest, and @phyxiusjs/*
-      dependencies, where `pnpm typecheck` and `pnpm test` run green on an empty package and
-      `pnpm interlock debrief validate` exists as a stub that fails closed.
+      README.md presents the interlock concept using GitHub-supported Markdown and HTML.
+      The selected blue open loop and gold-completed loop are reused in the checked-in
+      wordmark and explanatory diagrams. Prose remains searchable and accessible; unsupported
+      CSS layouts become native tables, lists, or quotations. Relative image and documentation
+      links resolve. Current capabilities are distinguished from planned work, including the
+      newly implemented cancel, reset, and gate-waiver commands. No verbatim session history,
+      dossier excerpts, private filesystem paths, or celebratory metrics appear in the public
+      presentation. GitHub's rendered README and artwork are visually inspected. The branch
+      is pushed and a draft PR is opened for human review; no merge is performed.
     depends_on: []
-    gates: []
-    # The standing table is enough. This node exists so the standing gates can run at all.
-
-  - id: ledger
-    acceptance: >
-      The ledger as a Phyxius journal. Types for graph, node, brief, note, debrief, gate state,
-      receipt, spend, derivation, lease and outcome where `cleared` cannot be constructed without
-      one satisfied-or-waived receipt per declared gate, no receipt or mark can be constructed
-      without a derivation, and no receipt without a spend. State is a projection over the journal.
-      A process killed mid-write replays to the same projection.
-    depends_on: [scaffold]
     gates:
-      - id: replay
+      - id: readme-whitespace
         kind: command
-        run: pnpm --filter ledger --fail-if-no-match test --testNamePattern replay
-        expect_output: 'Tests +[1-9][0-9]* passed'
-      - id: illegal-states
+        run: git diff 1aef03d --check
+      - id: readme-assets
         kind: command
-        run: pnpm --filter ledger --fail-if-no-match test --testNamePattern unrepresentable
-        expect_output: 'Tests +[1-9][0-9]* passed'
-        # Tests that assert the type-level claims by attempting to construct the illegal
-        # values and expecting the compiler to refuse.
-
-  - id: ledger-gaps
-    acceptance: >
-      Four gaps the face exposed in the ledger's shapes, closed: an outcome kind for a voluntary
-      hold with authority and because and no failure; reset carries because and authority; a
-      receipt carries its duration; the debrief type carries derivation, graph base and session
-      start SHAs, gates run by the agent, produces on decisions, and a mandatory because on every
-      decision. The persisted shape moves to `event@v2` with the `event@v1` upcaster kept and
-      proven on a v1 fixture. The journal directory resolves per repository, shared across its
-      worktrees, not per worktree.
-    depends_on: [ledger]
-    gates:
-      - id: upcast-v1
-        kind: command
-        run: pnpm --filter ledger --fail-if-no-match test --testNamePattern upcast
-        expect_output: 'Tests +[1-9][0-9]* passed'
-
-  - id: runner-command-gate
-    acceptance: >
-      A runner that claims a node under a lease, opens a worktree at the graph's base SHA, starts
-      the configured agent in a herdr pane through the socket API behind a typed Runner interface,
-      writes the brief into the worktree, waits for idle, blocked or done, runs the node's command
-      gates at the debriefed SHA, and appends content-addressed receipts with spend, duration and
-      derivation. A sweeper, not the worker, notices an expired lease and writes abandoned; a
-      re-run re-earns only receipts whose spend was none. herdr is touched in exactly one adapter
-      file. The tmux fallback compiles and is not wired. Its first act is to re-run the standing
-      gates for every node already cleared in the repository at main and write their receipts, so
-      the position stops depending on pull-request bodies.
-    depends_on: [ledger-gaps]
-    gates:
-      - id: one-adapter
-        kind: command
-        run: pnpm --filter runner --fail-if-no-match test --testNamePattern adapter-boundary
-        expect_output: 'Tests +[1-9][0-9]* passed'
-        # Fails if any file outside the adapter references the herdr socket.
-      - id: receipt-idempotent
-        kind: command
-        run: pnpm --filter runner --fail-if-no-match test --testNamePattern idempotent
-        expect_output: 'Tests +[1-9][0-9]* passed'
-
-  - id: debrief-schema
-    acceptance: >
-      The debrief file format and its validator, and the note format it closes: a choice carries
-      its because, a surprise carries expected and observed. The brief tells the agent where to
-      write them and what shape they have. A missing or invalid debrief trips the standing gate and
-      holds the node as interrupted. A drafted debrief is distinguishable from an authored one and
-      is only ever produced when a person asks.
-    depends_on: [ledger]
-    gates: []
-
-  - id: verifier-hunks
-    acceptance: >
-      Deterministic marks over a debrief against its diff at the debriefed SHA: every decision
-      cites a hunk that exists; every discovery cites a location that exists with the quoted
-      content; every hunk has a decision, or it is marked unexplained; every term is in one of the
-      two vocabularies, or it is a gap. Marks never block. Every mark carries its derivation.
-    depends_on: [debrief-schema, runner-command-gate]
-    gates:
-      - id: inverse-check
-        kind: command
-        run: pnpm --filter verifier --fail-if-no-match test --testNamePattern unexplained
-        expect_output: 'Tests +[1-9][0-9]* passed'
-
-  - id: face-read
-    acceptance: >
-      `interlock graph show <id>` renders a graph file plus the journal as a position: nodes in
-      dependency order, each with its gate states and outcome, the unweighted critical path, and
-      the graph's approval state. `interlock graph approve <id> --by <who> --because <why>` writes
-      a human-gate receipt whose identity is the content hash of the graph file. `show` reports
-      approved, stale since the file changed, or not approved. Both read the journal through
-      replay and write only through the ledger's own append. A malformed graph gets a sentence,
-      not a stack trace.
-    depends_on: [ledger]
-    gates:
-      - id: stale-approval
-        kind: command
-        run: pnpm --filter face --fail-if-no-match test --testNamePattern stale-approval
-        expect_output: 'Tests +[1-9][0-9]* passed'
-        # Editing an approved graph flips its approval to stale.
-
-  - id: attempts
-    acceptance: >
-      Every attempt of a node is legible from the journal alone. Each line the runner or the judge
-      narrates about a session is an event on that session with its wall time, so a face can tell
-      an attempt's story without a log file. Every session the ledger knows has a session view,
-      including the ones backfill records: backfill writes the session from the session
-      directory's brief and ingests a `debrief@v2` when one is there. `interlock session show
-      <graph> <node> [--session <id>]` prints a session's five columns, its notes and its
-      narration, latest session by default. The persisted shape moves to the next event version
-      with an upcaster; the real journal replays under it without loss.
-    depends_on: [runner-command-gate, debrief-schema]
-    gates:
-      - id: narration-events
-        kind: command
-        run: pnpm --filter ledger --fail-if-no-match test --testNamePattern narrat
-        expect_output: 'Tests +[1-9][0-9]* passed'
-
-  - id: position-model
-    acceptance: >
-      `position@v1`: one typed, pure view over a graph file and the journal, per node its state,
-      its gates with receipt summaries, its attempts with outcome and lease, its dependencies; the
-      critical path weighted by the measured durations of each node's receipts, and each node's
-      float, a number only where every duration on the path is measured and `unknown` otherwise.
-      `interlock graph show` renders from it and from nothing else, and `--json` emits it. A
-      later renderer reads the same function. herdr's agent status for a live session joins the
-      view only where the one herdr adapter already is, never in a second file.
-    depends_on: [face-read, attempts]
-    gates:
-      - id: position-shape
-        kind: command
-        run: pnpm --filter face --fail-if-no-match test --testNamePattern position
-        expect_output: 'Tests +[1-9][0-9]* passed'
-
-  - id: verbs
-    acceptance: >
-      A person's verbs over a node, each writing the outcome or gate state it is named for and
-      refusing without a recorded who and why: `interlock node cancel <graph> <node> --by --because`
-      sets the outcome `cancelled`; `interlock node reset <graph> <node> --by --because` sets
-      `reset`, so the runner may lease the node again; `interlock gate waive <graph> <node> <gate>
-      --by --because` moves the gate to `waived` over its latest receipt, and refuses when there
-      is none. The ledger's own transition rules decide what is legal; an illegal move is a
-      sentence. `pause` is not built: no outcome kind states a voluntary hold truthfully, and the
-      design note records the gap where it already names it.
-    depends_on: [runner-command-gate]
-    gates:
-      - id: cancel-writes-outcome
-        kind: command
-        run: pnpm --filter cli --fail-if-no-match test --testNamePattern cancel
-        expect_output: 'Tests +[1-9][0-9]* passed'
-
-  - id: face
-    acceptance: >
-      A process that runs in a herdr pane and reads the journal, the graph files and herdr fresh
-      on every render. Levels, one key down and one key up: every graph with its approval and
-      cleared count; a graph's position, `position@v1`, with critical path and float; a node with
-      its gates, receipts and attempts; a session's five columns, notes and narration; and, on a
-      live session, its herdr pane, focused. Verbs on keys dispatch as subprocesses into the same
-      binary: approve, run, judge, cancel, reset, waive, sweep, backfill. It owns no state;
-      killing the pane loses scrollback and nothing else.
-    depends_on: [runner-command-gate, face-read, attempts, position-model]
-    gates:
-      - id: no-write-surface
-        kind: command
-        run: pnpm --filter face --fail-if-no-match test --testNamePattern write-surface
-        expect_output: 'Tests +[1-9][0-9]* passed'
-
-  - id: self-run
-    acceptance: >
-      This graph, loaded from this file, run through interlock. Every node above leased by the
-      runner, its command gates run by the runner, its debrief verified, its outcome cleared. The
-      receipts are in the journal with derivations. The first bend log entries this run produces
-      are written into the design note.
-    depends_on: [face, verifier-hunks]
-    gates:
-      - id: dogfood
-        kind: command
-        run: pnpm interlock graph status 0001-bootstrap --expect cleared
+        run: >-
+          node --input-type=module -e "import {readFileSync,existsSync} from 'node:fs';
+          const text=readFileSync('README.md','utf8');
+          const files=['docs/brand/interlock-wordmark.png','docs/brand/interlock-concept.svg','docs/brand/interlock-concept-mobile.svg','docs/brand/interlock-critical-path.svg'];
+          if(files.some(file=>!existsSync(file)||!text.includes(file)))throw Error('A README asset is missing or unused');
+          if(/<style|<script|style=|class=|file:\/\/|127\.0\.0\.1|\/Users\//i.test(text))throw Error('README contains local-only styling or paths');
+          console.log('README assets and markup checked');"
+        expect_output: README assets and markup checked
 ```
 
 ## item
@@ -1999,238 +1361,49 @@ No vocabulary entry for `notes`.
 
 #### `notes@v0`
 
-Source: `.interlock/sessions/0001-bootstrap/attempts/notes.yaml`
+Source: `.interlock/sessions/readme-interlock-concept/readme/notes.yaml`
 
 ```yaml
 interlock: notes@v0
-node: attempts
+graph: readme-interlock-concept
+node: readme
 entries:
+  - kind: choice
+    at: "2026-09-11T13:24:03-03:00"
+    chose: Keep the presentation in Markdown with separate image assets.
+    because: >
+      GitHub removes custom page styling. Native headings, tables, quotations, and lists keep
+      explanations readable, searchable, and editable while the artwork carries the identity.
   - kind: surprise
-    at: "2026-09-11T14:10:00Z"
-    expected: >
-      That this worktree's "1 commit beyond the graph base" meant an earlier
-      attempt had left real, resumable work behind.
+    at: "2026-09-11T13:24:03-03:00"
+    expected: The proposed quoted inline asset check could run as a command gate.
     observed: >
-      Both commits on the branch (193f7bb, fb94cd0) only rewrote this
-      session's own brief.md front matter; no code, no notes.yaml existed.
-      Treated as a fresh start rather than a resumption.
+      packages/runner/src/gateJudge.ts splits the command on whitespace without shell parsing.
+      The quoted script is therefore split into unrelated arguments. A standalone check file
+      is needed. The original approved graph and brief are retained; a corrected invocation
+      requires a separately recorded approval.
   - kind: choice
-    at: "2026-09-11T14:12:00Z"
-    chose: >
-      Spawned one Explore subagent to gather the design-doc quotes, the
-      existing backfill/judgeWorktree/sessionBrief/debrief-package
-      internals, the session directory version table, and the CLI's own
-      dispatch/show conventions, in parallel with reading the ledger
-      package's own core files myself.
+    at: "2026-09-11T13:24:03-03:00"
+    chose: Refresh the status claims to include cancel, reset, and gate waive.
     because: >
-      This node touches five packages (ledger, runner, cli, debrief, face)
-      and needs deep, literal familiarity with several existing readers and
-      one whole CLI command's worth of precedent before writing anything;
-      splitting the fan-out research from the sequential core-package
-      reading kept both moving without either blocking the other.
+      Those commands are present at this branch's base, although the local presentation still
+      listed human-control commands as work in progress. Rich position and assisted planning
+      remain separate, unfinished capabilities.
   - kind: choice
-    at: "2026-09-11T14:22:00Z"
-    chose: >
-      Produced the debrief's required "interlock session show 0001-bootstrap
-      verifier-hunks" output by reading the real shared journal
-      (read-only, via readReplay), rather than running `interlock backfill`
-      for real first.
+    at: "2026-09-11"
+    chose: Correct the notes envelope to the existing notes@v0 reader before ingestion.
     because: >
-      The shared journal already carries a fully-ingested real session for
-      verifier-hunks (052f6500-4932-4fd9-bfba-0e646e60a2e3: session-started,
-      debrief-filed and every note-appended all present), because that node
-      was run and judged live through `interlock run`/`interlock judge`,
-      not backfilled -- found by cross-referencing session-started,
-      debrief-filed and note-appended session ids for node verifier-hunks
-      across .interlock/ledger/journal.jsonl. Running `interlock backfill`
-      for real would append new events to a journal every other worktree
-      and session shares, which this brief's own constraints steer away
-      from ("never append to the shared journal by hand; the tests use
-      fixtures and scratch directories") and which nothing in the
-      deliverable actually requires once a real session already exists.
+      The first saved draft used notes/what instead of entries/chose and omitted at. Its
+      contents are preserved here and in git; the first three timestamps identify their
+      original recording commit rather than claiming separate observation times.
   - kind: choice
-    at: "2026-09-11T14:30:00Z"
-    chose: >
-      Keyed backfill's session id as `backfill-${graph}-${nodeId}` (stable,
-      deterministic, one per node per graph) instead of the prior
-      per-run-random key (`${runnerId}-${nodeId}`, runnerId itself a fresh
-      randomUUID every backfillGraph call), and guarded the new
-      session-started append -- and the legacy-debrief narration beside it
-      -- behind `!ledger.projection().sessions.has(session)`.
+    at: "2026-09-11"
+    chose: Push codex/readme-interlock-concept and create one draft PR targeting main.
     because: >
-      "Backfill stays idempotent: a second run records nothing new for a
-      session it already recorded; say how you key that" is the brief's own
-      instruction. A random key can never be recognized as "already
-      recorded" on a later run; a deterministic key keyed on the one thing
-      that identifies a backfilled session (which node, in which graph) can.
-      backfillGraph's own runnerId stays random for receipt derivation
-      (unrelated, pre-existing, out of scope to change).
-  - kind: surprise
-    at: "2026-09-11T14:33:00Z"
-    expected: >
-      That giving backfill's session a real, persistent SessionView (via a
-      session-started event) would be a purely additive fix with no other
-      consequence.
-    observed: >
-      packages/runner/src/gateJudge.ts's shared ingestDebrief helper (called
-      by judgeGates -- and so by run, judge and backfill alike -- whenever a
-      node's outcome resolves to "cleared") has no idempotency guard of its
-      own: appending a real session-started for backfill's session, left
-      unguarded, means a second backfillGraph run over an already-cleared
-      node calls judgeGates -> ingestDebrief again on the same, now-known
-      session, re-appending every note-appended a second time. The
-      receipt/gate layer already guards itself (skips a satisfied gate,
-      matches receipt ids); the debrief-ingestion layer did not, because no
-      caller had ever given it a session already known before.
-  - kind: choice
-    at: "2026-09-11T14:35:00Z"
-    chose: >
-      Fixed the idempotency gap inside ingestDebrief itself (gateJudge.ts),
-      with one guard -- return before reading the on-disk debrief at all
-      when `ledger.projection().sessions.get(session)?.debrief` is already
-      defined -- rather than only inside backfillGraph.
-    because: >
-      ingestDebrief is shared by run, judge and backfill alike; run/judge
-      already share the same latent gap (re-judging an already-debriefed
-      session, e.g. `interlock judge` called twice on a settled worktree,
-      would double the notes the same way). One fix at the shared seam
-      covers every caller instead of only the one this node's acceptance
-      names by name, and composes rather than duplicating a second guard in
-      backfill.ts.
-  - kind: choice
-    at: "2026-09-11T14:38:00Z"
-    chose: >
-      Wrapped `interlock run`'s and `interlock judge`'s own local `narrate`
-      closures in place: `let narrate = ...` (was `const`), reassigned once
-      to `recordingNarrate(ledger, clock, sessionId, narrate)` immediately
-      after the point each verb's session is known to exist in the journal
-      (right after the session-started append in run.ts; right after
-      sessionId is resolved in judge.ts), rather than touching any of the
-      dozens of individual `narrate(...)` call sites in either file or in
-      judgeWorktree.ts.
-    because: >
-      Every existing narrate call in both files already flows through this
-      one shared binding (including the ones threaded down into
-      judgeWorktree via the `narrate` option), so reassigning it once
-      upgrades every downstream call for free and keeps the diff to two
-      lines per file plus the import. run.ts has no narrate(...) call
-      before its own session-started append (the first is "leased ...
-      (session ...)", immediately after), so no line it narrates is
-      print-only; judge.ts resolves sessionId before its first narrate call
-      too.
-  - kind: surprise
-    at: "2026-09-11T14:41:00Z"
-    expected: >
-      That a judge.test.ts assertion on the journal's session-narrated
-      lines for a session would equal exactly judge's own two
-      uncommitted-work lines.
-    observed: >
-      It failed, showing the whole run of `interlock run`'s own narration
-      ahead of them: `interlock judge`'s narration lands on the very same
-      session id `interlock run` already used and already narrated to, not
-      a fresh, judge-only list -- narration accumulates on the session,
-      across whichever verb (run, then later judge) drives it. Fixed the
-      test to assert only the tail of the array; this is exactly what the
-      acceptance's own words describe ("interlock judge appends its lines
-      on the session it judges").
-  - kind: choice
-    at: "2026-09-11T14:47:00Z"
-    chose: >
-      upcastV3 is a byte-for-byte copy of upcastV2's own body
-      (`isLedgerEvent(raw) ? raw : undefined`).
-    because: >
-      "event@v3 upcasts through a superset check the way v2 does" is the
-      brief's own instruction, and it is literally true here: session-
-      narrated is a wholly new, additive union arm, so every event@v3
-      payload the real journal has ever recorded already satisfies the
-      current (v4) LedgerEvent type without translation.
-  - kind: choice
-    at: "2026-09-11T14:50:00Z"
-    chose: >
-      Copied the live shared journal (297 lines at copy time: 2 event@v1,
-      154 event@v2, 141 event@v3) into
-      packages/ledger/test/fixtures/journal-v3-v4-2026-09-11.jsonl, and
-      added a replay test asserting every line parses and upcasts under
-      event@v4 with the graph's own "approved" gate still satisfied.
-    because: >
-      Mirrors the ledger node's own precedent (journal-v1-v2-2026-09-10.jsonl)
-      exactly: a dated fixture capturing the real production journal at the
-      moment a new event version is introduced, replayed losslessly under
-      the new shape.
-  - kind: choice
-    at: "2026-09-11T14:55:00Z"
-    chose: >
-      `interlock session show <graph> <node>` reads the projection through
-      `readReplay` only (never `createLedger`), the same as
-      packages/cli/src/graph/show.ts.
-    because: >
-      A show command is a pure read with nothing to append; readReplay
-      needs no journal directory to be created or held open, and matches
-      D14's read-only posture for a drilldown view even though session
-      show is a CLI command rather than "the face" itself (out of scope
-      here) -- the same discipline still applies.
-  - kind: choice
-    at: "2026-09-11T15:00:00Z"
-    chose: >
-      Added a further, honest, non-cached read of the on-disk debrief.yaml
-      (via the existing "debrief" package's readDebriefFile, not a new
-      parser) to session show, used only when the ledger shows no ingested
-      debrief for a session AND that session is the node's latest -- one
-      debrief.yaml exists per node, so it can only truthfully speak for
-      whichever session most recently wrote it; an older `--session <id>`
-      gets no such fallback and reports "no debrief filed for this
-      session" plainly instead.
-    because: >
-      A debrief-filed event is only ever recorded for a debrief@v2 file
-      (packages/runner/src/gateJudge.ts's ingestDebrief returns early for
-      any other kind, appending nothing); from the ledger's own data alone,
-      a session with a legacy debrief and a session with no debrief
-      whatsoever are indistinguishable. The brief requires "Legacy debriefs
-      print what they carry and say which version they are", which the
-      ledger's projection cannot answer on its own.
-  - kind: choice
-    at: "2026-09-11T15:02:00Z"
-    chose: >
-      Exported `describeDebriefRead` from packages/cli/src/debrief/validate.ts
-      (was a private top-of-file helper) and reused it, unchanged, from
-      session/show.ts's legacy-debrief fallback.
-    because: >
-      It already renders exactly "which version" plus what a legacy debrief
-      carries (missing top-level fields, decisions missing a because) --
-      the brief's own two asks for this line -- so writing a second version
-      of the same logic would be pure duplication.
-  - kind: choice
-    at: "2026-09-11T15:04:00Z"
-    chose: >
-      `--because` prints a decision's because on the same line as its id
-      and hunks, appended after a "; because:" separator, rather than a
-      second line.
-    because: >
-      Keeps "Decisions (id, hunks, one line each; the because on request
-      with --because)" literally true in both the default and --because
-      forms.
-  - kind: choice
-    at: "2026-09-11T15:06:00Z"
-    chose: >
-      Removed a comment explaining the `alreadyIngested` guard in
-      ingestDebrief once written; the guard's own name and this commit's
-      body carry the why instead.
-    because: >
-      This brief's own constraint, "Comments: none in packages/*/src",
-      applies to code this session writes even though the file already
-      carries older comments from before this node; those are left as
-      they were, out of scope to strip.
-  - kind: choice
-    at: "2026-09-11T15:08:00Z"
-    chose: >
-      Added `Narrated` as a named, exported type (`{at, line}`) on
-      packages/ledger's public surface for SessionView's new `narration`
-      field, rather than an inline anonymous field type.
-    because: >
-      packages/cli's session-show renderer needs a stable name to import
-      for its own render helper's parameter type, matching how every other
-      session-view field (Brief, Debrief, Note) already has a named,
-      exported type rather than an inline shape.
+      The user explicitly authorized publishing this branch for GitHub review. The stable
+      identity is rodrigopsasaki/interlock plus this head branch; query for an existing PR
+      before creating one. Keep it draft, report unfinished gate approval honestly, and do
+      not merge. Inspect the rendered README on the branch before declaring visual QA done.
 ```
 
 ## position
