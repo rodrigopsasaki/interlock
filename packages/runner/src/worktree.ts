@@ -34,10 +34,7 @@ export type WorktreeOutcome =
       readonly commitsBeyondBase: number;
     };
 
-function git(
-  cwd: string,
-  args: readonly string[],
-): Result<string, WorktreeRefusal> {
+function git(cwd: string, args: readonly string[]): Result<string, WorktreeRefusal> {
   try {
     return ok(execFileSync("git", [...args], { cwd, encoding: "utf-8" }));
   } catch (error) {
@@ -50,20 +47,11 @@ function git(
 }
 
 function branchExists(repoRoot: string, branch: string): boolean {
-  const found = git(repoRoot, [
-    "show-ref",
-    "--verify",
-    "--quiet",
-    `refs/heads/${branch}`,
-  ]);
+  const found = git(repoRoot, ["show-ref", "--verify", "--quiet", `refs/heads/${branch}`]);
   return isOk(found);
 }
 
-function mergeBase(
-  repoRoot: string,
-  a: string,
-  b: string,
-): Result<string, WorktreeRefusal> {
+function mergeBase(repoRoot: string, a: string, b: string): Result<string, WorktreeRefusal> {
   const found = git(repoRoot, ["merge-base", a, b]);
   if (isErr(found)) return found;
   return ok(found.value.trim());
@@ -85,14 +73,8 @@ function parsePorcelainPath(line: string): string {
   return arrow === -1 ? path : path.slice(arrow + 4);
 }
 
-export function uncommittedPaths(
-  worktreePath: string,
-): Result<readonly string[], WorktreeRefusal> {
-  const status = git(worktreePath, [
-    "status",
-    "--porcelain",
-    "--untracked-files=all",
-  ]);
+export function uncommittedPaths(worktreePath: string): Result<readonly string[], WorktreeRefusal> {
+  const status = git(worktreePath, ["status", "--porcelain", "--untracked-files=all"]);
   if (isErr(status)) return status;
   const paths = status.value
     .split("\n")
@@ -101,10 +83,7 @@ export function uncommittedPaths(
   return ok(paths);
 }
 
-export function isCommittedAtHead(
-  worktreePath: string,
-  relativePath: string,
-): boolean {
+export function isCommittedAtHead(worktreePath: string, relativePath: string): boolean {
   try {
     execFileSync("git", ["cat-file", "-e", `HEAD:${relativePath}`], {
       cwd: worktreePath,
@@ -179,8 +158,7 @@ export function ensureNodeWorktree(
   return isOk(added) ? ok({ kind: "created", path, base: sha }) : added;
 }
 
-const BRIEF_COMMIT_FOOTER =
-  "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>";
+const BRIEF_COMMIT_FOOTER = "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>";
 
 export function commitBriefIfChanged(
   worktreePath: string,
@@ -202,13 +180,7 @@ export function commitBriefIfChanged(
     "",
     BRIEF_COMMIT_FOOTER,
   ].join("\n");
-  const committed = git(worktreePath, [
-    "commit",
-    "-m",
-    message,
-    "--",
-    briefRelativePath,
-  ]);
+  const committed = git(worktreePath, ["commit", "-m", message, "--", briefRelativePath]);
   if (isErr(committed)) return committed;
 
   const short = git(worktreePath, ["rev-parse", "--short", "HEAD"]);
@@ -224,10 +196,7 @@ export function createDetachedWorktree(
   return isOk(added) ? ok(path) : added;
 }
 
-export function removeWorktree(
-  repoRoot: string,
-  path: string,
-): Result<void, WorktreeRefusal> {
+export function removeWorktree(repoRoot: string, path: string): Result<void, WorktreeRefusal> {
   const removed = git(repoRoot, ["worktree", "remove", "--force", path]);
   return isOk(removed) ? ok(undefined) : removed;
 }

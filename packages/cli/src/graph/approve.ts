@@ -6,8 +6,8 @@ import {
   explainGraphRefusal,
   findRepoRoot,
   graphFilePath,
-  sharedJournalDirectory,
   loadGraphDocument,
+  sharedJournalDirectory,
 } from "face";
 import {
   createLedger,
@@ -16,10 +16,10 @@ import {
   duration,
   explainScopeRefusal,
   gate,
+  type Node,
   nodeKey,
   proposeGateMove,
   spend,
-  type Node,
 } from "ledger";
 import { parseFlag } from "../flags.ts";
 import type { CommandResult } from "../main.ts";
@@ -41,8 +41,7 @@ export async function runGraphApprove(
   if (because === undefined) {
     return {
       exitCode: 1,
-      message:
-        "interlock graph approve: refuses without --because; every approval records why.",
+      message: "interlock graph approve: refuses without --because; every approval records why.",
     };
   }
 
@@ -50,8 +49,7 @@ export async function runGraphApprove(
   if (by === undefined) {
     return {
       exitCode: 1,
-      message:
-        "interlock graph approve: refuses without --by; every approval records who.",
+      message: "interlock graph approve: refuses without --by; every approval records who.",
     };
   }
 
@@ -88,8 +86,7 @@ export async function runGraphApprove(
 
   const declaredGates = document.value.gates.map((declared) => declared.id);
   const current =
-    ledger.projection().nodes.get(nodeKey(node))?.gates.get("approved") ??
-    gate.pending();
+    ledger.projection().nodes.get(nodeKey(node))?.gates.get("approved") ?? gate.pending();
   const commitSha = currentCommitSha(repoRoot);
   const receipt = await createReceipt(
     repoRoot,
@@ -106,12 +103,7 @@ export async function runGraphApprove(
     return { exitCode: 1, message: explainScopeRefusal(receipt.error) };
   }
 
-  const moved = proposeGateMove(
-    declaredGates,
-    "approved",
-    current,
-    gate.satisfied(receipt.value),
-  );
+  const moved = proposeGateMove(declaredGates, "approved", current, gate.satisfied(receipt.value));
   if (isErr(moved)) {
     await ledger.close();
     const refusal = moved.error;

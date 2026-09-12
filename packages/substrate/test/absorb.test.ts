@@ -2,14 +2,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import { substrateClientFor } from "../src/address.ts";
 import { narrateAbsorb } from "../src/narrate.ts";
 import {
-  startFakeSubstrateServer,
   type FakeSubstrateServer,
+  startFakeSubstrateServer,
 } from "./support/fakeSubstrateServer.ts";
-import {
-  fixtureDebrief,
-  fixtureNotes,
-  fixtureReceipt,
-} from "./support/fixtures.ts";
+import { fixtureDebrief, fixtureNotes, fixtureReceipt } from "./support/fixtures.ts";
 
 const node = { graph: "0003-translator", id: "substrate-client" };
 
@@ -30,9 +26,7 @@ describe("absorb", () => {
     });
 
     const client = substrateClientFor(server.url);
-    const outcome = await client.absorb(node, fixtureDebrief, fixtureNotes, [
-      fixtureReceipt,
-    ]);
+    const outcome = await client.absorb(node, fixtureDebrief, fixtureNotes, [fixtureReceipt]);
 
     expect(outcome).toEqual({
       kind: "acknowledged",
@@ -64,9 +58,7 @@ describe("absorb", () => {
     });
 
     const client = substrateClientFor(server.url);
-    const outcome = await client.absorb(node, fixtureDebrief, fixtureNotes, [
-      fixtureReceipt,
-    ]);
+    const outcome = await client.absorb(node, fixtureDebrief, fixtureNotes, [fixtureReceipt]);
 
     expect(narrateAbsorb(server.url, outcome)).toBe(
       `absorb ${server.url}: 0 decision(s) absorbed, discoveries 1 known/0 new/1 unplaced, 1 gap(s)`,
@@ -75,20 +67,14 @@ describe("absorb", () => {
 
   it("acknowledges nothing while everything still runs when the address is none", async () => {
     const client = substrateClientFor("none");
-    const outcome = await client.absorb(node, fixtureDebrief, fixtureNotes, [
-      fixtureReceipt,
-    ]);
+    const outcome = await client.absorb(node, fixtureDebrief, fixtureNotes, [fixtureReceipt]);
     expect(outcome).toEqual({ kind: "empty" });
-    expect(narrateAbsorb("none", outcome)).toBe(
-      "absorb none: no substrate addressed",
-    );
+    expect(narrateAbsorb("none", outcome)).toBe("absorb none: no substrate addressed");
   });
 
   it("refuses with a sentence, never throws, on a network error", async () => {
     const client = substrateClientFor("http://127.0.0.1:1");
-    const outcome = await client.absorb(node, fixtureDebrief, fixtureNotes, [
-      fixtureReceipt,
-    ]);
+    const outcome = await client.absorb(node, fixtureDebrief, fixtureNotes, [fixtureReceipt]);
     expect(outcome.kind).toBe("refused");
   });
 });

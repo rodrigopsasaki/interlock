@@ -3,7 +3,7 @@ import { extname } from "node:path";
 import { shapeTag } from "ledger";
 import { parse as parseYaml } from "yaml";
 import { splitFrontMatter } from "./frontMatter.ts";
-import { validatorFor, type SchemaRegistry } from "./registry.ts";
+import { type SchemaRegistry, validatorFor } from "./registry.ts";
 
 export type ValidationOutcome =
   | { readonly kind: "legacy"; readonly tag: string }
@@ -16,11 +16,7 @@ export type ValidationOutcome =
       readonly findings: readonly string[];
     };
 
-function findingsFor(
-  registry: SchemaRegistry,
-  tag: string,
-  value: unknown,
-): readonly string[] {
+function findingsFor(registry: SchemaRegistry, tag: string, value: unknown): readonly string[] {
   const validate = validatorFor(registry, tag);
   if (validate === undefined) return [];
   const valid = validate(value);
@@ -31,22 +27,13 @@ function findingsFor(
   });
 }
 
-function judge(
-  registry: SchemaRegistry,
-  tag: string,
-  value: unknown,
-): ValidationOutcome {
+function judge(registry: SchemaRegistry, tag: string, value: unknown): ValidationOutcome {
   if (!registry.tags.has(tag)) return { kind: "unrecognized-tag", tag };
   const findings = findingsFor(registry, tag, value);
-  return findings.length === 0
-    ? { kind: "valid", tag }
-    : { kind: "invalid", tag, findings };
+  return findings.length === 0 ? { kind: "valid", tag } : { kind: "invalid", tag, findings };
 }
 
-function judgeBriefMarkdown(
-  registry: SchemaRegistry,
-  content: string,
-): ValidationOutcome {
+function judgeBriefMarkdown(registry: SchemaRegistry, content: string): ValidationOutcome {
   const frontMatter = splitFrontMatter(content);
   if (frontMatter === undefined) return { kind: "legacy", tag: "brief@v0" };
 
@@ -57,10 +44,7 @@ function judgeBriefMarkdown(
   return judge(registry, tag, parsed);
 }
 
-export function judgeValue(
-  registry: SchemaRegistry,
-  value: unknown,
-): ValidationOutcome {
+export function judgeValue(registry: SchemaRegistry, value: unknown): ValidationOutcome {
   const tag = shapeTag(value);
   return tag === undefined ? { kind: "no-tag" } : judge(registry, tag, value);
 }
@@ -120,9 +104,7 @@ export function describeOutcome(outcome: ValidationOutcome): string {
 
 export function isRefusal(outcome: ValidationOutcome): boolean {
   return (
-    outcome.kind === "invalid" ||
-    outcome.kind === "unrecognized-tag" ||
-    outcome.kind === "no-tag"
+    outcome.kind === "invalid" || outcome.kind === "unrecognized-tag" || outcome.kind === "no-tag"
   );
 }
 
@@ -136,15 +118,13 @@ export function describeFileValidation(result: FileValidation): {
       ? `${result.path}: ${describeOutcome(outcome)}`
       : `${result.path}:${line}: ${describeOutcome(outcome)}`,
   );
-  const exitCode = result.lines.some(({ outcome }) => isRefusal(outcome))
-    ? 1
-    : 0;
+  const exitCode = result.lines.some(({ outcome }) => isRefusal(outcome)) ? 1 : 0;
   return { exitCode, message: messages.join("\n") };
 }
 
+export type { SchemaRegistry } from "./registry.ts";
 export {
   buildRegistry,
   defaultSchemasDirectory,
   validatorFor,
 } from "./registry.ts";
-export type { SchemaRegistry } from "./registry.ts";

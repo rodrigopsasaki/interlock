@@ -1,17 +1,8 @@
 import { existsSync } from "node:fs";
 import { isErr } from "@phyxiusjs/fp";
-import {
-  DEBRIEF_V2,
-  debriefFilePath,
-  explainDebriefRefusal,
-  readDebriefFile,
-} from "debrief";
+import { DEBRIEF_V2, debriefFilePath, explainDebriefRefusal, readDebriefFile } from "debrief";
 import { findRepoRoot } from "face";
-import {
-  explainVerifyRefusal,
-  renderVerification,
-  verifyDebrief,
-} from "verifier";
+import { explainVerifyRefusal, renderVerification, verifyDebrief } from "verifier";
 import type { CommandResult } from "./main.ts";
 
 const USAGE =

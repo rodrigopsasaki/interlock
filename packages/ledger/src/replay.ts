@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { err, ok, type Result } from "@phyxiusjs/fp";
-import { shapeTag, upcastTable, type Upcaster } from "./envelope.ts";
+import { shapeTag, type Upcaster, upcastTable } from "./envelope.ts";
 import type { LedgerEvent } from "./event.ts";
 import { emptyProjection, fold, type LedgerProjection } from "./projection.ts";
 import { journalPath } from "./sink.ts";
@@ -33,9 +33,7 @@ export function parseLine(
   if (tag === undefined) return { kind: "refused", tag: "" };
   const upcast = table.get(tag);
   const event = upcast?.(parsed);
-  return event === undefined
-    ? { kind: "refused", tag }
-    : { kind: "event", event };
+  return event === undefined ? { kind: "refused", tag } : { kind: "event", event };
 }
 
 export function replayFromRaw(
@@ -63,8 +61,7 @@ export async function readReplay(
   try {
     raw = await readFile(journalPath(directory), "utf-8");
   } catch (error) {
-    if (isNodeError(error) && error.code === "ENOENT")
-      return ok(emptyProjection());
+    if (isNodeError(error) && error.code === "ENOENT") return ok(emptyProjection());
     throw error;
   }
   return replayFromRaw(raw, table);

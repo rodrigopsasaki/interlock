@@ -12,8 +12,7 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -107,11 +106,7 @@ describe("verifyDebrief", () => {
     const marks = result.value.marks;
     expect(marks.filter((m) => m.kind === "rooted")).toHaveLength(1);
     // "widget" is in AGENTS.md's Vocabulary table; PascalCase "Widget" is an accepted form.
-    expect(marks.some((m) => m.kind === "gap" && m.gap.term === "Widget")).toBe(
-      false,
-    );
-    expect(
-      marks.some((m) => m.kind === "unexplained" && m.hunk === "orphan.ts"),
-    ).toBe(true);
+    expect(marks.some((m) => m.kind === "gap" && m.gap.term === "Widget")).toBe(false);
+    expect(marks.some((m) => m.kind === "unexplained" && m.hunk === "orphan.ts")).toBe(true);
   });
 });

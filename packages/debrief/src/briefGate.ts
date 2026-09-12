@@ -8,23 +8,17 @@ export interface BriefGate {
   readonly expectOutput?: string;
 }
 
-export function parseBriefGate(
-  raw: unknown,
-  index: number,
-): Result<BriefGate, string> {
+export function parseBriefGate(raw: unknown, index: number): Result<BriefGate, string> {
   if (!isRecord(raw)) return err(`gates[${index}]: not a mapping`);
 
   const id = prop(raw, "id");
-  if (!isString(id))
-    return err(`gates[${index}]: "id" is missing or not a string`);
+  if (!isString(id)) return err(`gates[${index}]: "id" is missing or not a string`);
 
   const kind = prop(raw, "kind");
-  if (!isString(kind))
-    return err(`gates "${id}": "kind" is missing or not a string`);
+  if (!isString(kind)) return err(`gates "${id}": "kind" is missing or not a string`);
 
   const run = prop(raw, "run");
-  if (run !== undefined && !isString(run))
-    return err(`gates "${id}": "run" must be a string`);
+  if (run !== undefined && !isString(run)) return err(`gates "${id}": "run" must be a string`);
 
   const expectOutput = prop(raw, "expect_output");
   if (expectOutput !== undefined && !isString(expectOutput))

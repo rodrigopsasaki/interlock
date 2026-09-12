@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  verbCommand,
-  verbNeedsAccountability,
-  type Verb,
-} from "../src/verb.ts";
+import { type Verb, verbCommand, verbNeedsAccountability } from "../src/verb.ts";
 
 describe("verbNeedsAccountability", () => {
   it("names exactly the four verbs whose CLI subcommand requires --by and --because", () => {
@@ -25,14 +21,8 @@ describe("verbCommand", () => {
       [{ kind: "approve", graph: "g1" }, ["graph", "approve", "g1"]],
       [{ kind: "run", graph: "g1", node: "n1" }, ["run", "g1", "n1"]],
       [{ kind: "judge", graph: "g1", node: "n1" }, ["judge", "g1", "n1"]],
-      [
-        { kind: "cancel", graph: "g1", node: "n1" },
-        ["node", "cancel", "g1", "n1"],
-      ],
-      [
-        { kind: "reset", graph: "g1", node: "n1" },
-        ["node", "reset", "g1", "n1"],
-      ],
+      [{ kind: "cancel", graph: "g1", node: "n1" }, ["node", "cancel", "g1", "n1"]],
+      [{ kind: "reset", graph: "g1", node: "n1" }, ["node", "reset", "g1", "n1"]],
       [
         { kind: "waive", graph: "g1", node: "n1", gate: "typecheck" },
         ["gate", "waive", "g1", "n1", "typecheck"],
@@ -58,9 +48,11 @@ describe("verbCommand", () => {
 
   it("never appends --by/--because to a verb whose CLI subcommand does not accept them, even when accountable is supplied", () => {
     const accountable = { by: "rodrigo", because: "because I said so" };
-    expect(
-      verbCommand({ kind: "run", graph: "g1", node: "n1" }, accountable),
-    ).toEqual(["run", "g1", "n1"]);
+    expect(verbCommand({ kind: "run", graph: "g1", node: "n1" }, accountable)).toEqual([
+      "run",
+      "g1",
+      "n1",
+    ]);
     expect(verbCommand({ kind: "sweep" }, accountable)).toEqual(["sweep"]);
   });
 });

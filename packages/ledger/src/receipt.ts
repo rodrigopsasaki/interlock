@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
-import { isDerivation, type Derivation } from "./derivation.ts";
+import { type Derivation, isDerivation } from "./derivation.ts";
 import { isSpend, type Spend } from "./spend.ts";
 import { isRecord, isString, prop } from "./validate.ts";
 
@@ -60,10 +60,7 @@ function toPosixPath(path: string): string {
   return sep === "/" ? path : path.split(sep).join("/");
 }
 
-function resolveScopePath(
-  root: string,
-  path: string,
-): Result<string, ScopeRefusal> {
+function resolveScopePath(root: string, path: string): Result<string, ScopeRefusal> {
   if (isAbsolute(path)) return err({ kind: "absolute-path", path });
   const resolved = resolve(root, path);
   const fromRoot = relative(root, resolved);
@@ -138,8 +135,6 @@ export async function checkStale(
   const recomputedId = await receiptId(root, paths, receipt.gate);
   if (isErr(recomputedId)) return recomputedId;
   return ok(
-    recomputedId.value === receipt.id
-      ? undefined
-      : { receipt, recomputedId: recomputedId.value },
+    recomputedId.value === receipt.id ? undefined : { receipt, recomputedId: recomputedId.value },
   );
 }

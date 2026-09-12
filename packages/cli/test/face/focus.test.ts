@@ -24,9 +24,7 @@ describe("focusSession", () => {
     const runtime: Runtime = {
       ...baseRuntime(),
       resolvePane: (q) =>
-        Promise.resolve(
-          q.session === "s1" ? ok({ id: "pane-7" }) : ok(undefined),
-        ),
+        Promise.resolve(q.session === "s1" ? ok({ id: "pane-7" }) : ok(undefined)),
       focusPane: (pane: Pane) => {
         focused.push(pane.id);
         return Promise.resolve(ok(undefined));
@@ -51,8 +49,7 @@ describe("focusSession", () => {
   it("propagates a herdr failure from resolvePane instead of pretending nothing was live", async () => {
     const runtime: Runtime = {
       ...baseRuntime(),
-      resolvePane: () =>
-        Promise.resolve(err({ kind: "transport", because: "boom" })),
+      resolvePane: () => Promise.resolve(err({ kind: "transport", because: "boom" })),
       focusPane: () => Promise.resolve(ok(undefined)),
     };
     const result = await focusSession(runtime, query);

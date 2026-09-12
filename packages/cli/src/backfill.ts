@@ -1,4 +1,4 @@
-import { createSystemClock, type Clock } from "@phyxiusjs/clock";
+import { type Clock, createSystemClock } from "@phyxiusjs/clock";
 import { isErr } from "@phyxiusjs/fp";
 import {
   explainGraphRefusal,
@@ -31,8 +31,7 @@ export async function runInterlockBackfill(
   if (graph === undefined) {
     return {
       exitCode: 1,
-      message:
-        'interlock backfill: expected a graph id, e.g. "interlock backfill 0001-bootstrap".',
+      message: 'interlock backfill: expected a graph id, e.g. "interlock backfill 0001-bootstrap".',
     };
   }
 
@@ -103,15 +102,10 @@ export async function runInterlockBackfill(
         message: `${graph}: no debriefed, dependency-cleared node needed backfilling.`,
       };
     }
-    const lines = backfilled.value.map(
-      (result) => `${result.node}: ${result.outcome.kind}`,
-    );
+    const lines = backfilled.value.map((result) => `${result.node}: ${result.outcome.kind}`);
     return {
       exitCode: 0,
-      message: [
-        `${graph}: backfilled ${backfilled.value.length} node(s).`,
-        ...lines,
-      ].join("\n"),
+      message: [`${graph}: backfilled ${backfilled.value.length} node(s).`, ...lines].join("\n"),
     };
   } finally {
     await ledger.close();

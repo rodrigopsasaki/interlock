@@ -80,8 +80,7 @@ const GIT_ENV = {
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -93,15 +92,7 @@ function isolatedRepo(): string {
   });
   execFileSync(
     "git",
-    [
-      "-c",
-      "commit.gpgsign=false",
-      "commit",
-      "--quiet",
-      "--allow-empty",
-      "-m",
-      "fixture root",
-    ],
+    ["-c", "commit.gpgsign=false", "commit", "--quiet", "--allow-empty", "-m", "fixture root"],
     { cwd: directory, env: GIT_ENV },
   );
   return directory;

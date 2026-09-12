@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { reduce } from "../src/faceReducer.ts";
-import {
-  initialFaceState,
-  type FaceKey,
-  type FaceWorld,
-} from "../src/faceState.ts";
+import { type FaceKey, type FaceWorld, initialFaceState } from "../src/faceState.ts";
 import type { Position } from "../src/position.ts";
 
 const position: Position = {
@@ -287,11 +283,7 @@ describe("reduce: verbs and accountability", () => {
     };
     const atNodeB = reduce(atGraph, down, world).state;
     const prompting = reduce(atNodeB, char("c"), world).state;
-    const typed = reduce(
-      reduce(prompting, char("a"), world).state,
-      char("b"),
-      world,
-    ).state;
+    const typed = reduce(reduce(prompting, char("a"), world).state, char("b"), world).state;
     expect(typed).toMatchObject({ prompt: { because: "ab" } });
     const erased = reduce(typed, backspace, world).state;
     expect(erased).toMatchObject({ prompt: { because: "a" } });

@@ -34,9 +34,7 @@ export function criticalPath(
     }
     const ownWeight = weightOf?.(node.id);
     const combinedWeight =
-      weightOf === undefined ||
-      ownWeight === undefined ||
-      best.weight === undefined
+      weightOf === undefined || ownWeight === undefined || best.weight === undefined
         ? undefined
         : ownWeight + best.weight;
     chain.set(node.id, { hops: best.hops + 1, weight: combinedWeight });

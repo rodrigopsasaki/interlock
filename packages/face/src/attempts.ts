@@ -1,11 +1,6 @@
-import {
-  leaseIsLive,
-  nodeKey,
-  type LedgerProjection,
-  type Outcome,
-} from "ledger";
+import { type LedgerProjection, leaseIsLive, nodeKey, type Outcome } from "ledger";
 import type { AgentStatus } from "./agentStatus.ts";
-import { leaseStateOf, type LeaseState } from "./leaseState.ts";
+import { type LeaseState, leaseStateOf } from "./leaseState.ts";
 
 export interface PositionAttempt {
   readonly session: string;
@@ -27,8 +22,7 @@ export function attemptsFor(
     if (session.node.graph !== graph || session.node.id !== node) continue;
 
     const ownOutcome =
-      nodeView?.outcome !== undefined &&
-      session.leaseGeneration === nodeView.outcomeSetAtGeneration
+      nodeView?.outcome !== undefined && session.leaseGeneration === nodeView.outcomeSetAtGeneration
         ? nodeView.outcome
         : undefined;
     const isLive = leaseIsLive(session, nowWallMs);

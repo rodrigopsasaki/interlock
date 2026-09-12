@@ -10,8 +10,7 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -37,9 +36,7 @@ describe("loadStandingGates", () => {
     const result = await loadStandingGates(repoRoot);
     expect(isOk(result)).toBe(true);
     if (!isOk(result)) return;
-    expect(result.value).toEqual([
-      { id: "typecheck", kind: "command", run: "pnpm typecheck" },
-    ]);
+    expect(result.value).toEqual([{ id: "typecheck", kind: "command", run: "pnpm typecheck" }]);
   });
 
   it("refuses an entry that predates kind, naming the required shape", async () => {
@@ -97,9 +94,7 @@ describe("loadStandingGates expect_output", () => {
     const result = await loadStandingGates(repoRoot);
     expect(isOk(result)).toBe(true);
     if (!isOk(result)) return;
-    expect(result.value).toEqual([
-      { id: "typecheck", kind: "command", run: "pnpm typecheck" },
-    ]);
+    expect(result.value).toEqual([{ id: "typecheck", kind: "command", run: "pnpm typecheck" }]);
   });
 
   it("refuses a malformed pattern with a sentence naming the gate", async () => {

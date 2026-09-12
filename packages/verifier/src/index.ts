@@ -1,3 +1,4 @@
+export { checkFoundAt } from "./foundAt.ts";
 export type { FileDiff, HunkRange } from "./git.ts";
 export {
   diffFiles,
@@ -6,28 +7,23 @@ export {
   isCommit,
   pathExistsAt,
 } from "./git.ts";
-
 export type { HunkCitation, HunkCitationRefusal } from "./hunkCitation.ts";
 export { checkHunkCitation, parseHunkCitation } from "./hunkCitation.ts";
 
-export { checkFoundAt } from "./foundAt.ts";
-
 export { unexplainedMarks } from "./inverse.ts";
-
-export {
-  PLAIN_PROGRAMMING_ENGLISH,
-  acceptedForms,
-  extractWords,
-  harnessVocabulary,
-  vocabularyGaps,
-} from "./vocabulary.ts";
+export { renderVerification } from "./render.ts";
 
 export type { VerifyOptions, VerifyRefusal, VerifyResult } from "./verify.ts";
 export {
+  explainVerifyRefusal,
   VERIFIER_GATE_ID,
   VERIFIER_VERSION,
-  explainVerifyRefusal,
   verifyDebrief,
 } from "./verify.ts";
-
-export { renderVerification } from "./render.ts";
+export {
+  acceptedForms,
+  extractWords,
+  harnessVocabulary,
+  PLAIN_PROGRAMMING_ENGLISH,
+  vocabularyGaps,
+} from "./vocabulary.ts";

@@ -11,8 +11,7 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -260,9 +259,7 @@ describe("expect_output", () => {
     const repoRoot = findRepoRoot(import.meta.dirname);
     if (repoRoot === undefined) throw new Error("expected a repo root");
 
-    const document = unwrap(
-      await loadGraphDocument(graphFilePath(repoRoot, "0001-bootstrap")),
-    );
+    const document = unwrap(await loadGraphDocument(graphFilePath(repoRoot, "0001-bootstrap")));
     const ledgerNode = document.nodes.find((node) => node.id === "ledger");
     const replayGate = ledgerNode?.gates.find((gate) => gate.id === "replay");
     expect(replayGate?.expectOutput?.source).toBe("Tests +[1-9][0-9]* passed");

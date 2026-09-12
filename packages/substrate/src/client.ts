@@ -27,11 +27,7 @@ export type AbsorbOutcome =
 
 export interface SubstrateClient {
   readonly address: string;
-  context(
-    node: Node,
-    scope: readonly string[],
-    role: string,
-  ): Promise<ContextOutcome>;
+  context(node: Node, scope: readonly string[], role: string): Promise<ContextOutcome>;
   absorb(
     node: Node,
     debrief: Debrief,

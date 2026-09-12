@@ -3,7 +3,7 @@ import type { Brief } from "../src/brief.js";
 import { derivation } from "../src/derivation.js";
 import type { LedgerEvent } from "../src/event.js";
 import { gate } from "../src/gate.js";
-import { nodeKey, type Node } from "../src/graph.js";
+import { type Node, nodeKey } from "../src/graph.js";
 import { note } from "../src/note.js";
 import { outcome } from "../src/outcome.js";
 import { fold, isInterrupted } from "../src/projection.js";
@@ -50,9 +50,7 @@ describe("fold", () => {
     const view = projection.nodes.get(nodeKey(node));
     expect(view?.gates.get("typecheck")).toEqual(gate.satisfied(receipt));
     expect(view?.receipts).toEqual([receipt]);
-    expect(view?.outcome).toEqual(
-      outcome.reset([receipt], "Rodrigo Sasaki", "flaky suite"),
-    );
+    expect(view?.outcome).toEqual(outcome.reset([receipt], "Rodrigo Sasaki", "flaky suite"));
   });
 
   it("projects a session's notes and lease from its events", () => {
@@ -131,9 +129,7 @@ describe("fold", () => {
         outcome: outcome.cancelled([], "sweeper", "expired"),
       },
     ]);
-    expect(
-      afterFirstOutcome.nodes.get(nodeKey(node))?.outcomeSetAtGeneration,
-    ).toBe(1);
+    expect(afterFirstOutcome.nodes.get(nodeKey(node))?.outcomeSetAtGeneration).toBe(1);
 
     const secondLease: readonly LedgerEvent[] = [
       { kind: "session-started", session: { id: "session-2", node }, brief },
@@ -151,9 +147,7 @@ describe("fold", () => {
     expect(afterSecondLease.nodes.get(nodeKey(node))?.leaseGeneration).toBe(2);
     expect(afterSecondLease.sessions.get("session-2")?.leaseGeneration).toBe(2);
     // The node's outcome still carries generation 1: it predates session-2's own lease.
-    expect(
-      afterSecondLease.nodes.get(nodeKey(node))?.outcomeSetAtGeneration,
-    ).toBe(1);
+    expect(afterSecondLease.nodes.get(nodeKey(node))?.outcomeSetAtGeneration).toBe(1);
   });
 });
 

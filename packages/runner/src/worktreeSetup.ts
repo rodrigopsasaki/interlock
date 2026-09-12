@@ -7,9 +7,7 @@ export type WorktreeSetupRefusal = {
   readonly exitCode: number;
 };
 
-export function explainWorktreeSetupRefusal(
-  refusal: WorktreeSetupRefusal,
-): string {
+export function explainWorktreeSetupRefusal(refusal: WorktreeSetupRefusal): string {
   return `"${refusal.command}" exited ${refusal.exitCode}.`;
 }
 
@@ -34,11 +32,7 @@ export function runSetupCommand(
     });
     child.on("close", (code) => {
       const exitCode = code ?? -1;
-      resolve(
-        exitCode === 0
-          ? ok(undefined)
-          : err({ kind: "command-failed", command, exitCode }),
-      );
+      resolve(exitCode === 0 ? ok(undefined) : err({ kind: "command-failed", command, exitCode }));
     });
   });
 }

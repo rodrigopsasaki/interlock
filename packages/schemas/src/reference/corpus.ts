@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join, relative } from "node:path";
 import { shapeTag } from "ledger";
 import { parse as parseYaml } from "yaml";
@@ -26,8 +26,8 @@ const LEDGER_FIXTURES = [
 
 function filesUnder(directory: string): readonly string[] {
   const files: string[] = [];
-  const entries = readdirSync(directory, { withFileTypes: true }).toSorted(
-    (a, b) => a.name.localeCompare(b.name),
+  const entries = readdirSync(directory, { withFileTypes: true }).toSorted((a, b) =>
+    a.name.localeCompare(b.name),
   );
   for (const entry of entries) {
     const path = join(directory, entry.name);
@@ -44,9 +44,7 @@ function candidatesFromMarkdown(content: string): readonly Candidate[] {
   }
   const parsed: unknown = parseYaml(frontMatter);
   const tag = shapeTag(parsed);
-  return tag === undefined
-    ? []
-    : [{ tag, content: frontMatter.trim(), language: "yaml" }];
+  return tag === undefined ? [] : [{ tag, content: frontMatter.trim(), language: "yaml" }];
 }
 
 function candidatesFromJsonl(content: string): readonly Candidate[] {
@@ -55,8 +53,7 @@ function candidatesFromJsonl(content: string): readonly Candidate[] {
     if (line.trim().length === 0) continue;
     const parsed: unknown = JSON.parse(line);
     const tag = shapeTag(parsed);
-    if (tag !== undefined)
-      candidates.push({ tag, content: line.trim(), language: "json" });
+    if (tag !== undefined) candidates.push({ tag, content: line.trim(), language: "json" });
   }
   return candidates;
 }
@@ -64,9 +61,7 @@ function candidatesFromJsonl(content: string): readonly Candidate[] {
 function candidatesFromYaml(content: string): readonly Candidate[] {
   const parsed: unknown = parseYaml(content);
   const tag = shapeTag(parsed);
-  return tag === undefined
-    ? []
-    : [{ tag, content: content.trim(), language: "yaml" }];
+  return tag === undefined ? [] : [{ tag, content: content.trim(), language: "yaml" }];
 }
 
 function candidatesInFile(absPath: string): readonly Candidate[] {

@@ -1,10 +1,4 @@
-import {
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
 import { unwrap } from "@phyxiusjs/fp";
@@ -15,13 +9,13 @@ import {
   derivation,
   duration,
   gate,
-  spend,
   type Ledger,
   type Receipt,
+  spend,
 } from "ledger";
 import { afterEach, describe, expect, it } from "vitest";
-import { gitInitFixture } from "../graph/gitFixture.ts";
 import { runGateWaive } from "../../src/gate/waive.ts";
+import { gitInitFixture } from "../graph/gitFixture.ts";
 
 const runsRoot = join(import.meta.dirname, "..", ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -29,8 +23,7 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -63,10 +56,7 @@ function fixture(): string {
   directory = mkdtempSync(join(runsRoot, "gate-waive-"));
   gitInitFixture(directory);
   mkdirSync(join(directory, ".interlock", "graphs"), { recursive: true });
-  writeFileSync(
-    join(directory, ".interlock", "graphs", "demo.yaml"),
-    graphYaml,
-  );
+  writeFileSync(join(directory, ".interlock", "graphs", "demo.yaml"), graphYaml);
   writeFileSync(join(directory, ".interlock", "config.yaml"), configYaml);
   return directory;
 }
@@ -96,10 +86,7 @@ async function writeReceipt(cwd: string, gateId: string): Promise<Receipt> {
 }
 
 function journalEventKinds(cwd: string): readonly string[] {
-  const raw = readFileSync(
-    join(cwd, ".interlock", "ledger", "journal.jsonl"),
-    "utf-8",
-  );
+  const raw = readFileSync(join(cwd, ".interlock", "ledger", "journal.jsonl"), "utf-8");
   return raw
     .trim()
     .split("\n")
@@ -115,10 +102,9 @@ function journalEventKinds(cwd: string): readonly string[] {
 describe("gate waive", () => {
   it("refuses without --because", async () => {
     const cwd = fixture();
-    const result = await runGateWaive(
-      ["demo", "a", "typecheck", "--by", "Rodrigo Sasaki"],
-      { cwd },
-    );
+    const result = await runGateWaive(["demo", "a", "typecheck", "--by", "Rodrigo Sasaki"], {
+      cwd,
+    });
     expect(result.exitCode).not.toBe(0);
     expect(result.message).toBe(
       "interlock gate waive: refuses without --because; every waiver records why.",
@@ -140,15 +126,7 @@ describe("gate waive", () => {
   it("refuses on an unknown graph", async () => {
     const cwd = fixture();
     const result = await runGateWaive(
-      [
-        "ghost",
-        "a",
-        "typecheck",
-        "--by",
-        "Rodrigo Sasaki",
-        "--because",
-        "flaky",
-      ],
+      ["ghost", "a", "typecheck", "--by", "Rodrigo Sasaki", "--because", "flaky"],
       { cwd },
     );
     expect(result.exitCode).not.toBe(0);
@@ -158,35 +136,17 @@ describe("gate waive", () => {
   it("refuses on an unknown node", async () => {
     const cwd = fixture();
     const result = await runGateWaive(
-      [
-        "demo",
-        "ghost",
-        "typecheck",
-        "--by",
-        "Rodrigo Sasaki",
-        "--because",
-        "flaky",
-      ],
+      ["demo", "ghost", "typecheck", "--by", "Rodrigo Sasaki", "--because", "flaky"],
       { cwd },
     );
     expect(result.exitCode).not.toBe(0);
-    expect(result.message).toContain(
-      'no node "ghost" declared on graph "demo"',
-    );
+    expect(result.message).toContain('no node "ghost" declared on graph "demo"');
   });
 
   it("refuses on an unknown gate", async () => {
     const cwd = fixture();
     const result = await runGateWaive(
-      [
-        "demo",
-        "a",
-        "ghost-gate",
-        "--by",
-        "Rodrigo Sasaki",
-        "--because",
-        "flaky",
-      ],
+      ["demo", "a", "ghost-gate", "--by", "Rodrigo Sasaki", "--because", "flaky"],
       { cwd },
     );
     expect(result.exitCode).not.toBe(0);
@@ -198,15 +158,7 @@ describe("gate waive", () => {
   it("refuses a gate with no receipt, naming that a waiver needs something to waive", async () => {
     const cwd = fixture();
     const result = await runGateWaive(
-      [
-        "demo",
-        "a",
-        "typecheck",
-        "--by",
-        "Rodrigo Sasaki",
-        "--because",
-        "flaky",
-      ],
+      ["demo", "a", "typecheck", "--by", "Rodrigo Sasaki", "--because", "flaky"],
       { cwd },
     );
     expect(result.exitCode).not.toBe(0);
@@ -233,26 +185,12 @@ describe("gate waive", () => {
     await ledger.close();
 
     const result = await runGateWaive(
-      [
-        "demo",
-        "a",
-        "typecheck",
-        "--by",
-        "Rodrigo Sasaki",
-        "--because",
-        "known flaky suite",
-      ],
+      ["demo", "a", "typecheck", "--by", "Rodrigo Sasaki", "--because", "known flaky suite"],
       { cwd },
     );
     expect(result.exitCode).toBe(0);
-    expect(result.message).toBe(
-      `a/typecheck: waived by Rodrigo Sasaki (receipt ${receipt.id}).`,
-    );
-    expect(journalEventKinds(cwd)).toEqual([
-      "receipt-written",
-      "gate-moved",
-      "gate-moved",
-    ]);
+    expect(result.message).toBe(`a/typecheck: waived by Rodrigo Sasaki (receipt ${receipt.id}).`);
+    expect(journalEventKinds(cwd)).toEqual(["receipt-written", "gate-moved", "gate-moved"]);
   });
 
   it("refuses to waive a gate already waived, naming the terminal rule", async () => {
@@ -273,20 +211,10 @@ describe("gate waive", () => {
     await ledger.close();
 
     const result = await runGateWaive(
-      [
-        "demo",
-        "a",
-        "typecheck",
-        "--by",
-        "Rodrigo Sasaki",
-        "--because",
-        "waiving again",
-      ],
+      ["demo", "a", "typecheck", "--by", "Rodrigo Sasaki", "--because", "waiving again"],
       { cwd },
     );
     expect(result.exitCode).not.toBe(0);
-    expect(result.message).toBe(
-      "a/typecheck: cannot move from waived, which is terminal.",
-    );
+    expect(result.message).toBe("a/typecheck: cannot move from waived, which is terminal.");
   });
 });

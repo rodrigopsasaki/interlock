@@ -2,16 +2,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildRegistry } from "../src/registry.ts";
-import { judgeValue, isRefusal, describeOutcome } from "../src/validate.ts";
+import { describeOutcome, isRefusal, judgeValue } from "../src/validate.ts";
 
-const ledgerFixtures = join(
-  import.meta.dirname,
-  "..",
-  "..",
-  "ledger",
-  "test",
-  "fixtures",
-);
+const ledgerFixtures = join(import.meta.dirname, "..", "..", "ledger", "test", "fixtures");
 
 const journals = [
   "journal-v1-approved.jsonl",

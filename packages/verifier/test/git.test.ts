@@ -2,13 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import {
-  diffFiles,
-  fileContentAt,
-  isAncestor,
-  isCommit,
-  pathExistsAt,
-} from "../src/git.ts";
+import { diffFiles, fileContentAt, isAncestor, isCommit, pathExistsAt } from "../src/git.ts";
 import { commitAll, gitInitFixture } from "./support/gitFixture.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
@@ -17,8 +11,7 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -65,28 +58,19 @@ describe("diffFiles", () => {
     const dir = freshRepo();
     writeFileSync(join(dir, "placeholder.txt"), "\n");
     const from = commitAll(dir, "root");
-    writeFileSync(
-      join(dir, "new.ts"),
-      "export const a = 1;\nexport const b = 2;\n",
-    );
+    writeFileSync(join(dir, "new.ts"), "export const a = 1;\nexport const b = 2;\n");
     const to = commitAll(dir, "add new.ts");
 
     const files = diffFiles(dir, from, to);
     expect(files).toHaveLength(1);
     expect(files[0]?.path).toBe("new.ts");
     expect(files[0]?.hunks).toEqual([{ start: 1, end: 2 }]);
-    expect(files[0]?.addedLines).toEqual([
-      "export const a = 1;",
-      "export const b = 2;",
-    ]);
+    expect(files[0]?.addedLines).toEqual(["export const a = 1;", "export const b = 2;"]);
   });
 
   it("reports several separate hunks for one modified file", () => {
     const dir = freshRepo();
-    const lines = Array.from(
-      { length: 10 },
-      (_unused, i) => `const l${i} = ${i};`,
-    );
+    const lines = Array.from({ length: 10 }, (_unused, i) => `const l${i} = ${i};`);
     writeFileSync(join(dir, "many.ts"), `${lines.join("\n")}\n`);
     const from = commitAll(dir, "first");
 
@@ -128,16 +112,11 @@ describe("diffFiles", () => {
 
     writeFileSync(join(dir, "a.json"), original.replace("four", "five"));
     writeFileSync(join(dir, "b.json"), original.replace('"a"', '"b"'));
-    const to = commitAll(
-      dir,
-      "modify a.json and add b.json, textually close to a.json's original",
-    );
+    const to = commitAll(dir, "modify a.json and add b.json, textually close to a.json's original");
 
     const files = diffFiles(dir, from, to);
     const added = files.find((file) => file.path === "b.json");
-    expect(added?.addedLines).toEqual(
-      original.replace('"a"', '"b"').split("\n").slice(0, -1),
-    );
+    expect(added?.addedLines).toEqual(original.replace('"a"', '"b"').split("\n").slice(0, -1));
   });
 
   it("reports a pure deletion with no added lines, path still present", () => {

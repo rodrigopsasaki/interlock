@@ -36,10 +36,7 @@ export function declaredGateIds(
   standing: readonly StandingGate[],
   node: readonly GateDeclaration[],
 ): readonly string[] {
-  return [
-    ...standing.map((entry) => entry.id),
-    ...node.map((entry) => entry.id),
-  ];
+  return [...standing.map((entry) => entry.id), ...node.map((entry) => entry.id)];
 }
 
 export interface GateCommand {
@@ -47,10 +44,7 @@ export interface GateCommand {
   readonly expectOutput?: RegExp;
 }
 
-function toGateCommand(
-  run: string,
-  expectOutput: RegExp | undefined,
-): GateCommand {
+function toGateCommand(run: string, expectOutput: RegExp | undefined): GateCommand {
   return expectOutput === undefined ? { run } : { run, expectOutput };
 }
 
@@ -64,8 +58,7 @@ export function gateCommandTable(
   }
   for (const entry of node) {
     const run = entry.run;
-    if (run !== undefined)
-      table.set(entry.id, toGateCommand(run, entry.expectOutput));
+    if (run !== undefined) table.set(entry.id, toGateCommand(run, entry.expectOutput));
   }
   return table;
 }

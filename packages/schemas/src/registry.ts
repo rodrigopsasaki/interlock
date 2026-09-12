@@ -1,7 +1,7 @@
-import { readFileSync, readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { Ajv2020 } from "ajv/dist/2020.js";
 import type { ValidateFunction } from "ajv/dist/2020.js";
+import { Ajv2020 } from "ajv/dist/2020.js";
 
 export interface SchemaRegistry {
   readonly ajv: InstanceType<typeof Ajv2020>;
@@ -44,10 +44,7 @@ export function buildRegistry(
   return { ajv, tags };
 }
 
-export function validatorFor(
-  registry: SchemaRegistry,
-  tag: string,
-): ValidateFunction | undefined {
+export function validatorFor(registry: SchemaRegistry, tag: string): ValidateFunction | undefined {
   const id = registry.tags.get(tag);
   return id === undefined ? undefined : registry.ajv.getSchema(id);
 }

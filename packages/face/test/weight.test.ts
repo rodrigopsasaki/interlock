@@ -1,10 +1,4 @@
-import {
-  derivation,
-  duration,
-  spend,
-  type Outcome,
-  type Receipt,
-} from "ledger";
+import { derivation, duration, type Outcome, type Receipt, spend } from "ledger";
 import { describe, expect, it } from "vitest";
 import { nodeWeight } from "../src/weight.ts";
 

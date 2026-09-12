@@ -2,8 +2,8 @@ import { readFile } from "node:fs/promises";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import { parseExpectOutput } from "ledger";
 import { parse as parseYaml, YAMLParseError } from "yaml";
-import { isStringArray, isRecord, isString, prop } from "./validate.ts";
 import { topologicalOrder } from "./topology.ts";
+import { isRecord, isString, isStringArray, prop } from "./validate.ts";
 
 export const GRAPH_SHAPE = "graph@v0";
 
@@ -111,9 +111,7 @@ function parseShape(parsed: unknown): Result<GraphDocument, string> {
 
   const tag = prop(parsed, "interlock");
   if (tag !== GRAPH_SHAPE) {
-    return err(
-      `shape tag is ${isString(tag) ? `"${tag}"` : "missing"}, expected "${GRAPH_SHAPE}"`,
-    );
+    return err(`shape tag is ${isString(tag) ? `"${tag}"` : "missing"}, expected "${GRAPH_SHAPE}"`);
   }
 
   const id = prop(parsed, "id");
@@ -130,8 +128,7 @@ function parseShape(parsed: unknown): Result<GraphDocument, string> {
     if (!isRecord(rawNode)) return err(`node ${index}: not a mapping`);
 
     const nodeId = prop(rawNode, "id");
-    if (!isString(nodeId))
-      return err(`node ${index}: "id" is missing or not a string`);
+    if (!isString(nodeId)) return err(`node ${index}: "id" is missing or not a string`);
 
     const rawAcceptance = prop(rawNode, "acceptance");
     if (rawAcceptance !== undefined && !isString(rawAcceptance)) {
@@ -143,10 +140,7 @@ function parseShape(parsed: unknown): Result<GraphDocument, string> {
       return err(`node "${nodeId}": "depends_on" must be a list of strings`);
     }
 
-    const parsedNodeGates = parseGateDeclarations(
-      prop(rawNode, "gates"),
-      `node "${nodeId}": `,
-    );
+    const parsedNodeGates = parseGateDeclarations(prop(rawNode, "gates"), `node "${nodeId}": `);
     if (isErr(parsedNodeGates)) return parsedNodeGates;
 
     nodes.push({
@@ -167,8 +161,7 @@ export async function loadGraphDocument(
   try {
     raw = await readFile(path, "utf-8");
   } catch (error) {
-    if (isNodeError(error) && error.code === "ENOENT")
-      return err({ kind: "missing-file", path });
+    if (isNodeError(error) && error.code === "ENOENT") return err({ kind: "missing-file", path });
     throw error;
   }
 
@@ -176,14 +169,12 @@ export async function loadGraphDocument(
   try {
     parsed = parseYaml(raw);
   } catch (error) {
-    const reason =
-      error instanceof YAMLParseError ? error.message : "invalid YAML";
+    const reason = error instanceof YAMLParseError ? error.message : "invalid YAML";
     return err({ kind: "malformed-shape", path, reason });
   }
 
   const shaped = parseShape(parsed);
-  if (isErr(shaped))
-    return err({ kind: "malformed-shape", path, reason: shaped.error });
+  if (isErr(shaped)) return err({ kind: "malformed-shape", path, reason: shaped.error });
   const document = shaped.value;
 
   for (const node of document.nodes) {
@@ -200,8 +191,7 @@ export async function loadGraphDocument(
   }
 
   const ordered = topologicalOrder(document.nodes);
-  if (isErr(ordered))
-    return err({ kind: "cycle", path, nodes: ordered.error.nodes });
+  if (isErr(ordered)) return err({ kind: "cycle", path, nodes: ordered.error.nodes });
 
   return ok(document);
 }

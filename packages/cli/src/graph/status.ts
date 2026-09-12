@@ -1,4 +1,4 @@
-import { createSystemClock, type Clock } from "@phyxiusjs/clock";
+import { type Clock, createSystemClock } from "@phyxiusjs/clock";
 import { isErr } from "@phyxiusjs/fp";
 import {
   explainGraphRefusal,
@@ -7,7 +7,7 @@ import {
   loadGraphDocument,
   sharedJournalDirectory,
 } from "face";
-import { nodeKey, readReplay, type Outcome } from "ledger";
+import { nodeKey, type Outcome, readReplay } from "ledger";
 import { parseFlag } from "../flags.ts";
 import type { CommandResult } from "../main.ts";
 
@@ -86,9 +86,7 @@ export async function runGraphStatus(
 
   const notReady: string[] = [];
   for (const declaration of document.value.nodes) {
-    const view = projection.nodes.get(
-      nodeKey({ graph: id, id: declaration.id }),
-    );
+    const view = projection.nodes.get(nodeKey({ graph: id, id: declaration.id }));
     if (view?.outcome?.kind === expect) continue;
 
     const leasedLive = [...projection.sessions.values()].some(

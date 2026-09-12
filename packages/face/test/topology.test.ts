@@ -24,14 +24,10 @@ describe("topologicalOrder", () => {
     expect(isOk(ordered)).toBe(true);
     if (!isOk(ordered)) return;
 
-    const position = new Map(
-      ordered.value.map((entry, index) => [entry.id, index]),
-    );
+    const position = new Map(ordered.value.map((entry, index) => [entry.id, index]));
     for (const declaration of nodes) {
       for (const dependsOn of declaration.dependsOn) {
-        expect(position.get(dependsOn)).toBeLessThan(
-          position.get(declaration.id) ?? -1,
-        );
+        expect(position.get(dependsOn)).toBeLessThan(position.get(declaration.id) ?? -1);
       }
     }
     expect(ordered.value).toHaveLength(nodes.length);

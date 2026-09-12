@@ -12,9 +12,7 @@ function parseRegexLiteral(
   if (parsed === null) return undefined;
   const body = parsed[1];
   const flags = parsed[2];
-  return body === undefined || flags === undefined
-    ? undefined
-    : { body, flags };
+  return body === undefined || flags === undefined ? undefined : { body, flags };
 }
 
 export function isValidStartupAnswerMatcher(pattern: string): boolean {

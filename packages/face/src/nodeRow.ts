@@ -1,6 +1,6 @@
 import type { PositionAttempt } from "./attempts.ts";
-import type { PositionGate } from "./positionGate.ts";
 import type { PositionNode } from "./position.ts";
+import type { PositionGate } from "./positionGate.ts";
 
 export type NodeRow =
   | { readonly kind: "gate"; readonly gate: PositionGate }
@@ -14,7 +14,5 @@ export function nodeRowsOf(node: PositionNode): readonly NodeRow[] {
 }
 
 export function isLiveAttempt(attempt: PositionAttempt): boolean {
-  return (
-    attempt.leaseState.kind === "live" && attempt.agentStatus !== undefined
-  );
+  return attempt.leaseState.kind === "live" && attempt.agentStatus !== undefined;
 }

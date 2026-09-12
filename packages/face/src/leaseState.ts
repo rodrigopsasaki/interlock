@@ -5,10 +5,7 @@ export type LeaseState =
   | { readonly kind: "live" }
   | { readonly kind: "expired"; readonly agoMs: number };
 
-export function leaseStateOf(
-  session: SessionView,
-  nowWallMs: number,
-): LeaseState {
+export function leaseStateOf(session: SessionView, nowWallMs: number): LeaseState {
   if (session.lease === undefined) return { kind: "none" };
   if (leaseIsLive(session, nowWallMs)) return { kind: "live" };
   return {

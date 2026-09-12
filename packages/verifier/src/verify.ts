@@ -1,5 +1,5 @@
 import { err, ok, type Result } from "@phyxiusjs/fp";
-import { derivation, type Debrief, type Mark } from "ledger";
+import { type Debrief, derivation, type Mark } from "ledger";
 import { checkFoundAt } from "./foundAt.ts";
 import { diffFiles, isAncestor, isCommit } from "./git.ts";
 import { checkHunkCitation } from "./hunkCitation.ts";
@@ -64,12 +64,7 @@ export async function verifyDebrief(
 
   const inverse = unexplainedMarks(files, debrief.decisions, deriv);
 
-  const gaps = vocabularyGaps(
-    files,
-    repoRoot,
-    options.professedDomainVocabulary ?? [],
-    deriv,
-  );
+  const gaps = vocabularyGaps(files, repoRoot, options.professedDomainVocabulary ?? [], deriv);
 
   return ok({
     marks: [...hunkMarks, ...discoveryMarks, ...inverse, ...gaps],

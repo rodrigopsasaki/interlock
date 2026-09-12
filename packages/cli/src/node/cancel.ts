@@ -1,4 +1,4 @@
-import { createSystemClock, type Clock } from "@phyxiusjs/clock";
+import { type Clock, createSystemClock } from "@phyxiusjs/clock";
 import { isErr } from "@phyxiusjs/fp";
 import {
   explainGraphRefusal,
@@ -7,13 +7,7 @@ import {
   loadGraphDocument,
   sharedJournalDirectory,
 } from "face";
-import {
-  createLedger,
-  nodeKey,
-  outcome,
-  proposeOutcomeMove,
-  type Node,
-} from "ledger";
+import { createLedger, type Node, nodeKey, outcome, proposeOutcomeMove } from "ledger";
 import { parseFlag } from "../flags.ts";
 import type { CommandResult } from "../main.ts";
 
@@ -34,8 +28,7 @@ export async function runNodeCancel(
   if (because === undefined) {
     return {
       exitCode: 1,
-      message:
-        "interlock node cancel: refuses without --because; every cancellation records why.",
+      message: "interlock node cancel: refuses without --because; every cancellation records why.",
     };
   }
 
@@ -43,8 +36,7 @@ export async function runNodeCancel(
   if (by === undefined) {
     return {
       exitCode: 1,
-      message:
-        "interlock node cancel: refuses without --by; every cancellation records who.",
+      message: "interlock node cancel: refuses without --by; every cancellation records who.",
     };
   }
 
@@ -63,9 +55,7 @@ export async function runNodeCancel(
     return { exitCode: 1, message: explainGraphRefusal(document.error) };
   }
 
-  const declaration = document.value.nodes.find(
-    (candidate) => candidate.id === node,
-  );
+  const declaration = document.value.nodes.find((candidate) => candidate.id === node);
   if (declaration === undefined) {
     return {
       exitCode: 1,

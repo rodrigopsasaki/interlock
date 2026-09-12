@@ -4,19 +4,14 @@ import {
   fold,
   gate,
   heldOn,
-  outcome,
-  spend,
   type LedgerEvent,
+  outcome,
   type Receipt,
+  spend,
 } from "ledger";
 import { describe, expect, it } from "vitest";
 import type { GraphDocument } from "../src/document.ts";
-import {
-  approvalState,
-  positionOf,
-  type Position,
-  type PositionNode,
-} from "../src/position.ts";
+import { approvalState, type Position, type PositionNode, positionOf } from "../src/position.ts";
 
 const document: GraphDocument = {
   id: "demo",
@@ -104,12 +99,7 @@ describe("positionOf", () => {
   });
 
   it("shows a node's own recorded outcome instead of computing ready/blocked", () => {
-    const heldOutcome = outcome.held(
-      [],
-      heldOn.gateFailure("gate failed", "retry"),
-      "flaky",
-      1000,
-    );
+    const heldOutcome = outcome.held([], heldOn.gateFailure("gate failed", "retry"), "flaky", 1000);
     const projection = fold([
       { kind: "node-created", node: { graph: "demo", id: "a" } },
       {
@@ -178,12 +168,7 @@ describe("positionOf", () => {
         to: gate.satisfied(approvedReceipt),
       },
     ]);
-    const position = positionOf(
-      document,
-      projection,
-      "current-hash",
-      Date.now(),
-    );
+    const position = positionOf(document, projection, "current-hash", Date.now());
     expect(position.approval).toBe("approved");
   });
 
@@ -240,10 +225,7 @@ describe("positionOf", () => {
     ]);
     const position = positionOf(document, projection, "some-hash", Date.now());
     const attempts = nodeIn(position, "a").attempts;
-    expect(attempts.map((attempt) => attempt.session)).toEqual([
-      "session-1",
-      "session-2",
-    ]);
+    expect(attempts.map((attempt) => attempt.session)).toEqual(["session-1", "session-2"]);
     expect(attempts[0]?.outcome).toEqual({
       kind: "cleared",
       receipts: [clearedReceipt],
@@ -268,22 +250,10 @@ describe("positionOf", () => {
         expiry: now + 60_000,
       },
     ]);
-    const withStatus = positionOf(
-      document,
-      projection,
-      "some-hash",
-      now,
-      () => "working",
-    );
+    const withStatus = positionOf(document, projection, "some-hash", now, () => "working");
     expect(nodeIn(withStatus, "a").attempts[0]?.agentStatus).toBe("working");
 
-    const withoutStatus = positionOf(
-      document,
-      projection,
-      "some-hash",
-      now,
-      () => undefined,
-    );
+    const withoutStatus = positionOf(document, projection, "some-hash", now, () => undefined);
     expect(nodeIn(withoutStatus, "a").attempts[0]?.agentStatus).toBeUndefined();
 
     const withoutLookup = positionOf(document, projection, "some-hash", now);
@@ -298,9 +268,7 @@ describe("approvalState", () => {
 
   it("is not-approved for a pending or blocked gate", () => {
     expect(approvalState(gate.pending(), "hash")).toBe("not-approved");
-    expect(approvalState(gate.blocked("evidence", "because"), "hash")).toBe(
-      "not-approved",
-    );
+    expect(approvalState(gate.blocked("evidence", "because"), "hash")).toBe("not-approved");
   });
 
   it("treats a waived approval the same as a satisfied one", () => {

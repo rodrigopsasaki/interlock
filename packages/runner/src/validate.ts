@@ -12,10 +12,7 @@ export function prop(value: Record<string, unknown>, key: string): unknown {
   return value[key];
 }
 
-export function stringAt(
-  value: unknown,
-  ...keys: readonly string[]
-): string | undefined {
+export function stringAt(value: unknown, ...keys: readonly string[]): string | undefined {
   let current = value;
   for (const key of keys) {
     if (!isRecord(current)) return undefined;
@@ -24,10 +21,7 @@ export function stringAt(
   return isString(current) ? current : undefined;
 }
 
-export function numberAt(
-  value: unknown,
-  ...keys: readonly string[]
-): number | undefined {
+export function numberAt(value: unknown, ...keys: readonly string[]): number | undefined {
   let current = value;
   for (const key of keys) {
     if (!isRecord(current)) return undefined;

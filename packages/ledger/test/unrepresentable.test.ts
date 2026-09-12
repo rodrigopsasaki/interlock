@@ -1,24 +1,12 @@
 import { join } from "node:path";
 import { unwrap } from "@phyxiusjs/fp";
 import { describe, expect, it } from "vitest";
-import { derivation, type Derivation } from "../src/derivation.js";
-import { gate, isGate, proposeGateMove, type Gate } from "../src/gate.js";
+import { type Derivation, derivation } from "../src/derivation.js";
+import { type Gate, gate, isGate, proposeGateMove } from "../src/gate.js";
 import { createLease, renewLease } from "../src/lease.js";
-import { mark, type Mark } from "../src/mark.js";
-import {
-  buildCleared,
-  heldOn,
-  outcome,
-  type HeldOn,
-  type Outcome,
-} from "../src/outcome.js";
-import {
-  createReceipt,
-  duration,
-  isReceipt,
-  receiptId,
-  type Receipt,
-} from "../src/receipt.js";
+import { type Mark, mark } from "../src/mark.js";
+import { buildCleared, type HeldOn, heldOn, type Outcome, outcome } from "../src/outcome.js";
+import { createReceipt, duration, isReceipt, type Receipt, receiptId } from "../src/receipt.js";
 import type { Spend } from "../src/spend.js";
 
 const node = { graph: "0001-bootstrap", id: "ledger" };
@@ -40,10 +28,7 @@ describe("illegal states are unrepresentable or refused", () => {
       error: { kind: "gate-not-cleared", missing: ["typecheck"] },
     });
 
-    const stillPending = buildCleared(
-      ["typecheck"],
-      new Map([["typecheck", gate.pending()]]),
-    );
+    const stillPending = buildCleared(["typecheck"], new Map([["typecheck", gate.pending()]]));
     expect(stillPending).toEqual({
       _tag: "Err",
       error: { kind: "gate-not-cleared", missing: ["typecheck"] },
@@ -283,12 +268,7 @@ describe("illegal states are unrepresentable or refused", () => {
 
   it("a gate refuses to move out of waived or superseded", () => {
     const waived = gate.waived("Rodrigo Sasaki", "known flaky", okReceipt);
-    const attempt = proposeGateMove(
-      ["typecheck"],
-      "typecheck",
-      waived,
-      gate.pending(),
-    );
+    const attempt = proposeGateMove(["typecheck"], "typecheck", waived, gate.pending());
     expect(attempt).toEqual({
       _tag: "Err",
       error: { kind: "illegal-transition", from: "waived", to: "pending" },
@@ -313,12 +293,7 @@ describe("illegal states are unrepresentable or refused", () => {
 
   it("a gate move refuses a gate id outside the node's declared set", () => {
     const declared = ["typecheck", "test"];
-    const attempt = proposeGateMove(
-      declared,
-      "lint",
-      gate.pending(),
-      gate.satisfied(okReceipt),
-    );
+    const attempt = proposeGateMove(declared, "lint", gate.pending(), gate.satisfied(okReceipt));
     expect(attempt).toEqual({
       _tag: "Err",
       error: { kind: "undeclared-gate", gate: "lint", declared },

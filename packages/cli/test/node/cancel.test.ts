@@ -1,18 +1,12 @@
-import {
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
 import { unwrap } from "@phyxiusjs/fp";
 import { sharedJournalDirectory } from "face";
-import { createLedger, outcome, type Ledger } from "ledger";
+import { createLedger, type Ledger, outcome } from "ledger";
 import { afterEach, describe, expect, it } from "vitest";
-import { gitInitFixture } from "../graph/gitFixture.ts";
 import { runNodeCancel } from "../../src/node/cancel.ts";
+import { gitInitFixture } from "../graph/gitFixture.ts";
 
 const runsRoot = join(import.meta.dirname, "..", ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -20,8 +14,7 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -41,10 +34,7 @@ function fixture(): string {
   directory = mkdtempSync(join(runsRoot, "node-cancel-"));
   gitInitFixture(directory);
   mkdirSync(join(directory, ".interlock", "graphs"), { recursive: true });
-  writeFileSync(
-    join(directory, ".interlock", "graphs", "demo.yaml"),
-    graphYaml,
-  );
+  writeFileSync(join(directory, ".interlock", "graphs", "demo.yaml"), graphYaml);
   return directory;
 }
 
@@ -58,10 +48,7 @@ async function openLedger(cwd: string): Promise<Ledger> {
 }
 
 function journalEventKinds(cwd: string): readonly string[] {
-  const raw = readFileSync(
-    join(cwd, ".interlock", "ledger", "journal.jsonl"),
-    "utf-8",
-  );
+  const raw = readFileSync(join(cwd, ".interlock", "ledger", "journal.jsonl"), "utf-8");
   return raw
     .trim()
     .split("\n")
@@ -77,12 +64,9 @@ function journalEventKinds(cwd: string): readonly string[] {
 describe("node cancel", () => {
   it("refuses without --because", async () => {
     const cwd = fixture();
-    const result = await runNodeCancel(
-      ["demo", "a", "--by", "Rodrigo Sasaki"],
-      {
-        cwd,
-      },
-    );
+    const result = await runNodeCancel(["demo", "a", "--by", "Rodrigo Sasaki"], {
+      cwd,
+    });
     expect(result.exitCode).not.toBe(0);
     expect(result.message).toBe(
       "interlock node cancel: refuses without --because; every cancellation records why.",
@@ -91,10 +75,7 @@ describe("node cancel", () => {
 
   it("refuses without --by", async () => {
     const cwd = fixture();
-    const result = await runNodeCancel(
-      ["demo", "a", "--because", "acceptance dropped"],
-      { cwd },
-    );
+    const result = await runNodeCancel(["demo", "a", "--because", "acceptance dropped"], { cwd });
     expect(result.exitCode).not.toBe(0);
     expect(result.message).toBe(
       "interlock node cancel: refuses without --by; every cancellation records who.",
@@ -104,14 +85,7 @@ describe("node cancel", () => {
   it("refuses on an unknown graph", async () => {
     const cwd = fixture();
     const result = await runNodeCancel(
-      [
-        "ghost",
-        "a",
-        "--by",
-        "Rodrigo Sasaki",
-        "--because",
-        "acceptance dropped",
-      ],
+      ["ghost", "a", "--by", "Rodrigo Sasaki", "--because", "acceptance dropped"],
       { cwd },
     );
     expect(result.exitCode).not.toBe(0);
@@ -121,33 +95,17 @@ describe("node cancel", () => {
   it("refuses on an unknown node", async () => {
     const cwd = fixture();
     const result = await runNodeCancel(
-      [
-        "demo",
-        "ghost",
-        "--by",
-        "Rodrigo Sasaki",
-        "--because",
-        "acceptance dropped",
-      ],
+      ["demo", "ghost", "--by", "Rodrigo Sasaki", "--because", "acceptance dropped"],
       { cwd },
     );
     expect(result.exitCode).not.toBe(0);
-    expect(result.message).toContain(
-      'no node "ghost" declared on graph "demo"',
-    );
+    expect(result.message).toContain('no node "ghost" declared on graph "demo"');
   });
 
   it("appends exactly an outcome-set event when no outcome exists yet", async () => {
     const cwd = fixture();
     const result = await runNodeCancel(
-      [
-        "demo",
-        "a",
-        "--by",
-        "Rodrigo Sasaki",
-        "--because",
-        "acceptance dropped",
-      ],
+      ["demo", "a", "--by", "Rodrigo Sasaki", "--because", "acceptance dropped"],
       { cwd },
     );
     expect(result.exitCode).toBe(0);
@@ -175,14 +133,7 @@ describe("node cancel", () => {
     await ledger.close();
 
     const result = await runNodeCancel(
-      [
-        "demo",
-        "a",
-        "--by",
-        "Rodrigo Sasaki",
-        "--because",
-        "abandoning this attempt",
-      ],
+      ["demo", "a", "--by", "Rodrigo Sasaki", "--because", "abandoning this attempt"],
       { cwd },
     );
     expect(result.exitCode).toBe(0);
@@ -204,8 +155,6 @@ describe("node cancel", () => {
       { cwd },
     );
     expect(result.exitCode).not.toBe(0);
-    expect(result.message).toBe(
-      "a: outcome cannot move from cleared, which is terminal.",
-    );
+    expect(result.message).toBe("a: outcome cannot move from cleared, which is terminal.");
   });
 });

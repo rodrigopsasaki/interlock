@@ -1,4 +1,4 @@
-import { isDerivation, type Derivation } from "./derivation.ts";
+import { type Derivation, isDerivation } from "./derivation.ts";
 import { isRecord, isString, prop } from "./validate.ts";
 
 export interface Gap {

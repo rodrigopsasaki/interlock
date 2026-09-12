@@ -1,24 +1,24 @@
 export { splitFrontMatter } from "./frontMatter.ts";
 export {
+  type CheckResult,
   checkReference,
   docsShapesPath,
   generateReference,
-  type CheckResult,
   type ReferenceOptions,
   type ReferenceResult,
 } from "./reference.ts";
 export {
   buildRegistry,
   defaultSchemasDirectory,
-  validatorFor,
   type SchemaRegistry,
+  validatorFor,
 } from "./registry.ts";
 export {
   describeFileValidation,
   describeOutcome,
+  type FileValidation,
   isRefusal,
   judgeValue,
-  validateFile,
-  type FileValidation,
   type ValidationOutcome,
+  validateFile,
 } from "./validate.ts";

@@ -1,9 +1,9 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { isOk } from "@phyxiusjs/fp";
 import type { BriefFrontMatter, BriefGate } from "debrief";
 import { readBriefFile } from "debrief";
 import type { GateDeclaration } from "face";
-import { isOk } from "@phyxiusjs/fp";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   authoritativeBriefGates,
@@ -19,8 +19,7 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -59,9 +58,7 @@ describe("authoritativeBriefGates", () => {
       },
     ];
 
-    expect(
-      authoritativeBriefGates(standingWithPattern, nodeGatesWithPattern),
-    ).toEqual([
+    expect(authoritativeBriefGates(standingWithPattern, nodeGatesWithPattern)).toEqual([
       {
         id: "test",
         kind: "command",

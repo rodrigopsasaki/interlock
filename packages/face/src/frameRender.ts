@@ -1,7 +1,7 @@
-import { isLiveAttempt, nodeRowsOf, type NodeRow } from "./nodeRow.ts";
-import { HELP_TEXT } from "./helpText.ts";
 import type { PositionAttempt } from "./attempts.ts";
+import { HELP_TEXT } from "./helpText.ts";
 import { renderAgo } from "./leaseState.ts";
+import { isLiveAttempt, type NodeRow, nodeRowsOf } from "./nodeRow.ts";
 import type { PlansEntry } from "./plansEntry.ts";
 import type { Position, PositionNode } from "./position.ts";
 import type { PositionGate, PositionGateState } from "./positionGate.ts";
@@ -21,10 +21,7 @@ function renderApproval(approval: PlansEntry["approval"]): string {
   }
 }
 
-export function renderPlansFrame(
-  plans: readonly PlansEntry[],
-  index: number,
-): string {
+export function renderPlansFrame(plans: readonly PlansEntry[], index: number): string {
   const lines = ["graphs", ""];
   if (plans.length === 0) {
     lines.push("  (no graphs under .interlock/graphs)");
@@ -61,10 +58,7 @@ function liveMarker(node: PositionNode): string {
 }
 
 export function renderGraphFrame(position: Position, index: number): string {
-  const lines = [
-    `graph ${position.graph} — ${renderApproval(position.approval)}`,
-    "",
-  ];
+  const lines = [`graph ${position.graph} — ${renderApproval(position.approval)}`, ""];
   position.nodes.forEach((node, rowIndex) => {
     lines.push(
       `${cursor(rowIndex, index)}${liveMarker(node)}${node.id} — ${renderNodeState(node)}`,
@@ -72,9 +66,7 @@ export function renderGraphFrame(position: Position, index: number): string {
     const gateLine =
       node.gates.length === 0
         ? "gates: none declared"
-        : `gates: ${node.gates
-            .map((entry) => `${entry.id} ${entry.state.kind}`)
-            .join(", ")}`;
+        : `gates: ${node.gates.map((entry) => `${entry.id} ${entry.state.kind}`).join(", ")}`;
     lines.push(`      ${gateLine}`);
     if (node.float.kind === "measured") {
       lines.push(`      float: ${Math.round(node.float.ms)}ms`);
@@ -105,8 +97,7 @@ function renderGateStateText(state: PositionGateState): string {
 }
 
 function renderGateRow(gate: PositionGate): string {
-  const receipt =
-    gate.receipt === undefined ? "" : ` (receipt ${gate.receipt.id})`;
+  const receipt = gate.receipt === undefined ? "" : ` (receipt ${gate.receipt.id})`;
   return `${gate.id} — ${renderGateStateText(gate.state)}${receipt}`;
 }
 
@@ -122,8 +113,7 @@ function renderLeaseState(attempt: PositionAttempt): string {
 }
 
 function renderAttemptRow(attempt: PositionAttempt): string {
-  const outcome =
-    attempt.outcome === undefined ? "no outcome yet" : attempt.outcome.kind;
+  const outcome = attempt.outcome === undefined ? "no outcome yet" : attempt.outcome.kind;
   const status = attempt.agentStatus ?? "unknown";
   return `${attempt.session} — outcome ${outcome}, ${renderLeaseState(attempt)}, agent ${status}`;
 }

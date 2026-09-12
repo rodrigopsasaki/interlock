@@ -1,10 +1,6 @@
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import type { Debrief, Node, Note, Receipt } from "ledger";
-import type {
-  AbsorbOutcome,
-  ContextOutcome,
-  SubstrateClient,
-} from "./client.ts";
+import type { AbsorbOutcome, ContextOutcome, SubstrateClient } from "./client.ts";
 import { readBearerToken } from "./keyFile.ts";
 import {
   absorbResponseSchema,
@@ -71,10 +67,7 @@ export function httpClient(address: string, keyFile?: string): SubstrateClient {
     const response = await post(address, "capabilities", headers.value, {});
     if (isErr(response)) return [];
     const body = response.value;
-    if (
-      capabilitiesResponseSchema === undefined ||
-      !capabilitiesResponseSchema.validate(body)
-    ) {
+    if (capabilitiesResponseSchema === undefined || !capabilitiesResponseSchema.validate(body)) {
       return [];
     }
     cachedCapabilities = body.capabilities;

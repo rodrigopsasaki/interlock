@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import type { Item } from "debrief";
@@ -29,8 +29,7 @@ for (const file of jsonFilesUnder(schemasDirectory())) {
   if (isRecord(schema)) ajv.addSchema(schema);
 }
 
-const SUBSTRATE_BASE =
-  "https://github.com/rodrigopsasaki/interlock/schemas/substrate@v1";
+const SUBSTRATE_BASE = "https://github.com/rodrigopsasaki/interlock/schemas/substrate@v1";
 
 export interface ContextResponseWire {
   readonly items: readonly Item[];
@@ -63,8 +62,7 @@ function compileResponse<T>(id: string): CompiledResponse<T> | undefined {
     errors: () =>
       (compiled.errors ?? [])
         .map((error) => {
-          const pointer =
-            error.instancePath === "" ? "(root)" : error.instancePath;
+          const pointer = error.instancePath === "" ? "(root)" : error.instancePath;
           return `${pointer}: ${error.message ?? "is invalid"}`;
         })
         .join("; "),
@@ -77,7 +75,6 @@ export const contextResponseSchema = compileResponse<ContextResponseWire>(
 export const absorbResponseSchema = compileResponse<AbsorbResponseWire>(
   `${SUBSTRATE_BASE}/absorb.response.json`,
 );
-export const capabilitiesResponseSchema =
-  compileResponse<CapabilitiesResponseWire>(
-    `${SUBSTRATE_BASE}/capabilities.response.json`,
-  );
+export const capabilitiesResponseSchema = compileResponse<CapabilitiesResponseWire>(
+  `${SUBSTRATE_BASE}/capabilities.response.json`,
+);

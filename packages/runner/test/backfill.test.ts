@@ -6,8 +6,8 @@ import type { GraphDocument } from "face";
 import { nodeKey } from "ledger";
 import { afterEach, describe, expect, it } from "vitest";
 import { backfillGraph, backfillSessionId } from "../src/backfill.ts";
-import { memoryLedger, memoryLedgerWithLog } from "./support/memoryLedger.ts";
 import { gitInitFixtureWithContent } from "./support/gitFixture.ts";
+import { memoryLedger, memoryLedgerWithLog } from "./support/memoryLedger.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -15,8 +15,7 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -26,46 +25,23 @@ function fixtureRepo(): string {
     join(directory, "package.json"),
     JSON.stringify({ name: "fixture", private: true }),
   );
-  mkdirSync(
-    join(directory, ".interlock", "sessions", "fixture-graph", "node-a"),
-    { recursive: true },
-  );
+  mkdirSync(join(directory, ".interlock", "sessions", "fixture-graph", "node-a"), {
+    recursive: true,
+  });
   writeFileSync(
-    join(
-      directory,
-      ".interlock",
-      "sessions",
-      "fixture-graph",
-      "node-a",
-      "debrief.yaml",
-    ),
+    join(directory, ".interlock", "sessions", "fixture-graph", "node-a", "debrief.yaml"),
     "interlock: debrief@v1\n",
   );
-  mkdirSync(
-    join(directory, ".interlock", "sessions", "fixture-graph", "node-b"),
-    { recursive: true },
-  );
+  mkdirSync(join(directory, ".interlock", "sessions", "fixture-graph", "node-b"), {
+    recursive: true,
+  });
   writeFileSync(
-    join(
-      directory,
-      ".interlock",
-      "sessions",
-      "fixture-graph",
-      "node-b",
-      "debrief.yaml",
-    ),
+    join(directory, ".interlock", "sessions", "fixture-graph", "node-b", "debrief.yaml"),
     "interlock: debrief@v1\n",
   );
-  mkdirSync(
-    join(
-      directory,
-      ".interlock",
-      "sessions",
-      "fixture-graph",
-      "node-undebriefed",
-    ),
-    { recursive: true },
-  );
+  mkdirSync(join(directory, ".interlock", "sessions", "fixture-graph", "node-undebriefed"), {
+    recursive: true,
+  });
   gitInitFixtureWithContent(directory);
   return directory;
 }
@@ -127,13 +103,7 @@ function fixtureRepoWithLegacyDebrief(): string {
     join(directory, "package.json"),
     JSON.stringify({ name: "fixture", private: true }),
   );
-  const sessionDir = join(
-    directory,
-    ".interlock",
-    "sessions",
-    "fixture-graph",
-    "node-a",
-  );
+  const sessionDir = join(directory, ".interlock", "sessions", "fixture-graph", "node-a");
   mkdirSync(sessionDir, { recursive: true });
   writeFileSync(join(sessionDir, "debrief.yaml"), legacyDebriefYaml);
   gitInitFixtureWithContent(directory);
@@ -182,17 +152,10 @@ describe("backfill", () => {
     });
 
     if (isErr(backfilled)) throw new Error("expected backfill to succeed");
-    expect(backfilled.value.map((entry) => entry.node)).toEqual([
-      "node-a",
-      "node-b",
-    ]);
-    expect(
-      backfilled.value.every((entry) => entry.outcome.kind === "cleared"),
-    ).toBe(true);
+    expect(backfilled.value.map((entry) => entry.node)).toEqual(["node-a", "node-b"]);
+    expect(backfilled.value.every((entry) => entry.outcome.kind === "cleared")).toBe(true);
 
-    const nodeA = ledger
-      .projection()
-      .nodes.get(nodeKey({ graph: "fixture-graph", id: "node-a" }));
+    const nodeA = ledger.projection().nodes.get(nodeKey({ graph: "fixture-graph", id: "node-a" }));
     expect(nodeA?.outcome?.kind).toBe("cleared");
     expect(nodeA?.gates.get("standing")?.kind).toBe("satisfied");
     expect(nodeA?.gates.get("own-gate")?.kind).toBe("satisfied");
@@ -213,17 +176,10 @@ describe("backfill", () => {
     });
 
     if (isErr(backfilled)) throw new Error("expected backfill to succeed");
-    expect(backfilled.value.map((entry) => entry.node)).toEqual([
-      "node-a",
-      "node-b",
-    ]);
-    expect(
-      backfilled.value.every((entry) => entry.outcome.kind === "held"),
-    ).toBe(true);
+    expect(backfilled.value.map((entry) => entry.node)).toEqual(["node-a", "node-b"]);
+    expect(backfilled.value.every((entry) => entry.outcome.kind === "held")).toBe(true);
 
-    const nodeB = ledger
-      .projection()
-      .nodes.get(nodeKey({ graph: "fixture-graph", id: "node-b" }));
+    const nodeB = ledger.projection().nodes.get(nodeKey({ graph: "fixture-graph", id: "node-b" }));
     expect(nodeB?.gates.get("standing")?.kind).toBe("blocked");
   }, 30_000);
 
@@ -242,20 +198,14 @@ describe("backfill", () => {
     });
 
     if (isErr(backfilled)) throw new Error("expected backfill to succeed");
-    const nodeAResult = backfilled.value.find(
-      (entry) => entry.node === "node-a",
-    );
+    const nodeAResult = backfilled.value.find((entry) => entry.node === "node-a");
     expect(nodeAResult?.outcome.kind).toBe("held");
 
-    const nodeA = ledger
-      .projection()
-      .nodes.get(nodeKey({ graph: "fixture-graph", id: "node-a" }));
+    const nodeA = ledger.projection().nodes.get(nodeKey({ graph: "fixture-graph", id: "node-a" }));
     const ownGate = nodeA?.gates.get("own-gate");
     expect(ownGate?.kind).toBe("blocked");
     if (ownGate?.kind !== "blocked") return;
-    expect(ownGate.because).toBe(
-      "own-gate: output did not match /Tests +[1-9][0-9]* passed/",
-    );
+    expect(ownGate.because).toBe("own-gate: output did not match /Tests +[1-9][0-9]* passed/");
   }, 30_000);
 
   it("records a session-started event for each node it backfills, built from the node's own acceptance and gates", async () => {
@@ -272,9 +222,7 @@ describe("backfill", () => {
       worktreeRoot: ".worktrees",
     });
 
-    const session = ledger
-      .projection()
-      .sessions.get(backfillSessionId("fixture-graph", "node-a"));
+    const session = ledger.projection().sessions.get(backfillSessionId("fixture-graph", "node-a"));
     expect(session?.brief.graph).toBe("fixture-graph");
     expect(session?.brief.node).toBe("node-a");
     expect(session?.brief.gates).toEqual(["own-gate"]);
@@ -295,9 +243,7 @@ describe("backfill", () => {
       worktreeRoot: ".worktrees",
     });
 
-    const session = ledger
-      .projection()
-      .sessions.get(backfillSessionId("fixture-graph", "node-a"));
+    const session = ledger.projection().sessions.get(backfillSessionId("fixture-graph", "node-a"));
     expect(session?.debrief).toBeUndefined();
     expect(session?.narration).toHaveLength(1);
     expect(session?.narration[0]?.line).toContain("debrief@v1");

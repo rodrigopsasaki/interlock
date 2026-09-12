@@ -35,9 +35,7 @@ describe("parseHunkCitation", () => {
   });
 
   it("treats a trailing non-numeric colon suffix as part of the path", () => {
-    const parsed = parseHunkCitation(
-      ".interlock/graphs/x.yaml:stale-approval gate",
-    );
+    const parsed = parseHunkCitation(".interlock/graphs/x.yaml:stale-approval gate");
     expect(isOk(parsed)).toBe(true);
     if (!isOk(parsed)) return;
     expect(parsed.value).toEqual({

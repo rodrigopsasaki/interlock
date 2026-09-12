@@ -1,9 +1,7 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 
-export async function listGraphIds(
-  repoRoot: string,
-): Promise<readonly string[]> {
+export async function listGraphIds(repoRoot: string): Promise<readonly string[]> {
   let entries: readonly string[];
   try {
     entries = await readdir(join(repoRoot, ".interlock", "graphs"));

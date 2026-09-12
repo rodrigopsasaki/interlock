@@ -17,18 +17,12 @@ describe("renderVerification", () => {
 
     const lines = rendered.split("\n");
     expect(lines[0]).toBe("rooted 1, unrooted 1, unexplained 1, gap 1");
-    expect(lines).toContain(
-      "unrooted: b.ts is not a file changed in this range",
-    );
-    expect(lines).toContain(
-      'unexplained: "c.ts" -- expected a decision citing it',
-    );
+    expect(lines).toContain("unrooted: b.ts is not a file changed in this range");
+    expect(lines).toContain('unexplained: "c.ts" -- expected a decision citing it');
     expect(lines).toHaveLength(3);
   });
 
   it("prints the zero line for a debrief with no marks", () => {
-    expect(renderVerification({ marks: [] })).toBe(
-      "rooted 0, unrooted 0, unexplained 0, gap 0",
-    );
+    expect(renderVerification({ marks: [] })).toBe("rooted 0, unrooted 0, unexplained 0, gap 0");
   });
 });

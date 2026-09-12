@@ -29,14 +29,9 @@ export function verbNeedsAccountability(kind: Verb["kind"]): boolean {
   return ACCOUNTABLE_VERBS.has(kind);
 }
 
-export function verbCommand(
-  verb: Verb,
-  accountable?: Accountable,
-): readonly string[] {
+export function verbCommand(verb: Verb, accountable?: Accountable): readonly string[] {
   const because =
-    accountable === undefined
-      ? []
-      : ["--by", accountable.by, "--because", accountable.because];
+    accountable === undefined ? [] : ["--by", accountable.by, "--because", accountable.because];
   switch (verb.kind) {
     case "approve":
       return ["graph", "approve", verb.graph, ...because];

@@ -16,8 +16,7 @@ const substrate = noneClient();
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -217,9 +216,7 @@ describe("gateJudge", () => {
     const view = ledger.projection().nodes.get(nodeKey(node));
     expect(view?.gates.get("foreign-none")?.kind).toBe("blocked");
     expect(view?.gates.get("kept-local")?.kind).toBe("satisfied");
-    expect(
-      view?.receipts.find((receipt) => receipt.gate === "kept-local")?.id,
-    ).toBe("kept");
+    expect(view?.receipts.find((receipt) => receipt.gate === "kept-local")?.id).toBe("kept");
   });
 });
 
@@ -297,10 +294,7 @@ describe("expect_output", () => {
       session: "s1",
       declaredGateIds: ["tested"],
       commandFor: new Map([
-        [
-          "tested",
-          { run: matchingOutputCommand, expectOutput: testsPassedPattern },
-        ],
+        ["tested", { run: matchingOutputCommand, expectOutput: testsPassedPattern }],
       ]),
       worktree: root,
       scopeRoot: root,
@@ -316,9 +310,7 @@ describe("expect_output", () => {
     expect(judged.value.kind).toBe("cleared");
     const view = ledger.projection().nodes.get(nodeKey(node));
     expect(view?.gates.get("tested")?.kind).toBe("satisfied");
-    const receipt = view?.receipts.find(
-      (candidate) => candidate.gate === "tested",
-    );
+    const receipt = view?.receipts.find((candidate) => candidate.gate === "tested");
     expect(receipt?.proof).toEqual({
       exitCode: 0,
       outputHash: expect.any(String),
@@ -338,10 +330,7 @@ describe("expect_output", () => {
       session: "s1",
       declaredGateIds: ["tested"],
       commandFor: new Map([
-        [
-          "tested",
-          { run: nonMatchingOutputCommand, expectOutput: testsPassedPattern },
-        ],
+        ["tested", { run: nonMatchingOutputCommand, expectOutput: testsPassedPattern }],
       ]),
       worktree: root,
       scopeRoot: root,
@@ -359,12 +348,8 @@ describe("expect_output", () => {
     const gateState = view?.gates.get("tested");
     expect(gateState?.kind).toBe("blocked");
     if (gateState?.kind !== "blocked") return;
-    expect(gateState.because).toBe(
-      "tested: output did not match /Tests +[1-9][0-9]* passed/",
-    );
-    const receipt = view?.receipts.find(
-      (candidate) => candidate.gate === "tested",
-    );
+    expect(gateState.because).toBe("tested: output did not match /Tests +[1-9][0-9]* passed/");
+    const receipt = view?.receipts.find((candidate) => candidate.gate === "tested");
     expect(receipt?.proof).toEqual({
       exitCode: 0,
       outputHash: expect.any(String),
@@ -383,9 +368,7 @@ describe("expect_output", () => {
       node,
       session: "s1",
       declaredGateIds: ["tested"],
-      commandFor: new Map([
-        ["tested", { run: failCommand, expectOutput: testsPassedPattern }],
-      ]),
+      commandFor: new Map([["tested", { run: failCommand, expectOutput: testsPassedPattern }]]),
       worktree: root,
       scopeRoot: root,
       scopePaths: ["content.txt"],
@@ -513,12 +496,8 @@ describe("debrief ingestion", () => {
     const kinds = events.map((event) => event.kind);
     expect(kinds.filter((kind) => kind === "debrief-filed")).toHaveLength(1);
     expect(kinds.filter((kind) => kind === "note-appended")).toHaveLength(1);
-    expect(kinds.indexOf("debrief-filed")).toBeLessThan(
-      kinds.indexOf("outcome-set"),
-    );
-    expect(kinds.indexOf("note-appended")).toBeLessThan(
-      kinds.indexOf("outcome-set"),
-    );
+    expect(kinds.indexOf("debrief-filed")).toBeLessThan(kinds.indexOf("outcome-set"));
+    expect(kinds.indexOf("note-appended")).toBeLessThan(kinds.indexOf("outcome-set"));
 
     const sessionView = ledger.projection().sessions.get("s1");
     expect(sessionView?.debrief?.graph).toBe("fixture");

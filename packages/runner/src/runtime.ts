@@ -78,16 +78,11 @@ export interface Runtime {
     timeoutMs: number,
   ): Promise<Result<AgentStatus, RuntimeRefusal>>;
   read(agent: Agent): Promise<Result<string, RuntimeRefusal>>;
-  sendKeys(
-    agent: Agent,
-    keys: readonly string[],
-  ): Promise<Result<void, RuntimeRefusal>>;
+  sendKeys(agent: Agent, keys: readonly string[]): Promise<Result<void, RuntimeRefusal>>;
   closePane(pane: Pane): Promise<Result<void, RuntimeRefusal>>;
   reportedAgentStatus?(
     query: AgentIdentityQuery,
   ): Promise<Result<AgentStatus | undefined, RuntimeRefusal>>;
-  resolvePane?(
-    query: AgentIdentityQuery,
-  ): Promise<Result<Pane | undefined, RuntimeRefusal>>;
+  resolvePane?(query: AgentIdentityQuery): Promise<Result<Pane | undefined, RuntimeRefusal>>;
   focusPane?(pane: Pane): Promise<Result<void, RuntimeRefusal>>;
 }

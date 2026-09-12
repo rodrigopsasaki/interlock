@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
-import { shapeTag, type Note } from "ledger";
+import { type Note, shapeTag } from "ledger";
 import { parse as parseYaml, YAMLParseError } from "yaml";
 import { isRecord, isString, isStringArray, prop } from "./validate.ts";
 
@@ -78,15 +78,12 @@ function parseEntry(raw: unknown): Result<Note, string> {
   return err('"kind" must be "choice" or "surprise"');
 }
 
-export async function readNotesFile(
-  path: string,
-): Promise<Result<readonly Note[], NotesRefusal>> {
+export async function readNotesFile(path: string): Promise<Result<readonly Note[], NotesRefusal>> {
   let raw: string;
   try {
     raw = await readFile(path, "utf-8");
   } catch (error) {
-    if (isNodeError(error) && error.code === "ENOENT")
-      return err({ kind: "missing-file", path });
+    if (isNodeError(error) && error.code === "ENOENT") return err({ kind: "missing-file", path });
     throw error;
   }
 
@@ -94,8 +91,7 @@ export async function readNotesFile(
   try {
     parsed = parseYaml(raw);
   } catch (error) {
-    const reason =
-      error instanceof YAMLParseError ? error.message : "invalid YAML";
+    const reason = error instanceof YAMLParseError ? error.message : "invalid YAML";
     return err({ kind: "malformed-yaml", path, reason });
   }
 

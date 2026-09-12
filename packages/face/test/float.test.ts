@@ -73,9 +73,7 @@ describe("floatOf", () => {
   it("propagates unknown backward from an unmeasured node onto every one of its ancestors", () => {
     const ordered = [node("a"), node("b", ["a"])];
     const weightOf = (id: string): NodeWeight =>
-      id === "a"
-        ? { kind: "measured", ms: 10 }
-        : { kind: "unknown", because: "b: no outcome yet" };
+      id === "a" ? { kind: "measured", ms: 10 } : { kind: "unknown", because: "b: no outcome yet" };
     const floats = floatOf(ordered, weightOf);
     expect(floats.get("b")).toEqual({
       kind: "unknown",
@@ -90,9 +88,7 @@ describe("floatOf", () => {
   it("propagates unknown forward from an unmeasured ancestor onto every one of its descendants", () => {
     const ordered = [node("a"), node("b", ["a"])];
     const weightOf = (id: string): NodeWeight =>
-      id === "a"
-        ? { kind: "unknown", because: "a: no outcome yet" }
-        : { kind: "measured", ms: 10 };
+      id === "a" ? { kind: "unknown", because: "a: no outcome yet" } : { kind: "measured", ms: 10 };
     const floats = floatOf(ordered, weightOf);
     expect(floats.get("a")).toEqual({
       kind: "unknown",

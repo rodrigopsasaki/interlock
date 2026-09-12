@@ -29,10 +29,7 @@ function readBody(request: IncomingMessage): Promise<string> {
 // response are all the same fixture, configured differently per test.
 export function startFakeSubstrateServer(): Promise<FakeSubstrateServer> {
   const calls: RecordedCall[] = [];
-  const responses = new Map<
-    string,
-    { readonly body: unknown; readonly status: number }
-  >();
+  const responses = new Map<string, { readonly body: unknown; readonly status: number }>();
   const hanging = new Set<string>();
 
   const server: Server = createServer((request, response) => {
@@ -61,8 +58,7 @@ export function startFakeSubstrateServer(): Promise<FakeSubstrateServer> {
   return new Promise((resolve) => {
     server.listen(0, "127.0.0.1", () => {
       const address = server.address();
-      const port =
-        typeof address === "object" && address !== null ? address.port : 0;
+      const port = typeof address === "object" && address !== null ? address.port : 0;
       resolve({
         url: `http://127.0.0.1:${port}`,
         calls,
@@ -73,9 +69,7 @@ export function startFakeSubstrateServer(): Promise<FakeSubstrateServer> {
           hanging.add(verb);
         },
         close() {
-          return new Promise((resolveClose) =>
-            server.close(() => resolveClose()),
-          );
+          return new Promise((resolveClose) => server.close(() => resolveClose()));
         },
       });
     });

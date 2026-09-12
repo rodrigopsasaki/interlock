@@ -2,11 +2,7 @@ import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildRegistry } from "../src/registry.ts";
-import {
-  describeFileValidation,
-  isRefusal,
-  validateFile,
-} from "../src/validate.ts";
+import { describeFileValidation, isRefusal, validateFile } from "../src/validate.ts";
 
 const repoRoot = join(import.meta.dirname, "..", "..", "..");
 const interlockDir = join(repoRoot, ".interlock");

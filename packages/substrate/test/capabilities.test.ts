@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { substrateClientFor } from "../src/address.ts";
 import {
-  startFakeSubstrateServer,
   type FakeSubstrateServer,
+  startFakeSubstrateServer,
 } from "./support/fakeSubstrateServer.ts";
 
 let server: FakeSubstrateServer | undefined;
@@ -21,9 +21,7 @@ describe("capabilities", () => {
     await expect(client.capabilities()).resolves.toEqual(["consult", "query"]);
     await expect(client.capabilities()).resolves.toEqual(["consult", "query"]);
 
-    expect(
-      server.calls.filter((call) => call.verb === "capabilities"),
-    ).toHaveLength(1);
+    expect(server.calls.filter((call) => call.verb === "capabilities")).toHaveLength(1);
   });
 
   it("degrades to no capabilities when the response is malformed", async () => {

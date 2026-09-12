@@ -2,12 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { isErr, isOk } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
-import {
-  BRIEF_V1,
-  explainBriefRefusal,
-  explainLegacyBrief,
-  readBriefFile,
-} from "../src/brief.ts";
+import { BRIEF_V1, explainBriefRefusal, explainLegacyBrief, readBriefFile } from "../src/brief.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -15,8 +10,7 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -61,32 +55,20 @@ describe("readBriefFile", () => {
   });
 
   it("reads a hand-written file with no front matter as legacy", async () => {
-    const path = write(
-      "# Brief · node `n` · graph `g`\n\nNo front matter here.\n",
-    );
+    const path = write("# Brief · node `n` · graph `g`\n\nNo front matter here.\n");
     const result = await readBriefFile(path);
     expect(isOk(result)).toBe(true);
     if (!isOk(result)) return;
-    if (result.value.kind !== "legacy")
-      throw new Error("expected a legacy brief");
+    if (result.value.kind !== "legacy") throw new Error("expected a legacy brief");
     const legacy = result.value;
-    expect(legacy.missingFields).toEqual([
-      "graph",
-      "node",
-      "role",
-      "gates",
-      "scope",
-      "substrate",
-    ]);
+    expect(legacy.missingFields).toEqual(["graph", "node", "role", "gates", "scope", "substrate"]);
     expect(explainLegacyBrief(legacy)).toBe(
       `brief@v0, legacy; ${BRIEF_V1} would require: graph, node, role, gates, scope, substrate.`,
     );
   });
 
   it("reads front matter with no shape tag as legacy, not an error", async () => {
-    const path = write(
-      ["---", "some_other_tool: v1", "---", "", "# brief", ""].join("\n"),
-    );
+    const path = write(["---", "some_other_tool: v1", "---", "", "# brief", ""].join("\n"));
     const result = await readBriefFile(path);
     expect(isOk(result)).toBe(true);
     if (!isOk(result)) return;
@@ -95,9 +77,7 @@ describe("readBriefFile", () => {
 
   it("refuses a shape tag that names a version this reader does not know", async () => {
     const path = write(
-      ["---", "interlock: brief@v9", "graph: g", "---", "", "body", ""].join(
-        "\n",
-      ),
+      ["---", "interlock: brief@v9", "graph: g", "---", "", "body", ""].join("\n"),
     );
     const result = await readBriefFile(path);
     expect(isErr(result)).toBe(true);
@@ -108,9 +88,7 @@ describe("readBriefFile", () => {
   });
 
   it("refuses front matter that is not valid YAML, naming the file", async () => {
-    const path = write(
-      ["---", "graph: [unterminated", "---", "", "body", ""].join("\n"),
-    );
+    const path = write(["---", "graph: [unterminated", "---", "", "body", ""].join("\n"));
     const result = await readBriefFile(path);
     expect(isErr(result)).toBe(true);
     if (!isErr(result)) return;
@@ -144,8 +122,7 @@ describe("readBriefFile", () => {
     const path = write(withRunnerFields);
     const result = await readBriefFile(path);
     expect(isOk(result)).toBe(true);
-    if (!isOk(result) || result.value.kind !== "v1")
-      throw new Error("expected v1");
+    if (!isOk(result) || result.value.kind !== "v1") throw new Error("expected v1");
     expect(result.value.frontMatter.runner).toEqual({
       kind: "worktree",
       graphBaseSha: SHA,
@@ -241,9 +218,7 @@ describe("every existing brief under .interlock/sessions", () => {
   // verifier-hunks carries brief@v1 front matter from the moment the runner became the one
   // to drive it live; every other brief here predates that and stays legacy-valid.
   it("0001-bootstrap/verifier-hunks validates as brief@v1", async () => {
-    const result = await readBriefFile(
-      existingBriefPath("0001-bootstrap", "verifier-hunks"),
-    );
+    const result = await readBriefFile(existingBriefPath("0001-bootstrap", "verifier-hunks"));
     expect(isOk(result)).toBe(true);
     if (!isOk(result)) return;
     expect(result.value.kind).toBe("v1");

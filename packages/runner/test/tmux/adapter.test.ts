@@ -1,9 +1,6 @@
 import { ok } from "@phyxiusjs/fp";
 import { describe, expect, it } from "vitest";
-import {
-  createTmuxRuntime,
-  type TmuxCommandRunner,
-} from "../../src/tmux/adapter.ts";
+import { createTmuxRuntime, type TmuxCommandRunner } from "../../src/tmux/adapter.ts";
 
 function recordingRunner(): {
   runner: TmuxCommandRunner;
@@ -40,13 +37,7 @@ describe("tmux adapter", () => {
     await runtime.startAgent(pane.value, "claude", ["--flag", "value"]);
 
     const sendKeys = calls[1];
-    expect(sendKeys).toEqual([
-      "send-keys",
-      "-t",
-      pane.value.id,
-      "claude --flag value",
-      "Enter",
-    ]);
+    expect(sendKeys).toEqual(["send-keys", "-t", pane.value.id, "claude --flag value", "Enter"]);
   });
 
   it("always times out waiting for an agent state, honestly, since tmux cannot see it", async () => {
@@ -79,13 +70,7 @@ describe("tmux adapter", () => {
 
     await runtime.sendKeys(agent.value, ["Down", "Enter"]);
 
-    expect(calls[2]).toEqual([
-      "send-keys",
-      "-t",
-      pane.value.id,
-      "Down",
-      "Enter",
-    ]);
+    expect(calls[2]).toEqual(["send-keys", "-t", pane.value.id, "Down", "Enter"]);
   });
 
   it("reads a pane by capturing it", async () => {

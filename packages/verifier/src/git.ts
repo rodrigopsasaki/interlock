@@ -30,11 +30,7 @@ export function isCommit(repoRoot: string, sha: string): boolean {
   }
 }
 
-export function isAncestor(
-  repoRoot: string,
-  ancestor: string,
-  descendant: string,
-): boolean {
+export function isAncestor(repoRoot: string, ancestor: string, descendant: string): boolean {
   try {
     git(["merge-base", "--is-ancestor", ancestor, descendant], repoRoot);
     return true;
@@ -43,11 +39,7 @@ export function isAncestor(
   }
 }
 
-export function pathExistsAt(
-  repoRoot: string,
-  sha: string,
-  path: string,
-): boolean {
+export function pathExistsAt(repoRoot: string, sha: string, path: string): boolean {
   try {
     git(["cat-file", "-e", `${sha}:${path}`], repoRoot);
     return true;
@@ -56,11 +48,7 @@ export function pathExistsAt(
   }
 }
 
-export function fileContentAt(
-  repoRoot: string,
-  sha: string,
-  path: string,
-): string | undefined {
+export function fileContentAt(repoRoot: string, sha: string, path: string): string | undefined {
   try {
     return git(["show", `${sha}:${path}`], repoRoot);
   } catch {
@@ -71,9 +59,7 @@ export function fileContentAt(
 const HUNK_HEADER = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/;
 
 function stripPrefix(raw: string, prefix: string): string | undefined {
-  return raw === "/dev/null"
-    ? undefined
-    : raw.replace(new RegExp(`^${prefix}`), "");
+  return raw === "/dev/null" ? undefined : raw.replace(new RegExp(`^${prefix}`), "");
 }
 
 // A no-context diff of the whole range, parsed once into one entry per changed path: the
@@ -83,15 +69,8 @@ function stripPrefix(raw: string, prefix: string): string | undefined {
 // pair whenever the invoking machine's own git config turns on diff.renames, which would make
 // this deterministic verifier's hunks depend on a setting outside the repository. Plain add
 // plus delete is exactly the two changed paths the inverse check and the hunk citations want.
-export function diffFiles(
-  repoRoot: string,
-  from: string,
-  to: string,
-): readonly FileDiff[] {
-  const output = git(
-    ["diff", "--no-renames", "-U0", `${from}..${to}`],
-    repoRoot,
-  );
+export function diffFiles(repoRoot: string, from: string, to: string): readonly FileDiff[] {
+  const output = git(["diff", "--no-renames", "-U0", `${from}..${to}`], repoRoot);
   const files: FileDiff[] = [];
   let path: string | undefined;
   let minusPath: string | undefined;

@@ -19,11 +19,10 @@ export function gitInitFixtureWithContent(directory: string): void {
 
 export function commitAll(directory: string, message: string): void {
   execFileSync("git", ["add", "-A"], { cwd: directory });
-  execFileSync(
-    "git",
-    ["-c", "commit.gpgsign=false", "commit", "--quiet", "-m", message],
-    { cwd: directory, env: GIT_ENV },
-  );
+  execFileSync("git", ["-c", "commit.gpgsign=false", "commit", "--quiet", "-m", message], {
+    cwd: directory,
+    env: GIT_ENV,
+  });
 }
 
 export function headSha(directory: string): string {

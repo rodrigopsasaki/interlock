@@ -1,11 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import {
-  checkReference,
-  docsShapesPath,
-  generateReference,
-} from "../src/reference.ts";
+import { checkReference, docsShapesPath, generateReference } from "../src/reference.ts";
 
 const repoRoot = join(import.meta.dirname, "..", "..", "..");
 
@@ -28,13 +24,7 @@ describe("reference: docs/shapes.md stays fresh against the schemas", () => {
 
   it("lists every artifact term this repository's vocabulary table has no row for", () => {
     const { missingVocabularyTerms } = generateReference({ repoRoot });
-    expect(missingVocabularyTerms).toEqual([
-      "config",
-      "event",
-      "item",
-      "local",
-      "notes",
-    ]);
+    expect(missingVocabularyTerms).toEqual(["config", "event", "item", "local", "notes"]);
   });
 
   it("finds a purpose sentence for every artifact term the vocabulary does carry", () => {
@@ -42,8 +32,6 @@ describe("reference: docs/shapes.md stays fresh against the schemas", () => {
     expect(markdown).toContain(
       "What a session is given: node, acceptance, gates, context slice, role.",
     );
-    expect(markdown).toContain(
-      "The directed acyclic graph of nodes produced from one ask.",
-    );
+    expect(markdown).toContain("The directed acyclic graph of nodes produced from one ask.");
   });
 });

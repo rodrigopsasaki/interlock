@@ -19,12 +19,8 @@ describe("gate", () => {
     expect(isGate(gate.pending())).toBe(true);
     expect(isGate(gate.satisfied(receipt))).toBe(true);
     expect(isGate(gate.blocked("ci is red", "flaky network"))).toBe(true);
-    expect(
-      isGate(gate.waived("Rodrigo Sasaki", "known flaky suite", receipt)),
-    ).toBe(true);
-    expect(
-      isGate(gate.superseded("Rodrigo Sasaki", "replaced by a stricter gate")),
-    ).toBe(true);
+    expect(isGate(gate.waived("Rodrigo Sasaki", "known flaky suite", receipt))).toBe(true);
+    expect(isGate(gate.superseded("Rodrigo Sasaki", "replaced by a stricter gate"))).toBe(true);
   });
 
   it("keeps an absent gate (pending) distinct from a satisfied one with an empty proof", () => {
@@ -33,9 +29,7 @@ describe("gate", () => {
     const satisfied = gate.satisfied(emptyProofReceipt);
     expect(pending.kind).toBe("pending");
     expect(satisfied.kind).toBe("satisfied");
-    expect(satisfied.kind === "satisfied" && satisfied.receipt.proof).toEqual(
-      {},
-    );
+    expect(satisfied.kind === "satisfied" && satisfied.receipt.proof).toEqual({});
   });
 
   it("allows a pending gate to move within the node's declared set", () => {

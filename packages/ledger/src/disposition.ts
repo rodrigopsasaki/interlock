@@ -1,9 +1,4 @@
-export type Disposition =
-  | "retry"
-  | "repair"
-  | "hold"
-  | "cancel"
-  | "terminal-failure";
+export type Disposition = "retry" | "repair" | "hold" | "cancel" | "terminal-failure";
 
 const DISPOSITIONS: ReadonlySet<string> = new Set([
   "retry",

@@ -60,17 +60,13 @@ function renderItem(item: Item): string {
     item.scope === undefined ? undefined : renderItemScope(item.scope),
   ].filter((value): value is string => value !== undefined);
   const prefix = meta.length === 0 ? "" : `[${meta.join(", ")}] `;
-  const because =
-    item.because === undefined ? "" : ` (because ${item.because})`;
+  const because = item.because === undefined ? "" : ` (because ${item.because})`;
   return `- ${prefix}${item.statement}${because}\n  derivation: ${item.derivation}`;
 }
 
 // Pure: no substrate client exists yet, so items always arrive already typed, from a fixture in
 // tests and, later, from the substrate's context call.
-export function renderSlice(
-  substrateAddress: string,
-  items: readonly Item[],
-): string {
+export function renderSlice(substrateAddress: string, items: readonly Item[]): string {
   if (substrateAddress === "none") {
     return "No substrate is configured; this brief carries no context slice.";
   }

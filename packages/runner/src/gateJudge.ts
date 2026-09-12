@@ -3,39 +3,30 @@ import { createHash } from "node:crypto";
 import type { Clock } from "@phyxiusjs/clock";
 import { elapsedSince } from "@phyxiusjs/clock";
 import { err, isErr, isOk, ok, type Result } from "@phyxiusjs/fp";
-import {
-  debriefFilePath,
-  notesFilePath,
-  readDebriefFile,
-  readNotesFile,
-} from "debrief";
+import { debriefFilePath, notesFilePath, readDebriefFile, readNotesFile } from "debrief";
 import {
   buildCleared,
   createReceipt,
+  type Debrief,
   derivation,
   duration,
   explainScopeRefusal,
+  type Gate,
   gate,
   heldOn,
-  nodeKey,
-  outcome,
-  proposeGateMove,
-  spend,
-  type Debrief,
-  type Gate,
   type Ledger,
   type Node,
   type Note,
+  nodeKey,
   type Outcome,
+  outcome,
+  proposeGateMove,
   type Receipt,
   type ScopeRefusal,
+  spend,
 } from "ledger";
 import { narrateAbsorb, type SubstrateClient } from "substrate";
-import {
-  substituteGateCommand,
-  type GateCommand,
-  type PlaceholderRefusal,
-} from "./gateCommand.ts";
+import { type GateCommand, type PlaceholderRefusal, substituteGateCommand } from "./gateCommand.ts";
 
 export const GATE_DERIVATION_VERSION = "runner@0";
 
@@ -104,9 +95,7 @@ function outputHash(output: string): string {
 }
 
 function unmetCriterion(exitCode: number, pattern: RegExp | undefined): string {
-  return exitCode !== 0
-    ? `exit ${exitCode}`
-    : `output did not match /${pattern?.source ?? ""}/`;
+  return exitCode !== 0 ? `exit ${exitCode}` : `output did not match /${pattern?.source ?? ""}/`;
 }
 
 export async function judgeGates(
@@ -138,8 +127,7 @@ export async function judgeGates(
 
     const gateCommand = commandFor.get(gateId);
     const substituted = substituteGateCommand(gateCommand?.run ?? "", node);
-    if (isErr(substituted))
-      return err({ kind: "placeholder", gateId, refusal: substituted.error });
+    if (isErr(substituted)) return err({ kind: "placeholder", gateId, refusal: substituted.error });
 
     const before = clock.now().monoMs;
     const { exitCode, output } = await spawnGateCommand(
@@ -149,8 +137,7 @@ export async function judgeGates(
     const after = clock.now().monoMs;
 
     const pattern = gateCommand?.expectOutput;
-    const satisfied =
-      exitCode === 0 && (pattern === undefined || pattern.test(output));
+    const satisfied = exitCode === 0 && (pattern === undefined || pattern.test(output));
     const proof =
       pattern === undefined
         ? { exitCode, outputHash: outputHash(output) }
@@ -226,17 +213,11 @@ export async function judgeGates(
 async function readV2Debrief(
   worktree: string,
   node: Node,
-): Promise<
-  { readonly debrief: Debrief; readonly notes: readonly Note[] } | undefined
-> {
-  const debriefRead = await readDebriefFile(
-    debriefFilePath(worktree, node.graph, node.id),
-  );
+): Promise<{ readonly debrief: Debrief; readonly notes: readonly Note[] } | undefined> {
+  const debriefRead = await readDebriefFile(debriefFilePath(worktree, node.graph, node.id));
   if (isErr(debriefRead) || debriefRead.value.kind !== "v2") return undefined;
 
-  const notesRead = await readNotesFile(
-    notesFilePath(worktree, node.graph, node.id),
-  );
+  const notesRead = await readNotesFile(notesFilePath(worktree, node.graph, node.id));
   return {
     debrief: debriefRead.value.debrief,
     notes: isErr(notesRead) ? [] : notesRead.value,
@@ -249,8 +230,7 @@ async function ingestDebrief(
   worktree: string,
   node: Node,
 ): Promise<void> {
-  const alreadyIngested =
-    ledger.projection().sessions.get(session)?.debrief !== undefined;
+  const alreadyIngested = ledger.projection().sessions.get(session)?.debrief !== undefined;
   if (alreadyIngested) return;
 
   const read = await readV2Debrief(worktree, node);
@@ -272,11 +252,6 @@ async function absorbDebrief(
   const read = await readV2Debrief(worktree, node);
   if (read === undefined) return;
 
-  const acknowledged = await substrate.absorb(
-    node,
-    read.debrief,
-    read.notes,
-    receipts,
-  );
+  const acknowledged = await substrate.absorb(node, read.debrief, read.notes, receipts);
   narrate(narrateAbsorb(substrate.address, acknowledged));
 }

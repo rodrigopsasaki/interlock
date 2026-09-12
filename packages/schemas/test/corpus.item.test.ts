@@ -1,4 +1,4 @@
-import { renderSlice, type Item } from "debrief";
+import { type Item, renderSlice } from "debrief";
 import { describe, expect, it } from "vitest";
 import { buildRegistry } from "../src/registry.ts";
 
@@ -12,8 +12,7 @@ const items: readonly Item[] = [
   },
   {
     kind: "risk",
-    statement:
-      "Renaming the debrief package would stale an approved graph's gate",
+    statement: "Renaming the debrief package would stale an approved graph's gate",
     because: "the brief-legacy gate filters on --filter debrief literally",
     scope: { kind: "path", path: ".interlock/graphs/0002-shapes.yaml" },
     standing: "observed",

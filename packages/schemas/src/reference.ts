@@ -19,22 +19,13 @@ export function docsShapesPath(repoRoot: string): string {
   return join(repoRoot, "docs", "shapes.md");
 }
 
-export function generateReference(
-  options: ReferenceOptions = {},
-): ReferenceResult {
-  const schemasDirectory =
-    options.schemasDirectory ?? defaultSchemasDirectory();
+export function generateReference(options: ReferenceOptions = {}): ReferenceResult {
+  const schemasDirectory = options.schemasDirectory ?? defaultSchemasDirectory();
   const repoRoot = options.repoRoot ?? join(schemasDirectory, "..");
 
   const { artifacts, files } = loadArtifacts(schemasDirectory);
   const vocabulary = vocabularyPurposes(join(repoRoot, "AGENTS.md"));
-  const ledgerFixturesDirectory = join(
-    repoRoot,
-    "packages",
-    "ledger",
-    "test",
-    "fixtures",
-  );
+  const ledgerFixturesDirectory = join(repoRoot, "packages", "ledger", "test", "fixtures");
   const examples = buildCorpusExamples(repoRoot, ledgerFixturesDirectory);
 
   const missingVocabularyTerms = artifacts
@@ -54,10 +45,7 @@ export interface CheckResult {
   readonly actualLine: string | undefined;
 }
 
-export function checkReference(
-  committed: string,
-  generated: string,
-): CheckResult {
+export function checkReference(committed: string, generated: string): CheckResult {
   if (committed === generated) {
     return {
       fresh: true,

@@ -53,9 +53,7 @@ export function isGate(value: unknown): value is Gate {
     case "satisfied":
       return isReceipt(prop(value, "receipt"));
     case "blocked":
-      return (
-        isString(prop(value, "evidence")) && isString(prop(value, "because"))
-      );
+      return isString(prop(value, "evidence")) && isString(prop(value, "because"));
     case "waived":
       return (
         isString(prop(value, "authority")) &&
@@ -63,9 +61,7 @@ export function isGate(value: unknown): value is Gate {
         isReceipt(prop(value, "receipt"))
       );
     case "superseded":
-      return (
-        isString(prop(value, "authority")) && isString(prop(value, "because"))
-      );
+      return isString(prop(value, "authority")) && isString(prop(value, "because"));
     default:
       return false;
   }

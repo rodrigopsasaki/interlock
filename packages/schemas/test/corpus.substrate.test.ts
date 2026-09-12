@@ -1,5 +1,5 @@
 import type { Item } from "debrief";
-import { derivation, duration, mark, note, spend, type Receipt } from "ledger";
+import { derivation, duration, mark, note, type Receipt, spend } from "ledger";
 import { describe, expect, it } from "vitest";
 import { buildRegistry } from "../src/registry.ts";
 
@@ -9,8 +9,7 @@ const registry = buildRegistry();
 
 function schemaFor(name: string) {
   const validate = registry.ajv.getSchema(`${BASE}/${name}.json`);
-  if (validate === undefined)
-    throw new Error(`no substrate schema for ${name}`);
+  if (validate === undefined) throw new Error(`no substrate schema for ${name}`);
   return validate;
 }
 
@@ -24,8 +23,7 @@ const convention: Item = {
 
 const decisionItem: Item = {
   kind: "decision",
-  statement:
-    "ajv was chosen as the JSON Schema validator over a hand-rolled one",
+  statement: "ajv was chosen as the JSON Schema validator over a hand-rolled one",
   because: "draft 2020-12 has easy-to-get-wrong semantics",
   standing: "observed",
   derivation: "substrate@v1 consult",
@@ -142,10 +140,7 @@ const cases: readonly VerbCase[] = [
     request: { ref: "slice-item-0" },
     response: {
       chain: [
-        mark.rooted(
-          derivation.human("Rodrigo Sasaki"),
-          "docs/design/0003-substrate.md:62-73",
-        ),
+        mark.rooted(derivation.human("Rodrigo Sasaki"), "docs/design/0003-substrate.md:62-73"),
       ],
     },
   },

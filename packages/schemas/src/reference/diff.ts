@@ -7,9 +7,7 @@ interface PropertyEntry {
   readonly required: boolean;
 }
 
-function objectProps(
-  schema: Record<string, unknown>,
-): Map<string, PropertyEntry> {
+function objectProps(schema: Record<string, unknown>): Map<string, PropertyEntry> {
   const properties = prop(schema, "properties");
   const required = prop(schema, "required");
   const requiredNames = isArray(required) ? required.filter(isString) : [];
@@ -37,15 +35,11 @@ function propertyDiff(
     if (name === "interlock") continue;
     const prev = prevProps.get(name);
     if (prev === undefined) {
-      changes.push(
-        `added \`${name}\` (${curr.required ? "required" : "optional"})`,
-      );
+      changes.push(`added \`${name}\` (${curr.required ? "required" : "optional"})`);
       continue;
     }
-    if (prev.required && !curr.required)
-      changes.push(`\`${name}\` became optional`);
-    if (!prev.required && curr.required)
-      changes.push(`\`${name}\` became required`);
+    if (prev.required && !curr.required) changes.push(`\`${name}\` became optional`);
+    if (!prev.required && curr.required) changes.push(`\`${name}\` became required`);
     if (JSON.stringify(prev.schema) !== JSON.stringify(curr.schema)) {
       changes.push(`retyped \`${name}\``);
     }
@@ -57,9 +51,7 @@ function propertyDiff(
   return changes;
 }
 
-function branchMap(
-  schema: Record<string, unknown>,
-): Map<string, Record<string, unknown>> {
+function branchMap(schema: Record<string, unknown>): Map<string, Record<string, unknown>> {
   const oneOf = prop(schema, "oneOf");
   const map = new Map<string, Record<string, unknown>>();
   if (!isArray(oneOf)) return map;
@@ -88,8 +80,7 @@ function oneOfDiff(
     }
   }
   for (const identity of prevBranches.keys()) {
-    if (!currBranches.has(identity))
-      changes.push(`removed kind \`${identity}\``);
+    if (!currBranches.has(identity)) changes.push(`removed kind \`${identity}\``);
   }
   return changes;
 }
@@ -104,7 +95,5 @@ export function diffVersions(
     previousIsOneOf || currentIsOneOf
       ? oneOfDiff(previous.schema, current.schema)
       : propertyDiff(previous.schema, current.schema);
-  return changes.length === 0
-    ? ["no field changes from the previous version"]
-    : changes;
+  return changes.length === 0 ? ["no field changes from the previous version"] : changes;
 }

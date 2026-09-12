@@ -1,12 +1,5 @@
 import { execFileSync } from "node:child_process";
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { isErr, isOk, unwrap } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
@@ -16,11 +9,7 @@ import {
   explainWorktreeRefusal,
   uncommittedPaths,
 } from "../src/worktree.ts";
-import {
-  commitAll,
-  gitInitFixtureWithContent,
-  headSha,
-} from "./support/gitFixture.ts";
+import { commitAll, gitInitFixtureWithContent, headSha } from "./support/gitFixture.ts";
 
 const runsRoot = join(import.meta.dirname, ".worktree-runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -28,8 +17,7 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -51,8 +39,7 @@ describe("ensureNodeWorktree", () => {
 
     expect(isOk(result)).toBe(true);
     expect(headSha(path)).toBe(sha);
-    if (isOk(result))
-      expect(result.value).toEqual({ kind: "created", path, base: sha });
+    if (isOk(result)) expect(result.value).toEqual({ kind: "created", path, base: sha });
   });
 
   it("is idempotent: asking for the base it is already on changes nothing", () => {
@@ -184,9 +171,7 @@ describe("ensureNodeWorktree", () => {
     }
     expect(headSha(path)).toBe(sessionSha);
     expect(existsSync(join(path, "session-work.txt"))).toBe(true);
-    expect(readFileSync(join(path, "session-work.txt"), "utf-8")).toBe(
-      "the agent's own work\n",
-    );
+    expect(readFileSync(join(path, "session-work.txt"), "utf-8")).toBe("the agent's own work\n");
     expect(existsSync(join(path, "in-progress.txt"))).toBe(true);
   });
 
@@ -230,12 +215,7 @@ describe("commitBriefIfChanged", () => {
     unwrap(ensureNodeWorktree(repoRoot, path, sha, "graph/demo/node-a"));
 
     writeFileSync(join(path, "root.txt"), "brief content\n");
-    const result = commitBriefIfChanged(
-      path,
-      "root.txt",
-      "node-a",
-      "session-1",
-    );
+    const result = commitBriefIfChanged(path, "root.txt", "node-a", "session-1");
 
     expect(isOk(result)).toBe(true);
     const shortSha = unwrap(result);
@@ -249,15 +229,12 @@ describe("commitBriefIfChanged", () => {
     });
     expect(log).toContain("chore: write the session brief for node-a");
     expect(log).toContain("session-1");
-    expect(log).toContain(
-      "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>",
-    );
+    expect(log).toContain("Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>");
 
-    const changed = execFileSync(
-      "git",
-      ["show", "--name-only", "--pretty=", "HEAD"],
-      { cwd: path, encoding: "utf-8" },
-    ).trim();
+    const changed = execFileSync("git", ["show", "--name-only", "--pretty=", "HEAD"], {
+      cwd: path,
+      encoding: "utf-8",
+    }).trim();
     expect(changed).toBe("root.txt");
   });
 
@@ -267,21 +244,13 @@ describe("commitBriefIfChanged", () => {
     const path = join(repoRoot, ".worktrees", "node-a");
     unwrap(ensureNodeWorktree(repoRoot, path, sha, "graph/demo/node-a"));
 
-    writeFileSync(
-      join(path, "staged-earlier.txt"),
-      "left by an earlier session\n",
-    );
+    writeFileSync(join(path, "staged-earlier.txt"), "left by an earlier session\n");
     execFileSync("git", ["add", "staged-earlier.txt"], { cwd: path });
     writeFileSync(join(path, "root.txt"), "unstaged edit\n");
     writeFileSync(join(path, "brief.md"), "brief content\n");
     execFileSync("git", ["add", "brief.md"], { cwd: path });
 
-    const result = commitBriefIfChanged(
-      path,
-      "brief.md",
-      "node-a",
-      "session-1",
-    );
+    const result = commitBriefIfChanged(path, "brief.md", "node-a", "session-1");
 
     expect(isOk(result)).toBe(true);
     expect(unwrap(result)).toBeDefined();
@@ -293,11 +262,10 @@ describe("commitBriefIfChanged", () => {
     expect(status).toContain("staged-earlier.txt");
     expect(status).toContain("root.txt");
 
-    const changed = execFileSync(
-      "git",
-      ["show", "--name-only", "--pretty=", "HEAD"],
-      { cwd: path, encoding: "utf-8" },
-    ).trim();
+    const changed = execFileSync("git", ["show", "--name-only", "--pretty=", "HEAD"], {
+      cwd: path,
+      encoding: "utf-8",
+    }).trim();
     expect(changed).toBe("brief.md");
   });
 
@@ -307,12 +275,7 @@ describe("commitBriefIfChanged", () => {
     const path = join(repoRoot, ".worktrees", "node-a");
     unwrap(ensureNodeWorktree(repoRoot, path, sha, "graph/demo/node-a"));
 
-    const result = commitBriefIfChanged(
-      path,
-      "root.txt",
-      "node-a",
-      "session-1",
-    );
+    const result = commitBriefIfChanged(path, "root.txt", "node-a", "session-1");
 
     expect(isOk(result)).toBe(true);
     expect(unwrap(result)).toBeUndefined();

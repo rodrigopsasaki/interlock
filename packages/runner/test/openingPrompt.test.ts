@@ -4,9 +4,7 @@ import { buildOpeningPrompt } from "../src/openingPrompt.ts";
 describe("buildOpeningPrompt", () => {
   it("names the brief path for a fresh worktree, with no prior-work sentence", () => {
     const prompt = buildOpeningPrompt("0001-bootstrap", "runner-command-gate");
-    expect(prompt).toContain(
-      ".interlock/sessions/0001-bootstrap/runner-command-gate/brief.md",
-    );
+    expect(prompt).toContain(".interlock/sessions/0001-bootstrap/runner-command-gate/brief.md");
     expect(prompt).not.toContain("carries work from an earlier session");
   });
 

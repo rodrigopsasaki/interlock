@@ -76,9 +76,7 @@ export function isDecision(value: unknown): value is Decision {
   );
 }
 
-export function isDebriefDerivation(
-  value: unknown,
-): value is DebriefDerivation {
+export function isDebriefDerivation(value: unknown): value is DebriefDerivation {
   if (!isRecord(value)) return false;
   const kind = prop(value, "kind");
   if (typeof kind !== "string") return false;
@@ -93,11 +91,7 @@ export function isDebriefDerivation(
 }
 
 export function isDrafted(value: unknown): value is Drafted {
-  return (
-    isRecord(value) &&
-    isString(prop(value, "by")) &&
-    isString(prop(value, "from"))
-  );
+  return isRecord(value) && isString(prop(value, "by")) && isString(prop(value, "from"));
 }
 
 export function isGateRun(value: unknown): value is GateRun {

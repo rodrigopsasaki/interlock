@@ -1,14 +1,14 @@
 import type { Clock, MonoMs } from "@phyxiusjs/clock";
 import { deadlineFrom, elapsedSince, hasPassed, ms } from "@phyxiusjs/clock";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
-import { lastNonEmptyLine } from "./sessionScreen.ts";
 import {
-  explainRuntimeRefusal,
   type Agent,
   type AgentStatus,
+  explainRuntimeRefusal,
   type Runtime,
   type RuntimeRefusal,
 } from "./runtime.ts";
+import { lastNonEmptyLine } from "./sessionScreen.ts";
 
 const AFTER_BLOCKED: readonly AgentStatus[] = ["working", "idle", "done"];
 const AFTER_WORKING: readonly AgentStatus[] = ["idle", "blocked", "done"];

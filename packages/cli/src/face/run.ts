@@ -1,24 +1,24 @@
-import { watch, type FSWatcher } from "node:fs";
-import { createSystemClock, type Clock } from "@phyxiusjs/clock";
+import { type FSWatcher, watch } from "node:fs";
+import { type Clock, createSystemClock } from "@phyxiusjs/clock";
 import { isErr } from "@phyxiusjs/fp";
 import {
-  findRepoRoot,
-  initialFaceState,
-  reduce,
-  sharedJournalDirectory,
-  verbCommand,
   type FaceKey,
   type FaceState,
   type FaceWorld,
+  findRepoRoot,
+  initialFaceState,
+  reduce,
   type Selection,
+  sharedJournalDirectory,
+  verbCommand,
 } from "face";
 import type { Runtime } from "runner";
 import type { CommandResult } from "../main.ts";
 import { createDispatcher, type Dispatcher } from "./dispatch.ts";
-import { decodeKeys } from "./keys.ts";
 import { focusSession } from "./focus.ts";
-import { drawScreen, enterAltScreen, exitAltScreen } from "./terminal.ts";
+import { decodeKeys } from "./keys.ts";
 import { renderScreen } from "./screen.ts";
+import { drawScreen, enterAltScreen, exitAltScreen } from "./terminal.ts";
 import { buildGraphWorld, buildPlansWorld, buildSessionText } from "./world.ts";
 
 const REDRAW_INTERVAL_MS = 2000;
@@ -93,10 +93,7 @@ function bufferedKeys(stdin: NodeJS.ReadStream): AsyncIterable<FaceKey> {
   };
 }
 
-function watchJournalDirectory(
-  path: string,
-  onChange: () => void,
-): FSWatcher | undefined {
+function watchJournalDirectory(path: string, onChange: () => void): FSWatcher | undefined {
   try {
     return watch(path, { persistent: false }, onChange);
   } catch {
@@ -133,20 +130,12 @@ export async function runInterlockFace(
 
   async function refreshWorld(): Promise<void> {
     if (state.level === "plans") {
-      world = worldWithBy(
-        await buildPlansWorld(repoRoot, options.runtime, clock),
-        by,
-      );
+      world = worldWithBy(await buildPlansWorld(repoRoot, options.runtime, clock), by);
       return;
     }
     const graphId = state.selection.graph ?? graph;
     if (graphId === undefined) return;
-    const built = await buildGraphWorld(
-      repoRoot,
-      graphId,
-      options.runtime,
-      clock,
-    );
+    const built = await buildGraphWorld(repoRoot, graphId, options.runtime, clock);
     world = worldWithBy(isErr(built) ? { plans: [] } : built.value, by);
 
     if (

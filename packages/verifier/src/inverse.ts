@@ -1,5 +1,5 @@
 import { isOk } from "@phyxiusjs/fp";
-import { mark, type Decision, type Derivation, type Mark } from "ledger";
+import { type Decision, type Derivation, type Mark, mark } from "ledger";
 import type { FileDiff } from "./git.ts";
 import { parseHunkCitation } from "./hunkCitation.ts";
 

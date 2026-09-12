@@ -10,8 +10,7 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -34,9 +33,7 @@ describe("readNotesFile", () => {
   });
 
   it("refuses an unknown shape tag", async () => {
-    const path = write(
-      ["interlock: notes@v1", "node: n", "entries: []", ""].join("\n"),
-    );
+    const path = write(["interlock: notes@v1", "node: n", "entries: []", ""].join("\n"));
     const result = await readNotesFile(path);
     expect(isErr(result)).toBe(true);
     if (!isErr(result)) return;
@@ -99,9 +96,7 @@ describe("readNotesFile", () => {
     if (!isOk(result)) return;
     const [entry] = result.value;
     expect(entry?.kind).toBe("choice");
-    expect(
-      entry && "rejected" in entry ? entry.rejected : undefined,
-    ).toBeUndefined();
+    expect(entry && "rejected" in entry ? entry.rejected : undefined).toBeUndefined();
   });
 
   it("refuses a choice entry missing because, naming the entry index", async () => {

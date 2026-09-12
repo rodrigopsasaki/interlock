@@ -28,7 +28,10 @@ const headings = new Set(
   Array.from(text.matchAll(/^#{1,6}\s+(.+)$/gm), (match) => {
     const heading = match[1];
     if (heading === undefined) throw new Error("Missing heading text");
-    return heading.toLowerCase().replace(/[^\p{L}\p{N}\s_-]/gu, "").replace(/\s/g, "-");
+    return heading
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s_-]/gu, "")
+      .replace(/\s/g, "-");
   }),
 );
 

@@ -8,9 +8,7 @@ function node(id: string, dependsOn: readonly string[] = []): NodeDeclaration {
   return { id, dependsOn, gates: [] };
 }
 
-function orderedNodes(
-  nodes: readonly NodeDeclaration[],
-): readonly NodeDeclaration[] {
+function orderedNodes(nodes: readonly NodeDeclaration[]): readonly NodeDeclaration[] {
   return unwrap(topologicalOrder(nodes));
 }
 

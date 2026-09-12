@@ -9,21 +9,15 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
-function repoWithBrief(
-  graph: string,
-  node: string,
-  briefContent: string | undefined,
-): string {
+function repoWithBrief(graph: string, node: string, briefContent: string | undefined): string {
   directory = mkdtempSync(join(runsRoot, "validate-"));
   const dir = join(directory, ".interlock", "sessions", graph, node);
   mkdirSync(dir, { recursive: true });
-  if (briefContent !== undefined)
-    writeFileSync(join(dir, "brief.md"), briefContent);
+  if (briefContent !== undefined) writeFileSync(join(dir, "brief.md"), briefContent);
   return directory;
 }
 
@@ -64,9 +58,7 @@ describe("validateBrief", () => {
     const cwd = repoWithBrief("g", "n", "# Brief · node `n` · graph `g`\n");
     const result = await validateBrief(["g", "n"], { cwd });
     expect(result.exitCode).toBe(0);
-    expect(result.message).toContain(
-      "valid as brief@v0; the runner requires brief@v1.",
-    );
+    expect(result.message).toContain("valid as brief@v0; the runner requires brief@v1.");
   });
 
   it("reports a brief@v1 file as valid", async () => {
@@ -80,9 +72,7 @@ describe("validateBrief", () => {
     const cwd = repoWithBrief("g", "n", v1Brief);
     const result = await validateBrief(["g", "n"], { cwd });
     expect(result.message).not.toContain(cwd);
-    expect(result.message).toContain(
-      join(".interlock", "sessions", "g", "n", "brief.md"),
-    );
+    expect(result.message).toContain(join(".interlock", "sessions", "g", "n", "brief.md"));
   });
 
   it("refuses a missing brief, naming the path", async () => {

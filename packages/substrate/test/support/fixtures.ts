@@ -1,12 +1,5 @@
 import type { Item } from "debrief";
-import {
-  derivation,
-  duration,
-  spend,
-  type Debrief,
-  type Note,
-  type Receipt,
-} from "ledger";
+import { type Debrief, derivation, duration, type Note, type Receipt, spend } from "ledger";
 
 export const fixtureItem: Item = {
   kind: "convention",
