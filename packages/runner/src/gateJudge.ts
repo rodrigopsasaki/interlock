@@ -21,12 +21,16 @@ import {
   outcome,
   proposeGateMove,
   spend,
+  type Debrief,
   type Gate,
   type Ledger,
   type Node,
+  type Note,
   type Outcome,
+  type Receipt,
   type ScopeRefusal,
 } from "ledger";
+import { narrateAbsorb, type SubstrateClient } from "substrate";
 import {
   substituteGateCommand,
   type GateCommand,
@@ -65,6 +69,8 @@ export interface GateJudgeRequest {
   readonly commitSha: string;
   readonly runnerId: string;
   readonly holdMs: number;
+  readonly substrate: SubstrateClient;
+  readonly narrate: (line: string) => void;
 }
 
 function tokenize(command: string): readonly string[] {
@@ -119,6 +125,8 @@ export async function judgeGates(
     commitSha,
     runnerId,
     holdMs,
+    substrate,
+    narrate,
   } = request;
 
   for (const gateId of declaredGateIds) {
@@ -209,8 +217,30 @@ export async function judgeGates(
     await ingestDebrief(ledger, session, worktree, node);
   }
 
+  await absorbDebrief(substrate, narrate, worktree, node, receipts);
+
   ledger.append({ kind: "outcome-set", node, outcome: resolved });
   return ok(resolved);
+}
+
+async function readV2Debrief(
+  worktree: string,
+  node: Node,
+): Promise<
+  { readonly debrief: Debrief; readonly notes: readonly Note[] } | undefined
+> {
+  const debriefRead = await readDebriefFile(
+    debriefFilePath(worktree, node.graph, node.id),
+  );
+  if (isErr(debriefRead) || debriefRead.value.kind !== "v2") return undefined;
+
+  const notesRead = await readNotesFile(
+    notesFilePath(worktree, node.graph, node.id),
+  );
+  return {
+    debrief: debriefRead.value.debrief,
+    notes: isErr(notesRead) ? [] : notesRead.value,
+  };
 }
 
 async function ingestDebrief(
@@ -223,22 +253,30 @@ async function ingestDebrief(
     ledger.projection().sessions.get(session)?.debrief !== undefined;
   if (alreadyIngested) return;
 
-  const debriefRead = await readDebriefFile(
-    debriefFilePath(worktree, node.graph, node.id),
-  );
-  if (isErr(debriefRead) || debriefRead.value.kind !== "v2") return;
+  const read = await readV2Debrief(worktree, node);
+  if (read === undefined) return;
 
-  ledger.append({
-    kind: "debrief-filed",
-    session,
-    debrief: debriefRead.value.debrief,
-  });
-
-  const notesRead = await readNotesFile(
-    notesFilePath(worktree, node.graph, node.id),
-  );
-  if (isErr(notesRead)) return;
-  for (const note of notesRead.value) {
+  ledger.append({ kind: "debrief-filed", session, debrief: read.debrief });
+  for (const note of read.notes) {
     ledger.append({ kind: "note-appended", session, note });
   }
+}
+
+async function absorbDebrief(
+  substrate: SubstrateClient,
+  narrate: (line: string) => void,
+  worktree: string,
+  node: Node,
+  receipts: readonly Receipt[],
+): Promise<void> {
+  const read = await readV2Debrief(worktree, node);
+  if (read === undefined) return;
+
+  const acknowledged = await substrate.absorb(
+    node,
+    read.debrief,
+    read.notes,
+    receipts,
+  );
+  narrate(narrateAbsorb(substrate.address, acknowledged));
 }

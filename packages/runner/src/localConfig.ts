@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
+import { isValidSubstrateAddress } from "substrate";
 import { parse as parseYaml, YAMLParseError } from "yaml";
 import {
   isValidStartupAnswerMatcher,
@@ -28,6 +29,7 @@ export interface LocalConfig {
   readonly runTimeoutMs: number;
   readonly answerGraceMs: number;
   readonly substrateAddress: string;
+  readonly substrateKeyFile?: string;
 }
 
 export type LocalConfigRefusal =
@@ -51,7 +53,9 @@ const FIELD_GUIDE =
   "run_timeout_ms (the wall timeout waiting for the agent to go idle, blocked or done), " +
   "answer_grace_ms (optional; once a person has answered a blocked turn, how long an idle or " +
   "done that follows stays open for the agent to resume before it is judged settled), " +
-  "substrate.address (unused by this node, present so the shape is one).";
+  'substrate.address ("none" or an http(s) URL), ' +
+  "substrate.key_file (optional; a path to a file whose first line is a bearer token sent as " +
+  "Authorization: Bearer ... on every call to substrate.address).";
 
 export function explainLocalConfigRefusal(refusal: LocalConfigRefusal): string {
   switch (refusal.kind) {
@@ -248,6 +252,24 @@ function parseShape(
       reason: '"substrate.address" is missing or not a string',
     });
   }
+  if (!isValidSubstrateAddress(substrateAddress)) {
+    return err({
+      kind: "malformed",
+      path,
+      reason: `"substrate.address" is "${substrateAddress}"; expected "none" or an http(s) URL`,
+    });
+  }
+
+  const substrateKeyFile = isRecord(substrate)
+    ? prop(substrate, "key_file")
+    : undefined;
+  if (substrateKeyFile !== undefined && !isString(substrateKeyFile)) {
+    return err({
+      kind: "malformed",
+      path,
+      reason: '"substrate.key_file" must be a string',
+    });
+  }
 
   return ok({
     runtime: {
@@ -263,6 +285,7 @@ function parseShape(
     runTimeoutMs,
     answerGraceMs,
     substrateAddress,
+    ...(substrateKeyFile === undefined ? {} : { substrateKeyFile }),
   });
 }
 

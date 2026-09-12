@@ -92,6 +92,8 @@ export {
   renderBriefFile,
 } from "./briefRewrite.ts";
 
+export { withRenderedContextSlice } from "./contextSlice.ts";
+
 export type { GateJudgeRefusal, GateJudgeRequest } from "./gateJudge.ts";
 export {
   GATE_DERIVATION_VERSION,

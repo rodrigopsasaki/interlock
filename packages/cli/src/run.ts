@@ -58,6 +58,7 @@ import {
   type UnfinishedWork,
   type WorktreeOutcome,
 } from "runner";
+import { substrateClientFor } from "substrate";
 import type { CommandResult } from "./main.ts";
 
 function isoOf(wallMs: number): string {
@@ -115,6 +116,10 @@ export async function runInterlockRun(
       message: explainLocalConfigRefusal(localConfig.error),
     };
   }
+  const substrate = substrateClientFor(
+    localConfig.value.substrateAddress,
+    localConfig.value.substrateKeyFile,
+  );
 
   const graphPath = graphFilePath(repoRoot, graph);
   const document = await loadGraphDocument(graphPath);
@@ -280,6 +285,7 @@ export async function runInterlockRun(
       sessionId,
       standingGates.value,
       declaration.gates,
+      substrate,
     );
     if (isErr(briefWritten)) {
       const result = refuse(
@@ -538,6 +544,7 @@ export async function runInterlockRun(
       narrate,
       runnerId: `run-${sessionId}`,
       holdMs: HELD_REVISIT_MS,
+      substrate,
       onWorktreeRead: async () => {
         if (!isOk(screenRead)) return;
         await writeScreenSnapshot(worktreePath, graph, node, screenRead.value);
