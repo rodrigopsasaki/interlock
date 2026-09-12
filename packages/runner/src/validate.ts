@@ -23,3 +23,15 @@ export function stringAt(
   }
   return isString(current) ? current : undefined;
 }
+
+export function numberAt(
+  value: unknown,
+  ...keys: readonly string[]
+): number | undefined {
+  let current = value;
+  for (const key of keys) {
+    if (!isRecord(current)) return undefined;
+    current = prop(current, key);
+  }
+  return typeof current === "number" ? current : undefined;
+}

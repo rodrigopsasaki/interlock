@@ -19,6 +19,35 @@ interface AnswerGrace {
   readonly settled: AgentStatus;
 }
 
+export interface UnfinishedWork {
+  readonly uncommittedPaths: number;
+  readonly debriefMissing: boolean;
+}
+
+function armGrace(
+  now: MonoMs,
+  deadline: MonoMs,
+  answerGraceMs: number,
+  settled: AgentStatus,
+): AnswerGrace {
+  const candidate = deadlineFrom(now, ms(answerGraceMs));
+  return {
+    deadline: hasPassed(candidate, deadline) ? deadline : candidate,
+    settled,
+  };
+}
+
+function describeUnfinishedWork(work: UnfinishedWork): string {
+  const parts: string[] = [];
+  if (work.uncommittedPaths > 0) {
+    parts.push(
+      `${work.uncommittedPaths} uncommitted path${work.uncommittedPaths === 1 ? "" : "s"}`,
+    );
+  }
+  if (work.debriefMissing) parts.push("no debrief");
+  return parts.join(" and ");
+}
+
 export async function waitForSession(
   runtime: Runtime,
   agent: Agent,
@@ -27,6 +56,7 @@ export async function waitForSession(
   runTimeoutMs: number,
   answerGraceMs: number,
   narrate: (line: string) => void,
+  readUnfinishedWork: () => UnfinishedWork | undefined,
 ): Promise<Result<AgentStatus, RuntimeRefusal>> {
   let until = AFTER_WORKING;
   let lastStatus: AgentStatus = "unknown";
@@ -75,15 +105,26 @@ export async function waitForSession(
       continue;
     }
 
+    if (grace !== undefined) {
+      until = AFTER_SETTLED;
+      continue;
+    }
+
     if (seenBlocked) {
-      const candidate = deadlineFrom(now, ms(answerGraceMs));
-      const graceDeadline = hasPassed(candidate, deadline)
-        ? deadline
-        : candidate;
       narrate(
         `agent settled after a person's turn; judging in ${Math.round(answerGraceMs / 1000)}s unless it resumes`,
       );
-      grace = { deadline: graceDeadline, settled: waited.value };
+      grace = armGrace(now, deadline, answerGraceMs, waited.value);
+      until = AFTER_SETTLED;
+      continue;
+    }
+
+    const unfinished = readUnfinishedWork();
+    if (unfinished !== undefined) {
+      narrate(
+        `agent settled with ${describeUnfinishedWork(unfinished)}; judging in ${Math.round(answerGraceMs / 1000)}s unless it resumes`,
+      );
+      grace = armGrace(now, deadline, answerGraceMs, waited.value);
       until = AFTER_SETTLED;
       continue;
     }
