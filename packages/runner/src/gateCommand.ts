@@ -40,12 +40,21 @@ export function declaredGateIds(
 }
 
 export interface GateCommand {
-  readonly run: string;
+  readonly kind: string;
+  readonly run?: string;
   readonly expectOutput?: RegExp;
 }
 
-function toGateCommand(run: string, expectOutput: RegExp | undefined): GateCommand {
-  return expectOutput === undefined ? { run } : { run, expectOutput };
+function toGateCommand(
+  kind: string,
+  run: string | undefined,
+  expectOutput: RegExp | undefined,
+): GateCommand {
+  return {
+    kind,
+    ...(run === undefined ? {} : { run }),
+    ...(expectOutput === undefined ? {} : { expectOutput }),
+  };
 }
 
 export function gateCommandTable(
@@ -54,11 +63,10 @@ export function gateCommandTable(
 ): ReadonlyMap<string, GateCommand> {
   const table = new Map<string, GateCommand>();
   for (const entry of standing) {
-    table.set(entry.id, toGateCommand(entry.run, entry.expectOutput));
+    table.set(entry.id, toGateCommand(entry.kind, entry.run, entry.expectOutput));
   }
   for (const entry of node) {
-    const run = entry.run;
-    if (run !== undefined) table.set(entry.id, toGateCommand(run, entry.expectOutput));
+    table.set(entry.id, toGateCommand(entry.kind, entry.run, entry.expectOutput));
   }
   return table;
 }

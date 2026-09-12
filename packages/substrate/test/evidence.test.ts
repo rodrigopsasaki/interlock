@@ -272,7 +272,12 @@ describe("evidenceOf: receipts, classified from the gate-moved history", () => {
       baseSession({
         receipts: [satisfiedReceipt],
         personEvents: [
-          { kind: "gate-moved", node, gate: "typecheck", to: gate.satisfied(satisfiedReceipt) },
+          {
+            kind: "gate-moved",
+            node,
+            gate: "typecheck",
+            to: gate.satisfied(satisfiedReceipt),
+          },
         ],
       }),
     );
@@ -291,7 +296,12 @@ describe("evidenceOf: receipts, classified from the gate-moved history", () => {
       baseSession({
         receipts: [satisfiedReceipt, blockedReceipt],
         personEvents: [
-          { kind: "gate-moved", node, gate: "typecheck", to: gate.satisfied(satisfiedReceipt) },
+          {
+            kind: "gate-moved",
+            node,
+            gate: "typecheck",
+            to: gate.satisfied(satisfiedReceipt),
+          },
         ],
       }),
     );
@@ -374,7 +384,10 @@ describe("evidenceOf: receipts, classified from the gate-moved history", () => {
       }),
     );
     expect(items).toContainEqual(
-      expect.objectContaining({ kind: "discipline", statement: "gate lint satisfied" }),
+      expect.objectContaining({
+        kind: "discipline",
+        statement: "gate lint satisfied",
+      }),
     );
   });
 });
@@ -439,6 +452,39 @@ describe("evidenceOf: a person's verbs", () => {
         kind: "decision",
         statement: "approved gate approved",
         because: "reviewed the plan by hand",
+        standing: "professed",
+        derivation: "human:Rodrigo Sasaki",
+      },
+    ]);
+  });
+
+  it("clear (a node's own human gate, not the graph's approved gate) reads the same way", () => {
+    const witnessedReceipt = {
+      id: "r5",
+      gate: "witnessed",
+      commitSha: "a".repeat(40),
+      spend: spend.none(),
+      duration: duration.unknown(),
+      derivation: derivation.human("Rodrigo Sasaki"),
+      proof: { because: "watched the brief render and the debrief absorb" },
+    };
+    const { items } = evidenceOf(
+      baseSession({
+        personEvents: [
+          {
+            kind: "gate-moved",
+            node,
+            gate: "witnessed",
+            to: gate.satisfied(witnessedReceipt),
+          },
+        ],
+      }),
+    );
+    expect(items).toEqual([
+      {
+        kind: "decision",
+        statement: "approved gate witnessed",
+        because: "watched the brief render and the debrief absorb",
         standing: "professed",
         derivation: "human:Rodrigo Sasaki",
       },
@@ -580,7 +626,12 @@ describe("evidenceOf: the harness is not a person", () => {
           {
             kind: "outcome-set",
             node,
-            outcome: { kind: "reset", receipts: [], authority: "sweeper", because: "swept" },
+            outcome: {
+              kind: "reset",
+              receipts: [],
+              authority: "sweeper",
+              because: "swept",
+            },
           },
         ],
       }),
@@ -717,7 +768,12 @@ describe("personEventsFor", () => {
 
   it("includes the graph's own approved gate-moved event, since it authorises every one of its nodes", () => {
     const events = [
-      { kind: "gate-moved" as const, node: graphNode, gate: "approved", to: gate.pending() },
+      {
+        kind: "gate-moved" as const,
+        node: graphNode,
+        gate: "approved",
+        to: gate.pending(),
+      },
       {
         kind: "gate-moved" as const,
         node: graphNode,

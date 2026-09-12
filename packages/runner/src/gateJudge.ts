@@ -110,6 +110,20 @@ function unmetCriterion(exitCode: number, pattern: RegExp | undefined): string {
   return exitCode !== 0 ? `exit ${exitCode}` : `output did not match /${pattern?.source ?? ""}/`;
 }
 
+function heldBecause(
+  missing: readonly string[],
+  commandFor: ReadonlyMap<string, GateCommand>,
+): string {
+  const awaitingPerson = missing.filter((gateId) => commandFor.get(gateId)?.kind === "human");
+  if (awaitingPerson.length === 0) {
+    return `${missing.length} gate(s) not satisfied or waived: ${missing.join(", ")}`;
+  }
+  const clears = awaitingPerson.length === 1 ? "it" : "them";
+  return awaitingPerson.length === missing.length
+    ? `${missing.join(", ")}: awaits a person; a person's verb clears ${clears}.`
+    : `${missing.length} gate(s) not satisfied or waived: ${missing.join(", ")}; ${awaitingPerson.join(", ")} awaits a person, cleared only by a person's verb.`;
+}
+
 export async function judgeGates(
   request: GateJudgeRequest,
 ): Promise<Result<Outcome, GateJudgeRefusal>> {
@@ -136,11 +150,19 @@ export async function judgeGates(
   for (const gateId of declaredGateIds) {
     const view = ledger.projection().nodes.get(nodeKey(node));
     const current = view?.gates.get(gateId) ?? gate.pending();
+    const gateCommand = commandFor.get(gateId);
+
+    if (gateCommand?.kind === "human") {
+      if (current.kind !== "satisfied" && current.kind !== "waived") {
+        narrate(`${gateId}: awaits a person`);
+      }
+      continue;
+    }
+
     if (current.kind === "satisfied" && current.receipt.spend.kind !== "none") {
       continue;
     }
 
-    const gateCommand = commandFor.get(gateId);
     const substituted = substituteGateCommand(gateCommand?.run ?? "", node);
     if (isErr(substituted)) return err({ kind: "placeholder", gateId, refusal: substituted.error });
 
@@ -213,7 +235,7 @@ export async function judgeGates(
     : outcome.held(
         receipts,
         heldOn.gateFailure(cleared.error.missing.join(", "), "hold"),
-        `${cleared.error.missing.length} gate(s) not satisfied or waived: ${cleared.error.missing.join(", ")}`,
+        heldBecause(cleared.error.missing, commandFor),
         clock.now().wallMs + holdMs,
       );
 

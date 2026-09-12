@@ -8,6 +8,7 @@ import type {
   NodeView,
   Note,
   Outcome,
+  Receipt,
   SessionView,
 } from "ledger";
 
@@ -15,13 +16,26 @@ function isoOf(wallMs: number): string {
   return new Date(wallMs).toISOString();
 }
 
-export function renderGate(gateId: string, current: Gate | undefined): string {
+function humanBecause(receipt: Receipt): string | undefined {
+  if (receipt.derivation.kind !== "human") return undefined;
+  const because = receipt.proof["because"];
+  return typeof because === "string" ? because : undefined;
+}
+
+export function renderGate(
+  gateId: string,
+  current: Gate | undefined,
+  printBecause: boolean,
+): string {
   if (current === undefined) return `  ${gateId}: pending`;
   switch (current.kind) {
     case "pending":
       return `  ${gateId}: pending`;
-    case "satisfied":
-      return `  ${gateId}: satisfied (receipt ${current.receipt.id})`;
+    case "satisfied": {
+      const because = printBecause ? humanBecause(current.receipt) : undefined;
+      const suffix = because === undefined ? "" : `; because: ${because}`;
+      return `  ${gateId}: satisfied (receipt ${current.receipt.id})${suffix}`;
+    }
     case "waived":
       return `  ${gateId}: waived by ${current.authority} (receipt ${current.receipt.id})`;
     case "blocked":
@@ -87,10 +101,16 @@ export function renderBrief(brief: Brief): string {
   return ["Brief", `  acceptance: ${brief.acceptance}`, `  gates: ${gates}`].join("\n");
 }
 
-export function renderContext(view: SessionView, nodeView: NodeView | undefined): string {
+export function renderContext(
+  view: SessionView,
+  nodeView: NodeView | undefined,
+  printBecause: boolean,
+): string {
   const gateLines =
     view.brief.gates.length > 0
-      ? view.brief.gates.map((gateId) => renderGate(gateId, nodeView?.gates.get(gateId))).join("\n")
+      ? view.brief.gates
+          .map((gateId) => renderGate(gateId, nodeView?.gates.get(gateId), printBecause))
+          .join("\n")
       : "  (no gates declared)";
   return [
     "Context",
@@ -129,7 +149,7 @@ export function renderSessionColumns(input: SessionColumnsInput): string {
   return [
     `${graph}/${node} · session ${view.session}`,
     renderBrief(view.brief),
-    renderContext(view, nodeView),
+    renderContext(view, nodeView, printBecause),
     renderDebriefBackedSection("Discoveries", view, legacyLine, (debrief) =>
       debrief.discoveries.map(renderDiscovery),
     ),

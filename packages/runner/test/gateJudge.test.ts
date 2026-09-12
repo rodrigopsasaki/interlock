@@ -52,7 +52,7 @@ describe("receipt-idempotent", () => {
       node,
       session: "s1",
       declaredGateIds: ["always-pass"],
-      commandFor: new Map([["always-pass", { run: passCommand }]]),
+      commandFor: new Map([["always-pass", { kind: "command", run: passCommand }]]),
       worktree: root,
       scopeRoot: root,
       scopePaths: ["content.txt"],
@@ -90,7 +90,7 @@ describe("gateJudge", () => {
       node,
       session: "s1",
       declaredGateIds: ["always-fail"],
-      commandFor: new Map([["always-fail", { run: failCommand }]]),
+      commandFor: new Map([["always-fail", { kind: "command", run: failCommand }]]),
       worktree: root,
       scopeRoot: root,
       scopePaths: ["content.txt"],
@@ -201,7 +201,7 @@ describe("gateJudge", () => {
       node,
       session: "s1",
       declaredGateIds: ["foreign-none", "kept-local"],
-      commandFor: new Map([["foreign-none", { run: failCommand }]]),
+      commandFor: new Map([["foreign-none", { kind: "command", run: failCommand }]]),
       worktree: root,
       scopeRoot: root,
       scopePaths: ["content.txt"],
@@ -222,6 +222,94 @@ describe("gateJudge", () => {
   });
 });
 
+describe("human gates", () => {
+  it("holds a node on a pending human gate, naming it and that a person's verb clears it, never spawning a command", async () => {
+    const root = fixture();
+    const ledger = memoryLedger();
+    const narrated: string[] = [];
+
+    const judged = await judgeGates({
+      ledger,
+      clock: createControlledClock(),
+      node,
+      session: "s1",
+      declaredGateIds: ["witnessed"],
+      commandFor: new Map([["witnessed", { kind: "human", run: failCommand }]]),
+      worktree: root,
+      scopeRoot: root,
+      scopePaths: ["content.txt"],
+      commitSha: "deadbeef",
+      runnerId: "run-1",
+      holdMs: 60_000,
+      substrate,
+      narrate: (line) => narrated.push(line),
+    });
+
+    if (isErr(judged)) throw new Error("expected an outcome");
+    expect(judged.value.kind).toBe("held");
+    if (judged.value.kind !== "held") return;
+    expect(judged.value.on).toEqual({
+      kind: "gate-failure",
+      failure: "witnessed",
+      disposition: "hold",
+    });
+    expect(judged.value.because).toBe("witnessed: awaits a person; a person's verb clears it.");
+    expect(narrated).toContain("witnessed: awaits a person");
+
+    const view = ledger.projection().nodes.get(nodeKey(node));
+    expect(view?.gates.get("witnessed")).toBeUndefined();
+    expect(view?.receipts.find((receipt) => receipt.gate === "witnessed")).toBeUndefined();
+  });
+
+  it("clears the node once a person has satisfied the human gate, without ever running its command", async () => {
+    const root = fixture();
+    const ledger = memoryLedger();
+
+    const clearedReceipt: Receipt = {
+      id: "cleared-r1",
+      gate: "witnessed",
+      commitSha: "deadbeef",
+      spend: { kind: "none" },
+      duration: { kind: "unknown" },
+      derivation: { kind: "human", who: "Rodrigo Sasaki" },
+      proof: { because: "watched the brief render and the debrief absorb" },
+    };
+    ledger.append({
+      kind: "gate-moved",
+      node,
+      gate: "witnessed",
+      to: { kind: "satisfied", receipt: clearedReceipt },
+    });
+
+    const judged = await judgeGates({
+      ledger,
+      clock: createControlledClock(),
+      node,
+      session: "s1",
+      declaredGateIds: ["witnessed"],
+      commandFor: new Map([["witnessed", { kind: "human", run: failCommand }]]),
+      worktree: root,
+      scopeRoot: root,
+      scopePaths: ["content.txt"],
+      commitSha: "deadbeef",
+      runnerId: "run-1",
+      holdMs: 60_000,
+      substrate,
+      narrate: () => {},
+    });
+
+    if (isErr(judged)) throw new Error("expected an outcome");
+    expect(judged.value.kind).toBe("cleared");
+    if (judged.value.kind !== "cleared") return;
+    expect(judged.value.receipts).toHaveLength(1);
+    expect(judged.value.receipts[0]?.id).toBe("cleared-r1");
+
+    const view = ledger.projection().nodes.get(nodeKey(node));
+    expect(view?.gates.get("witnessed")?.kind).toBe("satisfied");
+    expect(view?.receipts.find((receipt) => receipt.gate === "witnessed")).toBeUndefined();
+  });
+});
+
 describe("gate command placeholders", () => {
   it("substitutes {graph} and {node} before spawning", async () => {
     const root = fixture();
@@ -234,7 +322,7 @@ describe("gate command placeholders", () => {
       node: commandNode,
       session: "s1",
       declaredGateIds: ["echoes"],
-      commandFor: new Map([["echoes", { run: "test {node} = n1" }]]),
+      commandFor: new Map([["echoes", { kind: "command", run: "test {node} = n1" }]]),
       worktree: root,
       scopeRoot: root,
       scopePaths: ["content.txt"],
@@ -259,7 +347,7 @@ describe("gate command placeholders", () => {
       node,
       session: "s1",
       declaredGateIds: ["broken"],
-      commandFor: new Map([["broken", { run: "pnpm run {branch}" }]]),
+      commandFor: new Map([["broken", { kind: "command", run: "pnpm run {branch}" }]]),
       worktree: root,
       scopeRoot: root,
       scopePaths: ["content.txt"],
@@ -296,7 +384,14 @@ describe("expect_output", () => {
       session: "s1",
       declaredGateIds: ["tested"],
       commandFor: new Map([
-        ["tested", { run: matchingOutputCommand, expectOutput: testsPassedPattern }],
+        [
+          "tested",
+          {
+            kind: "command",
+            run: matchingOutputCommand,
+            expectOutput: testsPassedPattern,
+          },
+        ],
       ]),
       worktree: root,
       scopeRoot: root,
@@ -332,7 +427,14 @@ describe("expect_output", () => {
       session: "s1",
       declaredGateIds: ["tested"],
       commandFor: new Map([
-        ["tested", { run: nonMatchingOutputCommand, expectOutput: testsPassedPattern }],
+        [
+          "tested",
+          {
+            kind: "command",
+            run: nonMatchingOutputCommand,
+            expectOutput: testsPassedPattern,
+          },
+        ],
       ]),
       worktree: root,
       scopeRoot: root,
@@ -370,7 +472,16 @@ describe("expect_output", () => {
       node,
       session: "s1",
       declaredGateIds: ["tested"],
-      commandFor: new Map([["tested", { run: failCommand, expectOutput: testsPassedPattern }]]),
+      commandFor: new Map([
+        [
+          "tested",
+          {
+            kind: "command",
+            run: failCommand,
+            expectOutput: testsPassedPattern,
+          },
+        ],
+      ]),
       worktree: root,
       scopeRoot: root,
       scopePaths: ["content.txt"],
@@ -482,7 +593,7 @@ describe("debrief ingestion", () => {
       node,
       session: "s1",
       declaredGateIds: ["always-pass"],
-      commandFor: new Map([["always-pass", { run: passCommand }]]),
+      commandFor: new Map([["always-pass", { kind: "command", run: passCommand }]]),
       worktree: root,
       scopeRoot: root,
       scopePaths: ["content.txt"],
@@ -517,7 +628,7 @@ describe("debrief ingestion", () => {
       node,
       session: "s1",
       declaredGateIds: ["always-pass"],
-      commandFor: new Map([["always-pass", { run: passCommand }]]),
+      commandFor: new Map([["always-pass", { kind: "command", run: passCommand }]]),
       worktree: root,
       scopeRoot: root,
       scopePaths: ["content.txt"],
@@ -558,7 +669,7 @@ describe("debrief ingestion", () => {
       node,
       session: "s1",
       declaredGateIds: ["always-pass"],
-      commandFor: new Map([["always-pass", { run: passCommand }]]),
+      commandFor: new Map([["always-pass", { kind: "command", run: passCommand }]]),
       worktree: root,
       scopeRoot: root,
       scopePaths: ["content.txt"],
@@ -661,7 +772,7 @@ describe("absorb carries live evidence", () => {
       node,
       session: "s1",
       declaredGateIds: ["always-pass"],
-      commandFor: new Map([["always-pass", { run: passCommand }]]),
+      commandFor: new Map([["always-pass", { kind: "command", run: passCommand }]]),
       worktree: root,
       scopeRoot: root,
       scopePaths: ["AGENTS.md"],
@@ -700,7 +811,7 @@ describe("absorb carries live evidence", () => {
       node,
       session: "s1",
       declaredGateIds: ["always-pass"],
-      commandFor: new Map([["always-pass", { run: passCommand }]]),
+      commandFor: new Map([["always-pass", { kind: "command", run: passCommand }]]),
       worktree: root,
       scopeRoot: root,
       scopePaths: ["content.txt"],

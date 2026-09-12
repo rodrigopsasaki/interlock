@@ -29,6 +29,7 @@ describe("gateCommand", () => {
 
     const table = gateCommandTable(standing, []);
     expect(table.get("test")).toEqual({
+      kind: "command",
       run: "pnpm test",
       expectOutput: /Tests +[1-9][0-9]* passed/,
     });
@@ -54,6 +55,7 @@ describe("gateCommand", () => {
 
     const table = gateCommandTable(standing, node);
     expect(table.get("test")).toEqual({
+      kind: "command",
       run: "pnpm --filter runner test",
       expectOutput: /Tests +[1-9][0-9]* passed/,
     });
@@ -65,8 +67,19 @@ describe("gateCommand", () => {
     ];
 
     const table = gateCommandTable(standing, []);
-    expect(table.get("typecheck")).toEqual({ run: "pnpm typecheck" });
+    expect(table.get("typecheck")).toEqual({
+      kind: "command",
+      run: "pnpm typecheck",
+    });
     expect(table.get("typecheck")).not.toHaveProperty("expectOutput");
+  });
+
+  it("carries a node's human gate into the table with no run, distinct from a command gate", () => {
+    const node: readonly GateDeclaration[] = [{ id: "witnessed", kind: "human" }];
+
+    const table = gateCommandTable([], node);
+    expect(table.get("witnessed")).toEqual({ kind: "human" });
+    expect(table.get("witnessed")).not.toHaveProperty("run");
   });
 });
 
