@@ -43,6 +43,7 @@ import {
   type SubstrateClient,
 } from "substrate";
 import { verifyDebrief } from "verifier";
+import { contextSliceOf } from "./contextSlice.ts";
 import { type GateCommand, type PlaceholderRefusal, substituteGateCommand } from "./gateCommand.ts";
 import { HARNESS_AUTHORITIES } from "./sweep.ts";
 
@@ -338,7 +339,8 @@ async function absorbDebrief(
   const evidence = await evidenceForAbsorb(worktree, read.debrief, receipts, node, personEvents);
   const acknowledged = await substrate.absorb(node, read.debrief, read.notes, receipts, evidence);
   const briefRead = await readBriefFile(briefFilePath(worktree, node.graph, node.id));
-  const sliceBody = !isErr(briefRead) && briefRead.value.kind === "v1" ? briefRead.value.body : "";
+  const sliceBody =
+    !isErr(briefRead) && briefRead.value.kind === "v1" ? contextSliceOf(briefRead.value.body) : "";
   narrate(
     narrateAbsorb(substrate.address, acknowledged, {
       body: sliceBody,

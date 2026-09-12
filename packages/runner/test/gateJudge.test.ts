@@ -963,4 +963,168 @@ describe("absorb narrates discoveries against the slice its brief carried", () =
       "absorb spy: 0 decision(s) absorbed, discoveries 1 known/0 unknown against the slice, 0 gap(s)",
     );
   });
+
+  it("counts a discovery unknown when only a section outside the slice names its own reference", async () => {
+    const root = fixture();
+    const debriefWithDiscovery = [
+      "interlock: debrief@v2",
+      "graph: fixture",
+      "node: n1",
+      "role: worker",
+      `graph_base_sha: ${SHA}`,
+      `session_start_sha: ${SHA}`,
+      `head_sha: ${SHA}`,
+      "derivation:",
+      "  kind: agent",
+      "  runtime: claude-code",
+      "  model: claude-sonnet-5",
+      "discoveries:",
+      "  - id: d1",
+      "    what: notes.yaml records the session's own choices",
+      "    found_at: notes.yaml",
+      "    mattered_because: the fixture needed a reference the slice itself never states",
+      "decisions: []",
+      "gates_run_by_agent: []",
+      "open: []",
+      "",
+    ].join("\n");
+    writeSession(root, "fixture", "n1", debriefWithDiscovery, notesYaml);
+    const briefDir = join(root, ".interlock", "sessions", "fixture", "n1");
+    writeFileSync(
+      join(briefDir, "brief.md"),
+      [
+        "---",
+        "interlock: brief@v1",
+        "graph: fixture",
+        "node: n1",
+        "role: worker",
+        "gates: []",
+        "scope: []",
+        "substrate:",
+        "  address: spy",
+        "---",
+        "",
+        "## Context slice",
+        "",
+        "### Discipline",
+        "",
+        "- [observed, repository] content.txt already named",
+        "  derivation: human:Rodrigo",
+        "",
+        "## Deliverable",
+        "",
+        "1. notes.yaml beside this brief, committed as you go.",
+        "",
+      ].join("\n"),
+    );
+
+    const client: SubstrateClient = {
+      address: "spy",
+      context: () => Promise.resolve({ kind: "empty" }),
+      absorb: () =>
+        Promise.resolve({
+          kind: "acknowledged",
+          decisionsAbsorbed: [],
+          discoveries: [],
+          gaps: [],
+        }),
+      capabilities: () => Promise.resolve([]),
+    };
+    const { ledger } = memoryLedgerWithLog();
+    const narrated: string[] = [];
+
+    const judged = await judgeGates({
+      ledger,
+      clock: createControlledClock(),
+      node,
+      session: "s1",
+      declaredGateIds: ["always-pass"],
+      commandFor: new Map([["always-pass", { kind: "command", run: passCommand }]]),
+      worktree: root,
+      scopeRoot: root,
+      scopePaths: ["content.txt"],
+      commitSha: "deadbeef",
+      runnerId: "run-1",
+      holdMs: 60_000,
+      substrate: client,
+      narrate: (line) => narrated.push(line),
+    });
+    if (isErr(judged)) throw new Error("expected an outcome");
+
+    expect(narrated).toContain(
+      "absorb spy: 0 decision(s) absorbed, discoveries 0 known/1 unknown against the slice, 0 gap(s)",
+    );
+  });
+});
+
+describe("judgement completes on a refused absorb", () => {
+  it("still lands outcome-set and narrates the refusal when the node clears", async () => {
+    const root = fixture();
+    writeSession(root, "fixture", "n1", v2Debrief, notesYaml);
+    const client: SubstrateClient = {
+      address: "spy",
+      context: () => Promise.resolve({ kind: "empty" }),
+      absorb: () => Promise.resolve({ kind: "refused", because: "stopped answering" }),
+      capabilities: () => Promise.resolve([]),
+    };
+    const { ledger, events } = memoryLedgerWithLog();
+    const narrated: string[] = [];
+
+    const judged = await judgeGates({
+      ledger,
+      clock: createControlledClock(),
+      node,
+      session: "s1",
+      declaredGateIds: ["always-pass"],
+      commandFor: new Map([["always-pass", { kind: "command", run: passCommand }]]),
+      worktree: root,
+      scopeRoot: root,
+      scopePaths: ["content.txt"],
+      commitSha: "deadbeef",
+      runnerId: "run-1",
+      holdMs: 60_000,
+      substrate: client,
+      narrate: (line) => narrated.push(line),
+    });
+
+    if (isErr(judged)) throw new Error("expected an outcome");
+    expect(judged.value.kind).toBe("cleared");
+    expect(events.map((event) => event.kind)).toContain("outcome-set");
+    expect(narrated).toContain("absorb spy: refused, stopped answering");
+  });
+
+  it("still lands outcome-set and narrates the refusal when the node holds", async () => {
+    const root = fixture();
+    writeSession(root, "fixture", "n1", v2Debrief, notesYaml);
+    const client: SubstrateClient = {
+      address: "spy",
+      context: () => Promise.resolve({ kind: "empty" }),
+      absorb: () => Promise.resolve({ kind: "refused", because: "stopped answering" }),
+      capabilities: () => Promise.resolve([]),
+    };
+    const { ledger, events } = memoryLedgerWithLog();
+    const narrated: string[] = [];
+
+    const judged = await judgeGates({
+      ledger,
+      clock: createControlledClock(),
+      node,
+      session: "s1",
+      declaredGateIds: ["always-fail"],
+      commandFor: new Map([["always-fail", { kind: "command", run: failCommand }]]),
+      worktree: root,
+      scopeRoot: root,
+      scopePaths: ["content.txt"],
+      commitSha: "deadbeef",
+      runnerId: "run-1",
+      holdMs: 60_000,
+      substrate: client,
+      narrate: (line) => narrated.push(line),
+    });
+
+    if (isErr(judged)) throw new Error("expected an outcome");
+    expect(judged.value.kind).toBe("held");
+    expect(events.map((event) => event.kind)).toContain("outcome-set");
+    expect(narrated).toContain("absorb spy: refused, stopped answering");
+  });
 });
