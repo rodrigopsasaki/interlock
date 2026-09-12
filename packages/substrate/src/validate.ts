@@ -1,5 +1,3 @@
-// Mirrors ledger's, debrief's, face's and runner's own validate.ts: noPropertyAccessFromIndexSignature
-// refuses dot access on an index signature, so this is the one place that reads a field by name.
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }

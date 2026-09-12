@@ -5,9 +5,6 @@ import type { Item } from "debrief";
 import type { Gap } from "ledger";
 import { isRecord } from "./validate.ts";
 
-// This package cannot depend on the "schemas" workspace package: schemas depends on runner, and
-// runner depends on this package to call context and absorb, so that edge would close a cycle.
-// The registry below is the same file-walking buildRegistry does, kept local for that reason.
 function schemasDirectory(): string {
   return join(import.meta.dirname, "..", "..", "..", "schemas");
 }
@@ -53,11 +50,6 @@ export interface CapabilitiesResponseWire {
   readonly capabilities: readonly string[];
 }
 
-// Ajv's own ValidateFunction type is a union of a sync and an async call signature; calling a
-// union of differently-shaped call signatures loses the sync signature's type-predicate return,
-// so a caller of ajv.getSchema directly gets a plain boolean back, never a narrowed value. This
-// wraps each compiled schema behind a hand-declared predicate instead, the same shape as this
-// package's own isRecord/isString guards, so a caller narrows the way it does everywhere else.
 export interface CompiledResponse<T> {
   readonly validate: (value: unknown) => value is T;
   readonly errors: () => string;

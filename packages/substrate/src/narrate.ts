@@ -1,7 +1,5 @@
 import type { AbsorbOutcome, ContextOutcome } from "./client.ts";
 
-// Every call is one narrated line: verb, address, outcome.
-
 export function narrateContext(
   address: string,
   outcome: ContextOutcome,

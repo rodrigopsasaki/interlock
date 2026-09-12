@@ -262,10 +262,6 @@ async function ingestDebrief(
   }
 }
 
-// A session that produced a debrief@v2 is absorbed regardless of whether its gates cleared or
-// held: a held session's discoveries are still worth the substrate's while, and this is the
-// only place the harness learns whether they were. A session interrupted before a debrief
-// exists has nothing to absorb, so it is silently skipped, same as ingestDebrief above.
 async function absorbDebrief(
   substrate: SubstrateClient,
   narrate: (line: string) => void,

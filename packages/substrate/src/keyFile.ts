@@ -1,8 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { err, ok, type Result } from "@phyxiusjs/fp";
 
-// A missing file or an empty token is a refusal sentence at the first call, never a silent
-// unauthenticated request.
 export async function readBearerToken(
   path: string,
 ): Promise<Result<string, string>> {

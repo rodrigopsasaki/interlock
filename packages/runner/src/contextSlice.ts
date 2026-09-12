@@ -1,9 +1,5 @@
 const CONTEXT_HEADING = "## Context slice";
 
-// Replaces whatever prose sits under "## Context slice" with the rendered slice, leaving every
-// other section of the body untouched. The brief's front matter substrate.address never changes
-// here: it is composed once, outside the runner, and the runner's own view of the address comes
-// only from .interlock/local.yaml, never committed.
 export function withRenderedContextSlice(
   body: string,
   rendered: string,

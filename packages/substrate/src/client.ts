@@ -25,8 +25,6 @@ export type AbsorbOutcome =
     }
   | { readonly kind: "refused"; readonly because: string };
 
-// The port every runner call site holds. `none` and `http(s)` are the only producers today; a
-// third address implements the same three methods.
 export interface SubstrateClient {
   readonly address: string;
   context(

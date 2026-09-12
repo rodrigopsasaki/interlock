@@ -1,11 +1,6 @@
 import { DEBRIEF_V2, NOTES_V0 } from "debrief";
 import type { Debrief, DebriefDerivation, Drafted, Note } from "ledger";
 
-// The wire shapes debrief@v2.json and notes@v0.json require on disk and over the protocol:
-// snake_case, carrying their own "interlock" tag. `Debrief` and `Note` are the harness's
-// in-memory, camelCase shapes; these are their protocol-facing translation, one field renamed
-// at a time, nothing inferred.
-
 export interface WireDiscovery {
   readonly id: string;
   readonly what: string;

@@ -158,8 +158,6 @@ export async function backfillGraph(
       commitSha: mainSha,
       runnerId,
       holdMs: HOLD_MS,
-      // Backfill reconstructs the ledger's history for sessions that predate this run; it never
-      // addresses a live substrate on their behalf.
       substrate: noneClient(),
       narrate: () => {},
     });
