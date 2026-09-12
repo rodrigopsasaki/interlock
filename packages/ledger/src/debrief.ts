@@ -17,13 +17,10 @@ export interface Decision {
   readonly rejected?: string;
 }
 
-// Who ran the session that produced this debrief -- a session-level fact, distinct from
-// `Derivation`, which names who produced one receipt or mark.
 export type DebriefDerivation =
   | { readonly kind: "agent"; readonly runtime: string; readonly model: string }
   | { readonly kind: "human"; readonly who: string };
 
-// Presence, not a kind: a debrief is drafted the moment this is set, authored otherwise.
 export interface Drafted {
   readonly by: string;
   readonly from: string;

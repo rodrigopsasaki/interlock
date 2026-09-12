@@ -8,9 +8,6 @@ import { duration, type Receipt } from "../receipt.ts";
 import { isSpend, type Spend } from "../spend.ts";
 import { isRecord, isString, prop } from "../validate.ts";
 
-// event@v1's own shapes, frozen at the point this session found them: no receipt duration, no
-// data on held, no authority or because on reset. Kept here only to upcast, never exported.
-
 interface V1Receipt {
   readonly id: string;
   readonly gate: string;
@@ -156,9 +153,6 @@ function isV1Outcome(value: unknown): value is V1Outcome {
   }
 }
 
-// v1's `reset` recorded no authority or because; nothing honest can be synthesized, so a v1
-// reset event is refused rather than upcast with an invented reason. A v1 `held` always meant
-// waiting on a failed gate -- v1 had no other kind of hold -- so that upcast is lossless.
 function upcastOutcome(v1: V1Outcome): Outcome | undefined {
   const receipts = v1.receipts.map(upcastReceipt);
   switch (v1.kind) {
@@ -198,7 +192,6 @@ export function upcastV1(raw: unknown): LedgerEvent | undefined {
   if (typeof kind !== "string") return undefined;
 
   if (PASS_THROUGH_KINDS.has(kind)) return isLedgerEvent(raw) ? raw : undefined;
-  // v1 never recorded debrief-filed's fields, so it is refused the same way a v1 `reset` is.
   if (kind === "debrief-filed") return undefined;
 
   const node = prop(raw, "node");

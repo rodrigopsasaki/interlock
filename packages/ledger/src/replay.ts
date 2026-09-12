@@ -15,8 +15,6 @@ export interface ReplayRefusal {
   readonly line: number;
 }
 
-// A line that fails to parse is the tail of a write the process died mid-way
-// through, never a reason to stop trusting what came before it.
 export function parseLine(
   line: string,
   table: ReadonlyMap<string, Upcaster> = upcastTable,

@@ -31,7 +31,6 @@ export type LedgerEvent =
       readonly kind: "session-started";
       readonly session: Session;
       readonly brief: Brief;
-      // Absent on events recorded before the field existed.
       readonly graphBaseSha?: string;
     }
   | {
