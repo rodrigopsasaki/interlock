@@ -4,7 +4,7 @@ node: first-address
 role: worker
 graph_base_sha: d20a7e094dae5a57ea6016e1b6cb804176439710
 session_start_sha: 3198f43f7444709f94449fa342543ef1627b7c8b
-head_sha: e63820bd637684ef477f567f9803e2960776e048
+head_sha: 5be1db29733bcd909debddf42a155445cb95d6b9
 derivation:
   kind: agent
   runtime: claude-code
@@ -70,6 +70,43 @@ discoveries:
     mattered_because: >
       The brief's own instruction to build a witness verb was conditional on none existing yet.
       One already does. See decision c5.
+  - id: d5
+    what: >
+      packages/cli/src/face/world.ts's buildPlansWorld hazard, cited in this node's own slice as a
+      hypothesis, is real: line 33 reads nowWallMs once, before the graph loop; the loop then awaits
+      listGraphIds, loadGraphDocument and contentHashOf per graph before liveSessionsOf(graphId,
+      projection.sessions, nowWallMs) runs at line 45, still inside the same expression that awaits
+      resolveAgentStatuses. leaseIsLive (packages/ledger/src/projection.ts) returns
+      lease.expiry > nowWallMs, so a stale, too-early nowWallMs reads an actually-expired lease as
+      still live for as long as those awaits, across however many graphs, take.
+    found_at: "packages/cli/src/face/world.ts:33,45; packages/ledger/src/projection.ts (leaseIsLive)"
+    mattered_because: >
+      The slice gave this a hypothesis standing with "verify before building on it," and this
+      node's own acceptance never asked this session to act on it. The review asked this session
+      to read the cited lines and record a verdict rather than pass the hypothesis on unverified a
+      second time: confirmed, not fixed, out of this node's own scope.
+  - id: d6
+    what: >
+      The same hazard's second citation, packages/cli/src/face/world.ts's buildGraphWorld, is real
+      the same way: line 69 reads nowWallMs; line 71's await contentHashOf(...) yields before line
+      74's liveSessionsOf(graphId, projection.sessions, nowWallMs) uses it, unchanged from the
+      slice's own citation.
+    found_at: "packages/cli/src/face/world.ts:69,74"
+    mattered_because: >
+      Same verdict as d5, at the slice's own second site: confirmed, not fixed, out of this node's
+      own scope.
+  - id: d7
+    what: >
+      packages/runner/src/herdr/adapter.ts:198's JSON.stringify({ id, method, params }) is a real
+      type-level hazard -- params: Readonly<Record<string, unknown>> lets a caller pass a Map or a
+      Set, and JSON.stringify silently serializes either to {} -- but not a live bug today: the one
+      call site that builds params (the same file's agent.start) only ever passes a name, a kind, a
+      pane_id, an args: readonly string[] and a timeout_ms: number, none of them a Map or a Set.
+    found_at: "packages/runner/src/herdr/adapter.ts:198,261-268"
+    mattered_because: >
+      The slice's own hypothesis standing asked for a verdict, not a restatement of the risk; the
+      honest one is narrower than confirmed or false -- the type system permits the hazard, and
+      nothing exercises it yet.
 decisions:
   - id: c1
     what: >
@@ -93,6 +130,9 @@ decisions:
       - "packages/substrate/src/sliceCount.ts:1-26"
       - "packages/substrate/src/narrate.ts:1-54"
       - "packages/substrate/src/index.ts:20-25"
+      - "packages/substrate/test/absorb.test.ts:85-146"
+      - ".interlock/sessions/0003-translator/first-address/notes.yaml:33-64"
+      - ".interlock/sessions/0003-translator/first-address/debrief.yaml:74-98"
     produces:
       - packages/substrate/src/sliceCount.ts
     rejected: "reconcile ack.discoveries and the slice fallback per discovery id, in case a substrate answers with placements for some discoveries and not others (see notes.yaml)"
@@ -195,7 +235,7 @@ decisions:
     rests_on:
       - docs/design/0003-substrate.md
     hunks:
-      - "docs/design/0003-substrate.md:206-207"
+      - "docs/design/0003-substrate.md:209"
     produces: []
   - id: c7
     what: >
@@ -212,6 +252,111 @@ decisions:
     rests_on: []
     hunks: []
     produces: []
+  - id: c8
+    what: >
+      contextSliceOf(body) (packages/runner/src/contextSlice.ts) reuses withRenderedContextSlice's
+      own heading scan to extract only the "## Context slice" section's own text, empty when the
+      heading is absent; gateJudge.ts's absorbDebrief now passes contextSliceOf(briefRead.value.body)
+      as narrateAbsorb's slice argument instead of the whole committed brief body.
+    because: >
+      A review of this node's own committed brief found c1's fallback count reading the whole body,
+      not the slice c1's own acceptance text says to count against: the shipped code narrates 1
+      known/3 unknown on this brief, where the slice alone gives 0 known/4 unknown -- the false
+      known matched notes.yaml (the Deliverable section, a few dozen lines past the slice) and
+      substrate.address (prose), neither of which the Context slice itself states. A new runner test
+      reproduces this exact false-known with a fixture naming a path outside the slice and asserts
+      the fixed count.
+    rests_on:
+      - packages/runner/src/contextSlice.ts
+    hunks:
+      - "packages/runner/src/contextSlice.ts:1-43"
+      - "packages/runner/src/gateJudge.ts:46"
+      - "packages/runner/src/gateJudge.ts:341-349"
+      - "packages/runner/test/gateJudge.test.ts:967-1058"
+    produces: []
+  - id: c9
+    what: >
+      PATH_REFERENCE (packages/substrate/src/sliceCount.ts) now requires either a "/" in the token
+      or an extension from a closed list (ts, md, yaml, json, txt, js, svg, png); the segment before
+      the final extension carries its own internal dots, so a multi-dot name like absorb.test.ts
+      still matches as one whole token, slashed or bare.
+    because: >
+      The prior regex's single generic \.[a-zA-Z]{2,12} extension class matched any dotted
+      identifier -- clock.now, JSON.stringify, substrate.address -- as a file citation, which is
+      exactly how c8's false known arose from prose that cited no real file. A new test file
+      (packages/substrate/test/sliceCount.test.ts) exercises both halves directly: rejection of a
+      bare dotted identifier, and a bare closed-list filename, a slashed path of any extension, and
+      a multi-dot name all still matching.
+    rests_on: []
+    hunks:
+      - "packages/substrate/src/sliceCount.ts:8-12"
+      - "packages/substrate/test/sliceCount.test.ts:1-53"
+    produces:
+      - packages/substrate/test/sliceCount.test.ts
+  - id: c10
+    what: >
+      Two new judgeGates-level tests -- one on a cleared node, one on a held one -- give the
+      substrate client's absorb a { kind: "refused", because: "stopped answering" } resolution and
+      assert outcome-set still lands in the ledger and the narrated line reads
+      "absorb spy: refused, stopped answering".
+    because: >
+      c3 already established that absorbDebrief runs unconditionally, before outcome-set, on every
+      path; nothing before this exercised that fact at the judgeGates level itself, only inside
+      substrate's own narrateAbsorb/absorb unit tests. The acceptance's own "judgement still
+      completes" reads as runner behavior, the same reasoning c4 already used for the slice count,
+      so it gets a runner-level test the same way.
+    rests_on: []
+    hunks:
+      - "packages/runner/test/gateJudge.test.ts:1060-1130"
+    produces: []
+  - id: c11
+    what: >
+      writeBriefIntoWorktree (packages/runner/src/sessionBrief.ts) now overwrites the composed front
+      matter's substrate.address with the address that answered whenever contextOutcome.kind is
+      "rendered", spreading the existing substrate object so an optional handle survives; otherwise
+      the repository copy's own substrate value passes through unchanged -- the same condition the
+      body already used.
+    because: >
+      This node's own committed brief is exactly the acceptance's "one brief with a slice from a
+      real address" (d1 above), yet its front matter said address: none while its body carried a
+      live slice. The design note already said the runner puts the substrate's address in the
+      brief's front matter (0003-substrate.md, "Two protocols, one meeting point"); the runner never
+      did, and the existing sessionBrief.test.ts assertion documented the gap as if it were the
+      contract. Both the code and that test are corrected together.
+    rests_on:
+      - docs/design/0003-substrate.md
+    hunks:
+      - "packages/runner/src/sessionBrief.ts:79-98"
+      - "packages/runner/test/sessionBrief.test.ts:247-266"
+    produces: []
+  - id: c12
+    what: >
+      One sentence added to AGENTS.md's wall and one to the design note's own Reference
+      implementation row, both saying a provenance string an address renders is data the fence does
+      not reach; the derivation grammar D26 assumed but never stated -- an identifier
+      (model:…, gate:…, human:…, <implementation>:<read>@<version>), never a sentence -- written
+      beside D26; one 2026-09-12 bend-log row for the collision between that grammar and this node's
+      own committed brief's derivation lines, without naming the substrate implementation a second
+      time outside the mapping section.
+    because: >
+      This node's own committed brief names the substrate implementation eight times, all inside
+      address-rendered derivation lines (D23's verbatim rendering) -- nothing this session or the
+      worker wrote names it, but the wall's text left the render-vs-prose distinction implicit
+      rather than stated, so a reader could mistake a rendered brief for a violation. Reading the
+      derivation line beside each item, not just its statement, also showed seven of the eight carry
+      a sentence of advice rather than an identifier -- the one field this protocol calls an
+      identifier can arrive as prose too, and the note now says what shape it expects. Inserting
+      three lines earlier in the same file (the derivation-grammar sentence) shifted c6's own
+      truncation row from line 206 to line 209; c6's hunk citation is corrected in the same pass so
+      it still overlaps the row it describes.
+    rests_on: []
+    hunks:
+      - "AGENTS.md:116-118"
+      - "docs/design/0003-substrate.md:16"
+      - "docs/design/0003-substrate.md:165-168"
+      - "docs/design/0003-substrate.md:210"
+      - "docs/design/0003-substrate.md:212"
+    produces: []
 gates_run_by_agent:
   - id: typecheck
     result: pass
@@ -220,7 +365,10 @@ gates_run_by_agent:
   - id: lint
     result: pass
     invocation: "mise exec -- pnpm lint"
-    note: "biome check .; Checked 304 files, no errors, after one lint:fix pass reformatted five touched files to biome's own style."
+    note: >-
+      biome check .; Checked 305 files, no errors, after one lint:fix pass reformatted five touched
+      files to biome's own style (one more since c9's own sliceCount.test.ts joined the tree, plus
+      one reformat on sessionBrief.ts during c11).
   - id: comments
     result: pass
     invocation: "mise exec -- pnpm check:comments"
@@ -229,13 +377,21 @@ gates_run_by_agent:
     result: pass
     invocation: "mise exec -- pnpm test"
     note: >-
-      1316 tests passed across ledger, debrief, face, verifier, substrate, runner, schemas, cli;
+      1324 tests passed across ledger, debrief, face, verifier, substrate, runner, schemas, cli;
       0 failed. schemas' own corpus tests grew by 2 once this session's debrief.yaml and
-      notes.yaml existed for them to walk.
+      notes.yaml existed for them to walk; c8, c9, c10 and c11 add 8 more between them (1 in
+      gateJudge.test.ts's own slice-scope case, 2 in its refused-absorb judgement pair, 1 in
+      sessionBrief.test.ts, 4 in the new sliceCount.test.ts).
   - id: absorb-acknowledged
     result: pass
     invocation: "mise exec -- pnpm --filter substrate --fail-if-no-match test --testNamePattern acknowledged"
-    note: "Tests  3 passed | 60 skipped (63); matches expect_output /Tests +[1-9][0-9]* passed/."
+    note: >-
+      Tests  4 passed | 63 skipped (67); matches expect_output /Tests +[1-9][0-9]* passed/. The
+      committed record originally said "3 passed" -- a fourth test in this same file
+      (absorb.test.ts, "counts a debrief's discoveries against the slice when the acknowledged
+      response declares no such detail") already matched the pattern at this session's own
+      head_sha and was never re-counted after it was written; c9's new sliceCount.test.ts adds no
+      test whose name contains "acknowledged", so this selection's count is unaffected by it.
 open:
   - >
     Which side of the substrate@v1 wire truncates a rendered item's own statement mid-word (d2):
