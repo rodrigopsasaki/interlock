@@ -49,6 +49,15 @@ describe("interlock gate waive", () => {
   });
 });
 
+describe("interlock gate clear", () => {
+  it("routes by its group and action, refusing before touching disk when no graph, node or gate is given", async () => {
+    const result = await run(["gate", "clear"]);
+
+    expect(result.exitCode).not.toBe(0);
+    expect(result.message).toContain("interlock gate clear");
+  });
+});
+
 describe("an unknown command", () => {
   it("also fails closed rather than exiting quietly", async () => {
     const result = await run(["nonsense", "verb"]);

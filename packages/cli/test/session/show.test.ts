@@ -169,6 +169,44 @@ describe("interlock session show", () => {
     expect(result.message).toContain("because: the brief asked for it");
   });
 
+  it("prints a human-cleared gate's because only with --because", async () => {
+    const cwd = fixture();
+    const node = { graph: "demo", id: "a" };
+    const ledger = await openLedger(cwd);
+    ledger.append({
+      kind: "session-started",
+      session: { id: "s1", node },
+      brief: { ...brief, gates: ["witnessed"] },
+    });
+    ledger.append({
+      kind: "gate-moved",
+      node,
+      gate: "witnessed",
+      to: gate.satisfied({
+        id: "r2",
+        gate: "witnessed",
+        commitSha: "a".repeat(40),
+        spend: { kind: "none" },
+        duration: { kind: "unknown" },
+        derivation: { kind: "human", who: "Rodrigo Sasaki" },
+        proof: { because: "watched the brief render and the debrief absorb" },
+      }),
+    });
+    ledger.append({ kind: "debrief-filed", session: "s1", debrief: v2Debrief });
+    await ledger.close();
+
+    const withoutBecause = await runSessionShow(["demo", "a"], { cwd });
+    expect(withoutBecause.message).toContain("witnessed: satisfied (receipt r2)");
+    expect(withoutBecause.message).not.toContain("watched the brief render");
+
+    const withBecause = await runSessionShow(["demo", "a", "--because"], {
+      cwd,
+    });
+    expect(withBecause.message).toContain(
+      "witnessed: satisfied (receipt r2); because: watched the brief render and the debrief absorb",
+    );
+  });
+
   it("refuses with a sentence when --session names a session not recorded for this node", async () => {
     const cwd = fixture();
     const result = await runSessionShow(["demo", "a", "--session", "bogus"], {

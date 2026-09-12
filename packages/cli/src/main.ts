@@ -3,6 +3,7 @@ import { validateBrief } from "./brief/validate.ts";
 import { validateDebrief } from "./debrief/validate.ts";
 import { runInterlockEvidence } from "./evidence.ts";
 import { runInterlockFace } from "./face/run.ts";
+import { runGateClear } from "./gate/clear.ts";
 import { runGateWaive } from "./gate/waive.ts";
 import { runGraphApprove } from "./graph/approve.ts";
 import { runGraphShow } from "./graph/show.ts";
@@ -60,6 +61,10 @@ export async function run(argv: readonly string[]): Promise<CommandResult> {
 
   if (group === "gate" && action === "waive") {
     return runGateWaive(argv.slice(2));
+  }
+
+  if (group === "gate" && action === "clear") {
+    return runGateClear(argv.slice(2));
   }
 
   if (group === "schema" && action === "validate") {
