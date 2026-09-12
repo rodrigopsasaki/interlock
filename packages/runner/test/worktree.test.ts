@@ -247,7 +247,7 @@ describe("commitBriefIfChanged", () => {
       cwd: path,
       encoding: "utf-8",
     });
-    expect(log).toContain("chore(node-a): write the session brief");
+    expect(log).toContain("chore: write the session brief for node-a");
     expect(log).toContain("session-1");
     expect(log).toContain(
       "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>",

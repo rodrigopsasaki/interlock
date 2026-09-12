@@ -64,6 +64,7 @@ export type { WorktreeSetupRefusal } from "./worktreeSetup.ts";
 export {
   explainWorktreeSetupRefusal,
   runSetupCommand,
+  runWorktreeSetup,
 } from "./worktreeSetup.ts";
 
 export {

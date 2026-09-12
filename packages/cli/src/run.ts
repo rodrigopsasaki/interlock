@@ -44,7 +44,7 @@ import {
   loadStandingGates,
   matchesScreen,
   recordingNarrate,
-  runSetupCommand,
+  runWorktreeSetup,
   takeLease,
   uncommittedPaths,
   unmetDependencies,
@@ -319,18 +319,19 @@ export async function runInterlockRun(
       narrate(`brief committed ${briefCommitted.value}`);
     }
 
-    for (const command of localConfig.value.worktreeSetup) {
-      narrate(`worktree setup: ${command}`);
-      const setup = await runSetupCommand(command, worktreePath);
-      if (isErr(setup)) {
-        const result = refuse(
-          "worktree setup",
-          explainWorktreeSetupRefusal(setup.error),
-        );
-        lease.stop();
-        abandonLease();
-        return result;
-      }
+    const setUp = await runWorktreeSetup(
+      localConfig.value.worktreeSetup,
+      worktreePath,
+      narrate,
+    );
+    if (isErr(setUp)) {
+      const result = refuse(
+        "worktree setup",
+        explainWorktreeSetupRefusal(setUp.error),
+      );
+      lease.stop();
+      abandonLease();
+      return result;
     }
 
     const injectedRuntime = options.runtime;
