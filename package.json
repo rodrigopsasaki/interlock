@@ -10,9 +10,9 @@
     "typecheck": "pnpm -r run typecheck",
     "test": "pnpm -r run test",
     "interlock": "node packages/cli/src/bin.ts",
-    "lint": "biome check packages vitest.config.base.ts vitest.setup.ts scripts",
-    "format": "biome format --write packages vitest.config.base.ts vitest.setup.ts scripts",
-    "lint:fix": "biome check --write packages vitest.config.base.ts vitest.setup.ts scripts",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "lint:fix": "biome check --write .",
     "check:comments": "node scripts/noComments.ts"
   },
   "devDependencies": {
