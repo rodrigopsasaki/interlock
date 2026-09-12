@@ -7,12 +7,24 @@ export interface RecordedCall {
   readonly params: Record<string, unknown>;
 }
 
+export interface FakeWorkspaceTabState {
+  readonly tab_id: string;
+  readonly paneCount: number;
+}
+
+export interface FakeWorkspaceState {
+  readonly workspace_id: string;
+  readonly label: string | null;
+  readonly tabs: readonly FakeWorkspaceTabState[];
+}
+
 export interface FakeHerdrServer {
   readonly socketPath: string;
   readonly calls: readonly RecordedCall[];
   agentStatus: string;
   delayAgentWaitToRequestedTimeout: boolean;
   panes: readonly Record<string, unknown>[];
+  workspaces: readonly FakeWorkspaceState[];
   failNextCall(
     code: string,
     message: string,
@@ -58,6 +70,59 @@ function panePayload(paneId: string): Record<string, unknown> {
   };
 }
 
+interface Tab {
+  readonly tabId: string;
+  paneCount: number;
+}
+
+interface Workspace {
+  readonly workspaceId: string;
+  label: string | null;
+  readonly tabs: Map<string, Tab>;
+}
+
+function workspaceInfo(workspace: Workspace): Record<string, unknown> {
+  const tabs = [...workspace.tabs.values()];
+  return {
+    workspace_id: workspace.workspaceId,
+    label: workspace.label,
+    number: 0,
+    focused: false,
+    pane_count: tabs.reduce((sum, tab) => sum + tab.paneCount, 0),
+    tab_count: tabs.length,
+    active_tab_id: tabs[0]?.tabId ?? "",
+    agent_status: "unknown",
+  };
+}
+
+function tabInfo(workspace: Workspace, tab: Tab): Record<string, unknown> {
+  return {
+    tab_id: tab.tabId,
+    workspace_id: workspace.workspaceId,
+    number: 0,
+    label: "",
+    focused: false,
+    pane_count: tab.paneCount,
+    agent_status: "unknown",
+  };
+}
+
+function tabPanePayload(
+  paneId: string,
+  workspace: Workspace,
+  tab: Tab,
+): Record<string, unknown> {
+  return {
+    pane_id: paneId,
+    terminal_id: "fake-terminal",
+    workspace_id: workspace.workspaceId,
+    tab_id: tab.tabId,
+    focused: true,
+    agent_status: "unknown",
+    revision: 1,
+  };
+}
+
 export function startFakeHerdrServer(
   socketPath: string,
 ): Promise<FakeHerdrServer> {
@@ -69,6 +134,24 @@ export function startFakeHerdrServer(
     delayAgentWaitToRequestedTimeout: false,
     panes: [] as readonly Record<string, unknown>[],
   };
+  const workspaces = new Map<string, Workspace>();
+  const paneTabs = new Map<string, { workspaceId: string; tabId: string }>();
+  let nextSeq = { workspace: 0, tab: 0, pane: 0 };
+  const nextId = (kind: "workspace" | "tab" | "pane"): string => {
+    nextSeq = { ...nextSeq, [kind]: nextSeq[kind] + 1 };
+    return `fake-${kind}-${nextSeq[kind]}`;
+  };
+  const findTab = (
+    tabId: unknown,
+  ): { workspace: Workspace; tab: Tab } | undefined => {
+    if (!isString(tabId)) return undefined;
+    for (const workspace of workspaces.values()) {
+      const tab = workspace.tabs.get(tabId);
+      if (tab !== undefined) return { workspace, tab };
+    }
+    return undefined;
+  };
+
   const sockets = new Set<Socket>();
   let nextFailure:
     | {
@@ -123,9 +206,83 @@ export function startFakeHerdrServer(
     }
 
     switch (method) {
-      case "workspace.create":
-        respond(socket, id, { root_pane: panePayload("fake-pane-1") });
+      case "workspace.create": {
+        const label = prop(params, "label");
+        const workspace: Workspace = {
+          workspaceId: nextId("workspace"),
+          label: isString(label) ? label : null,
+          tabs: new Map(),
+        };
+        const tab: Tab = { tabId: nextId("tab"), paneCount: 1 };
+        workspace.tabs.set(tab.tabId, tab);
+        workspaces.set(workspace.workspaceId, workspace);
+        const paneId = nextId("pane");
+        paneTabs.set(paneId, {
+          workspaceId: workspace.workspaceId,
+          tabId: tab.tabId,
+        });
+        respond(socket, id, {
+          workspace: workspaceInfo(workspace),
+          tab: tabInfo(workspace, tab),
+          root_pane: tabPanePayload(paneId, workspace, tab),
+        });
         return;
+      }
+      case "workspace.list": {
+        respond(socket, id, {
+          workspaces: [...workspaces.values()].map(workspaceInfo),
+        });
+        return;
+      }
+      case "tab.create": {
+        const workspaceId = prop(params, "workspace_id");
+        const workspace = isString(workspaceId)
+          ? workspaces.get(workspaceId)
+          : undefined;
+        if (workspace === undefined) {
+          fail(
+            socket,
+            id,
+            "workspace_not_found",
+            `no such workspace "${String(workspaceId)}"`,
+          );
+          return;
+        }
+        const tab: Tab = { tabId: nextId("tab"), paneCount: 1 };
+        workspace.tabs.set(tab.tabId, tab);
+        const paneId = nextId("pane");
+        paneTabs.set(paneId, {
+          workspaceId: workspace.workspaceId,
+          tabId: tab.tabId,
+        });
+        respond(socket, id, {
+          tab: tabInfo(workspace, tab),
+          root_pane: tabPanePayload(paneId, workspace, tab),
+        });
+        return;
+      }
+      case "tab.get": {
+        const found = findTab(prop(params, "tab_id"));
+        if (found === undefined) {
+          fail(
+            socket,
+            id,
+            "tab_not_found",
+            `no such tab "${String(prop(params, "tab_id"))}"`,
+          );
+          return;
+        }
+        respond(socket, id, { tab: tabInfo(found.workspace, found.tab) });
+        return;
+      }
+      case "tab.close": {
+        const found = findTab(prop(params, "tab_id"));
+        if (found !== undefined) {
+          found.workspace.tabs.delete(found.tab.tabId);
+        }
+        respond(socket, id, {});
+        return;
+      }
       case "agent.start": {
         const name = prop(params, "name");
         respond(socket, id, {
@@ -137,8 +294,23 @@ export function startFakeHerdrServer(
         });
         return;
       }
+      case "pane.close": {
+        const paneId = prop(params, "pane_id");
+        if (isString(paneId)) {
+          const located = paneTabs.get(paneId);
+          if (located !== undefined) {
+            const workspace = workspaces.get(located.workspaceId);
+            const tab = workspace?.tabs.get(located.tabId);
+            if (tab !== undefined) {
+              tab.paneCount = Math.max(0, tab.paneCount - 1);
+            }
+            paneTabs.delete(paneId);
+          }
+        }
+        respond(socket, id, {});
+        return;
+      }
       case "pane.report_metadata":
-      case "pane.close":
       case "agent.prompt":
       case "agent.send_keys":
         respond(socket, id, {});
@@ -205,6 +377,33 @@ export function startFakeHerdrServer(
         },
         set panes(value: readonly Record<string, unknown>[]) {
           state.panes = value;
+        },
+        get workspaces(): readonly FakeWorkspaceState[] {
+          return [...workspaces.values()].map((workspace) => ({
+            workspace_id: workspace.workspaceId,
+            label: workspace.label,
+            tabs: [...workspace.tabs.values()].map((tab) => ({
+              tab_id: tab.tabId,
+              paneCount: tab.paneCount,
+            })),
+          }));
+        },
+        set workspaces(value: readonly FakeWorkspaceState[]) {
+          workspaces.clear();
+          paneTabs.clear();
+          for (const entry of value) {
+            const tabs = new Map<string, Tab>(
+              entry.tabs.map((tab) => [
+                tab.tab_id,
+                { tabId: tab.tab_id, paneCount: tab.paneCount },
+              ]),
+            );
+            workspaces.set(entry.workspace_id, {
+              workspaceId: entry.workspace_id,
+              label: entry.label,
+              tabs,
+            });
+          }
         },
         failNextCall(code, message, times = 1, method = undefined) {
           nextFailure = { code, message, remaining: times, method };

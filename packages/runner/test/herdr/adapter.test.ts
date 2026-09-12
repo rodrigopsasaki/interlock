@@ -1,5 +1,6 @@
+import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
-import { join, relative } from "node:path";
+import { basename, join, relative } from "node:path";
 import { randomUUID } from "node:crypto";
 import { isErr, type Result } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
@@ -8,6 +9,7 @@ import {
   createHerdrRuntime,
   generateAgentName,
   isCompliantAgentName,
+  repositoryLabel,
 } from "../../src/herdr/adapter.ts";
 import type {
   AgentIdentityQuery,
@@ -51,6 +53,115 @@ async function fixture(): Promise<FakeHerdrServer> {
   server = await startFakeHerdrServer(socketPath);
   return server;
 }
+
+const GIT_ENV = {
+  ...process.env,
+  GIT_AUTHOR_NAME: "fixture",
+  GIT_AUTHOR_EMAIL: "fixture@example.invalid",
+  GIT_COMMITTER_NAME: "fixture",
+  GIT_COMMITTER_EMAIL: "fixture@example.invalid",
+};
+
+describe("repositoryLabel", () => {
+  it("names two linked worktrees of the same repository with the repository's own directory name", () => {
+    const repoRoot = mkdtempSync(join(runsRoot, "repo-"));
+    const worktreeA = join(runsRoot, `wt-a-${randomUUID().slice(0, 8)}`);
+    const worktreeB = join(runsRoot, `wt-b-${randomUUID().slice(0, 8)}`);
+    try {
+      execFileSync("git", ["init", "--quiet"], { cwd: repoRoot });
+      execFileSync(
+        "git",
+        [
+          "-c",
+          "commit.gpgsign=false",
+          "commit",
+          "--quiet",
+          "--allow-empty",
+          "-m",
+          "root",
+        ],
+        { cwd: repoRoot, env: GIT_ENV },
+      );
+      execFileSync("git", ["worktree", "add", "-b", "node-a", worktreeA], {
+        cwd: repoRoot,
+        env: GIT_ENV,
+      });
+      execFileSync("git", ["worktree", "add", "-b", "node-b", worktreeB], {
+        cwd: repoRoot,
+        env: GIT_ENV,
+      });
+
+      const labelA = repositoryLabel(worktreeA);
+      const labelB = repositoryLabel(worktreeB);
+      expect(labelA).toBe(labelB);
+      expect(labelA).toBe(basename(repoRoot));
+    } finally {
+      rmSync(worktreeA, { recursive: true, force: true });
+      rmSync(worktreeB, { recursive: true, force: true });
+      rmSync(repoRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("falls back to the cwd's own directory name when no repository is found", () => {
+    const outside = join(runsRoot, "definitely-not-a-repo");
+    expect(repositoryLabel(outside)).toBe("definitely-not-a-repo");
+  });
+});
+
+describe("openPane workspace grouping", () => {
+  it("creates a labelled workspace on the first open, naming the repository's directory", async () => {
+    const fake = await fixture();
+    const created = await createHerdrRuntime(fake.socketPath);
+    if (isErr(created)) throw new Error("expected a runtime");
+
+    const pane = await created.value.openPane("/repo/worktrees/node-a");
+    expect(isErr(pane)).toBe(false);
+
+    expect(fake.calls.map((call) => call.method)).toEqual([
+      "workspace.list",
+      "workspace.create",
+    ]);
+    expect(fake.workspaces).toHaveLength(1);
+    expect(fake.workspaces[0]?.label).toBe("node-a");
+  });
+
+  it("reuses the existing workspace and opens a new tab on a second open for the same label", async () => {
+    const fake = await fixture();
+    const created = await createHerdrRuntime(fake.socketPath);
+    if (isErr(created)) throw new Error("expected a runtime");
+
+    const first = await created.value.openPane("/repo/worktrees/node-a");
+    if (isErr(first)) throw new Error("expected a pane");
+    const second = await created.value.openPane("/repo/worktrees/node-a");
+    if (isErr(second)) throw new Error("expected a pane");
+
+    expect(fake.calls.map((call) => call.method)).toEqual([
+      "workspace.list",
+      "workspace.create",
+      "workspace.list",
+      "tab.create",
+    ]);
+    expect(fake.workspaces).toHaveLength(1);
+    expect(fake.workspaces[0]?.tabs).toHaveLength(2);
+    expect(first.value.id).not.toBe(second.value.id);
+  });
+
+  it("never duplicates a workspace whose label is already present", async () => {
+    const fake = await fixture();
+    const created = await createHerdrRuntime(fake.socketPath);
+    if (isErr(created)) throw new Error("expected a runtime");
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const opened = await created.value.openPane("/repo/worktrees/node-a");
+      if (isErr(opened)) throw new Error("expected a pane");
+    }
+
+    expect(
+      fake.calls.filter((call) => call.method === "workspace.create"),
+    ).toHaveLength(1);
+    expect(fake.workspaces).toHaveLength(1);
+  });
+});
 
 describe("herdr adapter", () => {
   it("refuses with no-socket when nothing is listening", async () => {
@@ -116,12 +227,15 @@ describe("herdr adapter", () => {
 
     const methods = fake.calls.map((call) => call.method);
     expect(methods).toEqual([
+      "workspace.list",
       "workspace.create",
       "agent.start",
       "pane.report_metadata",
       "agent.get",
       "agent.read",
       "pane.close",
+      "tab.get",
+      "tab.close",
     ]);
   });
 
@@ -545,7 +659,9 @@ describe("herdr adapter", () => {
     expect(isErr(second)).toBe(false);
 
     expect(fake.calls.map((call) => call.method)).toEqual([
+      "workspace.list",
       "workspace.create",
+      "workspace.list",
       "workspace.create",
     ]);
   });
@@ -555,7 +671,7 @@ describe("herdr adapter", () => {
     const created = await createHerdrRuntime(fake.socketPath, 100);
     if (isErr(created)) throw new Error("expected a runtime");
 
-    fake.withholdNextCall();
+    fake.withholdNextCall("workspace.create");
     const pane = await created.value.openPane("/repo");
     expect(isErr(pane)).toBe(true);
     if (isErr(pane))

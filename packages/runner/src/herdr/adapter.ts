@@ -1,7 +1,8 @@
+import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { connect } from "node:net";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import type {
   Agent,
@@ -12,10 +13,23 @@ import type {
   Runtime,
   RuntimeRefusal,
 } from "../runtime.ts";
-import { isRecord, isString, prop, stringAt } from "../validate.ts";
+import { isRecord, isString, numberAt, prop, stringAt } from "../validate.ts";
 
 export function defaultHerdrSocketPath(): string {
   return join(homedir(), ".config", "herdr", "herdr.sock");
+}
+
+export function repositoryLabel(cwd: string): string {
+  try {
+    const commonDir = execFileSync(
+      "git",
+      ["rev-parse", "--path-format=absolute", "--git-common-dir"],
+      { cwd, encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] },
+    ).trim();
+    return basename(dirname(commonDir));
+  } catch {
+    return basename(cwd);
+  }
 }
 
 const DEFAULT_CALL_TIMEOUT_MS = 30_000;
@@ -295,20 +309,63 @@ export async function createHerdrRuntime(
     }
   };
 
+  const paneTabs = new Map<string, string>();
+
+  const paneFromCreated = (
+    result: Record<string, unknown>,
+    method: string,
+  ): Result<Pane, RuntimeRefusal> => {
+    const paneId = stringAt(result, "root_pane", "pane_id");
+    const tabId = stringAt(result, "tab", "tab_id");
+    if (paneId === undefined || tabId === undefined) {
+      return err({
+        kind: "transport",
+        because: `${method}: no root_pane.pane_id or tab.tab_id in the result`,
+      });
+    }
+    paneTabs.set(paneId, tabId);
+    return ok({ id: paneId });
+  };
+
   return ok({
     async openPane(cwd) {
+      const label = repositoryLabel(cwd);
+      const listed = await call("workspace.list", {});
+      if (isErr(listed)) return listed;
+      const workspaces = prop(listed.value, "workspaces");
+      const existing = Array.isArray(workspaces)
+        ? workspaces.find(
+            (workspace) =>
+              isRecord(workspace) && prop(workspace, "label") === label,
+          )
+        : undefined;
+
+      if (isRecord(existing)) {
+        const workspaceId = stringAt(existing, "workspace_id");
+        if (workspaceId === undefined) {
+          return err({
+            kind: "transport",
+            because: "workspace.list: a matching workspace has no workspace_id",
+          });
+        }
+        const opened = await call("tab.create", {
+          workspace_id: workspaceId,
+          cwd,
+          focus: false,
+        });
+        return isErr(opened)
+          ? opened
+          : paneFromCreated(opened.value, "tab.create");
+      }
+
       const created = await call("workspace.create", {
         cwd,
         focus: false,
+        label,
       });
-      if (isErr(created)) return created;
-      const paneId = stringAt(created.value, "root_pane", "pane_id");
-      return paneId === undefined
-        ? err({
-            kind: "transport",
-            because: "workspace.create: no root_pane.pane_id in the result",
-          })
-        : ok({ id: paneId });
+      return isErr(created)
+        ? created
+        : paneFromCreated(created.value, "workspace.create");
     },
 
     async startAgent(
@@ -450,7 +507,18 @@ export async function createHerdrRuntime(
 
     async closePane(pane: Pane) {
       const closed = await call("pane.close", { pane_id: pane.id });
-      return isErr(closed) ? closed : ok(undefined);
+      if (isErr(closed)) return closed;
+
+      const tabId = paneTabs.get(pane.id);
+      paneTabs.delete(pane.id);
+      if (tabId === undefined) return ok(undefined);
+
+      const tab = await call("tab.get", { tab_id: tabId });
+      if (isErr(tab)) return ok(undefined);
+      if (numberAt(tab.value, "tab", "pane_count") === 0) {
+        await call("tab.close", { tab_id: tabId });
+      }
+      return ok(undefined);
     },
 
     async reportedAgentStatus(query: AgentIdentityQuery) {
