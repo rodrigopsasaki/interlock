@@ -214,23 +214,26 @@ export function extractWords(files: readonly FileDiff[]): readonly string[] {
   return words;
 }
 
+function at(row: readonly number[], index: number): number {
+  const value = row[index];
+  if (value === undefined) throw new Error(`levenshtein: index ${index} out of bounds`);
+  return value;
+}
+
 function levenshtein(a: string, b: string): number {
-  const rows = a.length + 1;
-  const cols = b.length + 1;
-  const distances: number[][] = Array.from({ length: rows }, () => new Array<number>(cols).fill(0));
-  for (let i = 0; i < rows; i++) distances[i]![0] = i;
-  for (let j = 0; j < cols; j++) distances[0]![j] = j;
-  for (let i = 1; i < rows; i++) {
-    for (let j = 1; j < cols; j++) {
+  const width = b.length + 1;
+  let previousRow = Array.from({ length: width }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const currentRow: number[] = [i];
+    for (let j = 1; j < width; j++) {
       const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      distances[i]![j] = Math.min(
-        distances[i - 1]![j]! + 1,
-        distances[i]![j - 1]! + 1,
-        distances[i - 1]![j - 1]! + cost,
+      currentRow.push(
+        Math.min(at(previousRow, j) + 1, at(currentRow, j - 1) + 1, at(previousRow, j - 1) + cost),
       );
     }
+    previousRow = currentRow;
   }
-  return distances[rows - 1]![cols - 1]!;
+  return at(previousRow, b.length);
 }
 
 function nearest(

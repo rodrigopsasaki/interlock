@@ -23,7 +23,7 @@ function jsonFilesUnder(directory: string): readonly string[] {
 }
 
 function isPart(schemasDirectory: string, filePath: string): boolean {
-  return filePath.startsWith(join(schemasDirectory, "parts") + "/");
+  return filePath.startsWith(`${join(schemasDirectory, "parts")}/`);
 }
 
 export function buildRegistry(

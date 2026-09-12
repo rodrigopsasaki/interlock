@@ -43,7 +43,7 @@ async function peekShapeTag(path: string): Promise<string | undefined> {
 
 async function validateOneFile(path: string): Promise<CommandResult> {
   const tag = await peekShapeTag(path);
-  if (tag !== undefined && tag.startsWith("notes@")) {
+  if (tag?.startsWith("notes@")) {
     const notesRead = await readNotesFile(path);
     if (isErr(notesRead)) return { exitCode: 1, message: explainNotesRefusal(notesRead.error) };
     return { exitCode: 0, message: `${path}: valid as ${NOTES_V0}.` };

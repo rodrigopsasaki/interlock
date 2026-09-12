@@ -65,7 +65,7 @@ const char = (c: string): FaceKey => ({ name: "char", char: c });
 const down: FaceKey = { name: "down" };
 const up: FaceKey = { name: "up" };
 const enter: FaceKey = { name: "enter" };
-const escape: FaceKey = { name: "escape" };
+const escapeKey: FaceKey = { name: "escape" };
 const backspace: FaceKey = { name: "backspace" };
 
 describe("reduce: browsing navigation", () => {
@@ -153,7 +153,7 @@ describe("reduce: browsing navigation", () => {
       index: 1,
       selection: { graph: "g1", node: "b" },
     };
-    const afterEscape = reduce(atNodeB, escape, world).state;
+    const afterEscape = reduce(atNodeB, escapeKey, world).state;
     expect(afterEscape).toMatchObject({ level: "graph", index: 0 });
 
     const afterBackspace = reduce(atNodeB, backspace, world).state;
@@ -162,7 +162,7 @@ describe("reduce: browsing navigation", () => {
 
   it("Escape or Backspace at Plans level is a no-op: there is nowhere further up", () => {
     const start = initialFaceState();
-    expect(reduce(start, escape, world).state).toEqual(start);
+    expect(reduce(start, escapeKey, world).state).toEqual(start);
   });
 
   it("? toggles the help overlay without moving the cursor or firing a verb", () => {
@@ -267,7 +267,7 @@ describe("reduce: verbs and accountability", () => {
     };
     const atNodeB = reduce(atGraph, down, world).state;
     const prompting = reduce(atNodeB, char("c"), world).state;
-    const cancelled = reduce(prompting, escape, world);
+    const cancelled = reduce(prompting, escapeKey, world);
     expect(cancelled.effect).toBeUndefined();
     expect(cancelled.state).toMatchObject({
       kind: "browsing",
