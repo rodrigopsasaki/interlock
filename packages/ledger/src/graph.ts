@@ -14,11 +14,7 @@ export function isGraph(value: unknown): value is Graph {
 }
 
 export function isNode(value: unknown): value is Node {
-  return (
-    isRecord(value) &&
-    isString(prop(value, "graph")) &&
-    isString(prop(value, "id"))
-  );
+  return isRecord(value) && isString(prop(value, "graph")) && isString(prop(value, "id"));
 }
 
 export function nodeKey(node: Node): string {

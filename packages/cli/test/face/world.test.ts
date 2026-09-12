@@ -2,12 +2,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { isErr } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
+import { buildGraphWorld, buildPlansWorld, buildSessionText } from "../../src/face/world.ts";
 import { gitInitFixture } from "../graph/gitFixture.ts";
-import {
-  buildGraphWorld,
-  buildPlansWorld,
-  buildSessionText,
-} from "../../src/face/world.ts";
 
 const runsRoot = join(import.meta.dirname, "..", ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -15,8 +11,7 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -100,8 +95,6 @@ describe("buildSessionText", () => {
   it("names the node and session when nothing was ever recorded for it", async () => {
     const cwd = fixture();
     const text = await buildSessionText(cwd, "demo", "a", "no-such-session");
-    expect(text).toBe(
-      'demo/a: no session "no-such-session" recorded for this node.',
-    );
+    expect(text).toBe('demo/a: no session "no-such-session" recorded for this node.');
   });
 });

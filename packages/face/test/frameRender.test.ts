@@ -1,29 +1,15 @@
 import { isErr } from "@phyxiusjs/fp";
-import {
-  derivation,
-  duration,
-  fold,
-  gate,
-  spend,
-  type LedgerEvent,
-  type Receipt,
-} from "ledger";
+import { derivation, duration, fold, gate, type LedgerEvent, type Receipt, spend } from "ledger";
 import { describe, expect, it } from "vitest";
 import { loadGraphDocument } from "../src/document.ts";
-import {
-  renderGraphFrame,
-  renderNodeFrame,
-  renderPlansFrame,
-} from "../src/frameRender.ts";
+import { renderGraphFrame, renderNodeFrame, renderPlansFrame } from "../src/frameRender.ts";
 import { plansEntryOf } from "../src/plansEntry.ts";
-import { positionOf, type PositionNode } from "../src/position.ts";
+import { type PositionNode, positionOf } from "../src/position.ts";
 import { findRepoRoot, graphFilePath } from "../src/root.ts";
 
 const repoRoot = findRepoRoot(import.meta.dirname);
 if (repoRoot === undefined) {
-  throw new Error(
-    "frameRender.test.ts must run inside an interlock repository checkout",
-  );
+  throw new Error("frameRender.test.ts must run inside an interlock repository checkout");
 }
 const root: string = repoRoot;
 const GRAPH_ID = "0001-bootstrap";
@@ -83,10 +69,7 @@ const fixtureEvents: readonly LedgerEvent[] = [
     kind: "gate-moved",
     node: { graph: GRAPH_ID, id: "runner-command-gate" },
     gate: "one-adapter",
-    to: gate.blocked(
-      "exit 1",
-      "typecheck fails on a stray herdr socket reference",
-    ),
+    to: gate.blocked("exit 1", "typecheck fails on a stray herdr socket reference"),
   },
   {
     kind: "session-started",
@@ -131,13 +114,7 @@ describe("frames over the real bootstrap graph", () => {
   it("renders a Plans-level row for the real graph with its approval, cleared count and live-session count", async () => {
     const document = await loadRealDocument();
     const projection = fold(fixtureEvents);
-    const position = positionOf(
-      document,
-      projection,
-      "some-hash",
-      Date.now(),
-      agentStatusFor,
-    );
+    const position = positionOf(document, projection, "some-hash", Date.now(), agentStatusFor);
     const entry = plansEntryOf(position);
     const text = renderPlansFrame([entry], 0);
 
@@ -153,16 +130,8 @@ describe("frames over the real bootstrap graph", () => {
   it("renders a Graph-level frame with a cursor and a live marker on the node with a live attempt", async () => {
     const document = await loadRealDocument();
     const projection = fold(fixtureEvents);
-    const position = positionOf(
-      document,
-      projection,
-      "some-hash",
-      Date.now(),
-      agentStatusFor,
-    );
-    const runnerIndex = position.nodes.findIndex(
-      (node) => node.id === "runner-command-gate",
-    );
+    const position = positionOf(document, projection, "some-hash", Date.now(), agentStatusFor);
+    const runnerIndex = position.nodes.findIndex((node) => node.id === "runner-command-gate");
     expect(runnerIndex).toBeGreaterThanOrEqual(0);
 
     const text = renderGraphFrame(position, runnerIndex);
@@ -171,9 +140,7 @@ describe("frames over the real bootstrap graph", () => {
     expect(lines[0]).toBe("graph 0001-bootstrap — not approved");
     expect(lines).toContain("    scaffold — cleared");
     expect(lines).toContain("> ● runner-command-gate — ready");
-    expect(text).toContain(
-      "gates: one-adapter blocked, receipt-idempotent pending",
-    );
+    expect(text).toContain("gates: one-adapter blocked, receipt-idempotent pending");
     expect(text).toContain(
       "critical path: scaffold -> ledger -> ledger-gaps -> runner-command-gate",
     );
@@ -182,13 +149,7 @@ describe("frames over the real bootstrap graph", () => {
   it("renders a Node-level frame with gate rows before attempt rows, cursor addressing either", async () => {
     const document = await loadRealDocument();
     const projection = fold(fixtureEvents);
-    const position = positionOf(
-      document,
-      projection,
-      "some-hash",
-      Date.now(),
-      agentStatusFor,
-    );
+    const position = positionOf(document, projection, "some-hash", Date.now(), agentStatusFor);
     const runner = nodeIn(position.nodes, "runner-command-gate");
 
     const onGate = renderNodeFrame(runner, 0);
@@ -204,9 +165,7 @@ describe("frames over the real bootstrap graph", () => {
     ]);
 
     const onAttempt = renderNodeFrame(runner, 2);
-    const attemptLine = onAttempt
-      .split("\n")
-      .find((line) => line.includes(LIVE_SESSION));
+    const attemptLine = onAttempt.split("\n").find((line) => line.includes(LIVE_SESSION));
     expect(attemptLine?.startsWith(">")).toBe(true);
   });
 
@@ -245,13 +204,7 @@ describe("plansEntryOf", () => {
       },
     ];
     const projection = fold(staleLeaseEvents);
-    const position = positionOf(
-      document,
-      projection,
-      "some-hash",
-      Date.now(),
-      agentStatusFor,
-    );
+    const position = positionOf(document, projection, "some-hash", Date.now(), agentStatusFor);
     expect(plansEntryOf(position).liveSessions).toBe(0);
   });
 

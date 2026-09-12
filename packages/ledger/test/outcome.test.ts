@@ -1,13 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { derivation } from "../src/derivation.js";
 import { gate } from "../src/gate.js";
-import {
-  buildCleared,
-  heldOn,
-  outcome,
-  proposeOutcomeMove,
-  type Outcome,
-} from "../src/outcome.js";
+import { buildCleared, heldOn, type Outcome, outcome, proposeOutcomeMove } from "../src/outcome.js";
 import { duration, type Receipt } from "../src/receipt.js";
 import { spend } from "../src/spend.js";
 
@@ -27,10 +21,7 @@ describe("buildCleared", () => {
   it("clears when every declared gate is satisfied or waived", () => {
     const gates = new Map([
       ["typecheck", gate.satisfied(receiptFor("typecheck"))],
-      [
-        "test",
-        gate.waived("Rodrigo Sasaki", "known flaky suite", receiptFor("test")),
-      ],
+      ["test", gate.waived("Rodrigo Sasaki", "known flaky suite", receiptFor("test"))],
     ]);
     const result = buildCleared(["typecheck", "test"], gates);
     expect(result._tag).toBe("Ok");
@@ -83,8 +74,7 @@ describe("outcome factories", () => {
       kind: "held",
       receipts: [],
       on: { kind: "uncommitted-work", paths: 4 },
-      because:
-        "4 uncommitted path(s) in the worktree; gates judge commits only",
+      because: "4 uncommitted path(s) in the worktree; gates judge commits only",
       expiry: 30_000,
     });
   });
@@ -106,9 +96,7 @@ describe("outcome factories", () => {
   });
 
   it("carries authority and because on reset, the same as on cancelled and superseded", () => {
-    expect(
-      outcome.reset([], "Rodrigo Sasaki", "flaky suite, re-running"),
-    ).toMatchObject({
+    expect(outcome.reset([], "Rodrigo Sasaki", "flaky suite, re-running")).toMatchObject({
       kind: "reset",
       authority: "Rodrigo Sasaki",
       because: "flaky suite, re-running",
@@ -116,16 +104,12 @@ describe("outcome factories", () => {
   });
 
   it("carries authority and because on cancelled and superseded", () => {
-    expect(
-      outcome.cancelled([], "Rodrigo Sasaki", "acceptance re-versioned"),
-    ).toMatchObject({
+    expect(outcome.cancelled([], "Rodrigo Sasaki", "acceptance re-versioned")).toMatchObject({
       kind: "cancelled",
       authority: "Rodrigo Sasaki",
       because: "acceptance re-versioned",
     });
-    expect(
-      outcome.superseded([], "Rodrigo Sasaki", "acceptance re-versioned"),
-    ).toMatchObject({
+    expect(outcome.superseded([], "Rodrigo Sasaki", "acceptance re-versioned")).toMatchObject({
       kind: "superseded",
       authority: "Rodrigo Sasaki",
       because: "acceptance re-versioned",

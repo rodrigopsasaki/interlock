@@ -11,8 +11,7 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -31,10 +30,7 @@ function fixture(graphYaml: string, events: readonly unknown[]): string {
   directory = mkdtempSync(join(runsRoot, "run-"));
   gitInitFixture(directory);
   mkdirSync(join(directory, ".interlock", "graphs"), { recursive: true });
-  writeFileSync(
-    join(directory, ".interlock", "graphs", "demo.yaml"),
-    graphYaml,
-  );
+  writeFileSync(join(directory, ".interlock", "graphs", "demo.yaml"), graphYaml);
   if (events.length > 0) {
     mkdirSync(join(directory, ".interlock", "ledger"), { recursive: true });
     writeFileSync(
@@ -153,11 +149,7 @@ describe("graph status", () => {
   });
 
   it("fails a node with no outcome and no live lease", async () => {
-    const cwd = fixture(twoNodeGraph, [
-      nodeCreated("a"),
-      cleared("a"),
-      nodeCreated("b"),
-    ]);
+    const cwd = fixture(twoNodeGraph, [nodeCreated("a"), cleared("a"), nodeCreated("b")]);
     const result = await runGraphStatus(["demo", "--expect", "cleared"], {
       cwd,
     });

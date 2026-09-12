@@ -82,9 +82,7 @@ describe("sweeper", () => {
         "lease session-expired expired at 1000 with no outcome",
       ),
     );
-    expect(
-      ledger.projection().sessions.get("session-expired")?.leaseExpired,
-    ).toBe(true);
+    expect(ledger.projection().sessions.get("session-expired")?.leaseExpired).toBe(true);
   });
 
   it("is idempotent: a second sweep at the same time writes nothing new", () => {
@@ -167,11 +165,7 @@ describe("sweeper", () => {
     expect(projection.sessions.get("session-1")?.leaseExpired).toBe(true);
     expect(projection.sessions.get("session-2")?.leaseExpired).toBe(true);
     expect(projection.nodes.get("0001-bootstrap::a")?.outcome).toEqual(
-      outcome.cancelled(
-        [],
-        ABANDONED_AUTHORITY,
-        "lease session-2 expired at 3000 with no outcome",
-      ),
+      outcome.cancelled([], ABANDONED_AUTHORITY, "lease session-2 expired at 3000 with no outcome"),
     );
   });
 });

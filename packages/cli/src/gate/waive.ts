@@ -1,4 +1,4 @@
-import { createSystemClock, type Clock } from "@phyxiusjs/clock";
+import { type Clock, createSystemClock } from "@phyxiusjs/clock";
 import { isErr } from "@phyxiusjs/fp";
 import {
   explainGraphRefusal,
@@ -7,18 +7,8 @@ import {
   loadGraphDocument,
   sharedJournalDirectory,
 } from "face";
-import {
-  createLedger,
-  gate,
-  nodeKey,
-  proposeGateMove,
-  type Node,
-} from "ledger";
-import {
-  declaredGateIds,
-  explainStandingGatesRefusal,
-  loadStandingGates,
-} from "runner";
+import { createLedger, gate, type Node, nodeKey, proposeGateMove } from "ledger";
+import { declaredGateIds, explainStandingGatesRefusal, loadStandingGates } from "runner";
 import { parseFlag } from "../flags.ts";
 import type { CommandResult } from "../main.ts";
 
@@ -39,8 +29,7 @@ export async function runGateWaive(
   if (because === undefined) {
     return {
       exitCode: 1,
-      message:
-        "interlock gate waive: refuses without --because; every waiver records why.",
+      message: "interlock gate waive: refuses without --because; every waiver records why.",
     };
   }
 
@@ -48,8 +37,7 @@ export async function runGateWaive(
   if (by === undefined) {
     return {
       exitCode: 1,
-      message:
-        "interlock gate waive: refuses without --by; every waiver records who.",
+      message: "interlock gate waive: refuses without --by; every waiver records who.",
     };
   }
 
@@ -68,9 +56,7 @@ export async function runGateWaive(
     return { exitCode: 1, message: explainGraphRefusal(document.error) };
   }
 
-  const declaration = document.value.nodes.find(
-    (candidate) => candidate.id === node,
-  );
+  const declaration = document.value.nodes.find((candidate) => candidate.id === node);
   if (declaration === undefined) {
     return {
       exitCode: 1,

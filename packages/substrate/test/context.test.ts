@@ -4,8 +4,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import { substrateClientFor } from "../src/address.ts";
 import { narrateContext } from "../src/narrate.ts";
 import {
-  startFakeSubstrateServer,
   type FakeSubstrateServer,
+  startFakeSubstrateServer,
 } from "./support/fakeSubstrateServer.ts";
 import { fixtureItem } from "./support/fixtures.ts";
 
@@ -20,8 +20,7 @@ let keyDirectory: string | undefined;
 afterEach(async () => {
   if (server !== undefined) await server.close();
   server = undefined;
-  if (keyDirectory !== undefined)
-    rmSync(keyDirectory, { recursive: true, force: true });
+  if (keyDirectory !== undefined) rmSync(keyDirectory, { recursive: true, force: true });
   keyDirectory = undefined;
 });
 
@@ -41,11 +40,7 @@ describe("context", () => {
     });
 
     const client = substrateClientFor(server.url);
-    const outcome = await client.context(
-      node,
-      ["packages/substrate"],
-      "worker",
-    );
+    const outcome = await client.context(node, ["packages/substrate"], "worker");
 
     expect(outcome).toEqual({
       kind: "rendered",
@@ -104,8 +99,6 @@ describe("context", () => {
     const client = substrateClientFor("none");
     const outcome = await client.context(node, [], "worker");
     expect(outcome).toEqual({ kind: "empty" });
-    expect(narrateContext("none", outcome)).toBe(
-      "context none: no substrate addressed",
-    );
+    expect(narrateContext("none", outcome)).toBe("context none: no substrate addressed");
   });
 });

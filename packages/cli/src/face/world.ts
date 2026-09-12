@@ -1,7 +1,9 @@
 import { relative } from "node:path";
-import { createSystemClock, type Clock } from "@phyxiusjs/clock";
+import { type Clock, createSystemClock } from "@phyxiusjs/clock";
 import { isErr, isOk, ok, type Result } from "@phyxiusjs/fp";
 import {
+  type FaceWorld,
+  type GraphRefusal,
   graphFilePath,
   listGraphIds,
   loadGraphDocument,
@@ -9,23 +11,14 @@ import {
   positionOf,
   renderSessionColumns,
   sharedJournalDirectory,
-  type FaceWorld,
-  type GraphRefusal,
 } from "face";
 import { emptyProjection, nodeKey, readReplay, receiptId } from "ledger";
 import type { Runtime } from "runner";
 import { liveSessionsOf, resolveAgentStatuses } from "../herdrStatus.ts";
 import { legacyDebriefLine } from "../legacyDebriefLine.ts";
 
-async function contentHashOf(
-  repoRoot: string,
-  path: string,
-): Promise<string | undefined> {
-  const hashed = await receiptId(
-    repoRoot,
-    [relative(repoRoot, path)],
-    "approved",
-  );
+async function contentHashOf(repoRoot: string, path: string): Promise<string | undefined> {
+  const hashed = await receiptId(repoRoot, [relative(repoRoot, path)], "approved");
   return isOk(hashed) ? hashed.value : undefined;
 }
 
@@ -52,12 +45,8 @@ export async function buildPlansWorld(
       liveSessionsOf(graphId, projection.sessions, nowWallMs),
       runtime,
     );
-    const position = positionOf(
-      document.value,
-      projection,
-      contentHash,
-      nowWallMs,
-      (session) => statuses.get(session),
+    const position = positionOf(document.value, projection, contentHash, nowWallMs, (session) =>
+      statuses.get(session),
     );
     plans.push(plansEntryOf(position));
   }
@@ -85,12 +74,8 @@ export async function buildGraphWorld(
     liveSessionsOf(graphId, projection.sessions, nowWallMs),
     runtime,
   );
-  const position = positionOf(
-    document.value,
-    projection,
-    contentHash,
-    nowWallMs,
-    (session) => statuses.get(session),
+  const position = positionOf(document.value, projection, contentHash, nowWallMs, (session) =>
+    statuses.get(session),
   );
   return ok({ plans: [], position });
 }

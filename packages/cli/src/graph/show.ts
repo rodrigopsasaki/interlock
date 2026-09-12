@@ -1,14 +1,14 @@
 import { relative } from "node:path";
-import { createSystemClock, type Clock } from "@phyxiusjs/clock";
+import { type Clock, createSystemClock } from "@phyxiusjs/clock";
 import { isErr } from "@phyxiusjs/fp";
 import {
   explainGraphRefusal,
   findRepoRoot,
   graphFilePath,
-  sharedJournalDirectory,
   loadGraphDocument,
   positionOf,
   renderPosition,
+  sharedJournalDirectory,
 } from "face";
 import { explainScopeRefusal, readReplay, receiptId } from "ledger";
 import type { Runtime } from "runner";
@@ -56,11 +56,7 @@ export async function runGraphShow(
     };
   }
 
-  const contentHash = await receiptId(
-    repoRoot,
-    [relative(repoRoot, path)],
-    "approved",
-  );
+  const contentHash = await receiptId(repoRoot, [relative(repoRoot, path)], "approved");
   if (isErr(contentHash)) {
     return { exitCode: 1, message: explainScopeRefusal(contentHash.error) };
   }
@@ -83,8 +79,6 @@ export async function runGraphShow(
 
   return {
     exitCode: 0,
-    message: args.includes("--json")
-      ? JSON.stringify(position, null, 2)
-      : renderPosition(position),
+    message: args.includes("--json") ? JSON.stringify(position, null, 2) : renderPosition(position),
   };
 }

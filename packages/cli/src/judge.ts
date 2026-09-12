@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { join, relative } from "node:path";
-import { createSystemClock, type Clock } from "@phyxiusjs/clock";
+import { type Clock, createSystemClock } from "@phyxiusjs/clock";
 import { isErr } from "@phyxiusjs/fp";
 import {
   approvalState,
@@ -85,9 +85,7 @@ export async function runInterlockJudge(
     return { exitCode: 1, message: explainGraphRefusal(document.error) };
   }
 
-  const declaration = document.value.nodes.find(
-    (candidate) => candidate.id === node,
-  );
+  const declaration = document.value.nodes.find((candidate) => candidate.id === node);
   if (declaration === undefined) {
     return {
       exitCode: 1,
@@ -115,19 +113,12 @@ export async function runInterlockJudge(
   const ledger = opened.value;
 
   try {
-    const contentHash = await receiptId(
-      repoRoot,
-      [relative(repoRoot, graphPath)],
-      "approved",
-    );
+    const contentHash = await receiptId(repoRoot, [relative(repoRoot, graphPath)], "approved");
     if (isErr(contentHash)) {
       return { exitCode: 1, message: explainScopeRefusal(contentHash.error) };
     }
     const graphNode = { graph, id: graph };
-    const approvalGate = ledger
-      .projection()
-      .nodes.get(nodeKey(graphNode))
-      ?.gates.get("approved");
+    const approvalGate = ledger.projection().nodes.get(nodeKey(graphNode))?.gates.get("approved");
     const approval = approvalState(approvalGate, contentHash.value);
     if (approval !== "approved") {
       return {
@@ -152,9 +143,7 @@ export async function runInterlockJudge(
     const nowWallMs = clock.now().wallMs;
     const liveLease = nodeSessions.find(
       (session) =>
-        session.lease !== undefined &&
-        !session.leaseExpired &&
-        session.lease.expiry > nowWallMs,
+        session.lease !== undefined && !session.leaseExpired && session.lease.expiry > nowWallMs,
     );
     if (liveLease?.lease !== undefined) {
       return {

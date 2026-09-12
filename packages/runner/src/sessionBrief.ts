@@ -3,32 +3,23 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import {
+  type BriefRefusal,
   briefFilePath,
   explainBriefRefusal,
   readBriefFile,
   renderSlice,
-  type BriefRefusal,
 } from "debrief";
 import type { GateDeclaration } from "face";
 import type { Brief } from "ledger";
 import { narrateContext, type SubstrateClient } from "substrate";
-import {
-  authoritativeBriefGates,
-  diffGates,
-  diffScope,
-  renderBriefFile,
-} from "./briefRewrite.ts";
+import { authoritativeBriefGates, diffGates, diffScope, renderBriefFile } from "./briefRewrite.ts";
 import { withRenderedContextSlice } from "./contextSlice.ts";
 import { gitTrackedFiles } from "./scope.ts";
 import type { StandingGate } from "./standingGates.ts";
 
 export const briefPath = briefFilePath;
 
-export function briefExists(
-  repoRoot: string,
-  graph: string,
-  node: string,
-): boolean {
+export function briefExists(repoRoot: string, graph: string, node: string): boolean {
   return existsSync(briefPath(repoRoot, graph, node));
 }
 
@@ -46,9 +37,7 @@ export type SessionBriefRefusal =
       readonly because: string;
     };
 
-export function explainSessionBriefRefusal(
-  refusal: SessionBriefRefusal,
-): string {
+export function explainSessionBriefRefusal(refusal: SessionBriefRefusal): string {
   switch (refusal.kind) {
     case "read":
       return explainBriefRefusal(refusal.refusal);

@@ -1,6 +1,6 @@
 import type { Float } from "./float.ts";
-import type { PositionGate, PositionGateState } from "./positionGate.ts";
 import type { ApprovalState, NodeState, Position } from "./position.ts";
+import type { PositionGate, PositionGateState } from "./positionGate.ts";
 
 function renderApproval(approval: ApprovalState): string {
   switch (approval) {
@@ -20,9 +20,7 @@ function renderState(state: NodeState): string {
     case "blocked":
       return `blocked on ${state.on.join(", ")}`;
     case "outcome":
-      return state.outcome.kind === "held"
-        ? `held: ${state.outcome.because}`
-        : state.outcome.kind;
+      return state.outcome.kind === "held" ? `held: ${state.outcome.because}` : state.outcome.kind;
   }
 }
 
@@ -47,10 +45,7 @@ function renderGates(gates: readonly PositionGate[]): string {
 }
 
 export function renderPosition(position: Position): string {
-  const lines: string[] = [
-    `graph ${position.graph} — ${renderApproval(position.approval)}`,
-    "",
-  ];
+  const lines: string[] = [`graph ${position.graph} — ${renderApproval(position.approval)}`, ""];
 
   for (const node of position.nodes) {
     lines.push(`${node.id} — ${renderState(node.state)}`);

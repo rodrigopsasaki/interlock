@@ -19,8 +19,7 @@ export function branchKindLabel(branch: Record<string, unknown>): string {
   const constValue = prop(kind, "const");
   if (isString(constValue)) return constValue;
   const enumValues = prop(kind, "enum");
-  if (isArray(enumValues))
-    return enumValues.map((value) => String(value)).join("|");
+  if (isArray(enumValues)) return enumValues.map((value) => String(value)).join("|");
   return "?";
 }
 
@@ -32,8 +31,7 @@ function branchSummary(branch: Record<string, unknown>): string {
   const extraFields = isRecord(properties)
     ? Object.keys(properties).filter((name) => name !== "kind")
     : [];
-  if (extraFields.length === 0)
-    return `\`${label}\`: no fields beyond \`kind\``;
+  if (extraFields.length === 0) return `\`${label}\`: no fields beyond \`kind\``;
   const listed = extraFields
     .map((name) => (requiredNames.includes(name) ? name : `${name} (optional)`))
     .join(", ");
@@ -56,8 +54,7 @@ function describeObject(
   filePath: string,
 ): Described {
   const properties = prop(node, "properties");
-  if (!isRecord(properties))
-    return { type: "object", description: textOf(node, "description") };
+  if (!isRecord(properties)) return { type: "object", description: textOf(node, "description") };
 
   const required = prop(node, "required");
   const requiredNames = isArray(required) ? required.filter(isString) : [];
@@ -80,13 +77,10 @@ export function describe(
     const resolved = resolveRef(files, ref, filePath);
     const title = prop(resolved.node, "title");
     const description = prop(resolved.node, "description");
-    if (isString(title) && isString(description))
-      return { type: title, description };
+    if (isString(title) && isString(description)) return { type: title, description };
 
     const inner = describe(resolved.node, files, resolved.file);
-    const localName = ref.startsWith("#/")
-      ? ref.slice(ref.lastIndexOf("/") + 1)
-      : inner.type;
+    const localName = ref.startsWith("#/") ? ref.slice(ref.lastIndexOf("/") + 1) : inner.type;
     return { type: localName, description: inner.description };
   }
 
@@ -123,10 +117,8 @@ export function describe(
       description: textOf(node, "description"),
     };
   }
-  if (type === "number")
-    return { type: "number", description: textOf(node, "description") };
-  if (type === "boolean")
-    return { type: "boolean", description: textOf(node, "description") };
+  if (type === "number") return { type: "number", description: textOf(node, "description") };
+  if (type === "boolean") return { type: "boolean", description: textOf(node, "description") };
 
   return { type: "unknown", description: textOf(node, "description") };
 }

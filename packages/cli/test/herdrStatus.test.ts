@@ -46,9 +46,7 @@ describe("liveSessionsOf", () => {
     ];
     const projection = fold(events);
     expect(
-      liveSessionsOf("demo", projection.sessions, now).map(
-        (session) => session.session,
-      ),
+      liveSessionsOf("demo", projection.sessions, now).map((session) => session.session),
     ).toEqual(["session-1"]);
   });
 

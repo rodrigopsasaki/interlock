@@ -1,8 +1,8 @@
 import { createControlledClock, deadlineFrom, ms } from "@phyxiusjs/clock";
 import { err, isErr, ok } from "@phyxiusjs/fp";
 import { describe, expect, it } from "vitest";
-import { waitForSession } from "../src/sessionWait.ts";
 import type { Agent, AgentStatus, Runtime } from "../src/runtime.ts";
+import { waitForSession } from "../src/sessionWait.ts";
 
 const agent: Agent = { id: "agent-1", pane: { id: "pane-1" } };
 
@@ -30,9 +30,7 @@ describe("waitForSession", () => {
         const next = script.shift();
         if (next !== undefined) return Promise.resolve(ok(next));
         clock.advanceBy(ms(timeoutMs));
-        return Promise.resolve(
-          err({ kind: "timeout", until, timeoutMs, status: "idle" }),
-        );
+        return Promise.resolve(err({ kind: "timeout", until, timeoutMs, status: "idle" }));
       },
       read: () => Promise.resolve(ok("")),
     });
@@ -68,9 +66,7 @@ describe("waitForSession", () => {
         const next = script.shift();
         if (next !== undefined) return Promise.resolve(ok(next));
         clock.advanceBy(ms(timeoutMs));
-        return Promise.resolve(
-          err({ kind: "timeout", until, timeoutMs, status: "idle" }),
-        );
+        return Promise.resolve(err({ kind: "timeout", until, timeoutMs, status: "idle" }));
       },
       read: () => Promise.resolve(ok("")),
     });
@@ -104,9 +100,7 @@ describe("waitForSession", () => {
         const next = script.shift();
         if (next !== undefined) return Promise.resolve(ok(next));
         clock.advanceBy(ms(timeoutMs));
-        return Promise.resolve(
-          err({ kind: "timeout", until, timeoutMs, status: "idle" }),
-        );
+        return Promise.resolve(err({ kind: "timeout", until, timeoutMs, status: "idle" }));
       },
     });
     const lines: string[] = [];
@@ -142,14 +136,9 @@ describe("waitForSession", () => {
         const next = script.shift();
         if (next !== undefined) return Promise.resolve(ok(next));
         clock.advanceBy(ms(timeoutMs));
-        return Promise.resolve(
-          err({ kind: "timeout", until, timeoutMs, status: "idle" }),
-        );
+        return Promise.resolve(err({ kind: "timeout", until, timeoutMs, status: "idle" }));
       },
-      read: () =>
-        Promise.resolve(
-          err({ kind: "transport", because: "the pane vanished" }),
-        ),
+      read: () => Promise.resolve(err({ kind: "transport", because: "the pane vanished" })),
     });
     const lines: string[] = [];
 
@@ -183,9 +172,7 @@ describe("waitForSession", () => {
         const next = script.shift();
         if (next !== undefined) return Promise.resolve(ok(next));
         clock.advanceBy(ms(timeoutMs));
-        return Promise.resolve(
-          err({ kind: "timeout", until, timeoutMs, status: "done" }),
-        );
+        return Promise.resolve(err({ kind: "timeout", until, timeoutMs, status: "done" }));
       },
       read: () => Promise.resolve(ok("")),
     });
@@ -245,9 +232,7 @@ describe("waitForSession", () => {
           return Promise.resolve(ok(next));
         }
         clock.advanceBy(ms(timeoutMs));
-        return Promise.resolve(
-          err({ kind: "timeout", until, timeoutMs, status: "done" }),
-        );
+        return Promise.resolve(err({ kind: "timeout", until, timeoutMs, status: "done" }));
       },
       read: () => Promise.resolve(ok("")),
     });
@@ -311,10 +296,7 @@ describe("waitForSession", () => {
   it("returns a wait refusal as soon as the runtime itself refuses", async () => {
     const clock = createControlledClock({ initialTime: 0 });
     const runtime = stubRuntime({
-      waitUntil: () =>
-        Promise.resolve(
-          err({ kind: "transport", because: "the socket closed" }),
-        ),
+      waitUntil: () => Promise.resolve(err({ kind: "transport", because: "the socket closed" })),
     });
 
     const deadline = deadlineFrom(clock.now().monoMs, ms(60_000));
@@ -377,9 +359,7 @@ describe("waitForSession", () => {
       waitUntil: (_agent, until, timeoutMs) => {
         const next = script.shift();
         if (next !== undefined) return Promise.resolve(ok(next));
-        return Promise.resolve(
-          err({ kind: "timeout", until, timeoutMs, status: "idle" }),
-        );
+        return Promise.resolve(err({ kind: "timeout", until, timeoutMs, status: "idle" }));
       },
     });
     const lines: string[] = [];
@@ -396,9 +376,7 @@ describe("waitForSession", () => {
       (line) => lines.push(line),
       () => {
         unfinishedCalls += 1;
-        return unfinishedCalls === 1
-          ? { uncommittedPaths: 4, debriefMissing: true }
-          : undefined;
+        return unfinishedCalls === 1 ? { uncommittedPaths: 4, debriefMissing: true } : undefined;
       },
     );
 
@@ -444,9 +422,7 @@ describe("waitForSession", () => {
         const next = script.shift();
         if (next !== undefined) return Promise.resolve(ok(next));
         clock.advanceBy(ms(timeoutMs));
-        return Promise.resolve(
-          err({ kind: "timeout", until, timeoutMs, status: "done" }),
-        );
+        return Promise.resolve(err({ kind: "timeout", until, timeoutMs, status: "done" }));
       },
     });
 
@@ -482,9 +458,7 @@ describe("waitForSession", () => {
           return Promise.resolve(ok(next));
         }
         clock.advanceBy(ms(timeoutMs));
-        return Promise.resolve(
-          err({ kind: "timeout", until, timeoutMs, status: "done" }),
-        );
+        return Promise.resolve(err({ kind: "timeout", until, timeoutMs, status: "done" }));
       },
     });
 
@@ -512,9 +486,7 @@ describe("waitForSession", () => {
       waitUntil: (_agent, until, timeoutMs) => {
         const next = script.shift();
         if (next !== undefined) return Promise.resolve(ok(next));
-        return Promise.resolve(
-          err({ kind: "timeout", until, timeoutMs, status: "idle" }),
-        );
+        return Promise.resolve(err({ kind: "timeout", until, timeoutMs, status: "idle" }));
       },
     });
     const lines: string[] = [];
@@ -543,9 +515,7 @@ describe("waitForSession", () => {
       waitUntil: (_agent, until, timeoutMs) => {
         const next = script.shift();
         if (next !== undefined) return Promise.resolve(ok(next));
-        return Promise.resolve(
-          err({ kind: "timeout", until, timeoutMs, status: "idle" }),
-        );
+        return Promise.resolve(err({ kind: "timeout", until, timeoutMs, status: "idle" }));
       },
     });
     const lines: string[] = [];
@@ -574,9 +544,7 @@ describe("waitForSession", () => {
       waitUntil: (_agent, until, timeoutMs) => {
         const next = script.shift();
         if (next !== undefined) return Promise.resolve(ok(next));
-        return Promise.resolve(
-          err({ kind: "timeout", until, timeoutMs, status: "idle" }),
-        );
+        return Promise.resolve(err({ kind: "timeout", until, timeoutMs, status: "idle" }));
       },
     });
     const lines: string[] = [];
@@ -593,8 +561,6 @@ describe("waitForSession", () => {
       () => ({ uncommittedPaths: 0, debriefMissing: true }),
     );
 
-    expect(lines).toEqual([
-      "agent settled with no debrief; judging in 5s unless it resumes",
-    ]);
+    expect(lines).toEqual(["agent settled with no debrief; judging in 5s unless it resumes"]);
   });
 });

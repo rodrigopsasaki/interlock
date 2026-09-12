@@ -1,9 +1,9 @@
 import {
-  nodeKey,
-  outcome,
   type Lease,
   type Ledger,
   type LedgerProjection,
+  nodeKey,
+  outcome,
   type SessionView,
 } from "ledger";
 
@@ -27,16 +27,11 @@ function isExpiredUnresolved(
   if (lease === undefined || leaseGeneration === undefined) return false;
   if (session.leaseExpired) return false;
   if (lease.expiry > nowWallMs) return false;
-  const outcomeGeneration = projection.nodes.get(
-    nodeKey(session.node),
-  )?.outcomeSetAtGeneration;
+  const outcomeGeneration = projection.nodes.get(nodeKey(session.node))?.outcomeSetAtGeneration;
   return outcomeGeneration === undefined || outcomeGeneration < leaseGeneration;
 }
 
-export function sweepExpiredLeases(
-  ledger: Ledger,
-  nowWallMs: number,
-): readonly string[] {
+export function sweepExpiredLeases(ledger: Ledger, nowWallMs: number): readonly string[] {
   const projection = ledger.projection();
   const expired = [...projection.sessions.values()]
     .filter((session): session is ExpiredSession =>
@@ -50,8 +45,7 @@ export function sweepExpiredLeases(
       node: session.node,
       session: session.session,
     });
-    const receipts =
-      ledger.projection().nodes.get(nodeKey(session.node))?.receipts ?? [];
+    const receipts = ledger.projection().nodes.get(nodeKey(session.node))?.receipts ?? [];
     ledger.append({
       kind: "outcome-set",
       node: session.node,

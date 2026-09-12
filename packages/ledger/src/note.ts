@@ -16,12 +16,7 @@ export type Note =
     };
 
 export const note = {
-  choice: (
-    at: string,
-    chose: string,
-    because: string,
-    rejected?: readonly string[],
-  ): Note =>
+  choice: (at: string, chose: string, because: string, rejected?: readonly string[]): Note =>
     rejected === undefined
       ? { kind: "choice", at, chose, because }
       : { kind: "choice", at, chose, because, rejected },
@@ -47,9 +42,7 @@ export function isNote(value: unknown): value is Note {
       );
     }
     case "surprise":
-      return (
-        isString(prop(value, "expected")) && isString(prop(value, "observed"))
-      );
+      return isString(prop(value, "expected")) && isString(prop(value, "observed"));
     default:
       return false;
   }

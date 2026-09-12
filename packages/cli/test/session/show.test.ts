@@ -3,17 +3,10 @@ import { join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
 import { unwrap } from "@phyxiusjs/fp";
 import { sharedJournalDirectory } from "face";
-import {
-  createLedger,
-  gate,
-  note,
-  type Brief,
-  type Debrief,
-  type Ledger,
-} from "ledger";
+import { type Brief, createLedger, type Debrief, gate, type Ledger, note } from "ledger";
 import { afterEach, describe, expect, it } from "vitest";
-import { gitInitFixture } from "../graph/gitFixture.ts";
 import { runSessionShow } from "../../src/session/show.ts";
+import { gitInitFixture } from "../graph/gitFixture.ts";
 
 const runsRoot = join(import.meta.dirname, "..", ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -21,8 +14,7 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -153,9 +145,7 @@ describe("interlock session show", () => {
     expect(result.message).toContain("demo/a · session s1");
     expect(result.message).toContain("acceptance: the thing this node must do");
     expect(result.message).toContain("typecheck: satisfied (receipt r1)");
-    expect(result.message).toContain(
-      "derivation: runtime claude-code, model claude-sonnet-5",
-    );
+    expect(result.message).toContain("derivation: runtime claude-code, model claude-sonnet-5");
     expect(result.message).toContain("d1: found a thing");
     expect(result.message).toContain("c1: some/path.ts:1-2");
     expect(result.message).not.toContain("because: the brief asked for it");

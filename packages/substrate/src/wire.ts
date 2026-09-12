@@ -69,12 +69,8 @@ export function toWireDebrief(debrief: Debrief): WireDebrief {
       because: decision.because,
       rests_on: decision.restsOn,
       hunks: decision.hunks,
-      ...(decision.produces === undefined
-        ? {}
-        : { produces: decision.produces }),
-      ...(decision.rejected === undefined
-        ? {}
-        : { rejected: decision.rejected }),
+      ...(decision.produces === undefined ? {} : { produces: decision.produces }),
+      ...(decision.rejected === undefined ? {} : { rejected: decision.rejected }),
     })),
     gates_run_by_agent: debrief.gatesRunByAgent.map((run) => ({
       id: run.id,

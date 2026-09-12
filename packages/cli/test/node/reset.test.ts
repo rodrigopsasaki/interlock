@@ -1,18 +1,12 @@
-import {
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
 import { unwrap } from "@phyxiusjs/fp";
 import { sharedJournalDirectory } from "face";
-import { createLedger, outcome, type Ledger } from "ledger";
+import { createLedger, type Ledger, outcome } from "ledger";
 import { afterEach, describe, expect, it } from "vitest";
-import { gitInitFixture } from "../graph/gitFixture.ts";
 import { runNodeReset } from "../../src/node/reset.ts";
+import { gitInitFixture } from "../graph/gitFixture.ts";
 
 const runsRoot = join(import.meta.dirname, "..", ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -20,8 +14,7 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -41,10 +34,7 @@ function fixture(): string {
   directory = mkdtempSync(join(runsRoot, "node-reset-"));
   gitInitFixture(directory);
   mkdirSync(join(directory, ".interlock", "graphs"), { recursive: true });
-  writeFileSync(
-    join(directory, ".interlock", "graphs", "demo.yaml"),
-    graphYaml,
-  );
+  writeFileSync(join(directory, ".interlock", "graphs", "demo.yaml"), graphYaml);
   return directory;
 }
 
@@ -58,10 +48,7 @@ async function openLedger(cwd: string): Promise<Ledger> {
 }
 
 function journalEventKinds(cwd: string): readonly string[] {
-  const raw = readFileSync(
-    join(cwd, ".interlock", "ledger", "journal.jsonl"),
-    "utf-8",
-  );
+  const raw = readFileSync(join(cwd, ".interlock", "ledger", "journal.jsonl"), "utf-8");
   return raw
     .trim()
     .split("\n")
@@ -88,10 +75,9 @@ describe("node reset", () => {
 
   it("refuses without --by", async () => {
     const cwd = fixture();
-    const result = await runNodeReset(
-      ["demo", "a", "--because", "flaky suite, re-running"],
-      { cwd },
-    );
+    const result = await runNodeReset(["demo", "a", "--because", "flaky suite, re-running"], {
+      cwd,
+    });
     expect(result.exitCode).not.toBe(0);
     expect(result.message).toBe(
       "interlock node reset: refuses without --by; every reset records who.",
@@ -115,9 +101,7 @@ describe("node reset", () => {
       { cwd },
     );
     expect(result.exitCode).not.toBe(0);
-    expect(result.message).toContain(
-      'no node "ghost" declared on graph "demo"',
-    );
+    expect(result.message).toContain('no node "ghost" declared on graph "demo"');
   });
 
   it("refuses a node with no outcome yet, naming that there is nothing to reset", async () => {
@@ -206,8 +190,6 @@ describe("node reset", () => {
       { cwd },
     );
     expect(result.exitCode).not.toBe(0);
-    expect(result.message).toBe(
-      "a: outcome cannot move from cleared, which is terminal.",
-    );
+    expect(result.message).toBe("a: outcome cannot move from cleared, which is terminal.");
   });
 });

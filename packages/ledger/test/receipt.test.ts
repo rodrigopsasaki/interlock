@@ -3,13 +3,7 @@ import { join } from "node:path";
 import { isErr, unwrap } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
 import { derivation } from "../src/derivation.js";
-import {
-  checkStale,
-  createReceipt,
-  duration,
-  isReceipt,
-  receiptId,
-} from "../src/receipt.js";
+import { checkStale, createReceipt, duration, isReceipt, receiptId } from "../src/receipt.js";
 import { spend } from "../src/spend.js";
 
 const packageRoot = join(import.meta.dirname, "..");
@@ -36,40 +30,26 @@ function checkoutWith(content: string): string {
 
 describe("receipt identity", () => {
   it("is the same for the same scope and gate", async () => {
-    const first = unwrap(
-      await receiptId(packageRoot, [packageJson], "typecheck"),
-    );
-    const second = unwrap(
-      await receiptId(packageRoot, [packageJson], "typecheck"),
-    );
+    const first = unwrap(await receiptId(packageRoot, [packageJson], "typecheck"));
+    const second = unwrap(await receiptId(packageRoot, [packageJson], "typecheck"));
     expect(first).toBe(second);
   });
 
   it("differs when the gate differs", async () => {
-    const typecheck = unwrap(
-      await receiptId(packageRoot, [packageJson], "typecheck"),
-    );
+    const typecheck = unwrap(await receiptId(packageRoot, [packageJson], "typecheck"));
     const test = unwrap(await receiptId(packageRoot, [packageJson], "test"));
     expect(typecheck).not.toBe(test);
   });
 
   it("differs when the scope's content differs", async () => {
-    const withPackageJson = unwrap(
-      await receiptId(packageRoot, [packageJson], "typecheck"),
-    );
-    const withTsconfig = unwrap(
-      await receiptId(packageRoot, [tsconfigJson], "typecheck"),
-    );
+    const withPackageJson = unwrap(await receiptId(packageRoot, [packageJson], "typecheck"));
+    const withTsconfig = unwrap(await receiptId(packageRoot, [tsconfigJson], "typecheck"));
     expect(withPackageJson).not.toBe(withTsconfig);
   });
 
   it("is unaffected by scope order", async () => {
-    const forward = unwrap(
-      await receiptId(packageRoot, [packageJson, tsconfigJson], "typecheck"),
-    );
-    const backward = unwrap(
-      await receiptId(packageRoot, [tsconfigJson, packageJson], "typecheck"),
-    );
+    const forward = unwrap(await receiptId(packageRoot, [packageJson, tsconfigJson], "typecheck"));
+    const backward = unwrap(await receiptId(packageRoot, [tsconfigJson, packageJson], "typecheck"));
     expect(forward).toBe(backward);
   });
 
@@ -79,43 +59,27 @@ describe("receipt identity", () => {
     const checkoutB = checkoutWith(content);
     expect(checkoutA).not.toBe(checkoutB);
 
-    const idFromA = unwrap(
-      await receiptId(checkoutA, ["pkg/file.txt"], "typecheck"),
-    );
-    const idFromB = unwrap(
-      await receiptId(checkoutB, ["pkg/file.txt"], "typecheck"),
-    );
+    const idFromA = unwrap(await receiptId(checkoutA, ["pkg/file.txt"], "typecheck"));
+    const idFromB = unwrap(await receiptId(checkoutB, ["pkg/file.txt"], "typecheck"));
     expect(idFromA).toBe(idFromB);
   });
 
   it("still changes when one byte under the scope changes", async () => {
     const checkout = checkoutWith("original content\n");
-    const before = unwrap(
-      await receiptId(checkout, ["pkg/file.txt"], "typecheck"),
-    );
+    const before = unwrap(await receiptId(checkout, ["pkg/file.txt"], "typecheck"));
     writeFileSync(join(checkout, "pkg", "file.txt"), "original content!\n");
-    const after = unwrap(
-      await receiptId(checkout, ["pkg/file.txt"], "typecheck"),
-    );
+    const after = unwrap(await receiptId(checkout, ["pkg/file.txt"], "typecheck"));
     expect(after).not.toBe(before);
   });
 
   it("refuses an absolute scope path instead of silently hashing it", async () => {
-    const refused = await receiptId(
-      packageRoot,
-      [join(packageRoot, packageJson)],
-      "typecheck",
-    );
+    const refused = await receiptId(packageRoot, [join(packageRoot, packageJson)], "typecheck");
     expect(isErr(refused)).toBe(true);
     if (isErr(refused)) expect(refused.error.kind).toBe("absolute-path");
   });
 
   it("refuses a relative scope path that resolves outside the root", async () => {
-    const refused = await receiptId(
-      packageRoot,
-      ["../outside.txt"],
-      "typecheck",
-    );
+    const refused = await receiptId(packageRoot, ["../outside.txt"], "typecheck");
     expect(isErr(refused)).toBe(true);
     if (isErr(refused)) expect(refused.error.kind).toBe("escapes-root");
   });
@@ -215,9 +179,7 @@ describe("checkStale", () => {
         {},
       ),
     );
-    expect(
-      unwrap(await checkStale(receipt, packageRoot, [packageJson])),
-    ).toBeUndefined();
+    expect(unwrap(await checkStale(receipt, packageRoot, [packageJson]))).toBeUndefined();
   });
 
   it("reports the recomputed id when the scope's content has moved on", async () => {
@@ -233,9 +195,7 @@ describe("checkStale", () => {
         {},
       ),
     );
-    const stale = unwrap(
-      await checkStale(receipt, packageRoot, [tsconfigJson]),
-    );
+    const stale = unwrap(await checkStale(receipt, packageRoot, [tsconfigJson]));
     expect(stale?.receipt).toBe(receipt);
     expect(stale?.recomputedId).not.toBe(receipt.id);
   });

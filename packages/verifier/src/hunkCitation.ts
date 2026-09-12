@@ -1,5 +1,5 @@
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
-import { mark, type Derivation, type Mark } from "ledger";
+import { type Derivation, type Mark, mark } from "ledger";
 import type { FileDiff } from "./git.ts";
 
 export interface HunkCitation {
@@ -18,9 +18,7 @@ const RANGE_SUFFIX = /^(\d+)(?:-(\d+))?$/;
 // A citation is "path" or "path:start-end" (also "path:line", one number). The colon before
 // a bare number or number range is the only reserved character; everything else, including a
 // colon that is not followed by one, belongs to the path.
-export function parseHunkCitation(
-  citation: string,
-): Result<HunkCitation, HunkCitationRefusal> {
+export function parseHunkCitation(citation: string): Result<HunkCitation, HunkCitationRefusal> {
   const trimmed = citation.trim();
   if (trimmed.length === 0) {
     return err({ kind: "malformed", citation, reason: "empty citation" });
@@ -82,10 +80,7 @@ export function checkHunkCitation(
   const { path, range } = parsed.value;
   const file = files.find((candidate) => candidate.path === path);
   if (file === undefined) {
-    return mark.unrooted(
-      derivation,
-      `"${path}" is not a file changed in this range`,
-    );
+    return mark.unrooted(derivation, `"${path}" is not a file changed in this range`);
   }
 
   if (range === undefined) return mark.rooted(derivation, citation);

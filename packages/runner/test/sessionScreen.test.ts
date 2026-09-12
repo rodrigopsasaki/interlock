@@ -1,18 +1,7 @@
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import {
-  lastNonEmptyLine,
-  screenPath,
-  writeScreenSnapshot,
-} from "../src/sessionScreen.ts";
+import { lastNonEmptyLine, screenPath, writeScreenSnapshot } from "../src/sessionScreen.ts";
 
 const runsRoot = join(import.meta.dirname, ".session-screen-runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -20,8 +9,7 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -65,13 +53,8 @@ describe("writeScreenSnapshot", () => {
     mkdirSync(join(worktreePath, ".interlock", "sessions", "demo"), {
       recursive: true,
     });
-    writeFileSync(
-      join(worktreePath, ".interlock", "sessions", "demo", "a"),
-      "not a directory",
-    );
+    writeFileSync(join(worktreePath, ".interlock", "sessions", "demo", "a"), "not a directory");
 
-    await expect(
-      writeScreenSnapshot(worktreePath, "demo", "a", "text"),
-    ).resolves.toBeUndefined();
+    await expect(writeScreenSnapshot(worktreePath, "demo", "a", "text")).resolves.toBeUndefined();
   });
 });

@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
-import { isDebriefDerivation, isDrafted, shapeTag, type Debrief } from "ledger";
+import { type Debrief, isDebriefDerivation, isDrafted, shapeTag } from "ledger";
 import { parse as parseYaml, YAMLParseError } from "yaml";
 import { parseDecision } from "./decision.ts";
 import { parseDiscovery } from "./discovery.ts";
@@ -72,10 +72,8 @@ function requireShaField(
   path: string,
 ): Result<string, DebriefRefusal> {
   const value = prop(parsed, field);
-  if (!isString(value))
-    return invalid(path, `"${field}" is missing or not a string`);
-  if (!isShaLike(value))
-    return invalid(path, `"${field}" is not a 40-character SHA`);
+  if (!isString(value)) return invalid(path, `"${field}" is missing or not a string`);
+  if (!isShaLike(value)) return invalid(path, `"${field}" is not a 40-character SHA`);
   return ok(value);
 }
 
@@ -84,16 +82,13 @@ function parseV2(
   path: string,
 ): Result<DebriefRead, DebriefRefusal> {
   const graph = prop(parsed, "graph");
-  if (!isString(graph))
-    return invalid(path, '"graph" is missing or not a string');
+  if (!isString(graph)) return invalid(path, '"graph" is missing or not a string');
 
   const node = prop(parsed, "node");
-  if (!isString(node))
-    return invalid(path, '"node" is missing or not a string');
+  if (!isString(node)) return invalid(path, '"node" is missing or not a string');
 
   const role = prop(parsed, "role");
-  if (!isString(role))
-    return invalid(path, '"role" is missing or not a string');
+  if (!isString(role)) return invalid(path, '"role" is missing or not a string');
 
   const graphBaseSha = requireShaField(parsed, "graph_base_sha", path);
   if (isErr(graphBaseSha)) return graphBaseSha;
@@ -105,12 +100,10 @@ function parseV2(
   if (isErr(headSha)) return headSha;
 
   const derivation = prop(parsed, "derivation");
-  if (!isDebriefDerivation(derivation))
-    return invalid(path, '"derivation" is missing or invalid');
+  if (!isDebriefDerivation(derivation)) return invalid(path, '"derivation" is missing or invalid');
 
   const rawDiscoveries = prop(parsed, "discoveries");
-  if (!Array.isArray(rawDiscoveries))
-    return invalid(path, '"discoveries" must be a list');
+  if (!Array.isArray(rawDiscoveries)) return invalid(path, '"discoveries" must be a list');
   const discoveries = [];
   for (const [index, raw] of rawDiscoveries.entries()) {
     const parsedItem = parseDiscovery(raw, index);
@@ -119,8 +112,7 @@ function parseV2(
   }
 
   const rawDecisions = prop(parsed, "decisions");
-  if (!Array.isArray(rawDecisions))
-    return invalid(path, '"decisions" must be a list');
+  if (!Array.isArray(rawDecisions)) return invalid(path, '"decisions" must be a list');
   const decisions = [];
   for (const [index, raw] of rawDecisions.entries()) {
     const parsedItem = parseDecision(raw, index);
@@ -129,8 +121,7 @@ function parseV2(
   }
 
   const rawGateRuns = prop(parsed, "gates_run_by_agent");
-  if (!Array.isArray(rawGateRuns))
-    return invalid(path, '"gates_run_by_agent" must be a list');
+  if (!Array.isArray(rawGateRuns)) return invalid(path, '"gates_run_by_agent" must be a list');
   const gatesRunByAgent = [];
   for (const [index, raw] of rawGateRuns.entries()) {
     const parsedItem = parseGateRun(raw, index);
@@ -139,8 +130,7 @@ function parseV2(
   }
 
   const open = prop(parsed, "open");
-  if (!isStringArray(open))
-    return invalid(path, '"open" must be a list of strings');
+  if (!isStringArray(open)) return invalid(path, '"open" must be a list of strings');
 
   const rawDrafted = prop(parsed, "drafted");
   if (rawDrafted !== undefined && !isDrafted(rawDrafted))
@@ -174,11 +164,7 @@ function requireItemsWithIdAndWhat(
   if (!Array.isArray(raw)) return invalid(path, `"${field}" must be a list`);
   const items: Record<string, unknown>[] = [];
   for (const [index, item] of raw.entries()) {
-    if (
-      !isRecord(item) ||
-      !isString(prop(item, "id")) ||
-      !isString(prop(item, "what"))
-    )
+    if (!isRecord(item) || !isString(prop(item, "id")) || !isString(prop(item, "what")))
       return invalid(path, `${field} ${index}: "id" and "what" are required`);
     items.push(item);
   }
@@ -191,12 +177,10 @@ function parseLegacy(
   path: string,
 ): Result<DebriefRead, DebriefRefusal> {
   const graph = prop(parsed, "graph");
-  if (!isString(graph))
-    return invalid(path, '"graph" is missing or not a string');
+  if (!isString(graph)) return invalid(path, '"graph" is missing or not a string');
 
   const node = prop(parsed, "node");
-  if (!isString(node))
-    return invalid(path, '"node" is missing or not a string');
+  if (!isString(node)) return invalid(path, '"node" is missing or not a string');
 
   const missingTopLevel: string[] = [];
   if (version === DEBRIEF_V0) {
@@ -205,8 +189,7 @@ function parseLegacy(
     missingTopLevel.push("role", "session_start_sha");
   } else {
     const role = prop(parsed, "role");
-    if (!isString(role))
-      return invalid(path, '"role" is missing or not a string');
+    if (!isString(role)) return invalid(path, '"role" is missing or not a string');
     const graphBaseSha = requireShaField(parsed, "graph_base_sha", path);
     if (isErr(graphBaseSha)) return graphBaseSha;
     const sessionStartSha = requireShaField(parsed, "session_start_sha", path);
@@ -217,8 +200,7 @@ function parseLegacy(
   if (isErr(headSha)) return headSha;
 
   const derivation = prop(parsed, "derivation");
-  if (!isDebriefDerivation(derivation))
-    return invalid(path, '"derivation" is missing or invalid');
+  if (!isDebriefDerivation(derivation)) return invalid(path, '"derivation" is missing or invalid');
 
   const discoveries = requireItemsWithIdAndWhat(parsed, "discoveries", path);
   if (isErr(discoveries)) return discoveries;
@@ -230,16 +212,14 @@ function parseLegacy(
   ).length;
 
   const gateRuns = prop(parsed, "gates_run_by_agent");
-  if (!Array.isArray(gateRuns))
-    return invalid(path, '"gates_run_by_agent" must be a list');
+  if (!Array.isArray(gateRuns)) return invalid(path, '"gates_run_by_agent" must be a list');
   for (const [index, raw] of gateRuns.entries()) {
     if (!isRecord(raw) || !isString(prop(raw, "id")))
       return invalid(path, `gate run ${index}: "id" is required`);
   }
 
   const open = prop(parsed, "open");
-  if (!isStringArray(open))
-    return invalid(path, '"open" must be a list of strings');
+  if (!isStringArray(open)) return invalid(path, '"open" must be a list of strings');
 
   return ok({
     kind: "legacy",
@@ -250,15 +230,12 @@ function parseLegacy(
   });
 }
 
-export async function readDebriefFile(
-  path: string,
-): Promise<Result<DebriefRead, DebriefRefusal>> {
+export async function readDebriefFile(path: string): Promise<Result<DebriefRead, DebriefRefusal>> {
   let raw: string;
   try {
     raw = await readFile(path, "utf-8");
   } catch (error) {
-    if (isNodeError(error) && error.code === "ENOENT")
-      return err({ kind: "missing-file", path });
+    if (isNodeError(error) && error.code === "ENOENT") return err({ kind: "missing-file", path });
     throw error;
   }
 
@@ -266,13 +243,11 @@ export async function readDebriefFile(
   try {
     parsed = parseYaml(raw);
   } catch (error) {
-    const reason =
-      error instanceof YAMLParseError ? error.message : "invalid YAML";
+    const reason = error instanceof YAMLParseError ? error.message : "invalid YAML";
     return err({ kind: "malformed-yaml", path, reason });
   }
 
-  if (!isRecord(parsed))
-    return invalid(path, "the document is not a YAML mapping");
+  if (!isRecord(parsed)) return invalid(path, "the document is not a YAML mapping");
 
   const tag = shapeTag(parsed);
   switch (tag) {

@@ -1,32 +1,18 @@
-import {
-  cpSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { isErr, isOk, ok } from "@phyxiusjs/fp";
-import {
-  findRepoRoot,
-  loadGraphDocument,
-  topologicalOrder,
-  graphFilePath,
-} from "face";
+import type { FaceKey } from "face";
+import { findRepoRoot, graphFilePath, loadGraphDocument, topologicalOrder } from "face";
 import type { Runtime } from "runner";
 import { afterEach, describe, expect, it } from "vitest";
-import { gitInitFixture } from "../graph/gitFixture.ts";
 import { runInterlockFace } from "../../src/face/run.ts";
-import type { FaceKey } from "face";
+import { gitInitFixture } from "../graph/gitFixture.ts";
 
 // verifier-hunks' row at the Graph level is wherever the real graph's own topological order
 // puts it, not its declared position in the YAML. Recomputed here so a graph edit that moves
 // the node moves this test's key count with it, rather than silently drifting off target.
 async function verifierHunksIndex(repoRoot: string): Promise<number> {
-  const document = await loadGraphDocument(
-    graphFilePath(repoRoot, "0001-bootstrap"),
-  );
+  const document = await loadGraphDocument(graphFilePath(repoRoot, "0001-bootstrap"));
   if (isErr(document)) throw new Error("expected the real graph");
   const order = topologicalOrder(document.value.nodes);
   const ids = isOk(order)
@@ -43,8 +29,7 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 

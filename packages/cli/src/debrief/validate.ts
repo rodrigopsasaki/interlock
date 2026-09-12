@@ -4,14 +4,14 @@ import { relative } from "node:path";
 import { isErr } from "@phyxiusjs/fp";
 import {
   DEBRIEF_V2,
-  NOTES_V0,
+  type DebriefRead,
   debriefFilePath,
   explainDebriefRefusal,
   explainNotesRefusal,
+  NOTES_V0,
   notesFilePath,
   readDebriefFile,
   readNotesFile,
-  type DebriefRead,
 } from "debrief";
 import { findRepoRoot } from "face";
 import { shapeTag } from "ledger";
@@ -26,14 +26,10 @@ export function describeDebriefRead(read: DebriefRead): string {
 
   const extra = [...read.missingTopLevel];
   if (read.decisionsMissingBecause > 0) {
-    extra.push(
-      `"because" on ${read.decisionsMissingBecause} of ${read.decisionsTotal} decisions`,
-    );
+    extra.push(`"because" on ${read.decisionsMissingBecause} of ${read.decisionsTotal} decisions`);
   }
   const detail =
-    extra.length > 0
-      ? ` ${DEBRIEF_V2} would additionally require: ${extra.join(", ")}.`
-      : "";
+    extra.length > 0 ? ` ${DEBRIEF_V2} would additionally require: ${extra.join(", ")}.` : "";
   return `valid as ${read.version}; not ingested.${detail}`;
 }
 
@@ -47,16 +43,14 @@ async function peekShapeTag(path: string): Promise<string | undefined> {
 
 async function validateOneFile(path: string): Promise<CommandResult> {
   const tag = await peekShapeTag(path);
-  if (tag !== undefined && tag.startsWith("notes@")) {
+  if (tag?.startsWith("notes@")) {
     const notesRead = await readNotesFile(path);
-    if (isErr(notesRead))
-      return { exitCode: 1, message: explainNotesRefusal(notesRead.error) };
+    if (isErr(notesRead)) return { exitCode: 1, message: explainNotesRefusal(notesRead.error) };
     return { exitCode: 0, message: `${path}: valid as ${NOTES_V0}.` };
   }
 
   const debriefRead = await readDebriefFile(path);
-  if (isErr(debriefRead))
-    return { exitCode: 1, message: explainDebriefRefusal(debriefRead.error) };
+  if (isErr(debriefRead)) return { exitCode: 1, message: explainDebriefRefusal(debriefRead.error) };
   return {
     exitCode: 0,
     message: `${path}: ${describeDebriefRead(debriefRead.value)}`,

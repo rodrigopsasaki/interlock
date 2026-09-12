@@ -7,9 +7,5 @@ export interface Session {
 }
 
 export function isSession(value: unknown): value is Session {
-  return (
-    isRecord(value) &&
-    isString(prop(value, "id")) &&
-    isNode(prop(value, "node"))
-  );
+  return isRecord(value) && isString(prop(value, "id")) && isNode(prop(value, "node"));
 }

@@ -11,12 +11,7 @@ afterEach(() => {
 describe("createDispatcher", () => {
   it("spawns the given binary with exactly the given argv and reports its exit code", async () => {
     const dispatch = createDispatcher(FAKE_BIN);
-    const result = await dispatch([
-      "node",
-      "cancel",
-      "0001-bootstrap",
-      "verbs",
-    ]);
+    const result = await dispatch(["node", "cancel", "0001-bootstrap", "verbs"]);
     expect(result.exitCode).toBe(0);
     expect(result.lastLine).toBe("argv: node cancel 0001-bootstrap verbs");
   });
@@ -30,11 +25,7 @@ describe("createDispatcher", () => {
   });
 
   it("reports the last non-empty line, not the full output, when the process writes several lines", async () => {
-    const echoManyLines = join(
-      import.meta.dirname,
-      "fixtures",
-      "manyLinesBin.ts",
-    );
+    const echoManyLines = join(import.meta.dirname, "fixtures", "manyLinesBin.ts");
     const dispatch = createDispatcher(echoManyLines);
     const result = await dispatch([]);
     expect(result.exitCode).toBe(0);

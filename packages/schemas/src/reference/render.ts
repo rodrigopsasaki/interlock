@@ -2,7 +2,7 @@ import type { Artifact } from "./artifacts.ts";
 import type { Example } from "./corpus.ts";
 import { diffVersions } from "./diff.ts";
 import { codeFence } from "./fence.ts";
-import { fieldTablesFor, type FieldRow } from "./fields.ts";
+import { type FieldRow, fieldTablesFor } from "./fields.ts";
 import type { SchemaFiles } from "./schemaFiles.ts";
 import { firstSentence } from "./vocabulary.ts";
 
@@ -11,8 +11,7 @@ function escapeCell(text: string): string {
 }
 
 function renderFieldTable(rows: readonly FieldRow[]): string {
-  const header =
-    "| field | type | required | description |\n| --- | --- | --- | --- |";
+  const header = "| field | type | required | description |\n| --- | --- | --- | --- |";
   if (rows.length === 0) return `${header}\n| _(no fields)_ | | | |`;
   const body = rows
     .map(
@@ -28,13 +27,9 @@ function renderFieldsSection(artifact: Artifact, files: SchemaFiles): string {
   if (current === undefined) return "";
   const tables = fieldTablesFor(current.schema, files, current.filePath);
   const [only] = tables;
-  if (tables.length === 1 && only !== undefined)
-    return renderFieldTable(only.rows);
+  if (tables.length === 1 && only !== undefined) return renderFieldTable(only.rows);
   return tables
-    .map(
-      (table) =>
-        `**kind: \`${table.heading ?? "?"}\`**\n\n${renderFieldTable(table.rows)}`,
-    )
+    .map((table) => `**kind: \`${table.heading ?? "?"}\`**\n\n${renderFieldTable(table.rows)}`)
     .join("\n\n");
 }
 
@@ -42,44 +37,28 @@ function renderVersionsSection(artifact: Artifact): string {
   return artifact.versions
     .map((version, index) => {
       const previous = index === 0 ? undefined : artifact.versions[index - 1];
-      if (previous === undefined)
-        return `- \`${version.tag}\`: the first version.`;
+      if (previous === undefined) return `- \`${version.tag}\`: the first version.`;
       return `- \`${version.tag}\`: ${diffVersions(previous, version).join("; ")}.`;
     })
     .join("\n");
 }
 
-function renderExample(
-  tag: string,
-  examples: ReadonlyMap<string, Example>,
-): string {
+function renderExample(tag: string, examples: ReadonlyMap<string, Example>): string {
   const example = examples.get(tag);
-  if (example === undefined)
-    return `_No example of \`${tag}\` was found in the corpus._`;
+  if (example === undefined) return `_No example of \`${tag}\` was found in the corpus._`;
   const fence = codeFence(example.content);
   return `Source: \`${example.sourcePath}\`\n\n${fence}${example.language}\n${example.content}\n${fence}`;
 }
 
-function renderExamplesSection(
-  artifact: Artifact,
-  examples: ReadonlyMap<string, Example>,
-): string {
+function renderExamplesSection(artifact: Artifact, examples: ReadonlyMap<string, Example>): string {
   return artifact.versions
-    .map(
-      (version) =>
-        `#### \`${version.tag}\`\n\n${renderExample(version.tag, examples)}`,
-    )
+    .map((version) => `#### \`${version.tag}\`\n\n${renderExample(version.tag, examples)}`)
     .join("\n\n");
 }
 
-function renderPurpose(
-  term: string,
-  vocabulary: ReadonlyMap<string, string>,
-): string {
+function renderPurpose(term: string, vocabulary: ReadonlyMap<string, string>): string {
   const meaning = vocabulary.get(term);
-  return meaning === undefined
-    ? `No vocabulary entry for \`${term}\`.`
-    : firstSentence(meaning);
+  return meaning === undefined ? `No vocabulary entry for \`${term}\`.` : firstSentence(meaning);
 }
 
 function renderArtifact(

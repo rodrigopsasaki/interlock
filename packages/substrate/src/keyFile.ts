@@ -1,9 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { err, ok, type Result } from "@phyxiusjs/fp";
 
-export async function readBearerToken(
-  path: string,
-): Promise<Result<string, string>> {
+export async function readBearerToken(path: string): Promise<Result<string, string>> {
   let raw: string;
   try {
     raw = await readFile(path, "utf-8");

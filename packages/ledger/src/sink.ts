@@ -10,10 +10,7 @@ export function journalPath(directory: string): string {
   return join(directory, JOURNAL_FILE_NAME);
 }
 
-export function attachLedgerSink(
-  journal: Journal<LedgerEvent>,
-  directory: string,
-): Unsubscribe {
+export function attachLedgerSink(journal: Journal<LedgerEvent>, directory: string): Unsubscribe {
   mkdirSync(directory, { recursive: true });
   const path = journalPath(directory);
   return journal.subscribe((entry) => {

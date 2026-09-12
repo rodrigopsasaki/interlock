@@ -1,15 +1,15 @@
 import { execFileSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { basename, join, relative } from "node:path";
-import { randomUUID } from "node:crypto";
 import { isErr, type Result } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
 import {
-  WAIT_SLICE_MS,
   createHerdrRuntime,
   generateAgentName,
   isCompliantAgentName,
   repositoryLabel,
+  WAIT_SLICE_MS,
 } from "../../src/herdr/adapter.ts";
 import type {
   AgentIdentityQuery,
@@ -18,7 +18,7 @@ import type {
   Runtime,
   RuntimeRefusal,
 } from "../../src/runtime.ts";
-import { startFakeHerdrServer, type FakeHerdrServer } from "./fakeServer.ts";
+import { type FakeHerdrServer, startFakeHerdrServer } from "./fakeServer.ts";
 
 const runsRoot = join(import.meta.dirname, "..", ".herdr-runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -29,8 +29,7 @@ let server: FakeHerdrServer | undefined;
 afterEach(async () => {
   await server?.close();
   server = undefined;
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -41,10 +40,7 @@ const SUN_PATH_LIMIT = 100;
 
 async function fixture(): Promise<FakeHerdrServer> {
   directory = mkdtempSync(join(runsRoot, "sock-"));
-  const socketPath = relative(
-    process.cwd(),
-    join(directory, `${randomUUID().slice(0, 8)}.sock`),
-  );
+  const socketPath = relative(process.cwd(), join(directory, `${randomUUID().slice(0, 8)}.sock`));
   if (socketPath.length > SUN_PATH_LIMIT) {
     throw new Error(
       `fixture socket path "${socketPath}" is ${socketPath.length} bytes, over the ${SUN_PATH_LIMIT}-byte sun_path budget this fixture keeps to`,
@@ -71,15 +67,7 @@ describe("repositoryLabel", () => {
       execFileSync("git", ["init", "--quiet"], { cwd: repoRoot });
       execFileSync(
         "git",
-        [
-          "-c",
-          "commit.gpgsign=false",
-          "commit",
-          "--quiet",
-          "--allow-empty",
-          "-m",
-          "root",
-        ],
+        ["-c", "commit.gpgsign=false", "commit", "--quiet", "--allow-empty", "-m", "root"],
         { cwd: repoRoot, env: GIT_ENV },
       );
       execFileSync("git", ["worktree", "add", "-b", "node-a", worktreeA], {
@@ -117,10 +105,7 @@ describe("openPane workspace grouping", () => {
     const pane = await created.value.openPane("/repo/worktrees/node-a");
     expect(isErr(pane)).toBe(false);
 
-    expect(fake.calls.map((call) => call.method)).toEqual([
-      "workspace.list",
-      "workspace.create",
-    ]);
+    expect(fake.calls.map((call) => call.method)).toEqual(["workspace.list", "workspace.create"]);
     expect(fake.workspaces).toHaveLength(1);
     expect(fake.workspaces[0]?.label).toBe("node-a");
   });
@@ -156,9 +141,7 @@ describe("openPane workspace grouping", () => {
       if (isErr(opened)) throw new Error("expected a pane");
     }
 
-    expect(
-      fake.calls.filter((call) => call.method === "workspace.create"),
-    ).toHaveLength(1);
+    expect(fake.calls.filter((call) => call.method === "workspace.create")).toHaveLength(1);
     expect(fake.workspaces).toHaveLength(1);
   });
 });
@@ -178,11 +161,7 @@ describe("herdr adapter", () => {
     const pane = await created.value.openPane("/repo");
     if (isErr(pane)) throw new Error("expected a pane");
 
-    const started = await created.value.startAgent(
-      pane.value,
-      "not-a-real-kind",
-      [],
-    );
+    const started = await created.value.startAgent(pane.value, "not-a-real-kind", []);
     expect(isErr(started)).toBe(true);
     if (isErr(started))
       expect(started.error).toEqual({
@@ -212,11 +191,7 @@ describe("herdr adapter", () => {
     );
     expect(isErr(reported)).toBe(false);
 
-    const waited = await runtime.waitUntil(
-      agent.value,
-      ["idle", "blocked", "done"],
-      5_000,
-    );
+    const waited = await runtime.waitUntil(agent.value, ["idle", "blocked", "done"], 5_000);
     expect(waited).toEqual({ _tag: "Ok", value: "idle" });
 
     const read = await runtime.read(agent.value);
@@ -258,13 +233,9 @@ describe("herdr adapter", () => {
     );
     expect(isErr(reported)).toBe(false);
 
-    const metadataCalls = fake.calls.filter(
-      (call) => call.method === "pane.report_metadata",
-    );
+    const metadataCalls = fake.calls.filter((call) => call.method === "pane.report_metadata");
     expect(metadataCalls).toHaveLength(1);
-    expect(
-      fake.calls.some((call) => call.method.startsWith("pane.report_agent")),
-    ).toBe(false);
+    expect(fake.calls.some((call) => call.method.startsWith("pane.report_agent"))).toBe(false);
 
     const [metadataCall] = metadataCalls;
     expect(metadataCall?.params["pane_id"]).toBe(pane.value.id);
@@ -290,9 +261,7 @@ describe("herdr adapter", () => {
     const prompted = await runtime.prompt(agent.value, "read your brief first");
     expect(isErr(prompted)).toBe(false);
 
-    const promptCall = fake.calls.find(
-      (call) => call.method === "agent.prompt",
-    );
+    const promptCall = fake.calls.find((call) => call.method === "agent.prompt");
     expect(promptCall?.params["target"]).toBe(agent.value.id);
     expect(promptCall?.params["text"]).toBe("read your brief first");
     expect(promptCall?.params["wait"]).toBeUndefined();
@@ -312,9 +281,7 @@ describe("herdr adapter", () => {
     const sent = await runtime.sendKeys(agent.value, ["Down", "Enter"]);
     expect(isErr(sent)).toBe(false);
 
-    const sendKeysCall = fake.calls.find(
-      (call) => call.method === "agent.send_keys",
-    );
+    const sendKeysCall = fake.calls.find((call) => call.method === "agent.send_keys");
     expect(sendKeysCall?.params["target"]).toBe(agent.value.id);
     expect(sendKeysCall?.params["keys"]).toEqual(["Down", "Enter"]);
   });
@@ -329,11 +296,7 @@ describe("herdr adapter", () => {
     const agent = await created.value.startAgent(pane.value, "claude", []);
     if (isErr(agent)) throw new Error("expected an agent");
 
-    const waited = await created.value.waitUntil(
-      agent.value,
-      ["idle", "done"],
-      1_000,
-    );
+    const waited = await created.value.waitUntil(agent.value, ["idle", "done"], 1_000);
     expect(isErr(waited)).toBe(true);
     if (isErr(waited)) expect(waited.error.kind).toBe("timeout");
   });
@@ -348,11 +311,7 @@ describe("herdr adapter", () => {
     const agent = await created.value.startAgent(pane.value, "claude", []);
     if (isErr(agent)) throw new Error("expected an agent");
 
-    const waited = await created.value.waitUntil(
-      agent.value,
-      ["idle", "blocked", "done"],
-      5_000,
-    );
+    const waited = await created.value.waitUntil(agent.value, ["idle", "blocked", "done"], 5_000);
     expect(waited).toEqual({ _tag: "Ok", value: "idle" });
     expect(fake.calls.some((call) => call.method === "agent.wait")).toBe(false);
   });
@@ -364,53 +323,31 @@ describe("herdr adapter", () => {
     setTimeout(() => {
       fake.agentStatus = "idle";
     }, 300);
-    const created = await createHerdrRuntime(
-      fake.socketPath,
-      30_000,
-      60_000,
-      100,
-    );
+    const created = await createHerdrRuntime(fake.socketPath, 30_000, 60_000, 100);
     if (isErr(created)) throw new Error("expected a runtime");
     const pane = await created.value.openPane("/repo");
     if (isErr(pane)) throw new Error("expected a pane");
     const agent = await created.value.startAgent(pane.value, "claude", []);
     if (isErr(agent)) throw new Error("expected an agent");
 
-    const waited = await created.value.waitUntil(
-      agent.value,
-      ["idle", "blocked", "done"],
-      7_000,
-    );
+    const waited = await created.value.waitUntil(agent.value, ["idle", "blocked", "done"], 7_000);
     expect(waited).toEqual({ _tag: "Ok", value: "idle" });
-    expect(
-      fake.calls.filter((call) => call.method === "agent.wait"),
-    ).toHaveLength(1);
-    expect(
-      fake.calls.filter((call) => call.method === "agent.get"),
-    ).toHaveLength(2);
+    expect(fake.calls.filter((call) => call.method === "agent.wait")).toHaveLength(1);
+    expect(fake.calls.filter((call) => call.method === "agent.get")).toHaveLength(2);
   }, 10_000);
 
   it("refuses with a timeout naming the caller's budget once two slices pass with nothing changing", async () => {
     const fake = await fixture();
     fake.agentStatus = "working";
     fake.delayAgentWaitToRequestedTimeout = true;
-    const created = await createHerdrRuntime(
-      fake.socketPath,
-      30_000,
-      60_000,
-      60,
-    );
+    const created = await createHerdrRuntime(fake.socketPath, 30_000, 60_000, 60);
     if (isErr(created)) throw new Error("expected a runtime");
     const pane = await created.value.openPane("/repo");
     if (isErr(pane)) throw new Error("expected a pane");
     const agent = await created.value.startAgent(pane.value, "claude", []);
     if (isErr(agent)) throw new Error("expected an agent");
 
-    const waited = await created.value.waitUntil(
-      agent.value,
-      ["idle", "done"],
-      100,
-    );
+    const waited = await created.value.waitUntil(agent.value, ["idle", "done"], 100);
     expect(isErr(waited)).toBe(true);
     if (isErr(waited)) {
       expect(waited.error).toEqual({
@@ -420,9 +357,7 @@ describe("herdr adapter", () => {
         status: "working",
       });
     }
-    expect(
-      fake.calls.filter((call) => call.method === "agent.wait"),
-    ).toHaveLength(2);
+    expect(fake.calls.filter((call) => call.method === "agent.wait")).toHaveLength(2);
   }, 10_000);
 
   // Real herdr answers a timed-out agent.wait with a remote error whose code is "timeout", not
@@ -435,27 +370,16 @@ describe("herdr adapter", () => {
     setTimeout(() => {
       fake.agentStatus = "idle";
     }, 150);
-    const created = await createHerdrRuntime(
-      fake.socketPath,
-      30_000,
-      60_000,
-      100,
-    );
+    const created = await createHerdrRuntime(fake.socketPath, 30_000, 60_000, 100);
     if (isErr(created)) throw new Error("expected a runtime");
     const pane = await created.value.openPane("/repo");
     if (isErr(pane)) throw new Error("expected a pane");
     const agent = await created.value.startAgent(pane.value, "claude", []);
     if (isErr(agent)) throw new Error("expected an agent");
 
-    const waited = await created.value.waitUntil(
-      agent.value,
-      ["idle", "blocked", "done"],
-      7_000,
-    );
+    const waited = await created.value.waitUntil(agent.value, ["idle", "blocked", "done"], 7_000);
     expect(waited).toEqual({ _tag: "Ok", value: "idle" });
-    expect(
-      fake.calls.filter((call) => call.method === "agent.wait"),
-    ).toHaveLength(2);
+    expect(fake.calls.filter((call) => call.method === "agent.wait")).toHaveLength(2);
   }, 10_000);
 
   it("returns a remote refusal from agent.wait without retrying", async () => {
@@ -469,11 +393,7 @@ describe("herdr adapter", () => {
     const agent = await created.value.startAgent(pane.value, "claude", []);
     if (isErr(agent)) throw new Error("expected an agent");
 
-    const waited = await created.value.waitUntil(
-      agent.value,
-      ["idle", "done"],
-      5_000,
-    );
+    const waited = await created.value.waitUntil(agent.value, ["idle", "done"], 5_000);
     expect(isErr(waited)).toBe(true);
     if (isErr(waited)) {
       expect(waited.error).toEqual({
@@ -482,9 +402,7 @@ describe("herdr adapter", () => {
         message: "no such agent",
       });
     }
-    expect(
-      fake.calls.filter((call) => call.method === "agent.wait"),
-    ).toHaveLength(1);
+    expect(fake.calls.filter((call) => call.method === "agent.wait")).toHaveLength(1);
   });
 
   // WAIT_SLICE_MS bounds a single agent.wait request to herdr. The incident that motivated R1
@@ -563,9 +481,7 @@ describe("herdr adapter", () => {
     expect(isCompliantAgentName(agent.value.id)).toBe(true);
     expect(agent.value.id).not.toBe("Runner Command Gate!");
 
-    const startCalls = fake.calls.filter(
-      (call) => call.method === "agent.start",
-    );
+    const startCalls = fake.calls.filter((call) => call.method === "agent.start");
     expect(startCalls).toHaveLength(1);
   });
 
@@ -588,9 +504,7 @@ describe("herdr adapter", () => {
     expect(agent.value.id).not.toBe("runner-command-gate");
     expect(isCompliantAgentName(agent.value.id)).toBe(true);
 
-    const startCalls = fake.calls.filter(
-      (call) => call.method === "agent.start",
-    );
+    const startCalls = fake.calls.filter((call) => call.method === "agent.start");
     expect(startCalls.map((call) => call.params["name"])).toEqual([
       "runner-command-gate",
       agent.value.id,
@@ -619,12 +533,8 @@ describe("herdr adapter", () => {
     if (isErr(agent)) throw new Error("expected an agent");
     expect(agent.value.id).toBe("runner-command-gate");
 
-    const startCalls = fake.calls.filter(
-      (call) => call.method === "agent.start",
-    );
-    expect(
-      startCalls.every((call) => call.params["name"] === "runner-command-gate"),
-    ).toBe(true);
+    const startCalls = fake.calls.filter((call) => call.method === "agent.start");
+    expect(startCalls.every((call) => call.params["name"] === "runner-command-gate")).toBe(true);
   });
 
   it("settles a call with herdr's own code and message when it answers with an error frame", async () => {
@@ -695,20 +605,13 @@ describe("herdr adapter", () => {
       2,
     );
     let waits = 0;
-    const agent = await created.value.startAgent(
-      pane.value,
-      "claude",
-      [],
-      () => {
-        waits += 1;
-      },
-    );
+    const agent = await created.value.startAgent(pane.value, "claude", [], () => {
+      waits += 1;
+    });
 
     expect(isErr(agent)).toBe(false);
     expect(waits).toBe(1);
-    expect(
-      fake.calls.filter((call) => call.method === "agent.start"),
-    ).toHaveLength(3);
+    expect(fake.calls.filter((call) => call.method === "agent.start")).toHaveLength(3);
   });
 
   it("returns a non-busy refusal from agent.start at once, without retrying", async () => {
@@ -723,23 +626,16 @@ describe("herdr adapter", () => {
       "agent name must start with a lowercase letter and contain only lowercase letters, digits, '-' or '_' (1-32 characters)",
     );
     let waits = 0;
-    const agent = await created.value.startAgent(
-      pane.value,
-      "claude",
-      [],
-      () => {
-        waits += 1;
-      },
-    );
+    const agent = await created.value.startAgent(pane.value, "claude", [], () => {
+      waits += 1;
+    });
 
     expect(isErr(agent)).toBe(true);
     if (isErr(agent)) expect(agent.error.kind).toBe("remote");
     if (isErr(agent) && agent.error.kind === "remote")
       expect(agent.error.code).toBe("invalid_agent_name");
     expect(waits).toBe(0);
-    expect(
-      fake.calls.filter((call) => call.method === "agent.start"),
-    ).toHaveLength(1);
+    expect(fake.calls.filter((call) => call.method === "agent.start")).toHaveLength(1);
   });
 
   it("gives up on agent_pane_busy once its wait budget elapses, naming the total wait", async () => {
@@ -798,9 +694,7 @@ function reportedAgentStatus(
   query: AgentIdentityQuery,
 ): Promise<Result<AgentStatus | undefined, RuntimeRefusal>> {
   if (runtime.reportedAgentStatus === undefined) {
-    throw new Error(
-      "expected the herdr adapter to implement reportedAgentStatus",
-    );
+    throw new Error("expected the herdr adapter to implement reportedAgentStatus");
   }
   return runtime.reportedAgentStatus(query);
 }
@@ -919,10 +813,7 @@ describe("resolvePane", () => {
   });
 });
 
-function focusPane(
-  runtime: Runtime,
-  pane: Pane,
-): Promise<Result<void, RuntimeRefusal>> {
+function focusPane(runtime: Runtime, pane: Pane): Promise<Result<void, RuntimeRefusal>> {
   if (runtime.focusPane === undefined) {
     throw new Error("expected the herdr adapter to implement focusPane");
   }

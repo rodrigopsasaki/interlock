@@ -1,5 +1,5 @@
 import { err, ok, type Result } from "@phyxiusjs/fp";
-import { isDisposition, type Disposition } from "./disposition.ts";
+import { type Disposition, isDisposition } from "./disposition.ts";
 import type { Gate } from "./gate.ts";
 import { isReceipt, type Receipt } from "./receipt.ts";
 import { isRecord, isString, prop } from "./validate.ts";
@@ -113,22 +113,13 @@ export const heldOn = {
 };
 
 export const outcome = {
-  reset: (
-    receipts: readonly Receipt[],
-    authority: string,
-    because: string,
-  ): Outcome => ({
+  reset: (receipts: readonly Receipt[], authority: string, because: string): Outcome => ({
     kind: "reset",
     receipts,
     authority,
     because,
   }),
-  held: (
-    receipts: readonly Receipt[],
-    on: HeldOn,
-    because: string,
-    expiry: number,
-  ): Outcome => ({
+  held: (receipts: readonly Receipt[], on: HeldOn, because: string, expiry: number): Outcome => ({
     kind: "held",
     receipts,
     on,
@@ -147,21 +138,13 @@ export const outcome = {
     disposition,
     because,
   }),
-  cancelled: (
-    receipts: readonly Receipt[],
-    authority: string,
-    because: string,
-  ): Outcome => ({
+  cancelled: (receipts: readonly Receipt[], authority: string, because: string): Outcome => ({
     kind: "cancelled",
     receipts,
     authority,
     because,
   }),
-  superseded: (
-    receipts: readonly Receipt[],
-    authority: string,
-    because: string,
-  ): Outcome => ({
+  superseded: (receipts: readonly Receipt[], authority: string, because: string): Outcome => ({
     kind: "superseded",
     receipts,
     authority,
@@ -179,10 +162,7 @@ export function isHeldOn(value: unknown): value is HeldOn {
   if (typeof kind !== "string") return false;
   switch (kind) {
     case "gate-failure":
-      return (
-        isString(prop(value, "failure")) &&
-        isDisposition(prop(value, "disposition"))
-      );
+      return isString(prop(value, "failure")) && isDisposition(prop(value, "disposition"));
     case "decision":
       return isString(prop(value, "authority"));
     case "uncommitted-work":
@@ -207,9 +187,7 @@ export function isOutcome(value: unknown): value is Outcome {
         typeof prop(value, "expiry") === "number"
       );
     case "reset":
-      return (
-        isString(prop(value, "authority")) && isString(prop(value, "because"))
-      );
+      return isString(prop(value, "authority")) && isString(prop(value, "because"));
     case "failed":
       return (
         isString(prop(value, "failure")) &&
@@ -218,9 +196,7 @@ export function isOutcome(value: unknown): value is Outcome {
       );
     case "cancelled":
     case "superseded":
-      return (
-        isString(prop(value, "authority")) && isString(prop(value, "because"))
-      );
+      return isString(prop(value, "authority")) && isString(prop(value, "because"));
     default:
       return false;
   }

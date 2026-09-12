@@ -1,23 +1,16 @@
 import { readFile } from "node:fs/promises";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import { parse as parseYaml, YAMLParseError } from "yaml";
-import { parseBriefGate, type BriefGate } from "./briefGate.ts";
+import { type BriefGate, parseBriefGate } from "./briefGate.ts";
 import { isValidScopePath } from "./briefScopePath.ts";
-import { parseBriefSubstrate, type BriefSubstrate } from "./briefSubstrate.ts";
+import { type BriefSubstrate, parseBriefSubstrate } from "./briefSubstrate.ts";
 import { isPlainWord } from "./role.ts";
 import { isShaLike } from "./sha.ts";
 import { isRecord, isString, isStringArray, prop } from "./validate.ts";
 
 export const BRIEF_V1 = "brief@v1";
 
-const V1_REQUIRED_FIELDS = [
-  "graph",
-  "node",
-  "role",
-  "gates",
-  "scope",
-  "substrate",
-] as const;
+const V1_REQUIRED_FIELDS = ["graph", "node", "role", "gates", "scope", "substrate"] as const;
 
 export type BriefRunnerFields =
   | { readonly kind: "repository" }
@@ -130,8 +123,7 @@ function parseScope(
   path: string,
 ): Result<readonly string[], BriefRefusal> {
   const raw = prop(parsed, "scope");
-  if (!isStringArray(raw))
-    return invalid(path, '"scope" must be a list of strings');
+  if (!isStringArray(raw)) return invalid(path, '"scope" must be a list of strings');
   for (const [index, entry] of raw.entries()) {
     if (!isValidScopePath(entry)) {
       return invalid(
@@ -153,10 +145,7 @@ function parseRunnerFields(
     return ok({ kind: "repository" });
   }
   if (!isString(rawGraphBaseSha) || !isShaLike(rawGraphBaseSha)) {
-    return invalid(
-      path,
-      '"graph_base_sha" is missing or not a 40-character SHA',
-    );
+    return invalid(path, '"graph_base_sha" is missing or not a 40-character SHA');
   }
   if (!isString(rawSession) || rawSession.length === 0) {
     return invalid(path, '"session" is missing or not a string');
@@ -174,18 +163,14 @@ function parseV1(
   path: string,
 ): Result<BriefRead, BriefRefusal> {
   const graph = prop(parsed, "graph");
-  if (!isString(graph))
-    return invalid(path, '"graph" is missing or not a string');
+  if (!isString(graph)) return invalid(path, '"graph" is missing or not a string');
 
   const node = prop(parsed, "node");
-  if (!isString(node))
-    return invalid(path, '"node" is missing or not a string');
+  if (!isString(node)) return invalid(path, '"node" is missing or not a string');
 
   const role = prop(parsed, "role");
-  if (!isString(role))
-    return invalid(path, '"role" is missing or not a string');
-  if (!isPlainWord(role))
-    return invalid(path, `role "${role}" is not a plain word`);
+  if (!isString(role)) return invalid(path, '"role" is missing or not a string');
+  if (!isPlainWord(role)) return invalid(path, `role "${role}" is not a plain word`);
 
   const gates = parseGates(parsed, path);
   if (isErr(gates)) return gates;
@@ -214,15 +199,12 @@ function parseV1(
   });
 }
 
-export async function readBriefFile(
-  path: string,
-): Promise<Result<BriefRead, BriefRefusal>> {
+export async function readBriefFile(path: string): Promise<Result<BriefRead, BriefRefusal>> {
   let raw: string;
   try {
     raw = await readFile(path, "utf-8");
   } catch (error) {
-    if (isNodeError(error) && error.code === "ENOENT")
-      return err({ kind: "missing-file", path });
+    if (isNodeError(error) && error.code === "ENOENT") return err({ kind: "missing-file", path });
     throw error;
   }
 
@@ -233,8 +215,7 @@ export async function readBriefFile(
   try {
     parsed = parseYaml(split.frontMatter);
   } catch (error) {
-    const reason =
-      error instanceof YAMLParseError ? error.message : "invalid YAML";
+    const reason = error instanceof YAMLParseError ? error.message : "invalid YAML";
     return err({ kind: "malformed-front-matter", path, reason });
   }
 

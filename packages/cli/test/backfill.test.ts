@@ -1,16 +1,9 @@
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { isLedgerEvent } from "ledger";
 import { afterEach, describe, expect, it } from "vitest";
-import { commitAll, gitInitFixture } from "./graph/gitFixture.ts";
 import { runInterlockBackfill } from "../src/backfill.ts";
+import { commitAll, gitInitFixture } from "./graph/gitFixture.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -18,8 +11,7 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -30,9 +22,7 @@ function fixture(): string {
   return directory;
 }
 
-const configYaml = ["interlock: config@v0", "standing_gates: []", ""].join(
-  "\n",
-);
+const configYaml = ["interlock: config@v0", "standing_gates: []", ""].join("\n");
 
 function graphYamlWithGate(run: string): string {
   return [
@@ -182,9 +172,7 @@ describe("interlock backfill", () => {
           .map((line): unknown => JSON.parse(line))
           .filter(isLedgerEvent)
       : [];
-    expect(events.some((event) => event.kind === "session-started")).toBe(
-      false,
-    );
+    expect(events.some((event) => event.kind === "session-started")).toBe(false);
   }, 30_000);
 
   it("changes nothing when worktree_setup is empty", async () => {
@@ -201,8 +189,6 @@ describe("interlock backfill", () => {
 
     expect(result.exitCode).toBe(0);
     expect(result.message).toBe("demo: backfilled 1 node(s).\nnode-a: cleared");
-    expect(lines.some((line) => line.startsWith("worktree setup:"))).toBe(
-      false,
-    );
+    expect(lines.some((line) => line.startsWith("worktree setup:"))).toBe(false);
   }, 30_000);
 });

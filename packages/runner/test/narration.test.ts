@@ -9,17 +9,13 @@ describe("recordingNarrate", () => {
     const clock = createControlledClock({ initialTime: 1_000 });
     const lines: string[] = [];
 
-    const narrate = recordingNarrate(ledger, clock, "s1", (line) =>
-      lines.push(line),
-    );
+    const narrate = recordingNarrate(ledger, clock, "s1", (line) => lines.push(line));
     narrate("first");
     clock.advanceBy(ms(5));
     narrate("second");
 
     expect(lines).toEqual(["first", "second"]);
-    const narrated = events.filter(
-      (event) => event.kind === "session-narrated",
-    );
+    const narrated = events.filter((event) => event.kind === "session-narrated");
     expect(narrated).toEqual([
       { kind: "session-narrated", session: "s1", at: 1_000, line: "first" },
       { kind: "session-narrated", session: "s1", at: 1_005, line: "second" },

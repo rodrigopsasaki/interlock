@@ -10,8 +10,7 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -32,15 +31,7 @@ describe("sharedJournalDirectory", () => {
     directory = mkdtempSync(join(runsRoot, "repo-"));
     git(["-c", "init.defaultBranch=main", "init", "--quiet"], directory);
     git(
-      [
-        "-c",
-        "commit.gpgsign=false",
-        "commit",
-        "--quiet",
-        "--allow-empty",
-        "-m",
-        "root",
-      ],
+      ["-c", "commit.gpgsign=false", "commit", "--quiet", "--allow-empty", "-m", "root"],
       directory,
     );
 

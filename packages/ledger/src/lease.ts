@@ -8,11 +8,7 @@ export interface Lease {
   readonly expiry: number;
 }
 
-export function createLease(
-  node: Node,
-  session: string,
-  expiry: number,
-): Lease {
+export function createLease(node: Node, session: string, expiry: number): Lease {
   return { node, session, expiry };
 }
 
@@ -22,10 +18,7 @@ export interface LeaseRefusal {
   readonly proposed: number;
 }
 
-export function renewLease(
-  lease: Lease,
-  nextExpiry: number,
-): Result<Lease, LeaseRefusal> {
+export function renewLease(lease: Lease, nextExpiry: number): Result<Lease, LeaseRefusal> {
   if (nextExpiry <= lease.expiry) {
     return err({
       kind: "would-shorten",

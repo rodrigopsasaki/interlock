@@ -2,7 +2,7 @@ import type { Brief } from "./brief.ts";
 import type { Debrief } from "./debrief.ts";
 import type { LedgerEvent } from "./event.ts";
 import type { Gate } from "./gate.ts";
-import { nodeKey, type Node } from "./graph.ts";
+import { type Node, nodeKey } from "./graph.ts";
 import type { Lease } from "./lease.ts";
 import type { Note } from "./note.ts";
 import type { Outcome } from "./outcome.ts";
@@ -51,11 +51,7 @@ export function isInterrupted(view: SessionView): boolean {
 }
 
 export function leaseIsLive(session: SessionView, nowWallMs: number): boolean {
-  return (
-    session.lease !== undefined &&
-    !session.leaseExpired &&
-    session.lease.expiry > nowWallMs
-  );
+  return session.lease !== undefined && !session.leaseExpired && session.lease.expiry > nowWallMs;
 }
 
 function emptyNodeView(node: Node): NodeView {
@@ -93,16 +89,12 @@ function withSession(
   return { ...projection, sessions };
 }
 
-export function applyEvent(
-  projection: LedgerProjection,
-  event: LedgerEvent,
-): LedgerProjection {
+export function applyEvent(projection: LedgerProjection, event: LedgerEvent): LedgerProjection {
   switch (event.kind) {
     case "node-created":
       return withNode(projection, event.node, (view) => view);
     case "lease-taken": {
-      const current =
-        projection.nodes.get(nodeKey(event.node)) ?? emptyNodeView(event.node);
+      const current = projection.nodes.get(nodeKey(event.node)) ?? emptyNodeView(event.node);
       const generation = current.leaseGeneration + 1;
       const withGeneration = withNode(projection, event.node, (view) => ({
         ...view,
@@ -134,11 +126,7 @@ export function applyEvent(
         leaseExpired: true,
       }));
     case "session-started": {
-      const withNodeCreated = withNode(
-        projection,
-        event.session.node,
-        (view) => view,
-      );
+      const withNodeCreated = withNode(projection, event.session.node, (view) => view);
       const sessions = new Map(withNodeCreated.sessions);
       sessions.set(event.session.id, {
         session: event.session.id,

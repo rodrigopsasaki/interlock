@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
 import { createControlledClock, ms } from "@phyxiusjs/clock";
 import { Journal } from "@phyxiusjs/journal";
+import { describe, expect, it } from "vitest";
 
 interface ProbeEvent {
   readonly kind: "probe";

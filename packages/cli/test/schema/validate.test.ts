@@ -9,8 +9,7 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -66,15 +65,10 @@ describe("runSchemaValidate", () => {
   });
 
   it("reports a legacy brief.md the same way the brief reader does", async () => {
-    const path = fixture(
-      "brief.md",
-      "# Brief · node `n` · graph `g`\n\nNo front matter here.\n",
-    );
+    const path = fixture("brief.md", "# Brief · node `n` · graph `g`\n\nNo front matter here.\n");
     const result = await runSchemaValidate([path]);
     expect(result.exitCode).toBe(0);
-    expect(result.message).toContain(
-      "valid as brief@v0; the runner requires brief@v1.",
-    );
+    expect(result.message).toContain("valid as brief@v0; the runner requires brief@v1.");
   });
 
   it("validates a brief@v1 fixture", async () => {

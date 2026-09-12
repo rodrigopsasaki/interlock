@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { noneClient } from "../src/noneClient.ts";
-import {
-  fixtureDebrief,
-  fixtureNotes,
-  fixtureReceipt,
-} from "./support/fixtures.ts";
+import { fixtureDebrief, fixtureNotes, fixtureReceipt } from "./support/fixtures.ts";
 
 const node = { graph: "0003-translator", id: "substrate-client" };
 

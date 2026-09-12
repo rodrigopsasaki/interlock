@@ -1,9 +1,9 @@
-import { isDerivation, type Derivation } from "../derivation.ts";
-import { isDisposition, type Disposition } from "../disposition.ts";
+import { type Derivation, isDerivation } from "../derivation.ts";
+import { type Disposition, isDisposition } from "../disposition.ts";
 import { isLedgerEvent, type LedgerEvent } from "../event.ts";
-import { gate, type Gate } from "../gate.ts";
+import { type Gate, gate } from "../gate.ts";
 import { isNode } from "../graph.ts";
-import { heldOn, outcome, type Outcome } from "../outcome.ts";
+import { heldOn, type Outcome, outcome } from "../outcome.ts";
 import { duration, type Receipt } from "../receipt.ts";
 import { isSpend, type Spend } from "../spend.ts";
 import { isRecord, isString, prop } from "../validate.ts";
@@ -66,9 +66,7 @@ function isV1Gate(value: unknown): value is V1Gate {
     case "satisfied":
       return isV1Receipt(prop(value, "receipt"));
     case "blocked":
-      return (
-        isString(prop(value, "evidence")) && isString(prop(value, "because"))
-      );
+      return isString(prop(value, "evidence")) && isString(prop(value, "because"));
     case "waived":
       return (
         isString(prop(value, "authority")) &&
@@ -76,9 +74,7 @@ function isV1Gate(value: unknown): value is V1Gate {
         isV1Receipt(prop(value, "receipt"))
       );
     case "superseded":
-      return (
-        isString(prop(value, "authority")) && isString(prop(value, "because"))
-      );
+      return isString(prop(value, "authority")) && isString(prop(value, "because"));
     default:
       return false;
   }
@@ -154,9 +150,7 @@ function isV1Outcome(value: unknown): value is V1Outcome {
       );
     case "cancelled":
     case "superseded":
-      return (
-        isString(prop(value, "authority")) && isString(prop(value, "because"))
-      );
+      return isString(prop(value, "authority")) && isString(prop(value, "because"));
     default:
       return false;
   }
@@ -227,9 +221,7 @@ export function upcastV1(raw: unknown): LedgerEvent | undefined {
     const rawOutcome = prop(raw, "outcome");
     if (!isV1Outcome(rawOutcome)) return undefined;
     const upcast = upcastOutcome(rawOutcome);
-    return upcast === undefined
-      ? undefined
-      : { kind: "outcome-set", node, outcome: upcast };
+    return upcast === undefined ? undefined : { kind: "outcome-set", node, outcome: upcast };
   }
 
   return undefined;

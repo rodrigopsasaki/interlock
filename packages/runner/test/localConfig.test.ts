@@ -10,8 +10,7 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -124,9 +123,7 @@ describe("loadLocalConfig runtime.startup_answers", () => {
 
     expect(isErr(result)).toBe(true);
     if (isErr(result) && result.error.kind === "malformed") {
-      expect(result.error.reason).toContain(
-        '"runtime.startup_answers[0].keys"',
-      );
+      expect(result.error.reason).toContain('"runtime.startup_answers[0].keys"');
     }
   });
 
@@ -153,9 +150,7 @@ describe("loadLocalConfig runtime.startup_answers", () => {
 
     expect(isErr(result)).toBe(true);
     if (isErr(result) && result.error.kind === "malformed") {
-      expect(result.error.reason).toContain(
-        '"runtime.startup_answers[0].matches"',
-      );
+      expect(result.error.reason).toContain('"runtime.startup_answers[0].matches"');
     }
   });
 });
@@ -167,8 +162,7 @@ describe("loadLocalConfig runtime.startup_timeout_ms", () => {
     const result = await loadLocalConfig(repoRoot);
 
     expect(isOk(result)).toBe(true);
-    if (isOk(result))
-      expect(result.value.runtime.startupTimeoutMs).toBe(60_000);
+    if (isOk(result)) expect(result.value.runtime.startupTimeoutMs).toBe(60_000);
   });
 
   it("parses an explicit value", async () => {
@@ -190,8 +184,7 @@ describe("loadLocalConfig runtime.startup_timeout_ms", () => {
     const result = await loadLocalConfig(repoRoot);
 
     expect(isOk(result)).toBe(true);
-    if (isOk(result))
-      expect(result.value.runtime.startupTimeoutMs).toBe(15_000);
+    if (isOk(result)) expect(result.value.runtime.startupTimeoutMs).toBe(15_000);
   });
 
   it("refuses with a sentence error naming the field when it is not a number", async () => {
@@ -226,8 +219,7 @@ describe("loadLocalConfig runtime.prompt_taken_timeout_ms", () => {
     const result = await loadLocalConfig(repoRoot);
 
     expect(isOk(result)).toBe(true);
-    if (isOk(result))
-      expect(result.value.runtime.promptTakenTimeoutMs).toBe(20_000);
+    if (isOk(result)) expect(result.value.runtime.promptTakenTimeoutMs).toBe(20_000);
   });
 
   it("parses an explicit value", async () => {
@@ -249,8 +241,7 @@ describe("loadLocalConfig runtime.prompt_taken_timeout_ms", () => {
     const result = await loadLocalConfig(repoRoot);
 
     expect(isOk(result)).toBe(true);
-    if (isOk(result))
-      expect(result.value.runtime.promptTakenTimeoutMs).toBe(5_000);
+    if (isOk(result)) expect(result.value.runtime.promptTakenTimeoutMs).toBe(5_000);
   });
 
   it("refuses with a sentence error naming the field when it is not a number", async () => {
@@ -273,9 +264,7 @@ describe("loadLocalConfig runtime.prompt_taken_timeout_ms", () => {
 
     expect(isErr(result)).toBe(true);
     if (isErr(result) && result.error.kind === "malformed") {
-      expect(result.error.reason).toContain(
-        '"runtime.prompt_taken_timeout_ms"',
-      );
+      expect(result.error.reason).toContain('"runtime.prompt_taken_timeout_ms"');
     }
   });
 });
@@ -400,9 +389,7 @@ describe("loadLocalConfig substrate", () => {
 
     expect(isOk(result)).toBe(true);
     if (isOk(result)) {
-      expect(result.value.substrateAddress).toBe(
-        "https://substrate.example.com",
-      );
+      expect(result.value.substrateAddress).toBe("https://substrate.example.com");
       expect(result.value.substrateKeyFile).toBe("/path/to/key");
     }
   });

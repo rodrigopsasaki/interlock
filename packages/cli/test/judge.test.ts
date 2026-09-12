@@ -1,20 +1,14 @@
-import {
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  writeFileSync,
-  rmSync,
-} from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
 import { err, ok } from "@phyxiusjs/fp";
 import { isLedgerEvent } from "ledger";
 import type { Runtime } from "runner";
 import { afterEach, describe, expect, it } from "vitest";
-import { commitAll, gitInitFixture } from "./graph/gitFixture.ts";
 import { runGraphApprove } from "../src/graph/approve.ts";
 import { runInterlockJudge } from "../src/judge.ts";
 import { runInterlockRun } from "../src/run.ts";
+import { commitAll, gitInitFixture } from "./graph/gitFixture.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -22,8 +16,7 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -95,19 +88,13 @@ const demoBriefV1 = [
 function fixture(): string {
   directory = mkdtempSync(join(runsRoot, "judge-"));
   mkdirSync(join(directory, ".interlock", "graphs"), { recursive: true });
-  writeFileSync(
-    join(directory, ".interlock", "graphs", "demo.yaml"),
-    graphYaml,
-  );
+  writeFileSync(join(directory, ".interlock", "graphs", "demo.yaml"), graphYaml);
   writeFileSync(join(directory, ".interlock", "config.yaml"), configYaml);
   writeFileSync(join(directory, ".interlock", "local.yaml"), localYaml);
   mkdirSync(join(directory, ".interlock", "sessions", "demo", "a"), {
     recursive: true,
   });
-  writeFileSync(
-    join(directory, ".interlock", "sessions", "demo", "a", "brief.md"),
-    demoBriefV1,
-  );
+  writeFileSync(join(directory, ".interlock", "sessions", "demo", "a", "brief.md"), demoBriefV1);
   gitInitFixture(directory);
   commitAll(directory, "fixture content");
   return directory;
@@ -125,9 +112,7 @@ function stubRuntime(): Runtime {
     // lets the window close on its own deadline instead of spinning.
     waitUntil: (_agent, until, timeoutMs) =>
       until.length === 1 && until[0] === "working"
-        ? Promise.resolve(
-            err({ kind: "timeout", until, timeoutMs, status: "idle" }),
-          )
+        ? Promise.resolve(err({ kind: "timeout", until, timeoutMs, status: "idle" }))
         : Promise.resolve(ok("idle")),
     read: () => Promise.resolve(ok("")),
     sendKeys: () => Promise.resolve(ok(undefined)),
@@ -144,10 +129,7 @@ function sessionIdFrom(message: string): string {
 }
 
 async function approve(cwd: string): Promise<void> {
-  await runGraphApprove(
-    ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
-    { cwd },
-  );
+  await runGraphApprove(["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"], { cwd });
 }
 
 // The stub runtime's screen read succeeds, so run.ts's own screen-snapshot write leaves the
@@ -199,10 +181,7 @@ describe("interlock judge", () => {
     const cwd = fixture();
     await approve(cwd);
 
-    writeFileSync(
-      join(cwd, ".interlock", "graphs", "demo.yaml"),
-      `${graphYaml} `,
-    );
+    writeFileSync(join(cwd, ".interlock", "graphs", "demo.yaml"), `${graphYaml} `);
 
     const judged = await runInterlockJudge(["demo", "a"], { cwd });
 
@@ -240,9 +219,7 @@ describe("interlock judge", () => {
     });
 
     expect(judged.exitCode).toBe(0);
-    expect(judged.message).toBe(
-      `a: cleared (session ${sessionId}, judged by hand)`,
-    );
+    expect(judged.message).toBe(`a: cleared (session ${sessionId}, judged by hand)`);
   }, 30_000);
 
   it("holds a dirty worktree on uncommitted work without running a gate", async () => {
@@ -260,10 +237,7 @@ describe("interlock judge", () => {
 
     const worktreePath = join(cwd, ".worktrees", "a");
     settle(worktreePath);
-    writeFileSync(
-      join(worktreePath, "uncommitted.txt"),
-      "staged, never committed\n",
-    );
+    writeFileSync(join(worktreePath, "uncommitted.txt"), "staged, never committed\n");
 
     const lines: string[] = [];
     const judged = await runInterlockJudge(["demo", "a"], {
@@ -273,18 +247,11 @@ describe("interlock judge", () => {
     });
 
     expect(judged.exitCode).toBe(0);
-    expect(judged.message).toBe(
-      `a: held (session ${sessionId}, judged by hand)`,
-    );
-    expect(lines).toContain(
-      "1 uncommitted path(s) in the worktree; gates judge commits only",
-    );
+    expect(judged.message).toBe(`a: held (session ${sessionId}, judged by hand)`);
+    expect(lines).toContain("1 uncommitted path(s) in the worktree; gates judge commits only");
     expect(lines).toContain("  uncommitted.txt");
 
-    const journal = readFileSync(
-      join(cwd, ".interlock", "ledger", "journal.jsonl"),
-      "utf-8",
-    );
+    const journal = readFileSync(join(cwd, ".interlock", "ledger", "journal.jsonl"), "utf-8");
     const narrated = journal
       .trim()
       .split("\n")
@@ -335,10 +302,7 @@ describe("interlock judge", () => {
     const worktreePath = join(cwd, ".worktrees", "a");
     mkdirSync(worktreePath, { recursive: true });
     gitInitFixture(worktreePath);
-    writeFileSync(
-      join(worktreePath, "unattributed-work.txt"),
-      "found, not run by interlock\n",
-    );
+    writeFileSync(join(worktreePath, "unattributed-work.txt"), "found, not run by interlock\n");
     commitAll(worktreePath, "worktree content with no recorded session");
 
     const judged = await runInterlockJudge(["demo", "a"], { cwd });
@@ -353,21 +317,15 @@ describe("interlock judge", () => {
     const worktreePath = join(cwd, ".worktrees", "a");
     mkdirSync(worktreePath, { recursive: true });
     gitInitFixture(worktreePath);
-    writeFileSync(
-      join(worktreePath, "unattributed-work.txt"),
-      "found, not run by interlock\n",
-    );
+    writeFileSync(join(worktreePath, "unattributed-work.txt"), "found, not run by interlock\n");
     commitAll(worktreePath, "worktree content with no recorded session");
 
-    const judged = await runInterlockJudge(
-      ["demo", "a", "--session", "hand-named-session"],
-      { cwd },
-    );
+    const judged = await runInterlockJudge(["demo", "a", "--session", "hand-named-session"], {
+      cwd,
+    });
 
     expect(judged.exitCode).toBe(0);
-    expect(judged.message).toBe(
-      "a: cleared (session hand-named-session, judged by hand)",
-    );
+    expect(judged.message).toBe("a: cleared (session hand-named-session, judged by hand)");
   });
 
   it("lets --session override the ledger's latest session", async () => {
@@ -393,14 +351,12 @@ describe("interlock judge", () => {
     const secondSessionId = sessionIdFrom(second.message);
     expect(secondSessionId).not.toBe(firstSessionId);
 
-    const judged = await runInterlockJudge(
-      ["demo", "a", "--session", firstSessionId],
-      { cwd, clock: createControlledClock({ initialTime: 200_000 }) },
-    );
+    const judged = await runInterlockJudge(["demo", "a", "--session", firstSessionId], {
+      cwd,
+      clock: createControlledClock({ initialTime: 200_000 }),
+    });
 
     expect(judged.exitCode).toBe(0);
-    expect(judged.message).toBe(
-      `a: cleared (session ${firstSessionId}, judged by hand)`,
-    );
+    expect(judged.message).toBe(`a: cleared (session ${firstSessionId}, judged by hand)`);
   }, 30_000);
 });

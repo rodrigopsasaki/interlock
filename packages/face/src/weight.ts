@@ -4,10 +4,7 @@ export type NodeWeight =
   | { readonly kind: "measured"; readonly ms: number }
   | { readonly kind: "unknown"; readonly because: string };
 
-export function nodeWeight(
-  id: string,
-  outcome: Outcome | undefined,
-): NodeWeight {
+export function nodeWeight(id: string, outcome: Outcome | undefined): NodeWeight {
   if (outcome === undefined) {
     return { kind: "unknown", because: `${id}: no outcome yet` };
   }

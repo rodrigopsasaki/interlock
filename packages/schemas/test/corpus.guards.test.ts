@@ -1,7 +1,11 @@
 import {
+  type Brief,
+  type Debrief,
+  type Derivation,
   derivation,
   duration,
   envelopeFor,
+  type Gate,
   gate,
   heldOn,
   isBrief,
@@ -13,20 +17,16 @@ import {
   isMark,
   isNote,
   isOutcome,
-  mark,
-  note,
-  outcome,
-  spend,
-  type Brief,
-  type Debrief,
-  type Derivation,
-  type Gate,
-  type LedgerEvent,
   type Lease,
+  type LedgerEvent,
   type Mark,
+  mark,
   type Note,
+  note,
   type Outcome,
+  outcome,
   type Receipt,
+  spend,
 } from "ledger";
 import { describe, expect, it } from "vitest";
 import { buildRegistry } from "../src/registry.ts";
@@ -68,14 +68,7 @@ describe("corpus: the ledger's guards and this node's schemas agree", () => {
   describe("isDerivation / parts/derivation.json", () => {
     const cases: readonly [Derivation, boolean][] = [
       [derivation.gate("typecheck", "1.0.0", "runner-command-gate"), true],
-      [
-        derivation.model(
-          "claude-sonnet-5",
-          "verifier:hunk@v1",
-          "verifier:lens@v1",
-        ),
-        true,
-      ],
+      [derivation.model("claude-sonnet-5", "verifier:hunk@v1", "verifier:lens@v1"), true],
       [derivation.human("Rodrigo Sasaki"), true],
     ];
     for (const [value, expected] of cases) {
@@ -93,10 +86,7 @@ describe("corpus: the ledger's guards and this node's schemas agree", () => {
 
   describe("isMark / parts/mark.json", () => {
     it("agree on a rooted mark", () => {
-      const value: Mark = mark.rooted(
-        derivation.human("a"),
-        "src/gate.ts:1-10",
-      );
+      const value: Mark = mark.rooted(derivation.human("a"), "src/gate.ts:1-10");
       expect(isMark(value)).toBe(true);
       expect(validatesAgainstPart("mark", value)).toBe(true);
     });
@@ -168,19 +158,8 @@ describe("corpus: the ledger's guards and this node's schemas agree", () => {
         true,
       ],
       [outcome.reset([], "Rodrigo Sasaki", "flaky suite, re-running"), true],
-      [
-        outcome.failed(
-          [],
-          "typecheck failed",
-          "terminal-failure",
-          "budget spent",
-        ),
-        true,
-      ],
-      [
-        outcome.cancelled([], "Rodrigo Sasaki", "acceptance re-versioned"),
-        true,
-      ],
+      [outcome.failed([], "typecheck failed", "terminal-failure", "budget spent"), true],
+      [outcome.cancelled([], "Rodrigo Sasaki", "acceptance re-versioned"), true],
     ];
     for (const [value, expected] of cases) {
       it(`agree on kind ${value.kind}`, () => {
@@ -231,12 +210,9 @@ describe("corpus: the ledger's guards and this node's schemas agree", () => {
         true,
       ],
       [
-        note.choice(
-          "2026-09-09T12:00:00Z",
-          "kept spend on the receipt",
-          "matches the acceptance",
-          ["a separate spend table"],
-        ),
+        note.choice("2026-09-09T12:00:00Z", "kept spend on the receipt", "matches the acceptance", [
+          "a separate spend table",
+        ]),
         true,
       ],
       [

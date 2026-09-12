@@ -1,28 +1,21 @@
-import {
-  type FaceKey,
-  type FaceState,
-  type FaceWorld,
-  type Level,
-  type PromptField,
-  type Reduced,
-  type Selection,
+import type {
+  FaceKey,
+  FaceState,
+  FaceWorld,
+  Level,
+  PromptField,
+  Reduced,
+  Selection,
 } from "./faceState.ts";
 import { isLiveAttempt, nodeRowsOf } from "./nodeRow.ts";
 import type { PositionNode } from "./position.ts";
-import { verbNeedsAccountability, type Verb } from "./verb.ts";
+import { type Verb, verbNeedsAccountability } from "./verb.ts";
 
-function currentNode(
-  world: FaceWorld,
-  selection: Selection,
-): PositionNode | undefined {
+function currentNode(world: FaceWorld, selection: Selection): PositionNode | undefined {
   return world.position?.nodes.find((node) => node.id === selection.node);
 }
 
-function rowCountAt(
-  level: Level,
-  world: FaceWorld,
-  selection: Selection,
-): number {
+function rowCountAt(level: Level, world: FaceWorld, selection: Selection): number {
   switch (level) {
     case "plans":
       return world.plans.length;
@@ -122,8 +115,7 @@ function verbAt(
   const graph = world.position?.graph ?? plan?.graph;
 
   if (state.level === "plans") {
-    if (char === "a" && plan !== undefined)
-      return { kind: "approve", graph: plan.graph };
+    if (char === "a" && plan !== undefined) return { kind: "approve", graph: plan.graph };
     if (char === "s") return { kind: "sweep" };
     return undefined;
   }
@@ -138,12 +130,7 @@ function verbAt(
     return undefined;
   }
   if (state.level === "node") {
-    if (
-      char !== "w" ||
-      graph === undefined ||
-      state.selection.node === undefined
-    )
-      return undefined;
+    if (char !== "w" || graph === undefined || state.selection.node === undefined) return undefined;
     const rows = nodeRowsOf(currentNode(world, state.selection) ?? emptyNode());
     const row = rows[state.index];
     if (row?.kind !== "gate") return undefined;
@@ -157,10 +144,7 @@ function verbAt(
   return undefined;
 }
 
-function reduceEnter(
-  state: Extract<FaceState, { kind: "browsing" }>,
-  world: FaceWorld,
-): Reduced {
+function reduceEnter(state: Extract<FaceState, { kind: "browsing" }>, world: FaceWorld): Reduced {
   if (state.help) return { state };
   switch (state.level) {
     case "plans": {
@@ -215,11 +199,7 @@ function reduceBrowsingChar(
     return {
       state: {
         ...state,
-        index: clampedMove(
-          state.index,
-          1,
-          rowCountAt(state.level, world, state.selection),
-        ),
+        index: clampedMove(state.index, 1, rowCountAt(state.level, world, state.selection)),
       },
     };
   }
@@ -227,11 +207,7 @@ function reduceBrowsingChar(
     return {
       state: {
         ...state,
-        index: clampedMove(
-          state.index,
-          -1,
-          rowCountAt(state.level, world, state.selection),
-        ),
+        index: clampedMove(state.index, -1, rowCountAt(state.level, world, state.selection)),
       },
     };
   }
@@ -255,22 +231,14 @@ function reduceBrowsing(
       return {
         state: {
           ...state,
-          index: clampedMove(
-            state.index,
-            -1,
-            rowCountAt(state.level, world, state.selection),
-          ),
+          index: clampedMove(state.index, -1, rowCountAt(state.level, world, state.selection)),
         },
       };
     case "down":
       return {
         state: {
           ...state,
-          index: clampedMove(
-            state.index,
-            1,
-            rowCountAt(state.level, world, state.selection),
-          ),
+          index: clampedMove(state.index, 1, rowCountAt(state.level, world, state.selection)),
         },
       };
     case "enter":
@@ -288,30 +256,17 @@ function withField(
   field: PromptField,
   value: string,
 ): Extract<FaceState, { kind: "prompting" }>["prompt"] {
-  return field === "because"
-    ? { ...prompt, because: value }
-    : { ...prompt, by: value };
+  return field === "because" ? { ...prompt, because: value } : { ...prompt, by: value };
 }
 
-function fieldValue(
-  prompt: Extract<FaceState, { kind: "prompting" }>["prompt"],
-): string {
+function fieldValue(prompt: Extract<FaceState, { kind: "prompting" }>["prompt"]): string {
   return prompt.field === "because" ? prompt.because : prompt.by;
 }
 
-function reducePrompting(
-  state: Extract<FaceState, { kind: "prompting" }>,
-  key: FaceKey,
-): Reduced {
+function reducePrompting(state: Extract<FaceState, { kind: "prompting" }>, key: FaceKey): Reduced {
   if (key.name === "escape") {
     return {
-      state: browsing(
-        state.level,
-        state.index,
-        state.selection,
-        false,
-        "cancelled",
-      ),
+      state: browsing(state.level, state.index, state.selection, false, "cancelled"),
     };
   }
   if (key.name === "backspace") {
@@ -352,11 +307,7 @@ function reducePrompting(
   return { state };
 }
 
-export function reduce(
-  state: FaceState,
-  key: FaceKey,
-  world: FaceWorld,
-): Reduced {
+export function reduce(state: FaceState, key: FaceKey, world: FaceWorld): Reduced {
   return state.kind === "browsing"
     ? reduceBrowsing(state, key, world)
     : reducePrompting(state, key);

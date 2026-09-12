@@ -19,9 +19,7 @@ describe("note", () => {
       "matches the acceptance",
       ["a separate spend table"],
     );
-    expect(choice.kind === "choice" && choice.rejected).toEqual([
-      "a separate spend table",
-    ]);
+    expect(choice.kind === "choice" && choice.rejected).toEqual(["a separate spend table"]);
   });
 
   it("builds a surprise with expected and observed", () => {

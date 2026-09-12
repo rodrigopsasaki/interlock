@@ -1,11 +1,11 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Readable } from "node:stream";
-import { afterEach, describe, expect, it } from "vitest";
-import { gitInitFixture } from "../graph/gitFixture.ts";
-import { runInterlockFace } from "../../src/face/run.ts";
 import type { FaceKey } from "face";
+import { afterEach, describe, expect, it } from "vitest";
 import type { DispatchResult } from "../../src/face/dispatch.ts";
+import { runInterlockFace } from "../../src/face/run.ts";
+import { gitInitFixture } from "../graph/gitFixture.ts";
 
 const runsRoot = join(import.meta.dirname, "..", ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -13,8 +13,7 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -24,14 +23,7 @@ function fixture(): string {
   mkdirSync(join(directory, ".interlock", "graphs"), { recursive: true });
   writeFileSync(
     join(directory, ".interlock", "graphs", "demo.yaml"),
-    [
-      "interlock: graph@v0",
-      "id: demo",
-      "nodes:",
-      "  - id: a",
-      "    depends_on: []",
-      "",
-    ].join("\n"),
+    ["interlock: graph@v0", "id: demo", "nodes:", "  - id: a", "    depends_on: []", ""].join("\n"),
   );
   return directory;
 }
@@ -56,7 +48,7 @@ function fixtureManyIndependentNodes(count: number): string {
 
 function nodeIdsOf(lines: readonly string[]): readonly string[] {
   return lines
-    .map((line) => /^[>\s]{2}(?:● |  )?([^\s]+) — /.exec(line)?.[1])
+    .map((line) => /^[>\s]{2}(?:● | {2})?([^\s]+) — /.exec(line)?.[1])
     .filter((id): id is string => id !== undefined);
 }
 
@@ -107,18 +99,12 @@ describe("runInterlockFace", () => {
       by: "rodrigo",
       dispatch,
       stdout: stdout as unknown as NodeJS.WriteStream,
-      keys: keysOf([
-        { name: "enter" },
-        { name: "char", char: "R" },
-        { name: "char", char: "q" },
-      ]),
+      keys: keysOf([{ name: "enter" }, { name: "char", char: "R" }, { name: "char", char: "q" }]),
     });
 
     expect(result.exitCode).toBe(0);
     expect(calls).toEqual([["run", "demo", "a"]]);
-    expect(
-      stdout.writes.some((chunk) => chunk.includes("interlock run: cleared")),
-    ).toBe(true);
+    expect(stdout.writes.some((chunk) => chunk.includes("interlock run: cleared"))).toBe(true);
   });
 
   it("starting with a graph argument opens directly at Graph level for that graph", async () => {
@@ -131,9 +117,7 @@ describe("runInterlockFace", () => {
       keys: keysOf([{ name: "char", char: "q" }]),
     });
 
-    expect(stdout.writes.some((chunk) => chunk.includes("graph demo"))).toBe(
-      true,
-    );
+    expect(stdout.writes.some((chunk) => chunk.includes("graph demo"))).toBe(true);
   });
 
   it("prompts for because on an accountable verb and dispatches once it is submitted", async () => {
@@ -159,9 +143,7 @@ describe("runInterlockFace", () => {
       ]),
     });
 
-    expect(calls).toEqual([
-      ["node", "cancel", "demo", "a", "--by", "rodrigo", "--because", "no"],
-    ]);
+    expect(calls).toEqual([["node", "cancel", "demo", "a", "--by", "rodrigo", "--because", "no"]]);
   });
 
   it("a burst of six j keys, yielded without awaiting between them, moves the cursor six rows", async () => {
@@ -183,9 +165,7 @@ describe("runInterlockFace", () => {
     });
 
     const CLEAR_AND_HOME = "\x1b[2J\x1b[H";
-    const lastFrame = stdout.writes
-      .filter((chunk) => chunk.startsWith(CLEAR_AND_HOME))
-      .at(-1);
+    const lastFrame = stdout.writes.filter((chunk) => chunk.startsWith(CLEAR_AND_HOME)).at(-1);
     if (lastFrame === undefined) throw new Error("expected a drawn frame");
     expect(cursorRowIndex(lastFrame.slice(CLEAR_AND_HOME.length))).toBe(6);
   });
@@ -207,9 +187,7 @@ describe("runInterlockFace", () => {
     });
 
     const CLEAR_AND_HOME = "\x1b[2J\x1b[H";
-    const lastFrame = stdout.writes
-      .filter((chunk) => chunk.startsWith(CLEAR_AND_HOME))
-      .at(-1);
+    const lastFrame = stdout.writes.filter((chunk) => chunk.startsWith(CLEAR_AND_HOME)).at(-1);
     if (lastFrame === undefined) throw new Error("expected a drawn frame");
     expect(cursorRowIndex(lastFrame.slice(CLEAR_AND_HOME.length))).toBe(6);
   });

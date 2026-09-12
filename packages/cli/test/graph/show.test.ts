@@ -1,19 +1,11 @@
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { ok } from "@phyxiusjs/fp";
 import type { Runtime } from "runner";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { gitInitFixture } from "./gitFixture.ts";
 
-function stubRuntime(
-  reportedAgentStatus: NonNullable<Runtime["reportedAgentStatus"]>,
-): Runtime {
+function stubRuntime(reportedAgentStatus: NonNullable<Runtime["reportedAgentStatus"]>): Runtime {
   return {
     openPane: () => Promise.resolve(ok({ id: "pane-1" })),
     startAgent: (pane) => Promise.resolve(ok({ id: "agent-1", pane })),
@@ -45,8 +37,7 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
   vi.clearAllMocks();
 });
@@ -64,10 +55,7 @@ function fixture(graphYaml: string): string {
   directory = mkdtempSync(join(runsRoot, "run-"));
   gitInitFixture(directory);
   mkdirSync(join(directory, ".interlock", "graphs"), { recursive: true });
-  writeFileSync(
-    join(directory, ".interlock", "graphs", "demo.yaml"),
-    graphYaml,
-  );
+  writeFileSync(join(directory, ".interlock", "graphs", "demo.yaml"), graphYaml);
   return directory;
 }
 
@@ -81,9 +69,7 @@ describe("graph show", () => {
   });
 
   it("refuses a malformed graph with a sentence naming the file", async () => {
-    const cwd = fixture(
-      ["interlock: graph@v1", "id: demo", "nodes: []", ""].join("\n"),
-    );
+    const cwd = fixture(["interlock: graph@v1", "id: demo", "nodes: []", ""].join("\n"));
     const result = await runGraphShow(["demo"], { cwd });
     expect(result.exitCode).not.toBe(0);
     expect(result.message).toContain("demo.yaml");

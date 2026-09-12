@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isMandate, mandateCovers, type Mandate } from "../src/mandate.js";
+import { isMandate, type Mandate, mandateCovers } from "../src/mandate.js";
 
 const mandate: Mandate = {
   grantedBy: "Rodrigo Sasaki",

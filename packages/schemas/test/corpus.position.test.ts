@@ -1,6 +1,6 @@
 import type { GraphDocument } from "face";
 import { positionOf } from "face";
-import { derivation, duration, fold, gate, spend, type Receipt } from "ledger";
+import { derivation, duration, fold, gate, type Receipt, spend } from "ledger";
 import { describe, expect, it } from "vitest";
 import { buildRegistry } from "../src/registry.ts";
 
@@ -42,21 +42,13 @@ describe("corpus: position@v1, produced by the real positionOf", () => {
       },
     ]);
 
-    const position = positionOf(
-      document,
-      projection,
-      "content-hash",
-      Date.now(),
-    );
+    const position = positionOf(document, projection, "content-hash", Date.now());
     const registry = buildRegistry();
     const validate = registry.ajv.getSchema(
       "https://github.com/rodrigopsasaki/interlock/schemas/position@v1.json",
     );
     const valid = validate?.(position);
     expect(valid, JSON.stringify(validate?.errors)).toBe(true);
-    expect(position.nodes.map((n) => n.state.kind)).toEqual([
-      "outcome",
-      "ready",
-    ]);
+    expect(position.nodes.map((n) => n.state.kind)).toEqual(["outcome", "ready"]);
   });
 });

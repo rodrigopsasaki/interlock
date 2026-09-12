@@ -18,8 +18,6 @@ describe("isValidSubstrateAddress", () => {
 describe("substrateClientFor", () => {
   it("returns a client addressed at what it was given", () => {
     expect(substrateClientFor("none").address).toBe("none");
-    expect(substrateClientFor("http://localhost:4000").address).toBe(
-      "http://localhost:4000",
-    );
+    expect(substrateClientFor("http://localhost:4000").address).toBe("http://localhost:4000");
   });
 });

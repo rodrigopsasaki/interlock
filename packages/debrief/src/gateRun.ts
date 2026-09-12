@@ -2,15 +2,11 @@ import { err, ok, type Result } from "@phyxiusjs/fp";
 import type { GateRun } from "ledger";
 import { isRecord, isString, prop } from "./validate.ts";
 
-export function parseGateRun(
-  raw: unknown,
-  index: number,
-): Result<GateRun, string> {
+export function parseGateRun(raw: unknown, index: number): Result<GateRun, string> {
   if (!isRecord(raw)) return err(`gate run ${index}: not a mapping`);
 
   const id = prop(raw, "id");
-  if (!isString(id))
-    return err(`gate run ${index}: "id" is missing or not a string`);
+  if (!isString(id)) return err(`gate run ${index}: "id" is missing or not a string`);
 
   const result = prop(raw, "result");
   if (result !== "pass" && result !== "fail")

@@ -1,4 +1,4 @@
-import { derivation, type Decision } from "ledger";
+import { type Decision, derivation } from "ledger";
 import { describe, expect, it } from "vitest";
 import type { FileDiff } from "../src/git.ts";
 import { unexplainedMarks } from "../src/inverse.ts";
@@ -9,10 +9,7 @@ function fileDiff(path: string): FileDiff {
   return { path, hunks: [{ start: 1, end: 1 }], addedLines: [] };
 }
 
-function decision(
-  hunks: readonly string[],
-  produces?: readonly string[],
-): Decision {
+function decision(hunks: readonly string[], produces?: readonly string[]): Decision {
   return {
     id: "c1",
     what: "test decision",
@@ -46,16 +43,13 @@ describe("unexplainedMarks (the inverse check)", () => {
   });
 
   it("marks every uncovered file, leaving covered ones unexplained-free, across many changed files", () => {
-    const files = [
-      fileDiff("src/a.ts"),
-      fileDiff("src/b.ts"),
-      fileDiff("src/c.ts"),
-    ];
+    const files = [fileDiff("src/a.ts"), fileDiff("src/b.ts"), fileDiff("src/c.ts")];
     const decisions = [decision(["src/a.ts"])];
     const marks = unexplainedMarks(files, decisions, DERIVATION);
-    expect(
-      marks.map((m) => (m.kind === "unexplained" ? m.hunk : undefined)),
-    ).toEqual(["src/b.ts", "src/c.ts"]);
+    expect(marks.map((m) => (m.kind === "unexplained" ? m.hunk : undefined))).toEqual([
+      "src/b.ts",
+      "src/c.ts",
+    ]);
   });
 
   it("does not let a malformed hunk citation cover the file it failed to name", () => {

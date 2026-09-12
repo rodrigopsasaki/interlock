@@ -16,9 +16,7 @@ export function authoritativeBriefGates(
         id: entry.id,
         kind: entry.kind,
         run: entry.run,
-        ...(entry.expectOutput === undefined
-          ? {}
-          : { expectOutput: entry.expectOutput.source }),
+        ...(entry.expectOutput === undefined ? {} : { expectOutput: entry.expectOutput.source }),
       }),
     ),
     ...nodeGates.map(
@@ -26,21 +24,14 @@ export function authoritativeBriefGates(
         id: entry.id,
         kind: entry.kind,
         ...(entry.run === undefined ? {} : { run: entry.run }),
-        ...(entry.expectOutput === undefined
-          ? {}
-          : { expectOutput: entry.expectOutput.source }),
+        ...(entry.expectOutput === undefined ? {} : { expectOutput: entry.expectOutput.source }),
       }),
     ),
   ];
 }
 
 function gateSignature(gate: BriefGate): string {
-  return JSON.stringify([
-    gate.id,
-    gate.kind,
-    gate.run ?? null,
-    gate.expectOutput ?? null,
-  ]);
+  return JSON.stringify([gate.id, gate.kind, gate.run ?? null, gate.expectOutput ?? null]);
 }
 
 // The repository copy may be stale; the runner's view is authoritative. A difference is
@@ -49,28 +40,20 @@ export function diffGates(
   previous: readonly BriefGate[],
   authoritative: readonly BriefGate[],
 ): readonly string[] {
-  if (
-    previous.map(gateSignature).join("|") ===
-    authoritative.map(gateSignature).join("|")
-  ) {
+  if (previous.map(gateSignature).join("|") === authoritative.map(gateSignature).join("|")) {
     return [];
   }
   const previousIds = new Set(previous.map((gate) => gate.id));
   const authoritativeIds = new Set(authoritative.map((gate) => gate.id));
-  const added = authoritative
-    .filter((gate) => !previousIds.has(gate.id))
-    .map((gate) => gate.id);
-  const removed = previous
-    .filter((gate) => !authoritativeIds.has(gate.id))
-    .map((gate) => gate.id);
+  const added = authoritative.filter((gate) => !previousIds.has(gate.id)).map((gate) => gate.id);
+  const removed = previous.filter((gate) => !authoritativeIds.has(gate.id)).map((gate) => gate.id);
   if (added.length === 0 && removed.length === 0) {
     return [
       "gates: the repository copy's gate declarations differ from the runner's view; overwritten.",
     ];
   }
   const lines: string[] = [];
-  if (added.length > 0)
-    lines.push(`gates: the runner added ${added.join(", ")}.`);
+  if (added.length > 0) lines.push(`gates: the runner added ${added.join(", ")}.`);
   if (removed.length > 0) {
     lines.push(
       `gates: the repository copy declared ${removed.join(", ")}, absent from the runner's view; overwritten.`,
@@ -98,15 +81,11 @@ function gateRecord(gate: BriefGate): Record<string, unknown> {
     id: gate.id,
     kind: gate.kind,
     ...(gate.run === undefined ? {} : { run: gate.run }),
-    ...(gate.expectOutput === undefined
-      ? {}
-      : { expect_output: gate.expectOutput }),
+    ...(gate.expectOutput === undefined ? {} : { expect_output: gate.expectOutput }),
   };
 }
 
-function frontMatterRecord(
-  frontMatter: BriefFrontMatter,
-): Record<string, unknown> {
+function frontMatterRecord(frontMatter: BriefFrontMatter): Record<string, unknown> {
   return {
     interlock: BRIEF_V1,
     graph: frontMatter.graph,
@@ -129,9 +108,6 @@ function frontMatterRecord(
   };
 }
 
-export function renderBriefFile(
-  frontMatter: BriefFrontMatter,
-  body: string,
-): string {
+export function renderBriefFile(frontMatter: BriefFrontMatter, body: string): string {
   return `---\n${stringify(frontMatterRecord(frontMatter))}---\n${body}`;
 }

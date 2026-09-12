@@ -17,8 +17,7 @@ export interface MandateQuery {
 
 export function mandateCovers(mandate: Mandate, query: MandateQuery): boolean {
   if (mandate.actionKind !== query.actionKind) return false;
-  if (mandate.context !== "any" && mandate.context !== query.context)
-    return false;
+  if (mandate.context !== "any" && mandate.context !== query.context) return false;
   return query.now <= mandate.notAfter;
 }
 

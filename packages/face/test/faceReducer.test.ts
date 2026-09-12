@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { reduce } from "../src/faceReducer.ts";
-import {
-  initialFaceState,
-  type FaceKey,
-  type FaceWorld,
-} from "../src/faceState.ts";
+import { type FaceKey, type FaceWorld, initialFaceState } from "../src/faceState.ts";
 import type { Position } from "../src/position.ts";
 
 const position: Position = {
@@ -69,7 +65,7 @@ const char = (c: string): FaceKey => ({ name: "char", char: c });
 const down: FaceKey = { name: "down" };
 const up: FaceKey = { name: "up" };
 const enter: FaceKey = { name: "enter" };
-const escape: FaceKey = { name: "escape" };
+const escapeKey: FaceKey = { name: "escape" };
 const backspace: FaceKey = { name: "backspace" };
 
 describe("reduce: browsing navigation", () => {
@@ -157,7 +153,7 @@ describe("reduce: browsing navigation", () => {
       index: 1,
       selection: { graph: "g1", node: "b" },
     };
-    const afterEscape = reduce(atNodeB, escape, world).state;
+    const afterEscape = reduce(atNodeB, escapeKey, world).state;
     expect(afterEscape).toMatchObject({ level: "graph", index: 0 });
 
     const afterBackspace = reduce(atNodeB, backspace, world).state;
@@ -166,7 +162,7 @@ describe("reduce: browsing navigation", () => {
 
   it("Escape or Backspace at Plans level is a no-op: there is nowhere further up", () => {
     const start = initialFaceState();
-    expect(reduce(start, escape, world).state).toEqual(start);
+    expect(reduce(start, escapeKey, world).state).toEqual(start);
   });
 
   it("? toggles the help overlay without moving the cursor or firing a verb", () => {
@@ -271,7 +267,7 @@ describe("reduce: verbs and accountability", () => {
     };
     const atNodeB = reduce(atGraph, down, world).state;
     const prompting = reduce(atNodeB, char("c"), world).state;
-    const cancelled = reduce(prompting, escape, world);
+    const cancelled = reduce(prompting, escapeKey, world);
     expect(cancelled.effect).toBeUndefined();
     expect(cancelled.state).toMatchObject({
       kind: "browsing",
@@ -287,11 +283,7 @@ describe("reduce: verbs and accountability", () => {
     };
     const atNodeB = reduce(atGraph, down, world).state;
     const prompting = reduce(atNodeB, char("c"), world).state;
-    const typed = reduce(
-      reduce(prompting, char("a"), world).state,
-      char("b"),
-      world,
-    ).state;
+    const typed = reduce(reduce(prompting, char("a"), world).state, char("b"), world).state;
     expect(typed).toMatchObject({ prompt: { because: "ab" } });
     const erased = reduce(typed, backspace, world).state;
     expect(erased).toMatchObject({ prompt: { because: "a" } });

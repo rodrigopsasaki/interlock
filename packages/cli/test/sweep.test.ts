@@ -1,15 +1,9 @@
-import {
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
 import { afterEach, describe, expect, it } from "vitest";
-import { gitInitFixture } from "./graph/gitFixture.ts";
 import { runInterlockSweep } from "../src/sweep.ts";
+import { gitInitFixture } from "./graph/gitFixture.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -17,8 +11,7 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -30,10 +23,7 @@ function fixture(): string {
 }
 
 function journalLines(cwd: string): readonly unknown[] {
-  const raw = readFileSync(
-    join(cwd, ".interlock", "ledger", "journal.jsonl"),
-    "utf-8",
-  );
+  const raw = readFileSync(join(cwd, ".interlock", "ledger", "journal.jsonl"), "utf-8");
   return raw
     .trim()
     .split("\n")
@@ -87,9 +77,7 @@ describe("interlock sweep", () => {
     expect(result.message).toContain("abandoned 1 session(s): session-1");
 
     const kinds = journalLines(cwd).map((event) =>
-      typeof event === "object" && event !== null && "kind" in event
-        ? String(event.kind)
-        : "",
+      typeof event === "object" && event !== null && "kind" in event ? String(event.kind) : "",
     );
     expect(kinds).toContain("lease-expired");
     expect(kinds).toContain("outcome-set");

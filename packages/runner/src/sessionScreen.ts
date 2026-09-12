@@ -1,19 +1,8 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
-export function screenPath(
-  worktreePath: string,
-  graph: string,
-  node: string,
-): string {
-  return join(
-    worktreePath,
-    ".interlock",
-    "sessions",
-    graph,
-    node,
-    "screen.txt",
-  );
+export function screenPath(worktreePath: string, graph: string, node: string): string {
+  return join(worktreePath, ".interlock", "sessions", graph, node, "screen.txt");
 }
 
 export function lastNonEmptyLine(text: string): string | undefined {

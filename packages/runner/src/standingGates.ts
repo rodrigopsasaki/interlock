@@ -20,9 +20,7 @@ export type StandingGatesRefusal =
       readonly reason: string;
     };
 
-export function explainStandingGatesRefusal(
-  refusal: StandingGatesRefusal,
-): string {
+export function explainStandingGatesRefusal(refusal: StandingGatesRefusal): string {
   switch (refusal.kind) {
     case "missing":
       return `${refusal.path}: no standing gate table; expected a config@v0 document.`;
@@ -56,8 +54,7 @@ export async function loadStandingGates(
   try {
     parsed = parseYaml(raw);
   } catch (error) {
-    const reason =
-      error instanceof YAMLParseError ? error.message : "invalid YAML";
+    const reason = error instanceof YAMLParseError ? error.message : "invalid YAML";
     return err({ kind: "malformed", path, reason });
   }
 

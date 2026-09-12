@@ -56,9 +56,7 @@ function isPaneBusyRefusal(
 }
 
 function isWaitSliceTimeout(refusal: RuntimeRefusal): boolean {
-  return (
-    refusal.kind === "remote" && refusal.code === AGENT_WAIT_SLICE_TIMEOUT_CODE
-  );
+  return refusal.kind === "remote" && refusal.code === AGENT_WAIT_SLICE_TIMEOUT_CODE;
 }
 
 // herdr's own rule, from its error text: must start with a lowercase letter and contain only
@@ -72,9 +70,7 @@ export function isCompliantAgentName(name: string): boolean {
 export function generateAgentName(): string {
   const name = `il-${randomUUID().slice(0, 8)}`;
   if (!isCompliantAgentName(name)) {
-    throw new Error(
-      `generateAgentName produced a name herdr would reject: "${name}"`,
-    );
+    throw new Error(`generateAgentName produced a name herdr would reject: "${name}"`);
   }
   return name;
 }
@@ -189,9 +185,7 @@ function callHerdr(
     let buffer = "";
     let settled = false;
 
-    const settle = (
-      result: Result<Record<string, unknown>, RuntimeRefusal>,
-    ) => {
+    const settle = (result: Result<Record<string, unknown>, RuntimeRefusal>) => {
       if (settled) return;
       settled = true;
       clearTimeout(deadline);
@@ -238,9 +232,7 @@ function callHerdr(
 
 // One throwaway connection, made and closed before any real call, so a missing herdr refuses
 // early with its own reason instead of surfacing as a mysterious first-call timeout.
-function verifyHerdrSocket(
-  socketPath: string,
-): Promise<Result<void, RuntimeRefusal>> {
+function verifyHerdrSocket(socketPath: string): Promise<Result<void, RuntimeRefusal>> {
   return new Promise((resolve) => {
     const socket = connect(socketPath);
     socket.once("error", () => {
@@ -334,10 +326,7 @@ export async function createHerdrRuntime(
       if (isErr(listed)) return listed;
       const workspaces = prop(listed.value, "workspaces");
       const existing = Array.isArray(workspaces)
-        ? workspaces.find(
-            (workspace) =>
-              isRecord(workspace) && prop(workspace, "label") === label,
-          )
+        ? workspaces.find((workspace) => isRecord(workspace) && prop(workspace, "label") === label)
         : undefined;
 
       if (isRecord(existing)) {
@@ -353,9 +342,7 @@ export async function createHerdrRuntime(
           cwd,
           focus: false,
         });
-        return isErr(opened)
-          ? opened
-          : paneFromCreated(opened.value, "tab.create");
+        return isErr(opened) ? opened : paneFromCreated(opened.value, "tab.create");
       }
 
       const created = await call("workspace.create", {
@@ -363,9 +350,7 @@ export async function createHerdrRuntime(
         focus: false,
         label,
       });
-      return isErr(created)
-        ? created
-        : paneFromCreated(created.value, "workspace.create");
+      return isErr(created) ? created : paneFromCreated(created.value, "workspace.create");
     },
 
     async startAgent(
@@ -375,20 +360,12 @@ export async function createHerdrRuntime(
       onWaitingForPane?: () => void,
       preferredId?: string,
     ) {
-      if (!AGENT_KINDS.has(kind))
-        return err({ kind: "unknown-agent-kind", agentKind: kind });
+      if (!AGENT_KINDS.has(kind)) return err({ kind: "unknown-agent-kind", agentKind: kind });
 
-      const preferredIsCompliant =
-        preferredId !== undefined && isCompliantAgentName(preferredId);
+      const preferredIsCompliant = preferredId !== undefined && isCompliantAgentName(preferredId);
       const primary = preferredIsCompliant ? preferredId : generateAgentName();
 
-      const first = await attemptStartAgent(
-        primary,
-        pane,
-        kind,
-        args,
-        onWaitingForPane,
-      );
+      const first = await attemptStartAgent(primary, pane, kind, args, onWaitingForPane);
       if (!isErr(first)) return first;
       if (
         !preferredIsCompliant ||
@@ -397,21 +374,10 @@ export async function createHerdrRuntime(
       ) {
         return first;
       }
-      return attemptStartAgent(
-        generateAgentName(),
-        pane,
-        kind,
-        args,
-        onWaitingForPane,
-      );
+      return attemptStartAgent(generateAgentName(), pane, kind, args, onWaitingForPane);
     },
 
-    async reportIdentity(
-      agent: Agent,
-      graph: string,
-      node: string,
-      identity: AgentIdentity,
-    ) {
+    async reportIdentity(agent: Agent, graph: string, node: string, identity: AgentIdentity) {
       const reported = await call("pane.report_metadata", {
         pane_id: agent.pane.id,
         source: "interlock",
@@ -429,11 +395,7 @@ export async function createHerdrRuntime(
       return isErr(prompted) ? prompted : ok(undefined);
     },
 
-    async waitUntil(
-      agent: Agent,
-      until: readonly AgentStatus[],
-      timeoutMs: number,
-    ) {
+    async waitUntil(agent: Agent, until: readonly AgentStatus[], timeoutMs: number) {
       const startedAtMs = Date.now();
       let lastStatus: AgentStatus = "unknown";
 
@@ -466,10 +428,7 @@ export async function createHerdrRuntime(
           sliceMs + CALL_DEADLINE_MARGIN_MS,
         );
         if (isErr(waited)) {
-          if (
-            waited.error.kind !== "call-timeout" &&
-            !isWaitSliceTimeout(waited.error)
-          ) {
+          if (waited.error.kind !== "call-timeout" && !isWaitSliceTimeout(waited.error)) {
             return waited;
           }
         } else {

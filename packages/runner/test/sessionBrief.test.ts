@@ -1,5 +1,4 @@
-import { readFileSync } from "node:fs";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { isErr, isOk } from "@phyxiusjs/fp";
 import { readBriefFile } from "debrief";
@@ -23,10 +22,8 @@ let repoRoot: string | undefined;
 let worktreePath: string | undefined;
 
 afterEach(() => {
-  if (repoRoot !== undefined)
-    rmSync(repoRoot, { recursive: true, force: true });
-  if (worktreePath !== undefined)
-    rmSync(worktreePath, { recursive: true, force: true });
+  if (repoRoot !== undefined) rmSync(repoRoot, { recursive: true, force: true });
+  if (worktreePath !== undefined) rmSync(worktreePath, { recursive: true, force: true });
   repoRoot = undefined;
   worktreePath = undefined;
 });
@@ -113,14 +110,11 @@ describe("writeBriefIntoWorktree", () => {
     );
     expect(isOk(result)).toBe(true);
     if (!isOk(result)) return;
-    expect(result.value.narration).toEqual([
-      "context none: no substrate addressed",
-    ]);
+    expect(result.value.narration).toEqual(["context none: no substrate addressed"]);
 
     const written = await readBriefFile(briefPath(worktree, "g", "n"));
     expect(isOk(written)).toBe(true);
-    if (!isOk(written) || written.value.kind !== "v1")
-      throw new Error("expected v1");
+    if (!isOk(written) || written.value.kind !== "v1") throw new Error("expected v1");
     expect(written.value.frontMatter.runner).toEqual({
       kind: "worktree",
       graphBaseSha: sha,
@@ -147,13 +141,10 @@ describe("writeBriefIntoWorktree", () => {
     );
     expect(isOk(result)).toBe(true);
     if (!isOk(result)) return;
-    expect(
-      result.value.narration.some((line) => line.includes("own-gate")),
-    ).toBe(true);
+    expect(result.value.narration.some((line) => line.includes("own-gate"))).toBe(true);
 
     const written = await readBriefFile(briefPath(worktree, "g", "n"));
-    if (!isOk(written) || written.value.kind !== "v1")
-      throw new Error("expected v1");
+    if (!isOk(written) || written.value.kind !== "v1") throw new Error("expected v1");
     expect(written.value.frontMatter.gates.map((gate) => gate.id)).toEqual([
       "typecheck",
       "own-gate",

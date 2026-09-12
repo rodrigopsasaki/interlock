@@ -8,11 +8,7 @@ function gapsNote(missingVocabularyTerms: readonly string[]): string {
   return ` (${missingVocabularyTerms.length} artifact term(s) missing from the vocabulary table: ${missingVocabularyTerms.join(", ")})`;
 }
 
-async function runCheck(
-  path: string,
-  generated: string,
-  note: string,
-): Promise<CommandResult> {
+async function runCheck(path: string, generated: string, note: string): Promise<CommandResult> {
   let committed: string;
   try {
     committed = await readFile(path, "utf-8");

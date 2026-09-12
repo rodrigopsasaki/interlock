@@ -11,8 +11,7 @@ export interface PlansEntry {
 
 export function plansEntryOf(position: Position): PlansEntry {
   const cleared = position.nodes.filter(
-    (node) =>
-      node.state.kind === "outcome" && node.state.outcome.kind === "cleared",
+    (node) => node.state.kind === "outcome" && node.state.outcome.kind === "cleared",
   ).length;
   const liveSessions = position.nodes.reduce(
     (count, node) => count + node.attempts.filter(isLiveAttempt).length,

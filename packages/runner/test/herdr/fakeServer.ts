@@ -25,36 +25,22 @@ export interface FakeHerdrServer {
   delayAgentWaitToRequestedTimeout: boolean;
   panes: readonly Record<string, unknown>[];
   workspaces: readonly FakeWorkspaceState[];
-  failNextCall(
-    code: string,
-    message: string,
-    times?: number,
-    method?: string,
-  ): void;
+  failNextCall(code: string, message: string, times?: number, method?: string): void;
   withholdNextCall(method?: string): void;
   close(): Promise<void>;
 }
 
 // Mirrors herdr's own rule: one request per connection, socket closed once its response is
 // written.
-function respond(
-  socket: Socket,
-  id: string,
-  result: Record<string, unknown>,
-): void {
+function respond(socket: Socket, id: string, result: Record<string, unknown>): void {
   socket.write(`${JSON.stringify({ id, result })}\n`, () => socket.end());
 }
 
 function fail(socket: Socket, id: string, code: string, message: string): void {
-  socket.write(`${JSON.stringify({ id, error: { code, message } })}\n`, () =>
-    socket.end(),
-  );
+  socket.write(`${JSON.stringify({ id, error: { code, message } })}\n`, () => socket.end());
 }
 
-function matchesPending(
-  pendingMethod: string | undefined,
-  incomingMethod: string,
-): boolean {
+function matchesPending(pendingMethod: string | undefined, incomingMethod: string): boolean {
   return pendingMethod === undefined || pendingMethod === incomingMethod;
 }
 
@@ -107,11 +93,7 @@ function tabInfo(workspace: Workspace, tab: Tab): Record<string, unknown> {
   };
 }
 
-function tabPanePayload(
-  paneId: string,
-  workspace: Workspace,
-  tab: Tab,
-): Record<string, unknown> {
+function tabPanePayload(paneId: string, workspace: Workspace, tab: Tab): Record<string, unknown> {
   return {
     pane_id: paneId,
     terminal_id: "fake-terminal",
@@ -123,9 +105,7 @@ function tabPanePayload(
   };
 }
 
-export function startFakeHerdrServer(
-  socketPath: string,
-): Promise<FakeHerdrServer> {
+export function startFakeHerdrServer(socketPath: string): Promise<FakeHerdrServer> {
   if (existsSync(socketPath)) unlinkSync(socketPath);
 
   const calls: RecordedCall[] = [];
@@ -141,9 +121,7 @@ export function startFakeHerdrServer(
     nextSeq = { ...nextSeq, [kind]: nextSeq[kind] + 1 };
     return `fake-${kind}-${nextSeq[kind]}`;
   };
-  const findTab = (
-    tabId: unknown,
-  ): { workspace: Workspace; tab: Tab } | undefined => {
+  const findTab = (tabId: unknown): { workspace: Workspace; tab: Tab } | undefined => {
     if (!isString(tabId)) return undefined;
     for (const workspace of workspaces.values()) {
       const tab = workspace.tabs.get(tabId);
@@ -192,10 +170,7 @@ export function startFakeHerdrServer(
       withhold = undefined;
       return;
     }
-    if (
-      nextFailure !== undefined &&
-      matchesPending(nextFailure.method, method)
-    ) {
+    if (nextFailure !== undefined && matchesPending(nextFailure.method, method)) {
       const { code, message } = nextFailure;
       nextFailure =
         nextFailure.remaining > 1
@@ -236,16 +211,9 @@ export function startFakeHerdrServer(
       }
       case "tab.create": {
         const workspaceId = prop(params, "workspace_id");
-        const workspace = isString(workspaceId)
-          ? workspaces.get(workspaceId)
-          : undefined;
+        const workspace = isString(workspaceId) ? workspaces.get(workspaceId) : undefined;
         if (workspace === undefined) {
-          fail(
-            socket,
-            id,
-            "workspace_not_found",
-            `no such workspace "${String(workspaceId)}"`,
-          );
+          fail(socket, id, "workspace_not_found", `no such workspace "${String(workspaceId)}"`);
           return;
         }
         const tab: Tab = { tabId: nextId("tab"), paneCount: 1 };
@@ -264,12 +232,7 @@ export function startFakeHerdrServer(
       case "tab.get": {
         const found = findTab(prop(params, "tab_id"));
         if (found === undefined) {
-          fail(
-            socket,
-            id,
-            "tab_not_found",
-            `no such tab "${String(prop(params, "tab_id"))}"`,
-          );
+          fail(socket, id, "tab_not_found", `no such tab "${String(prop(params, "tab_id"))}"`);
           return;
         }
         respond(socket, id, { tab: tabInfo(found.workspace, found.tab) });
@@ -327,8 +290,7 @@ export function startFakeHerdrServer(
         // with this exact error, never a status payload: the fake exists to be herdr.
         const requestedTimeoutMs = prop(params, "timeout_ms");
         setTimeout(
-          () =>
-            fail(socket, id, "timeout", "timed out waiting for agent status"),
+          () => fail(socket, id, "timeout", "timed out waiting for agent status"),
           typeof requestedTimeoutMs === "number" ? requestedTimeoutMs : 0,
         );
         return;
@@ -346,12 +308,7 @@ export function startFakeHerdrServer(
         respond(socket, id, {});
         return;
       default:
-        fail(
-          socket,
-          id,
-          "unhandled",
-          `fake herdr server does not implement "${method}"`,
-        );
+        fail(socket, id, "unhandled", `fake herdr server does not implement "${method}"`);
     }
   }
 
@@ -413,9 +370,7 @@ export function startFakeHerdrServer(
         },
         close() {
           for (const socket of sockets) socket.destroy();
-          return new Promise((resolveClose) =>
-            server.close(() => resolveClose()),
-          );
+          return new Promise((resolveClose) => server.close(() => resolveClose()));
         },
       });
     });

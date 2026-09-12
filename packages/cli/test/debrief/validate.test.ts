@@ -9,8 +9,7 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -25,10 +24,8 @@ function repoWithSession(
   directory = mkdtempSync(join(runsRoot, "validate-"));
   const dir = join(directory, ".interlock", "sessions", graph, node);
   mkdirSync(dir, { recursive: true });
-  if (debriefYaml !== undefined)
-    writeFileSync(join(dir, "debrief.yaml"), debriefYaml);
-  if (notesYaml !== undefined)
-    writeFileSync(join(dir, "notes.yaml"), notesYaml);
+  if (debriefYaml !== undefined) writeFileSync(join(dir, "debrief.yaml"), debriefYaml);
+  if (notesYaml !== undefined) writeFileSync(join(dir, "notes.yaml"), notesYaml);
   return directory;
 }
 
@@ -134,9 +131,7 @@ describe("validateDebrief", () => {
     const cwd = repoWithSession("g", "n", undefined, undefined);
     const result = await validateDebrief(["g", "n"], { cwd });
     expect(result.exitCode).not.toBe(0);
-    expect(result.message).toBe(
-      "no debrief was filed for g/n; the session is interrupted.",
-    );
+    expect(result.message).toBe("no debrief was filed for g/n; the session is interrupted.");
   });
 
   it("tolerates a debrief predating notes.yaml, since the file never existed for that vintage", async () => {
@@ -151,12 +146,8 @@ describe("validateDebrief", () => {
     const result = await validateDebrief(["g", "n"], { cwd });
     expect(result.exitCode).toBe(0);
     expect(result.message).not.toContain(cwd);
-    expect(result.message).toContain(
-      join(".interlock", "sessions", "g", "n", "debrief.yaml"),
-    );
-    expect(result.message).toContain(
-      join(".interlock", "sessions", "g", "n", "notes.yaml"),
-    );
+    expect(result.message).toContain(join(".interlock", "sessions", "g", "n", "debrief.yaml"));
+    expect(result.message).toContain(join(".interlock", "sessions", "g", "n", "notes.yaml"));
   });
 
   it("validates a debrief@v0 file as legacy-valid, not ingested", async () => {

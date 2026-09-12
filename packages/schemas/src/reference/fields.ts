@@ -23,9 +23,7 @@ function rowsFromObject(
   if (!isRecord(properties)) return [];
 
   const requiredProp = prop(schema, "required");
-  const requiredNames = isArray(requiredProp)
-    ? requiredProp.filter(isString)
-    : [];
+  const requiredNames = isArray(requiredProp) ? requiredProp.filter(isString) : [];
 
   return Object.entries(properties).map(([name, propertySchema]) => {
     const required = requiredNames.includes(name);
@@ -54,7 +52,5 @@ export function fieldTablesFor(
       rows: rowsFromObject(branch, files, filePath),
     }));
   }
-  return [
-    { heading: undefined, rows: rowsFromObject(schema, files, filePath) },
-  ];
+  return [{ heading: undefined, rows: rowsFromObject(schema, files, filePath) }];
 }

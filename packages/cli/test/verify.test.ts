@@ -24,8 +24,7 @@ function git(args: readonly string[], cwd: string): string {
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -46,11 +45,7 @@ function writeSessionDebrief(repoRoot: string, yaml: string): void {
   writeFileSync(join(dir, "debrief.yaml"), yaml);
 }
 
-function v2Debrief(
-  sessionStartSha: string,
-  headSha: string,
-  extra: string,
-): string {
+function v2Debrief(sessionStartSha: string, headSha: string, extra: string): string {
   return [
     "interlock: debrief@v2",
     "graph: g",
@@ -79,10 +74,7 @@ function fixtureRepo(): {
   git(["-c", "init.defaultBranch=main", "init", "--quiet"], directory);
   writeFileSync(join(directory, "AGENTS.md"), AGENTS_MD);
   git(["add", "-A"], directory);
-  git(
-    ["-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "root"],
-    directory,
-  );
+  git(["-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "root"], directory);
   const from = git(["rev-parse", "HEAD"], directory).trim();
 
   mkdirSync(join(directory, "src"), { recursive: true });
@@ -91,10 +83,7 @@ function fixtureRepo(): {
     ["export interface Widget {", "  readonly id: string;", "}", ""].join("\n"),
   );
   git(["add", "-A"], directory);
-  git(
-    ["-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "add widget"],
-    directory,
-  );
+  git(["-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "add widget"], directory);
   const to = git(["rev-parse", "HEAD"], directory).trim();
 
   mkdirSync(join(directory, ".interlock"), { recursive: true });
@@ -113,9 +102,7 @@ describe("runInterlockVerify", () => {
     mkdirSync(join(directory, ".interlock"), { recursive: true });
     const result = await runInterlockVerify(["g", "n"], { cwd: directory });
     expect(result.exitCode).not.toBe(0);
-    expect(result.message).toBe(
-      "no debrief was filed for g/n; the session is interrupted.",
-    );
+    expect(result.message).toBe("no debrief was filed for g/n; the session is interrupted.");
   });
 
   it("refuses a malformed debrief with the shape refusal's own sentence", async () => {
@@ -166,9 +153,7 @@ describe("runInterlockVerify", () => {
     );
     const result = await runInterlockVerify(["g", "n"], { cwd: directory });
     expect(result.exitCode).not.toBe(0);
-    expect(result.message).toContain(
-      "is not a range in this repository's history.",
-    );
+    expect(result.message).toContain("is not a range in this repository's history.");
   });
 
   it("verifies a v2 debrief, rendering the marks position", async () => {
@@ -191,8 +176,6 @@ describe("runInterlockVerify", () => {
     );
     const result = await runInterlockVerify(["g", "n"], { cwd: dir });
     expect(result.exitCode).toBe(0);
-    expect(result.message).toMatch(
-      /^rooted 1, unrooted 0, unexplained 0, gap 0/,
-    );
+    expect(result.message).toMatch(/^rooted 1, unrooted 0, unexplained 0, gap 0/);
   });
 });

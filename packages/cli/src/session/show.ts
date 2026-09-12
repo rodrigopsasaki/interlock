@@ -1,10 +1,6 @@
 import { isErr } from "@phyxiusjs/fp";
-import {
-  findRepoRoot,
-  renderSessionColumns,
-  sharedJournalDirectory,
-} from "face";
-import { nodeKey, readReplay, type NodeView, type SessionView } from "ledger";
+import { findRepoRoot, renderSessionColumns, sharedJournalDirectory } from "face";
+import { type NodeView, nodeKey, readReplay, type SessionView } from "ledger";
 import { legacyDebriefLine } from "../legacyDebriefLine.ts";
 import type { CommandResult } from "../main.ts";
 
@@ -81,9 +77,7 @@ export async function runSessionShow(
 
   const requestedSessionId = sessionOverrideFrom(args);
   if (requestedSessionId !== undefined) {
-    const requested = nodeSessions.find(
-      (session) => session.session === requestedSessionId,
-    );
+    const requested = nodeSessions.find((session) => session.session === requestedSessionId);
     if (requested === undefined) {
       return {
         exitCode: 1,

@@ -1,11 +1,7 @@
 import { isErr } from "@phyxiusjs/fp";
 import type { GateDeclaration } from "face";
 import { describe, expect, it } from "vitest";
-import {
-  declaredGateIds,
-  gateCommandTable,
-  substituteGateCommand,
-} from "../src/gateCommand.ts";
+import { declaredGateIds, gateCommandTable, substituteGateCommand } from "../src/gateCommand.ts";
 import type { StandingGate } from "../src/standingGates.ts";
 
 describe("gateCommand", () => {
@@ -18,10 +14,7 @@ describe("gateCommand", () => {
     ];
 
     expect(declaredGateIds(standing, node)).toEqual(["typecheck", "reviewed"]);
-    expect([...gateCommandTable(standing, node).keys()]).toEqual([
-      "typecheck",
-      "reviewed",
-    ]);
+    expect([...gateCommandTable(standing, node).keys()]).toEqual(["typecheck", "reviewed"]);
   });
 
   it("carries a standing gate's expect_output pattern into its command entry", () => {
@@ -87,9 +80,7 @@ describe("substituteGateCommand", () => {
     );
     expect(isErr(substituted)).toBe(false);
     if (isErr(substituted)) return;
-    expect(substituted.value).toBe(
-      "pnpm interlock debrief validate 0001-bootstrap debrief-schema",
-    );
+    expect(substituted.value).toBe("pnpm interlock debrief validate 0001-bootstrap debrief-schema");
   });
 
   it("leaves a command with no placeholders untouched", () => {

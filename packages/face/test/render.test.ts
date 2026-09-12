@@ -1,4 +1,4 @@
-import { duration, fold, heldOn, outcome, type LedgerEvent } from "ledger";
+import { duration, fold, heldOn, type LedgerEvent, outcome } from "ledger";
 import { describe, expect, it } from "vitest";
 import type { GraphDocument } from "../src/document.ts";
 import { positionOf } from "../src/position.ts";
@@ -50,9 +50,7 @@ describe("renderPosition", () => {
   });
 
   it("prints a float line only for a node whose float is measured, silent otherwise", () => {
-    const unmeasuredText = renderPosition(
-      positionOf(document, fold([]), "hash", Date.now()),
-    );
+    const unmeasuredText = renderPosition(positionOf(document, fold([]), "hash", Date.now()));
     expect(unmeasuredText).not.toContain("float:");
 
     const solo: GraphDocument = {

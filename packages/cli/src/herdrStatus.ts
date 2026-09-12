@@ -9,8 +9,7 @@ export function liveSessionsOf(
   nowWallMs: number,
 ): readonly SessionView[] {
   return [...sessions.values()].filter(
-    (session) =>
-      session.node.graph === graphId && leaseIsLive(session, nowWallMs),
+    (session) => session.node.graph === graphId && leaseIsLive(session, nowWallMs),
   );
 }
 
@@ -22,10 +21,7 @@ export async function resolveAgentStatuses(
   const statuses = new Map<string, AgentStatus>();
   if (sessions.length === 0) return statuses;
 
-  const runtime =
-    injectedRuntime === undefined
-      ? await createHerdrRuntime()
-      : ok(injectedRuntime);
+  const runtime = injectedRuntime === undefined ? await createHerdrRuntime() : ok(injectedRuntime);
   if (isErr(runtime)) return statuses;
 
   for (const session of sessions) {

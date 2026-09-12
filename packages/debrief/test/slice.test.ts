@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { renderSlice, type Item } from "../src/slice.ts";
+import { type Item, renderSlice } from "../src/slice.ts";
 
 const fixtureSlice: readonly Item[] = [
   {
@@ -11,8 +11,7 @@ const fixtureSlice: readonly Item[] = [
   },
   {
     kind: "risk",
-    statement:
-      "Renaming the debrief package would stale an approved graph's gate",
+    statement: "Renaming the debrief package would stale an approved graph's gate",
     because: "the brief-legacy gate filters on --filter debrief literally",
     scope: { kind: "path", path: ".interlock/graphs/0002-shapes.yaml" },
     standing: "observed",
@@ -38,18 +37,14 @@ describe("renderSlice", () => {
   it("groups items into one section per kind, in a fixed order", () => {
     const rendered = renderSlice("local", fixtureSlice);
     expect(rendered.indexOf("### Convention")).toBeGreaterThanOrEqual(0);
-    expect(rendered.indexOf("### Risk")).toBeGreaterThan(
-      rendered.indexOf("### Convention"),
-    );
+    expect(rendered.indexOf("### Risk")).toBeGreaterThan(rendered.indexOf("### Convention"));
     expect(rendered).not.toContain("### Decision");
   });
 
   it("renders each item as a bullet whose last line names its derivation", () => {
     const rendered = renderSlice("local", fixtureSlice);
     const lines = rendered.split("\n");
-    const derivationLines = lines.filter((line) =>
-      line.trim().startsWith("derivation:"),
-    );
+    const derivationLines = lines.filter((line) => line.trim().startsWith("derivation:"));
     expect(derivationLines).toHaveLength(fixtureSlice.length);
     for (const line of derivationLines) {
       expect(line.trim()).toBe("derivation: substrate@v1 context");

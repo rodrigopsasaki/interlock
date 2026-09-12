@@ -1,4 +1,4 @@
-import { nodeKey, type LedgerProjection } from "ledger";
+import { type LedgerProjection, nodeKey } from "ledger";
 
 export function unmetDependencies(
   graph: string,
@@ -6,7 +6,6 @@ export function unmetDependencies(
   projection: LedgerProjection,
 ): readonly string[] {
   return dependsOn.filter(
-    (id) =>
-      projection.nodes.get(nodeKey({ graph, id }))?.outcome?.kind !== "cleared",
+    (id) => projection.nodes.get(nodeKey({ graph, id }))?.outcome?.kind !== "cleared",
   );
 }

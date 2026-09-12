@@ -76,34 +76,21 @@ export function renderDiscovery(discovery: Discovery): string {
   return `  ${discovery.id}: ${discovery.what}`;
 }
 
-export function renderDecision(
-  decision: Decision,
-  printBecause: boolean,
-): string {
-  const hunks =
-    decision.hunks.length > 0 ? decision.hunks.join(", ") : "(no hunks)";
+export function renderDecision(decision: Decision, printBecause: boolean): string {
+  const hunks = decision.hunks.length > 0 ? decision.hunks.join(", ") : "(no hunks)";
   const becauseSuffix = printBecause ? `; because: ${decision.because}` : "";
   return `  ${decision.id}: ${hunks}${becauseSuffix}`;
 }
 
 export function renderBrief(brief: Brief): string {
   const gates = brief.gates.length > 0 ? brief.gates.join(", ") : "(none)";
-  return [
-    "Brief",
-    `  acceptance: ${brief.acceptance}`,
-    `  gates: ${gates}`,
-  ].join("\n");
+  return ["Brief", `  acceptance: ${brief.acceptance}`, `  gates: ${gates}`].join("\n");
 }
 
-export function renderContext(
-  view: SessionView,
-  nodeView: NodeView | undefined,
-): string {
+export function renderContext(view: SessionView, nodeView: NodeView | undefined): string {
   const gateLines =
     view.brief.gates.length > 0
-      ? view.brief.gates
-          .map((gateId) => renderGate(gateId, nodeView?.gates.get(gateId)))
-          .join("\n")
+      ? view.brief.gates.map((gateId) => renderGate(gateId, nodeView?.gates.get(gateId))).join("\n")
       : "  (no gates declared)";
   return [
     "Context",
@@ -147,15 +134,10 @@ export function renderSessionColumns(input: SessionColumnsInput): string {
       debrief.discoveries.map(renderDiscovery),
     ),
     renderDebriefBackedSection("Decisions", view, legacyLine, (debrief) =>
-      debrief.decisions.map((decision) =>
-        renderDecision(decision, printBecause),
-      ),
+      debrief.decisions.map((decision) => renderDecision(decision, printBecause)),
     ),
     ["Outcome", renderOutcome(nodeView?.outcome)].join("\n"),
-    [
-      "Notes",
-      ...(view.notes.length > 0 ? view.notes.map(renderNote) : ["  (none)"]),
-    ].join("\n"),
+    ["Notes", ...(view.notes.length > 0 ? view.notes.map(renderNote) : ["  (none)"])].join("\n"),
     [
       "Narration",
       ...(view.narration.length > 0

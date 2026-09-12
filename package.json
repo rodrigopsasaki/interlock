@@ -9,6 +9,12 @@
   "scripts": {
     "typecheck": "pnpm -r run typecheck",
     "test": "pnpm -r run test",
-    "interlock": "node packages/cli/src/bin.ts"
+    "interlock": "node packages/cli/src/bin.ts",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "lint:fix": "biome check --write ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.13"
   }
 }

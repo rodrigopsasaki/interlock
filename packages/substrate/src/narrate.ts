@@ -1,9 +1,6 @@
 import type { AbsorbOutcome, ContextOutcome } from "./client.ts";
 
-export function narrateContext(
-  address: string,
-  outcome: ContextOutcome,
-): string {
+export function narrateContext(address: string, outcome: ContextOutcome): string {
   switch (outcome.kind) {
     case "empty":
       return `context ${address}: no substrate addressed`;
@@ -24,9 +21,7 @@ export function narrateAbsorb(address: string, outcome: AbsorbOutcome): string {
       const known = outcome.discoveries.filter(
         (discovery) => discovery.placement === "known",
       ).length;
-      const fresh = outcome.discoveries.filter(
-        (discovery) => discovery.placement === "new",
-      ).length;
+      const fresh = outcome.discoveries.filter((discovery) => discovery.placement === "new").length;
       const unplaced = outcome.discoveries.filter(
         (discovery) => discovery.placement === "unplaced",
       ).length;

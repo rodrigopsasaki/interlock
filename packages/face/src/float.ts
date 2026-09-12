@@ -38,22 +38,16 @@ function earliestFinish(
       ef.set(node.id, unknownAt(own.because));
       continue;
     }
-    const predecessorFinish = latestOf(
-      node.dependsOn.map((id) => ef.get(id) ?? known(0)),
-    );
+    const predecessorFinish = latestOf(node.dependsOn.map((id) => ef.get(id) ?? known(0)));
     ef.set(
       node.id,
-      predecessorFinish.ms === undefined
-        ? predecessorFinish
-        : known(own.ms + predecessorFinish.ms),
+      predecessorFinish.ms === undefined ? predecessorFinish : known(own.ms + predecessorFinish.ms),
     );
   }
   return ef;
 }
 
-function dependentsOf(
-  ordered: readonly NodeDeclaration[],
-): ReadonlyMap<string, readonly string[]> {
+function dependentsOf(ordered: readonly NodeDeclaration[]): ReadonlyMap<string, readonly string[]> {
   const dependents = new Map<string, string[]>();
   for (const node of ordered) {
     for (const dependsOn of node.dependsOn) {
@@ -70,14 +64,8 @@ function makespanOf(
   dependents: ReadonlyMap<string, readonly string[]>,
   ef: ReadonlyMap<string, Timing>,
 ): Timing {
-  const sinks = ordered.filter(
-    (node) => (dependents.get(node.id) ?? []).length === 0,
-  );
-  return latestOf(
-    sinks.map(
-      (node) => ef.get(node.id) ?? unknownAt(`${node.id}: no outcome yet`),
-    ),
-  );
+  const sinks = ordered.filter((node) => (dependents.get(node.id) ?? []).length === 0);
+  return latestOf(sinks.map((node) => ef.get(node.id) ?? unknownAt(`${node.id}: no outcome yet`)));
 }
 
 function latestFinish(
@@ -95,8 +83,7 @@ function latestFinish(
       continue;
     }
     const bounds = dependentIds.map((dependentId): Timing => {
-      const dependentLf =
-        lf.get(dependentId) ?? unknownAt(`${dependentId}: no outcome yet`);
+      const dependentLf = lf.get(dependentId) ?? unknownAt(`${dependentId}: no outcome yet`);
       if (dependentLf.ms === undefined) return dependentLf;
       const dependentWeight = weightOf(dependentId);
       return dependentWeight.kind === "unknown"

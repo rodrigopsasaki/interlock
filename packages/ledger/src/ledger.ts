@@ -3,7 +3,7 @@ import { isErr, ok, type Result } from "@phyxiusjs/fp";
 import { Journal } from "@phyxiusjs/journal";
 import type { LedgerEvent } from "./event.ts";
 import { applyEvent, type LedgerProjection } from "./projection.ts";
-import { readReplay, type ReplayRefusal } from "./replay.ts";
+import { type ReplayRefusal, readReplay } from "./replay.ts";
 import { attachLedgerSink } from "./sink.ts";
 
 export interface LedgerOptions {
@@ -17,9 +17,7 @@ export interface Ledger {
   close(): Promise<void>;
 }
 
-export async function createLedger(
-  options: LedgerOptions,
-): Promise<Result<Ledger, ReplayRefusal>> {
+export async function createLedger(options: LedgerOptions): Promise<Result<Ledger, ReplayRefusal>> {
   const replayed = await readReplay(options.directory);
   if (isErr(replayed)) return replayed;
   const journal = new Journal<LedgerEvent>({ clock: options.clock });

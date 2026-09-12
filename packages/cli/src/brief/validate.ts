@@ -1,11 +1,6 @@
 import { relative } from "node:path";
 import { isErr } from "@phyxiusjs/fp";
-import {
-  briefFilePath,
-  explainBriefRefusal,
-  readBriefFile,
-  type BriefRead,
-} from "debrief";
+import { type BriefRead, briefFilePath, explainBriefRefusal, readBriefFile } from "debrief";
 import { findRepoRoot } from "face";
 import type { CommandResult } from "../main.ts";
 
@@ -20,8 +15,7 @@ function describeBriefRead(read: BriefRead): string {
 
 async function validateOneFile(path: string): Promise<CommandResult> {
   const read = await readBriefFile(path);
-  if (isErr(read))
-    return { exitCode: 1, message: explainBriefRefusal(read.error) };
+  if (isErr(read)) return { exitCode: 1, message: explainBriefRefusal(read.error) };
   return { exitCode: 0, message: `${path}: ${describeBriefRead(read.value)}` };
 }
 
@@ -57,8 +51,7 @@ export async function validateBrief(
 
   const path = briefFilePath(repoRoot, graph, node);
   const read = await readBriefFile(path);
-  if (isErr(read))
-    return { exitCode: 1, message: explainBriefRefusal(read.error) };
+  if (isErr(read)) return { exitCode: 1, message: explainBriefRefusal(read.error) };
   return {
     exitCode: 0,
     message: `${relative(repoRoot, path)}: ${describeBriefRead(read.value)}`,

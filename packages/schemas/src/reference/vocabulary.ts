@@ -13,13 +13,9 @@ function rowCells(line: string): readonly string[] | undefined {
     .map((cell) => cell.trim());
 }
 
-export function vocabularyPurposes(
-  agentsMdPath: string,
-): ReadonlyMap<string, string> {
+export function vocabularyPurposes(agentsMdPath: string): ReadonlyMap<string, string> {
   const lines = readFileSync(agentsMdPath, "utf-8").split("\n");
-  const sectionStart = lines.findIndex(
-    (line) => line.trim() === "## Vocabulary",
-  );
+  const sectionStart = lines.findIndex((line) => line.trim() === "## Vocabulary");
   const map = new Map<string, string>();
   if (sectionStart === -1) return map;
 

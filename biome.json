@@ -1,0 +1,66 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "files": {
+    "includes": [
+      "packages/**",
+      "vitest.*.ts",
+      "scripts/**",
+      "!**/node_modules",
+      "!**/dist",
+      "!**/coverage",
+      "!**/.runs",
+      "!**/.worktrees",
+      "!**/.worktree-runs",
+      "!**/.herdr-runs",
+      "!**/.localconfig-runs",
+      "!**/.git-ceiling-runs",
+      "!**/.session-screen-runs",
+      "!**/.worktree-setup-runs",
+      "!.interlock",
+      "!docs",
+      "!schemas"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "semicolons": "always",
+      "trailingCommas": "all",
+      "arrowParentheses": "always"
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "complexity": {
+        "useLiteralKeys": "off"
+      },
+      "suspicious": {
+        "noExplicitAny": "error"
+      },
+      "style": {
+        "noNonNullAssertion": "error",
+        "useImportType": "error"
+      },
+      "correctness": {
+        "noUnusedImports": "error",
+        "noUnusedVariables": "error"
+      }
+    }
+  },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  }
+}

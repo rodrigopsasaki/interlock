@@ -10,9 +10,7 @@ export function topologicalOrder(
   nodes: readonly NodeDeclaration[],
 ): Result<readonly NodeDeclaration[], CycleRefusal> {
   const byId = new Map(nodes.map((node) => [node.id, node]));
-  const remaining = new Map(
-    nodes.map((node) => [node.id, node.dependsOn.length]),
-  );
+  const remaining = new Map(nodes.map((node) => [node.id, node.dependsOn.length]));
   const dependents = new Map<string, string[]>();
   for (const node of nodes) {
     for (const dependsOn of node.dependsOn) {
@@ -22,9 +20,7 @@ export function topologicalOrder(
     }
   }
 
-  const queue = nodes
-    .filter((node) => (remaining.get(node.id) ?? 0) === 0)
-    .map((node) => node.id);
+  const queue = nodes.filter((node) => (remaining.get(node.id) ?? 0) === 0).map((node) => node.id);
   const seen = new Set<string>();
   const order: NodeDeclaration[] = [];
 
@@ -42,9 +38,7 @@ export function topologicalOrder(
   }
 
   if (order.length < nodes.length) {
-    const stuck = nodes
-      .filter((node) => !seen.has(node.id))
-      .map((node) => node.id);
+    const stuck = nodes.filter((node) => !seen.has(node.id)).map((node) => node.id);
     return err({ kind: "cycle", nodes: stuck });
   }
   return ok(order);

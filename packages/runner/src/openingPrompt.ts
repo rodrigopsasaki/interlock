@@ -3,11 +3,7 @@ export interface PriorWork {
   readonly commitsBeyondBase: number;
 }
 
-export function buildOpeningPrompt(
-  graph: string,
-  node: string,
-  priorWork?: PriorWork,
-): string {
+export function buildOpeningPrompt(graph: string, node: string, priorWork?: PriorWork): string {
   const base =
     `This is an interlock session for node ${node} of graph ${graph}. ` +
     `Your brief is at .interlock/sessions/${graph}/${node}/brief.md in this worktree. ` +

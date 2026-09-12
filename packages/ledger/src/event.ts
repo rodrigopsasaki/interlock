@@ -1,6 +1,6 @@
-import { isBrief, type Brief } from "./brief.ts";
-import { isDebrief, type Debrief } from "./debrief.ts";
-import { isGate, type Gate } from "./gate.ts";
+import { type Brief, isBrief } from "./brief.ts";
+import { type Debrief, isDebrief } from "./debrief.ts";
+import { type Gate, isGate } from "./gate.ts";
 import { isNode, type Node } from "./graph.ts";
 import { isNote, type Note } from "./note.ts";
 import { isOutcome, type Outcome } from "./outcome.ts";
@@ -100,14 +100,10 @@ export function isLedgerEvent(value: unknown): value is LedgerEvent {
     case "note-appended":
       return isString(prop(value, "session")) && isNote(prop(value, "note"));
     case "debrief-filed":
-      return (
-        isString(prop(value, "session")) && isDebrief(prop(value, "debrief"))
-      );
+      return isString(prop(value, "session")) && isDebrief(prop(value, "debrief"));
     case "gate-moved":
       return (
-        isNode(prop(value, "node")) &&
-        isString(prop(value, "gate")) &&
-        isGate(prop(value, "to"))
+        isNode(prop(value, "node")) && isString(prop(value, "gate")) && isGate(prop(value, "to"))
       );
     case "receipt-written":
       return isNode(prop(value, "node")) && isReceipt(prop(value, "receipt"));

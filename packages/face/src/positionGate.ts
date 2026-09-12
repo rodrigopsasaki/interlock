@@ -1,5 +1,5 @@
 import type { Gate } from "ledger";
-import { summarizeReceipt, type ReceiptSummary } from "./receiptSummary.ts";
+import { type ReceiptSummary, summarizeReceipt } from "./receiptSummary.ts";
 
 export type PositionGateState =
   | { readonly kind: "pending" }

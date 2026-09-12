@@ -7,10 +7,10 @@ import {
   duration,
   fold,
   gate,
+  type LedgerEvent,
   nodeKey,
   receiptId,
   spend,
-  type LedgerEvent,
 } from "ledger";
 import { afterEach, describe, expect, it } from "vitest";
 import type { GraphDocument } from "../src/document.ts";
@@ -22,8 +22,7 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -78,24 +77,20 @@ describe("stale-approval", () => {
       gate.satisfied(approvedReceipt),
     );
 
-    const contentHashBeforeEdit = unwrap(
-      await receiptId(directory, ["graph.yaml"], "approved"),
+    const contentHashBeforeEdit = unwrap(await receiptId(directory, ["graph.yaml"], "approved"));
+    expect(positionOf(document, projection, contentHashBeforeEdit, Date.now()).approval).toBe(
+      "approved",
     );
-    expect(
-      positionOf(document, projection, contentHashBeforeEdit, Date.now()).approval,
-    ).toBe("approved");
 
     writeFileSync(
       path,
       `${["interlock: graph@v0", "id: demo", "gates:", "  - id: approved", "    kind: human", "nodes: []", ""].join("\n")} `,
     );
 
-    const contentHashAfterEdit = unwrap(
-      await receiptId(directory, ["graph.yaml"], "approved"),
-    );
+    const contentHashAfterEdit = unwrap(await receiptId(directory, ["graph.yaml"], "approved"));
     expect(contentHashAfterEdit).not.toBe(contentHashBeforeEdit);
-    expect(
-      positionOf(document, projection, contentHashAfterEdit, Date.now()).approval,
-    ).toBe("stale");
+    expect(positionOf(document, projection, contentHashAfterEdit, Date.now()).approval).toBe(
+      "stale",
+    );
   });
 });

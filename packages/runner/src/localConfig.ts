@@ -3,10 +3,7 @@ import { join } from "node:path";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import { isValidSubstrateAddress } from "substrate";
 import { parse as parseYaml, YAMLParseError } from "yaml";
-import {
-  isValidStartupAnswerMatcher,
-  type StartupAnswer,
-} from "./startupAnswers.ts";
+import { isValidStartupAnswerMatcher, type StartupAnswer } from "./startupAnswers.ts";
 import { isRecord, isString, prop } from "./validate.ts";
 
 export const LOCAL_CONFIG_SHAPE = "local@v0";
@@ -117,10 +114,7 @@ function parseStartupAnswers(
   return ok(answers);
 }
 
-function parseShape(
-  parsed: unknown,
-  path: string,
-): Result<LocalConfig, LocalConfigRefusal> {
+function parseShape(parsed: unknown, path: string): Result<LocalConfig, LocalConfigRefusal> {
   if (!isRecord(parsed)) {
     return err({
       kind: "malformed",
@@ -160,13 +154,8 @@ function parseShape(
   );
   if (isErr(startupAnswers)) return startupAnswers;
 
-  const startupTimeoutMsField = isRecord(runtime)
-    ? prop(runtime, "startup_timeout_ms")
-    : undefined;
-  if (
-    startupTimeoutMsField !== undefined &&
-    typeof startupTimeoutMsField !== "number"
-  ) {
+  const startupTimeoutMsField = isRecord(runtime) ? prop(runtime, "startup_timeout_ms") : undefined;
+  if (startupTimeoutMsField !== undefined && typeof startupTimeoutMsField !== "number") {
     return err({
       kind: "malformed",
       path,
@@ -178,18 +167,14 @@ function parseShape(
   const promptTakenTimeoutMsField = isRecord(runtime)
     ? prop(runtime, "prompt_taken_timeout_ms")
     : undefined;
-  if (
-    promptTakenTimeoutMsField !== undefined &&
-    typeof promptTakenTimeoutMsField !== "number"
-  ) {
+  if (promptTakenTimeoutMsField !== undefined && typeof promptTakenTimeoutMsField !== "number") {
     return err({
       kind: "malformed",
       path,
       reason: '"runtime.prompt_taken_timeout_ms" must be a number',
     });
   }
-  const promptTakenTimeoutMs =
-    promptTakenTimeoutMsField ?? DEFAULT_PROMPT_TAKEN_TIMEOUT_MS;
+  const promptTakenTimeoutMs = promptTakenTimeoutMsField ?? DEFAULT_PROMPT_TAKEN_TIMEOUT_MS;
 
   const worktreeRoot = prop(parsed, "worktree_root");
   if (!isString(worktreeRoot)) {
@@ -229,10 +214,7 @@ function parseShape(
   }
 
   const answerGraceMsField = prop(parsed, "answer_grace_ms");
-  if (
-    answerGraceMsField !== undefined &&
-    typeof answerGraceMsField !== "number"
-  ) {
+  if (answerGraceMsField !== undefined && typeof answerGraceMsField !== "number") {
     return err({
       kind: "malformed",
       path,
@@ -242,9 +224,7 @@ function parseShape(
   const answerGraceMs = answerGraceMsField ?? DEFAULT_ANSWER_GRACE_MS;
 
   const substrate = prop(parsed, "substrate");
-  const substrateAddress = isRecord(substrate)
-    ? prop(substrate, "address")
-    : undefined;
+  const substrateAddress = isRecord(substrate) ? prop(substrate, "address") : undefined;
   if (!isString(substrateAddress)) {
     return err({
       kind: "malformed",
@@ -260,9 +240,7 @@ function parseShape(
     });
   }
 
-  const substrateKeyFile = isRecord(substrate)
-    ? prop(substrate, "key_file")
-    : undefined;
+  const substrateKeyFile = isRecord(substrate) ? prop(substrate, "key_file") : undefined;
   if (substrateKeyFile !== undefined && !isString(substrateKeyFile)) {
     return err({
       kind: "malformed",
@@ -307,8 +285,7 @@ export async function loadLocalConfig(
   try {
     parsed = parseYaml(raw);
   } catch (error) {
-    const reason =
-      error instanceof YAMLParseError ? error.message : "invalid YAML";
+    const reason = error instanceof YAMLParseError ? error.message : "invalid YAML";
     return err({ kind: "malformed", path, reason });
   }
 

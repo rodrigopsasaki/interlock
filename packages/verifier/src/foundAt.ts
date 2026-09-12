@@ -1,4 +1,4 @@
-import { mark, type Derivation, type Mark } from "ledger";
+import { type Derivation, type Mark, mark } from "ledger";
 import { fileContentAt, pathExistsAt } from "./git.ts";
 
 const PATH_CHARS = /[A-Za-z0-9_./-]+/g;
@@ -62,14 +62,10 @@ export function checkFoundAt(
   if (resolved !== undefined) {
     if (quotes.length === 0) return mark.rooted(derivation, resolved);
     const content = fileContentAt(repoRoot, headSha, resolved);
-    const quoteFound =
-      content !== undefined && quotes.some((quote) => content.includes(quote));
+    const quoteFound = content !== undefined && quotes.some((quote) => content.includes(quote));
     return quoteFound
       ? mark.rooted(derivation, resolved)
-      : mark.unrooted(
-          derivation,
-          `"${resolved}" exists, but none of the quoted content is in it`,
-        );
+      : mark.unrooted(derivation, `"${resolved}" exists, but none of the quoted content is in it`);
   }
 
   if (quotes.length > 0) {

@@ -1,11 +1,4 @@
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { runGraphApprove } from "../../src/graph/approve.ts";
@@ -18,8 +11,7 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -39,18 +31,12 @@ function fixture(graphYaml: string): string {
   directory = mkdtempSync(join(runsRoot, "run-"));
   gitInitFixture(directory);
   mkdirSync(join(directory, ".interlock", "graphs"), { recursive: true });
-  writeFileSync(
-    join(directory, ".interlock", "graphs", "demo.yaml"),
-    graphYaml,
-  );
+  writeFileSync(join(directory, ".interlock", "graphs", "demo.yaml"), graphYaml);
   return directory;
 }
 
 function journalEventKinds(cwd: string): readonly string[] {
-  const raw = readFileSync(
-    join(cwd, ".interlock", "ledger", "journal.jsonl"),
-    "utf-8",
-  );
+  const raw = readFileSync(join(cwd, ".interlock", "ledger", "journal.jsonl"), "utf-8");
   return raw
     .trim()
     .split("\n")
@@ -84,9 +70,7 @@ describe("graph approve", () => {
   });
 
   it("refuses a graph file that fails validation, through the same validator show uses", async () => {
-    const cwd = fixture(
-      ["interlock: graph@v1", "id: demo", "nodes: []", ""].join("\n"),
-    );
+    const cwd = fixture(["interlock: graph@v1", "id: demo", "nodes: []", ""].join("\n"));
     const result = await runGraphApprove(
       ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
       { cwd },
@@ -108,19 +92,9 @@ describe("graph approve", () => {
 
   it("does not re-append node-created on a second approval of the same graph", async () => {
     const cwd = fixture(validGraph);
-    await runGraphApprove(
-      ["demo", "--by", "Rodrigo Sasaki", "--because", "first"],
-      { cwd },
-    );
-    await runGraphApprove(
-      ["demo", "--by", "Rodrigo Sasaki", "--because", "second"],
-      { cwd },
-    );
-    expect(journalEventKinds(cwd)).toEqual([
-      "node-created",
-      "gate-moved",
-      "gate-moved",
-    ]);
+    await runGraphApprove(["demo", "--by", "Rodrigo Sasaki", "--because", "first"], { cwd });
+    await runGraphApprove(["demo", "--by", "Rodrigo Sasaki", "--because", "second"], { cwd });
+    expect(journalEventKinds(cwd)).toEqual(["node-created", "gate-moved", "gate-moved"]);
   });
 
   it("makes a subsequent show report approved", async () => {
@@ -141,15 +115,9 @@ describe("graph approve", () => {
 
   it("flips to stale after the graph file changes, matching the stale-approval rule", async () => {
     const cwd = fixture(validGraph);
-    await runGraphApprove(
-      ["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"],
-      { cwd },
-    );
+    await runGraphApprove(["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"], { cwd });
 
-    writeFileSync(
-      join(cwd, ".interlock", "graphs", "demo.yaml"),
-      `${validGraph} `,
-    );
+    writeFileSync(join(cwd, ".interlock", "graphs", "demo.yaml"), `${validGraph} `);
 
     const after = await runGraphShow(["demo"], { cwd });
     expect(after.message).toMatch(/graph demo — stale/);
