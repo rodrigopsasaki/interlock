@@ -113,6 +113,9 @@ to the node and is conserved; nothing inside a node mints its own retries.
 - The substrate is named generically. The reference implementation of the address is Preston; it is
   named in the design note once and nowhere else. Nothing is imported from it.
 - Agent runtimes, models and editors are named only as examples and only inside their adapters.
+- A provenance string a substrate's own answer carries is data, rendered exactly as it arrived;
+  this fence binds this repository's own prose, code, schemas and tests, never what an address
+  says about itself.
 
 ## Conventions
 
