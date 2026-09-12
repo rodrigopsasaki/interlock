@@ -76,19 +76,22 @@ export async function writeBriefIntoWorktree(
     read.value.frontMatter.role,
   );
   narration.push(narrateContext(substrate.address, contextOutcome));
-  const body =
-    contextOutcome.kind === "rendered"
-      ? withRenderedContextSlice(
-          read.value.body,
-          renderSlice(substrate.address, contextOutcome.items),
-        )
-      : read.value.body;
+  const rendered = contextOutcome.kind === "rendered";
+  const body = rendered
+    ? withRenderedContextSlice(
+        read.value.body,
+        renderSlice(substrate.address, contextOutcome.items),
+      )
+    : read.value.body;
 
   const content = renderBriefFile(
     {
       ...read.value.frontMatter,
       gates: authoritativeGates,
       scope: authoritativeScope,
+      substrate: rendered
+        ? { ...read.value.frontMatter.substrate, address: substrate.address }
+        : read.value.frontMatter.substrate,
       runner: { kind: "worktree", graphBaseSha, session },
     },
     body,
