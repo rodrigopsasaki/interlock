@@ -181,7 +181,7 @@ export function commitBriefIfChanged(
   if (isErr(staged)) return staged;
 
   const message = [
-    `chore(${node}): write the session brief`,
+    `chore: write the session brief for ${node}`,
     "",
     `Writes the session brief ${node} starts session ${session} from.`,
     "",
