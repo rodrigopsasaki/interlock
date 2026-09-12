@@ -1,0 +1,62 @@
+interlock: notes@v0
+node: substrate-client
+entries:
+  - kind: choice
+    at: "2026-09-11T21:00:00Z"
+    chose: >
+      packages/substrate does not depend on the "schemas" workspace package; it walks
+      schemas/*.json into its own local ajv instance (packages/substrate/src/registry.ts),
+      duplicating buildRegistry()'s ~15-line file-walk.
+    because: >
+      packages/schemas/package.json depends on "runner" (for docs-reference generation across
+      every package), and the runner has to call this package's context/absorb when it composes
+      a brief and judges a session. substrate -> schemas -> runner -> substrate would close a
+      cycle. The runner needs the type contract (SubstrateClient) and the concrete client
+      (substrateClientFor), not the schemas package's polymorphic file-validation surface, so
+      runner depends on substrate directly and substrate stays a leaf (debrief, ledger only).
+    rejected:
+      - "substrate depends on schemas for its ajv registry"
+      - "the http client lives inside packages/runner/src/substrate/, mirroring herdr/tmux's
+        adapters-live-in-runner pattern"
+  - kind: choice
+    at: "2026-09-11T21:05:00Z"
+    chose: >
+      absorb's wire payload for the debrief is built by a pure toWireDebrief(debrief: Debrief)
+      translation (packages/substrate/src/wire.ts) from the already-parsed, camelCase `Debrief`
+      (ledger's own type, produced by debrief's readDebriefFile), not by re-reading and
+      re-validating debrief.yaml's raw YAML a second time.
+    because: >
+      debrief@v2.json (the wire/file shape: snake_case, carries "interlock") and
+      parts/debrief-event.json (the ledger's in-memory shape: camelCase, no tag) already exist
+      in this repository specifically because the two representations differ; the substrate
+      client's job is exactly this boundary translation, mechanical and one-way, reusing the
+      validated `Debrief` rather than re-deriving trust in a second, parallel parse of the same
+      file.
+  - kind: choice
+    at: "2026-09-11T21:10:00Z"
+    chose: >
+      ajv.getSchema<T>(id)'s declared return type, AnyValidateFunction<T>, is a union of a sync
+      and an async call signature; calling a union of differently-shaped call signatures loses
+      the sync member's "data is T" predicate (TypeScript falls back to a plain boolean return),
+      so packages/substrate/src/registry.ts wraps each compiled schema in a hand-declared
+      predicate (compileResponse<T>, returning { validate: (v: unknown) => v is T, errors }))
+      instead of exporting ajv's ValidateFunction directly.
+    because: >
+      Confirmed while typechecking: `if (!validateContextResponse(body)) {...}; body.items`
+      left `body` typed `unknown` after the guard (TS18046), because ajv's declared type is the
+      union AnyValidateFunction<T> = ValidateFunction<T> | AsyncValidateFunction<T>, and the
+      latter's call signature returns Promise<T>, not a predicate. Wrapping the compiled
+      function in a plain `(value: unknown): value is T => compiled(value) === true` restores
+      narrowing the same way this package's own isRecord/isString guards do, with no `as`
+      anywhere.
+  - kind: choice
+    at: "2026-09-11T21:15:00Z"
+    chose: >
+      Every substrate call narrates one line, even on the none address (e.g. "context none: no
+      substrate addressed", "absorb none: no substrate addressed"), rather than staying silent
+      when nothing is configured.
+    because: >
+      The acceptance text says "every call is narrated on the session with the address and the
+      verb"; narrating none uniformly (rather than special-casing it to silence) means the
+      session log reads the same shape whether or not a substrate is addressed, and a person
+      reading it never has to wonder whether context/absorb ran at all.
