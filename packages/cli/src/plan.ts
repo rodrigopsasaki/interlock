@@ -224,13 +224,17 @@ export async function runInterlockPlan(
       );
     }
 
-    const scope = gitTrackedFiles(repoRoot);
-    const contextOutcome = await substrate.context(targetNode, scope, "interpreter");
-    narrate(narrateContext(substrate.address, contextOutcome));
     const correction =
       previousGraphYaml === undefined || correctionReason === undefined
         ? undefined
         : { reason: correctionReason, previousGraphYaml };
+    if (correction !== undefined) {
+      narrate(`correction: ${correction.reason}`);
+    }
+
+    const scope = gitTrackedFiles(repoRoot);
+    const contextOutcome = await substrate.context(targetNode, scope, "interpreter");
+    narrate(narrateContext(substrate.address, contextOutcome));
     const body = interpreterBriefBody(graph, node, ask, correction);
     const renderedBody =
       contextOutcome.kind === "rendered"
