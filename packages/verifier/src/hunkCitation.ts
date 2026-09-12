@@ -15,9 +15,6 @@ export interface HunkCitationRefusal {
 
 const RANGE_SUFFIX = /^(\d+)(?:-(\d+))?$/;
 
-// A citation is "path" or "path:start-end" (also "path:line", one number). The colon before
-// a bare number or number range is the only reserved character; everything else, including a
-// colon that is not followed by one, belongs to the path.
 export function parseHunkCitation(citation: string): Result<HunkCitation, HunkCitationRefusal> {
   const trimmed = citation.trim();
   if (trimmed.length === 0) {
@@ -60,10 +57,6 @@ function overlaps(
   return range.start <= hunk.end && hunk.start <= range.end;
 }
 
-// Rooted when the path changed in the range and, if a range was given, it overlaps at least
-// one added hunk's new-file line range for that path. Overlap, not exact match: a decision may
-// cite one round span across several nearby hunks, and that is a genuine citation, not a
-// fabricated one.
 export function checkHunkCitation(
   citation: string,
   files: readonly FileDiff[],

@@ -10,7 +10,6 @@ export function lastNonEmptyLine(text: string): string | undefined {
   return lines.at(-1);
 }
 
-// Best-effort: the screen is narrated either way, so a write failure here never blocks judgement.
 export async function writeScreenSnapshot(
   worktreePath: string,
   graph: string,

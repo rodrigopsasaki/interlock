@@ -13,7 +13,6 @@ export interface NodeView {
   readonly gates: ReadonlyMap<string, Gate>;
   readonly receipts: readonly Receipt[];
   readonly outcome: Outcome | undefined;
-  // Lets a later lease tell whether the node's outcome is its own or a stale one left by an earlier, abandoned attempt.
   readonly leaseGeneration: number;
   readonly outcomeSetAtGeneration: number | undefined;
 }
@@ -45,7 +44,6 @@ export function emptyProjection(): LedgerProjection {
   return { nodes: new Map(), sessions: new Map() };
 }
 
-// The harness never drafts a debrief on a session's behalf; it only records that one is missing.
 export function isInterrupted(view: SessionView): boolean {
   return view.leaseExpired && view.debrief === undefined;
 }

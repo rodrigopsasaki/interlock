@@ -3,9 +3,6 @@ import type { GateDeclaration } from "face";
 import { stringify } from "yaml";
 import type { StandingGate } from "./standingGates.ts";
 
-// Standing table first, then the node's own; add-never-remove. A compiled expect_output is
-// stored as its source string in the brief: the front matter is text the repository reads back,
-// not a runtime RegExp.
 export function authoritativeBriefGates(
   standing: readonly StandingGate[],
   nodeGates: readonly GateDeclaration[],
@@ -34,8 +31,6 @@ function gateSignature(gate: BriefGate): string {
   return JSON.stringify([gate.id, gate.kind, gate.run ?? null, gate.expectOutput ?? null]);
 }
 
-// The repository copy may be stale; the runner's view is authoritative. A difference is
-// narrated, never silently overwritten without a line.
 export function diffGates(
   previous: readonly BriefGate[],
   authoritative: readonly BriefGate[],

@@ -11,9 +11,6 @@ export interface FileDiff {
   readonly addedLines: readonly string[];
 }
 
-// stderr is piped, not inherited: isCommit, isAncestor, pathExistsAt and fileContentAt all
-// probe paths and shas expected to fail as often as they succeed, and git's own "fatal: ..."
-// belongs in the caught error, not spilled onto this process's own stderr.
 function git(args: readonly string[], cwd: string): string {
   return execFileSync("git", args, {
     cwd,
@@ -62,13 +59,6 @@ function stripPrefix(raw: string, prefix: string): string | undefined {
   return raw === "/dev/null" ? undefined : raw.replace(new RegExp(`^${prefix}`), "");
 }
 
-// A no-context diff of the whole range, parsed once into one entry per changed path: the
-// path itself, the new-file line ranges of every hunk that added at least one line, and the
-// raw text of every added line. --no-renames is explicit, not git's default: a rename or a
-// new file textually similar to an existing one otherwise renders as a "copy from"/"copy to"
-// pair whenever the invoking machine's own git config turns on diff.renames, which would make
-// this deterministic verifier's hunks depend on a setting outside the repository. Plain add
-// plus delete is exactly the two changed paths the inverse check and the hunk citations want.
 export function diffFiles(repoRoot: string, from: string, to: string): readonly FileDiff[] {
   const output = git(["diff", "--no-renames", "-U0", `${from}..${to}`], repoRoot);
   const files: FileDiff[] = [];

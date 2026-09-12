@@ -10,9 +10,6 @@ export function isStringArray(value: unknown): value is readonly string[] {
   return Array.isArray(value) && value.every(isString);
 }
 
-// Mirrors ledger's own validate.ts: noPropertyAccessFromIndexSignature refuses
-// dot access on an index signature, so this is the one place that reads a
-// field by name.
 export function prop(value: Record<string, unknown>, key: string): unknown {
   return value[key];
 }

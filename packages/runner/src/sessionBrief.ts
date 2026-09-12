@@ -48,9 +48,6 @@ export function explainSessionBriefRefusal(refusal: SessionBriefRefusal): string
   }
 }
 
-// Reads the repository's brief, fills the two runner-only front-matter fields, and rewrites
-// gates and scope from the graph and standing table: the runner's view is authoritative, and a
-// difference from the repository copy is narrated, never silently overwritten without a line.
 export async function writeBriefIntoWorktree(
   repoRoot: string,
   worktreePath: string,

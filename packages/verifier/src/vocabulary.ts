@@ -3,11 +3,6 @@ import { join } from "node:path";
 import { type Derivation, type Mark, mark } from "ledger";
 import type { FileDiff } from "./git.ts";
 
-// Fixed per the brief: "Plain programming English is a fixed list you define and record."
-// TypeScript/JavaScript reserved words, the primitive and standard utility types, and the
-// generic type-parameter letters this codebase actually uses. Recorded here, once, rather than
-// grown ad hoc as gaps come in -- a gap that recurs is a case for the harness or domain
-// vocabulary, ratified there, never a reason to quietly widen this list.
 export const PLAIN_PROGRAMMING_ENGLISH: ReadonlySet<string> = new Set(
   [
     "string",
@@ -119,8 +114,6 @@ function extractSection(markdown: string, heading: string): string {
 
 const TABLE_ROW = /^\|\s*([a-z][a-z ]*?)\s*\|/;
 
-// The harness vocabulary is read from AGENTS.md's own "## Vocabulary" table, the copy that
-// binds, rather than duplicated in code where it could drift from it.
 export function harnessVocabulary(repoRoot: string): readonly string[] {
   const agentsMd = readFileSync(join(repoRoot, "AGENTS.md"), "utf-8");
   const section = extractSection(agentsMd, "## Vocabulary");
@@ -147,9 +140,6 @@ function camelCase(term: string): string {
   return pascal.charAt(0).toLowerCase() + pascal.slice(1);
 }
 
-// Every accepted spelling of every vocabulary term, lowercased for case-insensitive matching:
-// the raw term, its space-joined form, PascalCase and camelCase (how a type or variable name
-// spells a multi-word term), each singular and with a trailing "s".
 export function acceptedForms(terms: readonly string[]): ReadonlySet<string> {
   const forms = new Set<string>();
   for (const term of terms) {
@@ -179,8 +169,6 @@ function identifierWords(line: string): readonly string[] {
   return words;
 }
 
-// A module specifier is reduced to the one word carrying its meaning: the last path segment,
-// extension stripped -- "./git.ts" and "node:fs/promises" become "git" and "promises".
 function moduleWords(line: string): readonly string[] {
   const words: string[] = [];
   for (const found of line.matchAll(MODULE_SPECIFIER)) {
@@ -193,9 +181,6 @@ function moduleWords(line: string): readonly string[] {
   return words;
 }
 
-// Every word used as a type or module name in the added lines of every changed TypeScript file:
-// declaration names, type-annotation and generic-argument positions, and module specifiers'
-// last segment. Deduplicated, in first-seen order, for a stable position.
 export function extractWords(files: readonly FileDiff[]): readonly string[] {
   const seen = new Set<string>();
   const words: string[] = [];
@@ -250,8 +235,6 @@ function nearest(
   return best ?? { term: "", distance: word.length };
 }
 
-// Every extracted word not in the harness vocabulary, the professed domain vocabulary, or
-// plain programming English becomes a gap: telemetry, never a coinage, per I3.
 export function vocabularyGaps(
   files: readonly FileDiff[],
   repoRoot: string,
