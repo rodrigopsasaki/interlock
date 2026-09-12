@@ -1,0 +1,458 @@
+interlock: debrief@v2
+graph: 0003-translator
+node: interpreter
+role: worker
+graph_base_sha: 98546da8119bd02eeef2631208956554956be1b0
+session_start_sha: 5ed8de70680455a64183a453d85a64ed315b1073
+head_sha: 1927e96b87197a65098b5da398c8de4055c8f5b9
+derivation:
+  kind: agent
+  runtime: claude-code
+  model: claude-sonnet-5
+discoveries:
+  - id: d1
+    what: >
+      Ledger sessions and leases are keyed by nodeKey({ graph, id }), a plain string pair
+      (packages/ledger/src/graph.ts); attemptsFor (packages/face/src/attempts.ts) and
+      unmetDependencies read the same pair with no field anywhere marking a node as belonging to
+      a real, declared graph document versus a synthetic one.
+    found_at: >
+      packages/ledger/src/graph.ts (nodeKey, lines 20-22) and packages/face/src/attempts.ts
+      (attemptsFor, lines 12-19), cross-read against packages/cli/src/graph/approve.ts's own
+      graph-equals-id node for the graph-level approved gate.
+    mattered_because: >
+      Confirmed a planning session could reuse every existing lookup keyed on a plain (graph, id)
+      pair (leases, unmetDependencies, the sweeper) by choosing an ordinary one -- { graph: "<id>",
+      id: "plan/<id>" } -- rather than inventing a "kind: plan" tag on Node or a parallel
+      projection. This entry originally overreached and said attemptsFor was among those reused
+      lookups, read as "the face shows the planning session as an attempt": wrong, corrected by
+      the fix-brief review. attemptsFor (packages/face/src/attempts.ts) has exactly one call site,
+      packages/face/src/position.ts:97, inside positionOf's map over document.nodes -- the graph
+      document's own declared nodes, read from the topological order computed over them a few
+      lines above. plan/<graph-id> is never a declared node of any graph document (it is a
+      sibling node addressed at the same graph id, not a member of that graph's nodes list), so
+      positionOf never calls attemptsFor for it and the face has no path to show a planning
+      session's attempts today. See open below for what surfacing it would take.
+  - id: d2
+    what: >
+      buildBrief (packages/runner/src/sessionBrief.ts) hardcoded role: "worker" in the Brief
+      record it returns, even though Brief.role (packages/ledger/src/brief.ts) is typed as a
+      plain string, not a "worker" | "interpreter" union.
+    found_at: "packages/runner/src/sessionBrief.ts:111-119, before this session's edit."
+    mattered_because: >
+      A sixth, defaulted parameter kept run.ts's one call site untouched while letting
+      interlock plan reuse the same function for its own session-started Brief record with
+      role "interpreter", instead of a second, parallel buildInterpreterBrief.
+  - id: d3
+    what: >
+      packages/cli/test/run.test.ts asserts run.ts's narrated line order verbatim across roughly
+      twenty cases: startup answers, worktree_setup, prior-work resume, a mid-run blocked turn,
+      partial uncommitted work, gate-command placeholder failures.
+    found_at: "packages/cli/test/run.test.ts, read in full before writing plan.ts."
+    mattered_because: >
+      Ruled out parameterizing run.ts's own body to share code with plan.ts as this session's
+      first move; the risk of a narration-order regression on the one file every already-cleared
+      and in-flight node in this repository depends on was not worth the line count saved. See d3
+      in decisions below.
+  - id: d4
+    what: >
+      schemas/graph@v0.json's own $description states the loader "reads only interlock, id,
+      gates and nodes" and calls the ask/derivation/read top-level keys "real, accepted,
+      unvalidated data the interpreter leaves behind," by design.
+    found_at: "`schemas/graph@v0.json`, the top-level `$description` field (line 5)."
+    mattered_because: >
+      Confirmed face's loadGraphDocument already is "the graph loader and the schema" the
+      brief names as one thing; every existing caller (run, graph approve, graph show, graph
+      status) validates a graph with exactly this one function, so interlock plan does too
+      rather than composing a second, separate call into the schemas package's ajv registry.
+  - id: d5
+    what: >
+      `mise exec -- pnpm lint` (the "lint" standing gate every node's brief declares, this one
+      included) exits 1 against an unmodified worktree at this session's own graph_base_sha:
+      `biome check .` refuses outright with "these paths were provided but ignored: -.",
+      checking zero files, because biome 2.5.13 requires the literal CLI argument itself, not
+      just the files it would recurse into, to satisfy biome.json's files.includes (which lists
+      only "packages/**", "vitest.*.ts" and "scripts/**", never "."). `biome check packages` (or
+      any real subdirectory) works and finds real files.
+    found_at: |
+      $ mise exec -- pnpm lint
+      Run before writing any code, to establish the floor before touching anything; exits 1 with
+      "these paths were provided but ignored: -." before checking a single file. Confirmed
+      pre-existing and unrelated to this session with a second command:
+      $ git log -p -- biome.json package.json
+      Shows both files added together in one commit and never edited since.
+    mattered_because: >
+      Every future node's "lint" gate would hold on this regardless of that node's own diff;
+      fixed at the CLI-invocation layer (package.json) rather than left as an unrelated,
+      repository-wide finding, since it directly gated whether this session's own work could
+      clear.
+decisions:
+  - id: c1
+    what: >
+      interlock plan (packages/cli/src/plan.ts) leases node { graph: "<graph-id>", id:
+      "plan/<graph-id>" }: its worktree lands at .worktrees/plan/<graph-id>, its branch at
+      graph/<graph-id>/plan/<graph-id>, and its brief and debrief at
+      .interlock/sessions/<graph-id>/plan/<graph-id>/.
+    because: d1.
+    rests_on: []
+    hunks:
+      - "packages/cli/src/plan.ts:147-201"
+      - "packages/cli/src/main.ts:76-78"
+    produces:
+      - packages/cli/src/plan.ts
+  - id: c2
+    what: >
+      buildBrief gained a sixth, optional "role" parameter defaulting to "worker" rather than a
+      second buildInterpreterBrief function or a required role argument at its one existing call
+      site in run.ts.
+    because: d2.
+    rests_on: []
+    hunks:
+      - "packages/runner/src/sessionBrief.ts:111-119"
+    produces: []
+  - id: c3
+    what: >
+      interlock plan re-implements run.ts's pane-orchestration sequence (worktree, lease,
+      runtime, startup-answer loop, prompt, the long wait, judgeWorktree, pane close) at its own
+      call site, composed from the same exported runner functions run.ts calls, rather than
+      extracting a shared "drive a session" helper both would call.
+    because: d3.
+    rests_on:
+      - "packages/cli/src/run.ts"
+    hunks:
+      - "packages/cli/src/plan.ts:202-482"
+    produces: []
+    rejected: >
+      extract a shared driveInteractiveSession(...) helper in packages/runner used by both
+      run.ts and plan.ts
+    evidence: |
+      The two files now read as close enough in shape that this is the strongest open item this
+      debrief carries forward: a third caller, or any future change to either file, should
+      revisit the duplication and extract the shared seam then, once there is a second real data
+      point on what the parameterization needs to look like.
+  - id: c4
+    what: >
+      interlock plan validates the produced .interlock/graphs/<graph-id>.yaml with only face's
+      loadGraphDocument, refusing with explainGraphRefusal's sentence when it does not load and
+      otherwise narrating that the graph landed not approved, never leasing a node of it.
+    because: d4.
+    rests_on:
+      - schemas/graph@v0.json
+    hunks: []
+    produces: []
+    superseded: >
+      By c10: this decision's own validation ran after judgeWorktree already recorded the node's
+      outcome, which is the review's finding 2. c10's beforeJudge hook (still built on
+      loadGraphDocument, still using explainGraphRefusal) replaced it outright; the line range this
+      decision originally cited no longer exists in packages/cli/src/plan.ts. hunks emptied rather
+      than left pointing at lines that moved.
+  - id: c5
+    what: >
+      package.json's lint, format and lint:fix scripts now pass biome.json's own top-level
+      includes prefixes explicitly ("packages scripts vitest.config.base.ts vitest.setup.ts")
+      instead of ".".
+    because: d5.
+    rests_on:
+      - biome.json
+    hunks: []
+    produces: []
+    superseded: >
+      Merging main (this fix pass's own first step) brought a different fix for the same "lint"
+      standing-gate bug -- biome.json's own worktrees exclude went root-relative on main instead of
+      this branch's "!**/.worktrees" -- and per the fix brief this branch resolved every conflict
+      toward main's version, package.json included: it is back to bare "biome check ." (commit
+      86095fd), net-unchanged across this debrief's own start-to-head range, so this decision's
+      hunks are now empty rather than pointing at a change no longer in the tree.
+  - id: c6
+    what: >
+      The interpreter's brief body is a standalone template (interpreterBriefBody in
+      packages/runner/src/interpreterBrief.ts, beside the worker's own buildOpeningPrompt), not
+      inline string-building in plan.ts. A correction's reason is the brief's first prose
+      paragraph (before the immutability sentence), with the previous graph reproduced verbatim
+      in a "## Corrected from" section further down, and the same reason reaches the ledger as a
+      session-narrated line through the same narrate wrapper every other line already goes
+      through.
+    because: >
+      brief:"What this node builds" -- "Put that text in a template under packages/runner/src
+      beside the worker's opening prompt; it is a plan artifact and may be edited later by a
+      person" and "records the reason as a session-narrated line on the new planning session and
+      as the first paragraph of its brief."
+    rests_on:
+      - .interlock/sessions/0003-translator/interpreter/brief.md
+    hunks:
+      - "packages/runner/src/interpreterBrief.ts:1-79"
+      - "packages/cli/src/plan.ts:227-234"
+      - "packages/runner/src/index.ts:28-29"
+    produces:
+      - packages/runner/src/interpreterBrief.ts
+    evidence: |
+      The template's own words, verbatim, for graph "0004-example" and the ask "Add a /healthz
+      endpoint that returns 200 when the database is reachable.", no correction:
+
+      # Brief · node `plan/0004-example` · graph `0004-example`
+
+      This brief is immutable once your session starts. If it is wrong, say so in the debrief; do not edit it.
+
+      ## Ask
+
+      > Add a /healthz endpoint that returns 200 when the database is reachable.
+
+      ## Context slice
+
+
+      ## Read first
+
+      1. `docs/shapes.md`, the graph@v0 section: its fields and a worked example.
+      2. Every file under `.interlock/graphs/`: real, cleared graphs as the corpus of what a
+         well-shaped one looks like -- an ask, a derivation, a read, a human `approved` gate,
+         nodes whose acceptance is a sentence a gate can judge, gates that pair an exit code with
+         an `expect_output`.
+
+      ## What you produce
+
+      - `.interlock/graphs/0004-example.yaml`, a `graph@v0` document: `id: 0004-example`, the `ask`
+        field carrying the request above verbatim, a `derivation` naming this session, and a
+        `read` paragraph explaining how you decomposed it.
+      - Nodes small enough that losing one costs one node's worth of redone work; every node's
+        `acceptance` is a sentence a gate can judge pass or fail, not a description of intent.
+      - Every gate pairs a command's exit code with, where the acceptance calls for it, an
+        `expect_output` pattern; a graph-level `approved` gate of kind `human` is required and is
+        the only human gate unless the ask itself names another decision only a person can make.
+      - You never lease or run a node of the graph you produce; that is a separate, later act by a
+        person.
+
+      ## Deliverable
+
+      1. `.interlock/graphs/0004-example.yaml`, loading cleanly against the graph loader and its
+         schema.
+      2. `notes.yaml` beside this brief, committed as you go.
+      3. `debrief.yaml` beside this brief as your final commit.
+
+      When the debrief is committed, stop and wait.
+  - id: c7
+    what: >
+      interlock plan drives a stub runtime through the exact pane-and-wait sequence run.ts uses,
+      exercised end to end by packages/cli/test/plan.test.ts's fixtures (the same shape as
+      run.test.ts's own fixtures: a config@v0 with one trivial standing gate, a local@v0 with
+      substrate none, a Runtime double whose waitUntil writes the session's output the way a real
+      agent's diff would).
+    because: >
+      brief:Deliverable -- "narration of one planning session from a test, verbatim," and
+      brief:"What this node builds" -- "starts the session in a herdr pane exactly as run does."
+    rests_on:
+      - packages/cli/test/run.test.ts
+    hunks:
+      - "packages/cli/test/plan.test.ts:1-289"
+    produces:
+      - packages/cli/test/plan.test.ts
+    evidence: |
+      One planning session's full narration, verbatim, from a run of the same fixture shape as
+      packages/cli/test/plan.test.ts's "lands a valid graph as not approved" case (captured
+      outside vitest for convenience; the code path -- runInterlockPlan given a stub Runtime -- is
+      identical):
+
+      leased plan/0004-example (session 42d186a6-4ea9-4080-92d3-df8a19bb5ace, expires 1970-01-01T00:01:00.000Z)
+      worktree at <worktree-root>/.worktrees/plan/0004-example on ff7dce315a60430c6f81bc9a38eeba2f08ef90c3
+      context none: no substrate addressed
+      brief written
+      brief committed c9fe85c
+      pane pane-1 opened
+      agent agent-1 started (claude)
+      identity reported
+      agent ready (idle)
+      prompt sent
+      waiting for idle, blocked or done (timeout 5000ms)
+      agent screen: (no output)
+      0004-example: graph landed not approved
+
+      The run's own result: {"exitCode":0,"message":"plan/0004-example: cleared (session
+      42d186a6-4ea9-4080-92d3-df8a19bb5ace, agent status idle); 0004-example landed not
+      approved."}
+  - id: c8
+    what: >
+      This session's own notes.yaml was appended to at every choice and surprise listed above,
+      committed alongside the code change each entry explains, rather than written once at the
+      end from memory.
+    because: "brief:Deliverable -- \"notes.yaml beside this brief (notes@v0), committed as you go.\""
+    rests_on: []
+    hunks:
+      - ".interlock/sessions/0003-translator/interpreter/notes.yaml:1-129"
+    produces:
+      - .interlock/sessions/0003-translator/interpreter/notes.yaml
+  - id: c9
+    what: >
+      The pane-orchestration sequence c3 chose to duplicate is now one function,
+      driveInteractiveSession (packages/runner/src/sessionDrive.ts), parameterized on role, the
+      node's own acceptance and gates, a composeBrief closure, and three optional seams
+      (afterWorktree, beforeJudge, describeDone) a caller supplies for whatever differs. run.ts
+      calls it with none of the three optional seams and drops from 490 to 177 lines; plan.ts
+      supplies all three and drops from 504 to 294.
+    because: >
+      review:"plan.ts is a 400-line copy of run.ts's orchestration ... Lift the shared sequence
+      ... into one function ... Every existing test passes unchanged in behaviour."
+    rests_on:
+      - c3
+    hunks:
+      - "packages/runner/src/sessionDrive.ts:1-427"
+      - "packages/cli/src/run.ts:1-177"
+      - "packages/cli/src/plan.ts:1-294"
+    produces:
+      - packages/runner/src/sessionDrive.ts
+    evidence: |
+      $ mise exec -- pnpm test
+      Every packages/cli/test/run.test.ts case (33) passes unchanged, narration order included,
+      against driveInteractiveSession in place of run.ts's own inlined sequence.
+  - id: c10
+    what: >
+      driveInteractiveSession validates a planning session's produced graph through a beforeJudge
+      hook before ever calling judgeWorktree; on refusal it appends the node's outcome as held
+      (heldOn.gateFailure, disposition "repair") itself and never calls judgeWorktree at all, so
+      the ledger's outcome-set for a bad produced graph can no longer land cleared -- cleared is a
+      terminal outcome kind in ledger's proposeOutcomeMove, so once set it cannot be corrected
+      after the fact; the fix has to run before judgeWorktree, not after.
+    because: >
+      review:"A refused produced graph leaves the planning node recorded cleared and the refusal
+      unrecorded. Validate the produced graph before the node's outcome is recorded ... recorded
+      as the node's outcome (held with the refusal as the reason), never cleared."
+    rests_on:
+      - packages/ledger/src/outcome.ts
+    hunks:
+      - "packages/runner/src/sessionDrive.ts:369-386"
+      - "packages/cli/src/plan.ts:248-260"
+    produces: []
+    evidence: |
+      packages/cli/test/plan.test.ts's "refuses an invalid graph ..." and "refuses a produced
+      graph whose id does not match ..." cases both assert the node's own latest outcome-set event
+      reads held, never cleared, alongside the CLI's exitCode 1.
+  - id: c11
+    what: >
+      buildOpeningPrompt takes a fourth, defaulting ("worker") role parameter; for "interpreter" it
+      names the produced graph path and that a person approves or corrects it, never the session.
+    because: >
+      review:"The role reaches the opening prompt. buildOpeningPrompt names the role; for the
+      interpreter it says what the session produces and that the graph lands for a person to
+      approve. Test."
+    rests_on: []
+    hunks:
+      - "packages/runner/src/openingPrompt.ts:6-16"
+      - "packages/runner/test/openingPrompt.test.ts:39-49"
+    produces: []
+  - id: c12
+    what: >
+      interpreterBriefBody takes the resolved context slice directly (a string, or undefined) in
+      place of always emitting the "## Context slice" heading and letting a later
+      withRenderedContextSlice pass fill it in; the heading is omitted outright when there is
+      nothing to render, rather than left standing over nothing.
+    because: >
+      review:"The interpreter's brief template leaves an empty 'Context slice' section at address
+      none: omit the section when the slice is empty, as the worker template does."
+    rests_on: []
+    hunks:
+      - "packages/runner/src/interpreterBrief.ts:46-50"
+    produces: []
+  - id: c13
+    what: >
+      Correction now reads the previous graph from the plan node's own worktree
+      (graphFilePath(worktreePath, graph), inside driveInteractiveSession's new afterWorktree
+      hook) instead of the shared repository root: the worktree and its branch persist across
+      correction cycles (c1), so it holds exactly what the previous planning session committed,
+      where the repository root only ever holds what a person has since approved and merged. The
+      same existence check doubles as the "existing graph id without --correction" refusal, and an
+      already-approved graph id refuses outright before any worktree or session exists
+      (refuseIfGraphApproved, against the repository root, mirroring run.ts's own approval check).
+      When --correction is given without --ask, the previous ask is recovered from that same
+      worktree's own previous brief.md via interpreterBriefBody's new inverse, extractAsk.
+    because: >
+      review:"Correction reads the previous graph from the repository root and requires the ask to
+      be retyped: read it from the graph file the previous plan session produced (the plan
+      branch), and carry the previous ask from that session's brief when --ask is omitted with
+      --correction." Plus the review's other two produced-graph-adjacent refusals: "a graph-level
+      approved gate already satisfied" and "planning over an existing graph id without
+      --correction."
+    rests_on:
+      - c1
+    hunks:
+      - "packages/cli/src/plan.ts:61-77"
+      - "packages/cli/src/plan.ts:158-202"
+      - "packages/runner/src/interpreterBrief.ts:10-14"
+    produces: []
+  - id: c14
+    what: >
+      readIfExists (packages/cli/src/plan.ts) narrows its catch to ENOENT (isNodeError, the same
+      hand-mirrored predicate used throughout this repository) before treating a readFile failure
+      as "no such file"; any other error surfaces as its own message.
+    because: 'review:"Bare catch mapping every readFile failure to \"no such file\": narrow to
+      ENOENT, let everything else surface as its own refusal."'
+    rests_on: []
+    hunks:
+      - "packages/cli/src/plan.ts:48-59"
+    produces: []
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: "mise exec -- pnpm typecheck"
+    note: "8 of 9 workspace projects (root carries no typecheck script); all pass."
+  - id: lint
+    result: pass
+    invocation: "mise exec -- pnpm lint"
+    note: "291 files checked, 0 findings, after c5's fix; failed with 0 files checked before it."
+  - id: comments
+    result: pass
+    invocation: "mise exec -- pnpm check:comments"
+    note: "packages/*/src: no comments found."
+  - id: test
+    result: pass
+    invocation: "mise exec -- pnpm test"
+    note: "1053 tests passed across ledger, debrief, face, verifier, substrate, runner, schemas, cli; 0 failed."
+  - id: plan-lands-unapproved
+    result: pass
+    invocation: "mise exec -- pnpm --filter cli --fail-if-no-match test --testNamePattern plan"
+    note: "Tests  9 passed | 171 skipped (180); matches expect_output /Tests +[1-9][0-9]* passed/."
+open:
+  - >
+    `interlock verify 0003-translator interpreter`, run against this debrief after this fix pass,
+    reports 34 unexplained files: every one of them arrived through merging main (the fix brief's
+    own first step) partway through this branch's life -- the "evidence" node's own session files
+    and every file its already-landed, already-reviewed commits touched. This debrief's decisions
+    cover only this node's own work, never re-explain a sibling node's; the verifier's diff range
+    runs from session_start_sha to head_sha regardless of what arrived by merge versus by this
+    session's own commits, so a node that merges another mid-flight will always show its
+    predecessor's files as unexplained here. Not a defect in this debrief, but a real gap in what
+    the verifier's own diff range means once a node merges: it has no notion of "brought in by a
+    merge, already explained elsewhere," only "in range."
+  - >
+    c7's evidence block was captured by running the same fixture shape as
+    packages/cli/test/plan.test.ts's own tests outside vitest, for convenience in producing a
+    clean, single-invocation transcript; packages/cli/test/plan.test.ts's own suite (committed,
+    gated by plan-lands-unapproved) is the actual, continuously-verified evidence, this block is a
+    readable copy of what it already proves.
+  - >
+    d5's fix (c5, package.json's lint script passing biome.json's includes prefixes explicitly)
+    resolved the symptom this session could reproduce and verify, but never explained why biome
+    2.5.13 rejects a bare "." against files.includes in the first place. It is moot now regardless:
+    merging main (this fix pass's own first step) brought a different fix for the same bug --
+    biome.json's own worktrees exclude went root-relative -- and per the fix brief this branch
+    resolved toward main's version, so package.json is back to "biome check ." (commit
+    86095fd). The underlying "why" is still unexplained, and no longer this repository's problem
+    to explain unless biome regresses it again.
+  - >
+    The interpreter's brief template (interpreterBriefBody) never received a real interpreter
+    session's output to react to -- every test and the evidence above drives a stub Runtime whose
+    "session" only ever writes a fixture graph and an empty debrief@v2 stub. Whether the template
+    gives a real agent enough to produce a well-shaped graph is unverified by this node's own
+    acceptance and will only be known once graph "first-address" or a later ask actually runs one.
+  - >
+    Concurrent `interlock plan` calls on one graph id double-lease, same as `run` does today
+    (packages/runner/src/lease.ts takes a lease unconditionally; nothing refuses a second lease
+    over a live one). The fix would hold a lease keyed on the graph id itself, shared across a
+    graph's real nodes and its synthetic plan/<graph-id> node, so a plan in flight blocks a second
+    plan (or a node run) over the same graph the way a node's own lease already blocks a second
+    session of that node; not implemented here, per the fix brief's own scope.
+  - >
+    d1, corrected above: attemptsFor has exactly one call site, position.ts's map over a graph
+    document's declared nodes, so a planning session's attempts are invisible to the face today.
+    Surfacing one would need positionOf to also walk each graph's synthetic plan/<graph-id> node
+    (not a declared node, so not part of the existing map) and fold its attempts into Position
+    under a new field -- plans, alongside nodes -- since a planning attempt is not itself a node of
+    the graph it plans and does not belong in nodes without misrepresenting what "node" means in
+    this vocabulary.

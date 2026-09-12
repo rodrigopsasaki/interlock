@@ -25,6 +25,8 @@ export {
   judgeGates,
 } from "./gateJudge.ts";
 export { createHerdrRuntime, defaultHerdrSocketPath } from "./herdr/adapter.ts";
+export type { InterpreterCorrection } from "./interpreterBrief.ts";
+export { extractAsk, interpreterBriefBody } from "./interpreterBrief.ts";
 export type {
   JudgeWorktreeRefusal,
   JudgeWorktreeRequest,
@@ -65,6 +67,12 @@ export {
   explainSessionBriefRefusal,
   writeBriefIntoWorktree,
 } from "./sessionBrief.ts";
+export type {
+  BeforeJudgeRefusal,
+  DriveSessionOutcome,
+  DriveSessionRequest,
+} from "./sessionDrive.ts";
+export { driveInteractiveSession } from "./sessionDrive.ts";
 export {
   lastNonEmptyLine,
   screenPath,

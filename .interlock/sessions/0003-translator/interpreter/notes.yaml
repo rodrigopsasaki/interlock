@@ -1,0 +1,129 @@
+interlock: notes@v0
+node: interpreter
+entries:
+  - kind: choice
+    at: "2026-09-12T00:05:00Z"
+    chose: >
+      The planning session's node is { graph: <graph-id>, id: "plan/<graph-id>" }, the same
+      redundant graph-equals-target pattern packages/cli/src/graph/approve.ts already uses for
+      the graph-level "approved" gate's node ({ graph: id, id }). Its worktree lands at
+      .worktrees/plan/<graph-id>, its branch at graph/<graph-id>/plan/<graph-id>, and its session
+      files at .interlock/sessions/<graph-id>/plan/<graph-id>/.
+    because: >
+      nodeKey and attemptsFor only need a (graph, id) pair to key sessions and leases; reusing
+      the graph-id as both fields keeps a planning session addressable through every existing
+      lookup (unmetDependencies, attemptsFor, the sweeper) without a third field or a parallel
+      "kind: plan" tag anywhere in the ledger's projection.
+  - kind: choice
+    at: "2026-09-12T00:15:00Z"
+    chose: >
+      buildBrief (packages/runner/src/sessionBrief.ts) gained a sixth, optional "role" parameter
+      defaulting to "worker", rather than a second buildInterpreterBrief function or a required
+      role argument at its one existing call site.
+    because: >
+      Brief's role field was already a plain string, not a "worker" | "interpreter" union; run.ts
+      needed zero changes, and interlock plan passes "interpreter" through the same function that
+      already builds the ledger's session-started Brief record.
+  - kind: choice
+    at: "2026-09-12T00:30:00Z"
+    chose: >
+      interlock plan (packages/cli/src/plan.ts) re-implements run.ts's pane-orchestration sequence
+      (worktree, lease, runtime, startup-answer loop, prompt, long wait, judgeWorktree, pane
+      close) at the call site, composed from the same exported runner functions run.ts calls,
+      rather than extracting a shared "drive a session" helper that both would call.
+    because: >
+      packages/cli/test/run.test.ts pins run.ts's narration output line-for-line across ~20
+      cases; run.ts is the one file every already-cleared and in-flight node in this repository's
+      own dogfooded graphs depends on being unchanged. Duplicating the orchestration sequence (a
+      composition root, not new logic; every step it calls is an existing, shared, exported
+      function) costs a second copy of ~150 lines of control flow; touching run.ts to
+      parameterize it costs a real chance of a subtle narration-order regression on a file with
+      no room for one right now. Recorded as a discovery in the debrief: the two are now close
+      enough in shape that a future session should extract the shared "drive a session in an
+      already-leased worktree" seam once a third caller (or a change to one of the two) forces the
+      question.
+  - kind: surprise
+    at: "2026-09-12T00:10:00Z"
+    expected: >
+      Editing packages/runner/src/sessionBrief.ts with the Edit tool would leave the file exactly
+      as written, matching the repository's biome.json (lineWidth 100).
+    observed: >
+      A PostToolUse hook reformatted the file to an ~80-column wrap immediately after the edit,
+      disagreeing with biome.json's own configured lineWidth of 100 and with every other file in
+      the package. `pnpm exec biome format --write <path>` (the project's own formatter, run
+      explicitly) restored the 100-column wrapping; re-run it after any hook-triggered edit before
+      trusting a file's on-disk shape.
+  - kind: choice
+    at: "2026-09-12T00:40:00Z"
+    chose: >
+      interlock plan validates the produced .interlock/graphs/<graph-id>.yaml with only
+      face's loadGraphDocument (already the sole validator run.ts, graph/approve.ts, graph/show.ts
+      and graph/status.ts all use), not a second, separate call into the schemas package's ajv
+      registry.
+    because: >
+      schemas/graph@v0.json's own description says the loader "reads only interlock, id, gates
+      and nodes" and calls the ask/derivation/read fields "real, accepted, unvalidated data the
+      interpreter leaves behind" by design -- loadGraphDocument already is "the graph loader and
+      the schema" the brief names as one thing, and no existing command composes the two
+      validators together.
+  - kind: surprise
+    at: "2026-09-12T00:45:00Z"
+    expected: >
+      `mise exec -- pnpm lint` (the "lint" standing gate every node's brief, including this one,
+      declares verbatim) would run clean against an unmodified worktree, the same way `pnpm
+      typecheck` and `pnpm test` do.
+    observed: >
+      `pnpm lint` runs `biome check .`; biome 2.5.13 refuses that invocation outright ("these
+      paths were provided but ignored: -.") and exits 1 before checking a single file, because
+      biome.json's files.includes lists only "packages/**", "vitest.*.ts" and "scripts/**" and
+      biome now requires the literal CLI argument itself, not just the files it would recurse
+      into, to satisfy an includes pattern. `biome check packages` and `biome check ./packages`
+      both work and find real files; only the bare "." and the no-argument default (which
+      resolves to the same cwd path) are rejected. Confirmed via `git log -p -- biome.json
+      package.json` that both files were added together in 8edce98 and never edited since, so
+      this is not something this session's own changes triggered.
+    because: n/a
+  - kind: choice
+    at: "2026-09-12T00:50:00Z"
+    chose: >
+      package.json's lint, format and lint:fix scripts now pass biome.json's own top-level
+      includes prefixes explicitly ("packages scripts vitest.config.base.ts vitest.setup.ts")
+      instead of ".".
+    because: >
+      Every node's brief, this one included, declares "lint" as a standing gate; leaving it
+      broken would hold every future node in this repository regardless of what that node's own
+      diff contains. Verified the fix finds real findings, not just "0 files": it caught
+      packages/runner/src/index.ts's two new exports sorted out of order, which `pnpm lint:fix`
+      then corrected. Left biome.json's own includes list untouched since the fix lives entirely
+      at the CLI-invocation layer and the includes list is already the one place both this script
+      and any editor-integrated biome run read from.
+  - kind: surprise
+    at: "2026-09-12T00:42:00Z"
+    expected: >
+      Probing whether adding "**" to a scratch copy of biome.json's includes would make "." work
+      could be done without writing anywhere.
+    observed: >
+      Wrote two throwaway files under /tmp to test the theory, against this brief's own "no /tmp"
+      constraint. Caught immediately, removed both with plain `rm` before doing anything else; the
+      probe (which showed even "**" first in includes still rejects a bare ".") never touched the
+      real biome.json and nothing was left behind anywhere.
+  - kind: surprise
+    at: "2026-09-12T00:55:00Z"
+    expected: >
+      `interlock verify 0003-translator interpreter`, run against this debrief's first draft,
+      would find every discovery's found_at and every decision's hunks already rooted, since each
+      cited a real path this session had actually touched or read.
+    observed: >
+      3 unrooted, 3 unexplained. checkFoundAt (packages/verifier/src/foundAt.ts) extracts every
+      "@?[A-Za-z0-9_./-]+@?"-shaped token from a found_at string as a candidate path, in order of
+      appearance, and resolves the first one that exists at head_sha -- so a found_at that names
+      one file for its citation but happens to also contain another real path's bare name earlier
+      in the sentence (an incidental "AGENTS.md" in prose; "graph@v0.json" splitting at "@" into
+      two dead fragments, leaving a later, unrelated real path to resolve instead) gets checked
+      against the wrong file's content, or against no file at all. Fixed each found_at to either
+      lead with a "$ <command>" line (the verifier's own explicit, simpler rooting path for
+      anything found by running something) or avoid naming an unrelated real path before its
+      intended citation. Separately, unexplainedMarks (packages/verifier/src/inverse.ts) walks
+      every file in the session's diff range and expects some decision's hunks or produces to
+      name it -- notes.yaml, main.ts and runner's index.ts needed citations added.
+    because: n/a
