@@ -1,5 +1,11 @@
 import { err, ok, type Result } from "@phyxiusjs/fp";
-import { type Debrief, derivation, type Mark } from "ledger";
+import {
+  type Debrief,
+  type Decision,
+  derivation,
+  type Discovery,
+  type Mark,
+} from "ledger";
 import { checkFoundAt } from "./foundAt.ts";
 import { diffFiles, isAncestor, isCommit } from "./git.ts";
 import { checkHunkCitation } from "./hunkCitation.ts";
@@ -24,8 +30,20 @@ export function explainVerifyRefusal(refusal: VerifyRefusal): string {
   return `${refusal.sessionStartSha}..${refusal.headSha} is not a range in this repository's history.`;
 }
 
+export interface DecisionMarks {
+  readonly decision: Decision;
+  readonly marks: readonly Mark[];
+}
+
+export interface DiscoveryMark {
+  readonly discovery: Discovery;
+  readonly mark: Mark;
+}
+
 export interface VerifyResult {
   readonly marks: readonly Mark[];
+  readonly decisionMarks: readonly DecisionMarks[];
+  readonly discoveryMarks: readonly DiscoveryMark[];
 }
 
 export async function verifyDebrief(
@@ -50,19 +68,32 @@ export async function verifyDebrief(
   );
   const files = diffFiles(repoRoot, sessionStartSha, headSha);
 
-  const hunkMarks = debrief.decisions.flatMap((decision) =>
-    decision.hunks.map((citation) => checkHunkCitation(citation, files, deriv)),
-  );
+  const decisionMarks = debrief.decisions.map((decision) => ({
+    decision,
+    marks: decision.hunks.map((citation) =>
+      checkHunkCitation(citation, files, deriv),
+    ),
+  }));
+  const hunkMarks = decisionMarks.flatMap((entry) => entry.marks);
 
-  const discoveryMarks = debrief.discoveries.map((discovery) =>
-    checkFoundAt(discovery.foundAt, repoRoot, headSha, graph, deriv),
-  );
+  const discoveryMarks = debrief.discoveries.map((discovery) => ({
+    discovery,
+    mark: checkFoundAt(discovery.foundAt, repoRoot, headSha, graph, deriv),
+  }));
+  const discoveryFoundAtMarks = discoveryMarks.map((entry) => entry.mark);
 
   const inverse = unexplainedMarks(files, debrief.decisions, deriv);
 
-  const gaps = vocabularyGaps(files, repoRoot, options.professedDomainVocabulary ?? [], deriv);
+  const gaps = vocabularyGaps(
+    files,
+    repoRoot,
+    options.professedDomainVocabulary ?? [],
+    deriv,
+  );
 
   return ok({
-    marks: [...hunkMarks, ...discoveryMarks, ...inverse, ...gaps],
+    marks: [...hunkMarks, ...discoveryFoundAtMarks, ...inverse, ...gaps],
+    decisionMarks,
+    discoveryMarks,
   });
 }

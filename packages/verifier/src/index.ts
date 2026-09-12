@@ -13,7 +13,13 @@ export { checkHunkCitation, parseHunkCitation } from "./hunkCitation.ts";
 export { unexplainedMarks } from "./inverse.ts";
 export { renderVerification } from "./render.ts";
 
-export type { VerifyOptions, VerifyRefusal, VerifyResult } from "./verify.ts";
+export type {
+  DecisionMarks,
+  DiscoveryMark,
+  VerifyOptions,
+  VerifyRefusal,
+  VerifyResult,
+} from "./verify.ts";
 export {
   explainVerifyRefusal,
   VERIFIER_GATE_ID,
