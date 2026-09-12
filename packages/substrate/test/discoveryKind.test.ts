@@ -47,4 +47,15 @@ describe("discoveryItemKind", () => {
       ),
     ).toBe("decision");
   });
+
+  it("scans only 'what', never 'mattered_because' -- a because's own hedging never flips the kind", () => {
+    expect(
+      discoveryItemKind(
+        discovery(
+          "every real run sprayed several git fatal lines to stderr",
+          "recorded rather than hidden, since this is not a bug and marks never block",
+        ),
+      ),
+    ).toBe("decision");
+  });
 });

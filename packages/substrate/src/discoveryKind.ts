@@ -8,7 +8,7 @@ const CONFLICT =
   /\b(?:conflict|contradict|clash|disagree|mismatch|inconsistent|collide|versus)\b/i;
 
 export function discoveryItemKind(discovery: Discovery): ItemKind {
-  const text = `${discovery.what} ${discovery.matteredBecause}`;
+  const text = discovery.what;
   if (TENSION.test(text)) return "tension";
   if (ABSENCE.test(text)) return "absence";
   if (CONFLICT.test(text)) return "risk";

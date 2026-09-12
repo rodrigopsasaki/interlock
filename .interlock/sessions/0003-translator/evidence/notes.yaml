@@ -102,6 +102,26 @@ entries:
       never uses one of these words defaults to decision, same as an unrooted mark defaults to
       excluded rather than guessed. The rule is recorded here and in the debrief's mapping
       table, per the brief's own instruction.
+  - kind: surprise
+    at: "2026-09-12T13:30:00Z"
+    expected: >
+      Running `interlock evidence 0001-bootstrap verifier-hunks` for real (this graph's own
+      Deliverable 4) would reproduce the by-hand check above: d1, d2, d5 absence; d3, d4, d6, d7
+      decision.
+    observed: >
+      All seven came back absence. mattered_because's own prose -- the field the 12:00 choice
+      folded into the same scanned text -- carries its own hedges ("recorded rather than
+      hidden... not a bug", "leaving no working-tree change behind", "never block") that trip
+      the absence vocabulary even when what itself names no absence at all: negation this common
+      in ordinary engineering prose is not a signal, it is noise the field just happens to
+      carry often.
+    mattered_because: >
+      Narrowed the scan to discovery.what alone, dropping mattered_because from the input text
+      (discoveryKind.ts). Re-run against the same real node: decision/hypothesis 22 (20 from
+      decisions, 2 from discoveries: d3, d7), absence/hypothesis 5 (d1, d2, d4, d5, d6) -- d4 and
+      d6 still land on absence because their own "what" quotes a real "does not exist" / "no
+      --no-renames" fact, which is a defensible reading, not the same false-positive as before.
+      Verbatim output re-captured after the fix; see the debrief's own evidence field.
   - kind: choice
     at: "2026-09-12T12:35:00Z"
     chose: >
