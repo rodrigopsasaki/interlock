@@ -1,0 +1,271 @@
+interlock: debrief@v2
+graph: 0003-translator
+node: substrate-client
+role: worker
+graph_base_sha: 8145aeaf46f5f9b656f191521e0a66ca1386814c
+session_start_sha: bcaac9e06282575ca6095d68998ccd54a7177b4d
+head_sha: 9d4c46620669d319c2d5d98d9948a29e4e541c09
+derivation:
+  kind: agent
+  runtime: claude-code
+  model: claude-sonnet-5
+discoveries:
+  - id: d1
+    what: >
+      packages/schemas/package.json depends on "runner" (schemas' reference.ts generates
+      docs/shapes.md across every package, runner included), and runner has to depend on this
+      node's package to call context and absorb. substrate -> schemas -> runner -> substrate
+      would close a cycle.
+    found_at: "packages/schemas/package.json:12-19, read against the brief's own instruction to read packages/schemas/src."
+    mattered_because: >
+      Ruled out the obvious "reuse packages/schemas' ajv registry" composition before writing
+      any code, and drove packages/substrate/src/registry.ts's small, local, self-contained
+      file-walk instead.
+  - id: d2
+    what: >
+      Two schemas already exist for the same Debrief data at two different boundaries:
+      schemas/debrief@v2.json (the file/wire shape: snake_case, carries "interlock") and
+      schemas/parts/debrief-event.json (the ledger's in-memory shape: camelCase, no tag,
+      embedded verbatim in a debrief-filed event).
+    found_at: "schemas/parts/debrief-event.json:1-10 (its own description names the distinction explicitly), cross-read against packages/ledger/src/debrief.ts's Debrief interface."
+    mattered_because: >
+      Confirmed the wire translation absorb's payload needs is a real, precedented boundary in
+      this codebase, not an invented one -- justifying packages/substrate/src/wire.ts as a third
+      instance of a pattern the repository already draws, rather than a new concept.
+  - id: d3
+    what: >
+      ajv.getSchema<T>()'s declared return type, AnyValidateFunction<T>, unions a sync call
+      signature (returning "data is T") with an async one (returning Promise<T>); calling a
+      union of differently-shaped call signatures loses the predicate, so
+      `if (!validate(body)) ...; body.items` left `body` typed unknown after the guard.
+    found_at: "tsc --noEmit on packages/substrate, first run: TS18046 at src/httpClient.ts(81,26) and four more sites, before compileResponse existed."
+    mattered_because: >
+      Without this, every response-validation call site would have needed its own workaround
+      (or an `as`, which the brief forbids); wrapping ajv's compiled validator once
+      (packages/substrate/src/registry.ts:61-92, compileResponse) fixed all call sites at their
+      one shared root.
+  - id: d4
+    what: >
+      docs/shapes.md is a generated file that embeds .interlock/local.example.yaml's own content
+      verbatim as local@v0's worked example; editing local.example.yaml alone left it stale.
+    found_at: "packages/cli/test/schema/reference.test.ts's '--check reports the committed docs/shapes.md as fresh' failing after the local.example.yaml edit, first differing at line 1339."
+    mattered_because: >
+      Regenerated it with `pnpm interlock schema reference` rather than hand-patching the
+      derived file; the diff came out to exactly the three lines the source edit added.
+  - id: d5
+    what: >
+      Two different sentences already mean "no context slice" in this codebase:
+      packages/debrief/src/slice.ts's renderSlice("none", ...) returns "No substrate is
+      configured; this brief carries no context slice.", while every real brief.md's body
+      (including this session's own) instead carries "No substrate is addressed. This section
+      is empty."
+    found_at: "packages/debrief/test/fixtures/brief-v1.md:28 vs this session's own brief.md's Context slice section, plus grep -rn \"No substrate is addressed\"."
+    mattered_because: >
+      withRenderedContextSlice (packages/runner/src/contextSlice.ts) locates the "## Context
+      slice" heading structurally and replaces its content, rather than string-matching either
+      sentence -- so it does not depend on which of the two placeholder wordings a given brief
+      happens to carry.
+  - id: d6
+    what: >
+      The brief's own Config paragraph states plainly, "nothing committed carries an address or
+      a key" -- which forbids the runner from writing the real, locally-configured substrate
+      address back into the brief's committed front matter, even though the existing
+      diffGates/diffScope pattern already overwrites that same front matter's gates and scope
+      with the runner's authoritative view.
+    found_at: "This node's own brief.md, \"## Config\" bullet, re-read closely partway through implementation, after an initial draft had the runner overwrite frontMatter.substrate.address to match."
+    mattered_because: >
+      Reversed an in-progress design: sessionBrief.ts's writeBriefIntoWorktree calls
+      substrate.context and rewrites only the body's Context slice section
+      (packages/runner/src/sessionBrief.ts:87-101); read.value.frontMatter.substrate is passed
+      through untouched, same as before this node existed.
+decisions:
+  - id: c1
+    what: >
+      packages/substrate does not depend on the "schemas" workspace package. It carries its own
+      small ajv registry (packages/substrate/src/registry.ts) that walks schemas/*.json
+      directly, the same file-walk buildRegistry does, and validates only the three response
+      shapes it needs (context.response, absorb.response, capabilities.response) by their own
+      $id, never through schemas' title-tag lookup.
+    because: >
+      d1: schemas depends on runner, and runner depends on this package (packages/runner needs
+      SubstrateClient to call context and absorb) -- so substrate -> schemas would close a
+      cycle. This package stays a leaf on debrief and ledger only.
+    rests_on: []
+    hunks:
+      - "packages/substrate/src/registry.ts:1-13"
+    produces:
+      - packages/substrate/src/registry.ts
+    rejected: "packages/substrate depends on schemas for its ajv registry (would cycle back through runner)"
+  - id: c2
+    what: >
+      absorb's wire payload for the debrief is built by a pure toWireDebrief(debrief: Debrief)
+      translation (snake_case field renames plus the "interlock: debrief@v2" tag) from the
+      already-parsed, camelCase Debrief that debrief's readDebriefFile produces -- never by
+      re-reading and re-validating debrief.yaml's raw YAML a second time.
+    because: >
+      d2: debrief@v2.json (wire) and parts/debrief-event.json (in-memory) already exist as two
+      representations of the same data for exactly this reason. Reusing the validated Debrief
+      and translating mechanically is the substrate client's actual job, not a second,
+      parallel parse of a file the harness already trusts.
+    rests_on:
+      - schemas/debrief@v2.json
+      - schemas/parts/debrief-event.json
+    hunks:
+      - "packages/substrate/src/wire.ts:55-92"
+    produces:
+      - packages/substrate/src/wire.ts
+  - id: c3
+    what: >
+      Each compiled response schema is wrapped as { validate: (v: unknown) => v is T, errors: ()
+      => string } (compileResponse<T>), rather than exporting ajv's own ValidateFunction, or
+      casting the validated value with `as`.
+    because: >
+      d3. The wrapper's predicate is hand-declared exactly the way this package's own
+      isRecord/isString guards already are, so every call site narrows the way the rest of the
+      codebase does, with no `as` anywhere (forbidden by this brief's own constraints).
+    rests_on: []
+    hunks:
+      - "packages/substrate/src/registry.ts:61-92"
+    produces:
+      - packages/substrate/src/registry.ts
+    rejected: "export ajv's ValidateFunction<T> directly and cast the validated body with `as T`"
+  - id: c4
+    what: >
+      Every context/absorb call narrates exactly one line, including on the none address (e.g.
+      "context none: no substrate addressed", "absorb none: no substrate addressed"), rather
+      than staying silent when nothing is configured.
+    because: >
+      The acceptance text: "every call is narrated on the session with the address and the
+      verb." Narrating none uniformly means the session log has the same shape whether or not a
+      substrate is addressed, so a reader never has to wonder whether the call ran at all.
+    rests_on: []
+    hunks:
+      - "packages/substrate/src/narrate.ts:5-42"
+    produces:
+      - packages/substrate/src/narrate.ts
+  - id: c5
+    what: >
+      writeBriefIntoWorktree calls substrate.context(node, scope, role) and, only when the
+      outcome is "rendered", replaces the brief body's "## Context slice" section with
+      renderSlice(address, items). The committed front matter's substrate.address is never
+      rewritten by the runner; it stays exactly what the brief was authored with.
+    because: d6.
+    rests_on:
+      - .interlock/sessions/0003-translator/substrate-client/brief.md
+    hunks:
+      - "packages/runner/src/sessionBrief.ts:87-101"
+      - "packages/runner/src/contextSlice.ts:1-25"
+    produces:
+      - packages/runner/src/contextSlice.ts
+    rejected: "have the runner overwrite frontMatter.substrate.address with the real, local-config address at write time, mirroring diffGates/diffScope"
+    evidence: |
+      A fixture brief body carrying the placeholder "## Context slice" section, run through
+      withRenderedContextSlice(body, renderSlice(address, items)) with a two-item fixture slice
+      (a ratified repository convention, an observed path-scoped risk), verbatim:
+
+      ## Acceptance
+
+      > fixture
+
+      ## Context slice
+
+      ### Convention
+
+      - [ratified, repository] commit subjects state the why, never the what
+        derivation: human:Rodrigo Sasaki
+
+      ### Risk
+
+      - [observed, path packages/schemas/src/registry.ts] the ajv registry in packages/schemas is a devDependency, imported at runtime (because pnpm's workspace hoisting happens to make this resolve today)
+        derivation: model:claude-sonnet-5
+
+      ## Constraints
+
+      fixture
+
+      The matching narration line for that same call:
+
+      context http://substrate.example: 2 item(s), vocabulary reference@v1
+  - id: c6
+    what: >
+      absorb runs from inside judgeGates, once per judgement, after the gate loop resolves
+      cleared or held, reading debrief.yaml/notes.yaml through a new readV2Debrief helper shared
+      with the existing, cleared-only ingestDebrief -- rather than folding absorb into
+      ingestDebrief itself or changing ingestDebrief's own cleared-only condition.
+    because: >
+      The acceptance text: absorb runs "cleared or held." ingestDebrief's debrief-filed and
+      note-appended ledger events are gated on "cleared" by existing, already-tested behavior
+      (gateJudge.test.ts's "appends nothing beyond the outcome for a legacy-valid debrief" and
+      its "cleared" siblings) that this node's acceptance does not ask to change. Keeping the
+      two calls separate, both behind the one shared file-read helper, means neither condition
+      has to bend to fit the other.
+    rests_on: []
+    hunks:
+      - "packages/runner/src/gateJudge.ts:214-283"
+    produces:
+      - packages/runner/src/gateJudge.ts
+    rejected: >
+      gate absorb on the same cleared condition ingestDebrief already uses; or, widen
+      ingestDebrief's own ledger recording to cleared-or-held as a side effect of adding absorb
+    evidence: |
+      narrateAbsorb, called with the same address on the two shapes an acknowledged absorb
+      response actually takes -- a cleared-shaped acknowledgement (decisions absorbed, mostly
+      known/new discoveries, no gaps) and a held-shaped one (nothing absorbed, an unplaced
+      discovery, a gap) -- verbatim:
+
+      cleared session:
+      absorb http://substrate.example: 2 decision(s) absorbed, discoveries 1 known/1 new/0 unplaced, 0 gap(s)
+
+      held session:
+      absorb http://substrate.example: 0 decision(s) absorbed, discoveries 0 known/0 new/1 unplaced, 1 gap(s)
+
+      The line's shape does not depend on the node's own outcome kind: narrateAbsorb only ever
+      sees the substrate's AbsorbOutcome, so a held session with a rich acknowledgement narrates
+      the same as a cleared one would, and a cleared session with an empty acknowledgement
+      narrates the same as a held one would. Confirmed directly against this package's own
+      test/absorb.test.ts, whose "narrates a held session's acknowledgement the same as a
+      cleared one's" case exercises the second line above end to end through substrateClientFor
+      and a fake substrate@v1 server, not just narrateAbsorb in isolation.
+  - id: c7
+    what: >
+      packages/runner/src/backfill.ts passes noneClient() and a no-op narrate into judgeGates,
+      rather than threading a real substrate client through BackfillOptions.
+    because: >
+      Backfill reconstructs the ledger's history for sessions that predate this feature (the
+      bootstrap graph's own scaffold-era nodes). Calling absorb on their behalf would send
+      years-old debriefs to whatever substrate happens to be configured today; none is the
+      harness's own safe default for "no substrate has anything to do with this," and backfill
+      is out of this node's acceptance.
+    rests_on: []
+    hunks:
+      - "packages/runner/src/backfill.ts:159-165"
+    produces: []
+  - id: c8
+    what: >
+      loadLocalConfig now refuses substrate.address unless it is exactly "none" or matches
+      /^https?:\/\//, reusing substrate's own isValidSubstrateAddress rather than a second,
+      parallel regex; it also parses an optional substrate.key_file string, left absent (not
+      set to undefined) when the field is not given.
+    because: >
+      The acceptance's Config paragraph: substrate.address "accepts none or an http(s) URL,"
+      and an optional key_file. Reusing isValidSubstrateAddress keeps the one accepted-shape
+      definition in the package that owns the address (compose, don't reinvent).
+    rests_on:
+      - .interlock/local.example.yaml
+    hunks:
+      - "packages/runner/src/localConfig.ts:240-291"
+    produces: []
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: "mise exec -- pnpm typecheck"
+    note: "8 of 9 workspace projects (root carries no typecheck script); all pass."
+  - id: test
+    result: pass
+    invocation: "mise exec -- pnpm test"
+    note: "1053 tests passed across ledger, debrief, face, verifier, substrate, runner, schemas, cli; 0 failed."
+  - id: context-renders
+    result: pass
+    invocation: "mise exec -- pnpm --filter substrate --fail-if-no-match test --testNamePattern context"
+    note: "Tests  6 passed | 16 skipped (22); matches expect_output /Tests +[1-9][0-9]* passed/."
+open: []

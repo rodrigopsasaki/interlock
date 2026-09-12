@@ -23,6 +23,7 @@ import {
   loadStandingGates,
   recordingNarrate,
 } from "runner";
+import { substrateClientFor } from "substrate";
 import type { CommandResult } from "./main.ts";
 
 function isoOf(wallMs: number): string {
@@ -73,6 +74,10 @@ export async function runInterlockJudge(
       message: explainLocalConfigRefusal(localConfig.error),
     };
   }
+  const substrate = substrateClientFor(
+    localConfig.value.substrateAddress,
+    localConfig.value.substrateKeyFile,
+  );
 
   const graphPath = graphFilePath(repoRoot, graph);
   const document = await loadGraphDocument(graphPath);
@@ -180,6 +185,7 @@ export async function runInterlockJudge(
       narrate,
       runnerId: `judge-${sessionId}`,
       holdMs: HELD_REVISIT_MS,
+      substrate,
     });
     if (isErr(judged)) {
       const line = `judge refused: ${explainJudgeWorktreeRefusal(judged.error)}`;

@@ -629,6 +629,7 @@ describe("interlock run", () => {
       `leased a (session ${sessionId}, expires 1970-01-01T00:01:00.000Z)`,
       `worktree at ${join(cwd, ".worktrees", "a")} on ${headSha(cwd)}`,
       "brief written",
+      "context none: no substrate addressed",
       "pane pane-1 opened",
       "agent agent-1 started (claude)",
       "identity reported",
@@ -675,6 +676,7 @@ describe("interlock run", () => {
       `leased a (session ${sessionId}, expires 1970-01-01T00:01:00.000Z)`,
       `worktree at ${join(cwd, ".worktrees", "a")} on ${headSha(cwd)}`,
       "brief written",
+      "context none: no substrate addressed",
       "pane pane-1 opened",
       "agent agent-1 started (claude)",
       "identity reported",
@@ -742,13 +744,14 @@ describe("interlock run", () => {
     expect(result.message).toBe("agent start refused: agent CLI crashed");
     const { rest, briefCommitLine } = extractBriefCommitLine(lines);
     expect(briefCommitLine).toMatch(/^brief committed [0-9a-f]+$/);
-    expect(rest).toHaveLength(6);
+    expect(rest).toHaveLength(7);
     expect(rest[0]).toMatch(
       /^leased a \(session .+, expires 1970-01-01T00:01:00\.000Z\)$/,
     );
     expect(rest.slice(1)).toEqual([
       `worktree at ${join(cwd, ".worktrees", "a")} on ${headSha(cwd)}`,
       "brief written",
+      "context none: no substrate addressed",
       "pane pane-1 opened",
       "agent start refused: agent CLI crashed",
       "lease not renewed; the sweeper will collect it at 1970-01-01T00:01:00.000Z",

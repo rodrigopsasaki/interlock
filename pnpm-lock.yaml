@@ -31,6 +31,9 @@ importers:
       schemas:
         specifier: workspace:*
         version: link:../schemas
+      substrate:
+        specifier: workspace:*
+        version: link:../substrate
       verifier:
         specifier: workspace:*
         version: link:../verifier
@@ -131,6 +134,9 @@ importers:
       ledger:
         specifier: workspace:*
         version: link:../ledger
+      substrate:
+        specifier: workspace:*
+        version: link:../substrate
       yaml:
         specifier: 2.9.0
         version: 2.9.0
@@ -172,6 +178,31 @@ importers:
       ajv:
         specifier: ^8.17.1
         version: 8.20.0
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@24.13.3)
+
+  packages/substrate:
+    dependencies:
+      '@phyxiusjs/fp':
+        specifier: ^0.2.1
+        version: 0.2.1(@types/node@24.13.3)
+      ajv:
+        specifier: ^8.17.1
+        version: 8.20.0
+      debrief:
+        specifier: workspace:*
+        version: link:../debrief
+      ledger:
+        specifier: workspace:*
+        version: link:../ledger
+    devDependencies:
+      '@types/node':
+        specifier: 24.13.3
+        version: 24.13.3
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
