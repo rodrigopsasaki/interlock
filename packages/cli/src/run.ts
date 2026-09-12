@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { join, relative } from "node:path";
-import { type Clock, createSystemClock, deadlineFrom, ms } from "@phyxiusjs/clock";
+import {
+  type Clock,
+  createSystemClock,
+  deadlineFrom,
+  ms,
+} from "@phyxiusjs/clock";
 import { isErr, isOk, ok } from "@phyxiusjs/fp";
 import { debriefFilePath } from "debrief";
 import {
@@ -12,7 +17,13 @@ import {
   loadGraphDocument,
   sharedJournalDirectory,
 } from "face";
-import { createLedger, explainScopeRefusal, nodeKey, receiptId } from "ledger";
+import {
+  createLedger,
+  explainScopeRefusal,
+  nodeKey,
+  readRawEvents,
+  receiptId,
+} from "ledger";
 import {
   type Agent,
   briefExists,
@@ -122,7 +133,9 @@ export async function runInterlockRun(
     return { exitCode: 1, message: explainGraphRefusal(document.error) };
   }
 
-  const declaration = document.value.nodes.find((candidate) => candidate.id === node);
+  const declaration = document.value.nodes.find(
+    (candidate) => candidate.id === node,
+  );
   if (declaration === undefined) {
     return {
       exitCode: 1,
@@ -161,12 +174,19 @@ export async function runInterlockRun(
   let paneCustody: "runner" | "person" = "runner";
 
   try {
-    const contentHash = await receiptId(repoRoot, [relative(repoRoot, graphPath)], "approved");
+    const contentHash = await receiptId(
+      repoRoot,
+      [relative(repoRoot, graphPath)],
+      "approved",
+    );
     if (isErr(contentHash)) {
       return { exitCode: 1, message: explainScopeRefusal(contentHash.error) };
     }
     const graphNode = { graph, id: graph };
-    const approvalGate = ledger.projection().nodes.get(nodeKey(graphNode))?.gates.get("approved");
+    const approvalGate = ledger
+      .projection()
+      .nodes.get(nodeKey(graphNode))
+      ?.gates.get("approved");
     const approval = approvalState(approvalGate, contentHash.value);
     if (approval !== "approved") {
       return {
@@ -178,7 +198,11 @@ export async function runInterlockRun(
     const requestedGraphBaseSha = currentCommitSha(repoRoot);
 
     const targetNode = { graph, id: node };
-    const unmet = unmetDependencies(graph, declaration.dependsOn, ledger.projection());
+    const unmet = unmetDependencies(
+      graph,
+      declaration.dependsOn,
+      ledger.projection(),
+    );
     if (unmet.length > 0) {
       return {
         exitCode: 1,
@@ -188,7 +212,12 @@ export async function runInterlockRun(
 
     const worktreePath = join(repoRoot, localConfig.value.worktreeRoot, node);
     const branch = `graph/${graph}/${node}`;
-    const worktree = ensureNodeWorktree(repoRoot, worktreePath, requestedGraphBaseSha, branch);
+    const worktree = ensureNodeWorktree(
+      repoRoot,
+      worktreePath,
+      requestedGraphBaseSha,
+      branch,
+    );
     if (isErr(worktree)) {
       return {
         exitCode: 1,
@@ -214,8 +243,16 @@ export async function runInterlockRun(
     });
     narrate = recordingNarrate(ledger, clock, sessionId, narrate);
 
-    const lease = takeLease(ledger, clock, targetNode, sessionId, localConfig.value.leaseMs);
-    narrate(`leased ${node} (session ${sessionId}, expires ${isoOf(lease.expiry)})`);
+    const lease = takeLease(
+      ledger,
+      clock,
+      targetNode,
+      sessionId,
+      localConfig.value.leaseMs,
+    );
+    narrate(
+      `leased ${node} (session ${sessionId}, expires ${isoOf(lease.expiry)})`,
+    );
 
     const refuse = (step: string, explanation: string): CommandResult => {
       const line = `${step} refused: ${explanation}`;
@@ -223,8 +260,12 @@ export async function runInterlockRun(
       return { exitCode: 1, message: line };
     };
     const abandonLease = (): void => {
-      const expiry = ledger.projection().sessions.get(sessionId)?.lease?.expiry ?? lease.expiry;
-      narrate(`lease not renewed; the sweeper will collect it at ${isoOf(expiry)}`);
+      const expiry =
+        ledger.projection().sessions.get(sessionId)?.lease?.expiry ??
+        lease.expiry;
+      narrate(
+        `lease not renewed; the sweeper will collect it at ${isoOf(expiry)}`,
+      );
     };
 
     narrate(`worktree at ${worktreePath} on ${graphBaseSha}`);
@@ -253,7 +294,10 @@ export async function runInterlockRun(
       substrate,
     );
     if (isErr(briefWritten)) {
-      const result = refuse("brief", explainSessionBriefRefusal(briefWritten.error));
+      const result = refuse(
+        "brief",
+        explainSessionBriefRefusal(briefWritten.error),
+      );
       lease.stop();
       abandonLease();
       return result;
@@ -262,9 +306,17 @@ export async function runInterlockRun(
     for (const line of briefWritten.value.narration) narrate(line);
 
     const briefRelativePath = relative(worktreePath, briefWritten.value.path);
-    const briefCommitted = commitBriefIfChanged(worktreePath, briefRelativePath, node, sessionId);
+    const briefCommitted = commitBriefIfChanged(
+      worktreePath,
+      briefRelativePath,
+      node,
+      sessionId,
+    );
     if (isErr(briefCommitted)) {
-      const result = refuse("brief commit", explainWorktreeRefusal(briefCommitted.error));
+      const result = refuse(
+        "brief commit",
+        explainWorktreeRefusal(briefCommitted.error),
+      );
       lease.stop();
       abandonLease();
       return result;
@@ -273,9 +325,16 @@ export async function runInterlockRun(
       narrate(`brief committed ${briefCommitted.value}`);
     }
 
-    const setUp = await runWorktreeSetup(localConfig.value.worktreeSetup, worktreePath, narrate);
+    const setUp = await runWorktreeSetup(
+      localConfig.value.worktreeSetup,
+      worktreePath,
+      narrate,
+    );
     if (isErr(setUp)) {
-      const result = refuse("worktree setup", explainWorktreeSetupRefusal(setUp.error));
+      const result = refuse(
+        "worktree setup",
+        explainWorktreeSetupRefusal(setUp.error),
+      );
       lease.stop();
       abandonLease();
       return result;
@@ -283,9 +342,14 @@ export async function runInterlockRun(
 
     const injectedRuntime = options.runtime;
     const createdRuntime =
-      injectedRuntime === undefined ? await createHerdrRuntime() : ok(injectedRuntime);
+      injectedRuntime === undefined
+        ? await createHerdrRuntime()
+        : ok(injectedRuntime);
     if (isErr(createdRuntime)) {
-      const result = refuse("runtime", explainRuntimeRefusal(createdRuntime.error));
+      const result = refuse(
+        "runtime",
+        explainRuntimeRefusal(createdRuntime.error),
+      );
       lease.stop();
       abandonLease();
       return result;
@@ -294,7 +358,10 @@ export async function runInterlockRun(
 
     const openedPane = await runtime.openPane(worktreePath);
     if (isErr(openedPane)) {
-      const result = refuse("pane open", explainRuntimeRefusal(openedPane.error));
+      const result = refuse(
+        "pane open",
+        explainRuntimeRefusal(openedPane.error),
+      );
       lease.stop();
       abandonLease();
       return result;
@@ -310,7 +377,10 @@ export async function runInterlockRun(
       node,
     );
     if (isErr(startedAgent)) {
-      const result = refuse("agent start", explainRuntimeRefusal(startedAgent.error));
+      const result = refuse(
+        "agent start",
+        explainRuntimeRefusal(startedAgent.error),
+      );
       lease.stop();
       abandonLease();
       return result;
@@ -322,7 +392,10 @@ export async function runInterlockRun(
       sessionId,
     });
     if (isErr(reported)) {
-      const result = refuse("identity report", explainRuntimeRefusal(reported.error));
+      const result = refuse(
+        "identity report",
+        explainRuntimeRefusal(reported.error),
+      );
       lease.stop();
       abandonLease();
       return result;
@@ -332,7 +405,11 @@ export async function runInterlockRun(
     const startupTimeoutMs = localConfig.value.runtime.startupTimeoutMs;
     const startupAnswers = localConfig.value.runtime.startupAnswers;
     const answered = new Set<number>();
-    let startupStatus = await runtime.waitUntil(agent, ["idle", "blocked"], startupTimeoutMs);
+    let startupStatus = await runtime.waitUntil(
+      agent,
+      ["idle", "blocked"],
+      startupTimeoutMs,
+    );
     let startupScreen = "";
     while (isOk(startupStatus) && startupStatus.value !== "idle") {
       if (startupStatus.value === "blocked") {
@@ -348,7 +425,8 @@ export async function runInterlockRun(
           .map((answer, index) => ({ answer, index }))
           .find(
             ({ answer, index }) =>
-              !answered.has(index) && matchesScreen(answer.matches, startupScreen),
+              !answered.has(index) &&
+              matchesScreen(answer.matches, startupScreen),
           );
         if (candidate === undefined) break;
         answered.add(candidate.index);
@@ -361,7 +439,11 @@ export async function runInterlockRun(
         }
         narrate(`startup answer sent (${candidate.answer.matches})`);
       }
-      startupStatus = await runtime.waitUntil(agent, ["idle", "blocked"], startupTimeoutMs);
+      startupStatus = await runtime.waitUntil(
+        agent,
+        ["idle", "blocked"],
+        startupTimeoutMs,
+      );
     }
     if (isErr(startupStatus)) {
       const explanation =
@@ -382,7 +464,10 @@ export async function runInterlockRun(
     }
     narrate("agent ready (idle)");
 
-    const prompted = await runtime.prompt(agent, buildOpeningPrompt(graph, node, priorWork));
+    const prompted = await runtime.prompt(
+      agent,
+      buildOpeningPrompt(graph, node, priorWork),
+    );
     if (isErr(prompted)) {
       const result = refuse("prompt", explainRuntimeRefusal(prompted.error));
       lease.stop();
@@ -399,7 +484,8 @@ export async function runInterlockRun(
     );
     if (isErr(tookPrompt)) {
       const explanation =
-        tookPrompt.error.kind === "timeout" && tookPrompt.error.status === "idle"
+        tookPrompt.error.kind === "timeout" &&
+        tookPrompt.error.status === "idle"
           ? `prompt not taken after ${promptTakenTimeoutMs}ms; agent still idle`
           : explainRuntimeRefusal(tookPrompt.error);
       const result = refuse("prompt taken", explanation);
@@ -413,15 +499,23 @@ export async function runInterlockRun(
     const readUnfinishedWork = (): UnfinishedWork | undefined => {
       const dirty = uncommittedPaths(worktreePath);
       const dirtyCount = isOk(dirty) ? dirty.value.length : 0;
-      const debriefRelative = relative(worktreePath, debriefFilePath(worktreePath, graph, node));
+      const debriefRelative = relative(
+        worktreePath,
+        debriefFilePath(worktreePath, graph, node),
+      );
       const debriefMissing = !isCommittedAtHead(worktreePath, debriefRelative);
       return dirtyCount === 0 && !debriefMissing
         ? undefined
         : { uncommittedPaths: dirtyCount, debriefMissing };
     };
 
-    narrate(`waiting for idle, blocked or done (timeout ${localConfig.value.runTimeoutMs}ms)`);
-    const deadline = deadlineFrom(clock.now().monoMs, ms(localConfig.value.runTimeoutMs));
+    narrate(
+      `waiting for idle, blocked or done (timeout ${localConfig.value.runTimeoutMs}ms)`,
+    );
+    const deadline = deadlineFrom(
+      clock.now().monoMs,
+      ms(localConfig.value.runTimeoutMs),
+    );
     const waited = await waitForSession(
       runtime,
       agent,
@@ -441,9 +535,12 @@ export async function runInterlockRun(
 
     const screenRead = await runtime.read(agent);
     if (isErr(screenRead)) {
-      narrate(`agent screen read refused: ${explainRuntimeRefusal(screenRead.error)}`);
+      narrate(
+        `agent screen read refused: ${explainRuntimeRefusal(screenRead.error)}`,
+      );
     }
 
+    const personEventsRead = await readRawEvents(journal);
     const judged = await judgeWorktree({
       ledger,
       clock,
@@ -456,16 +553,22 @@ export async function runInterlockRun(
       runnerId: `run-${sessionId}`,
       holdMs: HELD_REVISIT_MS,
       substrate,
+      personEvents: isErr(personEventsRead) ? [] : personEventsRead.value,
       onWorktreeRead: async () => {
         if (!isOk(screenRead)) return;
         await writeScreenSnapshot(worktreePath, graph, node, screenRead.value);
-        narrate(`agent screen: ${lastNonEmptyLine(screenRead.value) ?? "(no output)"}`);
+        narrate(
+          `agent screen: ${lastNonEmptyLine(screenRead.value) ?? "(no output)"}`,
+        );
       },
     });
     if (isErr(judged)) {
       const result =
         judged.error.kind === "worktree-status"
-          ? refuse("worktree status", explainWorktreeRefusal(judged.error.refusal))
+          ? refuse(
+              "worktree status",
+              explainWorktreeRefusal(judged.error.refusal),
+            )
           : refuse("gates", explainGateJudgeRefusal(judged.error.refusal));
       abandonLease();
       return result;
