@@ -12,6 +12,7 @@ export { explainRuntimeRefusal } from "./runtime.ts";
 export type { PriorWork } from "./openingPrompt.ts";
 export { buildOpeningPrompt } from "./openingPrompt.ts";
 
+export type { UnfinishedWork } from "./sessionWait.ts";
 export { waitForSession } from "./sessionWait.ts";
 
 export { createHerdrRuntime, defaultHerdrSocketPath } from "./herdr/adapter.ts";
@@ -54,6 +55,7 @@ export {
   createDetachedWorktree,
   ensureNodeWorktree,
   explainWorktreeRefusal,
+  isCommittedAtHead,
   removeWorktree,
   uncommittedPaths,
 } from "./worktree.ts";

@@ -7,7 +7,7 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
-import { ok } from "@phyxiusjs/fp";
+import { err, ok } from "@phyxiusjs/fp";
 import { isLedgerEvent } from "ledger";
 import type { Runtime } from "runner";
 import { afterEach, describe, expect, it } from "vitest";
@@ -119,7 +119,16 @@ function stubRuntime(): Runtime {
     startAgent: (pane) => Promise.resolve(ok({ id: "agent-1", pane })),
     reportIdentity: () => Promise.resolve(ok(undefined)),
     prompt: () => Promise.resolve(ok(undefined)),
-    waitUntil: () => Promise.resolve(ok("idle")),
+    // This stub never carries a debrief, so once the runner's own grace window arms, the only
+    // status it can ever be asked to wait for again is "working" (AFTER_SETTLED). Answering
+    // that the way herdr does, a refusal rather than the same settled status forever, is what
+    // lets the window close on its own deadline instead of spinning.
+    waitUntil: (_agent, until, timeoutMs) =>
+      until.length === 1 && until[0] === "working"
+        ? Promise.resolve(
+            err({ kind: "timeout", until, timeoutMs, status: "idle" }),
+          )
+        : Promise.resolve(ok("idle")),
     read: () => Promise.resolve(ok("")),
     sendKeys: () => Promise.resolve(ok(undefined)),
     closePane: () => Promise.resolve(ok(undefined)),

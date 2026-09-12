@@ -7,14 +7,14 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
 import { err, isOk, ok } from "@phyxiusjs/fp";
-import { readBriefFile } from "debrief";
+import { debriefFilePath, readBriefFile } from "debrief";
 import { isLedgerEvent } from "ledger";
 import type { Runtime } from "runner";
 import { afterEach, describe, expect, it } from "vitest";
-import { commitAll, gitInitFixture } from "./graph/gitFixture.ts";
+import { commitAll, commitPath, gitInitFixture } from "./graph/gitFixture.ts";
 import { runGraphApprove } from "../src/graph/approve.ts";
 import { runInterlockRun } from "../src/run.ts";
 
@@ -230,10 +230,41 @@ function stubRuntime(): Runtime {
     startAgent: (pane) => Promise.resolve(ok({ id: "agent-1", pane })),
     reportIdentity: () => Promise.resolve(ok(undefined)),
     prompt: () => Promise.resolve(ok(undefined)),
-    waitUntil: () => Promise.resolve(ok("idle")),
+    // A fixture whose worktree never carries a debrief keeps R1's grace window open forever
+    // once it is armed: the only status this wait can ever return is "working", so mirroring
+    // herdr's own answer here (a timeout, exactly as an unresumed grace window elapsing for
+    // real) is what lets a fixture that never finishes still settle instead of spinning.
+    waitUntil: (_agent, until, timeoutMs) =>
+      until.length === 1 && until[0] === "working"
+        ? Promise.resolve(
+            err({ kind: "timeout", until, timeoutMs, status: "idle" }),
+          )
+        : Promise.resolve(ok("idle")),
     read: () => Promise.resolve(ok("")),
     sendKeys: () => Promise.resolve(ok(undefined)),
     closePane: () => Promise.resolve(ok(undefined)),
+  };
+}
+
+// A worktree that is genuinely finished (clean tree, debrief committed) by the time it settles
+// judges at once, exactly as R1 asks: this makes a stubbed runtime represent that honestly
+// instead of leaving every fixture's worktree permanently "unfinished" by omission.
+function writeDebrief(worktreePath: string, graph: string, node: string): void {
+  const path = debriefFilePath(worktreePath, graph, node);
+  if (existsSync(path)) return;
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, "interlock: debrief@v2\n");
+  commitPath(
+    worktreePath,
+    join(".interlock", "sessions", graph, node, "debrief.yaml"),
+    "chore: fixture debrief",
+  );
+}
+
+function finishedWaitUntil(worktreePath: string): Runtime["waitUntil"] {
+  return (agent, until, timeoutMs) => {
+    writeDebrief(worktreePath, "demo", "a");
+    return stubRuntime().waitUntil(agent, until, timeoutMs);
   };
 }
 
@@ -612,7 +643,10 @@ describe("interlock run", () => {
     const result = await runInterlockRun(["demo", "a"], {
       cwd,
       clock: createControlledClock({ initialTime: 0 }),
-      runtime: stubRuntime(),
+      runtime: {
+        ...stubRuntime(),
+        waitUntil: finishedWaitUntil(join(cwd, ".worktrees", "a")),
+      },
       narrate: (line) => lines.push(line),
     });
 
@@ -652,7 +686,11 @@ describe("interlock run", () => {
       waitUntil: (agent, until, timeoutMs) =>
         until.includes("working")
           ? Promise.resolve(ok("working"))
-          : stubRuntime().waitUntil(agent, until, timeoutMs),
+          : finishedWaitUntil(join(cwd, ".worktrees", "a"))(
+              agent,
+              until,
+              timeoutMs,
+            ),
     };
     const lines: string[] = [];
 

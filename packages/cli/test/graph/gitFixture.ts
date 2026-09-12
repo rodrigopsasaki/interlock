@@ -37,3 +37,28 @@ export function commitAll(directory: string, message: string): void {
     { cwd: directory, env: GIT_ENV },
   );
 }
+
+// Commits one path only, leaving every other uncommitted path in the tree untouched: a fixture
+// that wants to say "this one file is settled, everything else is still dirty" needs this rather
+// than commitAll's git add -A.
+export function commitPath(
+  directory: string,
+  relativePath: string,
+  message: string,
+): void {
+  execFileSync("git", ["add", "--", relativePath], { cwd: directory });
+  execFileSync(
+    "git",
+    [
+      "-c",
+      "commit.gpgsign=false",
+      "commit",
+      "--quiet",
+      "-m",
+      message,
+      "--",
+      relativePath,
+    ],
+    { cwd: directory, env: GIT_ENV },
+  );
+}
