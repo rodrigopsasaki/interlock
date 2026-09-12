@@ -221,6 +221,9 @@ standing_gates:
   - id: typecheck
     kind: command
     run: pnpm typecheck
+  - id: lint
+    kind: command
+    run: pnpm lint
   - id: test
     kind: command
     run: pnpm test
