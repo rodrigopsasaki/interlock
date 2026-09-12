@@ -114,6 +114,7 @@ export function buildBrief(
   acceptance: string,
   gates: readonly string[],
   scope: readonly string[],
+  role = "worker",
 ): Brief {
-  return { graph, node, role: "worker", acceptance, gates, scope };
+  return { graph, node, role, acceptance, gates, scope };
 }

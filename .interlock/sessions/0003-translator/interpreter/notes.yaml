@@ -1,0 +1,68 @@
+interlock: notes@v0
+node: interpreter
+entries:
+  - kind: choice
+    at: "2026-09-12T00:05:00Z"
+    chose: >
+      The planning session's node is { graph: <graph-id>, id: "plan/<graph-id>" }, the same
+      redundant graph-equals-target pattern packages/cli/src/graph/approve.ts already uses for
+      the graph-level "approved" gate's node ({ graph: id, id }). Its worktree lands at
+      .worktrees/plan/<graph-id>, its branch at graph/<graph-id>/plan/<graph-id>, and its session
+      files at .interlock/sessions/<graph-id>/plan/<graph-id>/.
+    because: >
+      nodeKey and attemptsFor only need a (graph, id) pair to key sessions and leases; reusing
+      the graph-id as both fields keeps a planning session addressable through every existing
+      lookup (unmetDependencies, attemptsFor, the sweeper) without a third field or a parallel
+      "kind: plan" tag anywhere in the ledger's projection.
+  - kind: choice
+    at: "2026-09-12T00:15:00Z"
+    chose: >
+      buildBrief (packages/runner/src/sessionBrief.ts) gained a sixth, optional "role" parameter
+      defaulting to "worker", rather than a second buildInterpreterBrief function or a required
+      role argument at its one existing call site.
+    because: >
+      Brief's role field was already a plain string, not a "worker" | "interpreter" union; run.ts
+      needed zero changes, and interlock plan passes "interpreter" through the same function that
+      already builds the ledger's session-started Brief record.
+  - kind: choice
+    at: "2026-09-12T00:30:00Z"
+    chose: >
+      interlock plan (packages/cli/src/plan.ts) re-implements run.ts's pane-orchestration sequence
+      (worktree, lease, runtime, startup-answer loop, prompt, long wait, judgeWorktree, pane
+      close) at the call site, composed from the same exported runner functions run.ts calls,
+      rather than extracting a shared "drive a session" helper that both would call.
+    because: >
+      packages/cli/test/run.test.ts pins run.ts's narration output line-for-line across ~20
+      cases; run.ts is the one file every already-cleared and in-flight node in this repository's
+      own dogfooded graphs depends on being unchanged. Duplicating the orchestration sequence (a
+      composition root, not new logic; every step it calls is an existing, shared, exported
+      function) costs a second copy of ~150 lines of control flow; touching run.ts to
+      parameterize it costs a real chance of a subtle narration-order regression on a file with
+      no room for one right now. Recorded as a discovery in the debrief: the two are now close
+      enough in shape that a future session should extract the shared "drive a session in an
+      already-leased worktree" seam once a third caller (or a change to one of the two) forces the
+      question.
+  - kind: surprise
+    at: "2026-09-12T00:10:00Z"
+    expected: >
+      Editing packages/runner/src/sessionBrief.ts with the Edit tool would leave the file exactly
+      as written, matching the repository's biome.json (lineWidth 100).
+    observed: >
+      A PostToolUse hook reformatted the file to an ~80-column wrap immediately after the edit,
+      disagreeing with biome.json's own configured lineWidth of 100 and with every other file in
+      the package. `pnpm exec biome format --write <path>` (the project's own formatter, run
+      explicitly) restored the 100-column wrapping; re-run it after any hook-triggered edit before
+      trusting a file's on-disk shape.
+  - kind: choice
+    at: "2026-09-12T00:40:00Z"
+    chose: >
+      interlock plan validates the produced .interlock/graphs/<graph-id>.yaml with only
+      face's loadGraphDocument (already the sole validator run.ts, graph/approve.ts, graph/show.ts
+      and graph/status.ts all use), not a second, separate call into the schemas package's ajv
+      registry.
+    because: >
+      schemas/graph@v0.json's own description says the loader "reads only interlock, id, gates
+      and nodes" and calls the ask/derivation/read fields "real, accepted, unvalidated data the
+      interpreter leaves behind" by design -- loadGraphDocument already is "the graph loader and
+      the schema" the brief names as one thing, and no existing command composes the two
+      validators together.
