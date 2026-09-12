@@ -11,6 +11,9 @@ importers:
       '@biomejs/biome':
         specifier: 2.5.13
         version: 2.5.13
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
 
   packages/cli:
     dependencies:

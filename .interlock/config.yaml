@@ -16,6 +16,9 @@ standing_gates:
   - id: lint
     kind: command
     run: pnpm lint
+  - id: comments
+    kind: command
+    run: pnpm check:comments
   - id: test
     kind: command
     run: pnpm test
