@@ -4,8 +4,18 @@ import { createControlledClock } from "@phyxiusjs/clock";
 import { isErr } from "@phyxiusjs/fp";
 import { nodeKey, type Receipt } from "ledger";
 import { noneClient } from "substrate";
+import type {
+  AbsorbOutcome,
+  EvidenceForAbsorb,
+  SubstrateClient,
+} from "substrate";
 import { afterEach, describe, expect, it } from "vitest";
 import { judgeGates } from "../src/gateJudge.ts";
+import {
+  commitAll,
+  gitInitFixtureWithContent,
+  headSha,
+} from "./support/gitFixture.ts";
 import { memoryLedger, memoryLedgerWithLog } from "./support/memoryLedger.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
@@ -16,7 +26,8 @@ const substrate = noneClient();
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined)
+    rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -216,7 +227,9 @@ describe("gateJudge", () => {
     const view = ledger.projection().nodes.get(nodeKey(node));
     expect(view?.gates.get("foreign-none")?.kind).toBe("blocked");
     expect(view?.gates.get("kept-local")?.kind).toBe("satisfied");
-    expect(view?.receipts.find((receipt) => receipt.gate === "kept-local")?.id).toBe("kept");
+    expect(
+      view?.receipts.find((receipt) => receipt.gate === "kept-local")?.id,
+    ).toBe("kept");
   });
 });
 
@@ -294,7 +307,10 @@ describe("expect_output", () => {
       session: "s1",
       declaredGateIds: ["tested"],
       commandFor: new Map([
-        ["tested", { run: matchingOutputCommand, expectOutput: testsPassedPattern }],
+        [
+          "tested",
+          { run: matchingOutputCommand, expectOutput: testsPassedPattern },
+        ],
       ]),
       worktree: root,
       scopeRoot: root,
@@ -310,7 +326,9 @@ describe("expect_output", () => {
     expect(judged.value.kind).toBe("cleared");
     const view = ledger.projection().nodes.get(nodeKey(node));
     expect(view?.gates.get("tested")?.kind).toBe("satisfied");
-    const receipt = view?.receipts.find((candidate) => candidate.gate === "tested");
+    const receipt = view?.receipts.find(
+      (candidate) => candidate.gate === "tested",
+    );
     expect(receipt?.proof).toEqual({
       exitCode: 0,
       outputHash: expect.any(String),
@@ -330,7 +348,10 @@ describe("expect_output", () => {
       session: "s1",
       declaredGateIds: ["tested"],
       commandFor: new Map([
-        ["tested", { run: nonMatchingOutputCommand, expectOutput: testsPassedPattern }],
+        [
+          "tested",
+          { run: nonMatchingOutputCommand, expectOutput: testsPassedPattern },
+        ],
       ]),
       worktree: root,
       scopeRoot: root,
@@ -348,8 +369,12 @@ describe("expect_output", () => {
     const gateState = view?.gates.get("tested");
     expect(gateState?.kind).toBe("blocked");
     if (gateState?.kind !== "blocked") return;
-    expect(gateState.because).toBe("tested: output did not match /Tests +[1-9][0-9]* passed/");
-    const receipt = view?.receipts.find((candidate) => candidate.gate === "tested");
+    expect(gateState.because).toBe(
+      "tested: output did not match /Tests +[1-9][0-9]* passed/",
+    );
+    const receipt = view?.receipts.find(
+      (candidate) => candidate.gate === "tested",
+    );
     expect(receipt?.proof).toEqual({
       exitCode: 0,
       outputHash: expect.any(String),
@@ -368,7 +393,9 @@ describe("expect_output", () => {
       node,
       session: "s1",
       declaredGateIds: ["tested"],
-      commandFor: new Map([["tested", { run: failCommand, expectOutput: testsPassedPattern }]]),
+      commandFor: new Map([
+        ["tested", { run: failCommand, expectOutput: testsPassedPattern }],
+      ]),
       worktree: root,
       scopeRoot: root,
       scopePaths: ["content.txt"],
@@ -496,8 +523,12 @@ describe("debrief ingestion", () => {
     const kinds = events.map((event) => event.kind);
     expect(kinds.filter((kind) => kind === "debrief-filed")).toHaveLength(1);
     expect(kinds.filter((kind) => kind === "note-appended")).toHaveLength(1);
-    expect(kinds.indexOf("debrief-filed")).toBeLessThan(kinds.indexOf("outcome-set"));
-    expect(kinds.indexOf("note-appended")).toBeLessThan(kinds.indexOf("outcome-set"));
+    expect(kinds.indexOf("debrief-filed")).toBeLessThan(
+      kinds.indexOf("outcome-set"),
+    );
+    expect(kinds.indexOf("note-appended")).toBeLessThan(
+      kinds.indexOf("outcome-set"),
+    );
 
     const sessionView = ledger.projection().sessions.get("s1");
     expect(sessionView?.debrief?.graph).toBe("fixture");
@@ -575,5 +606,149 @@ describe("debrief ingestion", () => {
     const kinds = events.map((event) => event.kind);
     expect(kinds.filter((kind) => kind === "debrief-filed")).toHaveLength(1);
     expect(kinds.filter((kind) => kind === "note-appended")).toHaveLength(1);
+  });
+});
+
+const EVIDENCE_AGENTS_MD = [
+  "## Vocabulary",
+  "",
+  "| term | means |",
+  "| --- | --- |",
+  "| widget | A thing. |",
+  "",
+  "## Next",
+  "",
+].join("\n");
+
+function spySubstrate(): {
+  readonly client: SubstrateClient;
+  readonly absorbCalls: EvidenceForAbsorb[];
+} {
+  const absorbCalls: EvidenceForAbsorb[] = [];
+  const client: SubstrateClient = {
+    address: "spy",
+    context: () => Promise.resolve({ kind: "empty" }),
+    absorb: (
+      _node,
+      _debrief,
+      _notes,
+      _receipts,
+      evidence,
+    ): Promise<AbsorbOutcome> => {
+      absorbCalls.push(evidence ?? { items: [], gaps: [] });
+      return Promise.resolve({ kind: "empty" });
+    },
+    capabilities: () => Promise.resolve([]),
+  };
+  return { client, absorbCalls };
+}
+
+describe("absorb carries live evidence", () => {
+  it("passes items and gaps built from a real verifyDebrief pass to substrate.absorb", async () => {
+    const root = mkdtempSync(join(runsRoot, "gate-evidence-"));
+    writeFileSync(join(root, "AGENTS.md"), EVIDENCE_AGENTS_MD);
+    gitInitFixtureWithContent(root);
+    const from = headSha(root);
+
+    mkdirSync(join(root, "src"), { recursive: true });
+    writeFileSync(
+      join(root, "src/widget.ts"),
+      ["export interface Widget {", "  readonly id: string;", "}", ""].join(
+        "\n",
+      ),
+    );
+    commitAll(root, "add widget");
+    const to = headSha(root);
+
+    const evidenceDebrief = [
+      "interlock: debrief@v2",
+      "graph: fixture",
+      "node: n1",
+      "role: worker",
+      `graph_base_sha: ${from}`,
+      `session_start_sha: ${from}`,
+      `head_sha: ${to}`,
+      "derivation:",
+      "  kind: agent",
+      "  runtime: claude-code",
+      "  model: claude-sonnet-5",
+      "discoveries:",
+      "  - id: d1",
+      "    what: no test yet covered Widget's own shape",
+      "    found_at: src/widget.ts",
+      "    mattered_because: the acceptance asked for it",
+      "decisions:",
+      "  - id: c1",
+      "    what: added Widget",
+      "    because: notes:1",
+      "    rests_on: []",
+      '    hunks: ["src/widget.ts:1-3"]',
+      "gates_run_by_agent: []",
+      "open: []",
+      "",
+    ].join("\n");
+    writeSession(root, "fixture", "n1", evidenceDebrief, notesYaml);
+
+    const { client, absorbCalls } = spySubstrate();
+    const { ledger } = memoryLedgerWithLog();
+
+    const judged = await judgeGates({
+      ledger,
+      clock: createControlledClock(),
+      node,
+      session: "s1",
+      declaredGateIds: ["always-pass"],
+      commandFor: new Map([["always-pass", { run: passCommand }]]),
+      worktree: root,
+      scopeRoot: root,
+      scopePaths: ["AGENTS.md"],
+      commitSha: to,
+      runnerId: "run-1",
+      holdMs: 60_000,
+      substrate: client,
+      narrate: () => {},
+    });
+    if (isErr(judged)) throw new Error("expected an outcome");
+
+    expect(absorbCalls).toHaveLength(1);
+    const evidence = absorbCalls[0];
+    if (evidence === undefined) throw new Error("expected evidence");
+    expect(evidence.items).toContainEqual(
+      expect.objectContaining({ kind: "decision", statement: "added Widget" }),
+    );
+    expect(evidence.items).toContainEqual(
+      expect.objectContaining({
+        kind: "discipline",
+        statement: "gate always-pass satisfied",
+      }),
+    );
+    expect(Array.isArray(evidence.gaps)).toBe(true);
+  });
+
+  it("degrades to empty evidence, without failing the judgement, when the debrief's range is not real ancestor commits", async () => {
+    const root = fixture();
+    writeSession(root, "fixture", "n1", v2Debrief, notesYaml);
+    const { client, absorbCalls } = spySubstrate();
+    const { ledger } = memoryLedgerWithLog();
+
+    const judged = await judgeGates({
+      ledger,
+      clock: createControlledClock(),
+      node,
+      session: "s1",
+      declaredGateIds: ["always-pass"],
+      commandFor: new Map([["always-pass", { run: passCommand }]]),
+      worktree: root,
+      scopeRoot: root,
+      scopePaths: ["content.txt"],
+      commitSha: "deadbeef",
+      runnerId: "run-1",
+      holdMs: 60_000,
+      substrate: client,
+      narrate: () => {},
+    });
+    if (isErr(judged)) throw new Error("expected an outcome");
+
+    expect(absorbCalls).toEqual([{ items: [], gaps: [] }]);
   });
 });

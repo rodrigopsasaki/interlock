@@ -144,6 +144,9 @@ importers:
       substrate:
         specifier: workspace:*
         version: link:../substrate
+      verifier:
+        specifier: workspace:*
+        version: link:../verifier
       yaml:
         specifier: 2.9.0
         version: 2.9.0
