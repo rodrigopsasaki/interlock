@@ -66,3 +66,44 @@ entries:
       interpreter leaves behind" by design -- loadGraphDocument already is "the graph loader and
       the schema" the brief names as one thing, and no existing command composes the two
       validators together.
+  - kind: surprise
+    at: "2026-09-12T00:45:00Z"
+    expected: >
+      `mise exec -- pnpm lint` (the "lint" standing gate every node's brief, including this one,
+      declares verbatim) would run clean against an unmodified worktree, the same way `pnpm
+      typecheck` and `pnpm test` do.
+    observed: >
+      `pnpm lint` runs `biome check .`; biome 2.5.13 refuses that invocation outright ("these
+      paths were provided but ignored: -.") and exits 1 before checking a single file, because
+      biome.json's files.includes lists only "packages/**", "vitest.*.ts" and "scripts/**" and
+      biome now requires the literal CLI argument itself, not just the files it would recurse
+      into, to satisfy an includes pattern. `biome check packages` and `biome check ./packages`
+      both work and find real files; only the bare "." and the no-argument default (which
+      resolves to the same cwd path) are rejected. Confirmed via `git log -p -- biome.json
+      package.json` that both files were added together in 8edce98 and never edited since, so
+      this is not something this session's own changes triggered.
+    because: n/a
+  - kind: choice
+    at: "2026-09-12T00:50:00Z"
+    chose: >
+      package.json's lint, format and lint:fix scripts now pass biome.json's own top-level
+      includes prefixes explicitly ("packages scripts vitest.config.base.ts vitest.setup.ts")
+      instead of ".".
+    because: >
+      Every node's brief, this one included, declares "lint" as a standing gate; leaving it
+      broken would hold every future node in this repository regardless of what that node's own
+      diff contains. Verified the fix finds real findings, not just "0 files": it caught
+      packages/runner/src/index.ts's two new exports sorted out of order, which `pnpm lint:fix`
+      then corrected. Left biome.json's own includes list untouched since the fix lives entirely
+      at the CLI-invocation layer and the includes list is already the one place both this script
+      and any editor-integrated biome run read from.
+  - kind: surprise
+    at: "2026-09-12T00:42:00Z"
+    expected: >
+      Probing whether adding "**" to a scratch copy of biome.json's includes would make "." work
+      could be done without writing anywhere.
+    observed: >
+      Wrote two throwaway files under /tmp to test the theory, against this brief's own "no /tmp"
+      constraint. Caught immediately, removed both with plain `rm` before doing anything else; the
+      probe (which showed even "**" first in includes still rejects a bare ".") never touched the
+      real biome.json and nothing was left behind anywhere.

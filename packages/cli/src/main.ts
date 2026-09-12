@@ -9,6 +9,7 @@ import { runGraphStatus } from "./graph/status.ts";
 import { runInterlockJudge } from "./judge.ts";
 import { runNodeCancel } from "./node/cancel.ts";
 import { runNodeReset } from "./node/reset.ts";
+import { runInterlockPlan } from "./plan.ts";
 import { runInterlockRun } from "./run.ts";
 import { runSchemaReference } from "./schema/reference.ts";
 import { runSchemaValidate } from "./schema/validate.ts";
@@ -70,6 +71,10 @@ export async function run(argv: readonly string[]): Promise<CommandResult> {
 
   if (group === "run") {
     return runInterlockRun(argv.slice(1));
+  }
+
+  if (group === "plan") {
+    return runInterlockPlan(argv.slice(1));
   }
 
   if (group === "judge") {
