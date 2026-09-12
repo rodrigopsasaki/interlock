@@ -9,8 +9,9 @@ entries:
     observed: >
       The front matter still reads "substrate: address: none" even though the brief's own body
       carries a real, rendered "## Context slice" section (six hypothesis-standing risk items and
-      one observed absence, each with a "Preston..." derivation). The substrate-client node's own
-      notes.yaml explains why: writeBriefIntoWorktree renders the slice into the body but never
+      one observed absence, each with a derivation naming the substrate that produced it). The
+      substrate-client node's own notes.yaml explains why: writeBriefIntoWorktree renders the
+      slice into the body but never
       rewrites the committed front matter's substrate.address, because nothing committed may carry
       a real address (it lives only in the gitignored .interlock/local.yaml). So this brief IS the
       "one brief with a slice from a real address" the acceptance asks a person to witness; the
