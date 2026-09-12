@@ -1,11 +1,5 @@
 import { err, ok, type Result } from "@phyxiusjs/fp";
-import {
-  type Debrief,
-  type Decision,
-  derivation,
-  type Discovery,
-  type Mark,
-} from "ledger";
+import { type Debrief, type Decision, type Discovery, derivation, type Mark } from "ledger";
 import { checkFoundAt } from "./foundAt.ts";
 import { diffFiles, isAncestor, isCommit } from "./git.ts";
 import { checkHunkCitation } from "./hunkCitation.ts";
@@ -70,9 +64,7 @@ export async function verifyDebrief(
 
   const decisionMarks = debrief.decisions.map((decision) => ({
     decision,
-    marks: decision.hunks.map((citation) =>
-      checkHunkCitation(citation, files, deriv),
-    ),
+    marks: decision.hunks.map((citation) => checkHunkCitation(citation, files, deriv)),
   }));
   const hunkMarks = decisionMarks.flatMap((entry) => entry.marks);
 
@@ -84,12 +76,7 @@ export async function verifyDebrief(
 
   const inverse = unexplainedMarks(files, debrief.decisions, deriv);
 
-  const gaps = vocabularyGaps(
-    files,
-    repoRoot,
-    options.professedDomainVocabulary ?? [],
-    deriv,
-  );
+  const gaps = vocabularyGaps(files, repoRoot, options.professedDomainVocabulary ?? [], deriv);
 
   return ok({
     marks: [...hunkMarks, ...discoveryFoundAtMarks, ...inverse, ...gaps],

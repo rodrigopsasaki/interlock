@@ -72,10 +72,7 @@ export function httpClient(address: string, keyFile?: string): SubstrateClient {
     const response = await post(address, "capabilities", headers.value, {});
     if (isErr(response)) return [];
     const body = response.value;
-    if (
-      capabilitiesResponseSchema === undefined ||
-      !capabilitiesResponseSchema.validate(body)
-    ) {
+    if (capabilitiesResponseSchema === undefined || !capabilitiesResponseSchema.validate(body)) {
       return [];
     }
     cachedCapabilities = body.capabilities;
@@ -125,9 +122,7 @@ export function httpClient(address: string, keyFile?: string): SubstrateClient {
       debrief: toWireDebrief(debrief),
       notes: toWireNotes(node.id, notes),
       receipts,
-      ...(evidence === undefined
-        ? {}
-        : { items: evidence.items, gaps: evidence.gaps }),
+      ...(evidence === undefined ? {} : { items: evidence.items, gaps: evidence.gaps }),
     });
     if (isErr(response)) return { kind: "refused", because: response.error };
     const body = response.value;

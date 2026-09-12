@@ -19,12 +19,7 @@ const KIND_ORDER = [
   "tension",
   "absence",
 ] as const;
-const STANDING_ORDER = [
-  "ratified",
-  "professed",
-  "observed",
-  "hypothesis",
-] as const;
+const STANDING_ORDER = ["ratified", "professed", "observed", "hypothesis"] as const;
 
 function sessionOverrideFrom(args: readonly string[]): string | undefined {
   const flagIndex = args.indexOf("--session");
@@ -35,30 +30,20 @@ function countKey(item: Item): string {
   return `${item.kind}/${item.standing ?? "unspecified"}`;
 }
 
-function renderHeader(
-  items: readonly Item[],
-  gaps: number,
-  unrootedExcluded: number,
-): string {
+function renderHeader(items: readonly Item[], gaps: number, unrootedExcluded: number): string {
   const counts = new Map<string, number>();
   for (const item of items) {
     const key = countKey(item);
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
   const known = new Set(
-    KIND_ORDER.flatMap((kind) =>
-      STANDING_ORDER.map((standing) => `${kind}/${standing}`),
-    ),
+    KIND_ORDER.flatMap((kind) => STANDING_ORDER.map((standing) => `${kind}/${standing}`)),
   );
   const ordered = [
-    ...KIND_ORDER.flatMap((kind) =>
-      STANDING_ORDER.map((standing) => `${kind}/${standing}`),
-    ),
+    ...KIND_ORDER.flatMap((kind) => STANDING_ORDER.map((standing) => `${kind}/${standing}`)),
     ...[...counts.keys()].filter((key) => !known.has(key)).sort(),
   ].filter((key) => counts.has(key));
-  const breakdown = ordered
-    .map((key) => `${key} ${counts.get(key)}`)
-    .join(", ");
+  const breakdown = ordered.map((key) => `${key} ${counts.get(key)}`).join(", ");
   return (
     `items ${items.length}${breakdown === "" ? "" : ` (${breakdown})`}, ` +
     `gaps ${gaps}, unrooted excluded ${unrootedExcluded}`
@@ -130,9 +115,7 @@ export async function runInterlockEvidence(
     : verified.value.discoveryMarks;
   const gaps: readonly Gap[] = isErr(verified)
     ? []
-    : verified.value.marks
-        .filter((mark) => mark.kind === "gap")
-        .map((mark) => mark.gap);
+    : verified.value.marks.filter((mark) => mark.kind === "gap").map((mark) => mark.gap);
   const unrootedExcluded = isErr(verified)
     ? 0
     : [
@@ -141,9 +124,7 @@ export async function runInterlockEvidence(
       ].filter((mark) => mark.kind === "unrooted").length;
 
   const rawEvents = await readRawEvents(journal);
-  const personEvents = isErr(rawEvents)
-    ? []
-    : personEventsFor(targetNode, rawEvents.value);
+  const personEvents = isErr(rawEvents) ? [] : personEventsFor(targetNode, rawEvents.value);
 
   const items = evidenceOf({
     derivation: debrief.derivation,

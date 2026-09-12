@@ -3,12 +3,7 @@ import { createHash } from "node:crypto";
 import type { Clock } from "@phyxiusjs/clock";
 import { elapsedSince } from "@phyxiusjs/clock";
 import { err, isErr, isOk, ok, type Result } from "@phyxiusjs/fp";
-import {
-  debriefFilePath,
-  notesFilePath,
-  readDebriefFile,
-  readNotesFile,
-} from "debrief";
+import { debriefFilePath, notesFilePath, readDebriefFile, readNotesFile } from "debrief";
 import {
   buildCleared,
   createReceipt,
@@ -16,9 +11,9 @@ import {
   derivation,
   duration,
   explainScopeRefusal,
+  type Gap,
   type Gate,
   gate,
-  type Gap,
   heldOn,
   type Ledger,
   type LedgerEvent,
@@ -40,11 +35,7 @@ import {
   type SubstrateClient,
 } from "substrate";
 import { verifyDebrief } from "verifier";
-import {
-  type GateCommand,
-  type PlaceholderRefusal,
-  substituteGateCommand,
-} from "./gateCommand.ts";
+import { type GateCommand, type PlaceholderRefusal, substituteGateCommand } from "./gateCommand.ts";
 
 export const GATE_DERIVATION_VERSION = "runner@0";
 
@@ -114,9 +105,7 @@ function outputHash(output: string): string {
 }
 
 function unmetCriterion(exitCode: number, pattern: RegExp | undefined): string {
-  return exitCode !== 0
-    ? `exit ${exitCode}`
-    : `output did not match /${pattern?.source ?? ""}/`;
+  return exitCode !== 0 ? `exit ${exitCode}` : `output did not match /${pattern?.source ?? ""}/`;
 }
 
 export async function judgeGates(
@@ -149,8 +138,7 @@ export async function judgeGates(
 
     const gateCommand = commandFor.get(gateId);
     const substituted = substituteGateCommand(gateCommand?.run ?? "", node);
-    if (isErr(substituted))
-      return err({ kind: "placeholder", gateId, refusal: substituted.error });
+    if (isErr(substituted)) return err({ kind: "placeholder", gateId, refusal: substituted.error });
 
     const before = clock.now().monoMs;
     const { exitCode, output } = await spawnGateCommand(
@@ -160,8 +148,7 @@ export async function judgeGates(
     const after = clock.now().monoMs;
 
     const pattern = gateCommand?.expectOutput;
-    const satisfied =
-      exitCode === 0 && (pattern === undefined || pattern.test(output));
+    const satisfied = exitCode === 0 && (pattern === undefined || pattern.test(output));
     const proof =
       pattern === undefined
         ? { exitCode, outputHash: outputHash(output) }
@@ -228,15 +215,7 @@ export async function judgeGates(
     await ingestDebrief(ledger, session, worktree, node);
   }
 
-  await absorbDebrief(
-    substrate,
-    narrate,
-    worktree,
-    node,
-    receipts,
-    resolved,
-    personEvents,
-  );
+  await absorbDebrief(substrate, narrate, worktree, node, receipts, resolved, personEvents);
 
   ledger.append({ kind: "outcome-set", node, outcome: resolved });
   return ok(resolved);
@@ -245,17 +224,11 @@ export async function judgeGates(
 async function readV2Debrief(
   worktree: string,
   node: Node,
-): Promise<
-  { readonly debrief: Debrief; readonly notes: readonly Note[] } | undefined
-> {
-  const debriefRead = await readDebriefFile(
-    debriefFilePath(worktree, node.graph, node.id),
-  );
+): Promise<{ readonly debrief: Debrief; readonly notes: readonly Note[] } | undefined> {
+  const debriefRead = await readDebriefFile(debriefFilePath(worktree, node.graph, node.id));
   if (isErr(debriefRead) || debriefRead.value.kind !== "v2") return undefined;
 
-  const notesRead = await readNotesFile(
-    notesFilePath(worktree, node.graph, node.id),
-  );
+  const notesRead = await readNotesFile(notesFilePath(worktree, node.graph, node.id));
   return {
     debrief: debriefRead.value.debrief,
     notes: isErr(notesRead) ? [] : notesRead.value,
@@ -268,8 +241,7 @@ async function ingestDebrief(
   worktree: string,
   node: Node,
 ): Promise<void> {
-  const alreadyIngested =
-    ledger.projection().sessions.get(session)?.debrief !== undefined;
+  const alreadyIngested = ledger.projection().sessions.get(session)?.debrief !== undefined;
   if (alreadyIngested) return;
 
   const read = await readV2Debrief(worktree, node);
@@ -328,12 +300,6 @@ async function absorbDebrief(
     node,
     personEvents,
   );
-  const acknowledged = await substrate.absorb(
-    node,
-    read.debrief,
-    read.notes,
-    receipts,
-    evidence,
-  );
+  const acknowledged = await substrate.absorb(node, read.debrief, read.notes, receipts, evidence);
   narrate(narrateAbsorb(substrate.address, acknowledged));
 }

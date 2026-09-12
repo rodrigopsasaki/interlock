@@ -264,6 +264,56 @@ entries:
       Not raised as a fix to findRepoRoot or sharedJournalDirectory themselves: both are
       unchanged, out of this node's scope, and every other existing test in this suite either
       isolates the same way already or never collides by luck of its fictional ids.
+  - kind: surprise
+    at: "2026-09-12T13:45:00Z"
+    expected: >
+      `pnpm lint` (the standing gate this node's own brief declares, run: "biome check .") would
+      pass or fail based on this session's own diff, the same way typecheck and test already do.
+    observed: >
+      It refused outright, for every invocation, before this session changed a single line:
+      "No files were processed in the specified paths... These paths were provided but ignored:
+      -.". Reproduced with `biome check .` from this worktree with zero uncommitted changes.
+      `biome check packages/substrate/src` (an explicit subpath) worked fine and found real
+      files. The difference is this worktree itself: `git check-ignore -v .worktrees/evidence`
+      from the main checkout confirms this whole directory is excluded by .gitignore's own
+      ".worktrees/" line, and biome.json's own files.includes carries "!**/.worktrees" among its
+      excludes -- written for the ordinary case of running lint once from the main checkout over
+      everything under packages/, not for running it from inside one of the very worktrees that
+      pattern is meant to skip. `git log -- .interlock/config.yaml` shows why no prior session
+      ever hit this: "lint" was added as a standing gate 2026-09-11 23:35, "comments" at
+      2026-09-12 00:12, both under an hour before this session's own brief (00:17) -- and the
+      real shared journal's own gate-moved history (grepped directly) has never recorded a
+      single "lint" or "comments" receipt across 90 typecheck/test runs. This session is the
+      first worker ever to actually exercise either gate for real.
+    mattered_because: >
+      Per AGENTS.md's own Conventions: "A gate command declared before its runtime exists is
+      professed. It is verified literally the first time it can run, and the harness, never the
+      worker, bends the graph when it cannot." This is exactly that first real run, and the gate
+      command as declared cannot pass inside any worktree -- which is where every worker session
+      runs, including this one. Left alone, this blocks every future node's "lint" gate, not
+      only this session's own. Fixed at the root package.json (in this node's own scope): "lint"
+      /"format"/"lint:fix" now pass biome the explicit top-level paths files.includes already
+      names (packages, vitest.config.base.ts, vitest.setup.ts, scripts) instead of ".", so biome
+      walks those paths directly rather than first resolving "." against a root that, for a git
+      worktree, sits under its own exclude pattern. Verified: `pnpm lint` now checks 296 files
+      and passes clean from inside this very worktree. This uncovered 19 files (all of them
+      already this session's own changes) reformatted differently by the editor's own
+      auto-format hook than biome.json's real 100-column rule would have written them; fixed
+      with `biome check --write`, re-typechecked and re-tested after, no semantic change.
+    evidence: |
+      $ biome check .
+      (from .worktrees/evidence, zero uncommitted changes at the time)
+      × No files were processed in the specified paths.
+      i These paths were provided but ignored:
+      - .
+
+      $ git check-ignore -v .worktrees/evidence
+      (run from the main checkout)
+      .gitignore:3:.worktrees/	.worktrees/evidence
+
+      $ pnpm lint
+      (after the package.json fix, from .worktrees/evidence)
+      Checked 296 files in 44ms. No fixes applied.
   - kind: choice
     at: "2026-09-12T13:05:00Z"
     chose: >

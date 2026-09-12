@@ -1,10 +1,6 @@
 import { derivation, duration, gate, mark, type Outcome, spend } from "ledger";
 import { describe, expect, it } from "vitest";
-import {
-  evidenceOf,
-  type EvidenceSession,
-  personEventsFor,
-} from "../src/evidence.ts";
+import { type EvidenceSession, evidenceOf, personEventsFor } from "../src/evidence.ts";
 
 const D = derivation.gate("verifier-hunks", "verifier@0", "test");
 const node = { graph: "0003-translator", id: "evidence" };
@@ -14,9 +10,7 @@ const clearedOutcome = (receipts: EvidenceSession["receipts"]): Outcome => ({
   receipts,
 });
 
-function baseSession(
-  overrides: Partial<EvidenceSession> = {},
-): EvidenceSession {
+function baseSession(overrides: Partial<EvidenceSession> = {}): EvidenceSession {
   return {
     derivation: {
       kind: "agent",
@@ -75,10 +69,7 @@ describe("evidenceOf: decisions", () => {
               restsOn: [],
               hunks: ["a.ts:1", "b.ts:1"],
             },
-            marks: [
-              mark.rooted(D, "a.ts:1"),
-              mark.unrooted(D, "not a file changed"),
-            ],
+            marks: [mark.rooted(D, "a.ts:1"), mark.unrooted(D, "not a file changed")],
           },
         ],
       }),

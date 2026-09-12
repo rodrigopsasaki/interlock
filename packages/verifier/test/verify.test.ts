@@ -12,8 +12,7 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -107,12 +106,8 @@ describe("verifyDebrief", () => {
     const marks = result.value.marks;
     expect(marks.filter((m) => m.kind === "rooted")).toHaveLength(1);
     // "widget" is in AGENTS.md's Vocabulary table; PascalCase "Widget" is an accepted form.
-    expect(marks.some((m) => m.kind === "gap" && m.gap.term === "Widget")).toBe(
-      false,
-    );
-    expect(
-      marks.some((m) => m.kind === "unexplained" && m.hunk === "orphan.ts"),
-    ).toBe(true);
+    expect(marks.some((m) => m.kind === "gap" && m.gap.term === "Widget")).toBe(false);
+    expect(marks.some((m) => m.kind === "unexplained" && m.hunk === "orphan.ts")).toBe(true);
   });
 
   it("groups the flat marks back by the decision and discovery that produced each", async () => {
@@ -145,10 +140,7 @@ describe("verifyDebrief", () => {
 
     expect(result.value.decisionMarks).toHaveLength(1);
     expect(result.value.decisionMarks[0]?.decision.id).toBe("c1");
-    expect(result.value.decisionMarks[0]?.marks.map((m) => m.kind)).toEqual([
-      "rooted",
-      "unrooted",
-    ]);
+    expect(result.value.decisionMarks[0]?.marks.map((m) => m.kind)).toEqual(["rooted", "unrooted"]);
 
     expect(result.value.discoveryMarks).toHaveLength(1);
     expect(result.value.discoveryMarks[0]?.discovery.id).toBe("d1");

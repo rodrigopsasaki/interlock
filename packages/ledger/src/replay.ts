@@ -31,9 +31,7 @@ export function parseLine(
   if (tag === undefined) return { kind: "refused", tag: "" };
   const upcast = table.get(tag);
   const event = upcast?.(parsed);
-  return event === undefined
-    ? { kind: "refused", tag }
-    : { kind: "event", event };
+  return event === undefined ? { kind: "refused", tag } : { kind: "event", event };
 }
 
 function parseEvents(

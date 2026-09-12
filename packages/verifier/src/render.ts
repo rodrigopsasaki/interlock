@@ -25,9 +25,7 @@ function describe(mark: Mark): string | undefined {
   }
 }
 
-export function renderVerification(result: {
-  readonly marks: readonly Mark[];
-}): string {
+export function renderVerification(result: { readonly marks: readonly Mark[] }): string {
   const counts = countByKind(result.marks);
   const lines = [
     `rooted ${counts.rooted}, unrooted ${counts.unrooted}, unexplained ${counts.unexplained}, gap ${counts.gap}`,

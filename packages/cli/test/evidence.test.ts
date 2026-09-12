@@ -23,8 +23,7 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -57,10 +56,7 @@ function initFixtureRepo(directory: string): void {
   git(["-c", "init.defaultBranch=main", "init", "--quiet"], directory);
   writeFileSync(join(directory, "AGENTS.md"), AGENTS_MD);
   git(["add", "-A"], directory);
-  git(
-    ["-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "root"],
-    directory,
-  );
+  git(["-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "root"], directory);
 }
 
 function fixtureRepo(): {
@@ -78,10 +74,7 @@ function fixtureRepo(): {
     ["export interface Widget {", "  readonly id: string;", "}", ""].join("\n"),
   );
   git(["add", "-A"], directory);
-  git(
-    ["-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "add widget"],
-    directory,
-  );
+  git(["-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "add widget"], directory);
   const to = git(["rev-parse", "HEAD"], directory).trim();
 
   return { dir: directory, from, to };
@@ -176,12 +169,9 @@ describe("interlock evidence", () => {
     directory = mkdtempSync(join(runsRoot, "evidence-"));
     initFixtureRepo(directory);
     mkdirSync(join(directory, ".interlock"), { recursive: true });
-    const result = await runInterlockEvidence(
-      [node.graph, node.id, "--session", "bogus"],
-      {
-        cwd: directory,
-      },
-    );
+    const result = await runInterlockEvidence([node.graph, node.id, "--session", "bogus"], {
+      cwd: directory,
+    });
     expect(result.exitCode).toBe(0);
     expect(result.message).toContain("bogus");
   });
@@ -222,9 +212,7 @@ describe("interlock evidence", () => {
     expect(result.message).toContain("kind: decision");
     expect(result.message).toContain("statement: added Widget");
     expect(result.message).toContain("kind: absence");
-    expect(result.message).toContain(
-      "derivation: agent:claude-code:claude-sonnet-5",
-    );
+    expect(result.message).toContain("derivation: agent:claude-code:claude-sonnet-5");
   });
 
   it("carries a person's waiver into evidence as a professed decision", async () => {

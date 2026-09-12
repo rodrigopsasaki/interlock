@@ -9,10 +9,7 @@ import type {
   Outcome,
   Receipt,
 } from "ledger";
-import {
-  debriefDerivationString,
-  derivationString,
-} from "./derivationString.ts";
+import { debriefDerivationString, derivationString } from "./derivationString.ts";
 import { discoveryItemKind } from "./discoveryKind.ts";
 import { isString, prop } from "./validate.ts";
 
@@ -58,19 +55,11 @@ function hunkPath(citation: string): string {
 function hunkScope(hunks: readonly string[]): ItemScope {
   const paths = [...new Set(hunks.map(hunkPath))];
   const only = paths.length === 1 ? paths[0] : undefined;
-  return only === undefined
-    ? { kind: "repository" }
-    : { kind: "path", path: only };
+  return only === undefined ? { kind: "repository" } : { kind: "path", path: only };
 }
 
-function decisionItem(
-  entry: DecisionEvidence,
-  derivation: string,
-): Item | undefined {
-  if (
-    entry.marks.length === 0 ||
-    entry.marks.some((mark) => mark.kind !== "rooted")
-  ) {
+function decisionItem(entry: DecisionEvidence, derivation: string): Item | undefined {
+  if (entry.marks.length === 0 || entry.marks.some((mark) => mark.kind !== "rooted")) {
     return undefined;
   }
   return {
@@ -83,10 +72,7 @@ function decisionItem(
   };
 }
 
-function discoveryItem(
-  entry: DiscoveryEvidence,
-  derivation: string,
-): Item | undefined {
+function discoveryItem(entry: DiscoveryEvidence, derivation: string): Item | undefined {
   if (entry.mark.kind !== "rooted") return undefined;
   return {
     kind: discoveryItemKind(entry.discovery),
@@ -98,8 +84,7 @@ function discoveryItem(
 }
 
 function blockedGateIds(outcome: Outcome): ReadonlySet<string> {
-  if (outcome.kind !== "held" || outcome.on.kind !== "gate-failure")
-    return new Set();
+  if (outcome.kind !== "held" || outcome.on.kind !== "gate-failure") return new Set();
   return new Set(outcome.on.failure.split(", "));
 }
 
@@ -113,9 +98,7 @@ function receiptItem(receipt: Receipt, blocked: ReadonlySet<string>): Item {
   };
 }
 
-function proofBecause(
-  proof: Readonly<Record<string, unknown>>,
-): string | undefined {
+function proofBecause(proof: Readonly<Record<string, unknown>>): string | undefined {
   const value = prop(proof, "because");
   return isString(value) ? value : undefined;
 }
@@ -131,10 +114,7 @@ function personVerbItem(event: LedgerEvent): Item | undefined {
         derivation: `human:${event.to.authority}`,
       };
     }
-    if (
-      event.to.kind === "satisfied" &&
-      event.to.receipt.derivation.kind === "human"
-    ) {
+    if (event.to.kind === "satisfied" && event.to.receipt.derivation.kind === "human") {
       const because = proofBecause(event.to.receipt.proof);
       if (because === undefined) return undefined;
       return {
@@ -179,9 +159,7 @@ export function evidenceOf(session: EvidenceSession): readonly Item[] {
   const derivation = debriefDerivationString(session.derivation);
 
   const blocked = blockedGateIds(session.outcome);
-  const receiptItems = session.receipts.map((receipt) =>
-    receiptItem(receipt, blocked),
-  );
+  const receiptItems = session.receipts.map((receipt) => receiptItem(receipt, blocked));
   const decisionItems = session.decisions
     .map((entry) => decisionItem(entry, derivation))
     .filter(isItem);
