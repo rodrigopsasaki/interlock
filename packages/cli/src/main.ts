@@ -1,6 +1,7 @@
 import { runInterlockBackfill } from "./backfill.ts";
 import { validateBrief } from "./brief/validate.ts";
 import { validateDebrief } from "./debrief/validate.ts";
+import { runInterlockEvidence } from "./evidence.ts";
 import { runInterlockFace } from "./face/run.ts";
 import { runGateWaive } from "./gate/waive.ts";
 import { runGraphApprove } from "./graph/approve.ts";
@@ -86,6 +87,10 @@ export async function run(argv: readonly string[]): Promise<CommandResult> {
 
   if (group === "verify") {
     return runInterlockVerify(argv.slice(1));
+  }
+
+  if (group === "evidence") {
+    return runInterlockEvidence(argv.slice(1));
   }
 
   if (group === "face") {

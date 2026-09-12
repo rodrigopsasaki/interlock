@@ -213,6 +213,37 @@ entries:
       discipline is therefore not a simplification but the literal fact the outcome already
       proves. Still only "the node's receipts and outcome" as inputs, per the brief's own
       sentence -- no third gates: Map parameter added.
+  - kind: surprise
+    at: "2026-09-12T13:20:00Z"
+    expected: >
+      A CLI test that only reads (never opens a ledger for writing) inside a fresh
+      mkdtempSync'd, git-initialized fixture directory would resolve findRepoRoot(cwd) to that
+      fixture directory, since it has no .interlock of its own to find, and findRepoRoot climbs
+      to the nearest ancestor that has one.
+    observed: >
+      It climbs all the way to THIS worktree's own root (five levels up from
+      packages/cli/test/.runs/<fixture>), because the worktree's .interlock genuinely exists
+      there -- and sharedJournalDirectory() on that repoRoot resolves, via git's own
+      --git-common-dir, to the MAIN checkout's real, live .interlock/ledger (confirmed by a
+      throwaway debug print, then removed; the real journal.jsonl's mtime was unchanged
+      before/after, and it holds no test-fixture graph ids, only this session's own real
+      narration -- so no test in this repository's existing suite has actually leaked into it,
+      but only because every test that reads without writing first happens to use fictional
+      graph/node ids that can never collide with real recorded ones). A test that both opens a
+      ledger (which mkdirSync's <fixture>/.interlock/ledger as a side effect of attaching its
+      sink) and then calls a CLI command against the same cwd is safe by accident of ordering:
+      the write creates the fixture's own .interlock before the read's findRepoRoot ever runs.
+      A read-only test has no such write to save it.
+    mattered_because: >
+      This node's own two "no session" tests (evidence.test.ts) never open a ledger, so they
+      were reading the REAL shared journal until fixed -- exactly the accidental-collision risk
+      above, not yet triggered only because "0003-translator"/"evidence" (this very node's own
+      real ids) had not yet been judged in that real journal at the moment the test ran. Fixed
+      by mkdirSync'ing the fixture's own .interlock before calling runInterlockEvidence,
+      matching packages/cli/test/verify.test.ts's own precedent for its no-ledger-opened cases.
+      Not raised as a fix to findRepoRoot or sharedJournalDirectory themselves: both are
+      unchanged, out of this node's scope, and every other existing test in this suite either
+      isolates the same way already or never collides by luck of its fictional ids.
   - kind: choice
     at: "2026-09-12T13:05:00Z"
     chose: >
