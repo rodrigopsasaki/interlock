@@ -64,8 +64,6 @@ function renderItem(item: Item): string {
   return `- ${prefix}${item.statement}${because}\n  derivation: ${item.derivation}`;
 }
 
-// Pure: no substrate client exists yet, so items always arrive already typed, from a fixture in
-// tests and, later, from the substrate's context call.
 export function renderSlice(substrateAddress: string, items: readonly Item[]): string {
   if (substrateAddress === "none") {
     return "No substrate is configured; this brief carries no context slice.";
