@@ -29,19 +29,24 @@ async function authHeaders(
   return ok({ Authorization: `Bearer ${token.value}` });
 }
 
-async function post(
+interface RequestSpec {
+  readonly method: "GET" | "POST";
+  readonly headers: Record<string, string>;
+  readonly body?: unknown;
+}
+
+async function call(
   address: string,
   verb: string,
-  headers: Record<string, string>,
-  body: unknown,
+  spec: RequestSpec,
 ): Promise<Result<unknown, string>> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), CALL_TIMEOUT_MS);
   try {
     const response = await fetch(endpoint(address, verb), {
-      method: "POST",
-      headers: { "content-type": "application/json", ...headers },
-      body: JSON.stringify(body),
+      method: spec.method,
+      headers: spec.headers,
+      ...(spec.body === undefined ? {} : { body: JSON.stringify(spec.body) }),
       signal: controller.signal,
     });
     if (!response.ok) {
@@ -62,6 +67,27 @@ async function post(
   }
 }
 
+async function post(
+  address: string,
+  verb: string,
+  headers: Record<string, string>,
+  body: unknown,
+): Promise<Result<unknown, string>> {
+  return call(address, verb, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...headers },
+    body,
+  });
+}
+
+async function get(
+  address: string,
+  verb: string,
+  headers: Record<string, string>,
+): Promise<Result<unknown, string>> {
+  return call(address, verb, { method: "GET", headers });
+}
+
 export function httpClient(address: string, keyFile?: string): SubstrateClient {
   let cachedCapabilities: readonly string[] | undefined;
 
@@ -69,7 +95,7 @@ export function httpClient(address: string, keyFile?: string): SubstrateClient {
     if (cachedCapabilities !== undefined) return cachedCapabilities;
     const headers = await authHeaders(keyFile);
     if (isErr(headers)) return [];
-    const response = await post(address, "capabilities", headers.value, {});
+    const response = await get(address, "capabilities", headers.value);
     if (isErr(response)) return [];
     const body = response.value;
     if (capabilitiesResponseSchema === undefined || !capabilitiesResponseSchema.validate(body)) {
