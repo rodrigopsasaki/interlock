@@ -77,7 +77,12 @@ export {
   receiptId,
 } from "./receipt.ts";
 export type { ParsedLine, ReplayRefusal } from "./replay.ts";
-export { parseLine, readReplay, replayFromRaw } from "./replay.ts";
+export {
+  parseLine,
+  readRawEvents,
+  readReplay,
+  replayFromRaw,
+} from "./replay.ts";
 export type { Session } from "./session.ts";
 export { isSession } from "./session.ts";
 export { attachLedgerSink, JOURNAL_FILE_NAME, journalPath } from "./sink.ts";

@@ -1,4 +1,10 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
 import { unwrap } from "@phyxiusjs/fp";
@@ -13,7 +19,7 @@ import { note } from "../src/note.js";
 import { heldOn, outcome } from "../src/outcome.js";
 import { fold, type LedgerProjection } from "../src/projection.js";
 import { duration, type Receipt } from "../src/receipt.js";
-import { parseLine, replayFromRaw } from "../src/replay.js";
+import { parseLine, readRawEvents, replayFromRaw } from "../src/replay.js";
 import { spend } from "../src/spend.js";
 import { upcastV1 } from "../src/upcast/v1.js";
 import { isRecord, prop } from "../src/validate.js";
@@ -24,7 +30,8 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined)
+    rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -121,7 +128,9 @@ describe("crash-only replay", () => {
       const replayed = replayFromRaw(prefix);
       expect(replayed._tag).toBe("Ok");
       if (replayed._tag !== "Ok") continue;
-      expect(sameProjection(replayed.value, fold(events.slice(0, expectedCount)))).toBe(true);
+      expect(
+        sameProjection(replayed.value, fold(events.slice(0, expectedCount))),
+      ).toBe(true);
     }
   });
 
@@ -162,7 +171,9 @@ describe("crash-only replay", () => {
     await second.close();
 
     const third = unwrap(await createLedger({ clock, directory }));
-    expect(sameProjection(third.projection(), fold([...firstRun, secondRunEvent]))).toBe(true);
+    expect(
+      sameProjection(third.projection(), fold([...firstRun, secondRunEvent])),
+    ).toBe(true);
   });
 });
 
@@ -185,7 +196,9 @@ describe("replay's versioned upcast seam", () => {
     const replayed = replayFromRaw(raw);
     expect(replayed._tag).toBe("Ok");
     if (replayed._tag !== "Ok") return;
-    expect(sameProjection(replayed.value, fold([{ kind: "node-created", node }]))).toBe(true);
+    expect(
+      sameProjection(replayed.value, fold([{ kind: "node-created", node }])),
+    ).toBe(true);
   });
 
   it("refuses a line whose shape tag is not in the upcast table, naming the tag and line", () => {
@@ -236,7 +249,9 @@ describe("replay's versioned upcast seam", () => {
         (raw: unknown) => {
           if (!isRecord(raw)) return undefined;
           const legacyNode = prop(raw, "createdNode");
-          return isNode(legacyNode) ? { kind: "node-created", node: legacyNode } : undefined;
+          return isNode(legacyNode)
+            ? { kind: "node-created", node: legacyNode }
+            : undefined;
         },
       ],
     ]);
@@ -244,7 +259,9 @@ describe("replay's versioned upcast seam", () => {
     const replayed = replayFromRaw(legacyLine, table);
     expect(replayed._tag).toBe("Ok");
     if (replayed._tag !== "Ok") return;
-    expect(sameProjection(replayed.value, fold([{ kind: "node-created", node }]))).toBe(true);
+    expect(
+      sameProjection(replayed.value, fold([{ kind: "node-created", node }])),
+    ).toBe(true);
   });
 
   it("upcasts the real event@v1 fixture so the graph's approved gate is satisfied", () => {
@@ -256,7 +273,9 @@ describe("replay's versioned upcast seam", () => {
     expect(replayed._tag).toBe("Ok");
     if (replayed._tag !== "Ok") return;
     const graphNode: Node = { graph: "0001-bootstrap", id: "0001-bootstrap" };
-    const approved = replayed.value.nodes.get(nodeKey(graphNode))?.gates.get("approved");
+    const approved = replayed.value.nodes
+      .get(nodeKey(graphNode))
+      ?.gates.get("approved");
     expect(approved?.kind).toBe("satisfied");
   });
 
@@ -269,8 +288,12 @@ describe("replay's versioned upcast seam", () => {
     expect(replayed._tag).toBe("Ok");
     if (replayed._tag !== "Ok") return;
     const graphNode: Node = { graph: "0001-bootstrap", id: "0001-bootstrap" };
-    const approved = replayed.value.nodes.get(nodeKey(graphNode))?.gates.get("approved");
-    expect(approved?.kind === "satisfied" ? approved.receipt.duration : undefined).toEqual({
+    const approved = replayed.value.nodes
+      .get(nodeKey(graphNode))
+      ?.gates.get("approved");
+    expect(
+      approved?.kind === "satisfied" ? approved.receipt.duration : undefined,
+    ).toEqual({
       kind: "unknown",
     });
   });
@@ -349,7 +372,9 @@ describe("replay's versioned upcast seam", () => {
     if (replayed._tag !== "Ok") return;
 
     const graphNode: Node = { graph: "0001-bootstrap", id: "0001-bootstrap" };
-    const approved = replayed.value.nodes.get(nodeKey(graphNode))?.gates.get("approved");
+    const approved = replayed.value.nodes
+      .get(nodeKey(graphNode))
+      ?.gates.get("approved");
     expect(approved?.kind).toBe("satisfied");
   });
 
@@ -411,7 +436,76 @@ describe("replay's versioned upcast seam", () => {
 
     const graphNode: Node = { graph: "0001-bootstrap", id: "0001-bootstrap" };
     if (replayed._tag !== "Ok") return;
-    const approved = replayed.value.nodes.get(nodeKey(graphNode))?.gates.get("approved");
+    const approved = replayed.value.nodes
+      .get(nodeKey(graphNode))
+      ?.gates.get("approved");
     expect(approved?.kind).toBe("satisfied");
+  });
+});
+
+describe("readRawEvents", () => {
+  it("returns the flat event history a projection folds away, unfolded and in order", async () => {
+    directory = mkdtempSync(join(runsRoot, "run-"));
+    const clock = createControlledClock({ initialTime: 0 });
+    const ledger = unwrap(await createLedger({ clock, directory }));
+    const node: Node = { graph: "0001-bootstrap", id: "ledger" };
+
+    const events: readonly LedgerEvent[] = [
+      { kind: "node-created", node },
+      {
+        kind: "outcome-set",
+        node,
+        outcome: outcome.reset([], "Rodrigo Sasaki", "flaky suite"),
+      },
+      { kind: "outcome-set", node, outcome: { kind: "cleared", receipts: [] } },
+    ];
+    for (const event of events) ledger.append(event);
+    await ledger.close();
+
+    const read = await readRawEvents(directory);
+    expect(read._tag).toBe("Ok");
+    if (read._tag !== "Ok") return;
+    // Each line's own current-version upcaster is the identity, envelope tag included (the same
+    // shape replayFromRaw's own Ok branch folds away); readRawEvents is a mechanical wire-to-event
+    // decode, not a re-validation, so it is compared field by field rather than by strict equality.
+    expect(read.value.map((event) => event.kind)).toEqual(
+      events.map((event) => event.kind),
+    );
+
+    const projection = fold(read.value);
+    expect(projection.nodes.get(nodeKey(node))?.outcome).toEqual({
+      kind: "cleared",
+      receipts: [],
+    });
+  });
+
+  it("a directory with no journal yet reads as no events, never a missing-file error", async () => {
+    directory = mkdtempSync(join(runsRoot, "run-"));
+    const read = await readRawEvents(directory);
+    expect(read).toEqual({ _tag: "Ok", value: [] });
+  });
+
+  it("refuses on the same line and tag replayFromRaw would, since both parse the same way", async () => {
+    const node: Node = { graph: "0001-bootstrap", id: "ledger" };
+    const known = JSON.stringify({
+      interlock: EVENT_SHAPE,
+      kind: "node-created",
+      node,
+    });
+    const unknown = JSON.stringify({
+      interlock: "event@v0",
+      kind: "node-created",
+      node,
+    });
+    directory = mkdtempSync(join(runsRoot, "run-"));
+    const raw = `${known}\n${unknown}\n`;
+    writeFileSync(join(directory, "journal.jsonl"), raw);
+
+    const read = await readRawEvents(directory);
+    expect(read).toEqual({ _tag: "Err", error: { tag: "event@v0", line: 2 } });
+    expect(replayFromRaw(raw)).toEqual({
+      _tag: "Err",
+      error: { tag: "event@v0", line: 2 },
+    });
   });
 });

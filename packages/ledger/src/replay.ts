@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { err, ok, type Result } from "@phyxiusjs/fp";
+import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import { shapeTag, type Upcaster, upcastTable } from "./envelope.ts";
 import type { LedgerEvent } from "./event.ts";
 import { emptyProjection, fold, type LedgerProjection } from "./projection.ts";
@@ -31,13 +31,15 @@ export function parseLine(
   if (tag === undefined) return { kind: "refused", tag: "" };
   const upcast = table.get(tag);
   const event = upcast?.(parsed);
-  return event === undefined ? { kind: "refused", tag } : { kind: "event", event };
+  return event === undefined
+    ? { kind: "refused", tag }
+    : { kind: "event", event };
 }
 
-export function replayFromRaw(
+function parseEvents(
   raw: string,
-  table: ReadonlyMap<string, Upcaster> = upcastTable,
-): Result<LedgerProjection, ReplayRefusal> {
+  table: ReadonlyMap<string, Upcaster>,
+): Result<readonly LedgerEvent[], ReplayRefusal> {
   const events: LedgerEvent[] = [];
   const lines = raw.split("\n");
   for (let index = 0; index < lines.length; index += 1) {
@@ -48,21 +50,40 @@ export function replayFromRaw(
     }
     events.push(parsed.event);
   }
-  return ok(fold(events));
+  return ok(events);
+}
+
+export function replayFromRaw(
+  raw: string,
+  table: ReadonlyMap<string, Upcaster> = upcastTable,
+): Result<LedgerProjection, ReplayRefusal> {
+  const events = parseEvents(raw, table);
+  return isErr(events) ? events : ok(fold(events.value));
+}
+
+async function readJournalRaw(directory: string): Promise<string | undefined> {
+  try {
+    return await readFile(journalPath(directory), "utf-8");
+  } catch (error) {
+    if (isNodeError(error) && error.code === "ENOENT") return undefined;
+    throw error;
+  }
 }
 
 export async function readReplay(
   directory: string,
   table: ReadonlyMap<string, Upcaster> = upcastTable,
 ): Promise<Result<LedgerProjection, ReplayRefusal>> {
-  let raw: string;
-  try {
-    raw = await readFile(journalPath(directory), "utf-8");
-  } catch (error) {
-    if (isNodeError(error) && error.code === "ENOENT") return ok(emptyProjection());
-    throw error;
-  }
-  return replayFromRaw(raw, table);
+  const raw = await readJournalRaw(directory);
+  return raw === undefined ? ok(emptyProjection()) : replayFromRaw(raw, table);
+}
+
+export async function readRawEvents(
+  directory: string,
+  table: ReadonlyMap<string, Upcaster> = upcastTable,
+): Promise<Result<readonly LedgerEvent[], ReplayRefusal>> {
+  const raw = await readJournalRaw(directory);
+  return raw === undefined ? ok([]) : parseEvents(raw, table);
 }
 
 function isNodeError(error: unknown): error is NodeJS.ErrnoException {
