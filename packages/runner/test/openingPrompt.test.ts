@@ -35,4 +35,16 @@ describe("buildOpeningPrompt", () => {
         "Read notes.yaml, git status and git log before you continue, and do not redo finished work.",
     );
   });
+
+  it("says nothing about producing a graph for a worker session, the default role", () => {
+    const prompt = buildOpeningPrompt("0001-bootstrap", "runner-command-gate");
+    expect(prompt).not.toContain("never leases or runs a node");
+  });
+
+  it("names what an interpreter session produces and that it never leases or runs a node", () => {
+    const prompt = buildOpeningPrompt("demo", "plan/demo", undefined, "interpreter");
+    expect(prompt).toContain(".interlock/graphs/demo.yaml");
+    expect(prompt).toContain("for a person to approve or correct");
+    expect(prompt).toContain("it never leases or runs a node");
+  });
 });

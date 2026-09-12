@@ -67,6 +67,12 @@ export {
   explainSessionBriefRefusal,
   writeBriefIntoWorktree,
 } from "./sessionBrief.ts";
+export type {
+  BeforeJudgeRefusal,
+  DriveSessionOutcome,
+  DriveSessionRequest,
+} from "./sessionDrive.ts";
+export { driveInteractiveSession } from "./sessionDrive.ts";
 export {
   lastNonEmptyLine,
   screenPath,
