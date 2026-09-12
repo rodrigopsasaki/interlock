@@ -14,6 +14,7 @@ import {
   type Ledger,
   spend,
 } from "ledger";
+import { ABANDONED_AUTHORITY } from "runner";
 import { afterEach, describe, expect, it } from "vitest";
 import { runInterlockEvidence } from "../src/evidence.ts";
 
@@ -213,6 +214,36 @@ describe("interlock evidence", () => {
     expect(result.message).toContain("statement: added Widget");
     expect(result.message).toContain("kind: absence");
     expect(result.message).toContain("derivation: agent:claude-code:claude-sonnet-5");
+    expect(result.message).toMatch(/scope:\s*\n\s*kind: path\s*\n\s*path: src\/widget\.ts/);
+  });
+
+  it("is deterministic: two runs over the same journal print identical text", async () => {
+    const { dir, from, to } = fixtureRepo();
+    const debrief = fixtureDebrief(from, to);
+    const ledger = await openLedger(dir);
+    ledger.append({
+      kind: "session-started",
+      session: { id: "s1", node },
+      brief,
+    });
+    ledger.append({ kind: "debrief-filed", session: "s1", debrief });
+    ledger.append({ kind: "receipt-written", node, receipt: satisfiedReceipt });
+    ledger.append({
+      kind: "gate-moved",
+      node,
+      gate: "typecheck",
+      to: gate.satisfied(satisfiedReceipt),
+    });
+    ledger.append({
+      kind: "outcome-set",
+      node,
+      outcome: { kind: "cleared", receipts: [satisfiedReceipt] },
+    });
+    await ledger.close();
+
+    const first = await runInterlockEvidence([node.graph, node.id], { cwd: dir });
+    const second = await runInterlockEvidence([node.graph, node.id], { cwd: dir });
+    expect(first).toEqual(second);
   });
 
   it("carries a person's waiver into evidence as a professed decision", async () => {
@@ -247,5 +278,35 @@ describe("interlock evidence", () => {
     expect(result.message).toContain("statement: waived gate typecheck");
     expect(result.message).toContain("because: flaky today");
     expect(result.message).toContain("derivation: human:Rodrigo Sasaki");
+  });
+
+  it("a sweeper cancellation is never a professed item", async () => {
+    const { dir, from, to } = fixtureRepo();
+    const debrief = fixtureDebrief(from, to);
+    const ledger = await openLedger(dir);
+    ledger.append({
+      kind: "session-started",
+      session: { id: "s1", node },
+      brief,
+    });
+    ledger.append({ kind: "debrief-filed", session: "s1", debrief });
+    ledger.append({
+      kind: "outcome-set",
+      node,
+      outcome: {
+        kind: "cancelled",
+        receipts: [],
+        authority: ABANDONED_AUTHORITY,
+        because: "lease s1 expired at 0 with no outcome",
+      },
+    });
+    await ledger.close();
+
+    const result = await runInterlockEvidence([node.graph, node.id], {
+      cwd: dir,
+    });
+    expect(result.exitCode).toBe(0);
+    expect(result.message).not.toContain("professed");
+    expect(result.message).not.toContain("cancelled this node");
   });
 });

@@ -1,7 +1,8 @@
 import { isErr } from "@phyxiusjs/fp";
-import type { Item } from "debrief";
+import type { Item, ItemKind, ItemStanding } from "debrief";
 import { findRepoRoot, sharedJournalDirectory } from "face";
 import { type Gap, nodeKey, readRawEvents, readReplay } from "ledger";
+import { HARNESS_AUTHORITIES } from "runner";
 import { type EvidenceSession, evidenceOf, personEventsFor } from "substrate";
 import { explainVerifyRefusal, verifyDebrief } from "verifier";
 import { stringify } from "yaml";
@@ -10,7 +11,7 @@ import type { CommandResult } from "./main.ts";
 const USAGE =
   'interlock evidence: expected a graph id and a node id, e.g. "interlock evidence 0001-bootstrap verifier-hunks".';
 
-const KIND_ORDER = [
+const KIND_ORDER: readonly ItemKind[] = [
   "convention",
   "discipline",
   "decision",
@@ -18,8 +19,8 @@ const KIND_ORDER = [
   "value",
   "tension",
   "absence",
-] as const;
-const STANDING_ORDER = ["ratified", "professed", "observed", "hypothesis"] as const;
+];
+const STANDING_ORDER: readonly ItemStanding[] = ["ratified", "professed", "observed", "hypothesis"];
 
 function sessionOverrideFrom(args: readonly string[]): string | undefined {
   const flagIndex = args.indexOf("--session");
@@ -104,7 +105,6 @@ export async function runInterlockEvidence(
     };
   }
   const debrief = sessionView.debrief;
-  const outcome = nodeView.outcome;
 
   const verified = await verifyDebrief(repoRoot, debrief);
   const decisions: EvidenceSession["decisions"] = isErr(verified)
@@ -113,7 +113,7 @@ export async function runInterlockEvidence(
   const discoveries: EvidenceSession["discoveries"] = isErr(verified)
     ? []
     : verified.value.discoveryMarks;
-  const gaps: readonly Gap[] = isErr(verified)
+  const vocabularyGaps: readonly Gap[] = isErr(verified)
     ? []
     : verified.value.marks.filter((mark) => mark.kind === "gap").map((mark) => mark.gap);
   const unrootedExcluded = isErr(verified)
@@ -126,14 +126,15 @@ export async function runInterlockEvidence(
   const rawEvents = await readRawEvents(journal);
   const personEvents = isErr(rawEvents) ? [] : personEventsFor(targetNode, rawEvents.value);
 
-  const items = evidenceOf({
+  const evidence = evidenceOf({
     derivation: debrief.derivation,
     decisions,
     discoveries,
     receipts: nodeView.receipts,
-    outcome,
     personEvents,
+    harnessAuthorities: HARNESS_AUTHORITIES,
   });
+  const gaps: readonly Gap[] = [...vocabularyGaps, ...evidence.gaps];
 
   const verifyNote = isErr(verified)
     ? `\n# marks unavailable: ${explainVerifyRefusal(verified.error)}`
@@ -141,6 +142,6 @@ export async function runInterlockEvidence(
 
   return {
     exitCode: 0,
-    message: `${renderHeader(items, gaps.length, unrootedExcluded)}${verifyNote}\n${stringify(items)}`,
+    message: `${renderHeader(evidence.items, gaps.length, unrootedExcluded)}${verifyNote}\n${stringify(evidence.items)}`,
   };
 }
