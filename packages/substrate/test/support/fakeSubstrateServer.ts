@@ -46,6 +46,11 @@ export function startFakeSubstrateServer(): Promise<FakeSubstrateServer> {
         authorization: request.headers.authorization,
         body,
       });
+      if (verb === "capabilities" && request.method !== "GET") {
+        response.writeHead(404, { "content-type": "application/json" });
+        response.end(JSON.stringify({}));
+        return;
+      }
       if (hanging.has(verb)) return;
       const configured = responses.get(verb) ?? { body: {}, status: 200 };
       response.writeHead(configured.status, {
