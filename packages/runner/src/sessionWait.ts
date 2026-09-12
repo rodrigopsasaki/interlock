@@ -105,6 +105,11 @@ export async function waitForSession(
       continue;
     }
 
+    if (grace !== undefined) {
+      until = AFTER_SETTLED;
+      continue;
+    }
+
     if (seenBlocked) {
       narrate(
         `agent settled after a person's turn; judging in ${Math.round(answerGraceMs / 1000)}s unless it resumes`,

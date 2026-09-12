@@ -21,7 +21,7 @@ function stubRuntime(overrides: Partial<Runtime> = {}): Runtime {
 }
 
 describe("waitForSession", () => {
-  it("re-arms the grace window on every settle after a person's turn, and resumes clear it", async () => {
+  it("opens a fresh grace window per settle episode after a person's turn, and resumes clear it", async () => {
     const clock = createControlledClock({ initialTime: 0 });
     const graceMs = 5_000;
     const script: AgentStatus[] = ["blocked", "done", "working", "idle"];
@@ -57,6 +57,81 @@ describe("waitForSession", () => {
       "agent working",
       "agent settled after a person's turn; judging in 5s unless it resumes",
     ]);
+  });
+
+  it("arms the after-a-person's-turn window once per episode; a settled status repeated inside it does not narrate or re-arm", async () => {
+    const clock = createControlledClock({ initialTime: 0 });
+    const graceMs = 5_000;
+    const script: AgentStatus[] = ["blocked", "done", "idle"];
+    const runtime = stubRuntime({
+      waitUntil: (_agent, until, timeoutMs) => {
+        const next = script.shift();
+        if (next !== undefined) return Promise.resolve(ok(next));
+        clock.advanceBy(ms(timeoutMs));
+        return Promise.resolve(
+          err({ kind: "timeout", until, timeoutMs, status: "idle" }),
+        );
+      },
+      read: () => Promise.resolve(ok("")),
+    });
+    const lines: string[] = [];
+
+    const deadline = deadlineFrom(clock.now().monoMs, ms(600_000));
+    const result = await waitForSession(
+      runtime,
+      agent,
+      clock,
+      deadline,
+      600_000,
+      graceMs,
+      (line) => lines.push(line),
+      () => undefined,
+    );
+
+    expect(result).toEqual({ _tag: "Ok", value: "done" });
+    expect(lines).toEqual([
+      "agent blocked; answer in pane pane-1: (no output)",
+      "agent settled after a person's turn; judging in 5s unless it resumes",
+    ]);
+  });
+
+  it("arms the unfinished-work window once per episode; a settled status repeated inside it does not narrate, re-arm or re-check the worktree", async () => {
+    const clock = createControlledClock({ initialTime: 0 });
+    const graceMs = 5_000;
+    const script: AgentStatus[] = ["done", "idle"];
+    const runtime = stubRuntime({
+      waitUntil: (_agent, until, timeoutMs) => {
+        const next = script.shift();
+        if (next !== undefined) return Promise.resolve(ok(next));
+        clock.advanceBy(ms(timeoutMs));
+        return Promise.resolve(
+          err({ kind: "timeout", until, timeoutMs, status: "idle" }),
+        );
+      },
+    });
+    const lines: string[] = [];
+    let unfinishedCalls = 0;
+
+    const deadline = deadlineFrom(clock.now().monoMs, ms(600_000));
+    const result = await waitForSession(
+      runtime,
+      agent,
+      clock,
+      deadline,
+      600_000,
+      graceMs,
+      (line) => lines.push(line),
+      () => {
+        unfinishedCalls += 1;
+        return { uncommittedPaths: 1, debriefMissing: true };
+      },
+    );
+
+    expect(result).toEqual({ _tag: "Ok", value: "done" });
+    expect(lines).toEqual([
+      "agent settled with 1 uncommitted path and no debrief; judging in 5s unless it resumes",
+    ]);
+    expect(unfinishedCalls).toBe(1);
   });
 
   it("narrates a screen-read failure inline rather than losing the blocked turn", async () => {
