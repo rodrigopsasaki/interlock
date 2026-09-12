@@ -3,7 +3,14 @@ import { createHash } from "node:crypto";
 import type { Clock } from "@phyxiusjs/clock";
 import { elapsedSince } from "@phyxiusjs/clock";
 import { err, isErr, isOk, ok, type Result } from "@phyxiusjs/fp";
-import { debriefFilePath, notesFilePath, readDebriefFile, readNotesFile } from "debrief";
+import {
+  briefFilePath,
+  debriefFilePath,
+  notesFilePath,
+  readBriefFile,
+  readDebriefFile,
+  readNotesFile,
+} from "debrief";
 import {
   buildCleared,
   createReceipt,
@@ -330,5 +337,12 @@ async function absorbDebrief(
 
   const evidence = await evidenceForAbsorb(worktree, read.debrief, receipts, node, personEvents);
   const acknowledged = await substrate.absorb(node, read.debrief, read.notes, receipts, evidence);
-  narrate(narrateAbsorb(substrate.address, acknowledged));
+  const briefRead = await readBriefFile(briefFilePath(worktree, node.graph, node.id));
+  const sliceBody = !isErr(briefRead) && briefRead.value.kind === "v1" ? briefRead.value.body : "";
+  narrate(
+    narrateAbsorb(substrate.address, acknowledged, {
+      body: sliceBody,
+      discoveries: read.debrief.discoveries,
+    }),
+  );
 }

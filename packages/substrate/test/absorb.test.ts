@@ -21,7 +21,7 @@ afterEach(async () => {
 });
 
 describe("absorb", () => {
-  it("sends the debrief and notes in their wire shape and returns the acknowledgement's counts", async () => {
+  it("narrates a cleared session's absorb acknowledged with its counts", async () => {
     server = await startFakeSubstrateServer();
     server.responseFor("absorb", {
       decisions_absorbed: ["c1"],
@@ -50,7 +50,7 @@ describe("absorb", () => {
     });
   });
 
-  it("narrates a held session's acknowledgement the same as a cleared one's", async () => {
+  it("narrates a held session's absorb acknowledged the same as a cleared session's", async () => {
     server = await startFakeSubstrateServer();
     server.responseFor("absorb", {
       decisions_absorbed: [],
@@ -82,6 +82,68 @@ describe("absorb", () => {
     expect(outcome.kind).toBe("refused");
   });
 
+  it("degrades to a narrated refusal instead of acknowledged, judgement still able to complete, when the address stops answering mid-run", async () => {
+    server = await startFakeSubstrateServer();
+    server.hangOn("absorb");
+
+    const client = substrateClientFor(server.url);
+    const outcome = await client.absorb(node, fixtureDebrief, fixtureNotes, [fixtureReceipt]);
+
+    expect(outcome.kind).toBe("refused");
+    expect(narrateAbsorb(server.url, outcome)).toMatch(
+      new RegExp(`^absorb ${server.url}: refused, `),
+    );
+  }, 8_000);
+
+  it("counts a debrief's discoveries against the slice when the acknowledged response declares no such detail", async () => {
+    server = await startFakeSubstrateServer();
+    server.responseFor("absorb", {
+      decisions_absorbed: [],
+      discoveries: [],
+      gaps: [],
+    });
+
+    const client = substrateClientFor(server.url);
+    const outcome = await client.absorb(node, fixtureDebrief, fixtureNotes, [fixtureReceipt]);
+
+    const sliceBody = [
+      "### Discipline",
+      "",
+      "- [observed, path packages/schemas/package.json] already named as a cycle risk",
+      "  derivation: human:Rodrigo Sasaki",
+    ].join("\n");
+
+    expect(
+      narrateAbsorb(server.url, outcome, {
+        body: sliceBody,
+        discoveries: fixtureDebrief.discoveries,
+      }),
+    ).toBe(
+      `absorb ${server.url}: 0 decision(s) absorbed, discoveries 1 known/0 unknown against the slice, 0 gap(s)`,
+    );
+  });
+
+  it("says the rest is unknown when nothing in the slice names a discovery's own reference", async () => {
+    server = await startFakeSubstrateServer();
+    server.responseFor("absorb", {
+      decisions_absorbed: [],
+      discoveries: [],
+      gaps: [],
+    });
+
+    const client = substrateClientFor(server.url);
+    const outcome = await client.absorb(node, fixtureDebrief, fixtureNotes, [fixtureReceipt]);
+
+    expect(
+      narrateAbsorb(server.url, outcome, {
+        body: "No path from this debrief is named here.",
+        discoveries: fixtureDebrief.discoveries,
+      }),
+    ).toBe(
+      `absorb ${server.url}: 0 decision(s) absorbed, discoveries 0 known/1 unknown against the slice, 0 gap(s)`,
+    );
+  });
+
   it("carries items and gaps in the request body when evidence is given", async () => {
     server = await startFakeSubstrateServer();
     server.responseFor("absorb", {
@@ -93,7 +155,13 @@ describe("absorb", () => {
     const client = substrateClientFor(server.url);
     await client.absorb(node, fixtureDebrief, fixtureNotes, [fixtureReceipt], {
       items: [fixtureItem],
-      gaps: [{ term: "step", nearest: "gate", difference: "no verdict, only legality" }],
+      gaps: [
+        {
+          term: "step",
+          nearest: "gate",
+          difference: "no verdict, only legality",
+        },
+      ],
     });
 
     const sent = server.calls[0]?.body;
@@ -101,7 +169,13 @@ describe("absorb", () => {
     expect(hasKey(sent, "gaps")).toBe(true);
     expect(sent).toMatchObject({
       items: [fixtureItem],
-      gaps: [{ term: "step", nearest: "gate", difference: "no verdict, only legality" }],
+      gaps: [
+        {
+          term: "step",
+          nearest: "gate",
+          difference: "no verdict, only legality",
+        },
+      ],
     });
   });
 

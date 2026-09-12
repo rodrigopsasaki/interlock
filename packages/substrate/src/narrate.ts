@@ -1,4 +1,11 @@
+import type { Discovery } from "ledger";
 import type { AbsorbOutcome, ContextOutcome } from "./client.ts";
+import { countDiscoveriesAgainstSlice } from "./sliceCount.ts";
+
+export interface AbsorbSlice {
+  readonly body: string;
+  readonly discoveries: readonly Discovery[];
+}
 
 export function narrateContext(address: string, outcome: ContextOutcome): string {
   switch (outcome.kind) {
@@ -11,13 +18,25 @@ export function narrateContext(address: string, outcome: ContextOutcome): string
   }
 }
 
-export function narrateAbsorb(address: string, outcome: AbsorbOutcome): string {
+export function narrateAbsorb(
+  address: string,
+  outcome: AbsorbOutcome,
+  slice?: AbsorbSlice,
+): string {
   switch (outcome.kind) {
     case "empty":
       return `absorb ${address}: no substrate addressed`;
     case "refused":
       return `absorb ${address}: refused, ${outcome.because}`;
     case "acknowledged": {
+      if (outcome.discoveries.length === 0 && slice !== undefined && slice.discoveries.length > 0) {
+        const counted = countDiscoveriesAgainstSlice(slice.body, slice.discoveries);
+        return (
+          `absorb ${address}: ${outcome.decisionsAbsorbed.length} decision(s) absorbed, ` +
+          `discoveries ${counted.known} known/${counted.unknown} unknown against the slice, ` +
+          `${outcome.gaps.length} gap(s)`
+        );
+      }
       const known = outcome.discoveries.filter(
         (discovery) => discovery.placement === "known",
       ).length;

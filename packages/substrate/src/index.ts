@@ -17,8 +17,11 @@ export type {
   EvidenceSession,
 } from "./evidence.ts";
 export { evidenceOf, personEventsFor } from "./evidence.ts";
+export type { AbsorbSlice } from "./narrate.ts";
 export { narrateAbsorb, narrateContext } from "./narrate.ts";
 export { noneClient } from "./noneClient.ts";
+export type { SliceCount } from "./sliceCount.ts";
+export { countDiscoveriesAgainstSlice } from "./sliceCount.ts";
 
 export type {
   WireDebrief,
