@@ -10,6 +10,22 @@ describe("buildOpeningPrompt", () => {
     expect(prompt).not.toContain("carries work from an earlier session");
   });
 
+  it("names the scratch rules: test/.runs/, never /tmp, plain rm never rm -rf", () => {
+    const prompt = buildOpeningPrompt("0001-bootstrap", "runner-command-gate");
+    expect(prompt).toContain(
+      "Keep scratch work under this package's test/.runs/ directory, never /tmp, " +
+        "and remove it with plain rm, never rm -rf.",
+    );
+  });
+
+  it("names the resume rule for a dropped connection or an early-ended turn", () => {
+    const prompt = buildOpeningPrompt("0001-bootstrap", "runner-command-gate");
+    expect(prompt).toContain(
+      "If the connection drops or your turn ends early, the next prompt resumes " +
+        "from git status and notes.yaml.",
+    );
+  });
+
   it("appends a prior-work sentence naming both counts when the worktree was resumed", () => {
     const prompt = buildOpeningPrompt("0001-bootstrap", "runner-command-gate", {
       uncommittedPaths: 22,
