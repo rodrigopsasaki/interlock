@@ -107,3 +107,23 @@ entries:
       constraint. Caught immediately, removed both with plain `rm` before doing anything else; the
       probe (which showed even "**" first in includes still rejects a bare ".") never touched the
       real biome.json and nothing was left behind anywhere.
+  - kind: surprise
+    at: "2026-09-12T00:55:00Z"
+    expected: >
+      `interlock verify 0003-translator interpreter`, run against this debrief's first draft,
+      would find every discovery's found_at and every decision's hunks already rooted, since each
+      cited a real path this session had actually touched or read.
+    observed: >
+      3 unrooted, 3 unexplained. checkFoundAt (packages/verifier/src/foundAt.ts) extracts every
+      "@?[A-Za-z0-9_./-]+@?"-shaped token from a found_at string as a candidate path, in order of
+      appearance, and resolves the first one that exists at head_sha -- so a found_at that names
+      one file for its citation but happens to also contain another real path's bare name earlier
+      in the sentence (an incidental "AGENTS.md" in prose; "graph@v0.json" splitting at "@" into
+      two dead fragments, leaving a later, unrelated real path to resolve instead) gets checked
+      against the wrong file's content, or against no file at all. Fixed each found_at to either
+      lead with a "$ <command>" line (the verifier's own explicit, simpler rooting path for
+      anything found by running something) or avoid naming an unrelated real path before its
+      intended citation. Separately, unexplainedMarks (packages/verifier/src/inverse.ts) walks
+      every file in the session's diff range and expects some decision's hunks or produces to
+      name it -- notes.yaml, main.ts and runner's index.ts needed citations added.
+    because: n/a
