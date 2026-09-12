@@ -24,6 +24,7 @@ export async function runInterlockBackfill(
     readonly cwd?: string;
     readonly clock?: Clock;
     readonly mainBranch?: string;
+    readonly narrate?: (line: string) => void;
   } = {},
 ): Promise<CommandResult> {
   const [graph] = args;
@@ -75,6 +76,11 @@ export async function runInterlockBackfill(
     };
   }
   const ledger = opened.value;
+  const narrate =
+    options.narrate ??
+    ((line: string) => {
+      process.stdout.write(`${line}\n`);
+    });
 
   try {
     const backfilled = await backfillGraph({
@@ -85,6 +91,8 @@ export async function runInterlockBackfill(
       clock,
       standingGates: standingGates.value,
       worktreeRoot: localConfig.value.worktreeRoot,
+      worktreeSetup: localConfig.value.worktreeSetup,
+      narrate,
     });
     if (isErr(backfilled)) {
       return { exitCode: 1, message: explainBackfillRefusal(backfilled.error) };

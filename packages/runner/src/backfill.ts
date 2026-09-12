@@ -27,6 +27,11 @@ import {
   removeWorktree,
   type WorktreeRefusal,
 } from "./worktree.ts";
+import {
+  explainWorktreeSetupRefusal,
+  runWorktreeSetup,
+  type WorktreeSetupRefusal,
+} from "./worktreeSetup.ts";
 
 const HOLD_MS = 24 * 60 * 60 * 1000;
 
@@ -37,6 +42,7 @@ export interface BackfillNodeResult {
 
 export type BackfillRefusal =
   | { readonly kind: "worktree"; readonly refusal: WorktreeRefusal }
+  | { readonly kind: "worktree-setup"; readonly refusal: WorktreeSetupRefusal }
   | {
       readonly kind: "gate";
       readonly node: string;
@@ -47,6 +53,8 @@ export function explainBackfillRefusal(refusal: BackfillRefusal): string {
   switch (refusal.kind) {
     case "worktree":
       return explainWorktreeRefusal(refusal.refusal);
+    case "worktree-setup":
+      return explainWorktreeSetupRefusal(refusal.refusal);
     case "gate":
       return `${refusal.node}: ${explainGateJudgeRefusal(refusal.refusal)}`;
   }
@@ -70,6 +78,8 @@ export interface BackfillOptions {
   readonly clock: Clock;
   readonly standingGates: readonly StandingGate[];
   readonly worktreeRoot: string;
+  readonly worktreeSetup?: readonly string[];
+  readonly narrate?: (line: string) => void;
 }
 
 // Eligibility is by a dependency having a debrief, because a standing gate that always fails would otherwise starve every dependent.
@@ -84,6 +94,8 @@ export async function backfillGraph(
     clock,
     standingGates,
     worktreeRoot,
+    worktreeSetup = [],
+    narrate = () => {},
   } = options;
 
   const mainSha = execFileSync("git", ["rev-parse", mainBranch], {
@@ -98,6 +110,12 @@ export async function backfillGraph(
     cwd: worktreePath,
     stdio: "ignore",
   });
+
+  const setUp = await runWorktreeSetup(worktreeSetup, worktreePath, narrate);
+  if (isErr(setUp)) {
+    removeWorktree(repoRoot, worktreePath);
+    return err({ kind: "worktree-setup", refusal: setUp.error });
+  }
 
   const runnerId = `backfill-${randomUUID()}`;
   const scopePaths = gitTrackedFiles(worktreePath);

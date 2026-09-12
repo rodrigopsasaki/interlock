@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { err, ok, type Result } from "@phyxiusjs/fp";
+import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 
 export type WorktreeSetupRefusal = {
   readonly kind: "command-failed";
@@ -41,4 +41,17 @@ export function runSetupCommand(
       );
     });
   });
+}
+
+export async function runWorktreeSetup(
+  commands: readonly string[],
+  worktreePath: string,
+  narrate: (line: string) => void,
+): Promise<Result<void, WorktreeSetupRefusal>> {
+  for (const command of commands) {
+    narrate(`worktree setup: ${command}`);
+    const setup = await runSetupCommand(command, worktreePath);
+    if (isErr(setup)) return setup;
+  }
+  return ok(undefined);
 }
