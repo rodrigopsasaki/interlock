@@ -11,10 +11,12 @@ import {
   derivation,
   duration,
   explainScopeRefusal,
+  type Gap,
   type Gate,
   gate,
   heldOn,
   type Ledger,
+  type LedgerEvent,
   type Node,
   type Note,
   nodeKey,
@@ -25,8 +27,17 @@ import {
   type ScopeRefusal,
   spend,
 } from "ledger";
-import { narrateAbsorb, type SubstrateClient } from "substrate";
+import {
+  type EvidenceForAbsorb,
+  type EvidenceSession,
+  evidenceOf,
+  narrateAbsorb,
+  personEventsFor,
+  type SubstrateClient,
+} from "substrate";
+import { verifyDebrief } from "verifier";
 import { type GateCommand, type PlaceholderRefusal, substituteGateCommand } from "./gateCommand.ts";
+import { HARNESS_AUTHORITIES } from "./sweep.ts";
 
 export const GATE_DERIVATION_VERSION = "runner@0";
 
@@ -61,6 +72,7 @@ export interface GateJudgeRequest {
   readonly runnerId: string;
   readonly holdMs: number;
   readonly substrate: SubstrateClient;
+  readonly personEvents?: readonly LedgerEvent[];
   readonly narrate: (line: string) => void;
 }
 
@@ -115,8 +127,11 @@ export async function judgeGates(
     runnerId,
     holdMs,
     substrate,
+    personEvents = [],
     narrate,
   } = request;
+
+  const gateMovedThisRun: LedgerEvent[] = [];
 
   for (const gateId of declaredGateIds) {
     const view = ledger.projection().nodes.get(nodeKey(node));
@@ -178,12 +193,14 @@ export async function judgeGates(
         );
     const moved = proposeGateMove(declaredGateIds, gateId, current, next);
     if (isOk(moved)) {
-      ledger.append({
+      const movedEvent: LedgerEvent = {
         kind: "gate-moved",
         node,
         gate: gateId,
         to: moved.value,
-      });
+      };
+      ledger.append(movedEvent);
+      gateMovedThisRun.push(movedEvent);
     }
   }
 
@@ -204,7 +221,10 @@ export async function judgeGates(
     await ingestDebrief(ledger, session, worktree, node);
   }
 
-  await absorbDebrief(substrate, narrate, worktree, node, receipts);
+  await absorbDebrief(substrate, narrate, worktree, node, receipts, [
+    ...personEvents,
+    ...gateMovedThisRun,
+  ]);
 
   ledger.append({ kind: "outcome-set", node, outcome: resolved });
   return ok(resolved);
@@ -242,16 +262,51 @@ async function ingestDebrief(
   }
 }
 
+async function evidenceForAbsorb(
+  worktree: string,
+  debrief: Debrief,
+  receipts: readonly Receipt[],
+  node: Node,
+  personEvents: readonly LedgerEvent[],
+): Promise<EvidenceForAbsorb | undefined> {
+  const verified = await verifyDebrief(worktree, debrief);
+  const decisions: EvidenceSession["decisions"] = isErr(verified)
+    ? debrief.decisions.map((decision) => ({ decision, marks: [] }))
+    : verified.value.decisionMarks;
+  const discoveries: EvidenceSession["discoveries"] = isErr(verified)
+    ? []
+    : verified.value.discoveryMarks;
+  const vocabularyGaps: readonly Gap[] = isErr(verified)
+    ? []
+    : verified.value.marks.filter((mark) => mark.kind === "gap").map((mark) => mark.gap);
+
+  const evidence = evidenceOf({
+    derivation: debrief.derivation,
+    decisions,
+    discoveries,
+    receipts,
+    personEvents: personEventsFor(node, personEvents),
+    harnessAuthorities: HARNESS_AUTHORITIES,
+  });
+
+  const gaps = [...vocabularyGaps, ...evidence.gaps];
+  return evidence.items.length === 0 && gaps.length === 0
+    ? undefined
+    : { items: evidence.items, gaps };
+}
+
 async function absorbDebrief(
   substrate: SubstrateClient,
   narrate: (line: string) => void,
   worktree: string,
   node: Node,
   receipts: readonly Receipt[],
+  personEvents: readonly LedgerEvent[],
 ): Promise<void> {
   const read = await readV2Debrief(worktree, node);
   if (read === undefined) return;
 
-  const acknowledged = await substrate.absorb(node, read.debrief, read.notes, receipts);
+  const evidence = await evidenceForAbsorb(worktree, read.debrief, receipts, node, personEvents);
+  const acknowledged = await substrate.absorb(node, read.debrief, read.notes, receipts, evidence);
   narrate(narrateAbsorb(substrate.address, acknowledged));
 }

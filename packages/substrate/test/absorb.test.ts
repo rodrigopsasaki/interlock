@@ -5,7 +5,11 @@ import {
   type FakeSubstrateServer,
   startFakeSubstrateServer,
 } from "./support/fakeSubstrateServer.ts";
-import { fixtureDebrief, fixtureNotes, fixtureReceipt } from "./support/fixtures.ts";
+import { fixtureDebrief, fixtureItem, fixtureNotes, fixtureReceipt } from "./support/fixtures.ts";
+
+function hasKey(value: unknown, key: string): boolean {
+  return typeof value === "object" && value !== null && Object.hasOwn(value, key);
+}
 
 const node = { graph: "0003-translator", id: "substrate-client" };
 
@@ -76,5 +80,44 @@ describe("absorb", () => {
     const client = substrateClientFor("http://127.0.0.1:1");
     const outcome = await client.absorb(node, fixtureDebrief, fixtureNotes, [fixtureReceipt]);
     expect(outcome.kind).toBe("refused");
+  });
+
+  it("carries items and gaps in the request body when evidence is given", async () => {
+    server = await startFakeSubstrateServer();
+    server.responseFor("absorb", {
+      decisions_absorbed: [],
+      discoveries: [],
+      gaps: [],
+    });
+
+    const client = substrateClientFor(server.url);
+    await client.absorb(node, fixtureDebrief, fixtureNotes, [fixtureReceipt], {
+      items: [fixtureItem],
+      gaps: [{ term: "step", nearest: "gate", difference: "no verdict, only legality" }],
+    });
+
+    const sent = server.calls[0]?.body;
+    expect(hasKey(sent, "items")).toBe(true);
+    expect(hasKey(sent, "gaps")).toBe(true);
+    expect(sent).toMatchObject({
+      items: [fixtureItem],
+      gaps: [{ term: "step", nearest: "gate", difference: "no verdict, only legality" }],
+    });
+  });
+
+  it("omits items and gaps from the request body when no evidence is given", async () => {
+    server = await startFakeSubstrateServer();
+    server.responseFor("absorb", {
+      decisions_absorbed: [],
+      discoveries: [],
+      gaps: [],
+    });
+
+    const client = substrateClientFor(server.url);
+    await client.absorb(node, fixtureDebrief, fixtureNotes, [fixtureReceipt]);
+
+    const sent = server.calls[0]?.body;
+    expect(hasKey(sent, "items")).toBe(false);
+    expect(hasKey(sent, "gaps")).toBe(false);
   });
 });

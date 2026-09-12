@@ -109,4 +109,48 @@ describe("verifyDebrief", () => {
     expect(marks.some((m) => m.kind === "gap" && m.gap.term === "Widget")).toBe(false);
     expect(marks.some((m) => m.kind === "unexplained" && m.hunk === "orphan.ts")).toBe(true);
   });
+
+  it("groups the flat marks back by the decision and discovery that produced each", async () => {
+    const { dir, from, to } = fixtureRepo();
+    const debrief = baseDebrief({
+      sessionStartSha: from,
+      headSha: to,
+      decisions: [
+        {
+          id: "c1",
+          what: "added Widget",
+          because: "test",
+          restsOn: [],
+          hunks: ["src/widget.ts:1-3", "no-such-file.ts"],
+        },
+      ],
+      discoveries: [
+        {
+          id: "d1",
+          what: "orphan.ts exists",
+          foundAt: "orphan.ts",
+          matteredBecause: "test",
+        },
+      ],
+    });
+
+    const result = await verifyDebrief(dir, debrief, { runner: "test" });
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) return;
+
+    expect(result.value.decisionMarks).toHaveLength(1);
+    expect(result.value.decisionMarks[0]?.decision.id).toBe("c1");
+    expect(result.value.decisionMarks[0]?.marks.map((m) => m.kind)).toEqual(["rooted", "unrooted"]);
+
+    expect(result.value.discoveryMarks).toHaveLength(1);
+    expect(result.value.discoveryMarks[0]?.discovery.id).toBe("d1");
+    expect(result.value.discoveryMarks[0]?.mark.kind).toBe("rooted");
+
+    // Grouped and flat agree: every rooted/unrooted mark in the flat list is one of the
+    // hunk-citation marks the groups above already account for.
+    const flatHunkKinds = result.value.marks
+      .filter((m) => m.kind === "rooted" || m.kind === "unrooted")
+      .map((m) => m.kind);
+    expect(flatHunkKinds).toEqual(["rooted", "unrooted", "rooted"]);
+  });
 });

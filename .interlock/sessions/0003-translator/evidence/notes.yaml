@@ -1,0 +1,325 @@
+interlock: notes@v0
+node: evidence
+entries:
+  - kind: choice
+    at: "2026-09-12T12:00:00Z"
+    chose: >
+      evidenceOf(session) returns only readonly Item[], not a bundle with gaps or counts. Gaps
+      (vocabulary-mismatch marks) and the unrooted-excluded count are computed by the caller
+      directly from the verifier's marks, independent of the items list.
+    because: >
+      The brief's own sentence names the return type literally: "a pure function from a judged
+      session's view ... to a list of item@v1." The header line's three counts (items by
+      kind/standing, gaps, unrooted excluded) are each independently derivable -- items-by-kind
+      from the returned array, gaps and unrooted-excluded from the same marks the caller already
+      holds -- so bundling them into evidenceOf's return would be a wrapper around data the
+      caller already has, not new logic.
+  - kind: choice
+    at: "2026-09-12T12:05:00Z"
+    chose: >
+      A decision's rootedness is decided per-decision, not per-mark: a decision is "rooted" iff
+      it cites at least one hunk and every mark for those hunks is kind "rooted". A decision with
+      hunks: [] (no citations at all, e.g. the substrate-client node's own c7) produces zero
+      marks and is therefore excluded from evidence, but does NOT add to the "unrooted excluded"
+      count, since no verifier mark exists for it to count.
+    because: >
+      packages/verifier/src/verify.ts's checkHunkCitation runs per hunk citation, not per
+      decision; a decision citing nothing generates nothing to verify. I4 already calls this an
+      existing verifier gap ("a decision with no hunk ... and no mark" is the broken case), not
+      something this node's evidenceOf is chartered to fix -- the brief's out-of-scope list names
+      "any substrate implementation" and the interpreter, not the verifier's own fidelity.
+  - kind: choice
+    at: "2026-09-12T12:08:00Z"
+    chose: >
+      packages/verifier/src/verify.ts's VerifyResult gains two additive fields --
+      decisionMarks (one entry per debrief.decisions, its id plus its own hunk-citation marks in
+      order) and discoveryMarks (one entry per debrief.discoveries, its id plus its single
+      found_at mark) -- built directly from the same per-item loops verify.ts already ran to
+      produce the flat marks array, rather than evidenceOf re-deriving this correlation by
+      slicing the flat marks array using the debrief's own hunk-count arithmetic.
+    because: >
+      The flat marks array's order (hunk marks, then discovery marks, then unexplained, then
+      gaps) is verify.ts's own implementation detail, not a documented contract; slicing it
+      elsewhere would silently break the moment that order changed. Building the correlation
+      once, where the marks are produced, keeps evidenceOf's input a plain, already-labeled
+      shape and keeps verify.ts's own renderVerification/marks consumers unchanged (the flat
+      marks array is still returned, unchanged in content and order).
+  - kind: choice
+    at: "2026-09-12T12:12:00Z"
+    chose: >
+      packages/substrate does not gain a dependency on "verifier". evidenceOf's input types
+      (DecisionEvidence, DiscoveryEvidence) are small local shapes carrying a ledger Mark (a
+      type substrate already has, via its existing ledger dependency), not verifier's own
+      VerifyResult type. The caller (runner's gateJudge.ts, the new CLI evidence command) is
+      responsible for repackaging verifier's decisionMarks/discoveryMarks into these shapes --
+      a 1:1 field rename, no logic.
+    because: >
+      substrate-client's own debrief (d1 in this graph) already ruled out one dependency cycle
+      risk this shape of decision generalizes: keep this package a leaf on debrief and ledger
+      only, and let packages that already depend on verifier (runner, cli) do the one-line
+      repackaging instead of substrate acquiring a new dependency for a two-field shape.
+  - kind: choice
+    at: "2026-09-12T12:20:00Z"
+    chose: >
+      Receipt-to-item classification (discipline vs risk) is decided by membership: a receipt is
+      "satisfied" (-> discipline) iff its id appears in outcome.receipts; otherwise "blocked" (->
+      risk). No separate gates: Map is threaded into evidenceOf.
+    because: >
+      outcome.receipts already IS the filtered set for "cleared" (buildCleared keeps only
+      satisfied/waived receipts) and the full raw set for "held" (gateJudge.ts's outcome.held
+      call passes the unfiltered node receipts). Membership against that one field gives the
+      same classification a gates map lookup would, without a third input to the pure function
+      beyond what the brief's own sentence lists: "the node's receipts and outcome."
+  - kind: choice
+    at: "2026-09-12T12:25:00Z"
+    chose: >
+      "A satisfied standing gate" and "a blocked one" (the brief's own phrasing for the
+      receipt-kind rule) are read as applying uniformly to every gate on the node, not only
+      entries in .interlock/config.yaml's standing_gates table. discipline/risk are judged a
+      good fit for the vocabulary either way, so no third kind or gap is recorded for receipts.
+    because: >
+      "no feature without its tests gets teeth" (AGENTS.md's own gloss on the standing table)
+      already frames a standing gate as the common case; node-declared gates (typecheck, lint,
+      comments, test, debrief-valid, evidence-provenance -- this node's own five) are, in this
+      repository, always additions to that same standing table per the brief's own front
+      matter, so drawing today's config.yaml distinction into evidenceOf would be a distinction
+      with no real discriminating case in this corpus. Recorded per the brief's own instruction
+      to write down the mapping chosen, once.
+  - kind: choice
+    at: "2026-09-12T12:30:00Z"
+    chose: >
+      A discovery's item kind (absence / risk / tension / decision) is decided by a fixed,
+      ordered regex scan over "what and mattered_because" text: literal "tension" wins first,
+      then an absence vocabulary (no/not/nothing/none/missing/nowhere/never/absent/lacks),
+      then a conflict vocabulary (conflict/contradict/clash/disagree/mismatch/inconsistent/
+      collide/versus), else "decision".
+    because: >
+      Deterministic, no model, and checked by hand against the seven real discoveries in
+      0001-bootstrap/verifier-hunks's own debrief (this graph's own Deliverable 4 example):
+      d1, d2 and d5 name something missing and match the absence vocabulary; d3, d4, d6 and d7
+      name a surprise or a fix with no missing/conflict word and correctly default to decision.
+      Not claimed as semantically perfect -- a discovery naming a real conflict in prose that
+      never uses one of these words defaults to decision, same as an unrooted mark defaults to
+      excluded rather than guessed. The rule is recorded here and in the debrief's mapping
+      table, per the brief's own instruction.
+  - kind: surprise
+    at: "2026-09-12T13:30:00Z"
+    expected: >
+      Running `interlock evidence 0001-bootstrap verifier-hunks` for real (this graph's own
+      Deliverable 4) would reproduce the by-hand check above: d1, d2, d5 absence; d3, d4, d6, d7
+      decision.
+    observed: >
+      All seven came back absence. mattered_because's own prose -- the field the 12:00 choice
+      folded into the same scanned text -- carries its own hedges ("recorded rather than
+      hidden... not a bug", "leaving no working-tree change behind", "never block") that trip
+      the absence vocabulary even when what itself names no absence at all: negation this common
+      in ordinary engineering prose is not a signal, it is noise the field just happens to
+      carry often.
+    mattered_because: >
+      Narrowed the scan to discovery.what alone, dropping mattered_because from the input text
+      (discoveryKind.ts). Re-run against the same real node: decision/hypothesis 22 (20 from
+      decisions, 2 from discoveries: d3, d7), absence/hypothesis 5 (d1, d2, d4, d5, d6) -- d4 and
+      d6 still land on absence because their own "what" quotes a real "does not exist" / "no
+      --no-renames" fact, which is a defensible reading, not the same false-positive as before.
+      Verbatim output re-captured after the fix; see the debrief's own evidence field.
+  - kind: choice
+    at: "2026-09-12T12:35:00Z"
+    chose: >
+      A decision's item.scope is {kind: path, path: <p>} only when every one of its hunk
+      citations names the same single path; otherwise {kind: repository}. item@v1's scope is a
+      single value (path | repository | organisation), never a list, so a decision spanning
+      several files cannot be scoped to more than one path.
+    because: >
+      Picking one of several paths arbitrarily would misrepresent the decision's real extent;
+      falling back to repository scope is the honest, conservative reading given the shape
+      item@v1 already has (out of scope for this node to change per the brief's own
+      Deliverable/Constraints).
+  - kind: choice
+    at: "2026-09-12T12:40:00Z"
+    chose: >
+      A tiny local hunkPath() helper (strip an optional trailing ":start" or ":start-end" from a
+      hunk citation string) duplicates the path-extraction half of
+      packages/verifier/src/hunkCitation.ts's parseHunkCitation, rather than substrate importing
+      verifier for it.
+    because: >
+      Three lines, no validation semantics reused (evidenceOf only ever sees citations the
+      verifier already marked rooted, so malformed-citation handling is not needed here); adding
+      a whole package dependency for one regex is the reinvention the "compose, don't reinvent"
+      axiom weighs against the other way once the reused surface is this small.
+  - kind: choice
+    at: "2026-09-12T12:45:00Z"
+    chose: >
+      A person's verb becomes evidence from the RAW ledger event stream (a new
+      readRawEvents(directory) in packages/ledger/src/replay.ts), not from the ledger's own
+      projection/session view. Only gate-moved (to.kind "waived", or "satisfied" with a human
+      derivation -- approve) and outcome-set (outcome.kind "cancelled" or "reset") events for
+      the target node are read; "superseded" is left unhandled since no CLI command produces it
+      today (grepped packages/cli/src, packages/runner/src for "superseded": only
+      graph/status.ts's own vocabulary list, no writer).
+    because: >
+      The ledger's LedgerProjection collapses a node's gates and outcome to their CURRENT state
+      only (projection.ts's withNode/withSession overwrite, never append, per gate/outcome id).
+      A node reset after being held, then later re-cleared, would lose the reset event entirely
+      from the projection's own final state -- exactly the history the brief's evidenceOf
+      sentence asks for ("the gate-moved and outcome-set events a person wrote"). Reading the
+      raw journal is the only way back to that history; parseLine and journalPath were already
+      exported from ledger for this, so readRawEvents is a small, local reuse of the same
+      line-parsing readReplay already does, returned unfolded instead of folded.
+  - kind: choice
+    at: "2026-09-12T12:50:00Z"
+    chose: >
+      absorb's evidence is computed live inside packages/runner/src/gateJudge.ts's
+      absorbDebrief, by calling verifier's verifyDebrief(worktree, debrief) at absorb time (a new
+      "verifier" dependency on the runner package) and reading person events via a new,
+      optional GateJudgeRequest.personEvents field (default []) that the CLI's run/judge
+      commands compute once, from sharedJournalDirectory, before calling judgeWorktree.
+      backfill.ts is left passing no personEvents (defaults to []), matching its own
+      already-recorded decision (substrate-client c7) to never call a real substrate on
+      historical replay.
+    because: >
+      absorbDebrief already runs "cleared or held" (substrate-client c6) and already has
+      worktree, debrief, receipts and node; verifyDebrief needs only worktree (as repoRoot) and
+      the debrief, both already in hand. A verifyDebrief refusal (session_start_sha/head_sha not
+      a real ancestor range -- true for every existing gateJudge.test.ts fixture, whose
+      "worktree" is a bare temp directory, not a git repo) is treated as zero evidence, not a
+      failure: marks never block, and neither does the evidence this node adds on top of them.
+  - kind: choice
+    at: "2026-09-12T12:55:00Z"
+    chose: >
+      SubstrateClient.absorb gains a fifth, optional parameter (evidence?: { items, gaps })
+      rather than a new method or a changed signature order. noneClient and every existing
+      4-argument call site (gateJudge.test.ts's noneClient, absorb.test.ts) compile and behave
+      unchanged; httpClient's absorb forwards items/gaps into the POST body only when evidence
+      is given.
+    because: >
+      Additive per this repository's own artifact convention ("evolution is additive"); the
+      alternative (a required parameter, or bundling evidence into the existing receipts array)
+      would force every existing caller and test to change for a feature most of them never
+      exercise (no debrief, no worktree git history, in gateJudge's own unit tests).
+  - kind: choice
+    at: "2026-09-12T13:00:00Z"
+    chose: >
+      schemas/substrate/absorb.request.json gains two optional, additive fields: "items" (array
+      of $ref item@v1) and "gaps" (array of $ref parts/gap.json) -- reusing both artifact
+      schemas verbatim, never redefining their fields locally.
+    because: "brief: \"add one as an optional array of item@v1 ... (additive)\"; item@v1 and parts/gap.json already exist and already carry exactly this shape."
+  - kind: surprise
+    at: "2026-09-12T13:02:00Z"
+    expected: >
+      Classifying a receipt as satisfied vs blocked by checking whether its id appears in
+      outcome.receipts (the choice recorded above at 12:20) would correctly separate the two
+      for a held outcome, the same way it does for a cleared one.
+    observed: >
+      packages/runner/src/gateJudge.ts's own outcome.held(receipts, ...) call passes the FULL,
+      unfiltered node receipts list (every gate's receipt, satisfied and blocked alike) as
+      "receipts" on a held outcome -- unlike buildCleared, which keeps only satisfied/waived
+      ones. A held node's blocked receipt is therefore a member of outcome.receipts too, so the
+      membership test read every receipt as "satisfied," discipline, with no risk items ever
+      produced. Caught by this node's own evidence.test.ts, not by inspection.
+  - kind: choice
+    at: "2026-09-12T13:03:00Z"
+    chose: >
+      Replaced the membership test with blockedGateIds(outcome): a receipt is "blocked" (->
+      risk) iff outcome.kind is "held" AND outcome.on.kind is "gate-failure" AND the receipt's
+      own gate id is one of the comma-joined ids in outcome.on.failure; every other case
+      (cleared; held on a person's decision or on uncommitted work) reads every receipt as
+      satisfied (-> discipline).
+    because: >
+      outcome.on.failure is buildCleared's own `missing.join(", ")` (packages/ledger/src/
+      outcome.ts) -- the one place in the outcome shape that actually names WHICH gates were
+      not satisfied or waived, rather than merely listing every receipt regardless of state. A
+      cleared node has no such list because every declared gate is, by buildCleared's own
+      definition, already satisfied or waived; defaulting every receipt on a cleared node to
+      discipline is therefore not a simplification but the literal fact the outcome already
+      proves. Still only "the node's receipts and outcome" as inputs, per the brief's own
+      sentence -- no third gates: Map parameter added.
+  - kind: surprise
+    at: "2026-09-12T13:20:00Z"
+    expected: >
+      A CLI test that only reads (never opens a ledger for writing) inside a fresh
+      mkdtempSync'd, git-initialized fixture directory would resolve findRepoRoot(cwd) to that
+      fixture directory, since it has no .interlock of its own to find, and findRepoRoot climbs
+      to the nearest ancestor that has one.
+    observed: >
+      It climbs all the way to THIS worktree's own root (five levels up from
+      packages/cli/test/.runs/<fixture>), because the worktree's .interlock genuinely exists
+      there -- and sharedJournalDirectory() on that repoRoot resolves, via git's own
+      --git-common-dir, to the MAIN checkout's real, live .interlock/ledger (confirmed by a
+      throwaway debug print, then removed; the real journal.jsonl's mtime was unchanged
+      before/after, and it holds no test-fixture graph ids, only this session's own real
+      narration -- so no test in this repository's existing suite has actually leaked into it,
+      but only because every test that reads without writing first happens to use fictional
+      graph/node ids that can never collide with real recorded ones). A test that both opens a
+      ledger (which mkdirSync's <fixture>/.interlock/ledger as a side effect of attaching its
+      sink) and then calls a CLI command against the same cwd is safe by accident of ordering:
+      the write creates the fixture's own .interlock before the read's findRepoRoot ever runs.
+      A read-only test has no such write to save it.
+    mattered_because: >
+      This node's own two "no session" tests (evidence.test.ts) never open a ledger, so they
+      were reading the REAL shared journal until fixed -- exactly the accidental-collision risk
+      above, not yet triggered only because "0003-translator"/"evidence" (this very node's own
+      real ids) had not yet been judged in that real journal at the moment the test ran. Fixed
+      by mkdirSync'ing the fixture's own .interlock before calling runInterlockEvidence,
+      matching packages/cli/test/verify.test.ts's own precedent for its no-ledger-opened cases.
+      Not raised as a fix to findRepoRoot or sharedJournalDirectory themselves: both are
+      unchanged, out of this node's scope, and every other existing test in this suite either
+      isolates the same way already or never collides by luck of its fictional ids.
+  - kind: surprise
+    at: "2026-09-12T13:45:00Z"
+    expected: >
+      `pnpm lint` (the standing gate this node's own brief declares, run: "biome check .") would
+      pass or fail based on this session's own diff, the same way typecheck and test already do.
+    observed: >
+      It refused outright, for every invocation, before this session changed a single line:
+      "No files were processed in the specified paths... These paths were provided but ignored:
+      -.". Reproduced with `biome check .` from this worktree with zero uncommitted changes.
+      `biome check packages/substrate/src` (an explicit subpath) worked fine and found real
+      files. The difference is this worktree itself: `git check-ignore -v .worktrees/evidence`
+      from the main checkout confirms this whole directory is excluded by .gitignore's own
+      ".worktrees/" line, and biome.json's own files.includes carries "!**/.worktrees" among its
+      excludes -- written for the ordinary case of running lint once from the main checkout over
+      everything under packages/, not for running it from inside one of the very worktrees that
+      pattern is meant to skip. `git log -- .interlock/config.yaml` shows why no prior session
+      ever hit this: "lint" was added as a standing gate 2026-09-11 23:35, "comments" at
+      2026-09-12 00:12, both under an hour before this session's own brief (00:17) -- and the
+      real shared journal's own gate-moved history (grepped directly) has never recorded a
+      single "lint" or "comments" receipt across 90 typecheck/test runs. This session is the
+      first worker ever to actually exercise either gate for real.
+    mattered_because: >
+      Per AGENTS.md's own Conventions: "A gate command declared before its runtime exists is
+      professed. It is verified literally the first time it can run, and the harness, never the
+      worker, bends the graph when it cannot." This is exactly that first real run, and the gate
+      command as declared cannot pass inside any worktree -- which is where every worker session
+      runs, including this one. Left alone, this blocks every future node's "lint" gate, not
+      only this session's own. Fixed at the root package.json (in this node's own scope): "lint"
+      /"format"/"lint:fix" now pass biome the explicit top-level paths files.includes already
+      names (packages, vitest.config.base.ts, vitest.setup.ts, scripts) instead of ".", so biome
+      walks those paths directly rather than first resolving "." against a root that, for a git
+      worktree, sits under its own exclude pattern. Verified: `pnpm lint` now checks 296 files
+      and passes clean from inside this very worktree. This uncovered 19 files (all of them
+      already this session's own changes) reformatted differently by the editor's own
+      auto-format hook than biome.json's real 100-column rule would have written them; fixed
+      with `biome check --write`, re-typechecked and re-tested after, no semantic change.
+    evidence: |
+      $ biome check .
+      (from .worktrees/evidence, zero uncommitted changes at the time)
+      × No files were processed in the specified paths.
+      i These paths were provided but ignored:
+      - .
+
+      $ git check-ignore -v .worktrees/evidence
+      (run from the main checkout)
+      .gitignore:3:.worktrees/	.worktrees/evidence
+
+      $ pnpm lint
+      (after the package.json fix, from .worktrees/evidence)
+      Checked 296 files in 44ms. No fixes applied.
+  - kind: choice
+    at: "2026-09-12T13:05:00Z"
+    chose: >
+      docs/shapes.md is not regenerated for this change. Grepped it for "absorb" and
+      "substrate@v1": no hits before this session's edits. packages/schemas/src/reference's
+      generator groups only schemas/*.json's own top-level artifacts (brief, config, debrief,
+      event, graph, item, local, notes, position); schemas/substrate/*.json's own request/
+      response shapes are never rendered into it.
+    because: "verified directly against the generated file rather than assumed, since the brief's own instruction was conditional (\"regenerate docs/shapes.md if it lists it\")."

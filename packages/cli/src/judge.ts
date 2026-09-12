@@ -10,7 +10,7 @@ import {
   loadGraphDocument,
   sharedJournalDirectory,
 } from "face";
-import { createLedger, explainScopeRefusal, nodeKey, receiptId } from "ledger";
+import { createLedger, explainScopeRefusal, nodeKey, readRawEvents, receiptId } from "ledger";
 import {
   declaredGateIds,
   explainJudgeWorktreeRefusal,
@@ -163,6 +163,7 @@ export async function runInterlockJudge(
     narrate = recordingNarrate(ledger, clock, sessionId, narrate);
 
     const gateIds = declaredGateIds(standingGates.value, declaration.gates);
+    const personEventsRead = await readRawEvents(journal);
     const judged = await judgeWorktree({
       ledger,
       clock,
@@ -175,6 +176,7 @@ export async function runInterlockJudge(
       runnerId: `judge-${sessionId}`,
       holdMs: HELD_REVISIT_MS,
       substrate,
+      personEvents: isErr(personEventsRead) ? [] : personEventsRead.value,
     });
     if (isErr(judged)) {
       const line = `judge refused: ${explainJudgeWorktreeRefusal(judged.error)}`;

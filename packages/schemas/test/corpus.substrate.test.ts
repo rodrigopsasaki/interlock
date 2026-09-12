@@ -250,6 +250,24 @@ describe("corpus: substrate@v1, request and response per verb", () => {
     expect(validate(value)).toBe(false);
   });
 
+  it("validates absorb.request carrying the harness's translated evidence, items and gaps", () => {
+    const validate = schemaFor("absorb.request");
+    const value = {
+      debrief: okDebrief,
+      notes: okNotes,
+      receipts: [okReceipt],
+      items: [decisionItem],
+      gaps: [
+        {
+          term: "step",
+          nearest: "gate",
+          difference: "no verdict, only legality",
+        },
+      ],
+    };
+    expect(validate(value), JSON.stringify(validate.errors)).toBe(true);
+  });
+
   it("refuses judge.response with no derivation, since a verdict is a receipt", () => {
     const validate = schemaFor("judge.response");
     const { derivation: _drop, ...receiptMissingDerivation } = okReceipt;

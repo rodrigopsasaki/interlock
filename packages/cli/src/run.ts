@@ -12,7 +12,7 @@ import {
   loadGraphDocument,
   sharedJournalDirectory,
 } from "face";
-import { createLedger, explainScopeRefusal, nodeKey, receiptId } from "ledger";
+import { createLedger, explainScopeRefusal, nodeKey, readRawEvents, receiptId } from "ledger";
 import {
   type Agent,
   briefExists,
@@ -444,6 +444,7 @@ export async function runInterlockRun(
       narrate(`agent screen read refused: ${explainRuntimeRefusal(screenRead.error)}`);
     }
 
+    const personEventsRead = await readRawEvents(journal);
     const judged = await judgeWorktree({
       ledger,
       clock,
@@ -456,6 +457,7 @@ export async function runInterlockRun(
       runnerId: `run-${sessionId}`,
       holdMs: HELD_REVISIT_MS,
       substrate,
+      personEvents: isErr(personEventsRead) ? [] : personEventsRead.value,
       onWorktreeRead: async () => {
         if (!isOk(screenRead)) return;
         await writeScreenSnapshot(worktreePath, graph, node, screenRead.value);

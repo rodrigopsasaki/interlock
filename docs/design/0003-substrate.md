@@ -79,12 +79,15 @@ Every payload is an artifact or a list of items with provenance. Shapes are JSON
   professed, observed, hypothesis), and a derivation: who produced it and how. The slice also
   carries the substrate's version of its own vocabulary, so the interpreter can translate. The
   brief renders each kind as a section and keeps the derivation beside each item.
-- **`absorb(debrief, notes, receipts)` → acknowledgement.** `absorb.request.json`,
+- **`absorb(debrief, notes, receipts, items?, gaps?)` → acknowledgement.** `absorb.request.json`,
   `absorb.response.json`. The debrief is `debrief@v2`, the notes `notes@v0`, the receipts the
   node's (`parts/receipt.json`) — all three confirmed still current against `schemas/` as this
-  session left it. The substrate returns what it did with them: the ids of the decisions it
-  adopted as beliefs, one placement (known, new, unplaced) per discovery id, and the discoveries
-  it could not place, carried as `parts/gap.json` entries. That last list is the gap log's food.
+  session left it. Two fields are optional and additive: `items` (`item@v1[]`), the session's own
+  evidence when a harness has translated one, and `gaps` (`parts/gap.json[]`), the vocabulary gaps
+  that translation could not place (D26). The substrate returns what it did with them: the ids of
+  the decisions it adopted as beliefs, one placement (known, new, unplaced) per discovery id, and
+  the discoveries it could not place, carried as `parts/gap.json` entries. That last list is the
+  gap log's food.
 - **`consult(intent, scope)` → posture.** `consult.request.json`, `consult.response.json`. Items
   as in a slice, selected against a stated intent. A prior decision that bears on the intent needs
   no separate field: `decision` is already an item kind. Unlike a slice, a posture carries no
@@ -146,6 +149,24 @@ accepted version in the protocol, not a new protocol.
 *Cost:* the protocol lists what it accepts, and a substrate reads that list.
 *Revisit:* no.
 
+**D26. When `absorb` carries `items`, they are the session's authoritative evidence; when it does
+not, a substrate derives as it always could.** A harness that has translated a judged session
+(item@v1, standing and derivation already resolved from receipts, decisions and discoveries)
+sends the result inside `absorb`. A substrate that receives `items` adopts them as beliefs at the
+standing and derivation they already carry, records the request's own `gaps` beside whatever gaps
+it derives itself, and keeps the debrief as the way back rather than deriving a second, competing
+set of items from the same debrief. A substrate that receives no `items` — an older harness, or a
+client with no translator — derives as it did before either field existed. Both fields are
+additive to `substrate@v1`: an implementation that vendored the request's previous bytes keeps
+refusing the new shape until it re-vendors on a checksum change, exactly as any other additive
+field would, and `capabilities` does not name this, because `absorb` is one of the two required
+verbs and its shape evolving is not a capability a substrate opts into.
+*Cost:* two producers of evidence over the same debrief — a harness's translation and a
+substrate's own derivation — can disagree if a substrate is wired to do both; the rule above says
+which one wins when `items` is present.
+*Revisit:* if a substrate ever needs to reject a harness's item outright rather than adopt or gap
+it, `absorb.response` needs a third placement alongside known/new/unplaced.
+
 ## Mapping the reference implementation
 
 The doors Preston exposes today, mapped to the verbs. Nothing is lost that a session actually
@@ -178,6 +199,7 @@ note a choice or surprise, establish a rule, request a review, and debrief at th
 | --- | --- | --- | --- | --- | --- |
 | 2026-09-11 | Header table named the reference implementation twice (its own row, plus the mapping section's intro) | The wall; the brief's own fence ("named exactly once in the note and nowhere else") | Writing the schemas surfaced it: nothing needed the name in two places, and the draft had simply carried both from when the note was written in one pass | Yes — the header row now points at the mapping section instead of repeating the name | A rule this explicit is worth grepping the note for before calling it done, not just reading past |
 | 2026-09-11 | D23/D24's "walk handle in the brief's front matter" turned out to name a field (`brief@v1.json`'s `substrate.handle`) that no verb in this session's actual payload set produces | D23, D24 | This session's own brief narrowed `context`'s response to "a slice of items plus the substrate's vocabulary version," with no handle; building the schema against that instruction surfaced the gap against the note's looser prose | Yes — the note now says plainly that no verb returns one, and a client that wants one mints it itself | A design note's prose can imply a payload field a session's own brief never asks for; the shapes, once real, are what settle it |
+| 2026-09-12 | `absorb.request.json` gained `items` and `gaps` before this note said anything about what a substrate does with either field | D23 (a payload's meaning lives in this note, not left implicit at the wire) | The translating session shipped the schema fields and the client plumbing to meet its own acceptance; the paragraph explaining what a substrate does with an adopted item was scoped to a later review pass, not the original one | Yes — D26 states the rule now, and neither field's shape changed to fit it | Landing a schema field is not the same act as documenting it; the paragraph belongs in the same change, not a follow-up |
 
-No verb payload itself has bent from what this note asked for; the two rows above are the note
+No verb payload itself has bent from what this note asked for; the three rows above are the note
 catching up to the schemas, not the schemas bending to fit the note.

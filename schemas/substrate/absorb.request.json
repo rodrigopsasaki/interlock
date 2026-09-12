@@ -2,12 +2,14 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/rodrigopsasaki/interlock/schemas/substrate@v1/absorb.request.json",
   "title": "absorb.request@substrate@v1",
-  "description": "What absorb takes when a session is judged: its debrief, its notes, and the receipts its gates produced.",
+  "description": "What absorb takes when a session is judged: its debrief, its notes, the receipts its gates produced, and, when the harness has translated them, the session's evidence and unplaced vocabulary gaps.",
   "type": "object",
   "properties": {
     "debrief": { "$ref": "../debrief@v2.json" },
     "notes": { "$ref": "../notes@v0.json" },
-    "receipts": { "type": "array", "items": { "$ref": "../parts/receipt.json" } }
+    "receipts": { "type": "array", "items": { "$ref": "../parts/receipt.json" } },
+    "items": { "type": "array", "items": { "$ref": "../item@v1.json" } },
+    "gaps": { "type": "array", "items": { "$ref": "../parts/gap.json" } }
   },
   "required": ["debrief", "notes", "receipts"],
   "additionalProperties": false
