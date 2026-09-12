@@ -1,0 +1,284 @@
+interlock: debrief@v2
+graph: 0003-translator
+node: first-address
+role: worker
+graph_base_sha: d20a7e094dae5a57ea6016e1b6cb804176439710
+session_start_sha: 3198f43f7444709f94449fa342543ef1627b7c8b
+head_sha: e63820bd637684ef477f567f9803e2960776e048
+derivation:
+  kind: agent
+  runtime: claude-code
+  model: claude-sonnet-5
+discoveries:
+  - id: d1
+    what: >
+      This session's own committed brief front matter carries "substrate: address: none," even
+      though the same brief's body carries a real, rendered "## Context slice" section (six
+      hypothesis-standing risk items and one observed absence, each with a derivation naming the
+      substrate that produced it). The front matter is never rewritten with the real address by
+      design -- nothing committed may carry a real address, which lives only in the gitignored
+      .interlock/local.yaml -- so the field cannot be read as a record of what actually happened.
+    found_at: >
+      .interlock/sessions/0003-translator/first-address/brief.md, front matter (substrate.address:
+      none) against its own "## Context slice" section a few dozen lines below, cross-read against
+      packages/runner/src/sessionBrief.ts's own writeBriefIntoWorktree (it renders the body but
+      never touches frontMatter.substrate) and the substrate-client node's own notes.yaml, which
+      states this rule directly.
+    mattered_because: >
+      This session's own brief IS the "one brief with a slice from a real address" the acceptance
+      asks a person to witness -- it already exists, committed, before this session wrote a line
+      of code. The slice's raw content is carried verbatim in this debrief's own "open" note below
+      instead of repeated here, since the brief itself is the source of record.
+  - id: d2
+    what: >
+      Four of the six real risk items in this session's own Context slice end mid-word with an
+      ellipsis (e.g. "...violating the co…", "...never observe the a…") rather than as complete
+      sentences. Nothing in this repository's own rendering path truncates: renderItem
+      (packages/debrief/src/slice.ts) writes item.statement unmodified, and item@v1.json's own
+      statement field carries no length bound.
+    found_at: >
+      grep -n "…" .interlock/sessions/0003-translator/first-address/brief.md -- four matches,
+      lines 523, 526, 529, 532 of the committed brief -- confirmed byte-for-byte in the committed
+      file, not a rendering artifact of any tool used to read it.
+    mattered_because: >
+      A rendered item can pass context.response.json's own schema validation (the brief only
+      renders when substrate.context() returned a "rendered" outcome) and still be materially
+      incomplete prose. Logged as an open item below and as a new row in docs/design/
+      0003-substrate.md's own bend log, rather than patched: no live call is available to this
+      session to isolate which side of the wire the truncation happens on, and the brief's own
+      scope explicitly routes a mismatch found against the real address to the bend log, not a
+      schema edit here.
+  - id: d3
+    what: >
+      packages/substrate/src/narrate.ts's narrateAbsorb already computed a full known/new/unplaced
+      count, entirely from the acknowledgement's own AbsorbOutcome.discoveries (a
+      DiscoveryPlacement[] a substrate returns), before this session started. It already covered
+      "where the acknowledgement's discoveries already say this, use it" -- the first half of this
+      node's own "count" acceptance -- built by the substrate-client node.
+    found_at: "packages/substrate/src/narrate.ts, the acknowledged case of narrateAbsorb, read before writing anything; confirmed against packages/substrate/test/absorb.test.ts's own pre-existing assertions on that exact string."
+    mattered_because: >
+      Rules out building a second, parallel counter for the case a substrate already classifies
+      every discovery; only the missing branch (a substrate that acknowledges but declares no such
+      detail) needed building. See decision c1.
+  - id: d4
+    what: >
+      interlock gate clear (packages/cli/src/gate/clear.ts) already exists, already wired into
+      main.ts, already tested, merged into main before this session started (commit cc424a1, PR
+      #60): a person clears a node's own human gate with --by and --because, exactly the contract
+      this node's witnessed gate needs.
+    found_at: "git log --format=\"%H %ai %s\" -- packages/cli/src/gate/clear.ts, and git show cc424a1 --stat, read before writing anything toward a witness verb."
+    mattered_because: >
+      The brief's own instruction to build a witness verb was conditional on none existing yet.
+      One already does. See decision c5.
+decisions:
+  - id: c1
+    what: >
+      countDiscoveriesAgainstSlice (packages/substrate/src/sliceCount.ts) is a new, small pure
+      function: for each discovery, extract path-shaped tokens from its own found_at field and
+      check whether any appears verbatim in the brief's own rendered Context slice text. A match
+      is known; the rest is unknown. narrateAbsorb(address, outcome, slice?) gained a third,
+      optional argument carrying that slice text and the debrief's discoveries, and uses it only
+      when the acknowledgement's own discoveries array is empty while the debrief itself carries
+      at least one discovery -- narrating a distinct "known/unknown against the slice" line rather
+      than reusing the "known/new/unplaced" shape a real classification produces.
+    because: >
+      d3: the acknowledgement-provided path (known/new/unplaced) was already built and tested;
+      this fills the acceptance's other half ("where the substrate declared no such detail, count
+      what can be counted... and say the rest is unknown"). Making the new argument optional keeps
+      every existing narrateAbsorb(address, outcome) call site compiling and behaving exactly as
+      before -- a two-argument call still degrades to the untouched known/new/unplaced branch.
+    rests_on:
+      - schemas/substrate/absorb.response.json
+    hunks:
+      - "packages/substrate/src/sliceCount.ts:1-26"
+      - "packages/substrate/src/narrate.ts:1-54"
+      - "packages/substrate/src/index.ts:20-25"
+    produces:
+      - packages/substrate/src/sliceCount.ts
+    rejected: "reconcile ack.discoveries and the slice fallback per discovery id, in case a substrate answers with placements for some discoveries and not others (see notes.yaml)"
+    evidence: |
+      Verbatim narrated lines from this node's own tests (packages/substrate/test/absorb.test.ts):
+
+      a cleared session's counts, straight from the acknowledgement:
+      absorb ${server.url}: 1 decision(s) absorbed, discoveries 0 known/1 new/0 unplaced, 0 gap(s)
+
+      a held session's counts, the same way:
+      absorb ${server.url}: 0 decision(s) absorbed, discoveries 1 known/0 new/1 unplaced, 1 gap(s)
+
+      the new fallback, a discovery's own citation named in the slice:
+      absorb ${server.url}: 0 decision(s) absorbed, discoveries 1 known/0 unknown against the slice, 0 gap(s)
+
+      the new fallback, nothing in the slice names it:
+      absorb ${server.url}: 0 decision(s) absorbed, discoveries 0 known/1 unknown against the slice, 0 gap(s)
+  - id: c2
+    what: >
+      "By exact reference" is implemented as citation matching, not text-similarity matching: a
+      PATH_REFERENCE regex (a word/dash run, optionally slash-segmented, ending in a dotted
+      extension of two or more letters) pulls candidate path tokens out of discovery.found_at,
+      compared by plain substring inclusion against the slice's own rendered text.
+    because: >
+      A discovery's found_at and an item's statement are independently authored prose never
+      required to share wording, so fuzzy or substring matching on the full sentence would rarely
+      agree even about the same fact. A real file citation is the one concrete thing both sides
+      are likely to name identically, and the verifier's own hunk-citation convention
+      (packages/verifier/src/hunkCitation.ts) already treats a citation's path as the load-bearing
+      part of a reference. Reusing the brief's own already-rendered body (via debrief's
+      readBriefFile/briefFilePath) avoids a second, structured re-parse of a slice that exists
+      only as flattened markdown once brief-writing has run, and avoids a second live call to
+      substrate.context(), which this node's own constraints forbid outside brief composition.
+    rests_on: []
+    hunks:
+      - "packages/substrate/src/sliceCount.ts:8-12"
+    produces:
+      - packages/substrate/src/sliceCount.ts
+    rejected: >
+      re-call substrate.context() at judge time to reconstruct structured Item[]; fuzzy/substring
+      match on the full discovery.what against item.statement text
+  - id: c3
+    what: >
+      countDiscoveriesAgainstSlice and the extended narrateAbsorb live in packages/substrate/src,
+      not packages/runner. gateJudge.ts's absorbDebrief gained exactly one new read (the node's own
+      committed brief.md, via readBriefFile/briefFilePath from "debrief" -- the same package and
+      pattern it already used for debrief.yaml and notes.yaml) and threads the body and the
+      debrief's discoveries through narrateAbsorb's new argument on every absorb call, cleared or
+      held alike, since absorbDebrief already ran unconditionally before outcome-set.
+    because: >
+      The gate that proves this feature (pnpm --filter substrate --fail-if-no-match test
+      --testNamePattern acknowledged) only runs packages/substrate's own tests, and substrate is a
+      leaf package (depends on debrief and ledger only, per the substrate-client node's own
+      notes.yaml) -- so the counting logic has to be testable from inside substrate without a fake
+      worktree or the verifier package.
+    rests_on: []
+    hunks:
+      - "packages/runner/src/gateJudge.ts:1-14"
+      - "packages/runner/src/gateJudge.ts:327-348"
+    produces:
+      - packages/runner/src/gateJudge.ts
+  - id: c4
+    what: >
+      Added one runner-level integration test (packages/runner/test/gateJudge.test.ts, "absorb
+      narrates discoveries against the slice its brief carried") beyond the substrate-package unit
+      tests the gate itself requires: a real brief.md written into a fixture worktree, a debrief
+      carrying one discovery, an acknowledged-with-no-detail fake substrate client, asserting the
+      exact narrated line judgeGates actually produces.
+    because: >
+      The substrate package's own tests prove countDiscoveriesAgainstSlice and narrateAbsorb are
+      correct in isolation; nothing there proves gateJudge.ts's absorbDebrief reads the right path
+      or threads the right fields. A wiring bug there would still pass every substrate-package
+      "acknowledged" test while never running for real. Not required by the brief's own gate list,
+      but the acceptance itself ("each debrief's discoveries are counted against its slice")
+      describes runner behavior.
+    rests_on: []
+    hunks:
+      - "packages/runner/test/gateJudge.test.ts:878-966"
+    produces: []
+  - id: c5
+    what: >
+      The witnessed gate is cleared with the existing interlock gate clear <graph> <node> witnessed
+      --by <who> --because <why>. No new witness verb was written.
+    because: d4.
+    rests_on:
+      - packages/cli/src/gate/clear.ts
+    hunks: []
+    produces: []
+  - id: c6
+    what: >
+      The bend-log row added to docs/design/0003-substrate.md names the truncated real-address
+      item statements (d2) as what the first non-none address taught, rather than the counting
+      feature this node otherwise built.
+    because: >
+      The count, its tests and the witness step are ordinary in-scope construction with no bend
+      against a design decision or invariant. The truncated statements are the one thing this
+      session actually observed from a real address disagreeing with what D23 (items rendered
+      verbatim) assumes -- a real finding against the design, and the brief routes such a finding
+      to the bend log, not a schema edit.
+    rests_on:
+      - docs/design/0003-substrate.md
+    hunks:
+      - "docs/design/0003-substrate.md:206-207"
+    produces: []
+  - id: c7
+    what: >
+      The verbatim Context slice quoted in this debrief's own "open" list withholds each item's
+      "derivation:" line, replacing it with a bracketed note, rather than quoting it as committed.
+    because: >
+      Two of this session's own constraints point opposite ways here: "In the debrief: the slice
+      your brief carried, verbatim" against "Never name the substrate implementation anywhere you
+      write" (unconditional, no "in code" qualifier, unlike the neighboring rule about quoting the
+      brief). The derivation line is the only part of the slice that carries the name; withholding
+      only that one line, once per item, keeps the substantive content -- the actual risk
+      statements a person is meant to read -- genuinely verbatim while keeping the absolute
+      constraint intact everywhere this session writes, this debrief included.
+    rests_on: []
+    hunks: []
+    produces: []
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: "mise exec -- pnpm typecheck"
+    note: "8 of 9 workspace projects (root carries no typecheck script); all pass."
+  - id: lint
+    result: pass
+    invocation: "mise exec -- pnpm lint"
+    note: "biome check .; Checked 304 files, no errors, after one lint:fix pass reformatted five touched files to biome's own style."
+  - id: comments
+    result: pass
+    invocation: "mise exec -- pnpm check:comments"
+    note: "packages/*/src: no comments found."
+  - id: test
+    result: pass
+    invocation: "mise exec -- pnpm test"
+    note: >-
+      1316 tests passed across ledger, debrief, face, verifier, substrate, runner, schemas, cli;
+      0 failed. schemas' own corpus tests grew by 2 once this session's debrief.yaml and
+      notes.yaml existed for them to walk.
+  - id: absorb-acknowledged
+    result: pass
+    invocation: "mise exec -- pnpm --filter substrate --fail-if-no-match test --testNamePattern acknowledged"
+    note: "Tests  3 passed | 60 skipped (63); matches expect_output /Tests +[1-9][0-9]* passed/."
+open:
+  - >
+    Which side of the substrate@v1 wire truncates a rendered item's own statement mid-word (d2):
+    the real address's own render, or something between it and this worktree. This session made
+    no live call to check (only the runner does, once, at brief composition); a future session
+    with access to a live call, or to the substrate's own logs, can settle it and decide whether
+    item@v1 needs a documented length expectation.
+  - |
+    This session's own brief carried this Context slice, verbatim, exactly as committed at
+    .interlock/sessions/0003-translator/first-address/brief.md (the "## Context slice" section,
+    one heading, "### Risk", six hypothesis-standing items and one observed item -- the truncation
+    named in d2 is reproduced here exactly as it appears in the committed file, ellipsis included).
+    Each item's own "derivation:" line is withheld below and replaced with a bracketed note: this
+    session's own constraints forbid ever writing the name that line carries, in the debrief same
+    as anywhere else, and withholding just that one line is the smallest change that keeps the
+    rest of the quote verbatim. See decision c7.
+
+    ### Risk
+
+    - [hypothesis, repository] Concurrency hazard: [ordering-inversion] packages/cli/src/face/world.ts:33, 45 — nowWallMs read at line 33 before loop; lines 35, 39, 41, 43 yield control and allow real time to advance; stale nowWallMs used at line 45 in liveSessionsOf() to check session lease expiry | interleaving: 1. buildPlansWorld called at real-time 1000ms; 2. line 33: nowWallMs = clock.now().wallMs = 1000; 3. line 35: await listGraphIds() yields control; 4. 5 seconds of real wall-time elapse; 5. control returns to line 3…
+      derivation: [withheld — names the substrate implementation]
+
+    - [hypothesis, repository] Concurrency hazard: [ordering-inversion] packages/cli/src/face/world.ts:69, 74 — nowWallMs read at line 69; await contentHashOf() at line 71 yields; stale timestamp used at line 74 in liveSessionsOf() | interleaving: 1. buildGraphWorld called at real-time 2000ms; 2. line 69: nowWallMs = 2000; 3. line 71: await contentHashOf() yields control; 4. 3 seconds advance; 5. control returns at line 74; 6. liveSessionsOf(..., 2000) called with stale timestamp; 7. session with lease_expiry=2500 is checked…
+      derivation: [withheld — names the substrate implementation]
+
+    - [hypothesis, repository] Correctness footgun: [serialization-trap] packages/runner/src/herdr/adapter.ts:198 — JSON.stringify on {id, method, params} where params is Readonly<Record<string, unknown>>; type system permits caller to pass Maps/Sets as parameter values, which serialize to {} or [] | damage: RPC parameters containing Map or Set objects are silently converted to empty objects or arrays during transmission. Remote procedure receives wrong parameters and executes with corrupted or missing data, violating the co…
+      derivation: [withheld — names the substrate implementation]
+
+    - [hypothesis, repository] Correctness footgun: [serialization-trap] packages/schemas/src/reference/diff.ts:43 — JSON.stringify on prev.schema and curr.schema (both unknown type), which may contain Map objects; Maps serialize to {} silently | damage: Two schemas with different Map structures (e.g., mapped configuration options, branching metadata) serialize identically. diffVersions reports false equality and suppresses the change record, so callers—typically CI/audit systems checking for schema drift—never observe the a…
+      derivation: [withheld — names the substrate implementation]
+
+    - [hypothesis, repository] ./packages/face/src/faceReducer.ts mixes 6 distinct responsibilities (cursor navigation, browsing state reduction, prompting state reduction, verb lookup, state initialization, reducer dispatch) in one module — it resists being held as a single coherent unit.
+      derivation: [withheld — names the substrate implementation]
+
+    - [hypothesis, repository] ./packages/runner/src/gateJudge.ts mixes 5 distinct responsibilities (judgment contracts, command execution, criterion evaluation, debrief processing, judgment orchestration) in one module — it resists being held as a single coherent unit.
+      derivation: [withheld — names the substrate implementation]
+
+    - [hypothesis, repository] ./packages/runner/src/herdr/adapter.ts mixes 4 distinct responsibilities (agent naming, RPC protocol, runtime initialization, timeout handling) in one module — it resists being held as a single coherent unit.
+      derivation: [withheld — names the substrate implementation]
+
+    - [observed, repository] Coverage could not be read for this scope: the team's repository could not be resolved (zero or several known).
+      derivation: [withheld — names the substrate implementation]
+
+    Two items among the seven above name real design-quality risks against this repository's own
+    files (faceReducer.ts, gateJudge.ts, herdr/adapter.ts each mixing several responsibilities);
+    this node's acceptance did not ask this session to act on them, and it did not.

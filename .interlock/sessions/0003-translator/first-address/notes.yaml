@@ -84,9 +84,10 @@ entries:
       debrief.yaml and notes.yaml beside) avoids inventing a second, structured re-parse of a
       slice that only exists as rendered markdown once brief-writing has flattened it.
     rejected:
-      - "re-call substrate.context() at judge time to get structured Item[] back" (a live call
+      - >-
+        re-call substrate.context() at judge time to get structured Item[] back (a live call
         interlock never makes outside brief composition, and out of this node's own constraints)
-      - "fuzzy/substring match on the full discovery.what against item.statement text"
+      - fuzzy/substring match on the full discovery.what against item.statement text
   - kind: choice
     at: "2026-09-12T16:10:00Z"
     chose: >
