@@ -11,6 +11,7 @@ import {
   type NodeDeclaration,
 } from "face";
 import type { Ledger, Node, Outcome } from "ledger";
+import { noneClient } from "substrate";
 import { declaredGateIds, gateCommandTable } from "./gateCommand.ts";
 import {
   explainGateJudgeRefusal,
@@ -157,6 +158,10 @@ export async function backfillGraph(
       commitSha: mainSha,
       runnerId,
       holdMs: HOLD_MS,
+      // Backfill reconstructs the ledger's history for sessions that predate this run; it never
+      // addresses a live substrate on their behalf.
+      substrate: noneClient(),
+      narrate: () => {},
     });
     if (isErr(judged)) {
       removeWorktree(repoRoot, worktreePath);

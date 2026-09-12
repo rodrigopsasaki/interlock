@@ -6,16 +6,19 @@ import {
   briefFilePath,
   explainBriefRefusal,
   readBriefFile,
+  renderSlice,
   type BriefRefusal,
 } from "debrief";
 import type { GateDeclaration } from "face";
 import type { Brief } from "ledger";
+import { narrateContext, type SubstrateClient } from "substrate";
 import {
   authoritativeBriefGates,
   diffGates,
   diffScope,
   renderBriefFile,
 } from "./briefRewrite.ts";
+import { withRenderedContextSlice } from "./contextSlice.ts";
 import { gitTrackedFiles } from "./scope.ts";
 import type { StandingGate } from "./standingGates.ts";
 
@@ -68,6 +71,7 @@ export async function writeBriefIntoWorktree(
   session: string,
   standing: readonly StandingGate[],
   nodeGates: readonly GateDeclaration[],
+  substrate: SubstrateClient,
 ): Promise<Result<BriefWriteOutcome, SessionBriefRefusal>> {
   const read = await readBriefFile(briefPath(repoRoot, graph, node));
   if (isErr(read)) return err({ kind: "read", refusal: read.error });
@@ -80,6 +84,20 @@ export async function writeBriefIntoWorktree(
     ...diffScope(read.value.frontMatter.scope, authoritativeScope),
   ];
 
+  const contextOutcome = await substrate.context(
+    { graph, id: node },
+    authoritativeScope,
+    read.value.frontMatter.role,
+  );
+  narration.push(narrateContext(substrate.address, contextOutcome));
+  const body =
+    contextOutcome.kind === "rendered"
+      ? withRenderedContextSlice(
+          read.value.body,
+          renderSlice(substrate.address, contextOutcome.items),
+        )
+      : read.value.body;
+
   const content = renderBriefFile(
     {
       ...read.value.frontMatter,
@@ -87,7 +105,7 @@ export async function writeBriefIntoWorktree(
       scope: authoritativeScope,
       runner: { kind: "worktree", graphBaseSha, session },
     },
-    read.value.body,
+    body,
   );
 
   const destination = briefPath(worktreePath, graph, node);

@@ -7,6 +7,7 @@ export type {
 
 export { isValidSubstrateAddress, substrateClientFor } from "./address.ts";
 export { narrateAbsorb, narrateContext } from "./narrate.ts";
+export { noneClient } from "./noneClient.ts";
 
 export type {
   WireDebrief,

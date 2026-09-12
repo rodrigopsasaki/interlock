@@ -3,12 +3,15 @@ import { join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
 import { isErr } from "@phyxiusjs/fp";
 import { nodeKey, type Receipt } from "ledger";
+import { noneClient } from "substrate";
 import { afterEach, describe, expect, it } from "vitest";
 import { judgeGates } from "../src/gateJudge.ts";
 import { memoryLedger, memoryLedgerWithLog } from "./support/memoryLedger.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
+
+const substrate = noneClient();
 
 let directory: string | undefined;
 
@@ -55,6 +58,8 @@ describe("receipt-idempotent", () => {
       commitSha: "deadbeef",
       runnerId: "run-1",
       holdMs: 60_000,
+      substrate,
+      narrate: () => {},
     };
 
     const first = await judgeGates(options);
@@ -91,6 +96,8 @@ describe("gateJudge", () => {
       commitSha: "deadbeef",
       runnerId: "run-1",
       holdMs: 60_000,
+      substrate,
+      narrate: () => {},
     });
 
     if (isErr(judged)) throw new Error("expected an outcome");
@@ -138,6 +145,8 @@ describe("gateJudge", () => {
       commitSha: "deadbeef",
       runnerId: "run-1",
       holdMs: 60_000,
+      substrate,
+      narrate: () => {},
     });
 
     if (isErr(judged)) throw new Error("expected an outcome");
@@ -198,6 +207,8 @@ describe("gateJudge", () => {
       commitSha: "deadbeef",
       runnerId: "run-1",
       holdMs: 60_000,
+      substrate,
+      narrate: () => {},
     });
 
     if (isErr(judged)) throw new Error("expected an outcome");
@@ -231,6 +242,8 @@ describe("gate command placeholders", () => {
       commitSha: "deadbeef",
       runnerId: "run-1",
       holdMs: 60_000,
+      substrate,
+      narrate: () => {},
     });
 
     if (isErr(judged)) throw new Error("expected an outcome");
@@ -254,6 +267,8 @@ describe("gate command placeholders", () => {
       commitSha: "deadbeef",
       runnerId: "run-1",
       holdMs: 60_000,
+      substrate,
+      narrate: () => {},
     });
 
     expect(isErr(judged)).toBe(true);
@@ -293,6 +308,8 @@ describe("expect_output", () => {
       commitSha: "deadbeef",
       runnerId: "run-1",
       holdMs: 60_000,
+      substrate,
+      narrate: () => {},
     });
 
     if (isErr(judged)) throw new Error("expected an outcome");
@@ -332,6 +349,8 @@ describe("expect_output", () => {
       commitSha: "deadbeef",
       runnerId: "run-1",
       holdMs: 60_000,
+      substrate,
+      narrate: () => {},
     });
 
     if (isErr(judged)) throw new Error("expected an outcome");
@@ -373,6 +392,8 @@ describe("expect_output", () => {
       commitSha: "deadbeef",
       runnerId: "run-1",
       holdMs: 60_000,
+      substrate,
+      narrate: () => {},
     });
 
     if (isErr(judged)) throw new Error("expected an outcome");
@@ -483,6 +504,8 @@ describe("debrief ingestion", () => {
       commitSha: "deadbeef",
       runnerId: "run-1",
       holdMs: 60_000,
+      substrate,
+      narrate: () => {},
     });
 
     if (isErr(judged)) throw new Error("expected an outcome");
@@ -520,6 +543,8 @@ describe("debrief ingestion", () => {
       commitSha: "deadbeef",
       runnerId: "run-1",
       holdMs: 60_000,
+      substrate,
+      narrate: () => {},
     });
 
     if (isErr(judged)) throw new Error("expected an outcome");
@@ -559,6 +584,8 @@ describe("debrief ingestion", () => {
       commitSha: "deadbeef",
       runnerId: "run-1",
       holdMs: 60_000,
+      substrate,
+      narrate: () => {},
     };
 
     const first = await judgeGates(options);

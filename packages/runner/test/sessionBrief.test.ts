@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { isErr, isOk } from "@phyxiusjs/fp";
 import { readBriefFile } from "debrief";
 import type { GateDeclaration } from "face";
+import { noneClient, type SubstrateClient } from "substrate";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   briefPath,
@@ -12,6 +13,8 @@ import {
 } from "../src/sessionBrief.ts";
 import type { StandingGate } from "../src/standingGates.ts";
 import { gitInitFixtureWithContent } from "./support/gitFixture.ts";
+
+const substrate = noneClient();
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -85,6 +88,7 @@ describe("writeBriefIntoWorktree", () => {
       "session-1",
       standing,
       nodeGates,
+      substrate,
     );
     expect(isErr(result)).toBe(true);
     if (!isErr(result)) return;
@@ -93,7 +97,7 @@ describe("writeBriefIntoWorktree", () => {
     );
   });
 
-  it("fills graph_base_sha and session, and narrates nothing when gates and scope already agree", async () => {
+  it("fills graph_base_sha and session, and narrates only the context call when gates and scope already agree", async () => {
     const { repo, worktree } = fixture(v1WithMatchingGatesAndScope);
     const sha = "b".repeat(40);
     const result = await writeBriefIntoWorktree(
@@ -105,10 +109,13 @@ describe("writeBriefIntoWorktree", () => {
       "session-1",
       standing,
       nodeGates,
+      substrate,
     );
     expect(isOk(result)).toBe(true);
     if (!isOk(result)) return;
-    expect(result.value.narration).toEqual([]);
+    expect(result.value.narration).toEqual([
+      "context none: no substrate addressed",
+    ]);
 
     const written = await readBriefFile(briefPath(worktree, "g", "n"));
     expect(isOk(written)).toBe(true);
@@ -136,6 +143,7 @@ describe("writeBriefIntoWorktree", () => {
       "session-1",
       standing,
       nodeGates,
+      substrate,
     );
     expect(isOk(result)).toBe(true);
     if (!isOk(result)) return;
@@ -163,8 +171,89 @@ describe("writeBriefIntoWorktree", () => {
       "session-1",
       standing,
       nodeGates,
+      substrate,
     );
     const content = readFileSync(briefPath(worktree, "g", "n"), "utf-8");
     expect(content).toContain("# brief");
+  });
+});
+
+const v1WithContextSliceSection = [
+  "---",
+  "interlock: brief@v1",
+  "graph: g",
+  "node: n",
+  "role: worker",
+  "gates:",
+  "  - id: typecheck",
+  "    kind: command",
+  "    run: pnpm typecheck",
+  "  - id: own-gate",
+  "    kind: command",
+  "    run: pnpm test",
+  "scope:",
+  "  - .interlock/sessions/g/n/brief.md",
+  "  - tracked.ts",
+  "substrate:",
+  "  address: none",
+  "---",
+  "",
+  "## Context slice",
+  "",
+  "No substrate is addressed. This section is empty.",
+  "",
+  "## Constraints",
+  "",
+  "Read-only fixture.",
+  "",
+].join("\n");
+
+function fakeSubstrateAt(address: string): SubstrateClient {
+  return {
+    address,
+    context: () =>
+      Promise.resolve({
+        kind: "rendered",
+        items: [
+          {
+            kind: "convention" as const,
+            statement: "commits state the why in the subject",
+            derivation: "human:Rodrigo Sasaki",
+          },
+        ],
+        vocabulary: "reference@v1",
+      }),
+    absorb: () => Promise.resolve({ kind: "empty" }),
+    capabilities: () => Promise.resolve([]),
+  };
+}
+
+describe("writeBriefIntoWorktree with a substrate that renders a slice", () => {
+  it("replaces the 'no substrate' section with the rendered slice and narrates the call", async () => {
+    const { repo, worktree } = fixture(v1WithContextSliceSection);
+    const result = await writeBriefIntoWorktree(
+      repo,
+      worktree,
+      "g",
+      "n",
+      "e".repeat(40),
+      "session-1",
+      standing,
+      nodeGates,
+      fakeSubstrateAt("http://fake-substrate.example"),
+    );
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) return;
+    expect(result.value.narration).toEqual([
+      "context http://fake-substrate.example: 1 item(s), vocabulary reference@v1",
+    ]);
+
+    const content = readFileSync(briefPath(worktree, "g", "n"), "utf-8");
+    expect(content).not.toContain("No substrate is addressed");
+    expect(content).toContain("### Convention");
+    expect(content).toContain("commits state the why in the subject");
+    expect(content).toContain("## Constraints");
+    // The committed front matter's own substrate.address is never rewritten by the runner.
+    expect(content).toContain("address: none");
   });
 });

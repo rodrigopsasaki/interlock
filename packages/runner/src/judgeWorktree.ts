@@ -2,6 +2,7 @@ import type { Clock } from "@phyxiusjs/clock";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import { currentCommitSha } from "face";
 import { heldOn, outcome, type Ledger, type Node, type Outcome } from "ledger";
+import type { SubstrateClient } from "substrate";
 import type { GateCommand } from "./gateCommand.ts";
 import {
   explainGateJudgeRefusal,
@@ -28,6 +29,7 @@ export interface JudgeWorktreeRequest {
   readonly narrate: (line: string) => void;
   readonly runnerId: string;
   readonly holdMs: number;
+  readonly substrate: SubstrateClient;
   readonly onWorktreeRead?: () => Promise<void>;
 }
 
@@ -60,6 +62,7 @@ export async function judgeWorktree(
     narrate,
     runnerId,
     holdMs,
+    substrate,
     onWorktreeRead,
   } = request;
 
@@ -98,6 +101,8 @@ export async function judgeWorktree(
     commitSha,
     runnerId,
     holdMs,
+    substrate,
+    narrate,
   });
   return isErr(judged)
     ? err({ kind: "gates", refusal: judged.error })

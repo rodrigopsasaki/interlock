@@ -1336,9 +1336,12 @@ run_timeout_ms: 3600000
 # Optional. How long an idle or done stays open for the agent to resume after a person has answered a blocked turn, before it is judged settled. Defaults to 300000.
 # answer_grace_ms: 300000
 
-# The substrate address. Unused by this node; present so the shape is one.
+# The substrate address: "none" or an http(s) URL.
 substrate:
   address: none
+  # Optional. A path to a file whose first line is a bearer token, sent as
+  # "Authorization: Bearer <token>" on every call to substrate.address.
+  # key_file: "/path/to/key"
 ```
 
 ## notes

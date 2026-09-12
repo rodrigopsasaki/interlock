@@ -15,6 +15,7 @@
     "ledger": "workspace:*",
     "runner": "workspace:*",
     "schemas": "workspace:*",
+    "substrate": "workspace:*",
     "verifier": "workspace:*",
     "yaml": "2.9.0"
   },

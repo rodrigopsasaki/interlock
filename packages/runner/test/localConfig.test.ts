@@ -378,3 +378,64 @@ describe("loadLocalConfig worktree_setup", () => {
     }
   });
 });
+
+describe("loadLocalConfig substrate", () => {
+  it("accepts an http(s) address and an optional key_file", async () => {
+    const yaml = [
+      "interlock: local@v0",
+      "runtime:",
+      "  kind: claude",
+      "  args: []",
+      "worktree_root: .worktrees",
+      "lease_ms: 900000",
+      "run_timeout_ms: 3600000",
+      "substrate:",
+      "  address: https://substrate.example.com",
+      "  key_file: /path/to/key",
+      "",
+    ].join("\n");
+    const repoRoot = fixtureRepo(yaml);
+
+    const result = await loadLocalConfig(repoRoot);
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) {
+      expect(result.value.substrateAddress).toBe(
+        "https://substrate.example.com",
+      );
+      expect(result.value.substrateKeyFile).toBe("/path/to/key");
+    }
+  });
+
+  it("refuses an address that is neither none nor an http(s) URL", async () => {
+    const yaml = [
+      "interlock: local@v0",
+      "runtime:",
+      "  kind: claude",
+      "  args: []",
+      "worktree_root: .worktrees",
+      "lease_ms: 900000",
+      "run_timeout_ms: 3600000",
+      "substrate:",
+      "  address: some-substrate",
+      "",
+    ].join("\n");
+    const repoRoot = fixtureRepo(yaml);
+
+    const result = await loadLocalConfig(repoRoot);
+
+    expect(isErr(result)).toBe(true);
+    if (isErr(result) && result.error.kind === "malformed") {
+      expect(result.error.reason).toContain('"substrate.address"');
+    }
+  });
+
+  it("leaves substrateKeyFile absent when key_file is not set", async () => {
+    const repoRoot = fixtureRepo(baseFields.join("\n"));
+
+    const result = await loadLocalConfig(repoRoot);
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) expect(result.value.substrateKeyFile).toBeUndefined();
+  });
+});

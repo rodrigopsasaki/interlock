@@ -60,3 +60,55 @@ entries:
       verb"; narrating none uniformly (rather than special-casing it to silence) means the
       session log reads the same shape whether or not a substrate is addressed, and a person
       reading it never has to wonder whether context/absorb ran at all.
+  - kind: choice
+    at: "2026-09-11T21:30:00Z"
+    chose: >
+      writeBriefIntoWorktree (packages/runner/src/sessionBrief.ts) calls context and, when it
+      renders, replaces the "## Context slice" section's content in the brief body -- but never
+      touches the committed front matter's substrate.address field, which stays exactly what the
+      brief was authored with.
+    because: >
+      The brief's own Config paragraph says plainly: "nothing committed carries an address or a
+      key." The real address this runner addresses comes only from .interlock/local.yaml
+      (gitignored); writing it into brief.md's front matter would leak a per-machine detail (a
+      private network URL, at least) into a file the worktree commits and a branch may carry.
+      Rewriting gates/scope in that same front matter (the existing diffGates/diffScope pattern)
+      is safe by contrast because those are never secrets.
+  - kind: choice
+    at: "2026-09-11T21:35:00Z"
+    chose: >
+      absorb runs from inside judgeGates (packages/runner/src/gateJudge.ts), once per judgement,
+      after the gate loop resolves cleared or held -- reading debrief.yaml/notes.yaml a second
+      time independently of ingestDebrief's cleared-only ledger recording, rather than folding
+      absorb into ingestDebrief itself.
+    because: >
+      ingestDebrief's debrief-filed/note-appended ledger events are gated on "cleared" by
+      existing, tested behavior (gateJudge.test.ts's "appends nothing beyond the outcome for a
+      legacy-valid debrief" and friends) that this node's acceptance does not ask to change.
+      absorb's own acceptance is explicit that it runs "cleared or held." Keeping the two as
+      separate calls (both behind one new readV2Debrief helper, so the file reads are not
+      duplicated in substance) means neither one's condition has to bend to match the other's.
+    rejected:
+      - "gate absorb on the same 'cleared' condition as ingestDebrief"
+      - "widen ingestDebrief's ledger recording to cleared-or-held as a side effect of adding absorb"
+  - kind: surprise
+    at: "2026-09-11T21:45:00Z"
+    expected: >
+      Editing .interlock/local.example.yaml (documenting substrate.key_file) would touch only
+      that file.
+    observed: >
+      packages/cli/test/schema/reference.test.ts failed: docs/shapes.md is generated from, among
+      other things, local.example.yaml's own content as a worked example, and had gone stale.
+      Regenerated it with `pnpm interlock schema reference` rather than hand-editing the derived
+      file; the diff is exactly the three lines the local.example.yaml edit added.
+  - kind: choice
+    at: "2026-09-11T21:50:00Z"
+    chose: >
+      packages/runner/src/backfill.ts passes noneClient() and a no-op narrate into judgeGates,
+      rather than accepting a substrate client through BackfillOptions.
+    because: >
+      Backfill reconstructs the ledger's history for sessions that predate this feature (the
+      bootstrap graph's own scaffold-era nodes); calling absorb on their behalf would send
+      years-old debriefs to whatever substrate happens to be configured today, which is not
+      backfill's job and is out of this node's acceptance. none is the harness's own safe
+      default for "no substrate has anything to do with this."
