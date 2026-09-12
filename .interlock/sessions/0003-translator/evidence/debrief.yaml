@@ -4,7 +4,7 @@ node: evidence
 role: worker
 graph_base_sha: 98546da8119bd02eeef2631208956554956be1b0
 session_start_sha: 33bb9c396a6fc72c3c3676fd158690e761f6a6cb
-head_sha: 1de437e500c1b716530b2ed0669db71210c0e0d3
+head_sha: 781a561df8672098490c0999e0df2aaafffe12dd
 derivation:
   kind: agent
   runtime: claude-code
@@ -104,6 +104,65 @@ discoveries:
       lint/format/lint:fix now pass biome the explicit top-level paths files.includes already
       names, instead of ".". Verified clean (296 files) from inside this very worktree. See
       notes.yaml, 13:45.
+  - id: d6
+    what: >
+      blockedGateIds classified a receipt from the node's current outcome
+      (outcome.on.failure, a field that exists only while an outcome is still "held" on a
+      gate failure) rather than from history, so once a node's outcome later moved past
+      "held" -- to "cleared" -- every one of its receipts read "discipline", proof of
+      exitCode 1 included. A false observed item: the one thing this translation must never
+      produce.
+    found_at: >
+      .interlock/sessions/0003-translator/evidence/debrief.yaml's own
+      "evidence_provenance_verbatim" block, captured at this same node's prior head_sha
+      (1de437e): "discipline/observed 36"
+    mattered_because: >
+      A review of this node's own cleared work, against the real journal's own
+      0001-bootstrap/verifier-hunks (a node whose gate history includes real failed
+      attempts before it cleared), surfaced four receipts with proof.exitCode 1 rendered
+      discipline. Fixed by classifying from the node's own gate-moved history instead
+      (satisfiedReceiptIds, c12): a receipt is discipline iff some gate-moved to satisfied
+      or waived, for this node, names that exact receipt id; otherwise risk. Re-run after
+      the fix: discipline/observed drops from 36 to 32 and the four exit-1 receipts move to
+      risk/observed.
+  - id: d7
+    what: >
+      personVerbItem mapped every outcome.cancelled to a professed, human-derived decision
+      regardless of who moved it. The sweeper (packages/runner/src/sweep.ts's own
+      ABANDONED_AUTHORITY) cancels a node whose lease expired with no outcome, and that
+      cancellation read as a person's decision, indistinguishable from one a person actually
+      made.
+    found_at: >
+      .interlock/sessions/0003-translator/evidence/debrief.yaml's own
+      "evidence_provenance_verbatim" block, captured at this same node's prior head_sha
+      (1de437e): "derivation: human:sweeper"
+    mattered_because: >
+      Fixed by excluding harness authorities before emitting a professed item (c13); the
+      ledger's own Outcome/Gate authority is a bare string with no person/harness
+      discriminant, so the correct fix is a schema change giving that distinction a real
+      type, deferred here as too invasive for this pass (every persisted outcome and gate
+      shape would need it) and named as the real fix rather than patched around silently.
+      Re-run after the fix: decision/professed moves from 1 (the lone sweeper item) to 4
+      (d8's own graph-approval events); no sweeper item remains anywhere in the output.
+  - id: d8
+    what: >
+      discoveryItem never read entry.mark.hunk, so no discovery item carried a location,
+      though the acceptance names "the rooted hunk or location" for every hypothesis and
+      item@v1's scope already has a "path" kind for exactly this.
+    found_at: >
+      $ git show 1de437e:packages/substrate/src/evidence.ts | sed -n
+      '/^function discoveryItem/,/^}/p'
+      (discoveryItem's own body at this node's prior head_sha: no reference to
+      entry.mark.hunk anywhere in it)
+    mattered_because: >
+      Fixed by scoping a discovery to its mark's rooted hunk, or to the repository when
+      that hunk is one of the verifier's two sentinel strings that name no real path
+      ("command", "out-of-band citation" -- packages/verifier/src/foundAt.ts) (c14). A
+      decision whose hunks span more than one file already fell back to a repository
+      scope (item@v1's scope is a single value); that fallback now also emits a gap naming
+      the paths it flattened, so the loss is visible rather than silent -- re-run after the
+      fix: gaps rises from 69 to 72, the three decisions in this corpus whose hunks span
+      more than one path.
 decisions:
   - id: c1
     what: >
@@ -341,6 +400,248 @@ decisions:
       unavoidable case 0001-bootstrap/verifier-hunks's own c21 already named: head_sha precedes
       the commit that files this debrief, so the debrief can never appear inside its own diffed
       range.
+  - id: c12
+    what: >
+      Replaced blockedGateIds with satisfiedReceiptIds(events): walks the node's own
+      gate-moved history (session.personEvents, the same raw stream personEventsFor
+      already exposed for a person's verbs) and collects every receipt id a move to
+      satisfied or waived ever named; receiptItem classifies a receipt discipline iff its
+      id is in that set, risk otherwise. EvidenceSession's "outcome" field is gone -- it had
+      no other reader once this changed.
+    because: d6
+    rests_on:
+      - d6
+    hunks:
+      - "packages/substrate/src/evidence.ts"
+    produces:
+      - packages/substrate/src/evidence.ts
+      - packages/substrate/test/evidence.test.ts
+    evidence: |
+      $ pnpm interlock evidence 0001-bootstrap verifier-hunks
+      discipline/observed 32 (was 36); risk/observed 4 (was 0) -- the four exit-1 receipts
+  - id: c13
+    what: >
+      EvidenceSession gained harnessAuthorities (a ReadonlySet<string>); personVerbItem
+      excludes an event before mapping it to a professed item when gate.waived's own
+      authority, or outcome-set cancelled/reset's own authority, is in that set. The only
+      harness authority in this repository today is the sweeper's, already exported once
+      (packages/runner/src/sweep.ts's own ABANDONED_AUTHORITY); added HARNESS_AUTHORITIES
+      beside it, re-exported from runner's own index.ts, and wired it into both places
+      evidenceOf is actually called (gateJudge.ts's absorbDebrief, cli's
+      runInterlockEvidence) rather than hard-coding "sweeper" a second time in either.
+    because: d7
+    rests_on:
+      - d7
+    hunks:
+      - "packages/substrate/src/evidence.ts"
+      - "packages/runner/src/sweep.ts"
+    produces:
+      - packages/substrate/src/evidence.ts
+      - packages/runner/src/sweep.ts
+      - packages/runner/src/index.ts
+      - packages/runner/src/gateJudge.ts
+      - packages/cli/src/evidence.ts
+    evidence: |
+      $ pnpm interlock evidence 0001-bootstrap verifier-hunks
+      decision/professed 4 (was 1); no "sweeper" text anywhere in the output
+  - id: c14
+    what: >
+      discoveryItem now scopes a rooted discovery to its mark's own hunk, or to the
+      repository when that hunk is one of the verifier's two sentinel strings ("command",
+      "out-of-band citation") that name no real path. decisionResult keeps the existing
+      repository fallback for a decision whose hunks span more than one file, but now also
+      returns a gap alongside the item, naming the flattened paths; evidenceOf's own return
+      type grew from Item[] to {items, gaps} -- the same shape EvidenceForAbsorb already
+      carried, reused rather than inventing a second evidence-with-gaps shape for one more
+      caller.
+    because: d8
+    rests_on:
+      - d8
+    hunks:
+      - "packages/substrate/src/evidence.ts"
+    produces:
+      - packages/substrate/src/evidence.ts
+      - packages/substrate/test/evidence.test.ts
+      - packages/cli/src/evidence.ts
+      - packages/cli/test/evidence.test.ts
+    evidence: |
+      $ pnpm interlock evidence 0001-bootstrap verifier-hunks
+      gaps 72 (was 69) -- three decisions (c3, c6, c14 of that debrief) whose own hunks
+      span more than one path
+  - id: c15
+    what: >
+      personEventsFor now also matches the graph-level node's own "approved" gate-moved
+      events for a node's session (event.node.id === node.graph, gate === "approved"),
+      beside the work node's own events it already matched. `interlock graph approve`
+      writes its gate-moved on {graph, id: graph}, never on the work node, so the approve
+      arm of personVerbItem -- and this mapping table's own row for it -- never fired on
+      real data before this change.
+    because: "reviewer finding 4: the approve arm and its mapping-table row never fire on real data"
+    rests_on: []
+    hunks:
+      - "packages/substrate/src/evidence.ts"
+    produces: []
+    evidence: |
+      $ pnpm interlock evidence 0001-bootstrap verifier-hunks
+      four "approved gate approved" items now appear, one per real approval this graph's
+      own history carries
+  - id: c16
+    what: >
+      evidenceForAbsorb degrades the way interlock evidence's own CLI command already
+      does when verifyDebrief refuses: decisions keep their (now-empty) marks, so a
+      rooted check still excludes them cleanly; discoveries and vocabulary gaps go empty;
+      receipts and a node's person-events still flow into evidenceOf regardless. Also
+      fixed the gap that surfaced once that path could produce real items: judgeGates now
+      collects the gate-moved events it appends during its own loop and merges them into
+      the personEvents it hands absorbDebrief, since a caller's own historical snapshot
+      (read before this run starts) can never contain them.
+    because: >
+      "Judgement and the CLI verb diverge when verifyDebrief refuses" (reviewer finding
+      5) -- evidenceForAbsorb returned {items: [], gaps: []} outright, dropping receipts
+      and person verbs the CLI kept.
+    rests_on: []
+    hunks:
+      - "packages/runner/src/gateJudge.ts"
+    produces:
+      - packages/runner/src/gateJudge.ts
+      - packages/runner/test/gateJudge.test.ts
+    evidence: |
+      packages/runner/test/gateJudge.test.ts's own "absorb carries live evidence" suite,
+      updated: the degrade case now asserts the always-pass gate's own receipt surfaces as
+      a discipline item, instead of asserting the empty {items, gaps} pair the old test had
+      locked the divergence in with.
+  - id: c17
+    what: >
+      evidenceForAbsorb now returns undefined, rather than {items: [], gaps: []}, when
+      both evidenceOf's items and the combined (vocabulary + evidenceOf) gaps are empty;
+      absorbDebrief and the client's own httpClient (unchanged) already spread nothing
+      into the request body when evidence is undefined, so the absorb request now omits
+      "items" and "gaps" entirely rather than sending them as empty arrays.
+    because: >
+      "Omit items and gaps from the absorb request when both are empty" (reviewer finding
+      6).
+    rests_on: []
+    hunks:
+      - "packages/runner/src/gateJudge.ts"
+      - "packages/substrate/test/absorb.test.ts"
+      - "packages/schemas/test/corpus.substrate.test.ts"
+    produces:
+      - packages/runner/src/gateJudge.ts
+      - packages/runner/test/gateJudge.test.ts
+      - packages/substrate/test/absorb.test.ts
+      - packages/schemas/test/corpus.substrate.test.ts
+    evidence: |
+      packages/runner/test/gateJudge.test.ts's own new "omits items and gaps..." case
+      (declaredGateIds: [], truly no evidence, asserts substrate.absorb receives
+      undefined); packages/substrate/test/absorb.test.ts's own two new fake-server cases
+      (keys present when evidence exists, absent -- not empty arrays -- when it does not);
+      packages/schemas/test/corpus.substrate.test.ts's own new case validating an
+      absorb.request carrying real items and gaps against absorb.request.json in tree.
+  - id: c18
+    what: >
+      One determinism test in each of packages/substrate/test/evidence.test.ts and
+      packages/cli/test/evidence.test.ts: evidenceOf(session) called twice on a fixture
+      covering all four sections (decisions, discoveries, receipts, a person's verb) is
+      toEqual; interlock evidence run twice over an identical ledger prints identical
+      text.
+    because: "reviewer finding 7: determinism has no test"
+    rests_on: []
+    hunks:
+      - "packages/substrate/test/evidence.test.ts"
+      - "packages/cli/test/evidence.test.ts"
+    produces: []
+  - id: c19
+    what: >
+      Typed KIND_ORDER and STANDING_ORDER against debrief's own ItemKind/ItemStanding
+      unions instead of `as const` string-literal tuples, so a typo in either list is a
+      compile error against the real vocabulary rather than a silently well-typed new
+      literal.
+    because: >
+      "AGENTS.md says no `as`; the one precedent does not make a rule" (reviewer finding
+      8).
+    rests_on: []
+    hunks:
+      - "packages/cli/src/evidence.ts"
+    produces: []
+  - id: c20
+    what: >
+      Changed biome.json's own "!**/.worktrees" exclude to "!.worktrees" (root-relative:
+      only a literal top-level .worktrees directory under the config's own root, never a
+      path segment at any depth) and reverted root package.json's lint/format/lint:fix
+      scripts to biome's own "." argument. Verified both requirements together: `pnpm
+      lint` passes clean from inside this very worktree (297 files -- one more than the
+      explicit-paths form only because biome.json itself is now in scope, like every
+      other top-level config file), and `pnpm exec biome check . --verbose` from here
+      lists zero files under .worktrees.
+    because: >
+      "The lint fix patched the scripts, not the cause" (reviewer finding 9): "." itself
+      resolves to an absolute path containing a ".worktrees" segment inside any worker's
+      own worktree, which is exactly what "!**/.worktrees" -- a glob matching that segment
+      at any depth -- excluded; an explicit subpath never asked biome to test "." against
+      that glob, so it never tripped it. .interlock/config.yaml's own `lint` gate is
+      untouched; it already just runs `pnpm lint`.
+    rests_on: []
+    hunks:
+      - "package.json"
+      - "biome.json"
+    produces:
+      - package.json
+      - biome.json
+    evidence: |
+      $ pnpm lint
+      (from inside this worktree, after the fix)
+      Checked 297 files in 45ms. No fixes applied.
+  - id: c21
+    what: >
+      Amended docs/design/0003-substrate.md's absorb bullet to name "items" (item@v1[])
+      and "gaps" (parts/gap.json[]) as optional, additive fields, and added D26: when
+      "items" is present it is the session's authoritative evidence and a substrate
+      adopts those items with the standing and derivation they carry, records the
+      request's own "gaps" beside whatever it derives itself, and keeps the debrief as the
+      way back rather than deriving a second set of items from it; when absent, a
+      substrate derives as before. States the evolution rule plainly (both fields
+      additive to substrate@v1; a vendored-bytes implementation refuses the new shape
+      until it re-vendors; capabilities does not announce either field since absorb is a
+      required verb) and adds one bend-log row: the first translation pass shipped the
+      fields without this paragraph.
+    because: >
+      "docs/design/0003-substrate.md was not updated for the new fields" (reviewer
+      finding 11).
+    rests_on: []
+    hunks:
+      - "docs/design/0003-substrate.md"
+    produces:
+      - docs/design/0003-substrate.md
+    evidence: |
+      $ pnpm interlock schema reference --check
+      docs/shapes.md: fresh.
+  - id: c22
+    what: >
+      Corrected this mapping table's own discovery-kind precedence to match
+      discoveryKind.ts's actual check order (tension, then absence, then conflict, else
+      decision) -- the table previously read looser than the code (absence, then
+      conflict, then tension). This debrief, updated for this review-fix pass and filed
+      as the final commit in this new range, still debrief@v2.
+    because: "reviewer finding 10, and this session's own Deliverable (the record)"
+    rests_on: []
+    hunks:
+      - ".interlock/sessions/0003-translator/evidence/debrief.yaml"
+    evidence: |
+      $ pnpm interlock verify 0003-translator evidence
+      rooted 45, unrooted 2, unexplained 0, gap 115
+      unrooted: "package.json" is not a file changed in this range
+      unrooted: "package.json" is not a file changed in this range
+
+      Neither unrooted mark is this decision's own self-citation this time -- head_sha (c20's
+      own commit) now lands after cd7b2b4, the commit that originally filed this debrief, so a
+      bare-path citation of this file is genuinely rooted (its path did change inside this
+      range; only this pass's own newest lines, added after head_sha, are not). Both unrooted
+      marks are "package.json", cited once each by c9 (the original explicit-paths fix) and c20
+      (this pass's own revert of it): c20's own fix reverted package.json's lint/format/lint:fix
+      scripts to exactly what c9 had changed them from, so the file's net diff across the whole
+      range (session_start_sha..head_sha) is empty and neither citation finds a path the range
+      actually changed. c9's own claim was true when it landed; it reads unrooted now only
+      because a later decision in the same range reverted it to zero, not because c9 was wrong.
 gates_run_by_agent:
   - id: typecheck
     result: pass
@@ -349,18 +650,20 @@ gates_run_by_agent:
   - id: lint
     result: pass
     invocation: "mise exec -- pnpm lint"
-    note: "296 files, 0 errors, after c9's fix (d5); refused outright before it."
+    note: >-
+      297 files, 0 errors, after c20's root-cause fix; c9's own explicit-paths patch (d5) worked
+      too, but only by avoiding the argument that tripped the real bug.
   - id: comments
     result: pass
     invocation: "mise exec -- pnpm check:comments"
   - id: test
     result: pass
     invocation: "mise exec -- pnpm test"
-    note: "every package's own suite passes; substrate alone is 63 tests across 10 files."
+    note: "every package's own suite passes, twice in a row; 1279 tests total; substrate alone is 59 across 10 files."
   - id: evidence-provenance
     result: pass
     invocation: "mise exec -- pnpm --filter substrate --fail-if-no-match test --testNamePattern evidence"
-    note: "Tests 15 passed | 33 skipped (48); matches expect_output /Tests +[1-9][0-9]* passed/."
+    note: "Tests 25 passed | 34 skipped (59); matches expect_output /Tests +[1-9][0-9]* passed/."
 open:
   - >
     gate.waived and outcome.reset/cancelled are the only authority-bearing shapes evidenceOf's
@@ -383,32 +686,50 @@ open:
     front matter convention, always an addition to that same standing table). A team whose
     node-declared gates diverge meaningfully from its standing ones may want a real distinction
     here; none exists yet to test against.
+  - >
+    The ledger's own Outcome and Gate types carry "authority" as a bare string, with no
+    person/harness discriminant -- evidenceOf's own harnessAuthorities (c13) is a practical
+    exclusion list, not a type-level guarantee that a future harness authority gets named before
+    it starts writing professed items nobody asked for. The real fix is a schema change (an
+    Authority union, {kind: "human", who} | {kind: "harness", name}, on outcome-v1.json and
+    gate-v1.json's own waived/satisfied-with-derivation-human shapes), deferred here because it
+    touches every already-persisted outcome and gate fact in this repository's real journal, not
+    only this node's own files.
 mapping_table: |
-  Artifact -> item@v1 kind, standing, derivation. Chosen once, here, per the brief's own
-  instruction; the full reasoning for each row is in notes.yaml.
+  Artifact -> item@v1 kind, standing, derivation. The full reasoning for each row is in this
+  session's own decisions (c1-c9 for the original rules; c12-c15 for this review-fix pass's own
+  corrections), above.
 
   | artifact | condition | kind | standing | derivation |
   | --- | --- | --- | --- | --- |
-  | receipt | in outcome's blocked-gate list (held, gate-failure) | risk | observed | gate:<gate>:<version>:<runner> (or model:.../human:... by the receipt's own derivation kind) |
-  | receipt | not in that list (cleared, or held for another reason) | discipline | observed | as above |
-  | decision | every hunk-citation mark rooted | decision | hypothesis | agent:<runtime>:<model> or human:<who> (the debrief's own derivation) |
+  | receipt | referenced by a gate-moved to satisfied or waived, for this node, naming this exact receipt id | discipline | observed | gate:<gate>:<version>:<runner> (or model:.../human:... by the receipt's own derivation kind) |
+  | receipt | never so referenced (a since-superseded attempt, or a real block) | risk | observed | as above |
+  | decision | every hunk-citation mark rooted, hunks span exactly one path | decision | hypothesis, scoped to that path | agent:<runtime>:<model> or human:<who> (the debrief's own derivation) |
+  | decision | every hunk-citation mark rooted, hunks span more than one path | decision, scoped to the repository, plus a gap naming the flattened paths | hypothesis | as above |
   | decision | any mark unrooted, or zero hunks (no mark at all) | excluded; unrooted ones counted in "unrooted excluded" | -- | -- |
-  | discovery | rooted, "what" names something missing (no/not/nothing/none/missing/nowhere/never/absent/lacks) | absence | hypothesis | as decisions, above |
-  | discovery | rooted, "what" names a conflict (conflict/contradict/clash/disagree/mismatch/inconsistent/collide/versus), no absence/tension match | risk | hypothesis | as decisions, above |
-  | discovery | rooted, "what" names a tension explicitly | tension | hypothesis | as decisions, above |
-  | discovery | rooted, none of the above | decision | hypothesis | as decisions, above |
+  | discovery | rooted, "what" names a tension explicitly | tension | hypothesis, scoped to the mark's rooted hunk (or the repository, when that hunk is the verifier's own "command" or "out-of-band citation" sentinel) | as decisions, above |
+  | discovery | rooted, "what" names something missing (no/not/nothing/none/missing/nowhere/never/absent/lacks), no tension match | absence | hypothesis, scoped as above | as decisions, above |
+  | discovery | rooted, "what" names a conflict (conflict/contradict/clash/disagree/mismatch/inconsistent/collide/versus), no tension or absence match | risk | hypothesis, scoped as above | as decisions, above |
+  | discovery | rooted, none of the above | decision | hypothesis, scoped as above | as decisions, above |
   | discovery | unrooted | excluded; counted in "unrooted excluded" | -- | -- |
-  | gate-moved, to waived | -- | decision | professed | human:<authority> |
+  | gate-moved, to waived, authority not one of runner's own HARNESS_AUTHORITIES | -- | decision | professed | human:<authority> |
+  | gate-moved, to waived, authority a harness's (the sweeper's, today) | -- | excluded; no item at all | -- | -- |
   | gate-moved, to satisfied, receipt.derivation.kind human | -- | decision | professed | human:<who> |
-  | outcome-set, cancelled | -- | decision | professed | human:<authority> |
-  | outcome-set, reset | -- | decision | professed | human:<authority> |
+  | gate-moved, to approved, on the graph-level node ({graph, id: graph}) for the node's own session | -- | decision | professed | human:<who> -- the graph's own approval authorises every node in it |
+  | outcome-set, cancelled or reset, authority not one of HARNESS_AUTHORITIES | -- | decision | professed | human:<authority> |
+  | outcome-set, cancelled or reset, authority a harness's | -- | excluded; no item at all | -- | -- |
   | vocabulary-gap mark | -- | not an item; travels as absorb's own "gaps" field | -- | -- |
 
   Notes on fit: discipline/risk were judged a good fit for the vocabulary as given (no gap
   recorded); "satisfied standing gate" is read as every declared gate uniformly (open item,
   above). item@v1's scope is a single value, never a list, so a decision citing hunks in more
-  than one path is scoped to the repository rather than an arbitrary pick among them; a
-  single-path decision is scoped to that path.
+  than one path is scoped to the repository and the paths it flattened travel as a gap instead of
+  an arbitrary pick among them; a single-path decision is scoped to that path, and a discovery to
+  its own rooted hunk the same way. HARNESS_AUTHORITIES (packages/runner/src/sweep.ts) names the
+  sweeper today; a future harness authority joins that same set rather than a second one. This
+  table's own discovery-kind row order now matches discoveryKind.ts's real precedence -- tension,
+  then absence, then conflict, else decision -- which it read looser than before this pass
+  (absence, then conflict, then tension).
 evidence_provenance_verbatim: |
   $ pnpm interlock evidence 0001-bootstrap verifier-hunks
   (verbatim, this node's own Deliverable 4 -- 0001-bootstrap/verifier-hunks is "the first real v2
