@@ -712,6 +712,54 @@ describe("absorb carries live evidence", () => {
     });
     if (isErr(judged)) throw new Error("expected an outcome");
 
-    expect(absorbCalls).toEqual([{ items: [], gaps: [] }]);
+    expect(absorbCalls).toEqual([
+      {
+        items: [
+          {
+            kind: "discipline",
+            statement: "gate always-pass satisfied",
+            standing: "observed",
+            derivation: "gate:always-pass:runner@0:run-1",
+          },
+        ],
+        gaps: [],
+      },
+    ]);
+  });
+
+  it("omits items and gaps from the acknowledgement request when there is truly no evidence", async () => {
+    const root = fixture();
+    writeSession(root, "fixture", "n1", v2Debrief, notesYaml);
+    const absorbedEvidence: (EvidenceForAbsorb | undefined)[] = [];
+    const client: SubstrateClient = {
+      address: "spy",
+      context: () => Promise.resolve({ kind: "empty" }),
+      absorb: (_node, _debrief, _notes, _receipts, evidence) => {
+        absorbedEvidence.push(evidence);
+        return Promise.resolve({ kind: "empty" });
+      },
+      capabilities: () => Promise.resolve([]),
+    };
+    const { ledger } = memoryLedgerWithLog();
+
+    const judged = await judgeGates({
+      ledger,
+      clock: createControlledClock(),
+      node,
+      session: "s1",
+      declaredGateIds: [],
+      commandFor: new Map(),
+      worktree: root,
+      scopeRoot: root,
+      scopePaths: ["content.txt"],
+      commitSha: "deadbeef",
+      runnerId: "run-1",
+      holdMs: 60_000,
+      substrate: client,
+      narrate: () => {},
+    });
+    if (isErr(judged)) throw new Error("expected an outcome");
+
+    expect(absorbedEvidence).toEqual([undefined]);
   });
 });

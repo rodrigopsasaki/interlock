@@ -80,7 +80,7 @@ export {
 } from "./standingGates.ts";
 export type { StartupAnswer } from "./startupAnswers.ts";
 export { matchesScreen } from "./startupAnswers.ts";
-export { ABANDONED_AUTHORITY, sweepExpiredLeases } from "./sweep.ts";
+export { ABANDONED_AUTHORITY, HARNESS_AUTHORITIES, sweepExpiredLeases } from "./sweep.ts";
 export {
   createTmuxRuntime,
   defaultTmuxRunner,
