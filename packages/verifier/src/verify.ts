@@ -11,8 +11,6 @@ export const VERIFIER_VERSION = "verifier@0";
 
 export interface VerifyOptions {
   readonly runner?: string;
-  // The team's professed domain vocabulary. Always empty today: no config shape carries one
-  // yet (see this session's debrief, under `open`).
   readonly professedDomainVocabulary?: readonly string[];
 }
 
@@ -30,8 +28,6 @@ export interface VerifyResult {
   readonly marks: readonly Mark[];
 }
 
-// Deterministic. No model is called anywhere: every mark here traces to the diff, the
-// workspace at head_sha, or AGENTS.md's own vocabulary table.
 export async function verifyDebrief(
   repoRoot: string,
   debrief: Debrief,

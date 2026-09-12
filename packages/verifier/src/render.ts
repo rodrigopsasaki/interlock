@@ -26,9 +26,6 @@ function describe(mark: Mark): string | undefined {
   }
 }
 
-// "a position of the debrief: counts per kind, then each unrooted and unexplained mark with
-// what was expected." Marks never block, so this always exits clean; the position is the
-// point, not a verdict.
 export function renderVerification(result: VerifyResult): string {
   const counts = countByKind(result.marks);
   const lines = [

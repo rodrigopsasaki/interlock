@@ -21,10 +21,6 @@ function quotedSubstrings(text: string): readonly string[] {
   return quotes.filter((quote) => quote.trim().length > 0);
 }
 
-// A path candidate may be repo-root-relative (how every decision's hunks read) or, in prose
-// that names a sibling session in passing ("ledger-gaps/notes.yaml"), relative to this
-// graph's own sessions directory. Both are real conventions in the corpus this node ships
-// against; a candidate resolves against whichever root actually holds it.
 function resolveCandidate(
   repoRoot: string,
   headSha: string,
@@ -37,10 +33,6 @@ function resolveCandidate(
   return undefined;
 }
 
-// found_at names a path, a path with a quoted excerpt, a command (a line starting "$ "), or a
-// quoted out-of-band citation (a quote with no resolvable path beside it). The three recognized
-// forms are rooted by form; only the path form is checked further, against the quoted content
-// when a quote is given.
 export function checkFoundAt(
   foundAt: string,
   repoRoot: string,
