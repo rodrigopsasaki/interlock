@@ -59,7 +59,9 @@ One more answer, not a verb in this table: `capabilities`, so interlock learns w
 declared capabilities above a substrate actually implements before it can degrade per capability
 (D22). It takes no request beyond the address interlock already holds; its response schema is
 `schemas/substrate/capabilities.response.json`, a list drawn from exactly the ten capability names
-this table carries.
+this table carries. `capabilities` is sent as `GET` and carries no body; every verb above that
+takes a payload sends it as `POST` with a JSON body; every call, either way, addresses
+`<address>/substrate@v1/<verb>`.
 
 Outside the protocol on purpose: a person's controls over the substrate's own voice, such as
 quieting a category of findings or surfacing a withheld one. Those are a person's verbs at the
@@ -200,6 +202,7 @@ note a choice or surprise, establish a rule, request a review, and debrief at th
 | 2026-09-11 | Header table named the reference implementation twice (its own row, plus the mapping section's intro) | The wall; the brief's own fence ("named exactly once in the note and nowhere else") | Writing the schemas surfaced it: nothing needed the name in two places, and the draft had simply carried both from when the note was written in one pass | Yes — the header row now points at the mapping section instead of repeating the name | A rule this explicit is worth grepping the note for before calling it done, not just reading past |
 | 2026-09-11 | D23/D24's "walk handle in the brief's front matter" turned out to name a field (`brief@v1.json`'s `substrate.handle`) that no verb in this session's actual payload set produces | D23, D24 | This session's own brief narrowed `context`'s response to "a slice of items plus the substrate's vocabulary version," with no handle; building the schema against that instruction surfaced the gap against the note's looser prose | Yes — the note now says plainly that no verb returns one, and a client that wants one mints it itself | A design note's prose can imply a payload field a session's own brief never asks for; the shapes, once real, are what settle it |
 | 2026-09-12 | `absorb.request.json` gained `items` and `gaps` before this note said anything about what a substrate does with either field | D23 (a payload's meaning lives in this note, not left implicit at the wire) | The translating session shipped the schema fields and the client plumbing to meet its own acceptance; the paragraph explaining what a substrate does with an adopted item was scoped to a later review pass, not the original one | Yes — D26 states the rule now, and neither field's shape changed to fit it | Landing a schema field is not the same act as documenting it; the paragraph belongs in the same change, not a follow-up |
+| 2026-09-12 | The verbs table and the `capabilities` paragraph specified every call's payload but never its HTTP method; the client sent `capabilities`, like every other verb, as `POST` | The `capabilities` paragraph (it said the call carries no request beyond the address, not what verb carries it over the wire) | The first live probe against a conforming substrate answered `GET .../substrate@v1/capabilities` with its list and refused the client's `POST` there as not found; a call with no argument beyond the address is a read, and the substrate had already read the note that way | Yes — the note now names the method per verb, and only the `capabilities` call changed, from `POST` to `GET` | A payload fully specified is not a call fully specified; verb, path and method are all part of the contract, and it took a conforming substrate, not a reading of the note, to surface the half left unstated |
 
-No verb payload itself has bent from what this note asked for; the three rows above are the note
+No verb payload itself has bent from what this note asked for; the four rows above are the note
 catching up to the schemas, not the schemas bending to fit the note.
