@@ -5,7 +5,11 @@ export interface SliceCount {
   readonly unknown: number;
 }
 
-const PATH_REFERENCE = /[\w-]+(?:\/[\w-]+)*\.[a-zA-Z]{2,12}\b/g;
+const CLOSED_EXTENSIONS = ["ts", "md", "yaml", "json", "txt", "js", "svg", "png"] as const;
+const PATH_SEGMENT = String.raw`[\w-]+(?:\.[\w-]+)*`;
+const SLASHED_REFERENCE = String.raw`(?:${PATH_SEGMENT}\/)+${PATH_SEGMENT}\.[a-zA-Z]{2,12}\b`;
+const BARE_REFERENCE = String.raw`${PATH_SEGMENT}\.(?:${CLOSED_EXTENSIONS.join("|")})\b`;
+const PATH_REFERENCE = new RegExp(`${SLASHED_REFERENCE}|${BARE_REFERENCE}`, "g");
 
 function pathReferencesIn(text: string): readonly string[] {
   return [...text.matchAll(PATH_REFERENCE)].map((match) => match[0]);
