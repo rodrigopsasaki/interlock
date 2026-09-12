@@ -37,8 +37,6 @@ const AGENT_START_TIMEOUT_MS = 60_000;
 const CALL_DEADLINE_MARGIN_MS = 5_000;
 export const WAIT_SLICE_MS = 60_000;
 
-// A pane's shell is not guaranteed to have reached its prompt the instant workspace.create
-// returns; herdr refuses agent.start with this code until it has. Retried, not fatal.
 const AGENT_PANE_BUSY_CODE = "agent_pane_busy";
 const PANE_READY_INITIAL_BACKOFF_MS = 500;
 const PANE_READY_MAX_BACKOFF_MS = 2_000;
@@ -59,8 +57,6 @@ function isWaitSliceTimeout(refusal: RuntimeRefusal): boolean {
   return refusal.kind === "remote" && refusal.code === AGENT_WAIT_SLICE_TIMEOUT_CODE;
 }
 
-// herdr's own rule, from its error text: must start with a lowercase letter and contain only
-// lowercase letters, digits, '-' or '_' (1-32 characters).
 const AGENT_NAME_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/;
 
 export function isCompliantAgentName(name: string): boolean {
@@ -170,9 +166,6 @@ function parseFrame(line: string): RpcSuccess | RpcFailure | undefined {
   return undefined;
 }
 
-// herdr serves one request per connection and closes the socket once its response is written,
-// so a call owns its own connection end to end: connect, write one frame, read the matching
-// frame, close. Nothing here is reused across calls.
 function callHerdr(
   socketPath: string,
   method: string,
@@ -230,8 +223,6 @@ function callHerdr(
   });
 }
 
-// One throwaway connection, made and closed before any real call, so a missing herdr refuses
-// early with its own reason instead of surfacing as a mysterious first-call timeout.
 function verifyHerdrSocket(socketPath: string): Promise<Result<void, RuntimeRefusal>> {
   return new Promise((resolve) => {
     const socket = connect(socketPath);

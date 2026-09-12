@@ -14,10 +14,6 @@ type ExpiredSession = SessionView & {
   readonly leaseGeneration: number;
 };
 
-// The ledger has no abandoned outcome kind yet, so the sweeper writes cancelled with authority
-// "sweeper". A node's outcome is one value, not one per session, so a session is unresolved
-// unless the node's outcome was set at or after its own lease — an earlier session's dead lease
-// otherwise reads as resolved forever, once any later outcome lands on the shared node.
 function isExpiredUnresolved(
   session: SessionView,
   projection: LedgerProjection,

@@ -24,7 +24,6 @@ export function defaultTmuxRunner(
   });
 }
 
-// tmux cannot observe an agent's state, so waitUntil can only time out.
 export function createTmuxRuntime(run: TmuxCommandRunner = defaultTmuxRunner): Runtime {
   return {
     async openPane(cwd: string) {

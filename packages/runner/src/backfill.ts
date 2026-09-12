@@ -72,7 +72,6 @@ export interface BackfillOptions {
   readonly narrate?: (line: string) => void;
 }
 
-// Eligibility is by a dependency having a debrief, because a standing gate that always fails would otherwise starve every dependent.
 export async function backfillGraph(
   options: BackfillOptions,
 ): Promise<Result<readonly BackfillNodeResult[], BackfillRefusal>> {
