@@ -1,0 +1,158 @@
+interlock: notes@v0
+node: first-address
+entries:
+  - kind: surprise
+    at: "2026-09-12T15:30:00Z"
+    expected: >
+      This session's own brief front matter (substrate.address) would tell me whether a real
+      address answered when the runner composed it.
+    observed: >
+      The front matter still reads "substrate: address: none" even though the brief's own body
+      carries a real, rendered "## Context slice" section (six hypothesis-standing risk items and
+      one observed absence, each with a derivation naming the substrate that produced it). The
+      substrate-client node's own notes.yaml explains why: writeBriefIntoWorktree renders the
+      slice into the body but never
+      rewrites the committed front matter's substrate.address, because nothing committed may carry
+      a real address (it lives only in the gitignored .interlock/local.yaml). So this brief IS the
+      "one brief with a slice from a real address" the acceptance asks a person to witness; the
+      front matter just never says so directly. Confirmed by grepping the brief body for the
+      rendered items rather than trusting the front matter alone.
+  - kind: surprise
+    at: "2026-09-12T15:35:00Z"
+    expected: >
+      Four of the six real risk items in this brief's own Context slice would read as complete
+      sentences.
+    observed: >
+      Four end mid-word with an ellipsis: "...violating the co…", "...never observe the a…", and
+      two more cut off inside an "interleaving:" trace. This is real, byte-for-byte, in the
+      committed brief.md (grep -n "…" .interlock/sessions/0003-translator/first-address/brief.md).
+      Nothing in this repository's own pipeline (renderItem in packages/debrief/src/slice.ts)
+      truncates a statement; item@v1.json's own statement field carries no length limit either.
+      Since no live call is available to this session to isolate which side cuts it, this is
+      recorded as an open question and a bend-log row rather than a fix.
+  - kind: choice
+    at: "2026-09-12T15:45:00Z"
+    chose: >
+      Read what "the count" already had built before writing anything: packages/substrate/src/
+      narrate.ts's narrateAbsorb already computes known/new/unplaced entirely from the
+      acknowledgement's own AbsorbOutcome.discoveries (a DiscoveryPlacement[] the substrate
+      returns), and packages/runner/src/gateJudge.ts's absorbDebrief already calls it for both a
+      cleared and a held outcome (absorbDebrief runs unconditionally, before outcome-set is
+      appended, regardless of resolved.kind).
+    because: >
+      The brief's own acceptance text ("Where the acknowledgement's discoveries already say this,
+      use it") describes exactly this existing behavior. Building a second, parallel counter for
+      the case the substrate already answers would duplicate a working, already-tested path
+      (packages/substrate/test/absorb.test.ts) instead of extending its one missing branch.
+  - kind: choice
+    at: "2026-09-12T15:50:00Z"
+    chose: >
+      The fallback ("where the substrate declared no such detail, count what can be counted...
+      and say the rest is unknown") triggers only when AbsorbOutcome.acknowledged.discoveries is
+      completely empty while the debrief itself carries at least one discovery — never partially,
+      per discovery id.
+    because: >
+      absorb.response.json's discoveries field is a DiscoveryPlacement[] meant to place every
+      discovery the substrate received, not a partial map; the acceptance's own two-branch
+      framing ("Where the acknowledgement's discoveries already say this, use it; where the
+      substrate declared no such detail...") reads as a binary choice between a substrate that
+      classifies and one that does not, not a per-discovery merge of two sources of truth. A
+      partial-coverage reconciliation was rejected as unrequested complexity the acceptance text
+      does not ask for.
+    rejected:
+      - "reconcile ack.discoveries and the slice fallback per discovery id, in case a substrate
+        answers with placements for some discoveries and not others"
+  - kind: choice
+    at: "2026-09-12T16:00:00Z"
+    chose: >
+      "By exact reference" (the brief's own phrase for the fallback count) is implemented as: for
+      each discovery, extract path-shaped tokens from its own found_at field (packages/substrate/
+      src/sliceCount.ts's PATH_REFERENCE regex — a word/dash run, optionally with slash-separated
+      segments, ending in a dotted extension of at least two letters) and check whether any of
+      them appears verbatim inside the brief's own rendered Context slice text. A match is known;
+      everything else (no candidate reference, or one the slice never named) is unknown.
+    because: >
+      A discovery's found_at and an item's statement are independently authored prose (never
+      required to share wording), so comparing them by substring or fuzzy text match would rarely
+      agree even when they are about the same fact. A citation (a real file path, the one concrete
+      thing both a slice item and a discovery are likely to name identically) is the one
+      unambiguous "exact reference" the two sides can share, and the verifier's own hunk-citation
+      convention (packages/verifier/src/hunkCitation.ts's own vocabulary; packages/substrate/src/
+      evidence.ts's hunkPath) already treats a citation's path as the load-bearing part of a
+      reference, line numbers aside. Reusing the slice's own already-rendered brief.md body (via
+      debrief's readBriefFile/briefFilePath, which packages/runner/src/gateJudge.ts already reads
+      debrief.yaml and notes.yaml beside) avoids inventing a second, structured re-parse of a
+      slice that only exists as rendered markdown once brief-writing has flattened it.
+    rejected:
+      - >-
+        re-call substrate.context() at judge time to get structured Item[] back (a live call
+        interlock never makes outside brief composition, and out of this node's own constraints)
+      - fuzzy/substring match on the full discovery.what against item.statement text
+  - kind: choice
+    at: "2026-09-12T16:10:00Z"
+    chose: >
+      countDiscoveriesAgainstSlice and the extended narrateAbsorb(address, outcome, slice?) live in
+      packages/substrate/src, not packages/runner, with the new AbsorbSlice parameter optional so
+      every existing narrateAbsorb(address, outcome) call site (including this file's own untouched
+      tests) keeps compiling and behaving exactly as before.
+    because: >
+      The gate that proves this feature (`pnpm --filter substrate --fail-if-no-match test
+      --testNamePattern acknowledged`) only runs packages/substrate's own test suite, and substrate
+      is a leaf package (depends on debrief and ledger only, never runner or verifier, per the
+      substrate-client node's own notes.yaml) -- so the counting logic has to be testable from
+      inside substrate without a fake worktree or the verifier package. gateJudge.ts (runner) only
+      had to gain the one new brief.md read plus a slice argument at its one existing call site.
+  - kind: choice
+    at: "2026-09-12T16:20:00Z"
+    chose: >
+      The witnessed gate is cleared with the existing `interlock gate clear <graph> <node>
+      witnessed --by <who> --because <why>` (packages/cli/src/gate/clear.ts), built and merged
+      into main before this session started (commit cc424a1, PR #60). No new verb was written.
+    because: >
+      The brief's own instruction was conditional: "if none exists for a node-level human gate
+      yet, build the smallest one (`interlock gate witness ...`)". One already exists, already
+      wired into main.ts, already tested (packages/cli/test/gate/clear.test.ts), and its own commit
+      message calls out that it "follows D21" -- the exact human-clears-with-a-because contract
+      this node's witness step needs. Building a second verb next to it would be the repository
+      inventing a synonym for something it already has.
+  - kind: choice
+    at: "2026-09-12T16:30:00Z"
+    chose: >
+      Added a runner-level integration test (packages/runner/test/gateJudge.test.ts, "absorb
+      narrates discoveries against the slice its brief carried") on top of the substrate-package
+      unit tests the gate itself requires, exercising the real wiring: a brief.md written into a
+      fixture worktree, a debrief with one discovery, an acknowledged-with-no-detail fake
+      substrate client, asserting the exact narrated line.
+    because: >
+      The substrate package's own tests call narrateAbsorb directly and prove the counting
+      function is correct in isolation; nothing in that package proves gateJudge.ts's absorbDebrief
+      actually reads the right brief.md path and threads it through. A wiring bug there (wrong
+      path, wrong field) would still pass every "acknowledged"-named substrate test while never
+      running in production. Not required by the brief's own gate list, but the acceptance's "each
+      debrief's discoveries are counted against its slice" describes runner behavior, not a
+      substrate-package unit.
+  - kind: surprise
+    at: "2026-09-12T16:40:00Z"
+    expected: >
+      A path-reference regex requiring at least one "/" would be a safe way to avoid matching
+      ordinary prose (like "e.g.") as a false citation.
+    observed: >
+      It also rejected legitimate bare, top-level citations this repository's own discoveries
+      actually use (e.g. "package.json", "AGENTS.md" with no directory prefix) -- my own first
+      runner-level test (found_at: "content.txt:1") failed against it. Relaxed PATH_REFERENCE to
+      drop the mandatory slash and instead require a two-or-more-letter extension, which still
+      excludes "e.g." (one letter after the dot) and version numbers like "5.1" (digits, not
+      letters, after the dot) without excluding real single-segment filenames.
+  - kind: choice
+    at: "2026-09-12T16:50:00Z"
+    chose: >
+      Left the bend-log row (docs/design/0003-substrate.md) naming the truncated real-address item
+      statements as what the first non-none address taught, rather than the counting feature
+      itself.
+    because: >
+      The count, the tests and the witness verb are ordinary, in-scope construction with no bend
+      against a design decision or invariant behind any of them. The truncated statements are the
+      one thing this session actually observed from a real address disagreeing with what D23 (the
+      substrate's own items, rendered verbatim) assumed -- a real finding against the design, not
+      a routine implementation choice, and the brief is explicit that this is where such a finding
+      belongs, not a schema edit.

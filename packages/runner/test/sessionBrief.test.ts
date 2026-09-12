@@ -244,7 +244,26 @@ describe("writeBriefIntoWorktree with a substrate that renders a slice", () => {
     expect(content).toContain("### Convention");
     expect(content).toContain("commits state the why in the subject");
     expect(content).toContain("## Constraints");
-    // The committed front matter's own substrate.address is never rewritten by the runner.
+    // A rendered slice means a real address answered; the committed front matter says so too,
+    // so the brief never tells a person it carried no substrate while its own body disagrees.
+    expect(content).not.toContain("address: none");
+    expect(content).toContain("address: http://fake-substrate.example");
+  });
+
+  it("leaves the committed front matter's address untouched when no slice was rendered", async () => {
+    const { repo, worktree } = fixture(v1WithContextSliceSection);
+    await writeBriefIntoWorktree(
+      repo,
+      worktree,
+      "g",
+      "n",
+      "f".repeat(40),
+      "session-1",
+      standing,
+      nodeGates,
+      substrate,
+    );
+    const content = readFileSync(briefPath(worktree, "g", "n"), "utf-8");
     expect(content).toContain("address: none");
   });
 });
