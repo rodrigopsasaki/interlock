@@ -101,6 +101,21 @@ export function uncommittedPaths(
   return ok(paths);
 }
 
+export function isCommittedAtHead(
+  worktreePath: string,
+  relativePath: string,
+): boolean {
+  try {
+    execFileSync("git", ["cat-file", "-e", `HEAD:${relativePath}`], {
+      cwd: worktreePath,
+      stdio: ["ignore", "ignore", "ignore"],
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function reused(
   path: string,
   base: string,

@@ -16,6 +16,7 @@ import {
   loadGraphDocument,
   sharedJournalDirectory,
 } from "face";
+import { debriefFilePath } from "debrief";
 import { createLedger, explainScopeRefusal, nodeKey, receiptId } from "ledger";
 import {
   briefExists,
@@ -36,6 +37,7 @@ import {
   gateCommandTable,
   gitTrackedFiles,
   HELD_REVISIT_MS,
+  isCommittedAtHead,
   judgeWorktree,
   lastNonEmptyLine,
   loadLocalConfig,
@@ -44,6 +46,7 @@ import {
   recordingNarrate,
   runSetupCommand,
   takeLease,
+  uncommittedPaths,
   unmetDependencies,
   waitForSession,
   writeBriefIntoWorktree,
@@ -52,6 +55,7 @@ import {
   type Pane,
   type PriorWork,
   type Runtime,
+  type UnfinishedWork,
   type WorktreeOutcome,
 } from "runner";
 import type { CommandResult } from "./main.ts";
@@ -479,6 +483,19 @@ export async function runInterlockRun(
     paneCustody = "person";
     if (tookPrompt.value === "working") narrate("agent working");
 
+    const readUnfinishedWork = (): UnfinishedWork | undefined => {
+      const dirty = uncommittedPaths(worktreePath);
+      const dirtyCount = isOk(dirty) ? dirty.value.length : 0;
+      const debriefRelative = relative(
+        worktreePath,
+        debriefFilePath(worktreePath, graph, node),
+      );
+      const debriefMissing = !isCommittedAtHead(worktreePath, debriefRelative);
+      return dirtyCount === 0 && !debriefMissing
+        ? undefined
+        : { uncommittedPaths: dirtyCount, debriefMissing };
+    };
+
     narrate(
       `waiting for idle, blocked or done (timeout ${localConfig.value.runTimeoutMs}ms)`,
     );
@@ -494,6 +511,7 @@ export async function runInterlockRun(
       localConfig.value.runTimeoutMs,
       localConfig.value.answerGraceMs,
       narrate,
+      readUnfinishedWork,
     );
     lease.stop();
     if (isErr(waited)) {
