@@ -7,6 +7,12 @@ const IMMUTABLE_SENTENCE =
   "This brief is immutable once your session starts. If it is wrong, say so in the debrief; " +
   "do not edit it.";
 
+const ASK_LINE = /^## Ask\n\n> (.+)$/m;
+
+export function extractAsk(body: string): string | undefined {
+  return ASK_LINE.exec(body)?.[1];
+}
+
 function correctedFromSection(correction: InterpreterCorrection): readonly string[] {
   return [
     "## Corrected from",
@@ -26,6 +32,7 @@ export function interpreterBriefBody(
   graph: string,
   node: string,
   ask: string,
+  contextSlice: string | undefined,
   correction?: InterpreterCorrection,
 ): string {
   const lines: string[] = [`# Brief · node \`${node}\` · graph \`${graph}\``, ""];
@@ -36,7 +43,11 @@ export function interpreterBriefBody(
     lines.push(correction.reason, "", IMMUTABLE_SENTENCE, "");
   }
 
-  lines.push("## Ask", "", `> ${ask}`, "", "## Context slice", "", "");
+  lines.push("## Ask", "", `> ${ask}`, "");
+
+  if (contextSlice !== undefined) {
+    lines.push("## Context slice", "", contextSlice, "");
+  }
 
   if (correction !== undefined) {
     lines.push(...correctedFromSection(correction));

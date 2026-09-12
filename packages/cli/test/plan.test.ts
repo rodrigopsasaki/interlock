@@ -4,9 +4,10 @@ import { createControlledClock } from "@phyxiusjs/clock";
 import { err, isErr, ok } from "@phyxiusjs/fp";
 import { readBriefFile } from "debrief";
 import { loadGraphDocument } from "face";
-import { isLedgerEvent } from "ledger";
+import { isLedgerEvent, type Outcome } from "ledger";
 import type { Runtime } from "runner";
 import { afterEach, describe, expect, it } from "vitest";
+import { runGraphApprove } from "../src/graph/approve.ts";
 import { runInterlockPlan } from "../src/plan.ts";
 import { commitAll, commitPath, gitInitFixture } from "./graph/gitFixture.ts";
 
@@ -121,6 +122,20 @@ function finishedWaitUntil(
   };
 }
 
+function latestOutcomeFor(cwd: string, graph: string, id: string): Outcome | undefined {
+  const journal = readFileSync(join(cwd, ".interlock", "ledger", "journal.jsonl"), "utf-8");
+  const outcomes = journal
+    .trim()
+    .split("\n")
+    .map((line): unknown => JSON.parse(line))
+    .filter(isLedgerEvent)
+    .filter(
+      (event): event is Extract<typeof event, { kind: "outcome-set" }> =>
+        event.kind === "outcome-set" && event.node.graph === graph && event.node.id === id,
+    );
+  return outcomes.at(-1)?.outcome;
+}
+
 describe("interlock plan", () => {
   it("refuses without a graph id", async () => {
     const result = await runInterlockPlan([]);
@@ -215,6 +230,139 @@ describe("interlock plan", () => {
     expect(result.exitCode).toBe(1);
     expect(result.message).toContain("shape tag is missing");
     expect(lines.some((line) => line.includes("landed not approved"))).toBe(false);
+
+    const recorded = latestOutcomeFor(cwd, "demo", "plan/demo");
+    expect(recorded?.kind).toBe("held");
+  }, 30_000);
+
+  it("refuses a produced graph whose id does not match the graph it was planned for, recording held", async () => {
+    const cwd = fixture();
+    const worktreePath = join(cwd, ".worktrees", "plan", "demo");
+
+    const result = await runInterlockPlan(["demo", "--ask", "add a health check endpoint"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime: {
+        ...stubRuntime(),
+        waitUntil: finishedWaitUntil(
+          worktreePath,
+          "demo",
+          "plan/demo",
+          graphYaml("something-else"),
+        ),
+      },
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.message).toContain('graph "id" is "something-else"');
+    expect(result.message).toContain('expected "demo"');
+
+    const recorded = latestOutcomeFor(cwd, "demo", "plan/demo");
+    expect(recorded?.kind).toBe("held");
+  }, 30_000);
+
+  it("refuses to plan a graph id that is already approved", async () => {
+    const cwd = fixture();
+    writeFileSync(join(cwd, ".interlock", "graphs", "demo.yaml"), graphYaml("demo"));
+    commitAll(cwd, "an approved graph");
+
+    const approved = await runGraphApprove(["demo", "--by", "tester", "--because", "looks good"], {
+      cwd,
+    });
+    expect(approved.exitCode).toBe(0);
+
+    const result = await runInterlockPlan(["demo", "--ask", "add a health check endpoint"], {
+      cwd,
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.message).toContain("approved");
+  });
+
+  it("refuses to plan over an existing graph id without --correction", async () => {
+    const cwd = fixture();
+    writeFileSync(join(cwd, ".interlock", "graphs", "demo.yaml"), graphYaml("demo"));
+    commitAll(cwd, "an earlier, unapproved graph");
+
+    const result = await runInterlockPlan(["demo", "--ask", "add a health check endpoint"], {
+      cwd,
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.message).toContain("--correction");
+  });
+
+  it("omits the Context slice section from the brief when there is no substrate to render", async () => {
+    const cwd = fixture();
+    const worktreePath = join(cwd, ".worktrees", "plan", "demo");
+
+    const result = await runInterlockPlan(["demo", "--ask", "add a health check endpoint"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime: {
+        ...stubRuntime(),
+        waitUntil: finishedWaitUntil(worktreePath, "demo", "plan/demo", graphYaml("demo")),
+      },
+    });
+
+    expect(result.exitCode).toBe(0);
+    const briefPath = join(
+      worktreePath,
+      ".interlock",
+      "sessions",
+      "demo",
+      "plan",
+      "demo",
+      "brief.md",
+    );
+    const read = await readBriefFile(briefPath);
+    if (isErr(read) || read.value.kind !== "v1") {
+      throw new Error("expected the worktree copy to read as brief@v1");
+    }
+    expect(read.value.body).not.toContain("## Context slice");
+  }, 30_000);
+
+  it("carries the previous ask forward when --correction omits --ask", async () => {
+    const cwd = fixture();
+    const worktreePath = join(cwd, ".worktrees", "plan", "demo");
+
+    const first = await runInterlockPlan(["demo", "--ask", "add a health check endpoint"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime: {
+        ...stubRuntime(),
+        waitUntil: finishedWaitUntil(worktreePath, "demo", "plan/demo", graphYaml("demo")),
+      },
+    });
+    expect(first.exitCode).toBe(0);
+
+    const second = await runInterlockPlan(
+      ["demo", "--correction", "the acceptance for only-node is not a sentence a gate can judge"],
+      {
+        cwd,
+        clock: createControlledClock(),
+        runtime: {
+          ...stubRuntime(),
+          waitUntil: finishedWaitUntil(worktreePath, "demo", "plan/demo", graphYaml("demo")),
+        },
+      },
+    );
+    expect(second.exitCode).toBe(0);
+
+    const briefPath = join(
+      worktreePath,
+      ".interlock",
+      "sessions",
+      "demo",
+      "plan",
+      "demo",
+      "brief.md",
+    );
+    const read = await readBriefFile(briefPath);
+    if (isErr(read) || read.value.kind !== "v1") {
+      throw new Error("expected the worktree copy to read as brief@v1");
+    }
+    expect(read.value.body).toContain("> add a health check endpoint");
   }, 30_000);
 
   it("a correction reopens with the reason as the brief's first paragraph and the reason narrated", async () => {

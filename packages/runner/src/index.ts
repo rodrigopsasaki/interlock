@@ -26,7 +26,7 @@ export {
 } from "./gateJudge.ts";
 export { createHerdrRuntime, defaultHerdrSocketPath } from "./herdr/adapter.ts";
 export type { InterpreterCorrection } from "./interpreterBrief.ts";
-export { interpreterBriefBody } from "./interpreterBrief.ts";
+export { extractAsk, interpreterBriefBody } from "./interpreterBrief.ts";
 export type {
   JudgeWorktreeRefusal,
   JudgeWorktreeRequest,
