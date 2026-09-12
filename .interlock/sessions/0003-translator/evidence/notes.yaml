@@ -183,6 +183,36 @@ entries:
       of $ref item@v1) and "gaps" (array of $ref parts/gap.json) -- reusing both artifact
       schemas verbatim, never redefining their fields locally.
     because: "brief: \"add one as an optional array of item@v1 ... (additive)\"; item@v1 and parts/gap.json already exist and already carry exactly this shape."
+  - kind: surprise
+    at: "2026-09-12T13:02:00Z"
+    expected: >
+      Classifying a receipt as satisfied vs blocked by checking whether its id appears in
+      outcome.receipts (the choice recorded above at 12:20) would correctly separate the two
+      for a held outcome, the same way it does for a cleared one.
+    observed: >
+      packages/runner/src/gateJudge.ts's own outcome.held(receipts, ...) call passes the FULL,
+      unfiltered node receipts list (every gate's receipt, satisfied and blocked alike) as
+      "receipts" on a held outcome -- unlike buildCleared, which keeps only satisfied/waived
+      ones. A held node's blocked receipt is therefore a member of outcome.receipts too, so the
+      membership test read every receipt as "satisfied," discipline, with no risk items ever
+      produced. Caught by this node's own evidence.test.ts, not by inspection.
+  - kind: choice
+    at: "2026-09-12T13:03:00Z"
+    chose: >
+      Replaced the membership test with blockedGateIds(outcome): a receipt is "blocked" (->
+      risk) iff outcome.kind is "held" AND outcome.on.kind is "gate-failure" AND the receipt's
+      own gate id is one of the comma-joined ids in outcome.on.failure; every other case
+      (cleared; held on a person's decision or on uncommitted work) reads every receipt as
+      satisfied (-> discipline).
+    because: >
+      outcome.on.failure is buildCleared's own `missing.join(", ")` (packages/ledger/src/
+      outcome.ts) -- the one place in the outcome shape that actually names WHICH gates were
+      not satisfied or waived, rather than merely listing every receipt regardless of state. A
+      cleared node has no such list because every declared gate is, by buildCleared's own
+      definition, already satisfied or waived; defaulting every receipt on a cleared node to
+      discipline is therefore not a simplification but the literal fact the outcome already
+      proves. Still only "the node's receipts and outcome" as inputs, per the brief's own
+      sentence -- no third gates: Map parameter added.
   - kind: choice
     at: "2026-09-12T13:05:00Z"
     chose: >

@@ -1,6 +1,11 @@
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import type { Debrief, Node, Note, Receipt } from "ledger";
-import type { AbsorbOutcome, ContextOutcome, SubstrateClient } from "./client.ts";
+import type {
+  AbsorbOutcome,
+  ContextOutcome,
+  EvidenceForAbsorb,
+  SubstrateClient,
+} from "./client.ts";
 import { readBearerToken } from "./keyFile.ts";
 import {
   absorbResponseSchema,
@@ -67,7 +72,10 @@ export function httpClient(address: string, keyFile?: string): SubstrateClient {
     const response = await post(address, "capabilities", headers.value, {});
     if (isErr(response)) return [];
     const body = response.value;
-    if (capabilitiesResponseSchema === undefined || !capabilitiesResponseSchema.validate(body)) {
+    if (
+      capabilitiesResponseSchema === undefined ||
+      !capabilitiesResponseSchema.validate(body)
+    ) {
       return [];
     }
     cachedCapabilities = body.capabilities;
@@ -109,6 +117,7 @@ export function httpClient(address: string, keyFile?: string): SubstrateClient {
     debrief: Debrief,
     notes: readonly Note[],
     receipts: readonly Receipt[],
+    evidence?: EvidenceForAbsorb,
   ): Promise<AbsorbOutcome> {
     const headers = await authHeaders(keyFile);
     if (isErr(headers)) return { kind: "refused", because: headers.error };
@@ -116,6 +125,9 @@ export function httpClient(address: string, keyFile?: string): SubstrateClient {
       debrief: toWireDebrief(debrief),
       notes: toWireNotes(node.id, notes),
       receipts,
+      ...(evidence === undefined
+        ? {}
+        : { items: evidence.items, gaps: evidence.gaps }),
     });
     if (isErr(response)) return { kind: "refused", because: response.error };
     const body = response.value;

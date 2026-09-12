@@ -3,8 +3,20 @@ export type {
   AbsorbOutcome,
   ContextOutcome,
   DiscoveryPlacement,
+  EvidenceForAbsorb,
   SubstrateClient,
 } from "./client.ts";
+export {
+  debriefDerivationString,
+  derivationString,
+} from "./derivationString.ts";
+export { discoveryItemKind } from "./discoveryKind.ts";
+export type {
+  DecisionEvidence,
+  DiscoveryEvidence,
+  EvidenceSession,
+} from "./evidence.ts";
+export { evidenceOf } from "./evidence.ts";
 export { narrateAbsorb, narrateContext } from "./narrate.ts";
 export { noneClient } from "./noneClient.ts";
 

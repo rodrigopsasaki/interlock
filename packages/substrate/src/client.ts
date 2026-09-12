@@ -15,6 +15,11 @@ export interface DiscoveryPlacement {
   readonly placement: "known" | "new" | "unplaced";
 }
 
+export interface EvidenceForAbsorb {
+  readonly items: readonly Item[];
+  readonly gaps: readonly Gap[];
+}
+
 export type AbsorbOutcome =
   | { readonly kind: "empty" }
   | {
@@ -27,12 +32,17 @@ export type AbsorbOutcome =
 
 export interface SubstrateClient {
   readonly address: string;
-  context(node: Node, scope: readonly string[], role: string): Promise<ContextOutcome>;
+  context(
+    node: Node,
+    scope: readonly string[],
+    role: string,
+  ): Promise<ContextOutcome>;
   absorb(
     node: Node,
     debrief: Debrief,
     notes: readonly Note[],
     receipts: readonly Receipt[],
+    evidence?: EvidenceForAbsorb,
   ): Promise<AbsorbOutcome>;
   capabilities(): Promise<readonly string[]>;
 }
