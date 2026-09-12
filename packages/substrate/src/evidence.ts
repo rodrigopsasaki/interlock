@@ -5,6 +5,7 @@ import type {
   Discovery,
   LedgerEvent,
   Mark,
+  Node,
   Outcome,
   Receipt,
 } from "ledger";
@@ -23,6 +24,18 @@ export interface DecisionEvidence {
 export interface DiscoveryEvidence {
   readonly discovery: Discovery;
   readonly mark: Mark;
+}
+
+export function personEventsFor(
+  node: Node,
+  events: readonly LedgerEvent[],
+): readonly LedgerEvent[] {
+  return events.filter(
+    (event) =>
+      (event.kind === "gate-moved" || event.kind === "outcome-set") &&
+      event.node.graph === node.graph &&
+      event.node.id === node.id,
+  );
 }
 
 export interface EvidenceSession {

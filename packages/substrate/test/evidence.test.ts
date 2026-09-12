@@ -1,6 +1,10 @@
 import { derivation, duration, gate, mark, type Outcome, spend } from "ledger";
 import { describe, expect, it } from "vitest";
-import { evidenceOf, type EvidenceSession } from "../src/evidence.ts";
+import {
+  evidenceOf,
+  type EvidenceSession,
+  personEventsFor,
+} from "../src/evidence.ts";
 
 const D = derivation.gate("verifier-hunks", "verifier@0", "test");
 const node = { graph: "0003-translator", id: "evidence" };
@@ -447,5 +451,32 @@ describe("evidenceOf: a person's verbs", () => {
       }),
     );
     expect(items).toEqual([]);
+  });
+});
+
+describe("personEventsFor", () => {
+  const other = { graph: "0003-translator", id: "other-node" };
+
+  it("keeps only gate-moved and outcome-set events for the given node", () => {
+    const events = [
+      { kind: "gate-moved" as const, node, gate: "lint", to: gate.pending() },
+      {
+        kind: "gate-moved" as const,
+        node: other,
+        gate: "lint",
+        to: gate.pending(),
+      },
+      {
+        kind: "outcome-set" as const,
+        node,
+        outcome: { kind: "cleared" as const, receipts: [] },
+      },
+      {
+        kind: "note-appended" as const,
+        session: "s1",
+        note: { kind: "choice" as const, at: "t", chose: "x", because: "y" },
+      },
+    ];
+    expect(personEventsFor(node, events)).toEqual([events[0], events[2]]);
   });
 });

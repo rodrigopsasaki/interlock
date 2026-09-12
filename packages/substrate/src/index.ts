@@ -16,7 +16,7 @@ export type {
   DiscoveryEvidence,
   EvidenceSession,
 } from "./evidence.ts";
-export { evidenceOf } from "./evidence.ts";
+export { evidenceOf, personEventsFor } from "./evidence.ts";
 export { narrateAbsorb, narrateContext } from "./narrate.ts";
 export { noneClient } from "./noneClient.ts";
 

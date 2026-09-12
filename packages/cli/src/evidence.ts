@@ -1,14 +1,8 @@
 import { isErr } from "@phyxiusjs/fp";
 import type { Item } from "debrief";
 import { findRepoRoot, sharedJournalDirectory } from "face";
-import {
-  type Gap,
-  type LedgerEvent,
-  nodeKey,
-  readRawEvents,
-  readReplay,
-} from "ledger";
-import { type EvidenceSession, evidenceOf } from "substrate";
+import { type Gap, nodeKey, readRawEvents, readReplay } from "ledger";
+import { type EvidenceSession, evidenceOf, personEventsFor } from "substrate";
 import { explainVerifyRefusal, verifyDebrief } from "verifier";
 import { stringify } from "yaml";
 import type { CommandResult } from "./main.ts";
@@ -69,17 +63,6 @@ function renderHeader(
     `items ${items.length}${breakdown === "" ? "" : ` (${breakdown})`}, ` +
     `gaps ${gaps}, unrooted excluded ${unrootedExcluded}`
   );
-}
-
-function isPersonEventFor(node: {
-  readonly graph: string;
-  readonly id: string;
-}) {
-  return (event: LedgerEvent): boolean => {
-    if (event.kind !== "gate-moved" && event.kind !== "outcome-set")
-      return false;
-    return nodeKey(event.node) === nodeKey(node);
-  };
 }
 
 export async function runInterlockEvidence(
@@ -160,7 +143,7 @@ export async function runInterlockEvidence(
   const rawEvents = await readRawEvents(journal);
   const personEvents = isErr(rawEvents)
     ? []
-    : rawEvents.value.filter(isPersonEventFor(targetNode));
+    : personEventsFor(targetNode, rawEvents.value);
 
   const items = evidenceOf({
     derivation: debrief.derivation,
