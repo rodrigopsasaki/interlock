@@ -9,7 +9,7 @@
       "!**/dist",
       "!**/coverage",
       "!**/.runs",
-      "!**/.worktrees",
+      "!.worktrees",
       "!**/.worktree-runs",
       "!**/.herdr-runs",
       "!**/.localconfig-runs",

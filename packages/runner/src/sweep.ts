@@ -9,6 +9,8 @@ import {
 
 export const ABANDONED_AUTHORITY = "sweeper";
 
+export const HARNESS_AUTHORITIES: ReadonlySet<string> = new Set([ABANDONED_AUTHORITY]);
+
 type ExpiredSession = SessionView & {
   readonly lease: Lease;
   readonly leaseGeneration: number;
