@@ -1,0 +1,98 @@
+interlock: debrief@v2
+graph: readme-interlock-concept
+node: readme
+role: worker
+graph_base_sha: 478871f0c58ede1ef8e34f07de8600ef69909d08
+session_start_sha: 478871f0c58ede1ef8e34f07de8600ef69909d08
+head_sha: c9c3f141e21e70e65f7917f1709d6f825203ac21
+derivation:
+  kind: agent
+  runtime: codex
+  model: unknown
+discoveries:
+  - id: d1
+    what: The examples caption collided with its artifact in the desktop dependency drawing.
+    found_at: docs/brand/interlock-critical-path.svg at the continuation base.
+    mattered_because: The caption needed its own vertical space, not merely a palette adjustment.
+  - id: d2
+    what: The prior presentation branch had merged before this follow-up began.
+    found_at: https://github.com/rodrigopsasaki/interlock/pull/35
+    mattered_because: A new branch preserves the newer README prose and keeps review separate.
+  - id: d3
+    what: The approved graph still declares the previously recorded malformed inline asset command.
+    found_at: .interlock/graphs/readme-interlock-concept.yaml
+    mattered_because: The standalone check can pass without the declared gate being runnable; changing the plan requires renewed approval.
+decisions:
+  - id: c1
+    what: Select matching light and dark artwork using picture sources, with narrow-screen variants.
+    because: Preserve the chosen paper identity while avoiding bright panels in a dark README.
+    rests_on:
+      - README.md
+      - docs/brand/interlock-concept.svg
+      - docs/brand/interlock-concept-mobile.svg
+    hunks:
+      - README.md:2-6
+      - README.md:18-19
+      - README.md:103-108
+      - docs/brand/interlock-concept-dark.svg:1-27
+      - docs/brand/interlock-concept-mobile-dark.svg:1-23
+      - docs/brand/README.md:17-18
+      - docs/brand/README.md:25-47
+    produces:
+      - docs/brand/interlock-wordmark-dark.png
+  - id: c2
+    what: Move the independent-work caption below the artifact and arrange the phone diagram vertically.
+    because: Separate labels from symbols and keep them readable at narrow widths.
+    rests_on:
+      - docs/brand/interlock-critical-path.svg
+    hunks:
+      - docs/brand/interlock-critical-path.svg:39-49
+      - docs/brand/interlock-critical-path-dark.svg:1-51
+      - docs/brand/interlock-critical-path-mobile.svg:1-52
+      - docs/brand/interlock-critical-path-mobile-dark.svg:1-52
+  - id: c3
+    what: Check source selection, SVG pair equivalence, and diagram text contrast.
+    because: Theme and layout fixes must remain synchronized; a visually correct single variant is insufficient.
+    rests_on:
+      - scripts/check-readme.ts
+    hunks:
+      - scripts/check-readme.ts:73-149
+  - id: c4
+    what: Keep the approved graph and original brief unchanged; retain the verification limitation in the review.
+    because: Neither a passing manual check nor this debrief authorizes silently changing a declared gate.
+    rests_on:
+      - .interlock/graphs/readme-interlock-concept.yaml
+      - .interlock/sessions/readme-interlock-concept/readme/brief.md
+    hunks:
+      - .interlock/sessions/readme-interlock-concept/readme/notes.yaml:41-70
+gates_run_by_agent:
+  - id: readme-assets-standalone
+    result: pass
+    invocation: mise exec -- node scripts/check-readme.ts
+    note: This is not the malformed invocation declared in the approved graph.
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: Complete workspace check; agent observation, not a runner receipt.
+  - id: test
+    result: pass
+    invocation: mise exec -- pnpm test
+    note: Complete workspace suite; agent observation, not a runner receipt.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Passed after formatting the modified README checker.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+    note: No comment-policy violation reported.
+  - id: whitespace
+    result: pass
+    invocation: git diff --check
+    note: Checked the presentation changes before committing them.
+open:
+  - This is a directly authored continuation, not a runner-launched session. The SHA boundary covers only this follow-up, not the earlier merged presentation work.
+  - The wordmark is a generated palette edit of the selected raster. Visual correspondence was inspected, not proved pixel-identical; it has no textual hunk.
+  - Local light and dark artwork was inspected at desktop and phone widths. The published desktop dark README was inspected; phone verification is recorded separately when complete.
+  - Draft PR 62 publishes the implementation. Nothing has been merged, and no gate has been waived.
+  - The declared readme-assets command remains malformed. The independently passing standalone check must not be presented as a satisfied declared gate.
