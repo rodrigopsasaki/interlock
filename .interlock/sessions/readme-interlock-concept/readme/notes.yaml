@@ -38,3 +38,33 @@ entries:
       identity is rodrigopsasaki/interlock plus this head branch; query for an existing PR
       before creating one. Keep it draft, report unfinished gate approval honestly, and do
       not merge. Inspect the rendered README on the branch before declaring visual QA done.
+  - kind: choice
+    at: "2026-09-13T14:07:29Z"
+    chose: Continue the README presentation with paired light and dark assets on a fresh branch.
+    because: >
+      The previous presentation has merged. The requested follow-up preserves the selected
+      identity and existing prose while replacing bright artwork panels in dark mode with ink
+      paper, ivory lettering, and adjusted blue and gold. No runtime behavior changes.
+  - kind: choice
+    at: "2026-09-13T14:07:29Z"
+    chose: Separate the independent-work caption from its artifact and add a narrow-screen drawing.
+    because: >
+      The original caption overlapped the examples artifact. Moving it below the artifact and
+      giving the diagram more vertical room fixes that collision. A vertical mobile arrangement
+      keeps labels readable without scaling the desktop drawing down to phone width.
+  - kind: choice
+    at: "2026-09-13T14:07:29Z"
+    chose: Check theme selection, contrast, and identical geometry between each SVG pair.
+    because: >
+      A fix in only one theme would recreate the discrepancy. The asset check now covers both
+      sides of the 700-pixel breakpoint and both themes, while browser inspection checks actual
+      text placement. The original approved graph remains unchanged pending permission to
+      replace its malformed inline command with the standalone check.
+  - kind: choice
+    at: "2026-09-13T14:07:29Z"
+    chose: Publish this follow-up for review, with no merge.
+    because: >
+      The publication identity is rodrigopsasaki/interlock plus head branch
+      codex/readme-theme-consistency. No existing pull request for that branch was found before
+      dispatch. Verify the pushed commit and query that identity before creating a draft pull
+      request, retaining uncertainty if either response cannot be confirmed.

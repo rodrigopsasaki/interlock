@@ -793,239 +793,107 @@ open:
 
 #### `debrief@v2`
 
-Source: `.interlock/sessions/0001-bootstrap/verbs/debrief.yaml`
+Source: `.interlock/sessions/readme-interlock-concept/readme/debrief.yaml`
 
 ```yaml
 interlock: debrief@v2
-graph: 0001-bootstrap
-node: verbs
+graph: readme-interlock-concept
+node: readme
 role: worker
-graph_base_sha: df184a2738ba9c652cdb760631a0590d7bc6d36a
-session_start_sha: 789564dadf537cb1f1d599c88b69d90c19da1cc0
-head_sha: b807e24f3a0b1608579c16a464244a2f0bfe5773
+graph_base_sha: 478871f0c58ede1ef8e34f07de8600ef69909d08
+session_start_sha: 478871f0c58ede1ef8e34f07de8600ef69909d08
+head_sha: c9c3f141e21e70e65f7917f1709d6f825203ac21
 derivation:
   kind: agent
-  runtime: claude-code
-  model: claude-sonnet-5
+  runtime: codex
+  model: unknown
 discoveries:
   - id: d1
-    what: >
-      interlock run never checks a node's own current outcome before
-      leasing it -- only that every dependency's outcome is cleared, and
-      that a brief file exists. There is no "own outcome" gate on
-      leasing at all today.
-    found_at: |
-      $ grep -n "outcome" packages/cli/src/run.ts packages/runner/src/dependencies.ts
-      run.ts: no match. dependencies.ts:10 is the only outcome check in
-      either file, and it reads a dependency's outcome, never the target
-      node's own.
-    mattered_because: >
-      the brief's own words for reset ("so the runner may lease the node
-      again") read as if reset lifts a mechanical block; there is none to
-      lift. reset is the accountable record that a person authorized
-      trying again (I10: accountability is a recorded reason, not a
-      restriction), not what makes leasing possible -- a node with any
-      other outcome, including no outcome at all, was always leasable by
-      run's current logic. Recorded under open below; changing run.ts to
-      gate on the node's own outcome is a runner decision, not this
-      session's, and position@v1/run.ts are both out of scope here.
+    what: The examples caption collided with its artifact in the desktop dependency drawing.
+    found_at: docs/brand/interlock-critical-path.svg at the continuation base.
+    mattered_because: The caption needed its own vertical space, not merely a palette adjustment.
   - id: d2
-    what: >
-      packages/ledger/src/projection.ts's withSession silently drops any
-      event for a session id the projection has not seen via a prior
-      session-started event -- lease-taken included.
-    found_at: |
-      $ grep -n "function withSession" packages/ledger/src/projection.ts
-      projection.ts:76; its body returns the projection unchanged when
-      the given session id is not already a key of projection.sessions.
-      Found while writing node reset's live-lease refusal test: a
-      lease-taken event appended alone left the projection with zero
-      sessions, so the test first fell through to the wrong refusal
-      until session-started was appended before it.
-    mattered_because: >
-      confirms this session's live-lease check (mirroring judge.ts's own
-      pattern) is reading real projection state correctly, and that any
-      future direct-ledger test setup for a "live lease" scenario needs
-      both events, not lease-taken alone.
+    what: The prior presentation branch had merged before this follow-up began.
+    found_at: https://github.com/rodrigopsasaki/interlock/pull/35
+    mattered_because: A new branch preserves the newer README prose and keeps review separate.
   - id: d3
-    what: >
-      packages/runner/src/sweep.ts already writes
-      outcome.cancelled(receipts, authority, because) with receipts read
-      from NodeView.receipts (the node's accumulated receipt list), not
-      from any prior outcome's own .receipts field.
-    found_at: "packages/runner/src/sweep.ts:53-63"
-    mattered_because: >
-      Outcome.receipts has no documented meaning beyond its type; this is
-      the one place an existing verb (the sweeper's own abandon-write)
-      already answers "what receipts does a person-authored terminal
-      outcome carry." node cancel and node reset both reuse it rather
-      than inventing a second interpretation.
-  - id: d4
-    what: >
-      packages/runner/src/gateJudge.ts appends receipt-written for every
-      gate it runs before deciding satisfied or blocked -- a blocked
-      gate has a real receipt in the node's receipt list even though
-      Gate's own "blocked" variant carries no receipt field.
-    found_at: "packages/runner/src/gateJudge.ts:156-192"
-    mattered_because: >
-      gate waive needs "the gate's latest receipt" for exactly the case
-      a person waives past: a gate currently blocked on a real failure.
-      Reading receipts off NodeView.receipts (filtered by gate id) reaches
-      that case; reading only the current Gate value's own receipt field
-      would not have.
-  - id: d5
-    what: >
-      proposeGateMove already refuses an undeclared gate id and any move
-      off an already-waived or -superseded gate, with no change needed
-      to gate.ts itself.
-    found_at: "packages/ledger/src/gate.ts:86-107"
-    mattered_because: >
-      gate waive needed no new transition rule of its own, unlike
-      Outcome -- it only had to build the right gate.waived(...) value
-      and pass it through the existing function, and could reuse
-      graph/approve.ts's exact refusal-message shape for the
-      undeclared-gate and illegal-transition cases.
+    what: The approved graph still declares the previously recorded malformed inline asset command.
+    found_at: .interlock/graphs/readme-interlock-concept.yaml
+    mattered_because: The standalone check can pass without the declared gate being runnable; changing the plan requires renewed approval.
 decisions:
   - id: c1
-    what: >
-      Added proposeOutcomeMove(current, next) to
-      packages/ledger/src/outcome.ts, exported it from the package, and
-      covered it with new tests in outcome.test.ts.
-    because: notes:1
+    what: Select matching light and dark artwork using picture sources, with narrow-screen variants.
+    because: Preserve the chosen paper identity while avoiding bright panels in a dark README.
     rests_on:
-      - "brief:the ledger's own transition rules decide what is legal; an illegal move is a sentence"
-      - "packages/ledger/src/gate.ts"
-      - "notes:1"
+      - README.md
+      - docs/brand/interlock-concept.svg
+      - docs/brand/interlock-concept-mobile.svg
     hunks:
-      - "packages/ledger/src/outcome.ts:56-82"
-      - "packages/ledger/src/index.ts:42-47"
-      - "packages/ledger/src/index.ts:54"
-      - "packages/ledger/test/outcome.test.ts:4-10"
-      - "packages/ledger/test/outcome.test.ts:135-192"
+      - README.md:2-6
+      - README.md:18-19
+      - README.md:103-108
+      - docs/brand/interlock-concept-dark.svg:1-27
+      - docs/brand/interlock-concept-mobile-dark.svg:1-23
+      - docs/brand/README.md:17-18
+      - docs/brand/README.md:25-47
+    produces:
+      - docs/brand/interlock-wordmark-dark.png
   - id: c2
-    what: >
-      Built interlock node cancel (packages/cli/src/node/cancel.ts) and
-      its fixture-backed test suite.
-    because: >
-      brief:interlock node cancel <graph> <node> --by <who> --because
-      <why> appends outcome-set with kind cancelled, the node's current
-      receipts, the authority and the because
+    what: Move the independent-work caption below the artifact and arrange the phone diagram vertically.
+    because: Separate labels from symbols and keep them readable at narrow widths.
     rests_on:
-      - "packages/cli/src/graph/approve.ts"
-      - "packages/ledger/src/outcome.ts"
-      - "notes:2"
+      - docs/brand/interlock-critical-path.svg
     hunks:
-      - "packages/cli/src/node/cancel.ts:1-108"
-      - "packages/cli/test/node/cancel.test.ts:1-211"
+      - docs/brand/interlock-critical-path.svg:39-49
+      - docs/brand/interlock-critical-path-dark.svg:1-51
+      - docs/brand/interlock-critical-path-mobile.svg:1-52
+      - docs/brand/interlock-critical-path-mobile-dark.svg:1-52
   - id: c3
-    what: >
-      Built interlock node reset (packages/cli/src/node/reset.ts), with
-      its live-lease and nothing-to-reset refusals, and its test suite.
-    because: >
-      brief:sets reset ... and the node reads as ready to the runner ...
-      a node with a live lease for reset (name the session and its
-      expiry)
+    what: Check source selection, SVG pair equivalence, and diagram text contrast.
+    because: Theme and layout fixes must remain synchronized; a visually correct single variant is insufficient.
     rests_on:
-      - "packages/cli/src/judge.ts"
-      - "packages/ledger/src/outcome.ts"
-      - "notes:3"
-      - "notes:4"
+      - scripts/check-readme.ts
     hunks:
-      - "packages/cli/src/node/reset.ts:1-135"
-      - "packages/cli/test/node/reset.test.ts:1-213"
+      - scripts/check-readme.ts:73-149
   - id: c4
-    what: >
-      Built interlock gate waive (packages/cli/src/gate/waive.ts) and
-      its test suite.
-    because: >
-      brief:moves the gate to waived over its latest receipt, and
-      refuses when there is none
+    what: Keep the approved graph and original brief unchanged; retain the verification limitation in the review.
+    because: Neither a passing manual check nor this debrief authorizes silently changing a declared gate.
     rests_on:
-      - "packages/ledger/src/gate.ts"
-      - "packages/runner/src/gateCommand.ts"
-      - "notes:5"
+      - .interlock/graphs/readme-interlock-concept.yaml
+      - .interlock/sessions/readme-interlock-concept/readme/brief.md
     hunks:
-      - "packages/cli/src/gate/waive.ts:1-150"
-      - "packages/cli/test/gate/waive.test.ts:1-292"
-  - id: c5
-    what: >
-      Wired node cancel, node reset and gate waive into
-      packages/cli/src/main.ts's group/action dispatch, and added
-      routing coverage to main.test.ts.
-    because: "brief:packages/cli/src/main.ts (the group and action dispatch)"
-    rests_on:
-      - "packages/cli/src/main.ts"
-    hunks:
-      - "packages/cli/src/main.ts:4"
-      - "packages/cli/src/main.ts:8-9"
-      - "packages/cli/src/main.ts:43-54"
-      - "packages/cli/test/main.test.ts:25-51"
-  - id: c6
-    what: >
-      Pulled graph/approve.ts's local parseFlag into
-      packages/cli/src/flags.ts and pointed all four verbs at the shared
-      copy.
-    because: notes:6
-    rests_on:
-      - "packages/cli/src/graph/approve.ts"
-      - "notes:6"
-    hunks:
-      - "packages/cli/src/flags.ts:1-7"
-      - "packages/cli/src/graph/approve.ts:24"
-  - id: c7
-    what: >
-      Added one bend-log row to docs/design/0002-face.md recording that
-      the three verbs exist and that pause is not built, naming the
-      missing Outcome kind and that it needs its own event version.
-    because: >
-      brief:Add one bend-log row in docs/design/0002-face.md ... That
-      row is the only design-note edit you make
-    rests_on:
-      - "docs/design/0002-face.md"
-      - "notes:7"
-    hunks:
-      - "docs/design/0002-face.md:255"
-  - id: c8
-    what: >
-      This session's own notes.yaml, appended at every choice and
-      surprise across this session's code commits.
-    because: >
-      brief:notes.yaml beside this brief (notes@v0), appended at every
-      choice and surprise, committed
-    rests_on: []
-    hunks:
-      - ".interlock/sessions/0001-bootstrap/verbs/notes.yaml:1-118"
+      - .interlock/sessions/readme-interlock-concept/readme/notes.yaml:41-70
 gates_run_by_agent:
-  - { id: typecheck, result: pass, invocation: "mise exec -- pnpm typecheck", note: "6 of 7 workspace packages carry a typecheck script; all report Done" }
-  - { id: test, result: pass, invocation: "mise exec -- pnpm test", note: "472 tests across ledger, face, debrief, verifier, runner, cli (99+38+41+42+129+123)" }
-  - { id: cancel-writes-outcome, result: pass, invocation: "mise exec -- pnpm --filter cli --fail-if-no-match test --testNamePattern cancel", note: "Tests 8 passed (8) -- test/node/cancel.test.ts's 7 cases plus main.test.ts's node-cancel routing case" }
-  - { id: debrief-valid, result: pass, invocation: "mise exec -- pnpm interlock debrief validate 0001-bootstrap verbs", note: "run for real against this debrief and notes.yaml at head_sha, after this file was written" }
+  - id: readme-assets-standalone
+    result: pass
+    invocation: mise exec -- node scripts/check-readme.ts
+    note: This is not the malformed invocation declared in the approved graph.
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: Complete workspace check; agent observation, not a runner receipt.
+  - id: test
+    result: pass
+    invocation: mise exec -- pnpm test
+    note: Complete workspace suite; agent observation, not a runner receipt.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Passed after formatting the modified README checker.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+    note: No comment-policy violation reported.
+  - id: whitespace
+    result: pass
+    invocation: git diff --check
+    note: Checked the presentation changes before committing them.
 open:
-  - >
-    interlock run leases a node without ever reading that node's own
-    current outcome (d1) -- only its dependencies' outcomes and brief
-    presence. node reset therefore does not mechanically unblock
-    leasing; it only records who authorized trying again and why. A
-    node cancelled or held is, today, exactly as leasable as one reset
-    or never run. Whether run.ts should refuse to lease a node carrying
-    a non-terminal-but-unresolved outcome (held, say) without a reset in
-    between is a runner decision this session did not make -- run.ts and
-    position@v1 are both out of scope for verbs.
-  - >
-    pause has no truthful mapping (recorded in the bend log, c7): no
-    Outcome kind states a voluntary, non-failure hold. It needs a
-    seventh Outcome kind with its own event version -- a union-arm shape
-    change, not a verb session's call to make alone.
-  - >
-    projection.ts's withSession stays a no-op for a session id that
-    never appeared in a session-started event (d2), the same gap
-    debrief-schema's own debrief already recorded against backfill.
-    node reset's live-lease check reads the same projection and is
-    correct given that behavior, but inherits the same blind spot: a
-    node whose only session came through interlock backfill would read
-    as lease-free to reset even if some other process held it, since no
-    SessionView would exist to check. Not observed in practice this
-    session; noted because reset is a new reader of that same shape.
+  - This is a directly authored continuation, not a runner-launched session. The SHA boundary covers only this follow-up, not the earlier merged presentation work.
+  - The wordmark is a generated palette edit of the selected raster. Visual correspondence was inspected, not proved pixel-identical; it has no textual hunk.
+  - Local light and dark artwork was inspected at desktop and phone widths. The published desktop dark README was inspected; phone verification is recorded separately when complete.
+  - Draft PR 62 publishes the implementation. Nothing has been merged, and no gate has been waived.
+  - The declared readme-assets command remains malformed. The independently passing standalone check must not be presented as a satisfied declared gate.
 ```
 
 ## event
@@ -1370,49 +1238,80 @@ No vocabulary entry for `notes`.
 
 #### `notes@v0`
 
-Source: `.interlock/sessions/readme-interlock-concept/readme/notes.yaml`
+Source: `.interlock/sessions/0001-bootstrap/self-run/notes.yaml`
 
 ```yaml
 interlock: notes@v0
-graph: readme-interlock-concept
-node: readme
+node: self-run
 entries:
   - kind: choice
-    at: "2026-09-11T13:24:03-03:00"
-    chose: Keep the presentation in Markdown with separate image assets.
+    at: "2026-09-11T19:45:00Z"
+    chose: >
+      Read `graph status`'s "leased by a live session" test entirely off
+      `LedgerProjection.sessions`: a session whose `node` matches, whose
+      `lease` is defined, whose `leaseExpired` is false, and whose
+      `lease.expiry` is still ahead of the clock's `now()` -- the exact
+      three-part check `judge.ts` already uses to refuse judging a node
+      someone else is mid-session on -- rather than adding a fourth
+      `NodeState` variant to `position.ts` for "leased".
     because: >
-      GitHub removes custom page styling. Native headings, tables, quotations, and lists keep
-      explanations readable, searchable, and editable while the artwork carries the identity.
-  - kind: surprise
-    at: "2026-09-11T13:24:03-03:00"
-    expected: The proposed quoted inline asset check could run as a command gate.
-    observed: >
-      packages/runner/src/gateJudge.ts splits the command on whitespace without shell parsing.
-      The quoted script is therefore split into unrelated arguments. A standalone check file
-      is needed. The original approved graph and brief are retained; a corrected invocation
-      requires a separately recorded approval.
+      The brief says `graph status` reads position "through `positionOf`
+      and nothing else," but `positionOf`'s own `NodeState` union
+      (outcome / ready / blocked) has no arm for "currently leased" --
+      liveness lives on the session view, not the node view, and
+      `graph show`'s own `liveSessionsOf` helper already computes it the
+      same way for its agent-status join. Reusing the established
+      predicate keeps one definition of "live" instead of inventing a
+      second, and leaves `position@v1`'s shape alone, which is out of
+      scope for this node.
   - kind: choice
-    at: "2026-09-11T13:24:03-03:00"
-    chose: Refresh the status claims to include cancel, reset, and gate waive.
+    at: "2026-09-11T19:46:00Z"
+    chose: >
+      Opened the journal read-only through `readReplay(sharedJournalDirectory(repoRoot))`,
+      the same call `graph show` and `session show` make, never
+      `createLedger`.
     because: >
-      Those commands are present at this branch's base, although the local presentation still
-      listed human-control commands as work in progress. Rich position and assisted planning
-      remain separate, unfinished capabilities.
+      The brief is explicit: "Never append to the shared journal; `graph
+      status` reads it through replay like `graph show` does." `judge.ts`
+      opens a writable `Ledger` because it appends narration and
+      receipts; `graph status` produces no receipt of its own and must
+      not touch the file other sessions and the runner are writing to
+      concurrently.
   - kind: choice
-    at: "2026-09-11"
-    chose: Correct the notes envelope to the existing notes@v0 reader before ingestion.
+    at: "2026-09-11T19:47:00Z"
+    chose: >
+      Validated `--expect`'s value against the closed set of `Outcome["kind"]`
+      values (cleared, held, reset, failed, cancelled, superseded) with a
+      small local `ReadonlySet<string>` and a type guard, refusing an
+      unrecognized value by name before reading anything from disk,
+      rather than accepting any string and comparing it loosely.
     because: >
-      The first saved draft used notes/what instead of entries/chose and omitted at. Its
-      contents are preserved here and in git; the first three timestamps identify their
-      original recording commit rather than claiming separate observation times.
+      "`--expect` accepts an outcome kind" is the acceptance's own
+      phrase; a typo like `--expect clear` should read as a mistake, not
+      silently compare against every node's outcome and report all of
+      them as mismatched. `disposition.ts`'s `isDisposition` is the same
+      shape in this package (a `ReadonlySet<string>` plus a guard) for
+      the same kind of closed string union, so this follows the
+      established pattern rather than inventing `as const` plus a mapped
+      type for six literals.
   - kind: choice
-    at: "2026-09-11"
-    chose: Push codex/readme-interlock-concept and create one draft PR targeting main.
+    at: "2026-09-11T19:50:00Z"
+    chose: >
+      Read the shared journal directly (via the built CLI, not this
+      package's own code) before writing anything, to establish which of
+      the twelve nodes were cleared by a live `run`/`judge` session versus
+      `backfill` alone, and how many attempts each took, rather than
+      relying on the design note's bend log prose for the account this
+      node's acceptance asks for.
     because: >
-      The user explicitly authorized publishing this branch for GitHub review. The stable
-      identity is rodrigopsasaki/interlock plus this head branch; query for an existing PR
-      before creating one. Keep it draft, report unfinished gate approval honestly, and do
-      not merge. Inspect the rendered README on the branch before declaring visual QA done.
+      The brief says "The acceptance is judged on the journal, not on
+      the story; you are making the story checkable." The bend log
+      narrates *why* things bent; it does not enumerate session ids,
+      attempt counts or which verb (`run` vs `judge` vs `backfill`)
+      produced each node's final `cleared`. `receipt-written`'s own
+      `derivation.runner` field (`run-<session>`, `judge-<session>` or
+      `backfill-<uuid>`) is the ground truth for that question, so this
+      session read it before writing the debrief's table.
 ```
 
 ## position

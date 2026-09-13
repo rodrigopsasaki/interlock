@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="490" viewBox="0 0 1000 490" role="img" aria-labelledby="title desc">
+  <title id="title">One held decision, two different consequences</title>
+  <desc id="desc">Illustrative dependency graph for adding an API endpoint. The delivery path runs from an approved plan through implementation, contract checks, a held compatibility decision, and delivery. An independent documentation branch can still proceed. The held compatibility decision needs the person's judgment because an existing client may break.</desc>
+  <defs>
+    <path id="body" d="M 76.604 64.279 A 100 100 0 1 1 76.604 -64.279 L 63.198 -53.027 L 67.581 -47.319 L 53.245 -37.282 A 65 65 0 1 0 53.245 37.282 L 67.581 47.319 L 63.198 53.027 Z"/>
+    <path id="key" d="M 76.604 -64.279 A 100 100 0 0 1 76.604 64.279 L 63.198 53.027 L 67.581 47.319 L 53.245 37.282 A 65 65 0 0 0 53.245 -37.282 L 67.581 -47.319 L 63.198 -53.027 Z"/>
+    <g id="satisfied"><use href="#body" fill="#79a9e8"/><use href="#key" fill="#e5b756"/></g>
+  </defs>
+  <rect width="1000" height="490" rx="8" fill="#171d24"/>
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+    <text x="35" y="40" fill="#acb8c5" font-size="14" letter-spacing="1.5">AN ILLUSTRATIVE PLAN · ADD AN API ENDPOINT</text>
+    <rect x="314" y="64" width="492" height="282" rx="24" fill="none" stroke="#596779" stroke-width="1.4" stroke-dasharray="3 7"/>
+    <text x="342" y="90" fill="#acb8c5" font-size="14">INTERLOCK</text>
+    <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M 92 166 H 402 H 752 H 915" stroke="#635339" stroke-width="12"/>
+      <path d="M 242 166 H 267 Q 287 166 287 187 V 252 Q 287 273 308 273 H 721" stroke="#526479" stroke-width="9"/>
+      <path d="M 92 166 H 650" stroke="#79a9e8" stroke-width="3"/>
+      <path d="M 707 166 H 915" stroke="#9cabbc" stroke-width="2.5" stroke-dasharray="4 7"/>
+    </g>
+    <g transform="translate(202 166) scale(.27)"><circle r="111" fill="#171d24"/><use href="#satisfied"/></g>
+    <rect x="370" y="144" width="110" height="44" rx="12" fill="#202934" stroke="#91a2b6" stroke-width="1.7"/>
+    <text x="425" y="172" text-anchor="middle" fill="#ede8de" font-size="16">Implement</text>
+    <g transform="translate(551 166) scale(.27)"><circle r="111" fill="#171d24"/><use href="#satisfied"/></g>
+    <g transform="translate(679 166) scale(.32)"><circle r="113" fill="#171d24"/><use href="#body" fill="#79a9e8"/></g>
+    <path d="M 899 149 H 922 L 934 161 V 185 H 899 Z M 922 149 V 161 H 934" fill="#202934" stroke="#9cabbc" stroke-width="1.8" stroke-linejoin="round"/>
+    <g fill="#ede8de" font-size="16" text-anchor="middle">
+      <text x="202" y="115">Plan approved</text>
+      <text x="551" y="115">Contract checks</text>
+      <text x="679" y="222">Compatibility</text>
+      <text x="679" y="243">decision</text>
+      <text x="916" y="217">Artifact</text>
+      <text x="916" y="237">+ receipts</text>
+    </g>
+    <circle cx="91" cy="166" r="6" fill="#79a9e8"/>
+    <text x="59" y="204" fill="#acb8c5" font-size="16">Intent</text>
+    <rect x="370" y="251" width="154" height="44" rx="12" fill="#202934" stroke="#91a2b6" stroke-width="1.6"/>
+    <text x="447" y="279" fill="#d0d9e3" font-size="16" text-anchor="middle">Write examples</text>
+    <path d="M 720 255 H 740 L 752 267 V 291 H 720 Z M 740 255 V 267 H 752 M 727 276 H 745 M 727 282 H 740" fill="#202934" stroke="#9cabbc" stroke-width="1.6" stroke-linejoin="round"/>
+    <text x="646" y="320" fill="#acb8c5" font-size="15" text-anchor="middle">Continues independently</text>
+    <path d="M 679 203 V 209" stroke="#79a9e8" stroke-width="1.5"/>
+    <path d="M 42 386 H 77" stroke="#635339" stroke-width="10" stroke-linecap="round"/>
+    <path d="M 42 386 H 77" stroke="#79a9e8" stroke-width="2.5" stroke-linecap="round"/>
+    <text x="92" y="391" fill="#acb8c5" font-size="15">Delivery path</text>
+    <g transform="translate(282 386) scale(.10)"><use href="#satisfied"/></g>
+    <text x="302" y="391" fill="#acb8c5" font-size="15">Satisfied</text>
+    <g transform="translate(420 386) scale(.10)"><use href="#body" fill="#79a9e8"/></g>
+    <text x="440" y="391" fill="#acb8c5" font-size="15">Held for judgment</text>
+    <path d="M 35 418 H 965" stroke="#3c4855"/>
+    <text x="35" y="452" fill="#ede8de" font-size="17">The question for you: may this change break an existing client?</text>
+  </g>
+</svg>
