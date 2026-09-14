@@ -8,13 +8,16 @@ const assets = [
   "docs/brand/interlock-wordmark-dark.png",
   "docs/brand/interlock-concept.svg",
   "docs/brand/interlock-concept-dark.svg",
-  "docs/brand/interlock-concept-mobile.svg",
-  "docs/brand/interlock-concept-mobile-dark.svg",
   "docs/brand/interlock-critical-path.svg",
   "docs/brand/interlock-critical-path-dark.svg",
+];
+const retainedAssets = [
+  "docs/brand/interlock-concept-mobile.svg",
+  "docs/brand/interlock-concept-mobile-dark.svg",
   "docs/brand/interlock-critical-path-mobile.svg",
   "docs/brand/interlock-critical-path-mobile-dark.svg",
 ];
+const svgAssets = [...assets, ...retainedAssets].filter((asset) => asset.endsWith(".svg"));
 
 for (const file of assets) {
   if (existsSync(resolve(root, file)) === false || text.includes(file) === false) {
@@ -56,7 +59,7 @@ for (const link of links) {
   }
 }
 
-for (const file of assets.filter((asset) => asset.endsWith(".svg"))) {
+for (const file of svgAssets) {
   const svg = readFileSync(resolve(root, file), "utf8");
   if (/<script|<foreignObject|onload=|onclick=/i.test(svg)) {
     throw new Error(`Non-static SVG: ${file}`);
@@ -89,23 +92,23 @@ for (const [index, picture] of pictures.entries()) {
       throw new Error(`Incomplete picture source: ${stem}`);
     return { media, srcset };
   });
+  if (
+    sources.length !== 2 ||
+    sources.some(({ media }) => /^\(prefers-color-scheme: (light|dark)\)$/.test(media) === false)
+  ) {
+    throw new Error(
+      `README picture sources must be light/dark only, without width conditions: ${stem}`,
+    );
+  }
+  const extension = stem === "interlock-wordmark" ? "png" : "svg";
+  if (fallback !== `docs/brand/${stem}.${extension}`) {
+    throw new Error(`Wrong light-mode fallback: ${stem}`);
+  }
   for (const scheme of ["light", "dark"]) {
-    for (const width of [375, 700, 701, 1024]) {
-      const matched = sources.find(({ media }) => {
-        const theme = /prefers-color-scheme:\s*(light|dark)/.exec(media)?.[1];
-        const maxWidth = /max-width:\s*(\d+)px/.exec(media)?.[1];
-        return (
-          (theme === undefined || theme === scheme) &&
-          (maxWidth === undefined || width <= Number(maxWidth))
-        );
-      });
-      const mobile = stem !== "interlock-wordmark" && width <= 700 ? "-mobile" : "";
-      const dark = scheme === "dark" ? "-dark" : "";
-      const extension = stem === "interlock-wordmark" ? "png" : "svg";
-      const expected = `docs/brand/${stem}${mobile}${dark}.${extension}`;
-      if ((matched?.srcset ?? fallback) !== expected) {
-        throw new Error(`Wrong ${scheme} image at ${width}px: ${stem}`);
-      }
+    const matched = sources.find(({ media }) => media === `(prefers-color-scheme: ${scheme})`);
+    const dark = scheme === "dark" ? "-dark" : "";
+    if (matched?.srcset !== `docs/brand/${stem}${dark}.${extension}`) {
+      throw new Error(`Wrong ${scheme} image: ${stem}`);
     }
   }
 }
@@ -121,7 +124,7 @@ function luminance(hex: string): number {
   return red * 0.2126 + green * 0.7152 + blue * 0.0722;
 }
 
-for (const file of assets.filter((asset) => asset.endsWith(".svg"))) {
+for (const file of svgAssets) {
   const svg = readFileSync(resolve(root, file), "utf8");
   const background = file.includes("-dark") ? "#171d24" : "#faf8f2";
   for (const match of svg.matchAll(/<(?:g|text)\b[^>]*>/g)) {

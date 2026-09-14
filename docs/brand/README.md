@@ -36,12 +36,14 @@ Keep the substantive explanation in Markdown. Image text needs a nearby text equ
 alternative text; an image must not become the only place an important qualification appears.
 Avoid styling the README with CSS or treating its diagrams as a substitute for real product state.
 
-The README uses GitHub-supported `picture` sources rather than page CSS. Combined dark/narrow
-sources precede dark/wide sources; the ordinary image is always a light-mode fallback. This keeps
-both themes readable without requiring a single compromise palette. Text inside the diagrams has
-at least 4.5:1 contrast against its paper background.
+The README uses one layout per diagram with GitHub-supported, theme-only `picture` sources and a
+light-mode fallback. Do not combine theme and viewport conditions here: the mobile drawing appeared
+on a wide GitHub page even though system-theme browser checks selected the correct source. Removing
+width-dependent selection keeps the composition predictable without giving up the themed palettes.
+The mobile assets remain available for other surfaces, but the README does not select them.
+Text inside the diagrams has at least 4.5:1 contrast against its paper background.
 
 The wordmarks are generated artwork derived from the selected concept. The diagrams are editable
 SVGs with complementary loop and keystone paths, without scripts or embedded HTML. Each dark SVG
 differs from its light counterpart only in color: a layout fix must apply to both. The README check
-guards that equivalence, source selection at the breakpoint, alternative text, and text contrast.
+guards that equivalence, theme-only source selection, alternative text, and text contrast.
