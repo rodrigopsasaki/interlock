@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/parts/repository.json",
+  "title": "repository",
+  "description": "An unambiguous repository identity derived from a credential-free Git origin for substrate provenance.",
+  "type": "object",
+  "properties": {
+    "owner": { "type": "string", "minLength": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "origin_url": { "type": "string", "minLength": 1 }
+  },
+  "required": ["owner", "name", "origin_url"],
+  "additionalProperties": false
+}

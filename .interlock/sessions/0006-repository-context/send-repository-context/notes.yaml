@@ -1,0 +1,27 @@
+interlock: notes@v0
+node: send-repository-context
+entries:
+  - kind: choice
+    at: "2026-09-14T18:00:00Z"
+    chose: Bind an optional repository selector when the CLI constructs a substrate client, so context and absorb share one immutable value.
+    because: The existing HTTP client owns the two wire bodies, while Git origin resolution belongs at the application adapter boundary and none mode must not invoke Git.
+  - kind: surprise
+    at: "2026-09-14T18:10:00Z"
+    expected: The focused substrate suite would complete after the additive wire changes.
+    observed: The two inherited capabilities tests each exceeded their five-second timeout, matching the prior graph's recorded coupled failure before the later checks could run.
+  - kind: choice
+    at: "2026-09-14T18:30:00Z"
+    chose: Replaced the timing-dependent split-UTF-8 command assertion with a real-byte integration proof and a deterministic per-chunk decoding proof.
+    because: OS pipe delivery does not promise chunk boundaries, while the legacy output hash must remain defined by each chunk's UTF-8 decoding and retained output must retain exact bytes.
+  - kind: surprise
+    at: "2026-09-14T18:35:00Z"
+    expected: The runner package suite would be a clean broad confirmation after focused proofs passed.
+    observed: Its changed local-config and gate-output tests passed, but an existing live socket check and two fixture commits failed because the environment exposes an unusable herdr socket and blocks GPG signing.
+  - kind: surprise
+    at: "2026-09-14T18:45:00Z"
+    expected: SCP-style Git origins would receive the same query and fragment refusal as URL-style origins.
+    observed: Orchestrator review identified that the SCP parser treated query and fragment markers as path text, which could serialize transport metadata in origin_url.
+  - kind: choice
+    at: "2026-09-14T18:46:00Z"
+    chose: Refuse question-mark and fragment markers before parsing an SCP-style repository path while retaining ordinary git@host transport usernames.
+    because: The approved graph requires credential-free provenance and a generic refusal for every accepted remote spelling.

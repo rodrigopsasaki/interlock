@@ -64,6 +64,12 @@
         },
         "handle": {
           "type": "string"
+        },
+        "key_file": {
+          "type": "string"
+        },
+        "send_repository": {
+          "type": "boolean"
         }
       },
       "required": [

@@ -4,6 +4,7 @@ import type {
   AbsorbOutcome,
   ContextOutcome,
   EvidenceForAbsorb,
+  Repository,
   SubstrateClient,
 } from "./client.ts";
 import { readBearerToken } from "./keyFile.ts";
@@ -102,7 +103,11 @@ async function get(
   return call(address, verb, { method: "GET", headers }, bearerToken);
 }
 
-export function httpClient(address: string, keyFile?: string): SubstrateClient {
+export function httpClient(
+  address: string,
+  keyFile?: string,
+  repository?: Repository,
+): SubstrateClient {
   let cachedCapabilities: readonly string[] | undefined;
 
   async function capabilities(): Promise<readonly string[]> {
@@ -135,7 +140,20 @@ export function httpClient(address: string, keyFile?: string): SubstrateClient {
       address,
       "context",
       headers.value.headers,
-      { node, scope, role },
+      {
+        node,
+        scope,
+        role,
+        ...(repository === undefined
+          ? {}
+          : {
+              repository: {
+                owner: repository.owner,
+                name: repository.name,
+                origin_url: repository.originUrl,
+              },
+            }),
+      },
       headers.value.bearerToken,
     );
     if (isErr(response)) return { kind: "refused", because: response.error };
@@ -174,6 +192,15 @@ export function httpClient(address: string, keyFile?: string): SubstrateClient {
         notes: toWireNotes(node.id, notes),
         receipts,
         ...(evidence === undefined ? {} : { items: evidence.items, gaps: evidence.gaps }),
+        ...(repository === undefined
+          ? {}
+          : {
+              repository: {
+                owner: repository.owner,
+                name: repository.name,
+                origin_url: repository.originUrl,
+              },
+            }),
       },
       headers.value.bearerToken,
     );

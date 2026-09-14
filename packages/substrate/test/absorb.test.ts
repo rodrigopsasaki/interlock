@@ -69,6 +69,30 @@ describe("absorb", () => {
     );
   });
 
+  it("uses the same bound repository selector for absorb", async () => {
+    server = await startFakeSubstrateServer();
+    server.responseFor("absorb", {
+      decisions_absorbed: [],
+      discoveries: [],
+      gaps: [],
+    });
+
+    const client = substrateClientFor(server.url, undefined, {
+      owner: "octo",
+      name: "interlock",
+      originUrl: "https://github.example/octo/interlock.git",
+    });
+    await client.absorb(node, fixtureDebrief, fixtureNotes, [fixtureReceipt]);
+
+    expect(server.calls[0]?.body).toMatchObject({
+      repository: {
+        owner: "octo",
+        name: "interlock",
+        origin_url: "https://github.example/octo/interlock.git",
+      },
+    });
+  });
+
   it("acknowledges nothing while everything still runs when the address is none", async () => {
     const client = substrateClientFor("none");
     const outcome = await client.absorb(node, fixtureDebrief, fixtureNotes, [fixtureReceipt]);

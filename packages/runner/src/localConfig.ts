@@ -27,6 +27,7 @@ export interface LocalConfig {
   readonly answerGraceMs: number;
   readonly substrateAddress: string;
   readonly substrateKeyFile?: string;
+  readonly substrateSendRepository: boolean;
 }
 
 export type LocalConfigRefusal =
@@ -249,6 +250,17 @@ function parseShape(parsed: unknown, path: string): Result<LocalConfig, LocalCon
     });
   }
 
+  const substrateSendRepository = isRecord(substrate)
+    ? prop(substrate, "send_repository")
+    : undefined;
+  if (substrateSendRepository !== undefined && typeof substrateSendRepository !== "boolean") {
+    return err({
+      kind: "malformed",
+      path,
+      reason: '"substrate.send_repository" must be a boolean',
+    });
+  }
+
   return ok({
     runtime: {
       kind: runtimeKind,
@@ -263,6 +275,7 @@ function parseShape(parsed: unknown, path: string): Result<LocalConfig, LocalCon
     runTimeoutMs,
     answerGraceMs,
     substrateAddress,
+    substrateSendRepository: substrateSendRepository ?? false,
     ...(substrateKeyFile === undefined ? {} : { substrateKeyFile }),
   });
 }

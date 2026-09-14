@@ -172,6 +172,19 @@ which one wins when `items` is present.
 *Revisit:* if a substrate ever needs to reject a harness's item outright rather than adopt or gap
 it, `absorb.response` needs a third placement alongside known/new/unplaced.
 
+**D27. Repository provenance is an optional additive selector on `context` and `absorb`, sent
+only after the receiver is known to accept it.** When a machine explicitly enables
+`substrate.send_repository`, the CLI resolves its Git `origin` once into `{owner, name,
+origin_url}` and binds that object to both existing `substrate@v1` requests. `owner` and `name`
+are the unambiguous identity; `origin_url` is credential-free provenance, never authority. The
+default is off, so old strict receivers retain their exact legacy bodies. An enabled malformed or
+ambiguous origin refuses before a request is sent; the client does not negotiate, retry, or
+invent an unscoped write.
+*Cost:* adoption takes an explicit receiver update and per-machine choice rather than automatic
+discovery.
+*Revisit:* if a later repository identity needs more than one owner/name path, add a new shape
+version with a reader for this selector rather than broadening its meaning.
+
 ## Mapping the reference implementation
 
 The doors Preston exposes today, mapped to the verbs. Nothing is lost that a session actually

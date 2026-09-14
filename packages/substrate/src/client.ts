@@ -20,6 +20,12 @@ export interface EvidenceForAbsorb {
   readonly gaps: readonly Gap[];
 }
 
+export interface Repository {
+  readonly owner: string;
+  readonly name: string;
+  readonly originUrl: string;
+}
+
 export type AbsorbOutcome =
   | { readonly kind: "empty" }
   | {

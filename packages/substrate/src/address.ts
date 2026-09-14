@@ -1,4 +1,4 @@
-import type { SubstrateClient } from "./client.ts";
+import type { Repository, SubstrateClient } from "./client.ts";
 import { httpClient } from "./httpClient.ts";
 import { noneClient } from "./noneClient.ts";
 
@@ -8,7 +8,11 @@ export function isValidSubstrateAddress(address: string): boolean {
   return address === "none" || HTTP_ADDRESS.test(address);
 }
 
-export function substrateClientFor(address: string, keyFile?: string): SubstrateClient {
+export function substrateClientFor(
+  address: string,
+  keyFile?: string,
+  repository?: Repository,
+): SubstrateClient {
   if (address === "none") return noneClient();
-  return httpClient(address, keyFile);
+  return httpClient(address, keyFile, repository);
 }

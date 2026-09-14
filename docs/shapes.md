@@ -1161,7 +1161,7 @@ No vocabulary entry for `local`.
 | `lease_ms` | number | yes |  |
 | `run_timeout_ms` | number | yes |  |
 | `answer_grace_ms` | number | no |  |
-| `substrate` | object | yes | fields: address (string, required); handle (string, optional) |
+| `substrate` | object | yes | fields: address (string, required); handle (string, optional); key_file (string, optional); send_repository (boolean, optional) |
 
 ### Examples
 
@@ -1216,6 +1216,10 @@ substrate:
   # Optional. A path to a file whose first line is a bearer token, sent as
   # "Authorization: Bearer <token>" on every call to substrate.address.
   # key_file: "/path/to/key"
+  # Optional. Send an unambiguous, credential-free repository identity to a receiver that has
+  # already been updated to accept it. Defaults to false so older receivers keep their legacy
+  # request bodies.
+  # send_repository: false
 ```
 
 ## notes
@@ -1238,80 +1242,36 @@ No vocabulary entry for `notes`.
 
 #### `notes@v0`
 
-Source: `.interlock/sessions/0001-bootstrap/self-run/notes.yaml`
+Source: `.interlock/sessions/0006-repository-context/send-repository-context/notes.yaml`
 
 ```yaml
 interlock: notes@v0
-node: self-run
+node: send-repository-context
 entries:
   - kind: choice
-    at: "2026-09-11T19:45:00Z"
-    chose: >
-      Read `graph status`'s "leased by a live session" test entirely off
-      `LedgerProjection.sessions`: a session whose `node` matches, whose
-      `lease` is defined, whose `leaseExpired` is false, and whose
-      `lease.expiry` is still ahead of the clock's `now()` -- the exact
-      three-part check `judge.ts` already uses to refuse judging a node
-      someone else is mid-session on -- rather than adding a fourth
-      `NodeState` variant to `position.ts` for "leased".
-    because: >
-      The brief says `graph status` reads position "through `positionOf`
-      and nothing else," but `positionOf`'s own `NodeState` union
-      (outcome / ready / blocked) has no arm for "currently leased" --
-      liveness lives on the session view, not the node view, and
-      `graph show`'s own `liveSessionsOf` helper already computes it the
-      same way for its agent-status join. Reusing the established
-      predicate keeps one definition of "live" instead of inventing a
-      second, and leaves `position@v1`'s shape alone, which is out of
-      scope for this node.
+    at: "2026-09-14T18:00:00Z"
+    chose: Bind an optional repository selector when the CLI constructs a substrate client, so context and absorb share one immutable value.
+    because: The existing HTTP client owns the two wire bodies, while Git origin resolution belongs at the application adapter boundary and none mode must not invoke Git.
+  - kind: surprise
+    at: "2026-09-14T18:10:00Z"
+    expected: The focused substrate suite would complete after the additive wire changes.
+    observed: The two inherited capabilities tests each exceeded their five-second timeout, matching the prior graph's recorded coupled failure before the later checks could run.
   - kind: choice
-    at: "2026-09-11T19:46:00Z"
-    chose: >
-      Opened the journal read-only through `readReplay(sharedJournalDirectory(repoRoot))`,
-      the same call `graph show` and `session show` make, never
-      `createLedger`.
-    because: >
-      The brief is explicit: "Never append to the shared journal; `graph
-      status` reads it through replay like `graph show` does." `judge.ts`
-      opens a writable `Ledger` because it appends narration and
-      receipts; `graph status` produces no receipt of its own and must
-      not touch the file other sessions and the runner are writing to
-      concurrently.
+    at: "2026-09-14T18:30:00Z"
+    chose: Replaced the timing-dependent split-UTF-8 command assertion with a real-byte integration proof and a deterministic per-chunk decoding proof.
+    because: OS pipe delivery does not promise chunk boundaries, while the legacy output hash must remain defined by each chunk's UTF-8 decoding and retained output must retain exact bytes.
+  - kind: surprise
+    at: "2026-09-14T18:35:00Z"
+    expected: The runner package suite would be a clean broad confirmation after focused proofs passed.
+    observed: Its changed local-config and gate-output tests passed, but an existing live socket check and two fixture commits failed because the environment exposes an unusable herdr socket and blocks GPG signing.
+  - kind: surprise
+    at: "2026-09-14T18:45:00Z"
+    expected: SCP-style Git origins would receive the same query and fragment refusal as URL-style origins.
+    observed: Orchestrator review identified that the SCP parser treated query and fragment markers as path text, which could serialize transport metadata in origin_url.
   - kind: choice
-    at: "2026-09-11T19:47:00Z"
-    chose: >
-      Validated `--expect`'s value against the closed set of `Outcome["kind"]`
-      values (cleared, held, reset, failed, cancelled, superseded) with a
-      small local `ReadonlySet<string>` and a type guard, refusing an
-      unrecognized value by name before reading anything from disk,
-      rather than accepting any string and comparing it loosely.
-    because: >
-      "`--expect` accepts an outcome kind" is the acceptance's own
-      phrase; a typo like `--expect clear` should read as a mistake, not
-      silently compare against every node's outcome and report all of
-      them as mismatched. `disposition.ts`'s `isDisposition` is the same
-      shape in this package (a `ReadonlySet<string>` plus a guard) for
-      the same kind of closed string union, so this follows the
-      established pattern rather than inventing `as const` plus a mapped
-      type for six literals.
-  - kind: choice
-    at: "2026-09-11T19:50:00Z"
-    chose: >
-      Read the shared journal directly (via the built CLI, not this
-      package's own code) before writing anything, to establish which of
-      the twelve nodes were cleared by a live `run`/`judge` session versus
-      `backfill` alone, and how many attempts each took, rather than
-      relying on the design note's bend log prose for the account this
-      node's acceptance asks for.
-    because: >
-      The brief says "The acceptance is judged on the journal, not on
-      the story; you are making the story checkable." The bend log
-      narrates *why* things bent; it does not enumerate session ids,
-      attempt counts or which verb (`run` vs `judge` vs `backfill`)
-      produced each node's final `cleared`. `receipt-written`'s own
-      `derivation.runner` field (`run-<session>`, `judge-<session>` or
-      `backfill-<uuid>`) is the ground truth for that question, so this
-      session read it before writing the debrief's table.
+    at: "2026-09-14T18:46:00Z"
+    chose: Refuse question-mark and fragment markers before parsing an SCP-style repository path while retaining ordinary git@host transport usernames.
+    because: The approved graph requires credential-free provenance and a generic refusal for every accepted remote spelling.
 ```
 
 ## position

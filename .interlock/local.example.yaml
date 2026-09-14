@@ -44,3 +44,7 @@ substrate:
   # Optional. A path to a file whose first line is a bearer token, sent as
   # "Authorization: Bearer <token>" on every call to substrate.address.
   # key_file: "/path/to/key"
+  # Optional. Send an unambiguous, credential-free repository identity to a receiver that has
+  # already been updated to accept it. Defaults to false so older receivers keep their legacy
+  # request bodies.
+  # send_repository: false

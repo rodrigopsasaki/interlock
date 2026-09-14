@@ -391,6 +391,7 @@ describe("loadLocalConfig substrate", () => {
     if (isOk(result)) {
       expect(result.value.substrateAddress).toBe("https://substrate.example.com");
       expect(result.value.substrateKeyFile).toBe("/path/to/key");
+      expect(result.value.substrateSendRepository).toBe(false);
     }
   });
 
@@ -424,5 +425,27 @@ describe("loadLocalConfig substrate", () => {
 
     expect(isOk(result)).toBe(true);
     if (isOk(result)) expect(result.value.substrateKeyFile).toBeUndefined();
+  });
+
+  it("accepts an enabled repository selector", async () => {
+    const yaml = [...baseFields.slice(0, -1), "  send_repository: true", ""].join("\n");
+    const repoRoot = fixtureRepo(yaml);
+
+    const result = await loadLocalConfig(repoRoot);
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) expect(result.value.substrateSendRepository).toBe(true);
+  });
+
+  it("refuses a non-boolean repository selector", async () => {
+    const yaml = [...baseFields.slice(0, -1), "  send_repository: yes", ""].join("\n");
+    const repoRoot = fixtureRepo(yaml);
+
+    const result = await loadLocalConfig(repoRoot);
+
+    expect(isErr(result)).toBe(true);
+    if (isErr(result) && result.error.kind === "malformed") {
+      expect(result.error.reason).toContain('"substrate.send_repository"');
+    }
   });
 });

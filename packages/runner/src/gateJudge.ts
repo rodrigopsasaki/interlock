@@ -92,6 +92,10 @@ export interface GateJudgeRequest {
   readonly narrate: (line: string) => void;
 }
 
+export function legacyOutputForChunk(chunk: Buffer): string {
+  return chunk.toString("utf-8");
+}
+
 function tokenize(command: string): readonly string[] {
   return command.split(/\s+/).filter((token) => token.length > 0);
 }
@@ -117,11 +121,11 @@ function spawnGateCommand(
     const stdout: Buffer[] = [];
     const stderr: Buffer[] = [];
     child.stdout.on("data", (chunk: Buffer) => {
-      output += chunk.toString("utf-8");
+      output += legacyOutputForChunk(chunk);
       stdout.push(chunk);
     });
     child.stderr.on("data", (chunk: Buffer) => {
-      output += chunk.toString("utf-8");
+      output += legacyOutputForChunk(chunk);
       stderr.push(chunk);
     });
     child.on("close", (code) =>

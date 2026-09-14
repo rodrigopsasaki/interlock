@@ -24,8 +24,8 @@ import {
   unmetDependencies,
   writeBriefIntoWorktree,
 } from "runner";
-import { substrateClientFor } from "substrate";
 import type { CommandResult } from "./main.ts";
+import { substrateClientForRepository } from "./repositoryOrigin.ts";
 
 export async function runInterlockRun(
   args: readonly string[],
@@ -67,9 +67,11 @@ export async function runInterlockRun(
       message: explainLocalConfigRefusal(localConfig.error),
     };
   }
-  const substrate = substrateClientFor(
+  const substrate = await substrateClientForRepository(
+    repoRoot,
     localConfig.value.substrateAddress,
     localConfig.value.substrateKeyFile,
+    localConfig.value.substrateSendRepository,
   );
 
   const graphPath = graphFilePath(repoRoot, graph);

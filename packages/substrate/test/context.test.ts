@@ -69,6 +69,29 @@ describe("context", () => {
     expect(server.calls[0]?.authorization).toBe("Bearer s3cr3t");
   });
 
+  it("adds one bound repository selector only when enabled by construction", async () => {
+    server = await startFakeSubstrateServer();
+    server.responseFor("context", { items: [], vocabulary: "reference@v1" });
+
+    const client = substrateClientFor(server.url, undefined, {
+      owner: "octo",
+      name: "interlock",
+      originUrl: "ssh://github.example/octo/interlock.git",
+    });
+    await client.context(node, ["packages/substrate"], "worker");
+
+    expect(server.calls[0]?.body).toEqual({
+      node,
+      scope: ["packages/substrate"],
+      role: "worker",
+      repository: {
+        owner: "octo",
+        name: "interlock",
+        origin_url: "ssh://github.example/octo/interlock.git",
+      },
+    });
+  });
+
   it("refuses with a sentence naming the JSON pointer when the response fails its schema", async () => {
     server = await startFakeSubstrateServer();
     server.responseFor("context", {

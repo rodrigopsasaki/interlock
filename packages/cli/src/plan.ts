@@ -37,9 +37,10 @@ import {
   type Runtime,
   renderBriefFile,
 } from "runner";
-import { narrateContext, substrateClientFor } from "substrate";
+import { narrateContext } from "substrate";
 import { parseFlag } from "./flags.ts";
 import type { CommandResult } from "./main.ts";
+import { substrateClientForRepository } from "./repositoryOrigin.ts";
 
 const USAGE =
   'interlock plan: expected a graph id and --ask, e.g. "interlock plan 0004-example ' +
@@ -119,9 +120,11 @@ export async function runInterlockPlan(
       message: explainLocalConfigRefusal(localConfig.error),
     };
   }
-  const substrate = substrateClientFor(
+  const substrate = await substrateClientForRepository(
+    repoRoot,
     localConfig.value.substrateAddress,
     localConfig.value.substrateKeyFile,
+    localConfig.value.substrateSendRepository,
   );
 
   const standingGates = await loadStandingGates(repoRoot);

@@ -23,8 +23,8 @@ import {
   loadStandingGates,
   recordingNarrate,
 } from "runner";
-import { substrateClientFor } from "substrate";
 import type { CommandResult } from "./main.ts";
+import { substrateClientForRepository } from "./repositoryOrigin.ts";
 
 function isoOf(wallMs: number): string {
   return new Date(wallMs).toISOString();
@@ -74,9 +74,11 @@ export async function runInterlockJudge(
       message: explainLocalConfigRefusal(localConfig.error),
     };
   }
-  const substrate = substrateClientFor(
+  const substrate = await substrateClientForRepository(
+    repoRoot,
     localConfig.value.substrateAddress,
     localConfig.value.substrateKeyFile,
+    localConfig.value.substrateSendRepository,
   );
 
   const graphPath = graphFilePath(repoRoot, graph);

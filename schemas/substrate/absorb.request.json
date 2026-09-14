@@ -9,7 +9,8 @@
     "notes": { "$ref": "../notes@v0.json" },
     "receipts": { "type": "array", "items": { "$ref": "../parts/receipt.json" } },
     "items": { "type": "array", "items": { "$ref": "../item@v1.json" } },
-    "gaps": { "type": "array", "items": { "$ref": "../parts/gap.json" } }
+    "gaps": { "type": "array", "items": { "$ref": "../parts/gap.json" } },
+    "repository": { "$ref": "../parts/repository.json" }
   },
   "required": ["debrief", "notes", "receipts"],
   "additionalProperties": false

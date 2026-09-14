@@ -4,6 +4,7 @@ export type {
   ContextOutcome,
   DiscoveryPlacement,
   EvidenceForAbsorb,
+  Repository,
   SubstrateClient,
 } from "./client.ts";
 export {
@@ -20,6 +21,7 @@ export { evidenceOf, personEventsFor } from "./evidence.ts";
 export type { AbsorbSlice } from "./narrate.ts";
 export { narrateAbsorb, narrateContext } from "./narrate.ts";
 export { noneClient } from "./noneClient.ts";
+export { refusalClient } from "./refusalClient.ts";
 export type { SliceCount } from "./sliceCount.ts";
 export { countDiscoveriesAgainstSlice } from "./sliceCount.ts";
 

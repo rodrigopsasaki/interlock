@@ -10,7 +10,7 @@ import type { AbsorbOutcome, EvidenceForAbsorb, SubstrateClient } from "substrat
 import { noneClient } from "substrate";
 import { afterAll, afterEach, describe, expect, it } from "vitest";
 import type { GateCommand } from "../src/gateCommand.ts";
-import { judgeGates } from "../src/gateJudge.ts";
+import { judgeGates, legacyOutputForChunk } from "../src/gateJudge.ts";
 import { readGateOutput, storeGateOutput } from "../src/gateOutput.ts";
 import { commitAll, gitInitFixtureWithContent, headSha } from "./support/gitFixture.ts";
 import { memoryLedger, memoryLedgerWithLog } from "./support/memoryLedger.ts";
@@ -596,10 +596,10 @@ describe("retained gate output", () => {
     }
   });
 
-  it("keeps raw split UTF-8 bytes while preserving the legacy decoded-chunk output hash", async () => {
+  it("keeps raw UTF-8 bytes from a real command", async () => {
     const root = fixture();
     const ledger = memoryLedger();
-    const run = `${process.execPath} -e process.stdout.write(Buffer.from([226]));setTimeout(()=>process.stdout.write(Buffer.from([130,172])),10)`;
+    const run = `${process.execPath} -e process.stdout.write(Buffer.from([226,130,172]))`;
     const judged = await judgeGates({
       ledger,
       clock: createControlledClock(),
@@ -621,14 +621,19 @@ describe("retained gate output", () => {
     const receipt = ledger.projection().nodes.get(nodeKey(node))?.receipts[0];
     expect(receipt).toBeDefined();
     if (receipt === undefined) return;
-    expect(receipt.proof["outputHash"]).toBe(
-      createHash("sha256").update("\ufffd\ufffd\ufffd").digest("hex"),
-    );
     const output = await readGateOutput(sharedJournalDirectory(root), receipt.proof);
     if (isErr(output) || output.value.kind !== "available") {
       throw new Error("expected readable retained output");
     }
     expect(output.value.stdout).toEqual(Buffer.from([226, 130, 172]));
+  });
+
+  it("preserves legacy output hashing for separately decoded chunks", () => {
+    const output = [Buffer.from([226]), Buffer.from([130, 172])].map(legacyOutputForChunk).join("");
+
+    expect(createHash("sha256").update(output).digest("hex")).toBe(
+      createHash("sha256").update("\ufffd\ufffd\ufffd").digest("hex"),
+    );
   });
 
   it("keeps output in the shared journal after its linked worktree leaves", async () => {

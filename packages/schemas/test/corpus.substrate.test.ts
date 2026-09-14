@@ -268,6 +268,44 @@ describe("corpus: substrate@v1, request and response per verb", () => {
     expect(validate(value), JSON.stringify(validate.errors)).toBe(true);
   });
 
+  it("accepts the optional repository selector on both evolving requests", () => {
+    const repository = {
+      owner: "owner",
+      name: "name",
+      origin_url: "ssh://forge.example/owner/name.git",
+    };
+    const context = schemaFor("context.request");
+    const absorb = schemaFor("absorb.request");
+
+    expect(
+      context({
+        node: { graph: "0002-shapes", id: "substrate-protocol" },
+        scope: ["schemas/substrate"],
+        role: "worker",
+        repository,
+      }),
+      JSON.stringify(context.errors),
+    ).toBe(true);
+    expect(
+      absorb({ debrief: okDebrief, notes: okNotes, receipts: [okReceipt], repository }),
+      JSON.stringify(absorb.errors),
+    ).toBe(true);
+  });
+
+  it("refuses incomplete repository selectors and unknown repository fields", () => {
+    const validate = schemaFor("context.request");
+    const request = {
+      node: { graph: "0002-shapes", id: "substrate-protocol" },
+      scope: ["schemas/substrate"],
+      role: "worker",
+      repository: { owner: "owner", name: "name", origin_url: "https://forge.example/owner/name" },
+    };
+    expect(validate({ ...request, repository: { owner: "owner", name: "name" } })).toBe(false);
+    expect(validate({ ...request, repository: { ...request.repository, extra: "no" } })).toBe(
+      false,
+    );
+  });
+
   it("refuses judge.response with no derivation, since a verdict is a receipt", () => {
     const validate = schemaFor("judge.response");
     const { derivation: _drop, ...receiptMissingDerivation } = okReceipt;
