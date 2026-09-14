@@ -9,3 +9,11 @@ entries:
     at: "2026-09-14T22:52:11Z"
     chose: Inspect the existing delivery implementation and its focused proofs against every graph acceptance obligation before changing code.
     because: This bounded repair inherits code from the held slot-5 candidate, and the graph requires actual production seams and discriminating failure proof rather than a replacement implementation.
+  - kind: surprise
+    at: "2026-09-14T22:53:16Z"
+    expected: The focused checks would run under the repository's pinned Node 24.14.0 runtime.
+    observed: The prepared environment ran Node 26.0.0 and pnpm warned about the engine mismatch, although the deterministic runner, ledger, and response-detail checks passed.
+  - kind: choice
+    at: "2026-09-14T22:53:16Z"
+    chose: Keep deterministic proof local and defer listener-dependent absorb checks to the harness.
+    because: The brief identifies local listeners as unavailable in this sandbox, while the runner and ledger seams can be tested without a receiver and must receive the failure-matrix coverage.
