@@ -63,3 +63,11 @@ entries:
     chose: Cancel the reader immediately when the collected byte count reaches 1024 and render a bounded-body limit marker without probing another chunk.
     because: This keeps intake at or below the declared bound while closing the reader at the exact boundary; a further read could consume bytes solely to distinguish an exact-length body from a longer one.
     rejected: Reading one additional chunk for certainty would exceed the at-most-1024-byte intake contract.
+  - kind: surprise
+    at: 2026-09-14T17:24:15Z
+    expected: The abbreviated commit identifiers copied into the debrief expanded to the intended full SHAs.
+    observed: Direct revision resolution showed both manually transcribed SHA suffixes were wrong; the uncommitted debrief was corrected before its final commit.
+  - kind: surprise
+    at: 2026-09-14T17:24:41Z
+    expected: Biome formatting could process the session YAML records.
+    observed: The repository ignores .interlock session records for Biome, so the command reported no processed files before debrief validation could run.

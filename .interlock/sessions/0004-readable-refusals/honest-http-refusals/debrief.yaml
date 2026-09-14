@@ -1,0 +1,87 @@
+interlock: debrief@v2
+graph: 0004-readable-refusals
+node: honest-http-refusals
+role: worker
+graph_base_sha: d1bce7455c294d70c7e58b78ffb268270bb8dd73
+session_start_sha: 2029434534e87e27a3a22fc6726a8b3939dea196
+head_sha: 051a62aa84706463bc6766e235a383f4412759dc
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries:
+  - id: d1
+    what: The sandbox rejects the local fake substrate server's loopback listen before a client request reaches it.
+    found_at: "mise exec -- pnpm --filter substrate test context.test.ts --testNamePattern \"keeps a received context refusal's status\": EPERM on 127.0.0.1."
+    mattered_because: The context and absorb regression is committed for the harness to execute, while this session cannot truthfully report an agent-produced local-server receipt.
+  - id: d2
+    what: TypeScript does not narrow an unknown JSON object for direct property access after Object.hasOwn.
+    found_at: "mise exec -- pnpm --filter substrate typecheck: TS2339 at packages/substrate/src/responseDetail.ts before the Reflect.get adapter."
+    mattered_because: The JSON error selector needed explicit reflection to retain the strict no-cast boundary.
+decisions:
+  - id: c1
+    what: Non-2xx context, absorb, and capability calls construct one received-HTTP refusal that retains the verb and exact status, while successful bodies and transport exceptions keep their prior paths.
+    because: A response that exists is a refused outcome, not a lost connection; placing the branch immediately after fetch distinguishes it from the surrounding catch path without changing either client outcome contract.
+    rests_on:
+      - .interlock/sessions/0004-readable-refusals/honest-http-refusals/brief.md
+      - packages/substrate/src/httpClient.ts
+    hunks:
+      - "packages/substrate/src/httpClient.ts:24-105"
+      - "packages/substrate/src/responseDetail.ts:171-189"
+    produces:
+      - packages/substrate/src/httpClient.ts
+      - packages/substrate/src/responseDetail.ts
+  - id: c2
+    what: Received response detail is selected only from declared JSON error strings or plain text, normalized, redacted against the configured bearer token, and bounded to 1024 collected bytes and 512 rendered characters; a reader reaching the intake bound is cancelled without a probe read.
+    because: The declared-media boundary avoids arbitrary-object narration, and immediate cancellation at the exact byte bound avoids both an unread stream and extra body intake while the limit marker preserves the way back for a person reading the refusal.
+    rests_on:
+      - .interlock/sessions/0004-readable-refusals/honest-http-refusals/brief.md
+      - packages/substrate/src/keyFile.ts
+    hunks:
+      - "packages/substrate/src/responseDetail.ts:1-169"
+    produces:
+      - packages/substrate/src/responseDetail.ts
+    rejected: Reading a further response chunk to discover whether an exactly 1024-byte body has more content would exceed the declared intake limit.
+  - id: c3
+    what: The fake substrate server can declare raw body media and bytes, and the regression suite requires JSON and plain-text details for both verbs, status-only handling for unsupported bodies, truncation and bearer redaction, network distinction, and deterministic stream-boundary and reader-failure behavior.
+    because: The old non-2xx early return cannot satisfy a required detail assertion, while an in-memory stream makes the exact 1024-byte boundary reproducible without depending on transport chunking.
+    rests_on:
+      - .interlock/sessions/0004-readable-refusals/honest-http-refusals/brief.md
+      - packages/substrate/test/support/fakeSubstrateServer.ts
+    hunks:
+      - "packages/substrate/test/support/fakeSubstrateServer.ts:9-105"
+      - "packages/substrate/test/context.test.ts:87-184"
+      - "packages/substrate/test/absorb.test.ts:80-114"
+      - "packages/substrate/test/responseDetail.test.ts:1-73"
+    produces:
+      - packages/substrate/test/support/fakeSubstrateServer.ts
+      - packages/substrate/test/context.test.ts
+      - packages/substrate/test/absorb.test.ts
+      - packages/substrate/test/responseDetail.test.ts
+  - id: c4
+    what: The session notes record the resumed-state, implementation, validation, sandbox, and exact-boundary surprises and choices before this closing debrief.
+    because: The working record is an append-only way back from this compression, including why the local-server receipt remains for the harness.
+    rests_on:
+      - .interlock/sessions/0004-readable-refusals/honest-http-refusals/brief.md
+    hunks:
+      - ".interlock/sessions/0004-readable-refusals/honest-http-refusals/notes.yaml:1-75"
+    produces:
+      - .interlock/sessions/0004-readable-refusals/honest-http-refusals/notes.yaml
+gates_run_by_agent:
+  - id: substrate-typecheck
+    result: pass
+    invocation: mise exec -- pnpm --filter substrate typecheck
+    note: Passed after the final exact-boundary repair.
+  - id: scoped-lint
+    result: pass
+    invocation: mise exec -- pnpm exec biome check packages/substrate/src/httpClient.ts packages/substrate/src/responseDetail.ts packages/substrate/test/context.test.ts packages/substrate/test/responseDetail.test.ts .interlock/sessions/0004-readable-refusals/honest-http-refusals/notes.yaml
+    note: Passed after the final exact-boundary repair.
+  - id: response-detail-stream
+    result: pass
+    invocation: mise exec -- pnpm --filter substrate test responseDetail.test.ts
+    note: 3 tests passed, covering the exact 1024-byte boundary and reader and cancellation failures.
+  - id: http-refusal-regressions
+    result: fail
+    invocation: mise exec -- pnpm --filter substrate test context.test.ts absorb.test.ts
+    note: The sandbox rejects the local fake server's 127.0.0.1 listen with EPERM before test execution; the harness must produce this receipt.
+open: []
