@@ -25,3 +25,7 @@ entries:
     at: "2026-09-14T22:57:54Z"
     expected: The new focused files would already meet the repository formatter's layout rules.
     observed: The lint gate found formatting-only differences in the added proof and boundary files; the formatter made no semantic changes.
+  - kind: surprise
+    at: "2026-09-14T22:58:36Z"
+    expected: The schema reference would be fresh immediately after its first regeneration.
+    observed: Its first final-head check reported a difference at line 1151; a second regeneration and check were fresh, matching the known generated-reference behavior in the earlier session record.
