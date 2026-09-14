@@ -1,0 +1,53 @@
+interlock: graph@v0
+id: 0004-readable-refusals
+
+ask: >
+  When a substrate answers with an HTTP refusal, preserve the status and a bounded
+  explanation so a person can distinguish a refused request from a lost connection.
+
+derivation:
+  kind: model
+  model: gpt-6-astra
+  prompt: first-orchestrated-slice-2026-09-14
+  source: Fable's next-arc plan, narrowed after checking the current client and receiver.
+
+read: >
+  This is the HTTP portion of honest-refusals, not the entire next arc. It can run
+  independently of the substrate's absorb-fits node. It changes neither request
+  schemas nor the meaning of accepted evidence. Existing standing gates remain.
+  Repository identity, timeout narration, blocked-state debounce, face changes,
+  measurement, and adoption of an exploratory shared primitive are outside this
+  graph. Approval permits local implementation and harness judgement, not pushing,
+  merging, deploying, waiving gates, or changing this graph. Start one worker;
+  allow at most one bounded repair before returning a held position to the person.
+
+gates:
+  - id: approved
+    kind: human
+
+nodes:
+  - id: honest-http-refusals
+    depends_on: []
+    acceptance: >
+      A non-2xx response received for context or absorb remains a refused outcome
+      naming its verb and exact HTTP status, with a useful bounded body explanation
+      when available. Recognize a JSON error.message string, a JSON error string,
+      or plain text; do not serialize arbitrary JSON objects as an explanation.
+      Limit error-body consumption to 1024 bytes and displayed detail to 512
+      characters, normalize control characters, and indicate truncation. Empty,
+      unreadable, unrecognized, or malformed structured bodies still retain the
+      received status, never becoming a claim that no response arrived. Never
+      copy headers into the explanation, and redact the configured bearer token
+      if the server echoes it. Successful responses and address-none behavior
+      remain unchanged. Network and abort failures remain distinguishable from
+      received HTTP failures. Tests use only a local fake server and prove both
+      verbs, the supported body forms, empty and malformed bodies, truncation,
+      echoed-token redaction, and existing success/network behavior. A targeted
+      regression fails against the old client. The session commits its notes and
+      versioned debrief with references to its changed files; the harness, not the
+      worker, executes the declared and standing gates.
+    gates:
+      - id: http-refusal-regressions
+        kind: command
+        run: pnpm --filter substrate --fail-if-no-match test context.test.ts absorb.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
