@@ -1,0 +1,15 @@
+interlock: notes@v0
+node: honest-http-refusals
+entries:
+  - kind: surprise
+    at: 2026-09-14T17:12:11Z
+    expected: The resumed session would contain its prior notes.
+    observed: Only the harness-authored brief exists; the commits beyond graph base only amend that brief.
+  - kind: surprise
+    at: 2026-09-14T17:12:11Z
+    expected: The referenced schemas could be read in one shell loop.
+    observed: A zsh special variable shadowed the command path, so the first read stopped before the remaining schemas; they were read successfully in a separate command.
+  - kind: surprise
+    at: 2026-09-14T17:12:28Z
+    expected: The configured Git commit could sign the working record.
+    observed: GPG cannot create its keybox files in this sandbox, so the signed commit failed before writing an object.
