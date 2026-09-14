@@ -171,9 +171,9 @@ export function retainOutboxArtifact(
   const sha256 = hash(raw);
   const ref = `outbox/${kind}/${sha256}.json`;
   const path = artifactPath(directory, ref);
-  mkdirSync(join(directory, "outbox", kind), { recursive: true });
   let descriptor: number | undefined;
   try {
+    mkdirSync(join(directory, "outbox", kind), { recursive: true });
     descriptor = openSync(path, "wx");
     writeFileSync(
       descriptor,

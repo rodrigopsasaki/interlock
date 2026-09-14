@@ -1,4 +1,13 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  closeSync,
+  fsyncSync,
+  mkdirSync,
+  mkdtempSync,
+  openSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
 import { unwrap } from "@phyxiusjs/fp";
@@ -14,7 +23,7 @@ import { heldOn, outcome } from "../src/outcome.js";
 import { fold, type LedgerProjection } from "../src/projection.js";
 import { duration, type Receipt } from "../src/receipt.js";
 import { parseLine, readRawEvents, replayFromRaw } from "../src/replay.js";
-import type { LedgerSink } from "../src/sink.js";
+import { createLedgerSink, type LedgerFileOperations } from "../src/sink.js";
 import { spend } from "../src/spend.js";
 import { upcastV1 } from "../src/upcast/v1.js";
 import { isRecord, prop } from "../src/validate.js";
@@ -168,33 +177,50 @@ describe("crash-only replay", () => {
 });
 
 describe("confirmed append", () => {
-  it.each(["write", "sync"])("does not project or confirm after a %s failure", async (stage) => {
-    directory = mkdtempSync(join(runsRoot, "run-"));
-    const sink: LedgerSink = {
-      append() {
-        throw new Error(`${stage} failed`);
-      },
-      close() {},
-    };
-    const ledger = unwrap(
-      await createLedger({
-        clock: createControlledClock({ initialTime: 0 }),
-        directory,
-        sink,
-      }),
-    );
-    const node: Node = { graph: "0001-bootstrap", id: "ledger" };
+  it.each(["write", "fsync"])(
+    "does not project or confirm after a createLedgerSink %s failure",
+    async (stage) => {
+      directory = mkdtempSync(join(runsRoot, "run-"));
+      const operations: LedgerFileOperations = {
+        mkdir(path) {
+          mkdirSync(path, { recursive: true });
+        },
+        open(path) {
+          return openSync(path, "a");
+        },
+        write(descriptor, content) {
+          if (stage === "write") throw new Error("write failed");
+          writeFileSync(descriptor, content);
+        },
+        sync(descriptor) {
+          if (stage === "fsync") throw new Error("fsync failed");
+          fsyncSync(descriptor);
+        },
+        close(descriptor) {
+          closeSync(descriptor);
+        },
+      };
+      const sink = createLedgerSink(directory, operations);
+      const ledger = unwrap(
+        await createLedger({
+          clock: createControlledClock({ initialTime: 0 }),
+          directory,
+          sink,
+        }),
+      );
+      const node: Node = { graph: "0001-bootstrap", id: "ledger" };
 
-    expect(ledger.appendConfirmed({ kind: "node-created", node })).toEqual({
-      _tag: "Err",
-      error: { because: `${stage} failed` },
-    });
-    expect(ledger.projection().nodes.get(nodeKey(node))).toBeUndefined();
-    expect(ledger.appendConfirmed({ kind: "node-created", node })).toEqual({
-      _tag: "Err",
-      error: { because: `${stage} failed` },
-    });
-  });
+      expect(ledger.appendConfirmed({ kind: "node-created", node })).toEqual({
+        _tag: "Err",
+        error: { because: `${stage} failed` },
+      });
+      expect(ledger.projection().nodes.get(nodeKey(node))).toBeUndefined();
+      expect(ledger.appendConfirmed({ kind: "node-created", node })).toEqual({
+        _tag: "Err",
+        error: { because: `${stage} failed` },
+      });
+    },
+  );
 });
 
 describe("replay's versioned upcast seam", () => {

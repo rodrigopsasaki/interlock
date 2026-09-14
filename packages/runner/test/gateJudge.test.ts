@@ -940,6 +940,10 @@ function spySubstrate(): {
       absorbCalls.push(evidence ?? { items: [], gaps: [] });
       return Promise.resolve({ kind: "empty" });
     },
+    prepareAbsorb: (_node, _debrief, _notes, _receipts, evidence) => {
+      absorbCalls.push(evidence ?? { items: [], gaps: [] });
+      return Promise.resolve({ kind: "none" });
+    },
     capabilities: () => Promise.resolve([]),
   };
   return { client, absorbCalls };
@@ -1075,6 +1079,10 @@ describe("absorb carries live evidence", () => {
         absorbedEvidence.push(evidence);
         return Promise.resolve({ kind: "empty" });
       },
+      prepareAbsorb: (_node, _debrief, _notes, _receipts, evidence) => {
+        absorbedEvidence.push(evidence);
+        return Promise.resolve({ kind: "none" });
+      },
       capabilities: () => Promise.resolve([]),
     };
     const { ledger } = memoryLedgerWithLog();
@@ -1162,9 +1170,21 @@ describe("absorb narrates discoveries against the slice its brief carried", () =
           discoveries: [],
           gaps: [],
         }),
+      prepareAbsorb: () =>
+        Promise.resolve({
+          kind: "ready",
+          target: "https://receiver.example/substrate@v1/absorb",
+          request: "{}",
+        }),
+      dispatchAbsorb: () =>
+        Promise.resolve({
+          kind: "acknowledged",
+          outcome: { kind: "acknowledged", decisionsAbsorbed: [], discoveries: [], gaps: [] },
+          response: Buffer.from("{}"),
+        }),
       capabilities: () => Promise.resolve([]),
     };
-    const { ledger } = memoryLedgerWithLog();
+    const { ledger } = memoryLedgerWithLog(root);
     const narrated: string[] = [];
 
     const judged = await judgeGates({
@@ -1254,9 +1274,21 @@ describe("absorb narrates discoveries against the slice its brief carried", () =
           discoveries: [],
           gaps: [],
         }),
+      prepareAbsorb: () =>
+        Promise.resolve({
+          kind: "ready",
+          target: "https://receiver.example/substrate@v1/absorb",
+          request: "{}",
+        }),
+      dispatchAbsorb: () =>
+        Promise.resolve({
+          kind: "acknowledged",
+          outcome: { kind: "acknowledged", decisionsAbsorbed: [], discoveries: [], gaps: [] },
+          response: Buffer.from("{}"),
+        }),
       capabilities: () => Promise.resolve([]),
     };
-    const { ledger } = memoryLedgerWithLog();
+    const { ledger } = memoryLedgerWithLog(root);
     const narrated: string[] = [];
 
     const judged = await judgeGates({
@@ -1291,6 +1323,7 @@ describe("judgement completes on a refused absorb", () => {
       address: "spy",
       context: () => Promise.resolve({ kind: "empty" }),
       absorb: () => Promise.resolve({ kind: "refused", because: "stopped answering" }),
+      prepareAbsorb: () => Promise.resolve({ kind: "refused", because: "stopped answering" }),
       capabilities: () => Promise.resolve([]),
     };
     const { ledger, events } = memoryLedgerWithLog();
@@ -1326,6 +1359,7 @@ describe("judgement completes on a refused absorb", () => {
       address: "spy",
       context: () => Promise.resolve({ kind: "empty" }),
       absorb: () => Promise.resolve({ kind: "refused", because: "stopped answering" }),
+      prepareAbsorb: () => Promise.resolve({ kind: "refused", because: "stopped answering" }),
       capabilities: () => Promise.resolve([]),
     };
     const { ledger, events } = memoryLedgerWithLog();

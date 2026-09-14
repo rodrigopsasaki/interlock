@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
 import { unwrap } from "@phyxiusjs/fp";
@@ -10,6 +10,7 @@ import {
   isOutboxDelivery,
   OUTBOX_ARTIFACT_SHAPE,
   OUTBOX_INTENT_SHAPE,
+  readOutboxArtifact,
   retainOutboxArtifact,
 } from "../src/outbox.ts";
 
@@ -51,11 +52,19 @@ describe("outbox evidence", () => {
     expect(isOutboxDelivery({ ...base, state: "uncertain", acknowledgment: artifact })).toBe(false);
   });
 
-  it("returns verified bytes or explicit absent, missing, and corrupt evidence", async () => {
+  it("returns verified evidence and classifies absent, request, and acknowledgment failures", async () => {
     const ledger = unwrap(await makeLedger());
     const node = { graph: "fixture", id: "n1" };
     const request = unwrap(
       retainOutboxArtifact(ledger.directory(), "request", Buffer.from("request")),
+    );
+    const acknowledgment = unwrap(
+      retainOutboxArtifact(ledger.directory(), "acknowledgment", Buffer.from("acknowledged")),
+    );
+    const requestEnvelope = readFileSync(join(ledger.directory(), request.ref), "utf-8");
+    const acknowledgmentEnvelope = readFileSync(
+      join(ledger.directory(), acknowledgment.ref),
+      "utf-8",
     );
     const id = "b".repeat(64);
     ledger.append({
@@ -71,14 +80,94 @@ describe("outbox evidence", () => {
         derivation: derivation.gate("outbox", "runner@0", "runner"),
       },
     });
+    ledger.append({
+      kind: "outbox-delivery-recorded",
+      delivery: {
+        id,
+        state: "acknowledged",
+        because: "response retained",
+        derivation: derivation.gate("outbox", "runner@0", "runner"),
+        acknowledgment,
+      },
+    });
     expect(ledger.readOutboxEvidence(node, "other", id)).toEqual({ kind: "absent" });
     expect(ledger.readOutboxEvidence(node, "s1", id)).toEqual(
-      expect.objectContaining({ kind: "verified", request: Buffer.from("request") }),
+      expect.objectContaining({
+        kind: "verified",
+        request: Buffer.from("request"),
+        acknowledgment: Buffer.from("acknowledged"),
+      }),
     );
+    unlinkSync(join(ledger.directory(), request.ref));
+    expect(ledger.readOutboxEvidence(node, "s1", id)).toEqual({
+      kind: "missing",
+      ref: request.ref,
+    });
+    writeFileSync(join(ledger.directory(), request.ref), requestEnvelope);
     writeFileSync(join(ledger.directory(), request.ref), "not json");
     expect(ledger.readOutboxEvidence(node, "s1", id)).toEqual({
       kind: "corrupt",
       ref: request.ref,
     });
+    writeFileSync(join(ledger.directory(), request.ref), requestEnvelope);
+    unlinkSync(join(ledger.directory(), acknowledgment.ref));
+    expect(ledger.readOutboxEvidence(node, "s1", id)).toEqual({
+      kind: "missing",
+      ref: acknowledgment.ref,
+    });
+    writeFileSync(join(ledger.directory(), acknowledgment.ref), "not json");
+    expect(ledger.readOutboxEvidence(node, "s1", id)).toEqual({
+      kind: "corrupt",
+      ref: acknowledgment.ref,
+    });
+    writeFileSync(join(ledger.directory(), acknowledgment.ref), acknowledgmentEnvelope);
+    expect(ledger.readOutboxEvidence(node, "s1", id)).toEqual(
+      expect.objectContaining({ kind: "verified", acknowledgment: Buffer.from("acknowledged") }),
+    );
+  });
+
+  it("round-trips binary and empty bytes, and refuses mismatched or unsafe artifact references", () => {
+    directory = mkdtempSync(join(runsRoot, "outbox-"));
+    const binary = Buffer.from([0, 255, 0, 254]);
+    const retained = unwrap(retainOutboxArtifact(directory, "request", binary));
+    const empty = unwrap(retainOutboxArtifact(directory, "acknowledgment", Buffer.alloc(0)));
+    expect(unwrap(readOutboxArtifact(directory, retained))).toEqual(binary);
+    expect(unwrap(readOutboxArtifact(directory, empty))).toEqual(Buffer.alloc(0));
+    expect(readOutboxArtifact(directory, { ...retained, sha256: "a".repeat(64) })).toEqual(
+      expect.objectContaining({
+        _tag: "Err",
+        error: expect.objectContaining({ kind: "corrupt" }),
+      }),
+    );
+    expect(readOutboxArtifact(directory, { ...retained, bytes: retained.bytes + 1 })).toEqual(
+      expect.objectContaining({
+        _tag: "Err",
+        error: expect.objectContaining({ kind: "corrupt" }),
+      }),
+    );
+    expect(
+      readOutboxArtifact(directory, { ...retained, ref: "outbox/request/../../journal.jsonl" }),
+    ).toEqual(
+      expect.objectContaining({
+        _tag: "Err",
+        error: expect.objectContaining({ kind: "corrupt" }),
+      }),
+    );
+  });
+
+  it("refuses conflicting content without overwrite and classifies directory creation failure as write", () => {
+    directory = mkdtempSync(join(runsRoot, "outbox-"));
+    const raw = Buffer.from("original");
+    const retained = unwrap(retainOutboxArtifact(directory, "request", raw));
+    writeFileSync(join(directory, retained.ref), "conflicting envelope");
+    expect(retainOutboxArtifact(directory, "request", raw)).toEqual(
+      expect.objectContaining({ _tag: "Err", error: { kind: "corrupt", ref: retained.ref } }),
+    );
+    expect(readFileSync(join(directory, retained.ref), "utf-8")).toBe("conflicting envelope");
+    const blocked = join(directory, "blocked");
+    writeFileSync(blocked, "not a directory");
+    expect(retainOutboxArtifact(blocked, "request", Buffer.from("request"))).toEqual(
+      expect.objectContaining({ _tag: "Err", error: expect.objectContaining({ kind: "write" }) }),
+    );
   });
 });

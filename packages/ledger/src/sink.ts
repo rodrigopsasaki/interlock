@@ -15,17 +15,46 @@ export interface LedgerSink {
   close(): void;
 }
 
-export function createLedgerSink(directory: string): LedgerSink {
-  mkdirSync(directory, { recursive: true });
+export interface LedgerFileOperations {
+  mkdir(directory: string): void;
+  open(path: string): number;
+  write(descriptor: number, content: string): void;
+  sync(descriptor: number): void;
+  close(descriptor: number): void;
+}
+
+const nodeFileOperations: LedgerFileOperations = {
+  mkdir(directory) {
+    mkdirSync(directory, { recursive: true });
+  },
+  open(path) {
+    return openSync(path, "a");
+  },
+  write(descriptor, content) {
+    writeFileSync(descriptor, content);
+  },
+  sync(descriptor) {
+    fsyncSync(descriptor);
+  },
+  close(descriptor) {
+    closeSync(descriptor);
+  },
+};
+
+export function createLedgerSink(
+  directory: string,
+  operations: LedgerFileOperations = nodeFileOperations,
+): LedgerSink {
+  operations.mkdir(directory);
   const path = journalPath(directory);
   return {
     append(entry) {
-      const descriptor = openSync(path, "a");
+      const descriptor = operations.open(path);
       try {
-        writeFileSync(descriptor, `${JSON.stringify(envelopeFor(entry.data))}\n`);
-        fsyncSync(descriptor);
+        operations.write(descriptor, `${JSON.stringify(envelopeFor(entry.data))}\n`);
+        operations.sync(descriptor);
       } finally {
-        closeSync(descriptor);
+        operations.close(descriptor);
       }
     },
     close() {},

@@ -12,7 +12,7 @@ export function memoryLedger(): Ledger {
   return memoryLedgerWithLog().ledger;
 }
 
-export function memoryLedgerWithLog(): {
+export function memoryLedgerWithLog(directory = ""): {
   readonly ledger: Ledger;
   readonly events: readonly LedgerEvent[];
 } {
@@ -32,10 +32,10 @@ export function memoryLedgerWithLog(): {
       return projection;
     },
     readOutboxEvidence(node, session, id) {
-      return readOutboxEvidence(projection.outbox, "", node, session, id);
+      return readOutboxEvidence(projection.outbox, directory, node, session, id);
     },
     directory() {
-      return "";
+      return directory;
     },
     close() {
       return Promise.resolve();

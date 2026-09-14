@@ -103,7 +103,7 @@ export {
 } from "./replay.ts";
 export type { Session } from "./session.ts";
 export { isSession } from "./session.ts";
-export type { LedgerSink } from "./sink.ts";
+export type { LedgerFileOperations, LedgerSink } from "./sink.ts";
 export { attachLedgerSink, createLedgerSink, JOURNAL_FILE_NAME, journalPath } from "./sink.ts";
 export type { Spend } from "./spend.ts";
 export { isSpend, spend } from "./spend.ts";

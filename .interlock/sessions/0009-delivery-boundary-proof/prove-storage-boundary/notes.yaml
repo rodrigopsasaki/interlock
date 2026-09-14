@@ -1,0 +1,51 @@
+interlock: notes@v0
+node: prove-storage-boundary
+entries:
+  - kind: surprise
+    at: "2026-09-14T23:06:56Z"
+    expected: The generated session directory would already contain its notes artifact.
+    observed: notes.yaml was absent; the generated brief was the only session artifact.
+  - kind: choice
+    at: "2026-09-14T23:06:56Z"
+    chose: Map S1 to ledger sink and replay proof, S2 to outbox durability proof, and S3 to outbox durability plus replay compatibility proof before changing production code.
+    because: The acceptance assigns storage proof to named existing tests and requires discriminating production-boundary assertions rather than a replacement delivery path.
+  - kind: choice
+    at: "2026-09-14T23:06:56Z"
+    chose: Use the repository's mise-managed Node runtime for every available command.
+    because: mise exec -- node --version returned the required v24.14.0, while the brief identifies the ambient Node 26 runtime as unsuitable for schema generation and checks.
+  - kind: choice
+    at: "2026-09-14T23:07:46Z"
+    chose: Add a narrow file-operations adapter to createLedgerSink and move artifact-directory creation inside retainOutboxArtifact's refusal boundary.
+    because: S1 requires independently injected production write and fsync failures, and S2 requires directory-creation failure to be a typed write refusal instead of an uncaught exception.
+  - kind: surprise
+    at: "2026-09-14T23:09:16Z"
+    expected: The initial acceptance map covered the runner storage gate and all verified lookup failure states sufficiently.
+    observed: Root review requires a dedicated absorbStorageBoundary test through judgeGates for both write and fsync failures, plus separate request and acknowledgment missing and corrupt lookup assertions.
+  - kind: choice
+    at: "2026-09-14T23:09:16Z"
+    chose: Finish session artifacts before pinned-runtime schema generation, then regenerate and check the final committed tree.
+    because: The reference corpus selects the smallest .interlock artifact per shape, so the final notes and debrief must participate in the generated reference before freshness is checked.
+  - kind: surprise
+    at: "2026-09-14T23:09:16Z"
+    expected: Vitest's outer partial matcher would permit the typed corrupt refusal's reference field.
+    observed: The nested error object was compared exactly, so the focused ledger proof failed while all other storage cases passed.
+  - kind: surprise
+    at: "2026-09-14T23:11:19Z"
+    expected: judgeGates would return normally after absorbThroughOutbox refused the unconfirmed intent.
+    observed: It reaches the later outcome append against the deliberately poisoned ledger and throws the same persistence refusal, after the dispatch boundary has already remained untouched.
+  - kind: surprise
+    at: "2026-09-14T23:12:14Z"
+    expected: The inherited gateJudge fake clients would pass under the prepared absorb contract.
+    observed: Seven assertions still supplied only direct absorb behavior, so preparation refusal bypassed their evidence or narration paths exactly as the graph described.
+  - kind: choice
+    at: "2026-09-14T23:12:14Z"
+    chose: Adapt each fake at its existing assertion to prepare and dispatch behavior, using no-dispatch preparation for empty or refused outcomes and a fixture-backed ledger directory for acknowledged outcomes.
+    because: This preserves the asserted evidence and narration while exercising the production outbox path without restoring a direct-send fallback.
+  - kind: surprise
+    at: "2026-09-14T23:13:19Z"
+    expected: The added focused proofs would already match the repository formatter.
+    observed: Lint found formatting-only changes in the new and amended tests; no semantic failure was reported.
+  - kind: surprise
+    at: "2026-09-14T23:13:46Z"
+    expected: The implementation checkpoint could use the repository's configured signed commit.
+    observed: The sandbox could not create GPG keybox files outside the worktree, so the signed commit failed before an object was written.
