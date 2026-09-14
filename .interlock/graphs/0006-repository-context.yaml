@@ -1,0 +1,93 @@
+interlock: graph@v0
+id: 0006-repository-context
+ask: Give context and returned evidence the same explicit repository identity without breaking an older substrate.
+derivation:
+  kind: model
+  model: gpt-6-astra
+  prompt: six-graphs-2026-09-14-slot-3
+authorization:
+  granted_by: Rodrigo Sasaki
+  mandate: six-graphs-2026-09-14
+  slot: 3
+  limit: 6
+  source: Root conversation delegation; interlock-notes/six-graph-mandate-2026-09-14.md.
+read: >
+  M4 repository-on-the-wire from Fable's plan. Existing substrate@v1 routes,
+  additive schema evolution under design 0003 D26, receiver-first opt-in.
+  No new versioned endpoint family, automatic capability inference, live
+  service, credential access, publish, push, merge, deployment or gate waiver.
+  Substrate stays none for this implementation session. Root approves exact
+  content under the six-graph delegation; workers cannot. One implementation
+  worker and normal harness gates. The previous output-retention graph remains
+  historical; include its identified test correction here without resetting it.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: send-repository-context
+    depends_on: []
+    acceptance: |
+      Add an optional repository object to the existing context.request and
+      absorb.request substrate@v1 schemas and typed client construction:
+      {owner, name, origin_url}, all three nonempty strings when present, no
+      unknown object properties. Owner/name identify an unambiguous repository;
+      origin_url is credential-free provenance, never authorization. Reuse a
+      shared schema part if useful; preserve all prior bodies and schema IDs.
+      Both verbs on one client carry the same bound object. Do not extend public
+      capabilities, silently retry requests, invent negotiation or fall back
+      to an unscoped absorb after refusal. A refused enabled request is one
+      honest refusal through the existing readable-error seam.
+
+      Add substrate.send_repository to local@v0 as an optional boolean, omitted
+      or false by default. Strictly refuse a non-boolean value. Document the
+      receiver-first prerequisite in the local example and design 0003 D27.
+      False/absent emits unchanged legacy wire bodies even when origin exists.
+      None-address mode neither resolves origin nor errors because it lacks one.
+      Do not alter user configuration or require a repository selector globally.
+
+      Resolve origin once at the CLI/application adapter boundary, using argv
+      Git invocation rooted at repoRoot. Bind the result for run, plan and judge;
+      the generic substrate HTTP module must not execute Git. Support ordinary
+      HTTPS, SSH URL and scp-style remotes on arbitrary hosts, not one vendor.
+      The first slice supports unambiguous owner/name paths, optional .git suffix.
+      Enabled absent, malformed or ambiguous origin refuses before any HTTP
+      request rather than inventing identity. Sanitize transport-only SSH user
+      identity; do not mistake git@host for a secret. Refuse credential-bearing
+      HTTPS URLs, passwords, query strings or fragments with a generic explanation
+      that never prints the original URL or secret. No shell interpolation.
+
+      Prove default/off exact bodies and enabled identical selectors on both
+      context and absorb with local fake HTTP; no live service or inference.
+      Include old strict-receiver refusal without retry/fallback, config default,
+      true and wrong type, origin variants and failures, none bypass, all three
+      CLI construction paths, and schema valid/invalid/legacy corpus coverage.
+      Update generated docs/shapes.md through the existing generator. Tests
+      must discriminate incorrectly omitting or inventing the selector, not
+      merely inspect an unused helper. Preserve the refusal/history behavior.
+
+      Correct the prior gate-output test's OS-chunk timing assumption. Preserve
+      real-command raw byte retention coverage, but make the legacy per-chunk
+      decoding assertion deterministic through a small controlled seam or an
+      honest chunk-independent integration assertion plus deterministic unit
+      proof. Do not change legacy outputHash semantics to fit the test, add
+      arbitrary sleeps or weaken raw-byte/hash coverage. No logging redesign.
+
+      Allowed surfaces: schemas/substrate request files and needed shared part,
+      schemas/local@v0.json; substrate client/types/address and tests; runner
+      localConfig and tests; CLI repository-origin adapter, run/plan/judge and
+      focused tests; schema registry/corpus/reference plumbing as needed;
+      .interlock/local.example.yaml; docs/design/0003-substrate.md D27 and
+      docs/shapes.md; gateJudge test and smallest deterministic output-capture
+      seam if required; new session notes/debrief. Standing gates, other graphs,
+      prior artifacts, README, runtime integrations and unrelated code read-only.
+      No casts or non-null assertions; no source comments under packages/*/src.
+      Keep factual notes and why-commits; debrief distinguishes implementation
+      assertions from harness proof and names actual provenance.
+    gates:
+      - id: repository-wire-proof
+        kind: command
+        run: pnpm --filter substrate --fail-if-no-match test
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: shape-reference-fresh
+        kind: command
+        run: pnpm interlock schema reference --check
