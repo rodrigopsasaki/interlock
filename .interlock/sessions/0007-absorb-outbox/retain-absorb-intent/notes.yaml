@@ -21,3 +21,11 @@ entries:
     at: "2026-09-14T22:00:00Z"
     chose: Remove direct dispatch compatibility, derive incomplete intent as uncertain on replay, preserve a v4-specific guard, and envelope raw artifacts independently.
     because: Each change makes the retained record, rather than an in-memory path or broad reader, the source of honest delivery status.
+  - kind: surprise
+    at: "2026-09-14T21:57:20Z"
+    expected: The full workspace test gate would reach the newly focused runner proof after the local package checks passed.
+    observed: It reproduced the two prior substrate capability-test five-second timeouts in the sandbox after ledger, face, debrief, and verifier completed, consistent with local-listener EPERM rather than an outbox failure.
+  - kind: surprise
+    at: "2026-09-14T21:58:00Z"
+    expected: The schema reference would remain fresh after the first regeneration.
+    observed: The final gate sequence reported it stale, so the generated artifact must be regenerated again before final validation.

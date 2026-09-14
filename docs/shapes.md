@@ -793,107 +793,98 @@ open:
 
 #### `debrief@v2`
 
-Source: `.interlock/sessions/readme-interlock-concept/readme/debrief.yaml`
+Source: `.interlock/sessions/0007-absorb-outbox/retain-absorb-intent/debrief.yaml`
 
 ```yaml
 interlock: debrief@v2
-graph: readme-interlock-concept
-node: readme
+graph: 0007-absorb-outbox
+node: retain-absorb-intent
 role: worker
-graph_base_sha: 478871f0c58ede1ef8e34f07de8600ef69909d08
-session_start_sha: 478871f0c58ede1ef8e34f07de8600ef69909d08
-head_sha: c9c3f141e21e70e65f7917f1709d6f825203ac21
+graph_base_sha: 8cb66f4fc1574016fe0beefaeebf7c20e6a49b1b
+session_start_sha: 8cb66f4fc1574016fe0beefaeebf7c20e6a49b1b
+head_sha: e905f407ffd2d0a67c26d3f3ea6094574f5bc84b
 derivation:
   kind: agent
   runtime: codex
-  model: unknown
+  model: gpt-5.6-terra
 discoveries:
   - id: d1
-    what: The examples caption collided with its artifact in the desktop dependency drawing.
-    found_at: docs/brand/interlock-critical-path.svg at the continuation base.
-    mattered_because: The caption needed its own vertical space, not merely a palette adjustment.
+    what: Phyxius Journal 0.2.1 catches subscriber exceptions after append, so a subscriber sink cannot by itself prove disk persistence.
+    found_at: node_modules/.pnpm/@phyxiusjs+journal@0.2.1_@types+node@24.13.3/node_modules/@phyxiusjs/journal/dist/index.js:118-142
+    mattered_because: An outward request must not be dispatched from a projection that advanced after an unreported write or sync failure.
   - id: d2
-    what: The prior presentation branch had merged before this follow-up began.
-    found_at: https://github.com/rodrigopsasaki/interlock/pull/35
-    mattered_because: A new branch preserves the newer README prose and keeps review separate.
-  - id: d3
-    what: The approved graph still declares the previously recorded malformed inline asset command.
-    found_at: .interlock/graphs/readme-interlock-concept.yaml
-    mattered_because: The standalone check can pass without the declared gate being runnable; changing the plan requires renewed approval.
+    what: The sandbox reproduces the preceding graph's two substrate capability-test timeouts because local listener setup is unavailable.
+    found_at: pnpm test
+    mattered_because: The broad test receipt is not a proof against the focused outbox path, which completed independently without changing timeouts.
 decisions:
   - id: c1
-    what: Select matching light and dark artwork using picture sources, with narrow-screen variants.
-    because: Preserve the chosen paper identity while avoiding bright panels in a dark README.
+    what: Ledger persistence is confirmed against the fsynced Phyxius entry before the projection applies it, and failure poisons later confirmed appends.
+    because: A swallowed subscriber error cannot establish durable intent or support a trusted delivery decision.
     rests_on:
-      - README.md
-      - docs/brand/interlock-concept.svg
-      - docs/brand/interlock-concept-mobile.svg
+      - docs/design/0001-interlock.md
+      - node_modules/.pnpm/@phyxiusjs+journal@0.2.1_@types+node@24.13.3/node_modules/@phyxiusjs/journal/dist/index.js
     hunks:
-      - README.md:2-6
-      - README.md:18-19
-      - README.md:103-108
-      - docs/brand/interlock-concept-dark.svg:1-27
-      - docs/brand/interlock-concept-mobile-dark.svg:1-23
-      - docs/brand/README.md:17-18
-      - docs/brand/README.md:25-47
-    produces:
-      - docs/brand/interlock-wordmark-dark.png
+      - packages/ledger/src/ledger.ts
+      - packages/ledger/src/sink.ts
+      - packages/ledger/test/replay.test.ts
   - id: c2
-    what: Move the independent-work caption below the artifact and arrange the phone diagram vertically.
-    because: Separate labels from symbols and keep them readable at narrow widths.
+    what: The runner prepares, persists, and reads a typed immutable absorb intent before dispatch, with stable identity excluding receipt-duration timing noise; duplicate, changed, and incomplete records refuse or remain uncertain without sending.
+    because: I7 requires retained intent before an outward effect and preserves doubt rather than retrying or inventing delivery success.
     rests_on:
-      - docs/brand/interlock-critical-path.svg
+      - .interlock/graphs/0007-absorb-outbox.yaml
+      - packages/runner/src/gateJudge.ts
+      - packages/substrate/src/httpClient.ts
     hunks:
-      - docs/brand/interlock-critical-path.svg:39-49
-      - docs/brand/interlock-critical-path-dark.svg:1-51
-      - docs/brand/interlock-critical-path-mobile.svg:1-52
-      - docs/brand/interlock-critical-path-mobile-dark.svg:1-52
+      - packages/runner/src/gateJudge.ts
+      - packages/substrate/src/client.ts
+      - packages/substrate/src/httpClient.ts
+      - packages/substrate/src/noneClient.ts
+      - packages/substrate/src/refusalClient.ts
+      - packages/runner/test/absorbOutbox.test.ts
   - id: c3
-    what: Check source selection, SVG pair equivalence, and diagram text contrast.
-    because: Theme and layout fixes must remain synchronized; a visually correct single variant is insufficient.
+    what: Request and acknowledgment artifacts are immutable versioned envelopes with exact bytes, hashes, byte counts, and safe journal-relative refs; v5 adds typed events while v1-v4 retain distinct readers.
+    because: The next graph needs retrievable evidence, while old journal lines must not be reinterpreted as new delivery facts.
     rests_on:
-      - scripts/check-readme.ts
+      - docs/design/0001-interlock.md
+      - schemas/event@v5.json
     hunks:
-      - scripts/check-readme.ts:73-149
-  - id: c4
-    what: Keep the approved graph and original brief unchanged; retain the verification limitation in the review.
-    because: Neither a passing manual check nor this debrief authorizes silently changing a declared gate.
-    rests_on:
-      - .interlock/graphs/readme-interlock-concept.yaml
-      - .interlock/sessions/readme-interlock-concept/readme/brief.md
-    hunks:
-      - .interlock/sessions/readme-interlock-concept/readme/notes.yaml:41-70
+      - packages/ledger/src/outbox.ts
+      - packages/ledger/src/event.ts
+      - packages/ledger/src/envelope.ts
+      - packages/ledger/src/upcast/v2.ts
+      - packages/ledger/src/upcast/v3.ts
+      - schemas/event@v5.json
+      - schemas/parts/outbox-artifact.json
+      - schemas/parts/outbox-intent.json
+      - docs/shapes.md
+      - docs/design/0001-interlock.md
 gates_run_by_agent:
-  - id: readme-assets-standalone
-    result: pass
-    invocation: mise exec -- node scripts/check-readme.ts
-    note: This is not the malformed invocation declared in the approved graph.
   - id: typecheck
     result: pass
-    invocation: mise exec -- pnpm typecheck
-    note: Complete workspace check; agent observation, not a runner receipt.
-  - id: test
-    result: pass
-    invocation: mise exec -- pnpm test
-    note: Complete workspace suite; agent observation, not a runner receipt.
+    invocation: pnpm typecheck
+    note: All eight workspace packages completed TypeScript checking.
   - id: lint
     result: pass
-    invocation: mise exec -- pnpm lint
-    note: Passed after formatting the modified README checker.
+    invocation: pnpm lint
+    note: Biome checked 313 files without diagnostics.
   - id: comments
     result: pass
-    invocation: mise exec -- pnpm check:comments
-    note: No comment-policy violation reported.
-  - id: whitespace
+    invocation: pnpm check:comments
+    note: packages/*/src reported no comments.
+  - id: outbox-proof
     result: pass
-    invocation: git diff --check
-    note: Checked the presentation changes before committing them.
+    invocation: pnpm --filter runner --fail-if-no-match exec vitest run test/absorbOutbox.test.ts
+    note: The one focused runner proof confirmed persisted intent and exact bytes before adapter dispatch, then retained acknowledgment evidence.
+  - id: shape-reference-fresh
+    result: pass
+    invocation: pnpm interlock schema reference --check
+    note: The generated schema reference was fresh after regeneration.
+  - id: test
+    result: fail
+    invocation: pnpm test
+    note: The workspace reproduced the two prior five-second substrate capability-test timeouts after the unaffected packages completed.
 open:
-  - This is a directly authored continuation, not a runner-launched session. The SHA boundary covers only this follow-up, not the earlier merged presentation work.
-  - The wordmark is a generated palette edit of the selected raster. Visual correspondence was inspected, not proved pixel-identical; it has no textual hunk.
-  - Local light and dark artwork was inspected at desktop and phone widths. The published desktop dark README was inspected; phone verification is recorded separately when complete.
-  - Draft PR 62 publishes the implementation. Nothing has been merged, and no gate has been waived.
-  - The declared readme-assets command remains malformed. The independently passing standalone check must not be presented as a satisfied declared gate.
+  - The full workspace test gate remains limited by the sandbox local-listener boundary recorded in d2; the harness should retain its own receipt rather than treating this worker result as a final node outcome.
 ```
 
 ## event
@@ -1149,32 +1140,44 @@ No vocabulary entry for `notes`.
 
 #### `notes@v0`
 
-Source: `.interlock/sessions/0007-absorb-outbox/retain-absorb-intent/notes.yaml`
+Source: `.interlock/sessions/0005-gate-output-way-back/retain-gate-evidence/notes.yaml`
 
 ```yaml
 interlock: notes@v0
-node: retain-absorb-intent
+node: retain-gate-evidence
 entries:
   - kind: choice
-    at: "2026-09-14T00:00:00Z"
-    chose: Trace the existing runner absorb path and journal persistence boundary before adding the smallest typed outbox seam.
-    because: The brief binds the change to the existing Phyxius journal and substrate adapter, so the implementation must preserve their prior behavior while making durable intent observable.
+    at: "2026-09-14T15:00:00Z"
+    chose: Reused the runner journal-root seam and added retained stream references additively to receipt proof.
+    because: The graph requires artifacts to survive a node worktree and old receipts to remain readable without an event migration.
   - kind: surprise
-    at: "2026-09-14T21:43:18Z"
-    expected: Calling the installed Journal append method after registering the file sink would make a sink failure observable to the caller.
-    observed: Journal 0.2.1 catches every subscriber exception, so the prior projection subscriber could advance and append could return despite a failed file write.
-  - kind: choice
-    at: "2026-09-14T21:43:18Z"
-    chose: Register the fsyncing sink before projection and make appendConfirmed check the exact Phyxius entry identifier it persisted.
-    because: Subscriber order lets projection advance only after the durable sink confirms that entry, while the explicit result preserves failure information Journal otherwise swallows.
+    at: "2026-09-14T15:05:00Z"
+    expected: A reusable runner seam would identify the shared journal location.
+    observed: sharedJournalDirectory resolves Git's common directory, including from linked worktrees, and is already used by runner session code and CLI journal readers.
   - kind: surprise
-    at: "2026-09-14T22:00:00Z"
-    expected: The initial outbox seam's compatibility fallback and typed references were sufficiently fail-closed.
-    observed: Root review identified that direct fallback, live-only incomplete-intent handling, broad old-version reading, and reference-only artifact metadata could each conceal an outward-effect failure mode.
+    at: "2026-09-14T15:10:00Z"
+    expected: An empty-stream command would produce empty retained stderr.
+    observed: The test process's shared mise state emitted a permission warning on stderr before the gate command ran, proving capture includes runner-launched stream output.
   - kind: choice
-    at: "2026-09-14T22:00:00Z"
-    chose: Remove direct dispatch compatibility, derive incomplete intent as uncertain on replay, preserve a v4-specific guard, and envelope raw artifacts independently.
-    because: Each change makes the retained record, rather than an in-memory path or broad reader, the source of honest delivery status.
+    at: "2026-09-14T15:20:00Z"
+    chose: Stored each stream through a temporary file and exclusive hard link, then verified an existing same-hash artifact byte-for-byte.
+    because: A completed artifact becomes visible atomically, concurrent writers reuse identical bytes, and a conflicting existing blob is an honest storage refusal.
+  - kind: choice
+    at: "2026-09-14T15:30:00Z"
+    chose: Read gate output through a proof parser that distinguishes absent legacy evidence from invalid, missing, or corrupt retained artifacts.
+    because: Older receipts cannot gain output after the fact, while a receipt that promises evidence must not treat a failed read as empty success.
+  - kind: surprise
+    at: "2026-09-14T15:40:00Z"
+    expected: The manually patched files would already match the formatter.
+    observed: Lint reported two formatting-only diffs and no semantic diagnostics.
+  - kind: surprise
+    at: "2026-09-14T15:50:00Z"
+    expected: The standing test command would complete after typecheck, lint, and comments passed.
+    observed: Two unchanged substrate capability tests exceeded their five-second timeout; runner output tests had already passed.
+  - kind: surprise
+    at: "2026-09-14T16:00:00Z"
+    expected: The new session notes shape would be accepted by debrief validation.
+    observed: The repository reader accepts notes@v0 with node and choice or surprise entries, so the initial notes@v1 artifact was converted without dropping its record.
 ```
 
 ## position

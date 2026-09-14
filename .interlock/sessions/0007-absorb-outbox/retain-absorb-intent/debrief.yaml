@@ -1,0 +1,93 @@
+interlock: debrief@v2
+graph: 0007-absorb-outbox
+node: retain-absorb-intent
+role: worker
+graph_base_sha: 8cb66f4fc1574016fe0beefaeebf7c20e6a49b1b
+session_start_sha: 8cb66f4fc1574016fe0beefaeebf7c20e6a49b1b
+head_sha: e905f407ffd2d0a67c26d3f3ea6094574f5bc84b
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries:
+  - id: d1
+    what: Phyxius Journal 0.2.1 catches subscriber exceptions after append, so a subscriber sink cannot by itself prove disk persistence.
+    found_at: node_modules/.pnpm/@phyxiusjs+journal@0.2.1_@types+node@24.13.3/node_modules/@phyxiusjs/journal/dist/index.js:118-142
+    mattered_because: An outward request must not be dispatched from a projection that advanced after an unreported write or sync failure.
+  - id: d2
+    what: The sandbox reproduces the preceding graph's two substrate capability-test timeouts because local listener setup is unavailable.
+    found_at: pnpm test
+    mattered_because: The broad test receipt is not a proof against the focused outbox path, which completed independently without changing timeouts.
+decisions:
+  - id: c1
+    what: Ledger persistence is confirmed against the fsynced Phyxius entry before the projection applies it, and failure poisons later confirmed appends.
+    because: A swallowed subscriber error cannot establish durable intent or support a trusted delivery decision.
+    rests_on:
+      - docs/design/0001-interlock.md
+      - node_modules/.pnpm/@phyxiusjs+journal@0.2.1_@types+node@24.13.3/node_modules/@phyxiusjs/journal/dist/index.js
+    hunks:
+      - packages/ledger/src/ledger.ts
+      - packages/ledger/src/sink.ts
+      - packages/ledger/test/replay.test.ts
+  - id: c2
+    what: The runner prepares, persists, and reads a typed immutable absorb intent before dispatch, with stable identity excluding receipt-duration timing noise; duplicate, changed, and incomplete records refuse or remain uncertain without sending.
+    because: I7 requires retained intent before an outward effect and preserves doubt rather than retrying or inventing delivery success.
+    rests_on:
+      - .interlock/graphs/0007-absorb-outbox.yaml
+      - packages/runner/src/gateJudge.ts
+      - packages/substrate/src/httpClient.ts
+    hunks:
+      - packages/runner/src/gateJudge.ts
+      - packages/substrate/src/client.ts
+      - packages/substrate/src/httpClient.ts
+      - packages/substrate/src/noneClient.ts
+      - packages/substrate/src/refusalClient.ts
+      - packages/runner/test/absorbOutbox.test.ts
+  - id: c3
+    what: Request and acknowledgment artifacts are immutable versioned envelopes with exact bytes, hashes, byte counts, and safe journal-relative refs; v5 adds typed events while v1-v4 retain distinct readers.
+    because: The next graph needs retrievable evidence, while old journal lines must not be reinterpreted as new delivery facts.
+    rests_on:
+      - docs/design/0001-interlock.md
+      - schemas/event@v5.json
+    hunks:
+      - packages/ledger/src/outbox.ts
+      - packages/ledger/src/event.ts
+      - packages/ledger/src/envelope.ts
+      - packages/ledger/src/upcast/v2.ts
+      - packages/ledger/src/upcast/v3.ts
+      - schemas/event@v5.json
+      - schemas/parts/outbox-artifact.json
+      - schemas/parts/outbox-intent.json
+      - docs/shapes.md
+      - docs/design/0001-interlock.md
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: All eight workspace packages completed TypeScript checking.
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: Biome checked 313 files without diagnostics.
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+    note: packages/*/src reported no comments.
+  - id: outbox-proof
+    result: pass
+    invocation: pnpm --filter runner --fail-if-no-match exec vitest run test/absorbOutbox.test.ts
+    note: The one focused runner proof confirmed persisted intent and exact bytes before adapter dispatch, then retained acknowledgment evidence.
+  - id: shape-reference-fresh
+    result: pass
+    invocation: pnpm interlock schema reference --check
+    note: The generated schema reference was fresh after regeneration.
+  - id: debrief-valid
+    result: pass
+    invocation: pnpm interlock debrief validate 0007-absorb-outbox retain-absorb-intent
+    note: The final session artifacts validate as supported shapes.
+  - id: test
+    result: fail
+    invocation: pnpm test
+    note: The workspace reproduced the two prior five-second substrate capability-test timeouts after the unaffected packages completed.
+open:
+  - The full workspace test gate remains limited by the sandbox local-listener boundary recorded in d2; the harness should retain its own receipt rather than treating this worker result as a final node outcome.
