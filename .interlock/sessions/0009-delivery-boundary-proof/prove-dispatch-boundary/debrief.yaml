@@ -1,0 +1,78 @@
+interlock: debrief@v2
+graph: 0009-delivery-boundary-proof
+node: prove-dispatch-boundary
+role: worker
+graph_base_sha: 9207cfd3821a4859ea796067d888c4ece0c45f91
+session_start_sha: c717d6faacbb758800cff1501ee9e81c704e702d
+head_sha: bf01bc092c25af811672eba0958089997e1d5dc1
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries: []
+decisions:
+  - id: d1
+    what: Existing delivery identities now make an acknowledgment claim only after readOutboxEvidence verifies the request, delivery record, and retained acknowledgment; response artifact and delivery persistence failures remain uncertain until reopen evidence proves otherwise.
+    because: D1 requires observed responses to remain doubt on the live read and permits recovery acknowledgment only from surviving retained evidence, never a projection label or resend.
+    rests_on:
+      - .interlock/graphs/0009-delivery-boundary-proof.yaml
+      - packages/ledger/src/outbox.ts
+    hunks:
+      - packages/runner/src/gateJudge.ts
+      - packages/runner/test/absorbOutbox.failure.test.ts
+  - id: d2
+    what: Intent-only and uncertain recovered identities suppress another dispatch after real ledger reopen, while a complete delivery record that survived fsync failure is separately verified before its acknowledgment narration.
+    because: D2 requires recovery to preserve doubt without another judgment and never redispatch either uncertain or acknowledged logical identities.
+    rests_on:
+      - .interlock/graphs/0009-delivery-boundary-proof.yaml
+      - packages/ledger/src/ledger.ts
+    hunks:
+      - packages/runner/test/absorbOutbox.failure.test.ts
+  - id: d3
+    what: Two production-created receipts differing only in measured duration produce distinct HTTP-prepared requests; the runner refuses the changed retained request for the same identity and permits a distinct session identity.
+    because: D3 requires a stable identity to defend its exact retained request while a new session gets a new effect identity.
+    rests_on:
+      - .interlock/graphs/0009-delivery-boundary-proof.yaml
+      - packages/substrate/src/httpClient.ts
+    hunks:
+      - packages/runner/test/absorbOutbox.failure.test.ts
+  - id: d4
+    what: The actual HTTP adapter records received non-2xx, malformed JSON, schema-invalid response, and transport failure as uncertainty, while its useful refusal detail redacts the bearer token.
+    because: D4 requires failure detail without converting any unconfirmed response into acknowledgment or exposing credentials.
+    rests_on:
+      - .interlock/graphs/0009-delivery-boundary-proof.yaml
+      - packages/substrate/src/httpClient.ts
+      - packages/substrate/src/responseDetail.ts
+    hunks:
+      - packages/runner/test/absorbOutbox.failure.test.ts
+  - id: d5
+    what: None and credential, query, and fragment unsafe targets stop during preparation with neither an outbox intent nor an adapter call.
+    because: D5 requires target validation before any durable effect or network dispatch.
+    rests_on:
+      - .interlock/graphs/0009-delivery-boundary-proof.yaml
+      - packages/substrate/src/httpClient.ts
+    hunks:
+      - packages/runner/test/absorbOutbox.failure.test.ts
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: All workspace packages passed TypeScript checking under Node 24.14.0.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Biome checked 316 files without diagnostics.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+    note: packages/*/src reported no comments.
+  - id: dispatch-boundary-proof
+    result: pass
+    invocation: mise exec -- pnpm --filter runner --fail-if-no-match exec vitest run test/absorbOutbox.test.ts test/absorbOutbox.failure.test.ts test/absorbStorageBoundary.test.ts --reporter=verbose
+    note: Nineteen runner tests passed, including D1-D5 real-ledger recovery, verified evidence, actual HTTP adapter, and unsafe-target cases.
+  - id: shape-reference-fresh
+    result: pass
+    invocation: mise exec -- pnpm interlock schema reference --check
+    note: The regenerated reference is fresh under Node 24.14.0 with the final dispatch artifacts.
+open:
+  - The readable-absorb-proof and full workspace test gates were not run locally because the brief states this sandbox denies localhost listeners; the harness must produce those receipts independently.

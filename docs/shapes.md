@@ -144,22 +144,19 @@ open:
 
 #### `brief@v1`
 
-Source: `.interlock/sessions/0009-delivery-boundary-proof/prove-dispatch-boundary/brief.md`
+Source: `.interlock/sessions/0008-learning-witness/source-a/brief.md`
 
 ```yaml
 interlock: brief@v1
-graph: 0009-delivery-boundary-proof
-node: prove-dispatch-boundary
+graph: 0008-learning-witness
+node: source-a
 role: worker
 gates: []
 scope:
-  - packages/runner/src/gateJudge.ts
-  - packages/runner/test/absorbOutbox.test.ts
-  - packages/runner/test/absorbOutbox.failure.test.ts
-  - packages/ledger/src/outbox.ts
-  - packages/ledger/src/sink.ts
-  - packages/substrate/src/httpClient.ts
-  - packages/substrate/test/absorb.test.ts
+  - packages/substrate/src/evidence.ts
+  - packages/substrate/src/derivationString.ts
+  - packages/verifier/src/verify.ts
+  - packages/substrate/test/evidence.test.ts
 substrate:
   address: none
 ```

@@ -1,6 +1,10 @@
 interlock: notes@v0
 node: prove-dispatch-boundary
 entries:
+  - kind: surprise
+    at: "2026-09-14T23:53:47Z"
+    expected: The schema reference would retain the prior representative artifacts after the dispatch debrief was filed.
+    observed: The corpus selected this dispatch debrief and an earlier brief as its representatives, so docs/shapes.md required regeneration; its vocabulary check also reports the existing unmatched artifact terms config, event, item, local, and notes.
   - kind: choice
     at: "2026-09-14T23:51:58Z"
     chose: Use two production-created receipts with the same gate, scope, derivation, and proof but measured durations of 10ms and 20ms, then inspect their real HTTP-prepared request bodies before using those bodies to exercise the existing-ID conflict.
