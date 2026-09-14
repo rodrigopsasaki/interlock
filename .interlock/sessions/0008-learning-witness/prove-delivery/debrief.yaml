@@ -1,0 +1,80 @@
+interlock: debrief@v2
+graph: 0008-learning-witness
+node: prove-delivery
+role: worker
+graph_base_sha: 3bb8387809f28706715c41d1578b0aad8e6c6d92
+session_start_sha: 42529b916c6e90e85f9a628516b858ebb8523f23
+head_sha: 9e689344df4575f054705eae10dcd4df3cc1c7a6
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries:
+  - id: d1
+    what: The prepared environment runs Node 26.0.0 although the repository pins Node 24.14.0.
+    found_at: pnpm typecheck
+    mattered_because: Focused deterministic receipts pass under the prepared environment, but the runtime mismatch limits them to worker evidence rather than a substitute for the harness receipt.
+decisions:
+  - id: c1
+    what: An acknowledged outbox delivery now requires a retained acknowledgment artifact in its TypeScript union, runtime guard, and event@v5 schema; artifact IDs and byte counts use the same SHA-256 and nonnegative-safe-integer constraints at runtime as in the schema.
+    because: I7 permits neither acknowledged delivery without retained evidence nor malformed evidence metadata that a reader could mistake for proof.
+    rests_on:
+      - .interlock/graphs/0008-learning-witness.yaml
+      - docs/design/0001-interlock.md
+    hunks:
+      - packages/ledger/src/outbox.ts
+      - packages/runner/src/gateJudge.ts
+      - schemas/event@v5.json
+      - docs/shapes.md
+  - id: c2
+    what: Outbox lookup is exposed through Ledger by node, session, and effect identity, returning verified request and acknowledgment bytes or explicit absent, missing, or corrupt evidence; HTTP non-2xx absorb responses reuse the bounded redacted response-detail helper.
+    because: A stored reference is not usable proof until its envelope, byte count, and hash verify, while useful refusal detail must survive without exposing credentials.
+    rests_on:
+      - .interlock/graphs/0008-learning-witness.yaml
+      - packages/substrate/src/responseDetail.ts
+    hunks:
+      - packages/ledger/src/ledger.ts
+      - packages/ledger/src/index.ts
+      - packages/ledger/src/outbox.ts
+      - packages/substrate/src/httpClient.ts
+  - id: c3
+    what: Added direct event@v4 and outbox boundary checks plus runner checks for prepared-adapter refusal and uncertain-identity redispatch suppression; regenerated the schema reference.
+    because: The previous focused proof covered only a successful dispatch and the named v3-v4 fixture contained no v4 journal lines.
+    rests_on:
+      - .interlock/graphs/0008-learning-witness.yaml
+      - packages/ledger/test/fixtures/journal-v3-v4-2026-09-11.jsonl
+    hunks:
+      - packages/ledger/test/outboxDurability.test.ts
+      - packages/ledger/test/replay.test.ts
+      - packages/runner/test/absorbOutbox.test.ts
+      - packages/runner/test/absorbOutbox.failure.test.ts
+      - packages/runner/test/support/memoryLedger.ts
+      - .interlock/sessions/0008-learning-witness/prove-delivery/notes.yaml
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: All eight workspace packages completed TypeScript checking.
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: Biome checked 315 files without diagnostics.
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+    note: packages/*/src reported no comments.
+  - id: delivery-failure-proof
+    result: pass
+    invocation: pnpm --filter runner --fail-if-no-match exec vitest run test/absorbOutbox.test.ts test/absorbOutbox.failure.test.ts --reporter=verbose
+    note: Three focused runner tests passed, covering retained request before dispatch, uncertain delivery suppression, and missing prepared-adapter refusal.
+  - id: durable-storage-proof
+    result: pass
+    invocation: pnpm --filter ledger --fail-if-no-match exec vitest run test/outboxDurability.test.ts test/replay.test.ts --reporter=verbose
+    note: Twenty-two ledger tests passed, covering guards, verified lookup classifications, replay, direct v4 parsing, and v4 refusal of a v5-only event.
+  - id: shape-reference-fresh
+    result: pass
+    invocation: pnpm interlock schema reference --check
+    note: The regenerated schema reference was fresh.
+open:
+  - The complete acceptance is not met. The added tests map request-before-dispatch and acknowledged artifact retention to absorbOutbox.test.ts; guard, lookup, corruption, and v4 compatibility to outboxDurability.test.ts and replay.test.ts; and missing preparation plus uncertain redispatch suppression to absorbOutbox.failure.test.ts. The required real sink write/fsync pre-dispatch proof, response-observed acknowledgment-artifact and delivery-append failure proofs, restart with intent-only proof, acknowledged identity suppression, changed-request conflict proof, malformed/schema-invalid response proof, none and unsafe target proof, and full request/ack ref matrix remain absent.
+  - readable-absorb-proof and the full workspace test gate were not run locally because this worker sandbox blocks local listeners as the brief states. The harness must execute those gates under its own receipt; this worker did not retry the known blocked listener path.
