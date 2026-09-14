@@ -124,7 +124,12 @@ scope:
   - .interlock/sessions/0008-learning-witness/prove-delivery/notes.yaml
   - .interlock/sessions/0008-learning-witness/source-a/brief.md
   - .interlock/sessions/0009-delivery-boundary-proof/prove-dispatch-boundary/brief.md
+  - .interlock/sessions/0009-delivery-boundary-proof/prove-storage-boundary/attempts/3e0d31a5-c545-45e3-b0d6-0116e5b9d81e/brief.md
+  - .interlock/sessions/0009-delivery-boundary-proof/prove-storage-boundary/attempts/3e0d31a5-c545-45e3-b0d6-0116e5b9d81e/debrief.yaml
+  - .interlock/sessions/0009-delivery-boundary-proof/prove-storage-boundary/attempts/3e0d31a5-c545-45e3-b0d6-0116e5b9d81e/notes.yaml
   - .interlock/sessions/0009-delivery-boundary-proof/prove-storage-boundary/brief.md
+  - .interlock/sessions/0009-delivery-boundary-proof/prove-storage-boundary/debrief.yaml
+  - .interlock/sessions/0009-delivery-boundary-proof/prove-storage-boundary/notes.yaml
   - .interlock/sessions/readme-interlock-concept/readme/brief.md
   - .interlock/sessions/readme-interlock-concept/readme/debrief.yaml
   - .interlock/sessions/readme-interlock-concept/readme/notes.yaml
@@ -361,6 +366,7 @@ scope:
   - packages/runner/src/worktreeSetup.ts
   - packages/runner/test/absorbOutbox.failure.test.ts
   - packages/runner/test/absorbOutbox.test.ts
+  - packages/runner/test/absorbStorageBoundary.test.ts
   - packages/runner/test/adapterBoundary.test.ts
   - packages/runner/test/backfill.test.ts
   - packages/runner/test/briefRewrite.test.ts
@@ -547,8 +553,8 @@ scope:
   - vitest.setup.ts
 substrate:
   address: none
-graph_base_sha: 675907a3262ed30aef75dcde28d1d4a3296c8125
-session: 3e0d31a5-c545-45e3-b0d6-0116e5b9d81e
+graph_base_sha: 49f7c02c507c259dc6bcf735bf8457c18e63dfea
+session: 3f10b884-7296-4f0d-b70e-74ca9e1de121
 ---
 
 # Prove the storage half, not the whole delivery system
