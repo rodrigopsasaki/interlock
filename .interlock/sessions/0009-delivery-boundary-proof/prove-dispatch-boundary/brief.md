@@ -25,7 +25,13 @@ branch in the map. Existing three tests are a floor, not complete acceptance.
 Use real ledger reopen and actual HTTP adapter with injected fetch/transport;
 no listener is required for most tests. Count dispatches and inspect retained
 evidence, not merely returned strings. Treat an observed response followed by
-persistence failure as doubt. New retries are not your decision.
+persistence failure as doubt in the live read. Reopen may recover a complete
+acknowledgment record whose already-retained response verifies: that is evidence,
+not guessing. Test separately the missing record (uncertain) and a complete
+record surviving fsync failure (verify evidence before reporting acknowledgment).
+Neither may resend. Public delivery claims use readOutboxEvidence, not an
+unchecked projection label. No WAL redesign is called for. New retries are not
+your decision.
 
 Use `mise exec -- pnpm` (Node24.14.0). The sandbox's default Node is26 and local
 listeners are denied: leave listener/full-suite gates to the harness, no repeated

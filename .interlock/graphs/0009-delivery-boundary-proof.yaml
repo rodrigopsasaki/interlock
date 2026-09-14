@@ -75,7 +75,11 @@ nodes:
       Prove D1-D5 through production judgeGates, HTTP adapter and real ledger,
       with deterministic injected transport/fs boundaries, not a copied outbox.
       D1: response observed then acknowledgment-artifact or delivery-append
-      failure leaves uncertainty, never acknowledgment, and no resend on reopen.
+      failure leaves the live read uncertain. On reopen, intent alone remains
+      uncertain; an acknowledgment may be reported only if its surviving record
+      and retained response evidence verify. Never infer delivery from a failed
+      append or resend either recovered state. Prove both absent-record and
+      complete-record-survives-fsync-failure branches with real ledger reopen.
       D2: intent-only reopen is uncertain without another judgment; acknowledged
       and uncertain logical IDs never redispatch. D3: same ID with changed
       request bytes/receipt timing refuses, original artifact unchanged; new
