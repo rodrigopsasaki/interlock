@@ -36,7 +36,12 @@
             "allOf": [
               {
                 "if": { "properties": { "state": { "const": "acknowledged" } } },
-                "then": { "required": ["acknowledgment"] },
+                "then": {
+                  "properties": {
+                    "acknowledgment": { "$ref": "parts/outbox-artifact.json" }
+                  },
+                  "required": ["acknowledgment"]
+                },
                 "else": { "not": { "required": ["acknowledgment"] } }
               }
             ],

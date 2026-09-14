@@ -1,6 +1,14 @@
 interlock: notes@v0
 node: prove-storage-boundary
 entries:
+  - kind: choice
+    at: "2026-09-14T23:32:45Z"
+    chose: Define acknowledgment again at the event conditional that requires it, cap schema artifact bytes at the runtime safe-integer bound, and prove the recovery matrix through existing ledger and schema guard tests.
+    because: AJV strict compilation requires the conditional required property at its local schema path, while the runtime guards already reject unsafe byte counts and missing acknowledged evidence.
+  - kind: choice
+    at: "2026-09-14T23:32:06Z"
+    chose: Use the pinned Node 24.14.0 runtime for the recovery's schema and focused storage checks.
+    because: The recovery brief requires it and mise exec -- node --version confirmed the expected runtime.
   - kind: surprise
     at: "2026-09-14T23:06:56Z"
     expected: The generated session directory would already contain its notes artifact.

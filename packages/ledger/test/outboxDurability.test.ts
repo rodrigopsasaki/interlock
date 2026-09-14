@@ -40,6 +40,7 @@ describe("outbox evidence", () => {
     expect(isOutboxArtifact({ ...artifact, sha256: "a".repeat(63) })).toBe(false);
     expect(isOutboxArtifact({ ...artifact, bytes: -1 })).toBe(false);
     expect(isOutboxArtifact({ ...artifact, bytes: 1.5 })).toBe(false);
+    expect(isOutboxArtifact({ ...artifact, bytes: Number.MAX_SAFE_INTEGER + 1 })).toBe(false);
     const base = {
       id: "a".repeat(64),
       because: "retained",
@@ -91,6 +92,10 @@ describe("outbox evidence", () => {
       },
     });
     expect(ledger.readOutboxEvidence(node, "other", id)).toEqual({ kind: "absent" });
+    expect(ledger.readOutboxEvidence({ graph: "fixture", id: "other" }, "s1", id)).toEqual({
+      kind: "absent",
+    });
+    expect(ledger.readOutboxEvidence(node, "s1", "c".repeat(64))).toEqual({ kind: "absent" });
     expect(ledger.readOutboxEvidence(node, "s1", id)).toEqual(
       expect.objectContaining({
         kind: "verified",
@@ -110,12 +115,23 @@ describe("outbox evidence", () => {
       ref: request.ref,
     });
     writeFileSync(join(ledger.directory(), request.ref), requestEnvelope);
+    writeFileSync(join(ledger.directory(), request.ref), "{}");
+    expect(ledger.readOutboxEvidence(node, "s1", id)).toEqual({
+      kind: "corrupt",
+      ref: request.ref,
+    });
+    writeFileSync(join(ledger.directory(), request.ref), requestEnvelope);
     unlinkSync(join(ledger.directory(), acknowledgment.ref));
     expect(ledger.readOutboxEvidence(node, "s1", id)).toEqual({
       kind: "missing",
       ref: acknowledgment.ref,
     });
     writeFileSync(join(ledger.directory(), acknowledgment.ref), "not json");
+    expect(ledger.readOutboxEvidence(node, "s1", id)).toEqual({
+      kind: "corrupt",
+      ref: acknowledgment.ref,
+    });
+    writeFileSync(join(ledger.directory(), acknowledgment.ref), "{}");
     expect(ledger.readOutboxEvidence(node, "s1", id)).toEqual({
       kind: "corrupt",
       ref: acknowledgment.ref,
@@ -129,10 +145,15 @@ describe("outbox evidence", () => {
   it("round-trips binary and empty bytes, and refuses mismatched or unsafe artifact references", () => {
     directory = mkdtempSync(join(runsRoot, "outbox-"));
     const binary = Buffer.from([0, 255, 0, 254]);
+    const kinds: readonly ("request" | "acknowledgment")[] = ["request", "acknowledgment"];
+    const bodies: readonly Buffer[] = [binary, Buffer.alloc(0)];
+    for (const kind of kinds) {
+      for (const body of bodies) {
+        const retained = unwrap(retainOutboxArtifact(directory, kind, body));
+        expect(unwrap(readOutboxArtifact(directory, retained))).toEqual(body);
+      }
+    }
     const retained = unwrap(retainOutboxArtifact(directory, "request", binary));
-    const empty = unwrap(retainOutboxArtifact(directory, "acknowledgment", Buffer.alloc(0)));
-    expect(unwrap(readOutboxArtifact(directory, retained))).toEqual(binary);
-    expect(unwrap(readOutboxArtifact(directory, empty))).toEqual(Buffer.alloc(0));
     expect(readOutboxArtifact(directory, { ...retained, sha256: "a".repeat(64) })).toEqual(
       expect.objectContaining({
         _tag: "Err",

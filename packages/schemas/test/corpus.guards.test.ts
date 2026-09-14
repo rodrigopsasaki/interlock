@@ -16,6 +16,7 @@ import {
   isLedgerEvent,
   isMark,
   isNote,
+  isOutboxArtifact,
   isOutcome,
   type Lease,
   type LedgerEvent,
@@ -354,6 +355,57 @@ describe("corpus: the ledger's guards and this node's schemas agree", () => {
         "https://github.com/rodrigopsasaki/interlock/schemas/event@v5.json",
       );
       expect(validate?.(envelope)).toBe(false);
+    });
+    it("agree that acknowledged delivery needs an artifact", () => {
+      const artifact = {
+        interlock: "outbox-artifact@v0",
+        sha256: "a".repeat(64),
+        bytes: 0,
+        ref: `outbox/acknowledgment/${"a".repeat(64)}.json`,
+      };
+      const acknowledged = {
+        interlock: "event@v5",
+        kind: "outbox-delivery-recorded",
+        delivery: {
+          id: "b".repeat(64),
+          state: "acknowledged",
+          because: "response retained",
+          derivation: derivation.gate("outbox", "runner@0", "runner"),
+          acknowledgment: artifact,
+        },
+      };
+      const missingArtifact = {
+        ...acknowledged,
+        delivery: {
+          id: acknowledged.delivery.id,
+          state: acknowledged.delivery.state,
+          because: acknowledged.delivery.because,
+          derivation: acknowledged.delivery.derivation,
+        },
+      };
+      const validate = registry.ajv.getSchema(
+        "https://github.com/rodrigopsasaki/interlock/schemas/event@v5.json",
+      );
+      expect(isLedgerEvent(acknowledged)).toBe(true);
+      expect(validate?.(acknowledged)).toBe(true);
+      expect(isLedgerEvent(missingArtifact)).toBe(false);
+      expect(validate?.(missingArtifact)).toBe(false);
+    });
+  });
+
+  describe("isOutboxArtifact / parts/outbox-artifact.json", () => {
+    it("agrees on safe byte bounds", () => {
+      const artifact = {
+        interlock: "outbox-artifact@v0",
+        sha256: "a".repeat(64),
+        bytes: Number.MAX_SAFE_INTEGER,
+        ref: `outbox/request/${"a".repeat(64)}.json`,
+      };
+      const unsafe = { ...artifact, bytes: Number.MAX_SAFE_INTEGER + 1 };
+      expect(isOutboxArtifact(artifact)).toBe(true);
+      expect(validatesAgainstPart("outbox-artifact", artifact)).toBe(true);
+      expect(isOutboxArtifact(unsafe)).toBe(false);
+      expect(validatesAgainstPart("outbox-artifact", unsafe)).toBe(false);
     });
   });
 });
