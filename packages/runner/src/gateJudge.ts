@@ -45,12 +45,18 @@ import {
 import { verifyDebrief } from "verifier";
 import { contextSliceOf } from "./contextSlice.ts";
 import { type GateCommand, type PlaceholderRefusal, substituteGateCommand } from "./gateCommand.ts";
+import {
+  explainGateOutputRefusal,
+  type GateOutputRefusal,
+  retainGateOutput,
+} from "./gateOutput.ts";
 import { HARNESS_AUTHORITIES } from "./sweep.ts";
 
 export const GATE_DERIVATION_VERSION = "runner@0";
 
 export type GateJudgeRefusal =
   | { readonly kind: "scope"; readonly refusal: ScopeRefusal }
+  | { readonly kind: "output"; readonly refusal: GateOutputRefusal }
   | {
       readonly kind: "placeholder";
       readonly gateId: string;
@@ -61,6 +67,8 @@ export function explainGateJudgeRefusal(refusal: GateJudgeRefusal): string {
   switch (refusal.kind) {
     case "scope":
       return explainScopeRefusal(refusal.refusal);
+    case "output":
+      return explainGateOutputRefusal(refusal.refusal);
     case "placeholder":
       return `${refusal.gateId}: "${refusal.refusal.command}" names unknown placeholder "{${refusal.refusal.token}}".`;
   }
@@ -91,22 +99,39 @@ function tokenize(command: string): readonly string[] {
 function spawnGateCommand(
   tokens: readonly string[],
   cwd: string,
-): Promise<{ readonly exitCode: number; readonly output: string }> {
+): Promise<{
+  readonly exitCode: number;
+  readonly output: string;
+  readonly stdout: Buffer;
+  readonly stderr: Buffer;
+}> {
   return new Promise((resolve) => {
     const bin = tokens[0];
     if (bin === undefined) {
-      resolve({ exitCode: -1, output: "no command configured for this gate" });
+      const output = "no command configured for this gate";
+      resolve({ exitCode: -1, output, stdout: Buffer.alloc(0), stderr: Buffer.from(output) });
       return;
     }
     const child = spawn(bin, tokens.slice(1), { cwd });
     let output = "";
+    const stdout: Buffer[] = [];
+    const stderr: Buffer[] = [];
     child.stdout.on("data", (chunk: Buffer) => {
       output += chunk.toString("utf-8");
+      stdout.push(chunk);
     });
     child.stderr.on("data", (chunk: Buffer) => {
       output += chunk.toString("utf-8");
+      stderr.push(chunk);
     });
-    child.on("close", (code) => resolve({ exitCode: code ?? -1, output }));
+    child.on("close", (code) =>
+      resolve({
+        exitCode: code ?? -1,
+        output,
+        stdout: Buffer.concat(stdout),
+        stderr: Buffer.concat(stderr),
+      }),
+    );
   });
 }
 
@@ -175,7 +200,7 @@ export async function judgeGates(
     if (isErr(substituted)) return err({ kind: "placeholder", gateId, refusal: substituted.error });
 
     const before = clock.now().monoMs;
-    const { exitCode, output } = await spawnGateCommand(
+    const { exitCode, output, stdout, stderr } = await spawnGateCommand(
       ["mise", "exec", "--", ...tokenize(substituted.value)],
       worktree,
     );
@@ -193,6 +218,10 @@ export async function judgeGates(
             pattern: pattern.source,
           };
 
+    const retained = await retainGateOutput(worktree, stdout, stderr);
+    if (isErr(retained)) return err({ kind: "output", refusal: retained.error });
+    const proofWithOutput = { ...proof, gateOutput: retained.value };
+
     const built = await createReceipt(
       scopeRoot,
       scopePaths,
@@ -201,7 +230,7 @@ export async function judgeGates(
       spend.none(),
       duration.measured(elapsedSince(after, before)),
       derivation.gate(gateId, GATE_DERIVATION_VERSION, runnerId),
-      proof,
+      proofWithOutput,
     );
     if (isErr(built)) return err({ kind: "scope", refusal: built.error });
     const receipt = built.value;

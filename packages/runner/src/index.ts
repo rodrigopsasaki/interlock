@@ -24,6 +24,19 @@ export {
   GATE_DERIVATION_VERSION,
   judgeGates,
 } from "./gateJudge.ts";
+export type {
+  GateOutputRead,
+  GateOutputReference,
+  GateOutputRefusal,
+} from "./gateOutput.ts";
+export {
+  explainGateOutputRefusal,
+  GATE_OUTPUT_SHAPE,
+  gateOutputReference,
+  readGateOutput,
+  retainGateOutput,
+  storeGateOutput,
+} from "./gateOutput.ts";
 export { createHerdrRuntime, defaultHerdrSocketPath } from "./herdr/adapter.ts";
 export type { InterpreterCorrection } from "./interpreterBrief.ts";
 export { extractAsk, interpreterBriefBody } from "./interpreterBrief.ts";

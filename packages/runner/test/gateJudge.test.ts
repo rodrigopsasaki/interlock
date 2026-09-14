@@ -1,17 +1,24 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
 import { isErr } from "@phyxiusjs/fp";
+import { sharedJournalDirectory } from "face";
 import { nodeKey, type Receipt } from "ledger";
 import type { AbsorbOutcome, EvidenceForAbsorb, SubstrateClient } from "substrate";
 import { noneClient } from "substrate";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, describe, expect, it } from "vitest";
+import type { GateCommand } from "../src/gateCommand.ts";
 import { judgeGates } from "../src/gateJudge.ts";
+import { readGateOutput, storeGateOutput } from "../src/gateOutput.ts";
 import { commitAll, gitInitFixtureWithContent, headSha } from "./support/gitFixture.ts";
 import { memoryLedger, memoryLedgerWithLog } from "./support/memoryLedger.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
+const miseState = mkdtempSync(join(runsRoot, "mise-"));
+process.env["MISE_STATE_DIR"] = miseState;
 
 const substrate = noneClient();
 
@@ -22,9 +29,14 @@ afterEach(() => {
   directory = undefined;
 });
 
+afterAll(() => {
+  rmSync(miseState, { recursive: true, force: true });
+});
+
 function fixture(): string {
   directory = mkdtempSync(join(runsRoot, "gate-"));
   writeFileSync(join(directory, "content.txt"), "hello\n");
+  gitInitFixtureWithContent(directory);
   return directory;
 }
 
@@ -41,6 +53,15 @@ const failCommand = `${process.execPath} -e process.exit(1)`;
 const matchingOutputCommand = `${process.execPath} -e process.stdout.write("Tests\\x203\\x20passed\\x0a")`;
 const nonMatchingOutputCommand = `${process.execPath} -e process.stdout.write("Tests\\x200\\x20passed\\x0a")`;
 const testsPassedPattern = /Tests +[1-9][0-9]* passed/;
+
+interface GateOutputCase {
+  readonly gate: string;
+  readonly run: string;
+  readonly expectOutput?: RegExp;
+  readonly stdout: Buffer;
+  readonly stderr: Buffer;
+  readonly outcome: "cleared" | "held";
+}
 
 describe("receipt-idempotent", () => {
   it("running the same gate twice over the same content writes one receipt identity and no duplicate fact", async () => {
@@ -408,7 +429,7 @@ describe("expect_output", () => {
     const view = ledger.projection().nodes.get(nodeKey(node));
     expect(view?.gates.get("tested")?.kind).toBe("satisfied");
     const receipt = view?.receipts.find((candidate) => candidate.gate === "tested");
-    expect(receipt?.proof).toEqual({
+    expect(receipt?.proof).toMatchObject({
       exitCode: 0,
       outputHash: expect.any(String),
       outputMatched: true,
@@ -454,7 +475,7 @@ describe("expect_output", () => {
     if (gateState?.kind !== "blocked") return;
     expect(gateState.because).toBe("tested: output did not match /Tests +[1-9][0-9]* passed/");
     const receipt = view?.receipts.find((candidate) => candidate.gate === "tested");
-    expect(receipt?.proof).toEqual({
+    expect(receipt?.proof).toMatchObject({
       exitCode: 0,
       outputHash: expect.any(String),
       outputMatched: false,
@@ -499,6 +520,206 @@ describe("expect_output", () => {
     expect(gateState?.kind).toBe("blocked");
     if (gateState?.kind !== "blocked") return;
     expect(gateState.because).toBe("tested: exit 1");
+  });
+});
+
+describe("retained gate output", () => {
+  it("retains literal stdout and stderr bytes for successful, failed, mismatched, and empty commands", async () => {
+    const cases: readonly GateOutputCase[] = [
+      {
+        gate: "success",
+        run: `${process.execPath} -e process.stdout.write(Buffer.from([0,97,255]));process.stderr.write(Buffer.from([226,130,172]))`,
+        stdout: Buffer.from([0, 97, 255]),
+        stderr: Buffer.from([226, 130, 172]),
+        outcome: "cleared",
+      },
+      {
+        gate: "failed",
+        run: `${process.execPath} -e process.stdout.write(Buffer.from([102]));process.stderr.write(Buffer.from([101]));process.exit(7)`,
+        stdout: Buffer.from("f"),
+        stderr: Buffer.from("e"),
+        outcome: "held",
+      },
+      {
+        gate: "mismatched",
+        run: nonMatchingOutputCommand,
+        expectOutput: testsPassedPattern,
+        stdout: Buffer.from("Tests 0 passed\n"),
+        stderr: Buffer.alloc(0),
+        outcome: "held",
+      },
+      {
+        gate: "empty",
+        run: passCommand,
+        stdout: Buffer.alloc(0),
+        stderr: Buffer.alloc(0),
+        outcome: "cleared",
+      },
+    ];
+    const root = fixture();
+
+    for (const entry of cases) {
+      const ledger = memoryLedger();
+      const command: GateCommand =
+        entry.expectOutput === undefined
+          ? { kind: "command", run: entry.run }
+          : { kind: "command", run: entry.run, expectOutput: entry.expectOutput };
+      const judged = await judgeGates({
+        ledger,
+        clock: createControlledClock(),
+        node,
+        session: "s1",
+        declaredGateIds: [entry.gate],
+        commandFor: new Map([[entry.gate, command]]),
+        worktree: root,
+        scopeRoot: root,
+        scopePaths: ["content.txt"],
+        commitSha: "deadbeef",
+        runnerId: "run-1",
+        holdMs: 60_000,
+        substrate,
+        narrate: () => {},
+      });
+
+      if (isErr(judged)) throw new Error("expected retained output");
+      expect(judged.value.kind).toBe(entry.outcome);
+      const receipt = ledger.projection().nodes.get(nodeKey(node))?.receipts[0];
+      expect(receipt).toBeDefined();
+      if (receipt === undefined) return;
+      const output = await readGateOutput(sharedJournalDirectory(root), receipt.proof);
+      if (isErr(output)) throw new Error("expected readable retained output");
+      expect(output.value).toEqual({
+        kind: "available",
+        stdout: entry.stdout,
+        stderr: entry.stderr,
+      });
+    }
+  });
+
+  it("keeps raw split UTF-8 bytes while preserving the legacy decoded-chunk output hash", async () => {
+    const root = fixture();
+    const ledger = memoryLedger();
+    const run = `${process.execPath} -e process.stdout.write(Buffer.from([226]));setTimeout(()=>process.stdout.write(Buffer.from([130,172])),10)`;
+    const judged = await judgeGates({
+      ledger,
+      clock: createControlledClock(),
+      node,
+      session: "s1",
+      declaredGateIds: ["utf8"],
+      commandFor: new Map([["utf8", { kind: "command", run }]]),
+      worktree: root,
+      scopeRoot: root,
+      scopePaths: ["content.txt"],
+      commitSha: "deadbeef",
+      runnerId: "run-1",
+      holdMs: 60_000,
+      substrate,
+      narrate: () => {},
+    });
+
+    if (isErr(judged)) throw new Error("expected retained output");
+    const receipt = ledger.projection().nodes.get(nodeKey(node))?.receipts[0];
+    expect(receipt).toBeDefined();
+    if (receipt === undefined) return;
+    expect(receipt.proof["outputHash"]).toBe(
+      createHash("sha256").update("\ufffd\ufffd\ufffd").digest("hex"),
+    );
+    const output = await readGateOutput(sharedJournalDirectory(root), receipt.proof);
+    if (isErr(output) || output.value.kind !== "available") {
+      throw new Error("expected readable retained output");
+    }
+    expect(output.value.stdout).toEqual(Buffer.from([226, 130, 172]));
+  });
+
+  it("keeps output in the shared journal after its linked worktree leaves", async () => {
+    const root = fixture();
+    const linked = `${root}-linked`;
+    execFileSync("git", ["worktree", "add", "--detach", linked, "HEAD"], { cwd: root });
+    const ledger = memoryLedger();
+    const judged = await judgeGates({
+      ledger,
+      clock: createControlledClock(),
+      node,
+      session: "s1",
+      declaredGateIds: ["survives"],
+      commandFor: new Map([["survives", { kind: "command", run: matchingOutputCommand }]]),
+      worktree: linked,
+      scopeRoot: linked,
+      scopePaths: ["content.txt"],
+      commitSha: "deadbeef",
+      runnerId: "run-1",
+      holdMs: 60_000,
+      substrate,
+      narrate: () => {},
+    });
+
+    execFileSync("git", ["worktree", "remove", linked], { cwd: root });
+    if (isErr(judged)) throw new Error("expected retained output");
+    const receipt = ledger.projection().nodes.get(nodeKey(node))?.receipts[0];
+    expect(receipt).toBeDefined();
+    if (receipt === undefined) return;
+    const output = await readGateOutput(sharedJournalDirectory(root), receipt.proof);
+    if (isErr(output) || output.value.kind !== "available") {
+      throw new Error("expected retained output after worktree removal");
+    }
+    expect(output.value.stdout).toEqual(Buffer.from("Tests 3 passed\n"));
+  });
+
+  it("accepts concurrent identical writes and refuses missing or corrupt stored output", async () => {
+    const root = fixture();
+    const journal = sharedJournalDirectory(root);
+    const stdout = Buffer.from("same stdout");
+    const stderr = Buffer.from("same stderr");
+    const stored = await Promise.all([
+      storeGateOutput(journal, stdout, stderr),
+      storeGateOutput(journal, stdout, stderr),
+    ]);
+    expect(stored.every((result) => !isErr(result))).toBe(true);
+    const first = stored[0];
+    if (first === undefined || isErr(first)) return;
+    expect(readFileSync(join(journal, ...first.value.stdout.artifact.split("/")))).toEqual(stdout);
+
+    unlinkSync(join(journal, ...first.value.stderr.artifact.split("/")));
+    const missing = await readGateOutput(journal, { gateOutput: first.value });
+    expect(isErr(missing)).toBe(true);
+    if (!isErr(missing)) return;
+    expect(missing.error.kind).toBe("missing");
+
+    writeFileSync(join(journal, ...first.value.stdout.artifact.split("/")), "changed");
+    const corrupt = await readGateOutput(journal, { gateOutput: first.value });
+    expect(isErr(corrupt)).toBe(true);
+    if (!isErr(corrupt)) return;
+    expect(corrupt.error.kind).toBe("corrupt");
+  });
+
+  it("leaves old receipts honestly without output and refuses before writing a receipt when storage fails", async () => {
+    const root = fixture();
+    const absent = await readGateOutput(sharedJournalDirectory(root), { outputHash: "legacy" });
+    if (isErr(absent)) throw new Error("expected legacy output to be absent, not corrupt");
+    expect(absent.value).toEqual({ kind: "absent" });
+
+    writeFileSync(join(root, ".interlock"), "not a directory");
+    const ledger = memoryLedger();
+    const judged = await judgeGates({
+      ledger,
+      clock: createControlledClock(),
+      node,
+      session: "s1",
+      declaredGateIds: ["unwritable"],
+      commandFor: new Map([["unwritable", { kind: "command", run: passCommand }]]),
+      worktree: root,
+      scopeRoot: root,
+      scopePaths: ["content.txt"],
+      commitSha: "deadbeef",
+      runnerId: "run-1",
+      holdMs: 60_000,
+      substrate,
+      narrate: () => {},
+    });
+    expect(isErr(judged)).toBe(true);
+    if (!isErr(judged)) return;
+    expect(judged.error.kind).toBe("output");
+    expect(ledger.projection().nodes.get(nodeKey(node))).toBeUndefined();
   });
 });
 

@@ -1,0 +1,24 @@
+---
+interlock: notes@v1
+entries:
+  - kind: decision
+    summary: Reuse the runner journal-root seam and add retained stream references additively to receipt proof.
+    because: The graph requires artifacts to survive a node worktree and old receipts to remain readable without an event migration.
+  - kind: discovery
+    summary: sharedJournalDirectory resolves Git's common directory, including from linked worktrees.
+    expected: A reusable runner seam would identify the shared journal location.
+    observed: face exports sharedJournalDirectory, already used by runner session code and CLI journal readers.
+  - kind: surprise
+    summary: The test process's shared mise state emits a permission warning on stderr before the gate command runs.
+    expected: An empty-stream command would produce empty retained stderr.
+    observed: The adapter warning was retained byte-for-byte, proving the capture includes runner-launched stream output.
+  - kind: decision
+    summary: Store each stream through a temporary file and exclusive hard link, then verify existing same-hash artifacts byte-for-byte.
+    because: A completed artifact becomes visible atomically, concurrent writers reuse identical bytes, and a conflicting existing blob is an honest storage refusal.
+  - kind: decision
+    summary: Read gate output through a proof parser that distinguishes absent legacy evidence from invalid, missing, or corrupt retained artifacts.
+    because: Older receipts cannot gain output after the fact, while a receipt that promises evidence must not treat a failed read as empty success.
+  - kind: surprise
+    summary: The first full lint run required Biome formatting in the changed runner source and test.
+    expected: The manually patched files would already match the formatter.
+    observed: Lint reported two formatting-only diffs and no semantic diagnostics.
