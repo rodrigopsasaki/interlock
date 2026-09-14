@@ -1,0 +1,11 @@
+interlock: notes@v0
+node: prove-dispatch-boundary
+entries:
+  - kind: choice
+    at: "2026-09-14T23:40:41Z"
+    chose: Map D1 to real-ledger reopen proofs for missing and retained acknowledgment evidence after response and append failures; map D2 to intent-only reopen and duplicate-dispatch suppression; map D3 to conflicting retained request bytes and distinct session identity; map D4 to injected HTTP non-2xx, malformed, schema-invalid, and transport outcomes; and map D5 to none and unsafe HTTP preparation before the outbox boundary.
+    because: The acceptance requires discriminating tests at the production judge, ledger, and HTTP seams, with each assertion observing retained evidence or the adapter call count rather than a returned string alone.
+  - kind: surprise
+    at: "2026-09-14T23:40:41Z"
+    expected: The generated dispatch session would already have a notes artifact alongside its brief.
+    observed: notes.yaml was absent, so this initial D1-D5 map is being created before code changes.
