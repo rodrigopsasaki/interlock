@@ -1242,36 +1242,44 @@ No vocabulary entry for `notes`.
 
 #### `notes@v0`
 
-Source: `.interlock/sessions/0006-repository-context/send-repository-context/notes.yaml`
+Source: `.interlock/sessions/0005-gate-output-way-back/retain-gate-evidence/notes.yaml`
 
 ```yaml
 interlock: notes@v0
-node: send-repository-context
+node: retain-gate-evidence
 entries:
   - kind: choice
-    at: "2026-09-14T18:00:00Z"
-    chose: Bind an optional repository selector when the CLI constructs a substrate client, so context and absorb share one immutable value.
-    because: The existing HTTP client owns the two wire bodies, while Git origin resolution belongs at the application adapter boundary and none mode must not invoke Git.
+    at: "2026-09-14T15:00:00Z"
+    chose: Reused the runner journal-root seam and added retained stream references additively to receipt proof.
+    because: The graph requires artifacts to survive a node worktree and old receipts to remain readable without an event migration.
   - kind: surprise
-    at: "2026-09-14T18:10:00Z"
-    expected: The focused substrate suite would complete after the additive wire changes.
-    observed: The two inherited capabilities tests each exceeded their five-second timeout, matching the prior graph's recorded coupled failure before the later checks could run.
+    at: "2026-09-14T15:05:00Z"
+    expected: A reusable runner seam would identify the shared journal location.
+    observed: sharedJournalDirectory resolves Git's common directory, including from linked worktrees, and is already used by runner session code and CLI journal readers.
+  - kind: surprise
+    at: "2026-09-14T15:10:00Z"
+    expected: An empty-stream command would produce empty retained stderr.
+    observed: The test process's shared mise state emitted a permission warning on stderr before the gate command ran, proving capture includes runner-launched stream output.
   - kind: choice
-    at: "2026-09-14T18:30:00Z"
-    chose: Replaced the timing-dependent split-UTF-8 command assertion with a real-byte integration proof and a deterministic per-chunk decoding proof.
-    because: OS pipe delivery does not promise chunk boundaries, while the legacy output hash must remain defined by each chunk's UTF-8 decoding and retained output must retain exact bytes.
-  - kind: surprise
-    at: "2026-09-14T18:35:00Z"
-    expected: The runner package suite would be a clean broad confirmation after focused proofs passed.
-    observed: Its changed local-config and gate-output tests passed, but an existing live socket check and two fixture commits failed because the environment exposes an unusable herdr socket and blocks GPG signing.
-  - kind: surprise
-    at: "2026-09-14T18:45:00Z"
-    expected: SCP-style Git origins would receive the same query and fragment refusal as URL-style origins.
-    observed: Orchestrator review identified that the SCP parser treated query and fragment markers as path text, which could serialize transport metadata in origin_url.
+    at: "2026-09-14T15:20:00Z"
+    chose: Stored each stream through a temporary file and exclusive hard link, then verified an existing same-hash artifact byte-for-byte.
+    because: A completed artifact becomes visible atomically, concurrent writers reuse identical bytes, and a conflicting existing blob is an honest storage refusal.
   - kind: choice
-    at: "2026-09-14T18:46:00Z"
-    chose: Refuse question-mark and fragment markers before parsing an SCP-style repository path while retaining ordinary git@host transport usernames.
-    because: The approved graph requires credential-free provenance and a generic refusal for every accepted remote spelling.
+    at: "2026-09-14T15:30:00Z"
+    chose: Read gate output through a proof parser that distinguishes absent legacy evidence from invalid, missing, or corrupt retained artifacts.
+    because: Older receipts cannot gain output after the fact, while a receipt that promises evidence must not treat a failed read as empty success.
+  - kind: surprise
+    at: "2026-09-14T15:40:00Z"
+    expected: The manually patched files would already match the formatter.
+    observed: Lint reported two formatting-only diffs and no semantic diagnostics.
+  - kind: surprise
+    at: "2026-09-14T15:50:00Z"
+    expected: The standing test command would complete after typecheck, lint, and comments passed.
+    observed: Two unchanged substrate capability tests exceeded their five-second timeout; runner output tests had already passed.
+  - kind: surprise
+    at: "2026-09-14T16:00:00Z"
+    expected: The new session notes shape would be accepted by debrief validation.
+    observed: The repository reader accepts notes@v0 with node and choice or surprise entries, so the initial notes@v1 artifact was converted without dropping its record.
 ```
 
 ## position

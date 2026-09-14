@@ -37,3 +37,7 @@ entries:
     at: "2026-09-14T19:10:00Z"
     chose: Add strict-receiver assertions that count the recorded context and absorb requests after a repository-field refusal.
     because: The count proves that a receiver refusal remains one honest request and cannot hide an unscoped retry or fallback.
+  - kind: surprise
+    at: "2026-09-14T19:15:00Z"
+    expected: The caller-level fake HTTP fixtures would run after compiling.
+    observed: The sandbox rejected the fake server's local listen with EPERM, so the fixtures remain type-checked but cannot receive a runtime proof here.

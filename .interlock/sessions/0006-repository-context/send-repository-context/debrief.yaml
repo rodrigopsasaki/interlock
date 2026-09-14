@@ -1,0 +1,102 @@
+interlock: debrief@v2
+graph: 0006-repository-context
+node: send-repository-context
+role: worker
+graph_base_sha: 3291797a699d931daac00534858ada144052807d
+session_start_sha: 2ed25e003a72fa970ee0e6ac07283ccfbb034b5d
+head_sha: 7baaf8daf3b9e5bd05538aa84784fb50e82601fb
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries:
+  - id: d1
+    what: The sandbox blocks local fake HTTP listeners with listen EPERM, and the substrate capability tests time out under that restriction.
+    found_at: packages/substrate/test/capabilities.test.ts:1
+    mattered_because: The full workspace and repository-wire gate receipts remain failed without changing timeouts or weakening the retained wire proofs, while type checks still establish the caller fixtures compile.
+  - id: d2
+    what: SCP-style Git remotes do not use URL parsing, so query and fragment markers must be rejected before constructing credential-free provenance.
+    found_at: packages/cli/src/repositoryOrigin.ts:27-38
+    mattered_because: A URL-only check could serialize a query or fragment despite the same restriction applying to every supported origin spelling.
+decisions:
+  - id: c1
+    what: context and absorb accept the same optional repository selector while absent selectors retain their legacy bodies.
+    because: Receiver-first opt-in keeps strict older receivers usable until they explicitly accept the additive substrate@v1 field.
+    rests_on:
+      - .interlock/graphs/0006-repository-context.yaml
+      - schemas/substrate/context.request.json
+      - schemas/substrate/absorb.request.json
+    hunks:
+      - packages/substrate/src/httpClient.ts:132-158
+      - packages/substrate/src/httpClient.ts:177-205
+      - packages/substrate/test/context.test.ts:72-93
+      - packages/substrate/test/absorb.test.ts:72-94
+    produces:
+      - schemas/parts/repository.json
+      - schemas/substrate/context.request.json
+      - schemas/substrate/absorb.request.json
+  - id: c2
+    what: CLI run, plan, and judge bind repository provenance once from argv Git origin and substitute an honest refusal client before any HTTP request when enabled resolution fails.
+    because: Git is an application-boundary concern; provenance must not become an HTTP-client side effect or an invented unscoped request.
+    rests_on:
+      - .interlock/graphs/0006-repository-context.yaml
+      - packages/cli/src/run.ts
+      - packages/cli/src/plan.ts
+      - packages/cli/src/judge.ts
+    hunks:
+      - packages/cli/src/repositoryOrigin.ts:25-84
+      - packages/cli/src/run.ts:67-76
+      - packages/cli/src/plan.ts:120-129
+      - packages/cli/src/judge.ts:74-83
+      - packages/cli/test/repositoryOrigin.test.ts:25-73
+      - packages/cli/test/run.test.ts:272-312
+      - packages/cli/test/plan.test.ts:140-164
+      - packages/cli/test/judge.test.ts:178-208
+      - packages/substrate/test/context.test.ts:95-110
+      - packages/substrate/test/absorb.test.ts:96-111
+    produces:
+      - packages/cli/src/repositoryOrigin.ts
+      - packages/substrate/src/refusalClient.ts
+  - id: c3
+    what: The retained-output test proves raw UTF-8 bytes through a real command and preserves legacy decoded-per-chunk hash behavior through a deterministic helper proof.
+    because: Process stream chunking is not an OS timing contract, but the legacy output hash semantics cannot change to satisfy a nondeterministic test.
+    rests_on:
+      - .interlock/graphs/0006-repository-context.yaml
+      - packages/runner/src/gateJudge.ts
+    hunks:
+      - packages/runner/src/gateJudge.ts:95-129
+      - packages/runner/test/gateJudge.test.ts:599-637
+    produces:
+      - packages/runner/src/gateJudge.ts
+      - packages/runner/test/gateJudge.test.ts
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: All eight workspace packages completed TypeScript checking.
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: Biome checked 311 files without diagnostics.
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+    note: packages/*/src reported no comments.
+  - id: test
+    result: fail
+    invocation: pnpm test
+    note: The workspace reached the two existing five-second timeouts in packages/substrate/test/capabilities.test.ts after ledger, debrief, face, and verifier completed.
+  - id: repository-wire-proof
+    result: fail
+    invocation: pnpm --filter substrate --fail-if-no-match test
+    note: The substrate suite reproduced the same two existing capability-test timeouts before emitting a passing-suite count.
+  - id: shape-reference-fresh
+    result: pass
+    invocation: pnpm interlock schema reference --check
+    note: The generated schema reference was fresh after regeneration.
+  - id: debrief-valid
+    result: pass
+    invocation: pnpm interlock debrief validate 0006-repository-context send-repository-context
+    note: The final session artifacts validate as supported shapes.
+open:
+  - The standing test and repository-wire gates remain held on the two reproducible capability-test timeouts; local listener EPERM also prevents executing fake-HTTP caller tests in this sandbox, so their cause and disposition require a later harness decision.
