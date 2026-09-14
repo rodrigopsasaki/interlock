@@ -1,0 +1,110 @@
+interlock: graph@v0
+id: 0009-delivery-boundary-proof
+ask: Prove that debrief delivery cannot outrun durable intent or turn uncertainty into an acknowledgment.
+derivation:
+  kind: model
+  model: gpt-6-astra
+  prompt: second-six-2026-09-14-slot-1
+authorization:
+  granted_by: Rodrigo Sasaki
+  mandate: second-six-graph-mandate-2026-09-14
+  slot: 1
+  limit: 6
+  source: interlock-notes/second-six-graph-mandate-2026-09-14.md
+read: >
+  Two smaller nodes complete proof omitted by prior held candidates. Base
+  891ca0863be6eea77044e23c68a820f9f69ddbc8 is an incomplete repair, not cleared
+  work. Storage then dispatch; root advances this isolated checkout only after
+  each scoped review. Substrate none. Per node: one initial session and at most
+  one root-recorded recovery, 25 minutes each; worker cannot mint retries.
+  No existing brain, new receiver, real external effect, push, main merge,
+  deployment, waiver, new dependency, inference or historical artifact rewrite.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: prove-storage-boundary
+    depends_on: []
+    acceptance: |
+      Prove three storage obligations on production ledger/sink/outbox code.
+      S1: inject distinct real file-operation write and fsync failures through
+      createLedgerSink, not two names for the same fake LedgerSink.append throw.
+      In both cases appendConfirmed refuses, no trusted projection advances,
+      and a subsequent append remains poisoned. Drive judgeGates with that sink
+      failing its intent append and count zero dispatches. Preserve Phyxius.
+      A tiny injectable fs-operations seam with actual fs defaults is allowed.
+      S2: request and acknowledgment artifacts round-trip binary/empty bytes;
+      wrong hash/count, unsafe ref, absent file, invalid JSON/envelope and
+      conflicting same-path content are refused/classified. No overwrite.
+      Include failure creating the artifact directory as a typed write refusal,
+      not an uncaught throw. Verified public lookup reports correct absent,
+      missing, corrupt or verified for node/session/effect and ack evidence.
+      S3: acknowledged-without-artifact stays impossible/refused; byte bounds
+      and SHA IDs match current schema/runtime. Keep old readers; actual v1-v4
+      replay and old-tag rejection of new events remain proven.
+
+      Restore inherited full-suite fixtures to the prepared-client contract:
+      gateJudge's fake clients currently omit prepare/dispatch, causing seven
+      real gate failures. Adapt those fakes without weakening existing evidence
+      and outcome assertions or restoring production direct-send fallback.
+      Generate docs/shapes.md with pinned Node, then check freshness on the
+      final committed tree. If traversal order is unstable, fix ordering narrowly
+      in the existing reference generator and add its deterministic test.
+      Allowed source: ledger sink/ledger/outbox and corresponding exports;
+      narrowly necessary artifact-ref guards/schema byte constraints; existing
+      schema reference generator only for demonstrated ordering defect. Allowed
+      tests: ledger outbox/sink/replay, runner storage proof and gateJudge fakes,
+      schema reference test. No dispatch state-machine feature in this node.
+      Add S1/S2/S3 test-location map in notes before code, then final debrief.
+      Keep truthful provenance, all original assertions and valid new artifacts.
+    gates:
+      - id: storage-boundary-proof
+        kind: command
+        run: pnpm --filter ledger --fail-if-no-match exec vitest run test/outboxDurability.test.ts test/replay.test.ts --reporter=verbose
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: storage-before-dispatch-proof
+        kind: command
+        run: pnpm --filter runner --fail-if-no-match exec vitest run test/absorbStorageBoundary.test.ts test/gateJudge.test.ts --reporter=verbose
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: shape-reference-fresh
+        kind: command
+        run: pnpm interlock schema reference --check
+  - id: prove-dispatch-boundary
+    depends_on: [prove-storage-boundary]
+    acceptance: |
+      Prove D1-D5 through production judgeGates, HTTP adapter and real ledger,
+      with deterministic injected transport/fs boundaries, not a copied outbox.
+      D1: response observed then acknowledgment-artifact or delivery-append
+      failure leaves uncertainty, never acknowledgment, and no resend on reopen.
+      D2: intent-only reopen is uncertain without another judgment; acknowledged
+      and uncertain logical IDs never redispatch. D3: same ID with changed
+      request bytes/receipt timing refuses, original artifact unchanged; new
+      session/debrief gets a distinct identity. D4: non-2xx with useful redacted
+      detail, malformed JSON, schema-invalid response and transport failure
+      remain uncertain; preserve existing JSON/plain-text refusal tests.
+      D5: none and credential/query/fragment-unsafe targets create no outbox or
+      network call. Count calls at the actual adapter boundary. Tests must fail
+      if dispatch precedes persistence or any branch falsely acknowledges.
+
+      Allowed: packages/runner/test/absorbOutbox.failure.test.ts and directly
+      related outbox tests; minimal necessary fixes in runner gateJudge or a
+      small extracted outbox helper, ledger outbox/sink seam, substrate
+      client/httpClient/responseDetail. No new dispatcher, policy, dependency,
+      broad refactor, unrelated tests or historical artifact edits. Preserve
+      S1-S3 and old readers. If schema changes are narrowly necessary, keep
+      additive compatibility and regenerate its reference with pinned runtime.
+      Save D1-D5 case-to-assertion map in early notes; final debrief marks each
+      proven or unmet with source refs. Complete the bounded map, commit valid
+      artifacts and stop. Root reviews before allowing any live witness effect.
+    gates:
+      - id: dispatch-boundary-proof
+        kind: command
+        run: pnpm --filter runner --fail-if-no-match exec vitest run test/absorbOutbox.test.ts test/absorbOutbox.failure.test.ts test/absorbStorageBoundary.test.ts --reporter=verbose
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: readable-absorb-proof
+        kind: command
+        run: pnpm --filter substrate --fail-if-no-match exec vitest run test/absorb.test.ts --reporter=verbose
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: shape-reference-fresh
+        kind: command
+        run: pnpm interlock schema reference --check
