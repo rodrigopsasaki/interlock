@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/parts/outbox-artifact.json",
+  "title": "outbox-artifact@v0",
+  "type": "object",
+  "properties": {
+    "interlock": { "const": "outbox-artifact@v0" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "bytes": { "type": "integer", "minimum": 0 },
+    "ref": { "type": "string", "pattern": "^outbox/(request|acknowledgment)/[a-f0-9]{64}\\.json$" }
+  },
+  "required": ["interlock", "sha256", "bytes", "ref"],
+  "additionalProperties": false
+}

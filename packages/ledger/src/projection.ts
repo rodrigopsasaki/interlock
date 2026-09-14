@@ -5,8 +5,8 @@ import type { Gate } from "./gate.ts";
 import { type Node, nodeKey } from "./graph.ts";
 import type { Lease } from "./lease.ts";
 import type { Note } from "./note.ts";
-import type { Outcome } from "./outcome.ts";
 import type { OutboxDelivery, OutboxIntent } from "./outbox.ts";
+import type { Outcome } from "./outcome.ts";
 import type { Receipt } from "./receipt.ts";
 
 export interface NodeView {
@@ -45,6 +45,7 @@ export interface LedgerProjection {
 export interface OutboxView {
   readonly intent: OutboxIntent;
   readonly delivery: OutboxDelivery | undefined;
+  readonly state: "acknowledged" | "uncertain";
 }
 
 export function emptyProjection(): LedgerProjection {
@@ -185,14 +186,18 @@ export function applyEvent(projection: LedgerProjection, event: LedgerEvent): Le
         ...withNode(projection, event.node, (view) => view),
         outbox: new Map([
           ...projection.outbox,
-          [event.effect.id, { intent: event.effect, delivery: undefined }],
+          [event.effect.id, { intent: event.effect, delivery: undefined, state: "uncertain" }],
         ]),
       };
     case "outbox-delivery-recorded": {
       const current = projection.outbox.get(event.delivery.id);
       if (current === undefined) return projection;
       const outbox = new Map(projection.outbox);
-      outbox.set(event.delivery.id, { ...current, delivery: event.delivery });
+      outbox.set(event.delivery.id, {
+        ...current,
+        delivery: event.delivery,
+        state: event.delivery.state,
+      });
       return { ...projection, outbox };
     }
   }

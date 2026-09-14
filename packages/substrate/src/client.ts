@@ -36,6 +36,24 @@ export type AbsorbOutcome =
     }
   | { readonly kind: "refused"; readonly because: string };
 
+export type PreparedAbsorb =
+  | { readonly kind: "none" }
+  | { readonly kind: "refused"; readonly because: string }
+  | {
+      readonly kind: "ready";
+      readonly target: string;
+      readonly request: string;
+      readonly repository?: Repository;
+    };
+
+export type AbsorbDispatch =
+  | {
+      readonly kind: "acknowledged";
+      readonly outcome: Extract<AbsorbOutcome, { readonly kind: "acknowledged" }>;
+      readonly response: Buffer;
+    }
+  | { readonly kind: "uncertain"; readonly because: string };
+
 export interface SubstrateClient {
   readonly address: string;
   context(node: Node, scope: readonly string[], role: string): Promise<ContextOutcome>;
@@ -46,5 +64,15 @@ export interface SubstrateClient {
     receipts: readonly Receipt[],
     evidence?: EvidenceForAbsorb,
   ): Promise<AbsorbOutcome>;
+  prepareAbsorb?(
+    node: Node,
+    debrief: Debrief,
+    notes: readonly Note[],
+    receipts: readonly Receipt[],
+    evidence?: EvidenceForAbsorb,
+  ): Promise<PreparedAbsorb>;
+  dispatchAbsorb?(
+    prepared: Extract<PreparedAbsorb, { readonly kind: "ready" }>,
+  ): Promise<AbsorbDispatch>;
   capabilities(): Promise<readonly string[]>;
 }

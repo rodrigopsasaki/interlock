@@ -1,9 +1,11 @@
 export { isValidSubstrateAddress, substrateClientFor } from "./address.ts";
 export type {
+  AbsorbDispatch,
   AbsorbOutcome,
   ContextOutcome,
   DiscoveryPlacement,
   EvidenceForAbsorb,
+  PreparedAbsorb,
   Repository,
   SubstrateClient,
 } from "./client.ts";
@@ -18,6 +20,7 @@ export type {
   EvidenceSession,
 } from "./evidence.ts";
 export { evidenceOf, personEventsFor } from "./evidence.ts";
+export { httpClient } from "./httpClient.ts";
 export type { AbsorbSlice } from "./narrate.ts";
 export { narrateAbsorb, narrateContext } from "./narrate.ts";
 export { noneClient } from "./noneClient.ts";

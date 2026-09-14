@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/parts/outbox-intent.json",
+  "title": "outbox-intent@v0",
+  "type": "object",
+  "properties": {
+    "interlock": { "const": "outbox-intent@v0" },
+    "id": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "node": { "$ref": "node.json" },
+    "session": { "type": "string" },
+    "target": { "type": "string" },
+    "repository": {
+      "type": "object",
+      "properties": { "owner": { "type": "string" }, "name": { "type": "string" }, "originUrl": { "type": "string" } },
+      "required": ["owner", "name", "originUrl"],
+      "additionalProperties": false
+    },
+    "request": { "$ref": "outbox-artifact.json" },
+    "derivation": { "$ref": "derivation.json" }
+  },
+  "required": ["interlock", "id", "node", "session", "target", "request", "derivation"],
+  "additionalProperties": false
+}

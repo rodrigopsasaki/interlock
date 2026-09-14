@@ -1,4 +1,4 @@
-import { isLedgerEvent, type LedgerEvent } from "./event.ts";
+import { isLedgerEvent, isLedgerEventV4, type LedgerEvent } from "./event.ts";
 import { upcastV1 } from "./upcast/v1.ts";
 import { upcastV2 } from "./upcast/v2.ts";
 import { upcastV3 } from "./upcast/v3.ts";
@@ -24,7 +24,7 @@ export type Upcaster = (raw: unknown) => LedgerEvent | undefined;
 
 export const upcastTable: ReadonlyMap<string, Upcaster> = new Map([
   [EVENT_SHAPE, (raw: unknown) => (isLedgerEvent(raw) ? raw : undefined)],
-  ["event@v4", (raw: unknown) => (isLedgerEvent(raw) ? raw : undefined)],
+  ["event@v4", (raw: unknown) => (isLedgerEventV4(raw) ? raw : undefined)],
   ["event@v3", upcastV3],
   ["event@v2", upcastV2],
   ["event@v1", upcastV1],

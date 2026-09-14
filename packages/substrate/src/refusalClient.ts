@@ -3,6 +3,7 @@ import type {
   AbsorbOutcome,
   ContextOutcome,
   EvidenceForAbsorb,
+  PreparedAbsorb,
   SubstrateClient,
 } from "./client.ts";
 
@@ -20,5 +21,6 @@ export function refusalClient(address: string, because: string): SubstrateClient
     _evidence?: EvidenceForAbsorb,
   ): Promise<AbsorbOutcome> => ({ kind: "refused", because });
   const capabilities = async (): Promise<readonly string[]> => [];
-  return { address, context, absorb, capabilities };
+  const prepareAbsorb = async (): Promise<PreparedAbsorb> => ({ kind: "refused", because });
+  return { address, context, absorb, prepareAbsorb, capabilities };
 }

@@ -27,14 +27,21 @@ import {
   type Node,
   type Note,
   nodeKey,
+  OUTBOX_INTENT_SHAPE,
+  type OutboxArtifact,
+  type OutboxDelivery,
+  type OutboxIntent,
   type Outcome,
   outcome,
   proposeGateMove,
   type Receipt,
+  readOutboxArtifact,
+  retainOutboxArtifact,
   type ScopeRefusal,
   spend,
 } from "ledger";
 import {
+  type AbsorbOutcome,
   type EvidenceForAbsorb,
   type EvidenceSession,
   evidenceOf,
@@ -284,7 +291,7 @@ export async function judgeGates(
     await ingestDebrief(ledger, session, worktree, node);
   }
 
-  await absorbDebrief(substrate, narrate, worktree, node, receipts, [
+  await absorbDebrief(ledger, substrate, narrate, worktree, node, session, runnerId, receipts, [
     ...personEvents,
     ...gateMovedThisRun,
   ]);
@@ -359,10 +366,13 @@ async function evidenceForAbsorb(
 }
 
 async function absorbDebrief(
+  ledger: Ledger,
   substrate: SubstrateClient,
   narrate: (line: string) => void,
   worktree: string,
   node: Node,
+  session: string,
+  runnerId: string,
   receipts: readonly Receipt[],
   personEvents: readonly LedgerEvent[],
 ): Promise<void> {
@@ -370,7 +380,17 @@ async function absorbDebrief(
   if (read === undefined) return;
 
   const evidence = await evidenceForAbsorb(worktree, read.debrief, receipts, node, personEvents);
-  const acknowledged = await substrate.absorb(node, read.debrief, read.notes, receipts, evidence);
+  const acknowledged = await absorbThroughOutbox(
+    ledger,
+    substrate,
+    node,
+    session,
+    runnerId,
+    read.debrief,
+    read.notes,
+    receipts,
+    evidence,
+  );
   const briefRead = await readBriefFile(briefFilePath(worktree, node.graph, node.id));
   const sliceBody =
     !isErr(briefRead) && briefRead.value.kind === "v1" ? contextSliceOf(briefRead.value.body) : "";
@@ -380,4 +400,126 @@ async function absorbDebrief(
       discoveries: read.debrief.discoveries,
     }),
   );
+}
+
+function effectId(
+  target: string,
+  repository:
+    | { readonly owner: string; readonly name: string; readonly originUrl: string }
+    | undefined,
+  node: Node,
+  session: string,
+  debrief: Debrief,
+): string {
+  return createHash("sha256")
+    .update(JSON.stringify({ target, repository, node, session, debrief }))
+    .digest("hex");
+}
+
+function refusal(because: string): { readonly kind: "refused"; readonly because: string } {
+  return { kind: "refused", because };
+}
+
+function outboxDerivation(runnerId: string) {
+  return derivation.gate("outbox", GATE_DERIVATION_VERSION, runnerId);
+}
+
+function recordDelivery(
+  ledger: Ledger,
+  id: string,
+  state: "acknowledged" | "uncertain",
+  because: string,
+  runnerId: string,
+  acknowledgment?: OutboxArtifact,
+): boolean {
+  const delivery: OutboxDelivery =
+    acknowledgment === undefined
+      ? { id, state, because, derivation: outboxDerivation(runnerId) }
+      : { id, state, because, derivation: outboxDerivation(runnerId), acknowledgment };
+  return !isErr(ledger.appendConfirmed({ kind: "outbox-delivery-recorded", delivery }));
+}
+
+async function absorbThroughOutbox(
+  ledger: Ledger,
+  substrate: SubstrateClient,
+  node: Node,
+  session: string,
+  runnerId: string,
+  debrief: Debrief,
+  notes: readonly Note[],
+  receipts: readonly Receipt[],
+  evidence: EvidenceForAbsorb | undefined,
+): Promise<AbsorbOutcome> {
+  if (substrate.prepareAbsorb === undefined)
+    return refusal("absorb adapter cannot prepare a request");
+  const prepared = await substrate.prepareAbsorb(node, debrief, notes, receipts, evidence);
+  if (prepared.kind === "none") return { kind: "empty" };
+  if (prepared.kind === "refused") return prepared;
+  if (substrate.dispatchAbsorb === undefined)
+    return refusal("absorb adapter cannot dispatch a prepared request");
+
+  const id = effectId(prepared.target, prepared.repository, node, session, debrief);
+  const existing = ledger.projection().outbox.get(id);
+  if (existing !== undefined) {
+    const original = readOutboxArtifact(ledger.directory(), existing.intent.request);
+    if (isErr(original)) return refusal("outbox intent evidence is unavailable or corrupt");
+    if (!original.value.equals(Buffer.from(prepared.request))) {
+      return refusal("outbox intent conflicts with its retained request");
+    }
+    return existing.state === "acknowledged"
+      ? refusal("outbox delivery is already acknowledged")
+      : refusal("outbox delivery is uncertain");
+  }
+
+  const request = retainOutboxArtifact(
+    ledger.directory(),
+    "request",
+    Buffer.from(prepared.request),
+  );
+  if (isErr(request)) return refusal("outbox request evidence could not be retained");
+  const intent: OutboxIntent = {
+    interlock: OUTBOX_INTENT_SHAPE,
+    id,
+    node,
+    session,
+    target: prepared.target,
+    ...(prepared.repository === undefined ? {} : { repository: prepared.repository }),
+    request: request.value,
+    derivation: outboxDerivation(runnerId),
+  };
+  if (isErr(ledger.appendConfirmed({ kind: "outbox-intent-recorded", node, effect: intent }))) {
+    return refusal("outbox intent could not be confirmed");
+  }
+
+  const dispatched = await substrate.dispatchAbsorb(prepared);
+  if (dispatched.kind === "uncertain") {
+    return recordDelivery(ledger, id, "uncertain", dispatched.because, runnerId)
+      ? refusal(dispatched.because)
+      : refusal("outbox uncertainty could not be retained");
+  }
+  const acknowledgment = retainOutboxArtifact(
+    ledger.directory(),
+    "acknowledgment",
+    dispatched.response,
+  );
+  if (isErr(acknowledgment)) {
+    recordDelivery(
+      ledger,
+      id,
+      "uncertain",
+      "absorb response was observed but acknowledgment evidence could not be retained",
+      runnerId,
+    );
+    return refusal("absorb acknowledgment evidence could not be retained");
+  }
+  return recordDelivery(
+    ledger,
+    id,
+    "acknowledged",
+    "validated absorb response retained",
+    runnerId,
+    acknowledgment.value,
+  )
+    ? dispatched.outcome
+    : refusal("absorb acknowledgment could not be retained");
 }

@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
 import { closeSync, fsyncSync, mkdirSync, openSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { err, ok, type Result } from "@phyxiusjs/fp";
+import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import type { Derivation } from "./derivation.ts";
+import { isDerivation } from "./derivation.ts";
 import type { Node } from "./graph.ts";
 import { isNode } from "./graph.ts";
-import { isDerivation } from "./derivation.ts";
 import { isRecord, isString, prop } from "./validate.ts";
 
 export const OUTBOX_INTENT_SHAPE = "outbox-intent@v0";
@@ -43,6 +43,13 @@ export interface OutboxDelivery {
   readonly acknowledgment?: OutboxArtifact;
 }
 
+interface ArtifactEnvelope {
+  readonly interlock: typeof OUTBOX_ARTIFACT_SHAPE;
+  readonly sha256: string;
+  readonly bytes: number;
+  readonly body: string;
+}
+
 export type OutboxArtifactRefusal =
   | { readonly kind: "missing"; readonly ref: string }
   | { readonly kind: "corrupt"; readonly ref: string }
@@ -63,13 +70,15 @@ function kindForRef(ref: string): "request" | "acknowledgment" | undefined {
 
 export function isOutboxArtifact(value: unknown): value is OutboxArtifact {
   const ref = isRecord(value) ? prop(value, "ref") : undefined;
+  const sha256 = isRecord(value) ? prop(value, "sha256") : undefined;
   return (
     isRecord(value) &&
     prop(value, "interlock") === OUTBOX_ARTIFACT_SHAPE &&
-    isString(prop(value, "sha256")) &&
+    isString(sha256) &&
     typeof prop(value, "bytes") === "number" &&
     isString(ref) &&
-    kindForRef(ref) !== undefined
+    kindForRef(ref) !== undefined &&
+    ref.endsWith(`/${sha256}.json`)
   );
 }
 
@@ -110,7 +119,11 @@ export function isOutboxDelivery(value: unknown): value is OutboxDelivery {
   );
 }
 
-function refusal(kind: OutboxArtifactRefusal["kind"], ref: string, error?: unknown): OutboxArtifactRefusal {
+function refusal(
+  kind: OutboxArtifactRefusal["kind"],
+  ref: string,
+  error?: unknown,
+): OutboxArtifactRefusal {
   if (kind !== "write") return { kind, ref };
   return {
     kind,
@@ -130,20 +143,29 @@ export function retainOutboxArtifact(
   let descriptor: number | undefined;
   try {
     descriptor = openSync(path, "wx");
-    writeFileSync(descriptor, raw);
+    writeFileSync(
+      descriptor,
+      JSON.stringify({
+        interlock: OUTBOX_ARTIFACT_SHAPE,
+        sha256,
+        bytes: raw.byteLength,
+        body: Buffer.from(raw).toString("base64"),
+      }),
+    );
     fsyncSync(descriptor);
     closeSync(descriptor);
     descriptor = undefined;
   } catch (error) {
     if (descriptor !== undefined) closeSync(descriptor);
     if (!isAlreadyExists(error)) return err(refusal("write", ref, error));
-    let existing: Buffer;
-    try {
-      existing = readFileSync(path);
-    } catch {
+    const existing = readOutboxArtifact(directory, {
+      interlock: OUTBOX_ARTIFACT_SHAPE,
+      sha256,
+      bytes: raw.byteLength,
+      ref,
+    });
+    if (isErr(existing) || !existing.value.equals(Buffer.from(raw)))
       return err(refusal("corrupt", ref));
-    }
-    if (!existing.equals(Buffer.from(raw))) return err(refusal("corrupt", ref));
   }
   return ok({ interlock: OUTBOX_ARTIFACT_SHAPE, sha256, bytes: raw.byteLength, ref });
 }
@@ -152,15 +174,36 @@ export function readOutboxArtifact(
   directory: string,
   artifact: OutboxArtifact,
 ): Result<Buffer, OutboxArtifactRefusal> {
+  const kind = kindForRef(artifact.ref);
+  if (kind === undefined || artifact.ref !== `outbox/${kind}/${artifact.sha256}.json`) {
+    return err(refusal("corrupt", artifact.ref));
+  }
   let raw: Buffer;
   try {
-    raw = readFileSync(artifactPath(directory, artifact.ref));
+    const parsed: unknown = JSON.parse(
+      readFileSync(artifactPath(directory, artifact.ref), "utf-8"),
+    );
+    if (!isArtifactEnvelope(parsed)) return err(refusal("corrupt", artifact.ref));
+    raw = Buffer.from(parsed.body, "base64");
+    if (parsed.sha256 !== artifact.sha256 || parsed.bytes !== artifact.bytes) {
+      return err(refusal("corrupt", artifact.ref));
+    }
   } catch {
     return err(refusal("missing", artifact.ref));
   }
   return raw.byteLength === artifact.bytes && hash(raw) === artifact.sha256
     ? ok(raw)
     : err(refusal("corrupt", artifact.ref));
+}
+
+function isArtifactEnvelope(value: unknown): value is ArtifactEnvelope {
+  return (
+    isRecord(value) &&
+    prop(value, "interlock") === OUTBOX_ARTIFACT_SHAPE &&
+    isString(prop(value, "sha256")) &&
+    typeof prop(value, "bytes") === "number" &&
+    isString(prop(value, "body"))
+  );
 }
 
 function isAlreadyExists(error: unknown): error is NodeJS.ErrnoException {

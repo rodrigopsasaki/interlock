@@ -1,3 +1,4 @@
+import { ok } from "@phyxiusjs/fp";
 import {
   applyEvent,
   emptyProjection,
@@ -21,8 +22,16 @@ export function memoryLedgerWithLog(): {
       events.push(event);
       projection = applyEvent(projection, event);
     },
+    appendConfirmed(event) {
+      events.push(event);
+      projection = applyEvent(projection, event);
+      return ok(undefined);
+    },
     projection() {
       return projection;
+    },
+    directory() {
+      return "";
     },
     close() {
       return Promise.resolve();

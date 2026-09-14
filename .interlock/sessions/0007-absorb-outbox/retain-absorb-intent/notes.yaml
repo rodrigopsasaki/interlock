@@ -13,3 +13,11 @@ entries:
     at: "2026-09-14T21:43:18Z"
     chose: Register the fsyncing sink before projection and make appendConfirmed check the exact Phyxius entry identifier it persisted.
     because: Subscriber order lets projection advance only after the durable sink confirms that entry, while the explicit result preserves failure information Journal otherwise swallows.
+  - kind: surprise
+    at: "2026-09-14T22:00:00Z"
+    expected: The initial outbox seam's compatibility fallback and typed references were sufficiently fail-closed.
+    observed: Root review identified that direct fallback, live-only incomplete-intent handling, broad old-version reading, and reference-only artifact metadata could each conceal an outward-effect failure mode.
+  - kind: choice
+    at: "2026-09-14T22:00:00Z"
+    chose: Remove direct dispatch compatibility, derive incomplete intent as uncertain on replay, preserve a v4-specific guard, and envelope raw artifacts independently.
+    because: Each change makes the retained record, rather than an in-memory path or broad reader, the source of honest delivery status.

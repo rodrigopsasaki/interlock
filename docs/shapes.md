@@ -906,111 +906,14 @@ No vocabulary entry for `event`.
 - `event@v2`: added kind `debrief-filed`; within kind `gate-moved`: retyped `to`; within kind `receipt-written`: retyped `receipt`; within kind `outcome-set`: retyped `outcome`; added kind `session-narrated`.
 - `event@v3`: no field changes from the previous version.
 - `event@v4`: no field changes from the previous version.
+- `event@v5`: removed kind `node-created`; removed kind `lease-taken|lease-renewed`; removed kind `lease-expired`; removed kind `session-started`; removed kind `note-appended`; removed kind `debrief-filed`; removed kind `gate-moved`; removed kind `receipt-written`; removed kind `outcome-set`; removed kind `outbox-intent-recorded`; removed kind `session-narrated`.
 
-### Fields (`event@v4`)
-
-**kind: `node-created`**
-
-| field | type | required | description |
-| --- | --- | --- | --- |
-| `interlock` | the literal `"event@v4"` | yes |  |
-| `kind` | the literal `"node-created"` | yes |  |
-| `node` | node | yes | A reference to one node of one graph, embedded wherever an event names the node it happened to. |
-
-**kind: `lease-taken|lease-renewed`**
+### Fields (`event@v5`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `interlock` | the literal `"event@v4"` | yes |  |
-| `kind` | one of `"lease-taken"`, `"lease-renewed"` | yes |  |
-| `node` | node | yes | A reference to one node of one graph, embedded wherever an event names the node it happened to. |
-| `session` | string | yes |  |
-| `expiry` | number | yes |  |
-
-**kind: `lease-expired`**
-
-| field | type | required | description |
-| --- | --- | --- | --- |
-| `interlock` | the literal `"event@v4"` | yes |  |
-| `kind` | the literal `"lease-expired"` | yes |  |
-| `node` | node | yes | A reference to one node of one graph, embedded wherever an event names the node it happened to. |
-| `session` | string | yes |  |
-
-**kind: `session-started`**
-
-| field | type | required | description |
-| --- | --- | --- | --- |
-| `interlock` | the literal `"event@v4"` | yes |  |
-| `kind` | the literal `"session-started"` | yes |  |
-| `session` | session | yes | The ledger's own session reference: an id and the node it works. |
-| `brief` | session-brief | yes | The ledger's own reduced view of a brief, embedded in a session-started event: gates and scope as plain id lists, not the richer brief@v1 front matter. |
-| `graphBaseSha` | string | no |  |
-
-**kind: `note-appended`**
-
-| field | type | required | description |
-| --- | --- | --- | --- |
-| `interlock` | the literal `"event@v4"` | yes |  |
-| `kind` | the literal `"note-appended"` | yes |  |
-| `session` | string | yes |  |
-| `note` | note | yes | A typed entry a session appends while it works: a choice with its because, or a surprise with expected and observed. |
-
-**kind: `debrief-filed`**
-
-| field | type | required | description |
-| --- | --- | --- | --- |
-| `interlock` | the literal `"event@v4"` | yes |  |
-| `kind` | the literal `"debrief-filed"` | yes |  |
-| `session` | string | yes |  |
-| `debrief` | debrief-event | yes | The ledger's own Debrief, embedded verbatim in a debrief-filed event. Field names are the in-memory camelCase names, not the snake_case keys a debrief.yaml file carries on disk; only the full, current shape is ever embedded, since event@v1 refuses debrief-filed outright. |
-
-**kind: `gate-moved`**
-
-| field | type | required | description |
-| --- | --- | --- | --- |
-| `interlock` | the literal `"event@v4"` | yes |  |
-| `kind` | the literal `"gate-moved"` | yes |  |
-| `node` | node | yes | A reference to one node of one graph, embedded wherever an event names the node it happened to. |
-| `gate` | string | yes |  |
-| `to` | gate | yes | A gate's evidence lifecycle: pending, satisfied, blocked, waived, or superseded. |
-
-**kind: `receipt-written`**
-
-| field | type | required | description |
-| --- | --- | --- | --- |
-| `interlock` | the literal `"event@v4"` | yes |  |
-| `kind` | the literal `"receipt-written"` | yes |  |
-| `node` | node | yes | A reference to one node of one graph, embedded wherever an event names the node it happened to. |
-| `receipt` | receipt | yes | A fact the harness observed. Content-addressed by SHA and gate. Carries its spend and its derivation. |
-
-**kind: `outcome-set`**
-
-| field | type | required | description |
-| --- | --- | --- | --- |
-| `interlock` | the literal `"event@v4"` | yes |  |
-| `kind` | the literal `"outcome-set"` | yes |  |
-| `node` | node | yes | A reference to one node of one graph, embedded wherever an event names the node it happened to. |
-| `outcome` | outcome | yes | How a node ended: cleared, held, reset, failed, cancelled, or superseded. Always with its receipts. |
-
-**kind: `outbox-intent-recorded`**
-
-| field | type | required | description |
-| --- | --- | --- | --- |
-| `interlock` | the literal `"event@v4"` | yes |  |
-| `kind` | the literal `"outbox-intent-recorded"` | yes |  |
-| `node` | node | yes | A reference to one node of one graph, embedded wherever an event names the node it happened to. |
-| `id` | string | yes |  |
-| `intent` | string | yes |  |
-
-**kind: `session-narrated`**
-
-| field | type | required | description |
-| --- | --- | --- | --- |
-| `interlock` | the literal `"event@v4"` | yes |  |
-| `kind` | the literal `"session-narrated"` | yes |  |
-| `session` | string | yes |  |
-| `at` | number | yes |  |
-| `line` | string | yes |  |
+| `interlock` | the literal `"event@v5"` | yes |  |
+| `kind` | one of `"node-created"`, `"lease-taken"`, `"lease-renewed"`, `"lease-expired"`, `"session-started"`, `"note-appended"`, `"debrief-filed"`, `"gate-moved"`, `"receipt-written"`, `"outcome-set"`, `"outbox-intent-recorded"`, `"outbox-delivery-recorded"`, `"session-narrated"` | yes |  |
 
 ### Examples
 
@@ -1041,6 +944,10 @@ Source: `packages/ledger/test/fixtures/journal-v3-v4-2026-09-11.jsonl`
 #### `event@v4`
 
 _No example of `event@v4` was found in the corpus._
+
+#### `event@v5`
+
+_No example of `event@v5` was found in the corpus._
 
 ## graph
 
@@ -1242,44 +1149,32 @@ No vocabulary entry for `notes`.
 
 #### `notes@v0`
 
-Source: `.interlock/sessions/0005-gate-output-way-back/retain-gate-evidence/notes.yaml`
+Source: `.interlock/sessions/0007-absorb-outbox/retain-absorb-intent/notes.yaml`
 
 ```yaml
 interlock: notes@v0
-node: retain-gate-evidence
+node: retain-absorb-intent
 entries:
   - kind: choice
-    at: "2026-09-14T15:00:00Z"
-    chose: Reused the runner journal-root seam and added retained stream references additively to receipt proof.
-    because: The graph requires artifacts to survive a node worktree and old receipts to remain readable without an event migration.
+    at: "2026-09-14T00:00:00Z"
+    chose: Trace the existing runner absorb path and journal persistence boundary before adding the smallest typed outbox seam.
+    because: The brief binds the change to the existing Phyxius journal and substrate adapter, so the implementation must preserve their prior behavior while making durable intent observable.
   - kind: surprise
-    at: "2026-09-14T15:05:00Z"
-    expected: A reusable runner seam would identify the shared journal location.
-    observed: sharedJournalDirectory resolves Git's common directory, including from linked worktrees, and is already used by runner session code and CLI journal readers.
-  - kind: surprise
-    at: "2026-09-14T15:10:00Z"
-    expected: An empty-stream command would produce empty retained stderr.
-    observed: The test process's shared mise state emitted a permission warning on stderr before the gate command ran, proving capture includes runner-launched stream output.
+    at: "2026-09-14T21:43:18Z"
+    expected: Calling the installed Journal append method after registering the file sink would make a sink failure observable to the caller.
+    observed: Journal 0.2.1 catches every subscriber exception, so the prior projection subscriber could advance and append could return despite a failed file write.
   - kind: choice
-    at: "2026-09-14T15:20:00Z"
-    chose: Stored each stream through a temporary file and exclusive hard link, then verified an existing same-hash artifact byte-for-byte.
-    because: A completed artifact becomes visible atomically, concurrent writers reuse identical bytes, and a conflicting existing blob is an honest storage refusal.
+    at: "2026-09-14T21:43:18Z"
+    chose: Register the fsyncing sink before projection and make appendConfirmed check the exact Phyxius entry identifier it persisted.
+    because: Subscriber order lets projection advance only after the durable sink confirms that entry, while the explicit result preserves failure information Journal otherwise swallows.
+  - kind: surprise
+    at: "2026-09-14T22:00:00Z"
+    expected: The initial outbox seam's compatibility fallback and typed references were sufficiently fail-closed.
+    observed: Root review identified that direct fallback, live-only incomplete-intent handling, broad old-version reading, and reference-only artifact metadata could each conceal an outward-effect failure mode.
   - kind: choice
-    at: "2026-09-14T15:30:00Z"
-    chose: Read gate output through a proof parser that distinguishes absent legacy evidence from invalid, missing, or corrupt retained artifacts.
-    because: Older receipts cannot gain output after the fact, while a receipt that promises evidence must not treat a failed read as empty success.
-  - kind: surprise
-    at: "2026-09-14T15:40:00Z"
-    expected: The manually patched files would already match the formatter.
-    observed: Lint reported two formatting-only diffs and no semantic diagnostics.
-  - kind: surprise
-    at: "2026-09-14T15:50:00Z"
-    expected: The standing test command would complete after typecheck, lint, and comments passed.
-    observed: Two unchanged substrate capability tests exceeded their five-second timeout; runner output tests had already passed.
-  - kind: surprise
-    at: "2026-09-14T16:00:00Z"
-    expected: The new session notes shape would be accepted by debrief validation.
-    observed: The repository reader accepts notes@v0 with node and choice or surprise entries, so the initial notes@v1 artifact was converted without dropping its record.
+    at: "2026-09-14T22:00:00Z"
+    chose: Remove direct dispatch compatibility, derive incomplete intent as uncertain on replay, preserve a v4-specific guard, and envelope raw artifacts independently.
+    because: Each change makes the retained record, rather than an in-memory path or broad reader, the source of honest delivery status.
 ```
 
 ## position

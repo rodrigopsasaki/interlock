@@ -23,7 +23,7 @@ export { isDisposition } from "./disposition.ts";
 export type { EventEnvelope, Upcaster } from "./envelope.ts";
 export { EVENT_SHAPE, envelopeFor, shapeTag, upcastTable } from "./envelope.ts";
 export type { LedgerEvent } from "./event.ts";
-export { isLedgerEvent } from "./event.ts";
+export { isLedgerEvent, isLedgerEventV4 } from "./event.ts";
 export { parseExpectOutput } from "./expectOutput.ts";
 export type { Gate, GateRefusal } from "./gate.ts";
 export { gate, isGate, proposeGateMove } from "./gate.ts";
@@ -39,6 +39,22 @@ export type { Gap, Mark } from "./mark.ts";
 export { isGap, isMark, mark } from "./mark.ts";
 export type { Note } from "./note.ts";
 export { isNote, note } from "./note.ts";
+export type {
+  OutboxArtifact,
+  OutboxArtifactRefusal,
+  OutboxDelivery,
+  OutboxIntent,
+  OutboxRepository,
+} from "./outbox.ts";
+export {
+  isOutboxArtifact,
+  isOutboxDelivery,
+  isOutboxIntent,
+  OUTBOX_ARTIFACT_SHAPE,
+  OUTBOX_INTENT_SHAPE,
+  readOutboxArtifact,
+  retainOutboxArtifact,
+} from "./outbox.ts";
 export type {
   ClearRefusal,
   HeldOn,
@@ -59,22 +75,6 @@ export type {
   NodeView,
   SessionView,
 } from "./projection.ts";
-export type {
-  OutboxArtifact,
-  OutboxArtifactRefusal,
-  OutboxDelivery,
-  OutboxIntent,
-  OutboxRepository,
-} from "./outbox.ts";
-export {
-  OUTBOX_ARTIFACT_SHAPE,
-  OUTBOX_INTENT_SHAPE,
-  isOutboxArtifact,
-  isOutboxDelivery,
-  isOutboxIntent,
-  readOutboxArtifact,
-  retainOutboxArtifact,
-} from "./outbox.ts";
 export {
   applyEvent,
   emptyProjection,

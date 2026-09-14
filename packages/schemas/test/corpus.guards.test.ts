@@ -312,7 +312,7 @@ describe("corpus: the ledger's guards and this node's schemas agree", () => {
     });
   });
 
-  describe("isLedgerEvent / the current event schema (event@v4)", () => {
+  describe("isLedgerEvent / the current event schema (event@v5)", () => {
     const nodeCreated: LedgerEvent = {
       kind: "node-created",
       node: { graph: "0001-bootstrap", id: "ledger" },
@@ -321,7 +321,7 @@ describe("corpus: the ledger's guards and this node's schemas agree", () => {
       const envelope = envelopeFor(nodeCreated);
       expect(isLedgerEvent(envelope)).toBe(true);
       const validate = registry.ajv.getSchema(
-        "https://github.com/rodrigopsasaki/interlock/schemas/event@v4.json",
+        "https://github.com/rodrigopsasaki/interlock/schemas/event@v5.json",
       );
       expect(validate?.(envelope)).toBe(true);
     });
@@ -343,15 +343,15 @@ describe("corpus: the ledger's guards and this node's schemas agree", () => {
       });
       expect(isLedgerEvent(envelope)).toBe(true);
       const validate = registry.ajv.getSchema(
-        "https://github.com/rodrigopsasaki/interlock/schemas/event@v4.json",
+        "https://github.com/rodrigopsasaki/interlock/schemas/event@v5.json",
       );
       expect(validate?.(envelope)).toBe(true);
     });
     it("agree that an unknown kind is refused", () => {
-      const envelope = { interlock: "event@v4", kind: "unknown-thing" };
+      const envelope = { interlock: "event@v5", kind: "unknown-thing" };
       expect(isLedgerEvent(envelope)).toBe(false);
       const validate = registry.ajv.getSchema(
-        "https://github.com/rodrigopsasaki/interlock/schemas/event@v4.json",
+        "https://github.com/rodrigopsasaki/interlock/schemas/event@v5.json",
       );
       expect(validate?.(envelope)).toBe(false);
     });

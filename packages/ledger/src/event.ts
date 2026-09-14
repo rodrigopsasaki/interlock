@@ -3,8 +3,13 @@ import { type Debrief, isDebrief } from "./debrief.ts";
 import { type Gate, isGate } from "./gate.ts";
 import { isNode, type Node } from "./graph.ts";
 import { isNote, type Note } from "./note.ts";
+import {
+  isOutboxDelivery,
+  isOutboxIntent,
+  type OutboxDelivery,
+  type OutboxIntent,
+} from "./outbox.ts";
 import { isOutcome, type Outcome } from "./outcome.ts";
-import { isOutboxDelivery, isOutboxIntent, type OutboxDelivery, type OutboxIntent } from "./outbox.ts";
 import { isReceipt, type Receipt } from "./receipt.ts";
 import { isSession, type Session } from "./session.ts";
 import { isRecord, isString, prop } from "./validate.ts";
@@ -119,9 +124,10 @@ export function isLedgerEvent(value: unknown): value is LedgerEvent {
     case "outcome-set":
       return isNode(prop(value, "node")) && isOutcome(prop(value, "outcome"));
     case "outbox-intent-recorded":
-      return isNode(prop(value, "node")) && (
-        (isString(prop(value, "id")) && isString(prop(value, "intent"))) ||
-        isOutboxIntent(prop(value, "effect"))
+      return (
+        isNode(prop(value, "node")) &&
+        ((isString(prop(value, "id")) && isString(prop(value, "intent"))) ||
+          isOutboxIntent(prop(value, "effect")))
       );
     case "outbox-delivery-recorded":
       return isOutboxDelivery(prop(value, "delivery"));
@@ -134,4 +140,9 @@ export function isLedgerEvent(value: unknown): value is LedgerEvent {
     default:
       return false;
   }
+}
+
+export function isLedgerEventV4(value: unknown): value is LedgerEvent {
+  if (!isLedgerEvent(value) || value.kind === "outbox-delivery-recorded") return false;
+  return value.kind !== "outbox-intent-recorded" || !("effect" in value);
 }

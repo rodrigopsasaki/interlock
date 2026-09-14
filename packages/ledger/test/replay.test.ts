@@ -9,12 +9,12 @@ import type { LedgerEvent } from "../src/event.js";
 import { gate } from "../src/gate.js";
 import { isNode, type Node, nodeKey } from "../src/graph.js";
 import { createLedger } from "../src/ledger.js";
-import type { LedgerSink } from "../src/sink.js";
 import { note } from "../src/note.js";
 import { heldOn, outcome } from "../src/outcome.js";
 import { fold, type LedgerProjection } from "../src/projection.js";
 import { duration, type Receipt } from "../src/receipt.js";
 import { parseLine, readRawEvents, replayFromRaw } from "../src/replay.js";
+import type { LedgerSink } from "../src/sink.js";
 import { spend } from "../src/spend.js";
 import { upcastV1 } from "../src/upcast/v1.js";
 import { isRecord, prop } from "../src/validate.js";
@@ -176,11 +176,13 @@ describe("confirmed append", () => {
       },
       close() {},
     };
-    const ledger = unwrap(await createLedger({
-      clock: createControlledClock({ initialTime: 0 }),
-      directory,
-      sink,
-    }));
+    const ledger = unwrap(
+      await createLedger({
+        clock: createControlledClock({ initialTime: 0 }),
+        directory,
+        sink,
+      }),
+    );
     const node: Node = { graph: "0001-bootstrap", id: "ledger" };
 
     expect(ledger.appendConfirmed({ kind: "node-created", node })).toEqual({

@@ -1,9 +1,11 @@
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import type { Debrief, Node, Note, Receipt } from "ledger";
 import type {
+  AbsorbDispatch,
   AbsorbOutcome,
   ContextOutcome,
   EvidenceForAbsorb,
+  PreparedAbsorb,
   Repository,
   SubstrateClient,
 } from "./client.ts";
@@ -20,6 +22,35 @@ const CALL_TIMEOUT_MS = 5_000;
 
 function endpoint(address: string, verb: string): string {
   return `${address.replace(/\/+$/, "")}/substrate@v1/${verb}`;
+}
+
+function safeEndpoint(address: string, verb: string): string | undefined {
+  try {
+    const parsed = new URL(address);
+    if (
+      (parsed.protocol !== "http:" && parsed.protocol !== "https:") ||
+      parsed.username.length > 0 ||
+      parsed.password.length > 0 ||
+      parsed.search.length > 0 ||
+      parsed.hash.length > 0
+    ) {
+      return undefined;
+    }
+    return endpoint(parsed.toString(), verb);
+  } catch {
+    return undefined;
+  }
+}
+
+function hasSafeRepository(repository: Repository | undefined): boolean {
+  if (repository === undefined) return true;
+  if (repository.originUrl.includes("?") || repository.originUrl.includes("#")) return false;
+  try {
+    const parsed = new URL(repository.originUrl);
+    return parsed.username.length === 0 && parsed.password.length === 0;
+  } catch {
+    return true;
+  }
 }
 
 async function authHeaders(
@@ -92,6 +123,33 @@ async function post(
     },
     bearerToken,
   );
+}
+
+async function dispatch(
+  target: string,
+  headers: Record<string, string>,
+  request: string,
+): Promise<
+  | { readonly kind: "response"; readonly raw: Buffer }
+  | { readonly kind: "uncertain"; readonly because: string }
+> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), CALL_TIMEOUT_MS);
+  try {
+    const response = await fetch(target, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...headers },
+      body: request,
+      signal: controller.signal,
+    });
+    if (!response.ok)
+      return { kind: "uncertain", because: `absorb returned HTTP ${response.status}` };
+    return { kind: "response", raw: Buffer.from(await response.arrayBuffer()) };
+  } catch {
+    return { kind: "uncertain", because: "absorb transport did not confirm a response" };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function get(
@@ -181,13 +239,29 @@ export function httpClient(
     receipts: readonly Receipt[],
     evidence?: EvidenceForAbsorb,
   ): Promise<AbsorbOutcome> {
-    const headers = await authHeaders(keyFile);
-    if (isErr(headers)) return { kind: "refused", because: headers.error };
-    const response = await post(
-      address,
-      "absorb",
-      headers.value.headers,
-      {
+    const prepared = await prepareAbsorb(node, debrief, notes, receipts, evidence);
+    if (prepared.kind === "none") return { kind: "empty" };
+    if (prepared.kind === "refused") return prepared;
+    const sent = await dispatchAbsorb(prepared);
+    return sent.kind === "acknowledged" ? sent.outcome : { kind: "refused", because: sent.because };
+  }
+
+  async function prepareAbsorb(
+    node: Node,
+    debrief: Debrief,
+    notes: readonly Note[],
+    receipts: readonly Receipt[],
+    evidence?: EvidenceForAbsorb,
+  ): Promise<PreparedAbsorb> {
+    const target = safeEndpoint(address, "absorb");
+    if (target === undefined) return { kind: "refused", because: "absorb address is unsafe" };
+    if (!hasSafeRepository(repository)) {
+      return { kind: "refused", because: "absorb repository is unsafe" };
+    }
+    return {
+      kind: "ready",
+      target,
+      request: JSON.stringify({
         debrief: toWireDebrief(debrief),
         notes: toWireNotes(node.id, notes),
         receipts,
@@ -201,27 +275,42 @@ export function httpClient(
                 origin_url: repository.originUrl,
               },
             }),
-      },
-      headers.value.bearerToken,
-    );
-    if (isErr(response)) return { kind: "refused", because: response.error };
-    const body = response.value;
-    if (absorbResponseSchema === undefined) {
-      return {
-        kind: "refused",
-        because: "no compiled response schema for absorb",
-      };
-    }
-    if (!absorbResponseSchema.validate(body)) {
-      return { kind: "refused", because: absorbResponseSchema.errors() };
-    }
-    return {
-      kind: "acknowledged",
-      decisionsAbsorbed: body.decisions_absorbed,
-      discoveries: body.discoveries,
-      gaps: body.gaps,
+      }),
+      ...(repository === undefined ? {} : { repository }),
     };
   }
 
-  return { address, context, absorb, capabilities };
+  async function dispatchAbsorb(
+    prepared: Extract<PreparedAbsorb, { readonly kind: "ready" }>,
+  ): Promise<AbsorbDispatch> {
+    const headers = await authHeaders(keyFile);
+    if (isErr(headers))
+      return { kind: "uncertain", because: "absorb credentials were unavailable" };
+    const received = await dispatch(prepared.target, headers.value.headers, prepared.request);
+    if (received.kind === "uncertain") return received;
+    let body: unknown;
+    try {
+      body = JSON.parse(received.raw.toString("utf-8"));
+    } catch {
+      return { kind: "uncertain", because: "absorb response was not JSON" };
+    }
+    if (absorbResponseSchema === undefined) {
+      return { kind: "uncertain", because: "no compiled response schema for absorb" };
+    }
+    if (!absorbResponseSchema.validate(body)) {
+      return { kind: "uncertain", because: "absorb response did not match its schema" };
+    }
+    return {
+      kind: "acknowledged",
+      outcome: {
+        kind: "acknowledged",
+        decisionsAbsorbed: body.decisions_absorbed,
+        discoveries: body.discoveries,
+        gaps: body.gaps,
+      },
+      response: received.raw,
+    };
+  }
+
+  return { address, context, absorb, prepareAbsorb, dispatchAbsorb, capabilities };
 }
