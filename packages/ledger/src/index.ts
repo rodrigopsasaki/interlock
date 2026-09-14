@@ -43,6 +43,7 @@ export type {
   OutboxArtifact,
   OutboxArtifactRefusal,
   OutboxDelivery,
+  OutboxEvidence,
   OutboxIntent,
   OutboxRepository,
 } from "./outbox.ts";
@@ -53,6 +54,7 @@ export {
   OUTBOX_ARTIFACT_SHAPE,
   OUTBOX_INTENT_SHAPE,
   readOutboxArtifact,
+  readOutboxEvidence,
   retainOutboxArtifact,
 } from "./outbox.ts";
 export type {

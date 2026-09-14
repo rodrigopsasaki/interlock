@@ -33,6 +33,13 @@
               "acknowledgment": { "$ref": "parts/outbox-artifact.json" }
             },
             "required": ["id", "state", "because", "derivation"],
+            "allOf": [
+              {
+                "if": { "properties": { "state": { "const": "acknowledged" } } },
+                "then": { "required": ["acknowledgment"] },
+                "else": { "not": { "required": ["acknowledgment"] } }
+              }
+            ],
             "additionalProperties": false
           }
         },

@@ -2,6 +2,8 @@ import type { Clock } from "@phyxiusjs/clock";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import { Journal } from "@phyxiusjs/journal";
 import type { LedgerEvent } from "./event.ts";
+import type { Node } from "./graph.ts";
+import { type OutboxEvidence, readOutboxEvidence } from "./outbox.ts";
 import { applyEvent, type LedgerProjection } from "./projection.ts";
 import { type ReplayRefusal, readReplay } from "./replay.ts";
 import { createLedgerSink, type LedgerSink } from "./sink.ts";
@@ -20,6 +22,7 @@ export interface Ledger {
   append(event: LedgerEvent): void;
   appendConfirmed(event: LedgerEvent): Result<void, LedgerAppendRefusal>;
   projection(): LedgerProjection;
+  readOutboxEvidence(node: Node, session: string, id: string): OutboxEvidence;
   directory(): string;
   close(): Promise<void>;
 }
@@ -59,6 +62,9 @@ export async function createLedger(options: LedgerOptions): Promise<Result<Ledge
     appendConfirmed,
     projection() {
       return current;
+    },
+    readOutboxEvidence(node, session, id) {
+      return readOutboxEvidence(current.outbox, options.directory, node, session, id);
     },
     directory() {
       return options.directory;

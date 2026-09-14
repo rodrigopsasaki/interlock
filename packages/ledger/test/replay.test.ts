@@ -445,6 +445,25 @@ describe("replay's versioned upcast seam", () => {
     const approved = replayed.value.nodes.get(nodeKey(graphNode))?.gates.get("approved");
     expect(approved?.kind).toBe("satisfied");
   });
+
+  it("reads an actual event@v4 line and refuses a v5-only outbox event under that old tag", () => {
+    const node: Node = { graph: "0001-bootstrap", id: "ledger" };
+    const v4 = JSON.stringify({ interlock: "event@v4", kind: "node-created", node });
+    const replayed = replayFromRaw(v4);
+    expect(replayed._tag).toBe("Ok");
+    if (replayed._tag === "Ok") expect(replayed.value.nodes.get(nodeKey(node))).toBeDefined();
+    const v5Only = JSON.stringify({
+      interlock: "event@v4",
+      kind: "outbox-delivery-recorded",
+      delivery: {
+        id: "a".repeat(64),
+        state: "uncertain",
+        because: "doubt",
+        derivation: derivation.gate("outbox", "runner@0", "runner"),
+      },
+    });
+    expect(replayFromRaw(v5Only)).toEqual({ _tag: "Err", error: { tag: "event@v4", line: 1 } });
+  });
 });
 
 describe("readRawEvents", () => {

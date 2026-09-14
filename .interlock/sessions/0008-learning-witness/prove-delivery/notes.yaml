@@ -17,3 +17,11 @@ entries:
     at: "2026-09-14T22:53:16Z"
     chose: Keep deterministic proof local and defer listener-dependent absorb checks to the harness.
     because: The brief identifies local listeners as unavailable in this sandbox, while the runner and ledger seams can be tested without a receiver and must receive the failure-matrix coverage.
+  - kind: choice
+    at: "2026-09-14T22:54:13Z"
+    chose: Make acknowledged delivery a distinct type requiring its retained acknowledgment and expose lookup only through verified artifact reads.
+    because: The graph requires the missing-proof state to be refused rather than represented, and a reference alone is not evidence until its envelope, byte count, and SHA-256 all verify.
+  - kind: surprise
+    at: "2026-09-14T22:57:54Z"
+    expected: The new focused files would already meet the repository formatter's layout rules.
+    observed: The lint gate found formatting-only differences in the added proof and boundary files; the formatter made no semantic changes.

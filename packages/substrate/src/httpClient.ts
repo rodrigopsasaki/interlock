@@ -126,9 +126,11 @@ async function post(
 }
 
 async function dispatch(
+  address: string,
   target: string,
   headers: Record<string, string>,
   request: string,
+  bearerToken: string | undefined,
 ): Promise<
   | { readonly kind: "response"; readonly raw: Buffer }
   | { readonly kind: "uncertain"; readonly because: string }
@@ -143,7 +145,10 @@ async function dispatch(
       signal: controller.signal,
     });
     if (!response.ok)
-      return { kind: "uncertain", because: `absorb returned HTTP ${response.status}` };
+      return {
+        kind: "uncertain",
+        because: await receivedHttpRefusal("absorb", address, response, bearerToken),
+      };
     return { kind: "response", raw: Buffer.from(await response.arrayBuffer()) };
   } catch {
     return { kind: "uncertain", because: "absorb transport did not confirm a response" };
@@ -286,7 +291,13 @@ export function httpClient(
     const headers = await authHeaders(keyFile);
     if (isErr(headers))
       return { kind: "uncertain", because: "absorb credentials were unavailable" };
-    const received = await dispatch(prepared.target, headers.value.headers, prepared.request);
+    const received = await dispatch(
+      address,
+      prepared.target,
+      headers.value.headers,
+      prepared.request,
+      headers.value.bearerToken,
+    );
     if (received.kind === "uncertain") return received;
     let body: unknown;
     try {

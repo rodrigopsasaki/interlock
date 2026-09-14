@@ -98,8 +98,7 @@ describe("absorb outbox", () => {
     expect(narrated).not.toEqual([]);
     expect(received).not.toBe("");
     const effect = [...ledger.projection().outbox.values()][0];
-    expect(effect?.delivery?.state).toBe("acknowledged");
-    if (effect?.delivery?.acknowledgment === undefined) throw new Error("missing acknowledgment");
+    if (effect?.delivery?.state !== "acknowledged") throw new Error("missing acknowledgment");
     expect(
       readFileSync(join(ledger.directory(), effect.delivery.acknowledgment.ref)).byteLength,
     ).toBeGreaterThan(0);

@@ -5,6 +5,7 @@ import {
   type Ledger,
   type LedgerEvent,
   type LedgerProjection,
+  readOutboxEvidence,
 } from "ledger";
 
 export function memoryLedger(): Ledger {
@@ -29,6 +30,9 @@ export function memoryLedgerWithLog(): {
     },
     projection() {
       return projection;
+    },
+    readOutboxEvidence(node, session, id) {
+      return readOutboxEvidence(projection.outbox, "", node, session, id);
     },
     directory() {
       return "";

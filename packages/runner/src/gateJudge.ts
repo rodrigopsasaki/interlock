@@ -424,18 +424,35 @@ function outboxDerivation(runnerId: string) {
   return derivation.gate("outbox", GATE_DERIVATION_VERSION, runnerId);
 }
 
-function recordDelivery(
+function recordUncertainDelivery(
   ledger: Ledger,
   id: string,
-  state: "acknowledged" | "uncertain",
   because: string,
   runnerId: string,
-  acknowledgment?: OutboxArtifact,
 ): boolean {
-  const delivery: OutboxDelivery =
-    acknowledgment === undefined
-      ? { id, state, because, derivation: outboxDerivation(runnerId) }
-      : { id, state, because, derivation: outboxDerivation(runnerId), acknowledgment };
+  const delivery: OutboxDelivery = {
+    id,
+    state: "uncertain",
+    because,
+    derivation: outboxDerivation(runnerId),
+  };
+  return !isErr(ledger.appendConfirmed({ kind: "outbox-delivery-recorded", delivery }));
+}
+
+function recordAcknowledgedDelivery(
+  ledger: Ledger,
+  id: string,
+  because: string,
+  runnerId: string,
+  acknowledgment: OutboxArtifact,
+): boolean {
+  const delivery: OutboxDelivery = {
+    id,
+    state: "acknowledged",
+    because,
+    derivation: outboxDerivation(runnerId),
+    acknowledgment,
+  };
   return !isErr(ledger.appendConfirmed({ kind: "outbox-delivery-recorded", delivery }));
 }
 
@@ -493,7 +510,7 @@ async function absorbThroughOutbox(
 
   const dispatched = await substrate.dispatchAbsorb(prepared);
   if (dispatched.kind === "uncertain") {
-    return recordDelivery(ledger, id, "uncertain", dispatched.because, runnerId)
+    return recordUncertainDelivery(ledger, id, dispatched.because, runnerId)
       ? refusal(dispatched.because)
       : refusal("outbox uncertainty could not be retained");
   }
@@ -503,19 +520,17 @@ async function absorbThroughOutbox(
     dispatched.response,
   );
   if (isErr(acknowledgment)) {
-    recordDelivery(
+    recordUncertainDelivery(
       ledger,
       id,
-      "uncertain",
       "absorb response was observed but acknowledgment evidence could not be retained",
       runnerId,
     );
     return refusal("absorb acknowledgment evidence could not be retained");
   }
-  return recordDelivery(
+  return recordAcknowledgedDelivery(
     ledger,
     id,
-    "acknowledged",
     "validated absorb response retained",
     runnerId,
     acknowledgment.value,

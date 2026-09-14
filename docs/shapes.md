@@ -144,41 +144,19 @@ open:
 
 #### `brief@v1`
 
-Source: `.interlock/sessions/readme-interlock-concept/readme/brief.md`
+Source: `.interlock/sessions/0008-learning-witness/source-a/brief.md`
 
 ```yaml
 interlock: brief@v1
-graph: readme-interlock-concept
-node: readme
+graph: 0008-learning-witness
+node: source-a
 role: worker
-gates:
-  - id: typecheck
-    kind: command
-    run: pnpm typecheck
-  - id: test
-    kind: command
-    run: pnpm test
-  - id: debrief-valid
-    kind: command
-    run: pnpm interlock debrief validate {graph} {node}
-  - id: readme-whitespace
-    kind: command
-    run: git diff 1aef03d --check
-  - id: readme-assets
-    kind: command
-    run: >-
-      node --input-type=module -e "import {readFileSync,existsSync} from 'node:fs';
-      const text=readFileSync('README.md','utf8');
-      const files=['docs/brand/interlock-wordmark.png','docs/brand/interlock-concept.svg','docs/brand/interlock-concept-mobile.svg','docs/brand/interlock-critical-path.svg'];
-      if(files.some(file=>!existsSync(file)||!text.includes(file)))throw Error('A README asset is missing or unused');
-      if(/<style|<script|style=|class=|file:\/\/|127\.0\.0\.1|\/Users\//i.test(text))throw Error('README contains local-only styling or paths');
-      console.log('README assets and markup checked');"
-    expect_output: README assets and markup checked
+gates: []
 scope:
-  - README.md
-  - docs/brand
-  - scripts/check-readme.ts
-  - .interlock/sessions/readme-interlock-concept/readme
+  - packages/substrate/src/evidence.ts
+  - packages/substrate/src/derivationString.ts
+  - packages/verifier/src/verify.ts
+  - packages/substrate/test/evidence.test.ts
 substrate:
   address: none
 ```
@@ -879,6 +857,10 @@ gates_run_by_agent:
     result: pass
     invocation: pnpm interlock schema reference --check
     note: The generated schema reference was fresh after regeneration.
+  - id: debrief-valid
+    result: pass
+    invocation: pnpm interlock debrief validate 0007-absorb-outbox retain-absorb-intent
+    note: The final session artifacts validate as supported shapes.
   - id: test
     result: fail
     invocation: pnpm test
@@ -1140,44 +1122,32 @@ No vocabulary entry for `notes`.
 
 #### `notes@v0`
 
-Source: `.interlock/sessions/0005-gate-output-way-back/retain-gate-evidence/notes.yaml`
+Source: `.interlock/sessions/0008-learning-witness/prove-delivery/notes.yaml`
 
 ```yaml
 interlock: notes@v0
-node: retain-gate-evidence
+node: prove-delivery
 entries:
+  - kind: surprise
+    at: "2026-09-14T22:52:11Z"
+    expected: The earlier session state would include this node's notes artifact.
+    observed: The generated brief was committed, but notes.yaml was absent from the node directory.
   - kind: choice
-    at: "2026-09-14T15:00:00Z"
-    chose: Reused the runner journal-root seam and added retained stream references additively to receipt proof.
-    because: The graph requires artifacts to survive a node worktree and old receipts to remain readable without an event migration.
+    at: "2026-09-14T22:52:11Z"
+    chose: Inspect the existing delivery implementation and its focused proofs against every graph acceptance obligation before changing code.
+    because: This bounded repair inherits code from the held slot-5 candidate, and the graph requires actual production seams and discriminating failure proof rather than a replacement implementation.
   - kind: surprise
-    at: "2026-09-14T15:05:00Z"
-    expected: A reusable runner seam would identify the shared journal location.
-    observed: sharedJournalDirectory resolves Git's common directory, including from linked worktrees, and is already used by runner session code and CLI journal readers.
-  - kind: surprise
-    at: "2026-09-14T15:10:00Z"
-    expected: An empty-stream command would produce empty retained stderr.
-    observed: The test process's shared mise state emitted a permission warning on stderr before the gate command ran, proving capture includes runner-launched stream output.
+    at: "2026-09-14T22:53:16Z"
+    expected: The focused checks would run under the repository's pinned Node 24.14.0 runtime.
+    observed: The prepared environment ran Node 26.0.0 and pnpm warned about the engine mismatch, although the deterministic runner, ledger, and response-detail checks passed.
   - kind: choice
-    at: "2026-09-14T15:20:00Z"
-    chose: Stored each stream through a temporary file and exclusive hard link, then verified an existing same-hash artifact byte-for-byte.
-    because: A completed artifact becomes visible atomically, concurrent writers reuse identical bytes, and a conflicting existing blob is an honest storage refusal.
+    at: "2026-09-14T22:53:16Z"
+    chose: Keep deterministic proof local and defer listener-dependent absorb checks to the harness.
+    because: The brief identifies local listeners as unavailable in this sandbox, while the runner and ledger seams can be tested without a receiver and must receive the failure-matrix coverage.
   - kind: choice
-    at: "2026-09-14T15:30:00Z"
-    chose: Read gate output through a proof parser that distinguishes absent legacy evidence from invalid, missing, or corrupt retained artifacts.
-    because: Older receipts cannot gain output after the fact, while a receipt that promises evidence must not treat a failed read as empty success.
-  - kind: surprise
-    at: "2026-09-14T15:40:00Z"
-    expected: The manually patched files would already match the formatter.
-    observed: Lint reported two formatting-only diffs and no semantic diagnostics.
-  - kind: surprise
-    at: "2026-09-14T15:50:00Z"
-    expected: The standing test command would complete after typecheck, lint, and comments passed.
-    observed: Two unchanged substrate capability tests exceeded their five-second timeout; runner output tests had already passed.
-  - kind: surprise
-    at: "2026-09-14T16:00:00Z"
-    expected: The new session notes shape would be accepted by debrief validation.
-    observed: The repository reader accepts notes@v0 with node and choice or surprise entries, so the initial notes@v1 artifact was converted without dropping its record.
+    at: "2026-09-14T22:54:13Z"
+    chose: Make acknowledged delivery a distinct type requiring its retained acknowledgment and expose lookup only through verified artifact reads.
+    because: The graph requires the missing-proof state to be refused rather than represented, and a reference alone is not evidence until its envelope, byte count, and SHA-256 all verify.
 ```
 
 ## position
