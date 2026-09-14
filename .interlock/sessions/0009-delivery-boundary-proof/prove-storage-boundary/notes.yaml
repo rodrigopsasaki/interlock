@@ -2,6 +2,18 @@ interlock: notes@v0
 node: prove-storage-boundary
 entries:
   - kind: choice
+    at: "2026-09-14T23:36:54Z"
+    chose: Regenerate the schema reference with the finalized recovery debrief and include both artifacts in the final commit.
+    because: The reference retains the way back to the debrief content it renders, so its source must match the committed recovery record.
+  - kind: surprise
+    at: "2026-09-14T23:36:54Z"
+    expected: Updating the recovery debrief to name the schema-reference commit would leave the already generated reference fresh.
+    observed: The reference renders the current debrief content, so the head SHA update made docs/shapes.md stale until it was regenerated with the final debrief.
+  - kind: surprise
+    at: "2026-09-14T23:34:28Z"
+    expected: The deterministic schema corpus would be fresh before regenerating its reference after the recovery changes.
+    observed: The corpus now selects the immutable attempt debrief as its smallest artifact, while docs/shapes.md still names the previous session debrief path.
+  - kind: choice
     at: "2026-09-14T23:32:45Z"
     chose: Define acknowledgment again at the event conditional that requires it, cap schema artifact bytes at the runtime safe-integer bound, and prove the recovery matrix through existing ledger and schema guard tests.
     because: AJV strict compilation requires the conditional required property at its local schema path, while the runtime guards already reject unsafe byte counts and missing acknowledged evidence.

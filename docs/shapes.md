@@ -783,7 +783,7 @@ node: prove-storage-boundary
 role: worker
 graph_base_sha: 49f7c02c507c259dc6bcf735bf8457c18e63dfea
 session_start_sha: 545e97cae88b5a75c7bfed66ecfe1dc7accc7d3c
-head_sha: 7bd8a5cbfce6274b6d2a933614a57f12bab70d5a
+head_sha: ad55d2611aa86dd3e2e5e7c9291bc44ae0db3e39
 derivation:
   kind: agent
   runtime: codex
@@ -842,6 +842,10 @@ gates_run_by_agent:
     result: pass
     invocation: mise exec -- pnpm --filter schemas exec vitest run test/corpus.guards.test.ts
     note: Forty-one schema guard agreement tests passed, including acknowledged evidence and safe byte bounds.
+  - id: shape-reference-fresh
+    result: pass
+    invocation: mise exec -- pnpm interlock schema reference --check
+    note: The regenerated reference was fresh under Node 24.14.0 after the recovery artifacts were present.
 open:
   - "No S1, S2, or S3 obligation is intentionally unmet: the named focused ledger and runner proofs pass under the pinned runtime."
   - The full workspace test gate was not run locally because the brief states this sandbox blocks localhost listeners; the harness must produce that receipt independently.
