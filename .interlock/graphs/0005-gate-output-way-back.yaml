@@ -1,0 +1,76 @@
+interlock: graph@v0
+id: 0005-gate-output-way-back
+ask: Keep the actual evidence behind a command-gate receipt so a failed run can be inspected without rerunning it.
+derivation:
+  kind: model
+  model: gpt-6-astra
+  prompt: six-graphs-2026-09-14-slot-1
+authorization:
+  granted_by: Rodrigo Sasaki
+  mandate: six-graphs-2026-09-14
+  slot: 1
+  limit: 6
+  source: Explicit delegation in the root conversation; decision record in interlock-notes/six-graph-mandate-2026-09-14.md.
+read: >
+  M4 prerequisite earned by a real failure, not a logging platform. The last
+  targeted gate kept only outputHash. Root may approve this exact content under
+  the delegated six-graph mandate; workers cannot. One implementation node,
+  independent review and the existing standing gates. Keep old receipts and
+  started briefs unchanged. No push, merge, deployment, live substrate, new
+  runtime integration, broad logging redesign, gate waiver or general retry
+  work. The substrate stays none. Failure consumes this attempt; root records
+  disposition within the finite arc instead of silently resetting it.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: retain-gate-evidence
+    depends_on: []
+    acceptance: |
+      Persist command stdout/stderr evidence before recording the receipt that
+      references it. Use immutable content-addressed local artifacts associated
+      with the shared journal, reachable after leaving the node worktree. Keep
+      the existing gate exit/regex semantics and outputHash meaning unchanged:
+      legacy outputHash still hashes combined per-chunk decoded text in listener
+      arrival order. Add independent SHA-256 identities for the raw stdout and
+      stderr bytes; never reinterpret the legacy hash as either stream's hash.
+      Preserve exact bytes for retained stream artifacts, including empty output
+      and split UTF-8 chunks. Required metadata includes content identity, byte
+      count and a resolvable relative artifact reference. The structured reference
+      envelope is explicitly versioned (gate-output@v0), embedded additively in
+      receipt proof; the raw byte blobs are not given a text header. Avoid inline raw output
+      in the ledger or position. No silent truncation or garbage collection.
+      A write failure must not produce a satisfied receipt claiming stored proof;
+      return an honest typed refusal or held result through the existing seam.
+      Concurrent same-content writes are safe and cannot overwrite an artifact
+      with different bytes. References are derived from hashes, never from gate
+      names or arbitrary request paths. Reuse existing journal-root resolution.
+
+      Provide a small reading/verification seam so a stored output can be fetched
+      and checked against the receipt without a new command execution. Old
+      receipts with only outputHash remain readable and honestly lack output;
+      do not fabricate it, rewrite history or alter their content identity.
+      Existing proof is extensible; prefer an additive field rather than an
+      unnecessary event-version migration. Any actual design bend is recorded
+      with its way back. Keep artifact state in plain code, never a model.
+
+      Tests must drive real gate execution and inspect retained artifacts for
+      success, nonzero failure, regex mismatch, empty output and both streams.
+      Verify literal bytes/hash, read after worktree exit, idempotent same-content
+      writes, missing/corrupt reference refusal and storage failure behavior.
+      Preserve prior gate/receipt/replay tests, none-substrate operation and no
+      runtime assumption outside adapters. No live service or inference test.
+
+      Allowed implementation: packages/runner/src/gateJudge.ts; small new
+      packages/runner/src gate-output helper(s); their exports and narrowly
+      necessary typed caller plumbing; packages/runner/test and focused CLI
+      judgment regression tests; a why/bend entry in docs/design/0001-interlock.md;
+      this session's notes/debrief. Do not modify standing gates or unrelated
+      code. Notes map acceptance to named assertions. Debrief carries actual
+      runtime/model, graph base, session start and last code SHA; no gate claim
+      beyond what was observed. Local conventional commits, no historical edits.
+    gates:
+      - id: retained-output-proof
+        kind: command
+        run: pnpm --filter runner --fail-if-no-match exec vitest run test/gateJudge.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
