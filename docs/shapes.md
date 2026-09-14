@@ -144,19 +144,22 @@ open:
 
 #### `brief@v1`
 
-Source: `.interlock/sessions/0008-learning-witness/source-a/brief.md`
+Source: `.interlock/sessions/0009-delivery-boundary-proof/prove-dispatch-boundary/brief.md`
 
 ```yaml
 interlock: brief@v1
-graph: 0008-learning-witness
-node: source-a
+graph: 0009-delivery-boundary-proof
+node: prove-dispatch-boundary
 role: worker
 gates: []
 scope:
-  - packages/substrate/src/evidence.ts
-  - packages/substrate/src/derivationString.ts
-  - packages/verifier/src/verify.ts
-  - packages/substrate/test/evidence.test.ts
+  - packages/runner/src/gateJudge.ts
+  - packages/runner/test/absorbOutbox.test.ts
+  - packages/runner/test/absorbOutbox.failure.test.ts
+  - packages/ledger/src/outbox.ts
+  - packages/ledger/src/sink.ts
+  - packages/substrate/src/httpClient.ts
+  - packages/substrate/test/absorb.test.ts
 substrate:
   address: none
 ```
@@ -771,102 +774,87 @@ open:
 
 #### `debrief@v2`
 
-Source: `.interlock/sessions/0007-absorb-outbox/retain-absorb-intent/debrief.yaml`
+Source: `.interlock/sessions/0009-delivery-boundary-proof/prove-storage-boundary/debrief.yaml`
 
 ```yaml
 interlock: debrief@v2
-graph: 0007-absorb-outbox
-node: retain-absorb-intent
+graph: 0009-delivery-boundary-proof
+node: prove-storage-boundary
 role: worker
-graph_base_sha: 8cb66f4fc1574016fe0beefaeebf7c20e6a49b1b
-session_start_sha: 8cb66f4fc1574016fe0beefaeebf7c20e6a49b1b
-head_sha: e905f407ffd2d0a67c26d3f3ea6094574f5bc84b
+graph_base_sha: 675907a3262ed30aef75dcde28d1d4a3296c8125
+session_start_sha: 7247666e3858e66bcd7d3a123ee1dc44da4edb15
+head_sha: 34b0446fc4733fa95bbd823c48d244496b3435d8
 derivation:
   kind: agent
   runtime: codex
   model: gpt-5.6-terra
 discoveries:
   - id: d1
-    what: Phyxius Journal 0.2.1 catches subscriber exceptions after append, so a subscriber sink cannot by itself prove disk persistence.
-    found_at: node_modules/.pnpm/@phyxiusjs+journal@0.2.1_@types+node@24.13.3/node_modules/@phyxiusjs/journal/dist/index.js:118-142
-    mattered_because: An outward request must not be dispatched from a projection that advanced after an unreported write or sync failure.
+    what: The existing confirmed-append test labeled two identical fake sink throws as write and sync failures, without exercising either createLedgerSink operation.
+    found_at: packages/ledger/test/replay.test.ts
+    mattered_because: S1 requires a real production storage boundary before projection or dispatch can be claimed as proven.
   - id: d2
-    what: The sandbox reproduces the preceding graph's two substrate capability-test timeouts because local listener setup is unavailable.
-    found_at: pnpm test
-    mattered_because: The broad test receipt is not a proof against the focused outbox path, which completed independently without changing timeouts.
+    what: A deliberately poisoned ledger makes absorbThroughOutbox refuse the intent before dispatch, then makes judgeGates' later outcome append throw the same persistence refusal.
+    found_at: packages/runner/test/absorbStorageBoundary.test.ts
+    mattered_because: The runner proof must assert the storage boundary before the counted dispatch without concealing the poisoned ledger's subsequent refusal.
 decisions:
   - id: c1
-    what: Ledger persistence is confirmed against the fsynced Phyxius entry before the projection applies it, and failure poisons later confirmed appends.
-    because: A swallowed subscriber error cannot establish durable intent or support a trusted delivery decision.
+    what: createLedgerSink accepts a narrow file-operations adapter with Node filesystem defaults, and the replay proof independently injects write and fsync failures.
+    because: appendConfirmed must neither advance the trusted projection nor recover after either production persistence operation fails.
     rests_on:
-      - docs/design/0001-interlock.md
-      - node_modules/.pnpm/@phyxiusjs+journal@0.2.1_@types+node@24.13.3/node_modules/@phyxiusjs/journal/dist/index.js
-    hunks:
+      - .interlock/graphs/0009-delivery-boundary-proof.yaml
       - packages/ledger/src/ledger.ts
-      - packages/ledger/src/sink.ts
-      - packages/ledger/test/replay.test.ts
-  - id: c2
-    what: The runner prepares, persists, and reads a typed immutable absorb intent before dispatch, with stable identity excluding receipt-duration timing noise; duplicate, changed, and incomplete records refuse or remain uncertain without sending.
-    because: I7 requires retained intent before an outward effect and preserves doubt rather than retrying or inventing delivery success.
-    rests_on:
-      - .interlock/graphs/0007-absorb-outbox.yaml
-      - packages/runner/src/gateJudge.ts
-      - packages/substrate/src/httpClient.ts
     hunks:
-      - packages/runner/src/gateJudge.ts
-      - packages/substrate/src/client.ts
-      - packages/substrate/src/httpClient.ts
-      - packages/substrate/src/noneClient.ts
-      - packages/substrate/src/refusalClient.ts
-      - packages/runner/test/absorbOutbox.test.ts
-  - id: c3
-    what: Request and acknowledgment artifacts are immutable versioned envelopes with exact bytes, hashes, byte counts, and safe journal-relative refs; v5 adds typed events while v1-v4 retain distinct readers.
-    because: The next graph needs retrievable evidence, while old journal lines must not be reinterpreted as new delivery facts.
+      - packages/ledger/src/sink.ts
+      - packages/ledger/src/index.ts
+      - packages/ledger/test/replay.test.ts
+      - packages/runner/test/absorbStorageBoundary.test.ts
+  - id: c2
+    what: Artifact retention now classifies directory creation failure as a typed write refusal, while its proof covers binary and empty bytes, unsafe and mismatched references, conflicting content without overwrite, and verified request and acknowledgment lookup failures.
+    because: Outbox evidence is usable only when its retained envelope and identifiers verify, and an artifact write failure cannot escape the outbox refusal boundary.
     rests_on:
-      - docs/design/0001-interlock.md
-      - schemas/event@v5.json
+      - .interlock/graphs/0009-delivery-boundary-proof.yaml
+      - packages/ledger/src/outbox.ts
     hunks:
       - packages/ledger/src/outbox.ts
-      - packages/ledger/src/event.ts
-      - packages/ledger/src/envelope.ts
-      - packages/ledger/src/upcast/v2.ts
-      - packages/ledger/src/upcast/v3.ts
-      - schemas/event@v5.json
-      - schemas/parts/outbox-artifact.json
-      - schemas/parts/outbox-intent.json
-      - docs/shapes.md
-      - docs/design/0001-interlock.md
+      - packages/ledger/test/outboxDurability.test.ts
+  - id: c3
+    what: The inherited gateJudge fakes now use prepareAbsorb and dispatchAbsorb while preserving their evidence and narration assertions; acknowledged fixtures use their own worktree as the artifact directory.
+    because: The production outbox path must be exercised by the fixtures without a direct absorb fallback or writes outside their cleanup boundary.
+    rests_on:
+      - .interlock/graphs/0009-delivery-boundary-proof.yaml
+      - packages/runner/src/gateJudge.ts
+    hunks:
+      - packages/runner/test/gateJudge.test.ts
+      - packages/runner/test/support/memoryLedger.ts
 gates_run_by_agent:
   - id: typecheck
     result: pass
-    invocation: pnpm typecheck
-    note: All eight workspace packages completed TypeScript checking.
+    invocation: mise exec -- pnpm typecheck
+    note: All workspace packages completed TypeScript checking under Node 24.14.0.
   - id: lint
     result: pass
-    invocation: pnpm lint
-    note: Biome checked 313 files without diagnostics.
+    invocation: mise exec -- pnpm lint
+    note: Biome checked 316 files without diagnostics.
   - id: comments
     result: pass
-    invocation: pnpm check:comments
+    invocation: mise exec -- pnpm check:comments
     note: packages/*/src reported no comments.
-  - id: outbox-proof
+  - id: storage-boundary-proof
     result: pass
-    invocation: pnpm --filter runner --fail-if-no-match exec vitest run test/absorbOutbox.test.ts
-    note: The one focused runner proof confirmed persisted intent and exact bytes before adapter dispatch, then retained acknowledgment evidence.
+    invocation: mise exec -- pnpm --filter ledger exec vitest run test/outboxDurability.test.ts test/replay.test.ts --reporter=verbose
+    note: Twenty-four ledger tests passed, including separate production write and fsync failures, v1-v4 replay, old-tag rejection, and the artifact evidence matrix.
+  - id: storage-before-dispatch-proof
+    result: pass
+    invocation: mise exec -- pnpm --filter runner exec vitest run test/absorbStorageBoundary.test.ts test/gateJudge.test.ts --reporter=verbose
+    note: Twenty-nine runner tests passed, including zero dispatch for separately injected intent write and fsync failures and all seven prepared-client fixture repairs.
   - id: shape-reference-fresh
     result: pass
-    invocation: pnpm interlock schema reference --check
-    note: The generated schema reference was fresh after regeneration.
-  - id: debrief-valid
-    result: pass
-    invocation: pnpm interlock debrief validate 0007-absorb-outbox retain-absorb-intent
-    note: The final session artifacts validate as supported shapes.
-  - id: test
-    result: fail
-    invocation: pnpm test
-    note: The workspace reproduced the two prior five-second substrate capability-test timeouts after the unaffected packages completed.
+    invocation: mise exec -- pnpm interlock schema reference --check
+    note: The schema reference was regenerated and was fresh immediately under Node 24.14.0.
 open:
-  - The full workspace test gate remains limited by the sandbox local-listener boundary recorded in d2; the harness should retain its own receipt rather than treating this worker result as a final node outcome.
+  - "No S1, S2, or S3 obligation is intentionally unmet: the named focused ledger and runner proofs pass under the pinned runtime."
+  - The full workspace test gate was not run locally because the brief states this sandbox blocks localhost listeners; the harness must produce that receipt independently.
 ```
 
 ## event
@@ -1152,6 +1140,10 @@ entries:
     at: "2026-09-14T22:57:54Z"
     expected: The new focused files would already meet the repository formatter's layout rules.
     observed: The lint gate found formatting-only differences in the added proof and boundary files; the formatter made no semantic changes.
+  - kind: surprise
+    at: "2026-09-14T22:58:36Z"
+    expected: The schema reference would be fresh immediately after its first regeneration.
+    observed: Its first final-head check reported a difference at line 1151; a second regeneration and check were fresh, matching the known generated-reference behavior in the earlier session record.
 ```
 
 ## position

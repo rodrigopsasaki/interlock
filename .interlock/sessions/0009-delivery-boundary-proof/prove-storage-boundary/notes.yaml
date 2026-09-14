@@ -49,3 +49,7 @@ entries:
     at: "2026-09-14T23:13:46Z"
     expected: The implementation checkpoint could use the repository's configured signed commit.
     observed: The sandbox could not create GPG keybox files outside the worktree, so the signed commit failed before an object was written.
+  - kind: surprise
+    at: "2026-09-14T23:13:46Z"
+    expected: The drafted debrief would parse its open entries as strings.
+    observed: An unquoted colon made the first open entry a YAML mapping, and the validator also exposed that the abbreviated session-start SHA had been expanded incorrectly.
