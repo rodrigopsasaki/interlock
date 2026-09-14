@@ -1,0 +1,11 @@
+interlock: notes@v0
+node: prove-delivery
+entries:
+  - kind: surprise
+    at: "2026-09-14T22:52:11Z"
+    expected: The earlier session state would include this node's notes artifact.
+    observed: The generated brief was committed, but notes.yaml was absent from the node directory.
+  - kind: choice
+    at: "2026-09-14T22:52:11Z"
+    chose: Inspect the existing delivery implementation and its focused proofs against every graph acceptance obligation before changing code.
+    because: This bounded repair inherits code from the held slot-5 candidate, and the graph requires actual production seams and discriminating failure proof rather than a replacement implementation.
