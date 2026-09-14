@@ -35,7 +35,6 @@ import {
   outcome,
   proposeGateMove,
   type Receipt,
-  readOutboxArtifact,
   retainOutboxArtifact,
   type ScopeRefusal,
   spend,
@@ -478,12 +477,15 @@ async function absorbThroughOutbox(
   const id = effectId(prepared.target, prepared.repository, node, session, debrief);
   const existing = ledger.projection().outbox.get(id);
   if (existing !== undefined) {
-    const original = readOutboxArtifact(ledger.directory(), existing.intent.request);
-    if (isErr(original)) return refusal("outbox intent evidence is unavailable or corrupt");
-    if (!original.value.equals(Buffer.from(prepared.request))) {
+    const existingEvidence = ledger.readOutboxEvidence(node, session, id);
+    if (existingEvidence.kind !== "verified") {
+      return refusal("outbox delivery evidence is unavailable or corrupt");
+    }
+    if (!existingEvidence.request.equals(Buffer.from(prepared.request))) {
       return refusal("outbox intent conflicts with its retained request");
     }
-    return existing.state === "acknowledged"
+    return existingEvidence.delivery?.state === "acknowledged" &&
+      existingEvidence.acknowledgment !== undefined
       ? refusal("outbox delivery is already acknowledged")
       : refusal("outbox delivery is uncertain");
   }

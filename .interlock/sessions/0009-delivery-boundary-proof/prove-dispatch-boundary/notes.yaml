@@ -2,6 +2,34 @@ interlock: notes@v0
 node: prove-dispatch-boundary
 entries:
   - kind: choice
+    at: "2026-09-14T23:51:58Z"
+    chose: Use two production-created receipts with the same gate, scope, derivation, and proof but measured durations of 10ms and 20ms, then inspect their real HTTP-prepared request bodies before using those bodies to exercise the existing-ID conflict.
+    because: Receipt duration is the sole changed input, so the D3 refusal is tied to changed retained request evidence rather than a changed gate set or a manually renamed request string.
+  - kind: choice
+    at: "2026-09-14T23:51:58Z"
+    chose: Reopen the missing and corrupt acknowledgment cases before their repeat judgment, with no gate receipts on either run.
+    because: The replay proof must read damaged retained evidence from the journal without a fresh receipt duration creating an unrelated request conflict.
+  - kind: surprise
+    at: "2026-09-14T23:47:20Z"
+    expected: The expanded focused proof would already match the repository formatter after passing its runner typecheck.
+    observed: Lint reported formatting-only differences in absorbOutbox.failure.test.ts; the repository formatter corrected them without changing the assertions.
+  - kind: choice
+    at: "2026-09-14T23:45:11Z"
+    chose: Assert each reopened projection and readOutboxEvidence result before a second judge call, and compose the fsync recovery and receipt-timing cases with httpClient and injected fetch.
+    because: D1 and D2 are recovery facts before a later judgment, while D3 needs the production request serialization to show that changed receipt evidence conflicts under the same logical identity.
+  - kind: choice
+    at: "2026-09-14T23:45:11Z"
+    chose: Assert the actual adapter retains a useful non-2xx explanation while redacting its bearer token.
+    because: D4 requires both honest uncertainty and safe detail, so call counting alone cannot prove the response boundary.
+  - kind: choice
+    at: "2026-09-14T23:44:37Z"
+    chose: Make the existing-ID branch read verified outbox evidence before its delivery narration, and prove it through absorbOutbox.failure.test.ts using real ledger reopen, the production judge, and the injected HTTP adapter.
+    because: A projection label cannot establish an outward acknowledgment after artifact loss; the verified lookup retains request and acknowledgment provenance while still suppressing a duplicate dispatch.
+  - kind: choice
+    at: "2026-09-14T23:44:37Z"
+    chose: Exercise acknowledgment-artifact failure, delivery write and fsync failures, retained-evidence loss, request conflict, HTTP refusal, and unsafe preparation as separate cases in the bounded runner proof.
+    because: D1-D5 distinguish observed response, durable evidence, identity, adapter response, and pre-dispatch refusal; combining them would leave a branch unproven.
+  - kind: choice
     at: "2026-09-14T23:40:41Z"
     chose: Map D1 to real-ledger reopen proofs for missing and retained acknowledgment evidence after response and append failures; map D2 to intent-only reopen and duplicate-dispatch suppression; map D3 to conflicting retained request bytes and distinct session identity; map D4 to injected HTTP non-2xx, malformed, schema-invalid, and transport outcomes; and map D5 to none and unsafe HTTP preparation before the outbox boundary.
     because: The acceptance requires discriminating tests at the production judge, ledger, and HTTP seams, with each assertion observing retained evidence or the adapter call count rather than a returned string alone.
