@@ -781,52 +781,42 @@ interlock: debrief@v2
 graph: 0009-delivery-boundary-proof
 node: prove-storage-boundary
 role: worker
-graph_base_sha: 675907a3262ed30aef75dcde28d1d4a3296c8125
-session_start_sha: 7247666e3858e66bcd7d3a123ee1dc44da4edb15
-head_sha: 34b0446fc4733fa95bbd823c48d244496b3435d8
+graph_base_sha: 49f7c02c507c259dc6bcf735bf8457c18e63dfea
+session_start_sha: 545e97cae88b5a75c7bfed66ecfe1dc7accc7d3c
+head_sha: 7bd8a5cbfce6274b6d2a933614a57f12bab70d5a
 derivation:
   kind: agent
   runtime: codex
   model: gpt-5.6-terra
 discoveries:
   - id: d1
-    what: The existing confirmed-append test labeled two identical fake sink throws as write and sync failures, without exercising either createLedgerSink operation.
-    found_at: packages/ledger/test/replay.test.ts
-    mattered_because: S1 requires a real production storage boundary before projection or dispatch can be claimed as proven.
+    what: AJV strict compilation rejects the event@v5 conditional because its required acknowledgment property is only declared outside the conditional schema.
+    found_at: packages/schemas/test/corpus.guards.test.ts
+    mattered_because: S3 needs the current delivery contract to compile strictly while still refusing acknowledged deliveries without retained evidence.
   - id: d2
-    what: A deliberately poisoned ledger makes absorbThroughOutbox refuse the intent before dispatch, then makes judgeGates' later outcome append throw the same persistence refusal.
-    found_at: packages/runner/test/absorbStorageBoundary.test.ts
-    mattered_because: The runner proof must assert the storage boundary before the counted dispatch without concealing the poisoned ledger's subsequent refusal.
+    what: The schema reference corpus selects the immutable attempt debrief as the smaller representative after the recovery artifacts were added.
+    found_at: packages/schemas/test/reference.test.ts
+    mattered_because: The generated reference must be refreshed from the actual current corpus rather than retaining a stale source path.
 decisions:
   - id: c1
-    what: createLedgerSink accepts a narrow file-operations adapter with Node filesystem defaults, and the replay proof independently injects write and fsync failures.
-    because: appendConfirmed must neither advance the trusted projection nor recover after either production persistence operation fails.
+    what: The current event schema declares acknowledgment in its acknowledged conditional as well as in the delivery shape, and the guard agreement test covers present and missing evidence.
+    because: This satisfies AJV strict required-property validation without weakening the runtime refusal for an acknowledged delivery that lacks its artifact.
     rests_on:
       - .interlock/graphs/0009-delivery-boundary-proof.yaml
-      - packages/ledger/src/ledger.ts
+      - packages/ledger/src/outbox.ts
     hunks:
-      - packages/ledger/src/sink.ts
-      - packages/ledger/src/index.ts
-      - packages/ledger/test/replay.test.ts
-      - packages/runner/test/absorbStorageBoundary.test.ts
+      - schemas/event@v5.json
+      - packages/schemas/test/corpus.guards.test.ts
   - id: c2
-    what: Artifact retention now classifies directory creation failure as a typed write refusal, while its proof covers binary and empty bytes, unsafe and mismatched references, conflicting content without overwrite, and verified request and acknowledgment lookup failures.
-    because: Outbox evidence is usable only when its retained envelope and identifiers verify, and an artifact write failure cannot escape the outbox refusal boundary.
+    what: The artifact schema caps bytes at Number.MAX_SAFE_INTEGER and the retained-evidence proof now covers both artifact kinds with binary and empty bodies, lookup identity absence, and valid JSON that is not an artifact envelope.
+    because: Schema and runtime must refuse the same unsafe bounds, and S2 requires verified evidence to distinguish missing, corrupt, absent, and verified state without overwriting retained content.
     rests_on:
       - .interlock/graphs/0009-delivery-boundary-proof.yaml
       - packages/ledger/src/outbox.ts
     hunks:
-      - packages/ledger/src/outbox.ts
+      - schemas/parts/outbox-artifact.json
       - packages/ledger/test/outboxDurability.test.ts
-  - id: c3
-    what: The inherited gateJudge fakes now use prepareAbsorb and dispatchAbsorb while preserving their evidence and narration assertions; acknowledged fixtures use their own worktree as the artifact directory.
-    because: The production outbox path must be exercised by the fixtures without a direct absorb fallback or writes outside their cleanup boundary.
-    rests_on:
-      - .interlock/graphs/0009-delivery-boundary-proof.yaml
-      - packages/runner/src/gateJudge.ts
-    hunks:
-      - packages/runner/test/gateJudge.test.ts
-      - packages/runner/test/support/memoryLedger.ts
+      - packages/schemas/test/corpus.guards.test.ts
 gates_run_by_agent:
   - id: typecheck
     result: pass
@@ -842,16 +832,16 @@ gates_run_by_agent:
     note: packages/*/src reported no comments.
   - id: storage-boundary-proof
     result: pass
-    invocation: mise exec -- pnpm --filter ledger exec vitest run test/outboxDurability.test.ts test/replay.test.ts --reporter=verbose
-    note: Twenty-four ledger tests passed, including separate production write and fsync failures, v1-v4 replay, old-tag rejection, and the artifact evidence matrix.
+    invocation: mise exec -- pnpm --filter ledger --fail-if-no-match exec vitest run test/outboxDurability.test.ts test/replay.test.ts --reporter=verbose
+    note: Twenty-four ledger tests passed, including the separate production write and fsync failures, v1-v4 replay, old-tag rejection, and the completed artifact evidence matrix.
   - id: storage-before-dispatch-proof
     result: pass
-    invocation: mise exec -- pnpm --filter runner exec vitest run test/absorbStorageBoundary.test.ts test/gateJudge.test.ts --reporter=verbose
-    note: Twenty-nine runner tests passed, including zero dispatch for separately injected intent write and fsync failures and all seven prepared-client fixture repairs.
-  - id: shape-reference-fresh
+    invocation: mise exec -- pnpm --filter runner --fail-if-no-match exec vitest run test/absorbStorageBoundary.test.ts test/gateJudge.test.ts --reporter=verbose
+    note: Twenty-nine runner tests passed, including zero dispatch for separately injected intent write and fsync failures and the prepared-client fixture repairs.
+  - id: schema-corpus
     result: pass
-    invocation: mise exec -- pnpm interlock schema reference --check
-    note: The schema reference was regenerated and was fresh immediately under Node 24.14.0.
+    invocation: mise exec -- pnpm --filter schemas exec vitest run test/corpus.guards.test.ts
+    note: Forty-one schema guard agreement tests passed, including acknowledged evidence and safe byte bounds.
 open:
   - "No S1, S2, or S3 obligation is intentionally unmet: the named focused ledger and runner proofs pass under the pinned runtime."
   - The full workspace test gate was not run locally because the brief states this sandbox blocks localhost listeners; the harness must produce that receipt independently.
