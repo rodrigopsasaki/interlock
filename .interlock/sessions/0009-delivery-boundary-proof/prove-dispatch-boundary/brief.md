@@ -43,3 +43,9 @@ Use actual observed UTC, codex/gpt-5.6-terra, graph-base from generated brief,
 initial generated brief commit as session-start, last-code commit as head SHA.
 Commit code, valid notes and debrief with exact D1-D5 test refs; mark any unmet
 obligation explicitly, then stop for root's independent proof review.
+
+One concrete D1 entry point from root review: the existing-ID branch in
+gateJudge.ts verifies only the retained request, then says already acknowledged
+from projection state. If the ack file is missing/corrupt, keep redispatch
+suppressed but do not make that unverified outward claim. Exercise that branch
+through actual judgeGates and the verified lookup, not a second implementation.
