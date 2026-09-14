@@ -80,6 +80,37 @@ describe("absorb", () => {
     const client = substrateClientFor("http://127.0.0.1:1");
     const outcome = await client.absorb(node, fixtureDebrief, fixtureNotes, [fixtureReceipt]);
     expect(outcome.kind).toBe("refused");
+    if (outcome.kind !== "refused") return;
+    expect(outcome.because).not.toContain("HTTP");
+  });
+
+  it("keeps a received absorb refusal's status and JSON error string", async () => {
+    server = await startFakeSubstrateServer();
+    server.responseFor("absorb", { error: "debrief conflicts with the graph" }, 409);
+
+    const client = substrateClientFor(server.url);
+    const outcome = await client.absorb(node, fixtureDebrief, fixtureNotes, [fixtureReceipt]);
+
+    expect(outcome).toEqual({
+      kind: "refused",
+      because: `absorb ${server.url}: HTTP 409: debrief conflicts with the graph`,
+    });
+    expect(narrateAbsorb(server.url, outcome)).toBe(
+      `absorb ${server.url}: refused, absorb ${server.url}: HTTP 409: debrief conflicts with the graph`,
+    );
+  });
+
+  it("keeps a received absorb refusal's plain-text detail", async () => {
+    server = await startFakeSubstrateServer();
+    server.rawResponseFor("absorb", "receipt is too large", 413, "text/plain");
+
+    const client = substrateClientFor(server.url);
+    const outcome = await client.absorb(node, fixtureDebrief, fixtureNotes, [fixtureReceipt]);
+
+    expect(outcome).toEqual({
+      kind: "refused",
+      because: `absorb ${server.url}: HTTP 413: receipt is too large`,
+    });
   });
 
   it("degrades to a narrated refusal instead of acknowledged, judgement still able to complete, when the address stops answering mid-run", async () => {

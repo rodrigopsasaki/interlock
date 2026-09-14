@@ -84,6 +84,105 @@ describe("context", () => {
     expect(outcome.because).toContain("/items");
   });
 
+  it("keeps a received context refusal's status and JSON error.message", async () => {
+    server = await startFakeSubstrateServer();
+    server.responseFor("context", { error: { message: "role is not permitted" } }, 403);
+
+    const client = substrateClientFor(server.url);
+    const outcome = await client.context(node, [], "worker");
+
+    expect(outcome).toEqual({
+      kind: "refused",
+      because: `context ${server.url}: HTTP 403: role is not permitted`,
+    });
+    expect(narrateContext(server.url, outcome)).toBe(
+      `context ${server.url}: refused, context ${server.url}: HTTP 403: role is not permitted`,
+    );
+  });
+
+  it("keeps a received context refusal's plain-text detail after terminal controls are normalized", async () => {
+    server = await startFakeSubstrateServer();
+    server.rawResponseFor("context", "slow\u001b[2J\nrequest", 429, "text/plain; charset=utf-8");
+
+    const client = substrateClientFor(server.url);
+    const outcome = await client.context(node, [], "worker");
+
+    expect(outcome).toEqual({
+      kind: "refused",
+      because: `context ${server.url}: HTTP 429: slow request`,
+    });
+  });
+
+  it("keeps the status without serializing empty, malformed, unrecognized, or arbitrary JSON response bodies", async () => {
+    server = await startFakeSubstrateServer();
+    const client = substrateClientFor(server.url);
+
+    server.rawResponseFor("context", "", 500, "text/plain");
+    const empty = await client.context(node, [], "worker");
+    expect(empty).toEqual({ kind: "refused", because: `context ${server.url}: HTTP 500` });
+
+    server.rawResponseFor("context", '{"error":', 502, "application/json");
+    const malformed = await client.context(node, [], "worker");
+    expect(malformed).toEqual({ kind: "refused", because: `context ${server.url}: HTTP 502` });
+
+    server.responseFor("context", { error: { message: { detail: "not a string" } } }, 503);
+    const arbitraryJson = await client.context(node, [], "worker");
+    expect(arbitraryJson).toEqual({
+      kind: "refused",
+      because: `context ${server.url}: HTTP 503`,
+    });
+
+    server.rawResponseFor(
+      "context",
+      '{"error":{"message":"hidden"}}',
+      415,
+      "application/octet-stream",
+    );
+    const unrecognized = await client.context(node, [], "worker");
+    expect(unrecognized).toEqual({ kind: "refused", because: `context ${server.url}: HTTP 415` });
+  });
+
+  it("bounds context refusal detail and marks intake and display truncation", async () => {
+    server = await startFakeSubstrateServer();
+    server.rawResponseFor("context", "x".repeat(2_048), 413, "text/plain");
+
+    const client = substrateClientFor(server.url);
+    const outcome = await client.context(node, [], "worker");
+
+    expect(outcome.kind).toBe("refused");
+    if (outcome.kind !== "refused") return;
+    const detail = outcome.because.split("HTTP 413: ")[1];
+    expect(detail).toHaveLength(512);
+    expect(detail).toContain("body truncated at 1024 bytes");
+    expect(detail).toContain("detail truncated at 512 characters");
+  });
+
+  it("redacts echoed bearer tokens, including a token prefix at the intake boundary", async () => {
+    server = await startFakeSubstrateServer();
+    const token = "context-echo-token";
+    const keyFile = keyFileWithToken(token);
+    const client = substrateClientFor(server.url, keyFile);
+
+    server.rawResponseFor("context", `denied ${token}`, 401, "text/plain");
+    const echoed = await client.context(node, [], "worker");
+    expect(echoed.kind).toBe("refused");
+    if (echoed.kind !== "refused") return;
+    expect(echoed.because).toContain("[redacted]");
+    expect(echoed.because).not.toContain(token);
+
+    const prefix = token.slice(0, -1);
+    server.rawResponseFor(
+      "context",
+      `${"x".repeat(1024 - prefix.length)}${prefix}`,
+      401,
+      "text/plain",
+    );
+    const boundary = await client.context(node, [], "worker");
+    expect(boundary.kind).toBe("refused");
+    if (boundary.kind !== "refused") return;
+    expect(boundary.because).not.toContain(prefix);
+  });
+
   it("refuses, never throws, when a missing key file would otherwise send an unauthenticated request", async () => {
     server = await startFakeSubstrateServer();
     server.responseFor("context", { items: [], vocabulary: "reference@v1" });

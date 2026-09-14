@@ -10,8 +10,20 @@ export interface FakeSubstrateServer {
   readonly url: string;
   readonly calls: readonly RecordedCall[];
   responseFor(verb: string, body: unknown, status?: number): void;
+  rawResponseFor(
+    verb: string,
+    body: string | Uint8Array,
+    status: number,
+    contentType: string,
+  ): void;
   hangOn(verb: string): void;
   close(): Promise<void>;
+}
+
+interface Response {
+  readonly body: string | Uint8Array;
+  readonly contentType: string;
+  readonly status: number;
 }
 
 function readBody(request: IncomingMessage): Promise<string> {
@@ -29,7 +41,7 @@ function readBody(request: IncomingMessage): Promise<string> {
 // response are all the same fixture, configured differently per test.
 export function startFakeSubstrateServer(): Promise<FakeSubstrateServer> {
   const calls: RecordedCall[] = [];
-  const responses = new Map<string, { readonly body: unknown; readonly status: number }>();
+  const responses = new Map<string, Response>();
   const hanging = new Set<string>();
 
   const server: Server = createServer((request, response) => {
@@ -52,11 +64,15 @@ export function startFakeSubstrateServer(): Promise<FakeSubstrateServer> {
         return;
       }
       if (hanging.has(verb)) return;
-      const configured = responses.get(verb) ?? { body: {}, status: 200 };
+      const configured = responses.get(verb) ?? {
+        body: JSON.stringify({}),
+        contentType: "application/json",
+        status: 200,
+      };
       response.writeHead(configured.status, {
-        "content-type": "application/json",
+        "content-type": configured.contentType,
       });
-      response.end(JSON.stringify(configured.body));
+      response.end(configured.body);
     });
   });
 
@@ -68,7 +84,14 @@ export function startFakeSubstrateServer(): Promise<FakeSubstrateServer> {
         url: `http://127.0.0.1:${port}`,
         calls,
         responseFor(verb, body, status = 200) {
-          responses.set(verb, { body, status });
+          responses.set(verb, {
+            body: JSON.stringify(body),
+            contentType: "application/json",
+            status,
+          });
+        },
+        rawResponseFor(verb, body, status, contentType) {
+          responses.set(verb, { body, contentType, status });
         },
         hangOn(verb) {
           hanging.add(verb);

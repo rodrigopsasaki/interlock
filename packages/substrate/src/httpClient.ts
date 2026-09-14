@@ -12,6 +12,7 @@ import {
   capabilitiesResponseSchema,
   contextResponseSchema,
 } from "./registry.ts";
+import { responseDetail } from "./responseDetail.ts";
 import { toWireDebrief, toWireNotes } from "./wire.ts";
 
 const CALL_TIMEOUT_MS = 5_000;
@@ -22,11 +23,16 @@ function endpoint(address: string, verb: string): string {
 
 async function authHeaders(
   keyFile: string | undefined,
-): Promise<Result<Record<string, string>, string>> {
-  if (keyFile === undefined) return ok({});
+): Promise<
+  Result<{ readonly headers: Record<string, string>; readonly bearerToken?: string }, string>
+> {
+  if (keyFile === undefined) return ok({ headers: {} });
   const token = await readBearerToken(keyFile);
   if (isErr(token)) return token;
-  return ok({ Authorization: `Bearer ${token.value}` });
+  return ok({
+    headers: { Authorization: `Bearer ${token.value}` },
+    bearerToken: token.value,
+  });
 }
 
 interface RequestSpec {
@@ -39,6 +45,7 @@ async function call(
   address: string,
   verb: string,
   spec: RequestSpec,
+  bearerToken: string | undefined,
 ): Promise<Result<unknown, string>> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), CALL_TIMEOUT_MS);
@@ -50,7 +57,10 @@ async function call(
       signal: controller.signal,
     });
     if (!response.ok) {
-      return err(`${verb} ${address}: HTTP ${response.status}`);
+      const detail = await responseDetail(response, bearerToken);
+      return err(
+        `${verb} ${address}: HTTP ${response.status}${detail === undefined ? "" : `: ${detail}`}`,
+      );
     }
     const text = await response.text();
     try {
@@ -72,20 +82,27 @@ async function post(
   verb: string,
   headers: Record<string, string>,
   body: unknown,
+  bearerToken: string | undefined,
 ): Promise<Result<unknown, string>> {
-  return call(address, verb, {
-    method: "POST",
-    headers: { "content-type": "application/json", ...headers },
-    body,
-  });
+  return call(
+    address,
+    verb,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json", ...headers },
+      body,
+    },
+    bearerToken,
+  );
 }
 
 async function get(
   address: string,
   verb: string,
   headers: Record<string, string>,
+  bearerToken: string | undefined,
 ): Promise<Result<unknown, string>> {
-  return call(address, verb, { method: "GET", headers });
+  return call(address, verb, { method: "GET", headers }, bearerToken);
 }
 
 export function httpClient(address: string, keyFile?: string): SubstrateClient {
@@ -95,7 +112,12 @@ export function httpClient(address: string, keyFile?: string): SubstrateClient {
     if (cachedCapabilities !== undefined) return cachedCapabilities;
     const headers = await authHeaders(keyFile);
     if (isErr(headers)) return [];
-    const response = await get(address, "capabilities", headers.value);
+    const response = await get(
+      address,
+      "capabilities",
+      headers.value.headers,
+      headers.value.bearerToken,
+    );
     if (isErr(response)) return [];
     const body = response.value;
     if (capabilitiesResponseSchema === undefined || !capabilitiesResponseSchema.validate(body)) {
@@ -112,11 +134,13 @@ export function httpClient(address: string, keyFile?: string): SubstrateClient {
   ): Promise<ContextOutcome> {
     const headers = await authHeaders(keyFile);
     if (isErr(headers)) return { kind: "refused", because: headers.error };
-    const response = await post(address, "context", headers.value, {
-      node,
-      scope,
-      role,
-    });
+    const response = await post(
+      address,
+      "context",
+      headers.value.headers,
+      { node, scope, role },
+      headers.value.bearerToken,
+    );
     if (isErr(response)) return { kind: "refused", because: response.error };
     const body = response.value;
     if (contextResponseSchema === undefined) {
@@ -144,12 +168,18 @@ export function httpClient(address: string, keyFile?: string): SubstrateClient {
   ): Promise<AbsorbOutcome> {
     const headers = await authHeaders(keyFile);
     if (isErr(headers)) return { kind: "refused", because: headers.error };
-    const response = await post(address, "absorb", headers.value, {
-      debrief: toWireDebrief(debrief),
-      notes: toWireNotes(node.id, notes),
-      receipts,
-      ...(evidence === undefined ? {} : { items: evidence.items, gaps: evidence.gaps }),
-    });
+    const response = await post(
+      address,
+      "absorb",
+      headers.value.headers,
+      {
+        debrief: toWireDebrief(debrief),
+        notes: toWireNotes(node.id, notes),
+        receipts,
+        ...(evidence === undefined ? {} : { items: evidence.items, gaps: evidence.gaps }),
+      },
+      headers.value.bearerToken,
+    );
     if (isErr(response)) return { kind: "refused", because: response.error };
     const body = response.value;
     if (absorbResponseSchema === undefined) {

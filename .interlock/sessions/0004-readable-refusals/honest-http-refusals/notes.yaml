@@ -13,3 +13,44 @@ entries:
     at: 2026-09-14T17:12:28Z
     expected: The configured Git commit could sign the working record.
     observed: GPG cannot create its keybox files in this sandbox, so the signed commit failed before writing an object.
+  - kind: choice
+    at: 2026-09-14T17:14:02Z
+    chose: A small response-detail helper, called only after a received non-2xx response and before the existing refused outcome is returned.
+    because: It keeps the success and transport paths in the HTTP client unchanged while making byte intake, media recognition, redaction, normalization, and rendered-detail limits independently testable.
+    rejected: Adding a second client outcome or putting body parsing in context and absorb separately would duplicate the boundary and change their narration contract.
+  - kind: surprise
+    at: 2026-09-14T17:15:37Z
+    expected: An own-property check on an unknown JSON object would permit direct property access under the repository's strict TypeScript settings.
+    observed: TypeScript retained the object type and rejected direct access, so the helper needs an explicit reflection adapter rather than a cast.
+  - kind: surprise
+    at: 2026-09-14T17:16:00Z
+    expected: The control-sequence normalization expression would satisfy the repository's lint rule.
+    observed: Biome rejects control escapes in a regex literal, so the expression must be constructed from an escaped pattern string while retaining the same normalization boundary.
+  - kind: surprise
+    at: 2026-09-14T17:16:43Z
+    expected: Constructing the escaped expression would clear lint without qualification.
+    observed: Biome accepts it but warns that a literal is preferred, while the literal remains forbidden for control escapes.
+  - kind: choice
+    at: 2026-09-14T17:16:43Z
+    chose: Character-by-character terminal-control normalization.
+    because: It removes complete terminal control sequences and collapses whitespace without suppressed lint or a regex representation that violates the repository's checks.
+    rejected: Leaving a lint warning or weakening the control boundary to strip only individual characters would make the delivered detail less trustworthy.
+  - kind: surprise
+    at: 2026-09-14T17:19:22Z
+    expected: The declared local fake-server regression could run in this worktree.
+    observed: The sandbox rejects the fake server's loopback listen with EPERM before the client receives a response, so the focused regression times out without exercising the implementation.
+  - kind: choice
+    at: 2026-09-14T17:20:01Z
+    chose: The declared content type selects JSON, plain-text, or no explanation, and its value never enters the refused outcome.
+    because: The acceptance requires media-specific recognition while prohibiting header disclosure; limiting use to parser selection prevents an echoed or surprising header from becoming narration.
+    rejected: Content sniffing would recognize a JSON object under an unrecognized media declaration and violate the explicit detail boundary.
+  - kind: choice
+    at: 2026-09-14T17:20:01Z
+    chose: Intake and rendered-detail markers are included inside the 512-character rendered-detail limit.
+    because: A truncation indicator is part of what the person reads, so letting it exceed the display boundary would make the bound inaccurate.
+    rejected: Appending markers after a 512-character excerpt would truthfully name truncation but violate the displayed-detail limit.
+  - kind: choice
+    at: 2026-09-14T17:20:01Z
+    chose: Redact exact configured bearer-token matches and remove any trailing prefix of that token after intake and display limiting.
+    because: A collected response can end mid-token, and a bounded display must never disclose the beginning of the configured credential.
+    rejected: Pattern-based secret detection would invent redactions for unconfigured values and could still leak a boundary prefix.
