@@ -15,9 +15,8 @@
 </p>
 
 <picture>
-  <source media="(prefers-color-scheme: dark) and (max-width: 700px)" srcset="docs/brand/interlock-concept-mobile-dark.svg">
   <source media="(prefers-color-scheme: dark)" srcset="docs/brand/interlock-concept-dark.svg">
-  <source media="(max-width: 700px)" srcset="docs/brand/interlock-concept-mobile.svg">
+  <source media="(prefers-color-scheme: light)" srcset="docs/brand/interlock-concept.svg">
   <img src="docs/brand/interlock-concept.svg" alt="An open blue loop is a condition waiting to be met. A matching golden piece is the evidence. Together they complete the loop and permit work to continue.">
 </picture>
 
@@ -101,9 +100,8 @@ A held node matters differently depending on what depends on it. The critical pa
 chain that governs completion. Other work may still have room to proceed.
 
 <picture>
-  <source media="(prefers-color-scheme: dark) and (max-width: 700px)" srcset="docs/brand/interlock-critical-path-mobile-dark.svg">
   <source media="(prefers-color-scheme: dark)" srcset="docs/brand/interlock-critical-path-dark.svg">
-  <source media="(max-width: 700px)" srcset="docs/brand/interlock-critical-path-mobile.svg">
+  <source media="(prefers-color-scheme: light)" srcset="docs/brand/interlock-critical-path.svg">
   <img src="docs/brand/interlock-critical-path.svg" alt="Illustrative API plan: an approved plan leads through implementation and satisfied contract checks to a held compatibility decision on the delivery path. Documentation can proceed independently. The person must decide whether an existing client may break.">
 </picture>
 
