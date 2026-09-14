@@ -54,3 +54,12 @@ entries:
     chose: Redact exact configured bearer-token matches and remove any trailing prefix of that token after intake and display limiting.
     because: A collected response can end mid-token, and a bounded display must never disclose the beginning of the configured credential.
     rejected: Pattern-based secret detection would invent redactions for unconfigured values and could still leak a boundary prefix.
+  - kind: surprise
+    at: 2026-09-14T17:21:54Z
+    expected: Reaching the 1024-byte bound in a complete reader chunk would finish response-body handling safely.
+    observed: The reader remained open and no limit marker was rendered when that exact-size chunk was followed by more data.
+  - kind: choice
+    at: 2026-09-14T17:21:54Z
+    chose: Cancel the reader immediately when the collected byte count reaches 1024 and render a bounded-body limit marker without probing another chunk.
+    because: This keeps intake at or below the declared bound while closing the reader at the exact boundary; a further read could consume bytes solely to distinguish an exact-length body from a longer one.
+    rejected: Reading one additional chunk for certainty would exceed the at-most-1024-byte intake contract.

@@ -1,11 +1,11 @@
 const BODY_LIMIT_BYTES = 1024;
 const DETAIL_LIMIT_CHARACTERS = 512;
-const BODY_TRUNCATED = `body truncated at ${BODY_LIMIT_BYTES} bytes`;
+const BODY_LIMITED = `body limited to ${BODY_LIMIT_BYTES} bytes`;
 const DETAIL_TRUNCATED = `detail truncated at ${DETAIL_LIMIT_CHARACTERS} characters`;
 
 interface CollectedBody {
+  readonly limited: boolean;
   readonly text: string;
-  readonly truncated: boolean;
 }
 
 type DeclaredMedia = "json" | "plain-text" | "other";
@@ -22,11 +22,11 @@ function declaredMedia(response: Response): DeclaredMedia {
 }
 
 async function collectBody(response: Response): Promise<CollectedBody> {
-  if (response.body === null) return { text: "", truncated: false };
+  if (response.body === null) return { limited: false, text: "" };
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
   let length = 0;
-  let truncated = false;
+  let limited = false;
   try {
     while (length < BODY_LIMIT_BYTES) {
       const next = await reader.read();
@@ -35,12 +35,15 @@ async function collectBody(response: Response): Promise<CollectedBody> {
       if (next.value.byteLength > remaining) {
         chunks.push(next.value.slice(0, remaining));
         length += remaining;
-        truncated = true;
+      } else {
+        chunks.push(next.value);
+        length += next.value.byteLength;
+      }
+      if (length === BODY_LIMIT_BYTES) {
+        limited = true;
         await reader.cancel();
         break;
       }
-      chunks.push(next.value);
-      length += next.value.byteLength;
     }
   } catch {
   } finally {
@@ -52,7 +55,7 @@ async function collectBody(response: Response): Promise<CollectedBody> {
     body.set(chunk, offset);
     offset += chunk.byteLength;
   }
-  return { text: new TextDecoder().decode(body), truncated };
+  return { limited, text: new TextDecoder().decode(body) };
 }
 
 function jsonExplanation(body: string): string | undefined {
@@ -151,11 +154,11 @@ function suffix(parts: readonly string[]): string {
 
 function renderDetail(
   explanation: string | undefined,
-  bodyTruncated: boolean,
+  bodyLimited: boolean,
   bearerToken: string | undefined,
 ): string | undefined {
   const normalized = explanation === undefined ? "" : redact(normalize(explanation), bearerToken);
-  const markers = bodyTruncated ? [BODY_TRUNCATED] : [];
+  const markers = bodyLimited ? [BODY_LIMITED] : [];
   let ending = suffix(markers);
   if (normalized.length + ending.length <= DETAIL_LIMIT_CHARACTERS) {
     return normalized.length === 0 && ending.length === 0 ? undefined : `${normalized}${ending}`;
@@ -176,5 +179,15 @@ export async function responseDetail(
   const body = await collectBody(response);
   const explanation =
     media === "json" ? jsonExplanation(body.text) : media === "plain-text" ? body.text : undefined;
-  return renderDetail(explanation, body.truncated, bearerToken);
+  return renderDetail(explanation, body.limited, bearerToken);
+}
+
+export async function receivedHttpRefusal(
+  verb: string,
+  address: string,
+  response: Response,
+  bearerToken: string | undefined,
+): Promise<string> {
+  const detail = await responseDetail(response, bearerToken);
+  return `${verb} ${address}: HTTP ${response.status}${detail === undefined ? "" : `: ${detail}`}`;
 }

@@ -84,7 +84,7 @@ describe("context", () => {
     expect(outcome.because).toContain("/items");
   });
 
-  it("keeps a received context refusal's status and JSON error.message", async () => {
+  it("requires context refusal detail that the old non-2xx early return dropped", async () => {
     server = await startFakeSubstrateServer();
     server.responseFor("context", { error: { message: "role is not permitted" } }, 403);
 
@@ -153,7 +153,7 @@ describe("context", () => {
     if (outcome.kind !== "refused") return;
     const detail = outcome.because.split("HTTP 413: ")[1];
     expect(detail).toHaveLength(512);
-    expect(detail).toContain("body truncated at 1024 bytes");
+    expect(detail).toContain("body limited to 1024 bytes");
     expect(detail).toContain("detail truncated at 512 characters");
   });
 

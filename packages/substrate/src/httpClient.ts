@@ -12,7 +12,7 @@ import {
   capabilitiesResponseSchema,
   contextResponseSchema,
 } from "./registry.ts";
-import { responseDetail } from "./responseDetail.ts";
+import { receivedHttpRefusal } from "./responseDetail.ts";
 import { toWireDebrief, toWireNotes } from "./wire.ts";
 
 const CALL_TIMEOUT_MS = 5_000;
@@ -57,10 +57,7 @@ async function call(
       signal: controller.signal,
     });
     if (!response.ok) {
-      const detail = await responseDetail(response, bearerToken);
-      return err(
-        `${verb} ${address}: HTTP ${response.status}${detail === undefined ? "" : `: ${detail}`}`,
-      );
+      return err(await receivedHttpRefusal(verb, address, response, bearerToken));
     }
     const text = await response.text();
     try {
