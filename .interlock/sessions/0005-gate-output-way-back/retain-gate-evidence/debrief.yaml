@@ -1,0 +1,91 @@
+interlock: debrief@v2
+graph: 0005-gate-output-way-back
+node: retain-gate-evidence
+role: worker
+graph_base_sha: d067a30ffbac696ddf0c4859526db38fcd8fa2cd
+session_start_sha: a14e871086cc379212b31d73c5b90955d7d7fb23
+head_sha: 864138b5f827d819d9b8e053e9234741cfc4a19d
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries:
+  - id: d1
+    what: sharedJournalDirectory resolves a Git common directory and therefore names the same journal from linked worktrees.
+    found_at: packages/face/src/root.ts:19
+    mattered_because: Retained gate output must outlive a node worktree rather than use a node-only path.
+  - id: d2
+    what: The inherited mise state can emit its own stderr before a deterministic gate command runs.
+    found_at: .interlock/sessions/0005-gate-output-way-back/retain-gate-evidence/notes.yaml:11
+    mattered_because: The stream proof test isolates that state under its own disposable test run directory so empty command streams remain testable.
+decisions:
+  - id: c1
+    what: New command-gate proofs carry a gate-output@v0 envelope with independent raw stdout and stderr hashes, byte counts, and hash-derived journal-relative references.
+    because: The original combined decoded output hash remains useful and unchanged, while independent byte-addressed streams keep the evidence a held gate needs.
+    rests_on:
+      - .interlock/sessions/0005-gate-output-way-back/retain-gate-evidence/brief.md
+      - .interlock/sessions/0005-gate-output-way-back/retain-gate-evidence/notes.yaml
+    hunks:
+      - packages/runner/src/gateOutput.ts:1-209
+      - packages/runner/src/index.ts:27-39
+    produces:
+      - packages/runner/src/gateOutput.ts
+      - packages/runner/src/index.ts
+  - id: c2
+    what: Gate judgement retains both byte streams before receipt creation and returns a typed output refusal when storage cannot establish that proof.
+    because: A satisfied receipt must never promise retained output that did not reach durable storage.
+    rests_on:
+      - .interlock/sessions/0005-gate-output-way-back/retain-gate-evidence/brief.md
+      - packages/runner/src/gateJudge.ts
+    hunks:
+      - packages/runner/src/gateJudge.ts:99-235
+    produces:
+      - packages/runner/src/gateJudge.ts
+  - id: c3
+    what: Real gate commands exercise literal bytes, empty streams, nonzero failure, pattern mismatch, split UTF-8, shared-worktree survival, same-content writes, failed reads, and storage refusal.
+    because: The proof needs evidence that both the execution path and its reader retain exact bytes without fabricating missing legacy output.
+    rests_on:
+      - .interlock/sessions/0005-gate-output-way-back/retain-gate-evidence/brief.md
+      - packages/runner/test/gateJudge.test.ts
+    hunks:
+      - packages/runner/test/gateJudge.test.ts:1-724
+    produces:
+      - packages/runner/test/gateJudge.test.ts
+  - id: c4
+    what: The bend log and session notes preserve why output moved from a one-way receipt hash to additive immutable evidence and record the observed gate results.
+    because: Receipt compression keeps the way back only when the retained bytes and their limits remain inspectable.
+    rests_on:
+      - .interlock/sessions/0005-gate-output-way-back/retain-gate-evidence/brief.md
+    hunks:
+      - docs/design/0001-interlock.md:621
+      - .interlock/sessions/0005-gate-output-way-back/retain-gate-evidence/notes.yaml:1-28
+    produces:
+      - docs/design/0001-interlock.md
+      - .interlock/sessions/0005-gate-output-way-back/retain-gate-evidence/notes.yaml
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: Passed for all workspace packages after the code commit.
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: Biome checked 308 files without diagnostics after formatting the changed files.
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+    note: packages/*/src reported no comments.
+  - id: test
+    result: fail
+    invocation: pnpm test
+    note: Ledger, debrief, face, verifier, and changed runner tests progressed; two unchanged packages/substrate/test/capabilities.test.ts cases each timed out at five seconds.
+  - id: retained-output-proof
+    result: pass
+    invocation: pnpm --filter runner --fail-if-no-match exec vitest run test/gateJudge.test.ts
+    note: 26 tests passed, including retained output assertions.
+  - id: debrief-valid
+    result: pass
+    invocation: pnpm interlock debrief validate 0005-gate-output-way-back retain-gate-evidence
+    note: The final debrief and notes artifacts validated as their supported shapes.
+open:
+  - The standing workspace test gate remains held on the two reproduced unchanged substrate capability test timeouts; root must retain the runner receipt and decide its disposition.

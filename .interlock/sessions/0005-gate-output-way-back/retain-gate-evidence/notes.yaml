@@ -1,24 +1,35 @@
----
-interlock: notes@v1
+interlock: notes@v0
+node: retain-gate-evidence
 entries:
-  - kind: decision
-    summary: Reuse the runner journal-root seam and add retained stream references additively to receipt proof.
+  - kind: choice
+    at: "2026-09-14T15:00:00Z"
+    chose: Reused the runner journal-root seam and added retained stream references additively to receipt proof.
     because: The graph requires artifacts to survive a node worktree and old receipts to remain readable without an event migration.
-  - kind: discovery
-    summary: sharedJournalDirectory resolves Git's common directory, including from linked worktrees.
-    expected: A reusable runner seam would identify the shared journal location.
-    observed: face exports sharedJournalDirectory, already used by runner session code and CLI journal readers.
   - kind: surprise
-    summary: The test process's shared mise state emits a permission warning on stderr before the gate command runs.
+    at: "2026-09-14T15:05:00Z"
+    expected: A reusable runner seam would identify the shared journal location.
+    observed: sharedJournalDirectory resolves Git's common directory, including from linked worktrees, and is already used by runner session code and CLI journal readers.
+  - kind: surprise
+    at: "2026-09-14T15:10:00Z"
     expected: An empty-stream command would produce empty retained stderr.
-    observed: The adapter warning was retained byte-for-byte, proving the capture includes runner-launched stream output.
-  - kind: decision
-    summary: Store each stream through a temporary file and exclusive hard link, then verify existing same-hash artifacts byte-for-byte.
+    observed: The test process's shared mise state emitted a permission warning on stderr before the gate command ran, proving capture includes runner-launched stream output.
+  - kind: choice
+    at: "2026-09-14T15:20:00Z"
+    chose: Stored each stream through a temporary file and exclusive hard link, then verified an existing same-hash artifact byte-for-byte.
     because: A completed artifact becomes visible atomically, concurrent writers reuse identical bytes, and a conflicting existing blob is an honest storage refusal.
-  - kind: decision
-    summary: Read gate output through a proof parser that distinguishes absent legacy evidence from invalid, missing, or corrupt retained artifacts.
+  - kind: choice
+    at: "2026-09-14T15:30:00Z"
+    chose: Read gate output through a proof parser that distinguishes absent legacy evidence from invalid, missing, or corrupt retained artifacts.
     because: Older receipts cannot gain output after the fact, while a receipt that promises evidence must not treat a failed read as empty success.
   - kind: surprise
-    summary: The first full lint run required Biome formatting in the changed runner source and test.
+    at: "2026-09-14T15:40:00Z"
     expected: The manually patched files would already match the formatter.
     observed: Lint reported two formatting-only diffs and no semantic diagnostics.
+  - kind: surprise
+    at: "2026-09-14T15:50:00Z"
+    expected: The standing test command would complete after typecheck, lint, and comments passed.
+    observed: Two unchanged substrate capability tests exceeded their five-second timeout; runner output tests had already passed.
+  - kind: surprise
+    at: "2026-09-14T16:00:00Z"
+    expected: The new session notes shape would be accepted by debrief validation.
+    observed: The repository reader accepts notes@v0 with node and choice or surprise entries, so the initial notes@v1 artifact was converted without dropping its record.
