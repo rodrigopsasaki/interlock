@@ -587,30 +587,3 @@ head_sha. Keep valid typed notes/debrief and why-commits. Per-command unsigned
 commit is allowed; no global changes. No service/key access, gates/old artifact
 edits, push/merge or waiver. Commit all allowed work and stop. Explicitly list
 any unmet S obligation; root reviews the real harness receipts independently.
-
-## One recovery · complete S3 and the remaining table cases
-
-The first harness result at0bc65a9 is held. Seven of eight gates passed, including
-all focused storage/runner proof and final reference freshness. Full-suite
-receipt c682cc9507c7d2488db329491560ea2896ef94399f454ff54d2dc3d681e84ddd
-failed three packages/schemas/test/corpus.guards.test.ts cases because AJV strict
-compilation rejects the acknowledged-delivery `then.required` schema: required
-property acknowledgment is not defined at that conditional location. Fix the
-current event@v5 contract without disabling strict mode or allowing an
-acknowledged delivery without evidence. Add direct schema/guard agreement cases
-for acknowledged-with/missing-artifact and unsafe byte bounds. This is S3,
-not a new acceptance or a reason to alter any prior version schema.
-
-Finish the small S2 matrix: valid JSON with invalid envelope; wrong node and
-effect ID lookup are absent; MAX_SAFE_INTEGER+1 byte counts refused; binary
-and empty bytes through both request and acknowledgment. Current source handles
-most of these; prove them with a compact table, not new abstractions. A surviving
-complete intent after a failed fsync may become visible on reopen, but must stay
-uncertain and authorize no dispatch. Do not build a new WAL; D1-D5 are next.
-
-Run the deterministic schema corpus and focused tests under mise/pinned Node
-before handoff. They need no local HTTP listener. All original assertions stay.
-Prior brief, debrief and notes snapshots are under attempts/
-3e0d31a5-c545-45e3-b0d6-0116e5b9d81e and immutable. Append notes and commit the
-next debrief version with this new initial brief SHA. Complete all artifacts,
-then generate docs/shapes.md, commit and check at final HEAD. No further recovery.
