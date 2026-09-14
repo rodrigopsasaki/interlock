@@ -25,3 +25,15 @@ entries:
     at: "2026-09-14T18:46:00Z"
     chose: Refuse question-mark and fragment markers before parsing an SCP-style repository path while retaining ordinary git@host transport usernames.
     because: The approved graph requires credential-free provenance and a generic refusal for every accepted remote spelling.
+  - kind: surprise
+    at: "2026-09-14T19:00:00Z"
+    expected: The debrief's recorded session-start SHA would validate on its first pass.
+    observed: The validator caught a transcription with fewer than forty characters; Git revision 2ed25e003a72fa970ee0e6ac07283ccfbb034b5d supplies the exact initial HEAD.
+  - kind: surprise
+    at: "2026-09-14T19:05:00Z"
+    expected: Helper-level origin and typed-client proofs would sufficiently establish the three CLI construction paths.
+    observed: Orchestrator review requires caller-level run, plan, and judge fixtures plus default-off and one-request strict-receiver proof to discriminate wiring from an unused helper.
+  - kind: choice
+    at: "2026-09-14T19:10:00Z"
+    chose: Add strict-receiver assertions that count the recorded context and absorb requests after a repository-field refusal.
+    because: The count proves that a receiver refusal remains one honest request and cannot hide an unscoped retry or fallback.

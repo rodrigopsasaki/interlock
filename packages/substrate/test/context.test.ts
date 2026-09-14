@@ -92,6 +92,22 @@ describe("context", () => {
     });
   });
 
+  it("keeps one strict-receiver context refusal without an unscoped fallback", async () => {
+    server = await startFakeSubstrateServer();
+    server.responseFor("context", { error: "unknown repository" }, 400);
+    const client = substrateClientFor(server.url, undefined, {
+      owner: "octo",
+      name: "interlock",
+      originUrl: "https://forge.example/octo/interlock.git",
+    });
+
+    const outcome = await client.context(node, [], "worker");
+
+    expect(outcome.kind).toBe("refused");
+    expect(server.calls).toHaveLength(1);
+    expect(server.calls[0]?.body).toMatchObject({ repository: { owner: "octo" } });
+  });
+
   it("refuses with a sentence naming the JSON pointer when the response fails its schema", async () => {
     server = await startFakeSubstrateServer();
     server.responseFor("context", {

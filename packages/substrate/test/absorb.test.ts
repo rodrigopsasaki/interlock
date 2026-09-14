@@ -93,6 +93,22 @@ describe("absorb", () => {
     });
   });
 
+  it("keeps one strict-receiver absorb refusal without an unscoped fallback", async () => {
+    server = await startFakeSubstrateServer();
+    server.responseFor("absorb", { error: "unknown repository" }, 400);
+    const client = substrateClientFor(server.url, undefined, {
+      owner: "octo",
+      name: "interlock",
+      originUrl: "https://forge.example/octo/interlock.git",
+    });
+
+    const outcome = await client.absorb(node, fixtureDebrief, fixtureNotes, [fixtureReceipt]);
+
+    expect(outcome.kind).toBe("refused");
+    expect(server.calls).toHaveLength(1);
+    expect(server.calls[0]?.body).toMatchObject({ repository: { owner: "octo" } });
+  });
+
   it("acknowledges nothing while everything still runs when the address is none", async () => {
     const client = substrateClientFor("none");
     const outcome = await client.absorb(node, fixtureDebrief, fixtureNotes, [fixtureReceipt]);

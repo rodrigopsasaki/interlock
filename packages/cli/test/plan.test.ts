@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
@@ -7,6 +8,10 @@ import { loadGraphDocument } from "face";
 import { isLedgerEvent, type Outcome } from "ledger";
 import type { Runtime } from "runner";
 import { afterEach, describe, expect, it } from "vitest";
+import {
+  type FakeSubstrateServer,
+  startFakeSubstrateServer,
+} from "../../substrate/test/support/fakeSubstrateServer.ts";
 import { runGraphApprove } from "../src/graph/approve.ts";
 import { runInterlockPlan } from "../src/plan.ts";
 import { commitAll, commitPath, gitInitFixture } from "./graph/gitFixture.ts";
@@ -15,8 +20,11 @@ const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
 
 let directory: string | undefined;
+let server: FakeSubstrateServer | undefined;
 
-afterEach(() => {
+afterEach(async () => {
+  if (server !== undefined) await server.close();
+  server = undefined;
   if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
@@ -43,14 +51,18 @@ const localYaml = [
   "",
 ].join("\n");
 
-function fixture(): string {
+function fixture(local = localYaml): string {
   directory = mkdtempSync(join(runsRoot, "plan-"));
   mkdirSync(join(directory, ".interlock", "graphs"), { recursive: true });
   writeFileSync(join(directory, ".interlock", "config.yaml"), configYaml);
-  writeFileSync(join(directory, ".interlock", "local.yaml"), localYaml);
+  writeFileSync(join(directory, ".interlock", "local.yaml"), local);
   gitInitFixture(directory);
   commitAll(directory, "fixture content");
   return directory;
+}
+
+function localYamlFor(address: string): string {
+  return localYaml.replace("  address: none", `  address: ${address}\n  send_repository: true`);
 }
 
 function stubRuntime(): Runtime {
@@ -137,6 +149,31 @@ function latestOutcomeFor(cwd: string, graph: string, id: string): Outcome | und
 }
 
 describe("interlock plan", () => {
+  it("binds an enabled origin through plan's actual context client", async () => {
+    server = await startFakeSubstrateServer();
+    server.responseFor("context", { items: [], vocabulary: "reference@v1" });
+    const cwd = fixture(localYamlFor(server.url));
+    execFileSync("git", ["remote", "add", "origin", "git@forge.example:owner/name.git"], { cwd });
+    const worktreePath = join(cwd, ".worktrees", "plan", "demo");
+
+    await runInterlockPlan(["demo", "--ask", "add context"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime: {
+        ...stubRuntime(),
+        waitUntil: finishedWaitUntil(worktreePath, "demo", "plan/demo", graphYaml("demo")),
+      },
+    });
+
+    expect(server.calls[0]?.body).toMatchObject({
+      repository: {
+        owner: "owner",
+        name: "name",
+        origin_url: "ssh://forge.example/owner/name.git",
+      },
+    });
+  });
+
   it("refuses without a graph id", async () => {
     const result = await runInterlockPlan([]);
     expect(result.exitCode).not.toBe(0);

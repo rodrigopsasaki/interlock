@@ -7,6 +7,10 @@ import { debriefFilePath, readBriefFile } from "debrief";
 import { isLedgerEvent } from "ledger";
 import type { Runtime } from "runner";
 import { afterEach, describe, expect, it } from "vitest";
+import {
+  type FakeSubstrateServer,
+  startFakeSubstrateServer,
+} from "../../substrate/test/support/fakeSubstrateServer.ts";
 import { runGraphApprove } from "../src/graph/approve.ts";
 import { runInterlockRun } from "../src/run.ts";
 import { commitAll, commitPath, gitInitFixture } from "./graph/gitFixture.ts";
@@ -15,11 +19,29 @@ const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
 
 let directory: string | undefined;
+let server: FakeSubstrateServer | undefined;
 
-afterEach(() => {
+afterEach(async () => {
+  if (server !== undefined) await server.close();
+  server = undefined;
   if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
+
+function localYamlFor(address: string, sendRepository: boolean): string {
+  return localYaml.replace(
+    "  address: none",
+    `  address: ${address}\n  send_repository: ${sendRepository}`,
+  );
+}
+
+function setOrigin(cwd: string): void {
+  execFileSync("git", ["remote", "add", "origin", "git@forge.example:owner/name.git"], { cwd });
+}
+
+async function approve(cwd: string): Promise<void> {
+  await runGraphApprove(["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"], { cwd });
+}
 
 const graphYaml = [
   "interlock: graph@v0",
@@ -253,6 +275,50 @@ function finishedWaitUntil(worktreePath: string): Runtime["waitUntil"] {
 }
 
 describe("interlock run", () => {
+  it("binds an enabled origin through run's actual context client", async () => {
+    server = await startFakeSubstrateServer();
+    server.responseFor("context", { items: [], vocabulary: "reference@v1" });
+    const cwd = fixture({ localYaml: localYamlFor(server.url, true) });
+    setOrigin(cwd);
+    await approve(cwd);
+    const worktree = join(cwd, ".worktrees", "a");
+
+    await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime: { ...stubRuntime(), waitUntil: finishedWaitUntil(worktree) },
+    });
+
+    expect(server.calls[0]?.body).toMatchObject({
+      repository: {
+        owner: "owner",
+        name: "name",
+        origin_url: "ssh://forge.example/owner/name.git",
+      },
+    });
+  });
+
+  it("keeps run's context body legacy when a valid origin is default-off", async () => {
+    server = await startFakeSubstrateServer();
+    server.responseFor("context", { items: [], vocabulary: "reference@v1" });
+    const cwd = fixture({ localYaml: localYamlFor(server.url, false) });
+    setOrigin(cwd);
+    await approve(cwd);
+    const worktree = join(cwd, ".worktrees", "a");
+
+    await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime: { ...stubRuntime(), waitUntil: finishedWaitUntil(worktree) },
+    });
+
+    expect(server.calls[0]?.body).toEqual({
+      node: { graph: "demo", id: "a" },
+      scope: expect.any(Array),
+      role: "worker",
+    });
+  });
+
   it("refuses without a graph and node", async () => {
     const result = await runInterlockRun([]);
     expect(result.exitCode).not.toBe(0);

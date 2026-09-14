@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
@@ -5,6 +6,10 @@ import { err, ok } from "@phyxiusjs/fp";
 import { isLedgerEvent } from "ledger";
 import type { Runtime } from "runner";
 import { afterEach, describe, expect, it } from "vitest";
+import {
+  type FakeSubstrateServer,
+  startFakeSubstrateServer,
+} from "../../substrate/test/support/fakeSubstrateServer.ts";
 import { runGraphApprove } from "../src/graph/approve.ts";
 import { runInterlockJudge } from "../src/judge.ts";
 import { runInterlockRun } from "../src/run.ts";
@@ -14,8 +19,11 @@ const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
 
 let directory: string | undefined;
+let server: FakeSubstrateServer | undefined;
 
-afterEach(() => {
+afterEach(async () => {
+  if (server !== undefined) await server.close();
+  server = undefined;
   if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
@@ -85,12 +93,12 @@ const demoBriefV1 = [
   "",
 ].join("\n");
 
-function fixture(): string {
+function fixture(local = localYaml): string {
   directory = mkdtempSync(join(runsRoot, "judge-"));
   mkdirSync(join(directory, ".interlock", "graphs"), { recursive: true });
   writeFileSync(join(directory, ".interlock", "graphs", "demo.yaml"), graphYaml);
   writeFileSync(join(directory, ".interlock", "config.yaml"), configYaml);
-  writeFileSync(join(directory, ".interlock", "local.yaml"), localYaml);
+  writeFileSync(join(directory, ".interlock", "local.yaml"), local);
   mkdirSync(join(directory, ".interlock", "sessions", "demo", "a"), {
     recursive: true,
   });
@@ -98,6 +106,10 @@ function fixture(): string {
   gitInitFixture(directory);
   commitAll(directory, "fixture content");
   return directory;
+}
+
+function localYamlFor(address: string): string {
+  return localYaml.replace("  address: none", `  address: ${address}\n  send_repository: true`);
 }
 
 function stubRuntime(): Runtime {
@@ -161,6 +173,42 @@ const debriefYaml = [
 ].join("\n");
 
 describe("interlock judge", () => {
+  it("binds an enabled origin through judge's actual absorb client", async () => {
+    server = await startFakeSubstrateServer();
+    server.responseFor("context", { items: [], vocabulary: "reference@v1" });
+    server.responseFor("absorb", { decisions_absorbed: [], discoveries: [], gaps: [] });
+    const cwd = fixture(localYamlFor(server.url));
+    execFileSync("git", ["remote", "add", "origin", "git@forge.example:owner/name.git"], { cwd });
+    await approve(cwd);
+    const ran = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock({ initialTime: 0 }),
+      runtime: stubRuntime(),
+    });
+    const sessionId = sessionIdFrom(ran.message);
+    const worktreePath = join(cwd, ".worktrees", "a");
+    mkdirSync(join(worktreePath, ".interlock", "sessions", "demo", "a"), { recursive: true });
+    writeFileSync(
+      join(worktreePath, ".interlock", "sessions", "demo", "a", "debrief.yaml"),
+      debriefYaml,
+    );
+    commitAll(worktreePath, "file the debrief");
+
+    await runInterlockJudge(["demo", "a"], {
+      cwd,
+      clock: createControlledClock({ initialTime: 61_000 }),
+    });
+
+    expect(server.calls.at(-1)?.body).toMatchObject({
+      repository: {
+        owner: "owner",
+        name: "name",
+        origin_url: "ssh://forge.example/owner/name.git",
+      },
+    });
+    expect(sessionId).toBeDefined();
+  }, 30_000);
+
   it("refuses without a graph and node", async () => {
     const result = await runInterlockJudge([]);
     expect(result.exitCode).not.toBe(0);
