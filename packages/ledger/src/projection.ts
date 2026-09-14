@@ -6,6 +6,7 @@ import { type Node, nodeKey } from "./graph.ts";
 import type { Lease } from "./lease.ts";
 import type { Note } from "./note.ts";
 import type { Outcome } from "./outcome.ts";
+import type { OutboxDelivery, OutboxIntent } from "./outbox.ts";
 import type { Receipt } from "./receipt.ts";
 
 export interface NodeView {
@@ -38,10 +39,16 @@ export interface SessionView {
 export interface LedgerProjection {
   readonly nodes: ReadonlyMap<string, NodeView>;
   readonly sessions: ReadonlyMap<string, SessionView>;
+  readonly outbox: ReadonlyMap<string, OutboxView>;
+}
+
+export interface OutboxView {
+  readonly intent: OutboxIntent;
+  readonly delivery: OutboxDelivery | undefined;
 }
 
 export function emptyProjection(): LedgerProjection {
-  return { nodes: new Map(), sessions: new Map() };
+  return { nodes: new Map(), sessions: new Map(), outbox: new Map() };
 }
 
 export function isInterrupted(view: SessionView): boolean {
@@ -173,7 +180,21 @@ export function applyEvent(projection: LedgerProjection, event: LedgerEvent): Le
         outcomeSetAtGeneration: view.leaseGeneration,
       }));
     case "outbox-intent-recorded":
-      return withNode(projection, event.node, (view) => view);
+      if (!("effect" in event)) return withNode(projection, event.node, (view) => view);
+      return {
+        ...withNode(projection, event.node, (view) => view),
+        outbox: new Map([
+          ...projection.outbox,
+          [event.effect.id, { intent: event.effect, delivery: undefined }],
+        ]),
+      };
+    case "outbox-delivery-recorded": {
+      const current = projection.outbox.get(event.delivery.id);
+      if (current === undefined) return projection;
+      const outbox = new Map(projection.outbox);
+      outbox.set(event.delivery.id, { ...current, delivery: event.delivery });
+      return { ...projection, outbox };
+    }
   }
 }
 

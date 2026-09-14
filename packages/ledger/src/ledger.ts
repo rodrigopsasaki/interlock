@@ -1,19 +1,26 @@
 import type { Clock } from "@phyxiusjs/clock";
-import { isErr, ok, type Result } from "@phyxiusjs/fp";
+import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import { Journal } from "@phyxiusjs/journal";
 import type { LedgerEvent } from "./event.ts";
 import { applyEvent, type LedgerProjection } from "./projection.ts";
 import { type ReplayRefusal, readReplay } from "./replay.ts";
-import { attachLedgerSink } from "./sink.ts";
+import { createLedgerSink, type LedgerSink } from "./sink.ts";
 
 export interface LedgerOptions {
   readonly clock: Clock;
   readonly directory: string;
+  readonly sink?: LedgerSink;
+}
+
+export interface LedgerAppendRefusal {
+  readonly because: string;
 }
 
 export interface Ledger {
   append(event: LedgerEvent): void;
+  appendConfirmed(event: LedgerEvent): Result<void, LedgerAppendRefusal>;
   projection(): LedgerProjection;
+  directory(): string;
   close(): Promise<void>;
 }
 
@@ -22,19 +29,42 @@ export async function createLedger(options: LedgerOptions): Promise<Result<Ledge
   if (isErr(replayed)) return replayed;
   const journal = new Journal<LedgerEvent>({ clock: options.clock });
   let current = replayed.value;
+  let failure: LedgerAppendRefusal | undefined;
+  const confirmed = new Set<string>();
+  const sink = options.sink ?? createLedgerSink(options.directory);
   journal.subscribe((entry) => {
-    current = applyEvent(current, entry.data);
+    if (failure !== undefined) return;
+    try {
+      sink.append(entry);
+      confirmed.add(entry.id);
+    } catch (error) {
+      failure = { because: error instanceof Error ? error.message : "ledger persistence failed" };
+    }
   });
-  const detach = attachLedgerSink(journal, options.directory);
+  journal.subscribe((entry) => {
+    if (confirmed.has(entry.id)) current = applyEvent(current, entry.data);
+  });
+  function appendConfirmed(event: LedgerEvent): Result<void, LedgerAppendRefusal> {
+    if (failure !== undefined) return err(failure);
+    const entry = journal.append(event);
+    return confirmed.has(entry.id)
+      ? ok(undefined)
+      : err(failure ?? { because: "ledger persistence did not confirm append" });
+  }
   return ok({
     append(event) {
-      journal.append(event);
+      const appended = appendConfirmed(event);
+      if (isErr(appended)) throw new Error(appended.error.because);
     },
+    appendConfirmed,
     projection() {
       return current;
     },
+    directory() {
+      return options.directory;
+    },
     async close() {
-      detach();
+      sink.close();
     },
   });
 }

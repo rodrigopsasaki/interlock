@@ -9,6 +9,7 @@ import type { LedgerEvent } from "../src/event.js";
 import { gate } from "../src/gate.js";
 import { isNode, type Node, nodeKey } from "../src/graph.js";
 import { createLedger } from "../src/ledger.js";
+import type { LedgerSink } from "../src/sink.js";
 import { note } from "../src/note.js";
 import { heldOn, outcome } from "../src/outcome.js";
 import { fold, type LedgerProjection } from "../src/projection.js";
@@ -163,6 +164,34 @@ describe("crash-only replay", () => {
 
     const third = unwrap(await createLedger({ clock, directory }));
     expect(sameProjection(third.projection(), fold([...firstRun, secondRunEvent]))).toBe(true);
+  });
+});
+
+describe("confirmed append", () => {
+  it.each(["write", "sync"])("does not project or confirm after a %s failure", async (stage) => {
+    directory = mkdtempSync(join(runsRoot, "run-"));
+    const sink: LedgerSink = {
+      append() {
+        throw new Error(`${stage} failed`);
+      },
+      close() {},
+    };
+    const ledger = unwrap(await createLedger({
+      clock: createControlledClock({ initialTime: 0 }),
+      directory,
+      sink,
+    }));
+    const node: Node = { graph: "0001-bootstrap", id: "ledger" };
+
+    expect(ledger.appendConfirmed({ kind: "node-created", node })).toEqual({
+      _tag: "Err",
+      error: { because: `${stage} failed` },
+    });
+    expect(ledger.projection().nodes.get(nodeKey(node))).toBeUndefined();
+    expect(ledger.appendConfirmed({ kind: "node-created", node })).toEqual({
+      _tag: "Err",
+      error: { because: `${stage} failed` },
+    });
   });
 });
 

@@ -31,7 +31,7 @@ export type { Graph, Node } from "./graph.ts";
 export { isGraph, isNode, nodeKey } from "./graph.ts";
 export type { Lease, LeaseRefusal } from "./lease.ts";
 export { createLease, isLease, renewLease } from "./lease.ts";
-export type { Ledger, LedgerOptions } from "./ledger.ts";
+export type { Ledger, LedgerAppendRefusal, LedgerOptions } from "./ledger.ts";
 export { createLedger } from "./ledger.ts";
 export type { Mandate, MandateQuery } from "./mandate.ts";
 export { isMandate, mandateCovers } from "./mandate.ts";
@@ -59,6 +59,22 @@ export type {
   NodeView,
   SessionView,
 } from "./projection.ts";
+export type {
+  OutboxArtifact,
+  OutboxArtifactRefusal,
+  OutboxDelivery,
+  OutboxIntent,
+  OutboxRepository,
+} from "./outbox.ts";
+export {
+  OUTBOX_ARTIFACT_SHAPE,
+  OUTBOX_INTENT_SHAPE,
+  isOutboxArtifact,
+  isOutboxDelivery,
+  isOutboxIntent,
+  readOutboxArtifact,
+  retainOutboxArtifact,
+} from "./outbox.ts";
 export {
   applyEvent,
   emptyProjection,
@@ -85,6 +101,7 @@ export {
 } from "./replay.ts";
 export type { Session } from "./session.ts";
 export { isSession } from "./session.ts";
-export { attachLedgerSink, JOURNAL_FILE_NAME, journalPath } from "./sink.ts";
+export type { LedgerSink } from "./sink.ts";
+export { attachLedgerSink, createLedgerSink, JOURNAL_FILE_NAME, journalPath } from "./sink.ts";
 export type { Spend } from "./spend.ts";
 export { isSpend, spend } from "./spend.ts";

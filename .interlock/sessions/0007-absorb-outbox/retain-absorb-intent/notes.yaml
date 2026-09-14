@@ -1,0 +1,15 @@
+interlock: notes@v0
+node: retain-absorb-intent
+entries:
+  - kind: choice
+    at: "2026-09-14T00:00:00Z"
+    chose: Trace the existing runner absorb path and journal persistence boundary before adding the smallest typed outbox seam.
+    because: The brief binds the change to the existing Phyxius journal and substrate adapter, so the implementation must preserve their prior behavior while making durable intent observable.
+  - kind: surprise
+    at: "2026-09-14T21:43:18Z"
+    expected: Calling the installed Journal append method after registering the file sink would make a sink failure observable to the caller.
+    observed: Journal 0.2.1 catches every subscriber exception, so the prior projection subscriber could advance and append could return despite a failed file write.
+  - kind: choice
+    at: "2026-09-14T21:43:18Z"
+    chose: Register the fsyncing sink before projection and make appendConfirmed check the exact Phyxius entry identifier it persisted.
+    because: Subscriber order lets projection advance only after the durable sink confirms that entry, while the explicit result preserves failure information Journal otherwise swallows.

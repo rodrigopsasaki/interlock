@@ -4,6 +4,7 @@ import { type Gate, isGate } from "./gate.ts";
 import { isNode, type Node } from "./graph.ts";
 import { isNote, type Note } from "./note.ts";
 import { isOutcome, type Outcome } from "./outcome.ts";
+import { isOutboxDelivery, isOutboxIntent, type OutboxDelivery, type OutboxIntent } from "./outbox.ts";
 import { isReceipt, type Receipt } from "./receipt.ts";
 import { isSession, type Session } from "./session.ts";
 import { isRecord, isString, prop } from "./validate.ts";
@@ -66,6 +67,15 @@ export type LedgerEvent =
       readonly intent: string;
     }
   | {
+      readonly kind: "outbox-intent-recorded";
+      readonly node: Node;
+      readonly effect: OutboxIntent;
+    }
+  | {
+      readonly kind: "outbox-delivery-recorded";
+      readonly delivery: OutboxDelivery;
+    }
+  | {
       readonly kind: "session-narrated";
       readonly session: string;
       readonly at: number;
@@ -109,11 +119,12 @@ export function isLedgerEvent(value: unknown): value is LedgerEvent {
     case "outcome-set":
       return isNode(prop(value, "node")) && isOutcome(prop(value, "outcome"));
     case "outbox-intent-recorded":
-      return (
-        isNode(prop(value, "node")) &&
-        isString(prop(value, "id")) &&
-        isString(prop(value, "intent"))
+      return isNode(prop(value, "node")) && (
+        (isString(prop(value, "id")) && isString(prop(value, "intent"))) ||
+        isOutboxIntent(prop(value, "effect"))
       );
+    case "outbox-delivery-recorded":
+      return isOutboxDelivery(prop(value, "delivery"));
     case "session-narrated":
       return (
         isString(prop(value, "session")) &&
