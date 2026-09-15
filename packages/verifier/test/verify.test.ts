@@ -153,4 +153,32 @@ describe("verifyDebrief", () => {
       .map((m) => m.kind);
     expect(flatHunkKinds).toEqual(["rooted", "unrooted", "rooted"]);
   });
+
+  it("marks newly verified explicit discoveries with verifier@1", async () => {
+    const { dir, from, to } = fixtureRepo();
+    const debrief = baseDebrief({
+      sessionStartSha: from,
+      headSha: to,
+      discoveries: [
+        {
+          id: "d1",
+          what: "Widget is declared in the source file",
+          foundAt: 'src/widget.ts:1 "export interface Widget {"',
+          matteredBecause: "the debrief needs a source location",
+        },
+      ],
+    });
+
+    const result = await verifyDebrief(dir, debrief, { runner: "test" });
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) return;
+
+    expect(result.value.discoveryMarks[0]?.mark).toEqual(
+      expect.objectContaining({
+        kind: "rooted",
+        hunk: "src/widget.ts",
+        derivation: expect.objectContaining({ version: "verifier@1" }),
+      }),
+    );
+  });
 });

@@ -1,0 +1,59 @@
+interlock: notes@v0
+node: qualify-explicit-location
+entries:
+  - kind: choice
+    at: 2026-09-15T17:28:32Z
+    chose: >-
+      Treat an explicit citation as exactly one path:line or path:start-end,
+      optionally path-wrapped in backticks, with exactly one separate nonblank
+      double-quoted or backtick-quoted extract.
+    because: >-
+      The acceptance requires an exact-range quote and conservative handling of
+      several paths or quotation delimiters; rejecting ambiguity prevents a
+      valid path or quotation from borrowing support from another citation.
+    rejected: >-
+      Searching every path candidate for any quotation, because it can root an
+      invalid explicit location with unrelated file content.
+  - kind: choice
+    at: 2026-09-15T17:28:32Z
+    chose: >-
+      Map foundAt tests to explicit valid single/range, CRLF, boundary,
+      quotation-outside-range, invalid numeric/range/path, ambiguous citations,
+      legacy forms, and source-at-head; map verify tests to verifier@1; extend
+      the existing gateJudge absorb spy for filtered invalid and hypothesis good
+      discoveries.
+    because: >-
+      These are the acceptance's observable boundaries, while the existing
+      gateJudge test already exercises verifyDebrief through evidenceOf and the
+      absorb seam.
+  - kind: choice
+    at: 2026-09-15T17:32:15Z
+    chose: >-
+      Keep a rooted explicit-location mark's hunk as the resolved path and
+      treat a backtick-delimited code excerpt with nested double quotes as one
+      supporting quotation.
+    because: >-
+      The rooted hunk remains compatible with existing evidence consumers while
+      qualification belongs to verifier@1; nested delimiters inside one code
+      excerpt are not separate source extracts.
+  - kind: choice
+    at: 2026-09-15T17:33:23Z
+    chose: Record the explicit-location qualification as a bend in the design note.
+    because: >-
+      The graph acceptance requires the row, and the prior verifier rule checked
+      only that a file contained some quotation rather than that the declared
+      location contained its supporting extract.
+  - kind: surprise
+    at: 2026-09-15T17:34:49Z
+    expected: The explicit-location tokenizer would pass the full numeric suffix to range validation.
+    observed: >-
+      It excluded punctuation from the suffix, so path.ts:1.5, path.ts:1..2,
+      and path.ts:1,2 could validate only the prefix line 1.
+  - kind: choice
+    at: 2026-09-15T17:34:49Z
+    chose: >-
+      Capture the complete explicit suffix and accept only a numeric range with
+      at most one terminal sentence punctuation mark.
+    because: >-
+      A single terminal mark permits ordinary prose while rejecting an added
+      numeric component or a second punctuation mark conservatively.

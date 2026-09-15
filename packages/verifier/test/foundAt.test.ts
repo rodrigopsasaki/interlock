@@ -23,8 +23,15 @@ function repoWithSession(): { readonly dir: string; readonly sha: string } {
   mkdirSync(join(directory, "packages/ledger/src"), { recursive: true });
   writeFileSync(
     join(directory, "packages/ledger/src/mark.ts"),
-    'export const rooted = "rooted";\n',
+    [
+      'export const rooted = "rooted";',
+      'export const boundary = "edge";',
+      'export const stale = "before";',
+      "",
+    ].join("\n"),
   );
+  writeFileSync(join(directory, "crlf.ts"), "first\r\nsecond\r\nthird\r\n");
+  writeFileSync(join(directory, "no-final-newline.ts"), "first\nlast exact");
   mkdirSync(join(directory, ".interlock/sessions/0001-bootstrap/other"), {
     recursive: true,
   });
@@ -95,6 +102,172 @@ describe("checkFoundAt", () => {
       DERIVATION,
     );
     expect(result.kind).toBe("unrooted");
+  });
+
+  it("roots a single explicit line only when its quote occurs in that line", () => {
+    const { dir, sha } = repoWithSession();
+    const result = checkFoundAt(
+      'packages/ledger/src/mark.ts:1 "export const rooted"',
+      dir,
+      sha,
+      "0001-bootstrap",
+      DERIVATION,
+    );
+    expect(result).toEqual(
+      expect.objectContaining({ kind: "rooted", hunk: "packages/ledger/src/mark.ts" }),
+    );
+  });
+
+  it("roots an explicit range, including a citation path wrapped in backticks", () => {
+    const { dir, sha } = repoWithSession();
+    const result = checkFoundAt(
+      '`packages/ledger/src/mark.ts:1-2` "export const boundary"',
+      dir,
+      sha,
+      "0001-bootstrap",
+      DERIVATION,
+    );
+    expect(result).toEqual(
+      expect.objectContaining({ kind: "rooted", hunk: "packages/ledger/src/mark.ts" }),
+    );
+  });
+
+  it("counts CRLF source lines when checking an explicit location", () => {
+    const { dir, sha } = repoWithSession();
+    const result = checkFoundAt('crlf.ts:2 "second"', dir, sha, "0001-bootstrap", DERIVATION);
+    expect(result).toEqual(expect.objectContaining({ kind: "rooted", hunk: "crlf.ts" }));
+  });
+
+  it("roots exact final real lines and rejects each adjacent out-of-bounds line", () => {
+    const { dir, sha } = repoWithSession();
+    const finalLineWithNewline = checkFoundAt(
+      'The final declaration is at packages/ledger/src/mark.ts:3, with "export const stale".',
+      dir,
+      sha,
+      "0001-bootstrap",
+      DERIVATION,
+    );
+    const finalLineWithoutNewline = checkFoundAt(
+      'The final line in no-final-newline.ts:2; is "last exact".',
+      dir,
+      sha,
+      "0001-bootstrap",
+      DERIVATION,
+    );
+    const beyondNewlineTerminatedFile = checkFoundAt(
+      'packages/ledger/src/mark.ts:4 "export const stale"',
+      dir,
+      sha,
+      "0001-bootstrap",
+      DERIVATION,
+    );
+    const beyondNonTerminatedFile = checkFoundAt(
+      'no-final-newline.ts:3 "last exact"',
+      dir,
+      sha,
+      "0001-bootstrap",
+      DERIVATION,
+    );
+
+    expect(finalLineWithNewline).toEqual(
+      expect.objectContaining({ kind: "rooted", hunk: "packages/ledger/src/mark.ts" }),
+    );
+    expect(finalLineWithoutNewline).toEqual(
+      expect.objectContaining({ kind: "rooted", hunk: "no-final-newline.ts" }),
+    );
+    expect(beyondNewlineTerminatedFile.kind).toBe("unrooted");
+    expect(beyondNonTerminatedFile.kind).toBe("unrooted");
+  });
+
+  it("unroots an explicit quote outside its declared range even when it appears elsewhere", () => {
+    const { dir, sha } = repoWithSession();
+    const result = checkFoundAt(
+      'packages/ledger/src/mark.ts:1 "before"',
+      dir,
+      sha,
+      "0001-bootstrap",
+      DERIVATION,
+    );
+    expect(result.kind).toBe("unrooted");
+  });
+
+  it("unroots malformed, invalid, out-of-bounds, and unresolved explicit locations", () => {
+    const { dir, sha } = repoWithSession();
+    const locations = [
+      'packages/ledger/src/mark.ts:0 "rooted"',
+      'packages/ledger/src/mark.ts:-1 "rooted"',
+      'packages/ledger/src/mark.ts:2-1 "rooted"',
+      'packages/ledger/src/mark.ts:5 "rooted"',
+      'packages/ledger/src/mark.ts:1- "rooted"',
+      'packages/ledger/src/mark.ts:1.5 "rooted"',
+      'packages/ledger/src/mark.ts:1..2 "rooted"',
+      'packages/ledger/src/mark.ts:1,2 "rooted"',
+      'missing.ts:1 "rooted"',
+    ];
+    for (const foundAt of locations) {
+      expect(checkFoundAt(foundAt, dir, sha, "0001-bootstrap", DERIVATION).kind).toBe("unrooted");
+    }
+  });
+
+  it("unroots ambiguous explicit citations and never borrows another quote", () => {
+    const { dir, sha } = repoWithSession();
+    const result = checkFoundAt(
+      'packages/ledger/src/mark.ts:1 "rooted" crlf.ts:2 "second"',
+      dir,
+      sha,
+      "0001-bootstrap",
+      DERIVATION,
+    );
+    expect(result.kind).toBe("unrooted");
+  });
+
+  it("unroots one explicit location with two separate quotations", () => {
+    const { dir, sha } = repoWithSession();
+    const result = checkFoundAt(
+      'packages/ledger/src/mark.ts:1 "rooted" "boundary"',
+      dir,
+      sha,
+      "0001-bootstrap",
+      DERIVATION,
+    );
+    expect(result.kind).toBe("unrooted");
+  });
+
+  it("requires a separate quote when a backtick-wrapped path supplies the explicit location", () => {
+    const { dir, sha } = repoWithSession();
+    const result = checkFoundAt(
+      "`packages/ledger/src/mark.ts:1`",
+      dir,
+      sha,
+      "0001-bootstrap",
+      DERIVATION,
+    );
+    expect(result.kind).toBe("unrooted");
+  });
+
+  it("counts a backtick code excerpt with nested double quotes as one quotation", () => {
+    const { dir, sha } = repoWithSession();
+    const result = checkFoundAt(
+      'packages/ledger/src/mark.ts:1 `export const rooted = "rooted";`',
+      dir,
+      sha,
+      "0001-bootstrap",
+      DERIVATION,
+    );
+    expect(result.kind).toBe("rooted");
+  });
+
+  it("reads explicit source from the supplied head rather than working-tree content", () => {
+    const { dir, sha } = repoWithSession();
+    writeFileSync(join(dir, "packages/ledger/src/mark.ts"), "working tree changed\n");
+    const result = checkFoundAt(
+      'packages/ledger/src/mark.ts:2 "export const boundary"',
+      dir,
+      sha,
+      "0001-bootstrap",
+      DERIVATION,
+    );
+    expect(result.kind).toBe("rooted");
   });
 
   it("roots a quoted out-of-band citation with no resolvable path", () => {

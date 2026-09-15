@@ -772,74 +772,41 @@ open:
 
 #### `debrief@v2`
 
-Source: `.interlock/sessions/0015-hypothesis-context/qualify-context-hypotheses/debrief.yaml`
+Source: `.interlock/sessions/0014-qualified-citations/qualify-explicit-location/debrief.yaml`
 
 ```yaml
 interlock: debrief@v2
-graph: 0015-hypothesis-context
-node: qualify-context-hypotheses
+graph: 0014-qualified-citations
+node: qualify-explicit-location
 role: worker
-graph_base_sha: 3cf4d8c73a2b01b2693dc2fa97866f1497983df3
-session_start_sha: 61000f51d7505103a2b1c98571b1119b615cc2b8
-head_sha: 6ff32c34ef0af6e007e6070a4c15968e8d8bfb39
+graph_base_sha: f7dee08d98ebe4da760be51d6e776b51939ffd0b
+session_start_sha: 02f6310cafd18cb30d91d75933034dd657b05581
+head_sha: e8f43ed51f07c695699f91a5c8afc63b962e2500
 derivation:
   kind: agent
   runtime: codex
   model: gpt-5.6-terra
-discoveries:
-  - id: opening-view-reuses-rendered-body
-    what: writeBriefIntoWorktree derives the concise opening view from the written brief front matter and body after rendering its addressed context slice.
-    found_at: packages/runner/src/sessionBrief.ts
-    mattered_because: The shared debrief renderer can carry the hypothesis notice to both the full brief and concise opening view without a production runner change.
+discoveries: []
 decisions:
-  - id: qualify-hypothesis-at-shared-renderer
-    what: Prepend one conditional notice only when an addressed context slice contains a hypothesis-standing item, stating that it is unratified, must be checked against source, and that a receipt, rooted mark, or retrieval is not semantic truth.
-    because: The shared renderer preserves all received items and their existing provenance, standing, scope, grouping, and order while distinguishing unratified learning from semantic truth.
-    rests_on:
-      - .interlock/graphs/0015-hypothesis-context.yaml:24-37
-      - packages/debrief/src/slice.ts:67-86
-    hunks:
-      - packages/debrief/src/slice.ts:72-86
-    produces:
-      - packages/debrief/src/slice.ts
-  - id: retain-unchanged-and-projected-rendering
-    what: Assert byte-for-byte unchanged output for no-address, empty, and all non-hypothesis slices; one notice for single and multiple hypotheses; and the rendered hypothesis item in both generated brief and concise opening view.
-    because: The acceptance requires a useful distinction without altering the none, empty, observed, professed, ratified, or absent-standing branches, canonical scope authority, context_scope, or item provenance.
-    rests_on:
-      - .interlock/graphs/0015-hypothesis-context.yaml:24-39
-      - packages/debrief/test/slice.test.ts:63-126
-      - packages/runner/test/sessionBrief.test.ts:455-494
-    hunks:
-      - packages/debrief/test/slice.test.ts:49-126
-      - packages/runner/test/sessionBrief.test.ts:455-494
-    produces:
-      - packages/debrief/test/slice.test.ts
-      - packages/runner/test/sessionBrief.test.ts
+  - id: c1
+    what: Added final-real-line fixture proof for both newline states, ordinary prose punctuation, and the adjacent out-of-bounds lines.
+    because: The parser already removes only the newline-created terminal empty line; the repair needed discriminating assertions rather than a production change.
+    rests_on: ["brief: outstanding requirement 1", "notes: final-line fixture choice"]
+    hunks: ["packages/verifier/test/foundAt.test.ts"]
+  - id: c2
+    what: Qualified the retained discovery-scope claim to non-sentinel rooted hunks and preserved sentinel rooted hunks as repository scope.
+    because: discoveryItem returns no item for an unrooted mark, repository scope for command or out-of-band citation, and path scope only in its remaining rooted branch.
+    rests_on: ["brief: outstanding requirement 2", "notes: retained-scope qualification choice"]
+    hunks: [".interlock/sessions/0014-qualified-citations/qualify-explicit-location/notes.yaml"]
 gates_run_by_agent:
-  - id: hypothesis-rendering
+  - id: citation-proof
     result: pass
-    invocation: mise exec -- pnpm --filter debrief --fail-if-no-match exec vitest run test/slice.test.ts --reporter=verbose
-    note: 8 tests passed.
-  - id: generated-context
+    invocation: mise exec -- pnpm --filter verifier --fail-if-no-match exec vitest run test/foundAt.test.ts test/verify.test.ts --reporter=verbose
+    note: 22 tests passed, including the two final-line successes and two adjacent out-of-bounds assertions.
+  - id: reuse-filter-proof
     result: pass
-    invocation: mise exec -- pnpm --filter runner --fail-if-no-match exec vitest run test/sessionBrief.test.ts test/openingPrompt.test.ts --reporter=verbose
-    note: 21 tests passed.
-  - id: typecheck
-    result: pass
-    invocation: mise exec -- pnpm typecheck
-    note: All workspace TypeScript checks passed.
-  - id: lint
-    result: pass
-    invocation: mise exec -- pnpm lint
-    note: Biome checked 319 files with no fixes.
-  - id: comments
-    result: pass
-    invocation: mise exec -- pnpm check:comments
-    note: packages/*/src has no comments.
-  - id: schema-reference
-    result: pass
-    invocation: mise exec -- pnpm interlock schema reference
-    note: docs/shapes.md regenerated from the current representative artifacts.
+    invocation: mise exec -- pnpm --filter runner --fail-if-no-match exec vitest run test/gateJudge.test.ts --reporter=verbose
+    note: 27 tests passed with the retained evidence/absorb proof.
 open: []
 ```
 
@@ -894,7 +861,11 @@ _No example of `event@v4` was found in the corpus._
 
 #### `event@v5`
 
-_No example of `event@v5` was found in the corpus._
+Source: `.interlock/ledger/journal.jsonl`
+
+```json
+{"interlock":"event@v5","kind":"node-created","node":{"graph":"0008-learning-witness","id":"0008-learning-witness"}}
+```
 
 ## graph
 
@@ -1020,59 +991,45 @@ No vocabulary entry for `local`.
 
 #### `local@v0`
 
-Source: `.interlock/local.example.yaml`
+Source: `.interlock/local.yaml`
 
 ```yaml
-# Per-machine choices for the runner. Copy this file to .interlock/local.yaml (gitignored) and
-# fill it in; local.yaml is never committed, so these values never leave this machine.
-
 interlock: local@v0
-
-# The agent CLI the runner starts inside a herdr pane, and its extra arguments.
 runtime:
-  kind: claude
-  args: []
-  # Optional. Each entry names the text the runtime shows when it needs an answer before it
-  # is ready, and the keys to send it. Entries are tried in order, at most once each.
-  # startup_answers:
-  #   - matches: "the text the runtime shows when it needs an answer before it is ready"
-  #     keys: [Down, Enter]
-  # Optional. How long the runner waits for the runtime to become ready before sending the
-  # opening prompt. Defaults to 60000.
-  # startup_timeout_ms: 60000
-  # Optional. How long the runner waits, after sending the opening prompt, for the agent to
-  # move off idle before the long wait judges it. Defaults to 20000.
-  # prompt_taken_timeout_ms: 20000
-
-# Where the runner creates a node's git worktree, relative to the repository root.
+  kind: codex
+  args:
+    - --model
+    - gpt-5.6-terra
+    - -c
+    - model_reasoning_effort="high"
+    - --disable
+    - multi_agent
+    - --enable
+    - code_mode_host
+    - --disable
+    - apps
+    - --disable
+    - computer_use
+    - --disable
+    - browser_use
+    - --sandbox
+    - workspace-write
+    - --ask-for-approval
+    - never
+    - --add-dir
+    - /Users/rodrigosasaki/dev/private/interlock-worktrees/learning-witness/.git
+  startup_timeout_ms: 90000
+  prompt_taken_timeout_ms: 30000
 worktree_root: .worktrees
-
-# Optional. Commands run once in a node's worktree, in order, after it is created or reset and
-# before its pane opens — whatever this repository needs before an agent or a gate can run in
-# it. Each runs through the same pinned-toolchain invocation the gates use. Defaults to none.
-# worktree_setup:
-#   - "<your setup command>"
-
-# How long a lease lasts before a sweep may call it abandoned. The runner renews it by
-# heartbeat at a third of this length while a session is running.
-lease_ms: 900000
-
-# The wall timeout the runner waits for the agent to go idle, blocked or done.
-run_timeout_ms: 3600000
-
-# Optional. How long an idle or done stays open for the agent to resume after a person has answered a blocked turn, before it is judged settled. Defaults to 300000.
-# answer_grace_ms: 300000
-
-# The substrate address: "none" or an http(s) URL.
+worktree_setup:
+  - pnpm install --frozen-lockfile
+lease_ms: 120000
+run_timeout_ms: 1500000
+answer_grace_ms: 300000
 substrate:
-  address: none
-  # Optional. A path to a file whose first line is a bearer token, sent as
-  # "Authorization: Bearer <token>" on every call to substrate.address.
-  # key_file: "/path/to/key"
-  # Optional. Send an unambiguous, credential-free repository identity to a receiver that has
-  # already been updated to accept it. Defaults to false so older receivers keep their legacy
-  # request bodies.
-  # send_repository: false
+  address: http://127.0.0.1:61126
+  key_file: /Users/rodrigosasaki/dev/private/interlock-notes/evidence/third-six-graphs-2026-09-15/accepted-source-receiver/receiver.key
+  send_repository: true
 ```
 
 ## notes

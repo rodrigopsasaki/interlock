@@ -7,7 +7,7 @@ import { unexplainedMarks } from "./inverse.ts";
 import { vocabularyGaps } from "./vocabulary.ts";
 
 export const VERIFIER_GATE_ID = "verifier-hunks";
-export const VERIFIER_VERSION = "verifier@0";
+export const VERIFIER_VERSION = "verifier@1";
 
 export interface VerifyOptions {
   readonly runner?: string;

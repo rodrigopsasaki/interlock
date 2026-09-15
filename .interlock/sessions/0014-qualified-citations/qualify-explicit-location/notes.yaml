@@ -1,0 +1,114 @@
+interlock: notes@v0
+node: qualify-explicit-location
+entries:
+  - kind: choice
+    at: 2026-09-15T17:28:32Z
+    chose: >-
+      Treat an explicit citation as exactly one path:line or path:start-end,
+      optionally path-wrapped in backticks, with exactly one separate nonblank
+      double-quoted or backtick-quoted extract.
+    because: >-
+      The acceptance requires an exact-range quote and conservative handling of
+      several paths or quotation delimiters; rejecting ambiguity prevents a
+      valid path or quotation from borrowing support from another citation.
+    rejected: >-
+      Searching every path candidate for any quotation, because it can root an
+      invalid explicit location with unrelated file content.
+  - kind: choice
+    at: 2026-09-15T17:28:32Z
+    chose: >-
+      Map foundAt tests to explicit valid single/range, CRLF, boundary,
+      quotation-outside-range, invalid numeric/range/path, ambiguous citations,
+      legacy forms, and source-at-head; map verify tests to verifier@1; extend
+      the existing gateJudge absorb spy for filtered invalid and hypothesis good
+      discoveries.
+    because: >-
+      These are the acceptance's observable boundaries, while the existing
+      gateJudge test already exercises verifyDebrief through evidenceOf and the
+      absorb seam.
+  - kind: choice
+    at: 2026-09-15T17:32:15Z
+    chose: >-
+      Keep a rooted explicit-location mark's hunk as the resolved path and
+      treat a backtick-delimited code excerpt with nested double quotes as one
+      supporting quotation.
+    because: >-
+      The rooted hunk remains compatible with existing evidence consumers while
+      qualification belongs to verifier@1; nested delimiters inside one code
+      excerpt are not separate source extracts.
+  - kind: choice
+    at: 2026-09-15T17:33:23Z
+    chose: Record the explicit-location qualification as a bend in the design note.
+    because: >-
+      The graph acceptance requires the row, and the prior verifier rule checked
+      only that a file contained some quotation rather than that the declared
+      location contained its supporting extract.
+  - kind: surprise
+    at: 2026-09-15T17:34:49Z
+    expected: The explicit-location tokenizer would pass the full numeric suffix to range validation.
+    observed: >-
+      It excluded punctuation from the suffix, so path.ts:1.5, path.ts:1..2,
+      and path.ts:1,2 could validate only the prefix line 1.
+  - kind: choice
+    at: 2026-09-15T17:34:49Z
+    chose: >-
+      Capture the complete explicit suffix and accept only a numeric range with
+      at most one terminal sentence punctuation mark.
+    because: >-
+      A single terminal mark permits ordinary prose while rejecting an added
+      numeric component or a second punctuation mark conservatively.
+  - kind: choice
+    at: 2026-09-15T20:49:32Z
+    chose: >-
+      Add committed-source fixtures for the final real line with and without a
+      trailing newline, use ordinary prose with terminal comma and semicolon
+      citation punctuation, and pair each success with its immediately
+      out-of-bounds next line.
+    because: >-
+      foundAt.ts removes only the terminal split artifact for newline-terminated
+      content; these assertions distinguish that behavior from accepting a
+      nonexistent trailing line while exercising the supported prose grammar.
+    rejected: >-
+      Altering line parsing or its supported suffix grammar, because the
+      existing implementation already expresses the required behavior and the
+      authorized repair is fixture proof only.
+    assertions:
+      - >-
+        packages/verifier/test/foundAt.test.ts:172-179 asserts rooted marks for
+        the two final real lines and unrooted marks for their adjacent lines 4
+        and 3.
+      - >-
+        The success inputs at packages/verifier/test/foundAt.test.ts:144 and
+        :151 are ordinary prose and retain the parser's supported comma and
+        semicolon punctuation after the explicit line number.
+  - kind: choice
+    at: 2026-09-15T20:51:15Z
+    chose: >-
+      Qualify the retained scope claim: only a rooted discovery whose hunk is
+      neither command nor out-of-band citation becomes a path-scoped item;
+      sentinel rooted hunks become repository-scoped items.
+    because: >-
+      The source defines SENTINEL_HUNKS as "command" and "out-of-band citation"
+      and its full discoveryItem branch returns undefined for non-rooted marks,
+      repository scope for a sentinel, and `{ kind: "path", path:
+      entry.mark.hunk }` only otherwise.
+    rejected: >-
+      Repeating the retained universal statement that every rooted discovery
+      hunk supplies path scope, because the sentinel branch disproves it.
+    assertions:
+      - >-
+        packages/substrate/src/evidence.ts:47 contains
+        `new Set(["command", "out-of-band citation"])`; lines 98-110 contain
+        the rooted guard, both scope branches, and the returned item.
+  - kind: surprise
+    at: 2026-09-15T20:52:02Z
+    expected: The abbreviated brief commit identifier would be enough to reproduce its full session_start_sha.
+    observed: >-
+      git rev-parse resolved 02f6310 to
+      02f6310cafd18cb30d91d75933034dd657b05581, not the initially drafted
+      value; the recovery debrief now uses the resolved commit SHA.
+  - kind: choice
+    at: 2026-09-15T20:54:21Z
+    chose: Finalize the root-reviewed recovery artifacts without changing their fixture or scope claims.
+    because: Root and independent review accepted the exact assertions, qualified c2 claim, retained archive, and resolved derivation metadata.
+    rejected: Any further semantic or production change, because release authorizes only committing the reviewed draft and regenerating the required schema reference.
