@@ -861,11 +861,7 @@ _No example of `event@v4` was found in the corpus._
 
 #### `event@v5`
 
-Source: `.interlock/ledger/journal.jsonl`
-
-```json
-{"interlock":"event@v5","kind":"node-created","node":{"graph":"0008-learning-witness","id":"0008-learning-witness"}}
-```
+_No example of `event@v5` was found in the corpus._
 
 ## graph
 
@@ -980,43 +976,59 @@ No vocabulary entry for `local`.
 
 #### `local@v0`
 
-Source: `.interlock/local.yaml`
+Source: `.interlock/local.example.yaml`
 
 ```yaml
+# Per-machine choices for the runner. Copy this file to .interlock/local.yaml (gitignored) and
+# fill it in; local.yaml is never committed, so these values never leave this machine.
+
 interlock: local@v0
+
+# The agent CLI the runner starts inside a herdr pane, and its extra arguments.
 runtime:
-  kind: codex
-  args:
-    - --model
-    - gpt-5.6-terra
-    - -c
-    - model_reasoning_effort="high"
-    - --disable
-    - multi_agent
-    - --enable
-    - code_mode_host
-    - --disable
-    - apps
-    - --disable
-    - computer_use
-    - --disable
-    - browser_use
-    - --sandbox
-    - workspace-write
-    - --ask-for-approval
-    - never
-    - --add-dir
-    - /Users/rodrigosasaki/dev/private/interlock-worktrees/learning-witness/.git
-  startup_timeout_ms: 90000
-  prompt_taken_timeout_ms: 30000
+  kind: claude
+  args: []
+  # Optional. Each entry names the text the runtime shows when it needs an answer before it
+  # is ready, and the keys to send it. Entries are tried in order, at most once each.
+  # startup_answers:
+  #   - matches: "the text the runtime shows when it needs an answer before it is ready"
+  #     keys: [Down, Enter]
+  # Optional. How long the runner waits for the runtime to become ready before sending the
+  # opening prompt. Defaults to 60000.
+  # startup_timeout_ms: 60000
+  # Optional. How long the runner waits, after sending the opening prompt, for the agent to
+  # move off idle before the long wait judges it. Defaults to 20000.
+  # prompt_taken_timeout_ms: 20000
+
+# Where the runner creates a node's git worktree, relative to the repository root.
 worktree_root: .worktrees
-worktree_setup:
-  - pnpm install --frozen-lockfile
-lease_ms: 120000
-run_timeout_ms: 1500000
-answer_grace_ms: 120000
+
+# Optional. Commands run once in a node's worktree, in order, after it is created or reset and
+# before its pane opens — whatever this repository needs before an agent or a gate can run in
+# it. Each runs through the same pinned-toolchain invocation the gates use. Defaults to none.
+# worktree_setup:
+#   - "<your setup command>"
+
+# How long a lease lasts before a sweep may call it abandoned. The runner renews it by
+# heartbeat at a third of this length while a session is running.
+lease_ms: 900000
+
+# The wall timeout the runner waits for the agent to go idle, blocked or done.
+run_timeout_ms: 3600000
+
+# Optional. How long an idle or done stays open for the agent to resume after a person has answered a blocked turn, before it is judged settled. Defaults to 300000.
+# answer_grace_ms: 300000
+
+# The substrate address: "none" or an http(s) URL.
 substrate:
   address: none
+  # Optional. A path to a file whose first line is a bearer token, sent as
+  # "Authorization: Bearer <token>" on every call to substrate.address.
+  # key_file: "/path/to/key"
+  # Optional. Send an unambiguous, credential-free repository identity to a receiver that has
+  # already been updated to accept it. Defaults to false so older receivers keep their legacy
+  # request bodies.
+  # send_repository: false
 ```
 
 ## notes

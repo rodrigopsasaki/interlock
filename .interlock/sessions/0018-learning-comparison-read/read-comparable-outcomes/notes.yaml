@@ -1,0 +1,39 @@
+interlock: notes@v0
+node: read-comparable-outcomes
+entries:
+  - kind: surprise
+    at: 2026-09-15T00:00:00-03:00
+    expected: "An existing notes.yaml file for this session."
+    observed: "The session directory contained no notes.yaml, so this entry creates the required typed notes artifact."
+  - kind: choice
+    at: 2026-09-15T00:00:00-03:00
+    chose: "Read only the supplied comparison inputs, current source/tests, schemas, design, and this node's artifacts."
+    because: "The canonical brief makes the supplied evidence the source for the outcome read and explicitly excludes unrelated sessions, history, journals, receivers, external calls, and extra agents."
+  - kind: surprise
+    at: 2026-09-15T00:00:00-03:00
+    expected: "The treatment test-design worker's filenames-only note to describe the disclosed read boundary."
+    observed: "The supplied final read audit and treatment read audit establish that raw command output contained excluded brief content, so that pair is qualified rather than clean attribution."
+  - kind: choice
+    at: 2026-09-15T00:00:00-03:00
+    chose: "Classify report claims by source support, bounded omissions, and traceable use rather than score either condition."
+    because: "The brief forbids inventing a winner or quality score and requires equal or worse outcomes, overlap, unsupported assertions, and actual provenance boundaries to remain visible."
+  - kind: choice
+    at: 2026-09-15T21:39:39Z
+    chose: "Preserve the four existing placeholder-timestamp entries and append this correction."
+    because: "Their 2026-09-15T00:00:00-03:00 timestamps were placeholders rather than observed execution times. The affected entries are the initial missing-notes surprise, the source-boundary choice, the supplied-read-audit surprise, and the classification choice; their exact original times were not observed and are not invented."
+  - kind: choice
+    at: 2026-09-15T21:39:39Z
+    chose: "Treat the test-design-b read-boundary discrepancy as supplied comparison evidence."
+    because: "The supplied read audits already record the excluded brief-content exposure; this session uses that evidence to qualify attribution and does not file it as a new source discovery."
+  - kind: choice
+    at: 2026-09-15T21:40:23Z
+    chose: "File the outcome read with no discoveries."
+    because: "The report interprets supplied comparison evidence and source-checks its consequential claims; treating supplied evidence or historical gate facts as new discoveries would fabricate a brief deficiency."
+  - kind: choice
+    at: 2026-09-15T21:41:41Z
+    chose: "Correct two bounded report statements and allow non-positive next-check outcomes."
+    because: "Independent source review established that the observation table contains brief sizes but not hashes, and that test-design-a selected three cases from an up-to-four-case ask. The next check must permit checked use, justified rejection, and no use without requiring a positive trace."
+  - kind: choice
+    at: 2026-09-15T21:42:26Z
+    chose: "File a versioned final debrief revision for the correction commit."
+    because: "The retained debrief must not be overwritten. A new revision can name the corrected artifact head while preserving the earlier debrief and its provenance."
