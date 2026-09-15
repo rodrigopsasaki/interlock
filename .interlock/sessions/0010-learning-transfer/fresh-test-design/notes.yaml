@@ -1,0 +1,19 @@
+interlock: notes@v0
+node: fresh-test-design
+entries:
+  - kind: surprise
+    at: "2026-09-15T00:10:58Z"
+    expected: The generated session would already contain its notes artifact.
+    observed: notes.yaml was absent, so this file was created before test work.
+  - kind: surprise
+    at: "2026-09-15T00:10:58Z"
+    expected: The initial repository survey would remain within this node's permitted reading boundary.
+    observed: It opened older session artifacts, which the acceptance excludes; that exposure cannot be undone or treated as uninfluential by deciding to ignore it, and all remaining reading is limited to this brief, AGENTS/design, and current substrate source/tests.
+  - kind: surprise
+    at: "2026-09-15T00:12:35Z"
+    expected: No other session artifact would be opened outside this node's immutable brief and harness-provided context.
+    observed: The already-opened paths are .interlock/sessions/0009-delivery-boundary-proof/prove-dispatch-boundary/notes.yaml, .interlock/sessions/0009-delivery-boundary-proof/prove-dispatch-boundary/debrief.yaml, and .interlock/sessions/0010-learning-transfer/source-diagnosis/brief.md. The source-diagnosis brief exposed that node's instructions but not its diagnosis report, notes, or debrief; this node's own brief separately exposed the authorized context slice. The breach prevents a clean fresh-session attribution claim and will be recorded as an isolation limitation.
+  - kind: choice
+    at: "2026-09-15T00:12:10Z"
+    chose: Add three focused evidence mapper cases covering selection before scope gaps, agent debrief provenance independent of verifier derivation, and filtering of node plus graph-approved standing events.
+    because: The current source maps only fully rooted decisions, derives their item provenance from the debrief, and relies on personEventsFor to admit the node's events plus the graph's approved event; these cases cover the requested boundaries without repeating the existing isolated assertions.
