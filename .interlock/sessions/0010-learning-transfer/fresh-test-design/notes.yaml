@@ -32,4 +32,16 @@ entries:
   - kind: surprise
     at: "2026-09-15T00:15:31Z"
     expected: The required schema-reference generation would either update docs/shapes.md for this session's artifacts or complete without a diagnostic.
-    observed: The reference was already current, but generation reported five existing artifact terms missing from the vocabulary table: config, event, item, local, and notes. No generated reference diff resulted, and this is not a learning-boundary test finding.
+    observed: "The reference was already current, but generation reported five existing artifact terms missing from the vocabulary table: config, event, item, local, and notes. No generated reference diff resulted, and this is not a learning-boundary test finding."
+  - kind: surprise
+    at: "2026-09-15T00:17:07Z"
+    expected: The accumulated notes would validate as YAML when the final debrief was checked.
+    observed: The schema-generator observation contained an unquoted colon followed by a space, which YAML interpreted as a nested mapping; the prose was quoted without changing its content.
+  - kind: surprise
+    at: "2026-09-15T00:18:17Z"
+    expected: The required final schema-reference generation could be checked without exposing any additional excluded session material.
+    observed: Its generated docs/shapes.md diff replaced the representative source .interlock/sessions/0009-delivery-boundary-proof/prove-storage-boundary/debrief.yaml with this node's debrief and thereby exposed that prior debrief representation. This additional exposure further prevents a clean fresh-session attribution claim.
+  - kind: surprise
+    at: "2026-09-15T00:19:02Z"
+    expected: The final schema-reference selection would retain this node's debrief after the reference-accounting decision was added.
+    observed: The larger final debrief lost representative selection to the smaller prior artifact, so the final generator output left docs/shapes.md unchanged. The required generation still ran and its earlier exposure remains recorded.

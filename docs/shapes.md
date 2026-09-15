@@ -771,81 +771,69 @@ open:
 
 #### `debrief@v2`
 
-Source: `.interlock/sessions/0009-delivery-boundary-proof/prove-storage-boundary/debrief.yaml`
+Source: `.interlock/sessions/0010-learning-transfer/fresh-test-design/debrief.yaml`
 
 ```yaml
 interlock: debrief@v2
-graph: 0009-delivery-boundary-proof
-node: prove-storage-boundary
+graph: 0010-learning-transfer
+node: fresh-test-design
 role: worker
-graph_base_sha: 49f7c02c507c259dc6bcf735bf8457c18e63dfea
-session_start_sha: 545e97cae88b5a75c7bfed66ecfe1dc7accc7d3c
-head_sha: ad55d2611aa86dd3e2e5e7c9291bc44ae0db3e39
+graph_base_sha: 4e45e200ddc13b4630fa75e680b33bc4293dda73
+session_start_sha: 9802b5eb60bed7ca2e6a75e525954923d52a617f
+head_sha: 871ee4358c287402fc71682ccff8a0f0952717fc
 derivation:
   kind: agent
   runtime: codex
   model: gpt-5.6-terra
-discoveries:
-  - id: d1
-    what: AJV strict compilation rejects the event@v5 conditional because its required acknowledgment property is only declared outside the conditional schema.
-    found_at: packages/schemas/test/corpus.guards.test.ts
-    mattered_because: S3 needs the current delivery contract to compile strictly while still refusing acknowledged deliveries without retained evidence.
-  - id: d2
-    what: The schema reference corpus selects the immutable attempt debrief as the smaller representative after the recovery artifacts were added.
-    found_at: packages/schemas/test/reference.test.ts
-    mattered_because: The generated reference must be refreshed from the actual current corpus rather than retaining a stale source path.
+discoveries: []
 decisions:
-  - id: c1
-    what: The current event schema declares acknowledgment in its acknowledged conditional as well as in the delivery shape, and the guard agreement test covers present and missing evidence.
-    because: This satisfies AJV strict required-property validation without weakening the runtime refusal for an acknowledged delivery that lacks its artifact.
+  - id: selection-scope
+    what: A partly verified multi-path decision produces neither an item nor a repository-scope gap, while a separately all-rooted decision remains a path-scoped hypothesis item.
+    because: "The immutable context states \"A decision is projected only when it has one or more marks and every mark is rooted; several cited paths become repository scope with a gap.\" (derivation: agent:codex:gpt-5.6-terra). Current packages/substrate/src/evidence.ts checks marks before hunkScope, so the test checks that selection happens before scope projection."
     rests_on:
-      - .interlock/graphs/0009-delivery-boundary-proof.yaml
-      - packages/ledger/src/outbox.ts
+      - packages/substrate/src/evidence.ts
+      - .interlock/sessions/0010-learning-transfer/fresh-test-design/brief.md
     hunks:
-      - schemas/event@v5.json
-      - packages/schemas/test/corpus.guards.test.ts
-  - id: c2
-    what: The artifact schema caps bytes at Number.MAX_SAFE_INTEGER and the retained-evidence proof now covers both artifact kinds with binary and empty bodies, lookup identity absence, and valid JSON that is not an artifact envelope.
-    because: Schema and runtime must refuse the same unsafe bounds, and S2 requires verified evidence to distinguish missing, corrupt, absent, and verified state without overwriting retained content.
+      - packages/substrate/test/learningBoundary.test.ts:9-59
+  - id: provenance
+    what: A rooted decision retains its generic test debrief derivation and does not inherit the verifier gate derivation that marked it rooted.
+    because: evidenceOf derives projected decision provenance from the session debrief before it maps decision marks, so the test keeps verifier proof and authored claim provenance distinct.
     rests_on:
-      - .interlock/graphs/0009-delivery-boundary-proof.yaml
-      - packages/ledger/src/outbox.ts
+      - packages/substrate/src/evidence.ts
+      - packages/substrate/src/derivationString.ts
     hunks:
-      - schemas/parts/outbox-artifact.json
-      - packages/ledger/test/outboxDurability.test.ts
-      - packages/schemas/test/corpus.guards.test.ts
+      - packages/substrate/test/learningBoundary.test.ts:61-89
+  - id: standing
+    what: The projection admits this node's events and the graph's approved human gate, while excluding a sibling node event and a different graph-level gate.
+    because: personEventsFor filters the ledger stream to the node plus the graph-level approved gate before evidenceOf projects human authority, so the bounded fixture checks both selection and the resulting professed item.
+    rests_on:
+      - packages/substrate/src/evidence.ts
+    hunks:
+      - packages/substrate/test/learningBoundary.test.ts:91-145
 gates_run_by_agent:
   - id: typecheck
     result: pass
     invocation: mise exec -- pnpm typecheck
-    note: All workspace packages completed TypeScript checking under Node 24.14.0.
+    note: All eight workspace packages passed TypeScript checking under the pinned Node runtime.
   - id: lint
     result: pass
     invocation: mise exec -- pnpm lint
-    note: Biome checked 316 files without diagnostics.
+    note: Biome checked 317 files without diagnostics after the formatting-only wrap.
   - id: comments
     result: pass
     invocation: mise exec -- pnpm check:comments
     note: packages/*/src reported no comments.
-  - id: storage-boundary-proof
+  - id: learning-boundary-tests
     result: pass
-    invocation: mise exec -- pnpm --filter ledger --fail-if-no-match exec vitest run test/outboxDurability.test.ts test/replay.test.ts --reporter=verbose
-    note: Twenty-four ledger tests passed, including the separate production write and fsync failures, v1-v4 replay, old-tag rejection, and the completed artifact evidence matrix.
-  - id: storage-before-dispatch-proof
-    result: pass
-    invocation: mise exec -- pnpm --filter runner --fail-if-no-match exec vitest run test/absorbStorageBoundary.test.ts test/gateJudge.test.ts --reporter=verbose
-    note: Twenty-nine runner tests passed, including zero dispatch for separately injected intent write and fsync failures and the prepared-client fixture repairs.
-  - id: schema-corpus
-    result: pass
-    invocation: mise exec -- pnpm --filter schemas exec vitest run test/corpus.guards.test.ts
-    note: Forty-one schema guard agreement tests passed, including acknowledged evidence and safe byte bounds.
+    invocation: mise exec -- pnpm --filter substrate --fail-if-no-match exec vitest run test/learningBoundary.test.ts
+    note: Three focused cases passed for selection and scope, provenance, and standing-event boundaries.
   - id: shape-reference-fresh
     result: pass
-    invocation: mise exec -- pnpm interlock schema reference --check
-    note: The regenerated reference was fresh under Node 24.14.0 after the recovery artifacts were present.
+    invocation: mise exec -- node packages/cli/src/bin.ts schema reference
+    note: The required generator completed with docs/shapes.md already current.
 open:
-  - "No S1, S2, or S3 obligation is intentionally unmet: the named focused ledger and runner proofs pass under the pinned runtime."
-  - The full workspace test gate was not run locally because the brief states this sandbox blocks localhost listeners; the harness must produce that receipt independently.
+  - "Isolation limitation: before bounded work, this session opened .interlock/sessions/0009-delivery-boundary-proof/prove-dispatch-boundary/notes.yaml, .interlock/sessions/0009-delivery-boundary-proof/prove-dispatch-boundary/debrief.yaml, and .interlock/sessions/0010-learning-transfer/source-diagnosis/brief.md. The source-diagnosis brief contained its instructions, not its report, notes, or debrief. Required schema generation later exposed the rendered representative of .interlock/sessions/0009-delivery-boundary-proof/prove-storage-boundary/debrief.yaml through docs/shapes.md. These exposures prevent a clean fresh-session attribution claim."
+  - The listener-dependent full pnpm test gate was not run locally because the brief says local listeners are denied; the harness must produce that receipt.
 ```
 
 ## event

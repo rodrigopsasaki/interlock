@@ -1,0 +1,60 @@
+interlock: debrief@v2
+graph: 0010-learning-transfer
+node: fresh-test-design
+role: worker
+graph_base_sha: 4e45e200ddc13b4630fa75e680b33bc4293dda73
+session_start_sha: 9802b5eb60bed7ca2e6a75e525954923d52a617f
+head_sha: 871ee4358c287402fc71682ccff8a0f0952717fc
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries: []
+decisions:
+  - id: selection-scope
+    what: A partly verified multi-path decision produces neither an item nor a repository-scope gap, while a separately all-rooted decision remains a path-scoped hypothesis item.
+    because: "The immutable context states \"A decision is projected only when it has one or more marks and every mark is rooted; several cited paths become repository scope with a gap.\" (derivation: agent:codex:gpt-5.6-terra). Current packages/substrate/src/evidence.ts checks marks before hunkScope, so the test checks that selection happens before scope projection."
+    rests_on:
+      - packages/substrate/src/evidence.ts
+      - .interlock/sessions/0010-learning-transfer/fresh-test-design/brief.md
+    hunks:
+      - packages/substrate/test/learningBoundary.test.ts:9-59
+  - id: provenance
+    what: A rooted decision retains its generic test debrief derivation and does not inherit the verifier gate derivation that marked it rooted.
+    because: evidenceOf derives projected decision provenance from the session debrief before it maps decision marks, so the test keeps verifier proof and authored claim provenance distinct.
+    rests_on:
+      - packages/substrate/src/evidence.ts
+      - packages/substrate/src/derivationString.ts
+    hunks:
+      - packages/substrate/test/learningBoundary.test.ts:61-89
+  - id: standing
+    what: The projection admits this node's events and the graph's approved human gate, while excluding a sibling node event and a different graph-level gate.
+    because: personEventsFor filters the ledger stream to the node plus the graph-level approved gate before evidenceOf projects human authority, so the bounded fixture checks both selection and the resulting professed item.
+    rests_on:
+      - packages/substrate/src/evidence.ts
+    hunks:
+      - packages/substrate/test/learningBoundary.test.ts:91-145
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: All eight workspace packages passed TypeScript checking under the pinned Node runtime.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Biome checked 317 files without diagnostics after the formatting-only wrap.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+    note: packages/*/src reported no comments.
+  - id: learning-boundary-tests
+    result: pass
+    invocation: mise exec -- pnpm --filter substrate --fail-if-no-match exec vitest run test/learningBoundary.test.ts
+    note: Three focused cases passed for selection and scope, provenance, and standing-event boundaries.
+  - id: shape-reference-fresh
+    result: pass
+    invocation: mise exec -- node packages/cli/src/bin.ts schema reference
+    note: The required generator completed with docs/shapes.md already current.
+open:
+  - "Isolation limitation: before bounded work, this session opened .interlock/sessions/0009-delivery-boundary-proof/prove-dispatch-boundary/notes.yaml, .interlock/sessions/0009-delivery-boundary-proof/prove-dispatch-boundary/debrief.yaml, and .interlock/sessions/0010-learning-transfer/source-diagnosis/brief.md. The source-diagnosis brief contained its instructions, not its report, notes, or debrief. Required schema generation later exposed the rendered representative of .interlock/sessions/0009-delivery-boundary-proof/prove-storage-boundary/debrief.yaml through docs/shapes.md. These exposures prevent a clean fresh-session attribution claim."
+  - The listener-dependent full pnpm test gate was not run locally because the brief says local listeners are denied; the harness must produce that receipt.
