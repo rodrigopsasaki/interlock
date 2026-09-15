@@ -1,0 +1,23 @@
+interlock: notes@v0
+node: separate-learning-applicability
+entries:
+  - kind: choice
+    at: "2026-09-15T22:46:22Z"
+    chose: "Represent applies_to as the existing repository-or-safe-path scope shape, optional on debrief decision and discovery claims."
+    because: "The graph acceptance requires one repository or repository-relative path without an organisation-wide grant, and packages/debrief/src/slice.ts already owns the identical item@v1 scope union used by evidence emission."
+  - kind: choice
+    at: "2026-09-15T22:50:37Z"
+    chose: "Move the safe path predicate and the narrower applicability union into ledger, then have debrief parsing consume it."
+    because: "Debrief already depends on ledger while ledger cannot depend on debrief; the move keeps one semantic path contract and lets the ledger event guard reject unsafe replay data without a dependency cycle."
+  - kind: choice
+    at: "2026-09-15T22:51:18Z"
+    chose: "Forward applies_to only inside debrief decision and discovery entries, never as an item@v1 field."
+    because: "The receiver audit cites apps/preston/schemas/substrate@v1/parts/decision.json and discovery.json as additive, while its absorb intake uses existing item.scope and item@v1 is strict; a rooted claim can therefore preserve authored applicability without changing the item contract."
+  - kind: surprise
+    at: "2026-09-15T22:52:51Z"
+    expected: "The existing brief scope predicate could be shared directly by new applies_to."
+    observed: "Independent receiver review found it accepts blank, dot, backslash-rooted, drive-colon, NUL, and parent-segment paths; the receiver-compatible applies_to guard must be stricter while brief@v1 keeps its prior interpretation."
+  - kind: choice
+    at: "2026-09-15T22:55:56Z"
+    chose: "Require applies_to paths to be canonical portable repository paths and retain the legacy multi-hunk gap only when applicability is absent."
+    because: "Receiver normalization trims then rejects whitespace, dot, rooted, and parent paths; an explicit authored scope makes the old hunk-derived repository fallback untrue, while the absent-field behavior remains an exact legacy interpretation."

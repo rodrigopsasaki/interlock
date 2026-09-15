@@ -1,3 +1,5 @@
+export type { AppliesTo } from "./applicability.ts";
+export { isAppliesTo, isSafeAppliesToPath } from "./applicability.ts";
 export type { Brief } from "./brief.ts";
 export { isBrief } from "./brief.ts";
 export type {

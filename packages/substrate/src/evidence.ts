@@ -75,7 +75,8 @@ function decisionResult(entry: DecisionEvidence, derivation: string): DecisionRe
   if (entry.marks.length === 0 || entry.marks.some((mark) => mark.kind !== "rooted")) {
     return undefined;
   }
-  const { scope, paths } = hunkScope(entry.decision.hunks);
+  const { scope: supportScope, paths } = hunkScope(entry.decision.hunks);
+  const scope = entry.decision.appliesTo === undefined ? supportScope : entry.decision.appliesTo;
   const item: Item = {
     kind: "decision",
     statement: entry.decision.what,
@@ -84,7 +85,7 @@ function decisionResult(entry: DecisionEvidence, derivation: string): DecisionRe
     standing: "hypothesis",
     derivation,
   };
-  if (paths.length <= 1) return { item };
+  if (entry.decision.appliesTo !== undefined || paths.length <= 1) return { item };
   return {
     item,
     gap: {
@@ -97,9 +98,10 @@ function decisionResult(entry: DecisionEvidence, derivation: string): DecisionRe
 
 function discoveryItem(entry: DiscoveryEvidence, derivation: string): Item | undefined {
   if (entry.mark.kind !== "rooted") return undefined;
-  const scope: ItemScope = SENTINEL_HUNKS.has(entry.mark.hunk)
+  const supportScope: ItemScope = SENTINEL_HUNKS.has(entry.mark.hunk)
     ? { kind: "repository" }
     : { kind: "path", path: entry.mark.hunk };
+  const scope = entry.discovery.appliesTo === undefined ? supportScope : entry.discovery.appliesTo;
   return {
     kind: discoveryItemKind(entry.discovery),
     statement: entry.discovery.what,

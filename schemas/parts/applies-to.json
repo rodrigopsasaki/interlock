@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/parts/applies-to.json",
+  "title": "applies-to",
+  "description": "An authored applicability proposal for one debrief claim. It is independent of its support location and never grants organisation-wide scope.",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": { "kind": { "const": "repository" } },
+      "required": ["kind"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "path" },
+        "path": {
+          "type": "string",
+          "pattern": "^(?!\\s)(?!.*\\s$)(?!/)(?!.*[\\\\:\\u0000])(?!.*//)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*\\/$).+$"
+        }
+      },
+      "required": ["kind", "path"],
+      "additionalProperties": false
+    }
+  ]
+}

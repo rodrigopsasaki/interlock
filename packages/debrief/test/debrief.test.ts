@@ -173,6 +173,82 @@ describe("readDebriefFile", () => {
     ]);
   });
 
+  it("preserves authored applicability independently from support locations", async () => {
+    const path = write(
+      [
+        "interlock: debrief@v2",
+        "graph: g",
+        "node: n",
+        "role: worker",
+        `graph_base_sha: ${SHA}`,
+        `session_start_sha: ${SHA}`,
+        `head_sha: ${SHA}`,
+        "derivation:",
+        "  kind: agent",
+        "  runtime: codex",
+        "  model: gpt-5",
+        "discoveries:",
+        "  - id: d1",
+        "    what: a thing",
+        "    found_at: notes.yaml",
+        "    mattered_because: it matters",
+        "    applies_to: { kind: repository }",
+        "decisions:",
+        "  - id: c1",
+        "    what: chose a thing",
+        "    because: notes:1",
+        "    rests_on: [notes:1]",
+        "    hunks: [notes.yaml]",
+        "    applies_to: { kind: path, path: packages/substrate/src/evidence.ts }",
+        "gates_run_by_agent: []",
+        "open: []",
+        "",
+      ].join("\n"),
+    );
+    const result = await readDebriefFile(path);
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result) || result.value.kind !== "v2") return;
+    expect(result.value.debrief.decisions[0]?.appliesTo).toEqual({
+      kind: "path",
+      path: "packages/substrate/src/evidence.ts",
+    });
+    expect(result.value.debrief.discoveries[0]?.appliesTo).toEqual({ kind: "repository" });
+    expect(result.value.debrief.decisions[0]?.hunks).toEqual(["notes.yaml"]);
+  });
+
+  it("refuses an unsafe authored applicability path", async () => {
+    const path = write(
+      [
+        "interlock: debrief@v2",
+        "graph: g",
+        "node: n",
+        "role: worker",
+        `graph_base_sha: ${SHA}`,
+        `session_start_sha: ${SHA}`,
+        `head_sha: ${SHA}`,
+        "derivation:",
+        "  kind: agent",
+        "  runtime: codex",
+        "  model: gpt-5",
+        "discoveries: []",
+        "decisions:",
+        "  - id: c1",
+        "    what: chose a thing",
+        "    because: notes:1",
+        "    rests_on: []",
+        "    hunks: [notes.yaml]",
+        "    applies_to: { kind: path, path: ../outside }",
+        "gates_run_by_agent: []",
+        "open: []",
+        "",
+      ].join("\n"),
+    );
+    const result = await readDebriefFile(path);
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) return;
+    expect(explainDebriefRefusal(result.error)).toContain("applies_to");
+  });
+
   it("refuses a debrief@v2 decision without a because, naming it", async () => {
     const path = write(
       [

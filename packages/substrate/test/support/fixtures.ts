@@ -42,6 +42,16 @@ export const fixtureDebrief: Debrief = {
   open: [],
 };
 
+export const explicitlyApplicableHistoricalDecision: Debrief["decisions"][number] = {
+  id: "c2",
+  what: "Qualified the retained discovery-scope claim to non-sentinel rooted hunks and preserved sentinel rooted hunks as repository scope.",
+  because:
+    "discoveryItem returns no item for an unrooted mark, repository scope for command or out-of-band citation, and path scope only in its remaining rooted branch.",
+  restsOn: ["brief: outstanding requirement 2", "notes: retained-scope qualification choice"],
+  hunks: [".interlock/sessions/0014-qualified-citations/qualify-explicit-location/notes.yaml"],
+  appliesTo: { kind: "path", path: "packages/substrate/src/evidence.ts" },
+};
+
 export const fixtureNotes: readonly Note[] = [
   {
     kind: "choice",

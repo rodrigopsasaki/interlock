@@ -32,4 +32,35 @@ describe("wire", () => {
       entries: fixtureNotes,
     });
   });
+
+  it("preserves explicit applicability on debrief claims while leaving item wire fields unchanged", () => {
+    const wire = toWireDebrief({
+      ...fixtureDebrief,
+      discoveries: [
+        {
+          id: "d1",
+          what: "schemas depends on runner",
+          foundAt: "notes.yaml",
+          matteredBecause: "a naive package edge would have cycled",
+          appliesTo: { kind: "repository" },
+        },
+      ],
+      decisions: [
+        {
+          id: "c1",
+          what: "kept the ajv registry local to this package",
+          because: "schemas depends on runner, which depends on this package",
+          restsOn: [],
+          hunks: ["notes.yaml"],
+          appliesTo: { kind: "path", path: "packages/substrate/src/evidence.ts" },
+        },
+      ],
+    });
+    expect(wire.discoveries[0]?.applies_to).toEqual({ kind: "repository" });
+    expect(wire.decisions[0]?.applies_to).toEqual({
+      kind: "path",
+      path: "packages/substrate/src/evidence.ts",
+    });
+    expect(wire.decisions[0]?.hunks).toEqual(["notes.yaml"]);
+  });
 });

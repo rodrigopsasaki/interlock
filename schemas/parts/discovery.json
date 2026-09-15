@@ -16,6 +16,9 @@
     },
     "mattered_because": {
       "type": "string"
+    },
+    "applies_to": {
+      "$ref": "applies-to.json"
     }
   },
   "required": [

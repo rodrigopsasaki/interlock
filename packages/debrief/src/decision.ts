@@ -1,5 +1,5 @@
 import { err, ok, type Result } from "@phyxiusjs/fp";
-import type { Decision } from "ledger";
+import { type Decision, isAppliesTo } from "ledger";
 import { isRecord, isString, isStringArray, prop } from "./validate.ts";
 
 export function parseDecision(raw: unknown, index: number): Result<Decision, string> {
@@ -20,6 +20,10 @@ export function parseDecision(raw: unknown, index: number): Result<Decision, str
   const hunks = prop(raw, "hunks");
   if (!isStringArray(hunks)) return err(`decision "${id}": "hunks" must be a list of strings`);
 
+  const appliesTo = prop(raw, "applies_to");
+  if (appliesTo !== undefined && !isAppliesTo(appliesTo))
+    return err(`decision "${id}": "applies_to" must be repository or a safe repository path`);
+
   const produces = prop(raw, "produces");
   if (produces !== undefined && !isStringArray(produces))
     return err(`decision "${id}": "produces" must be a list of strings`);
@@ -34,6 +38,7 @@ export function parseDecision(raw: unknown, index: number): Result<Decision, str
     because,
     restsOn,
     hunks,
+    ...(appliesTo === undefined ? {} : { appliesTo }),
     ...(produces === undefined ? {} : { produces }),
     ...(rejected === undefined ? {} : { rejected }),
   });

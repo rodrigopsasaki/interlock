@@ -1,3 +1,4 @@
+import { type AppliesTo, isAppliesTo } from "./applicability.ts";
 import { isRecord, isString, isStringArray, prop } from "./validate.ts";
 
 export interface Discovery {
@@ -5,6 +6,7 @@ export interface Discovery {
   readonly what: string;
   readonly foundAt: string;
   readonly matteredBecause: string;
+  readonly appliesTo?: AppliesTo;
 }
 
 export interface Decision {
@@ -13,6 +15,7 @@ export interface Decision {
   readonly because: string;
   readonly restsOn: readonly string[];
   readonly hunks: readonly string[];
+  readonly appliesTo?: AppliesTo;
   readonly produces?: readonly string[];
   readonly rejected?: string;
 }
@@ -49,12 +52,14 @@ export interface Debrief {
 }
 
 export function isDiscovery(value: unknown): value is Discovery {
+  if (!isRecord(value)) return false;
+  const appliesTo = prop(value, "appliesTo");
   return (
-    isRecord(value) &&
     isString(prop(value, "id")) &&
     isString(prop(value, "what")) &&
     isString(prop(value, "foundAt")) &&
-    isString(prop(value, "matteredBecause"))
+    isString(prop(value, "matteredBecause")) &&
+    (appliesTo === undefined || isAppliesTo(appliesTo))
   );
 }
 
@@ -62,12 +67,14 @@ export function isDecision(value: unknown): value is Decision {
   if (!isRecord(value)) return false;
   const produces = prop(value, "produces");
   const rejected = prop(value, "rejected");
+  const appliesTo = prop(value, "appliesTo");
   return (
     isString(prop(value, "id")) &&
     isString(prop(value, "what")) &&
     isString(prop(value, "because")) &&
     isStringArray(prop(value, "restsOn")) &&
     isStringArray(prop(value, "hunks")) &&
+    (appliesTo === undefined || isAppliesTo(appliesTo)) &&
     (produces === undefined || isStringArray(produces)) &&
     (rejected === undefined || isString(rejected))
   );

@@ -311,6 +311,32 @@ describe("corpus: the ledger's guards and this node's schemas agree", () => {
       expect(isDebrief(value)).toBe(false);
       expect(validatesAgainstPart("debrief-event", value)).toBe(false);
     });
+    it("agree on explicit applicability in the persisted debrief event", () => {
+      const value: Debrief = {
+        ...minimal,
+        discoveries: [
+          {
+            id: "d1",
+            what: "found a sentinel branch",
+            foundAt: "notes.yaml",
+            matteredBecause: "evidence scope changes",
+            appliesTo: { kind: "repository" },
+          },
+        ],
+        decisions: [
+          {
+            id: "c1",
+            what: "preserved explicit scope",
+            because: "support remains at notes.yaml",
+            restsOn: [],
+            hunks: ["notes.yaml"],
+            appliesTo: { kind: "path", path: "packages/substrate/src/evidence.ts" },
+          },
+        ],
+      };
+      expect(isDebrief(value)).toBe(true);
+      expect(validatesAgainstPart("debrief-event", value)).toBe(true);
+    });
   });
 
   describe("isLedgerEvent / the current event schema (event@v5)", () => {

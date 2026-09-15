@@ -48,7 +48,8 @@
         "id": { "type": "string" },
         "what": { "type": "string" },
         "foundAt": { "type": "string" },
-        "matteredBecause": { "type": "string" }
+        "matteredBecause": { "type": "string" },
+        "appliesTo": { "$ref": "#/$defs/appliesTo" }
       },
       "required": ["id", "what", "foundAt", "matteredBecause"],
       "additionalProperties": false
@@ -61,6 +62,7 @@
         "because": { "type": "string" },
         "restsOn": { "type": "array", "items": { "type": "string" } },
         "hunks": { "type": "array", "items": { "type": "string" } },
+        "appliesTo": { "$ref": "#/$defs/appliesTo" },
         "produces": { "type": "array", "items": { "type": "string" } },
         "rejected": { "type": "string" }
       },
@@ -86,6 +88,28 @@
       },
       "required": ["by", "from"],
       "additionalProperties": false
+    },
+    "appliesTo": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": { "kind": { "const": "repository" } },
+          "required": ["kind"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "path" },
+            "path": {
+              "type": "string",
+              "pattern": "^(?!\\s)(?!.*\\s$)(?!/)(?!.*[\\\\:\\u0000])(?!.*//)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*\\/$).+$"
+            }
+          },
+          "required": ["kind", "path"],
+          "additionalProperties": false
+        }
+      ]
     }
   }
 }

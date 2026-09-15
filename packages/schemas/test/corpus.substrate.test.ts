@@ -66,6 +66,29 @@ const okDebrief = {
   open: [],
 };
 
+const applicableDebrief = {
+  ...okDebrief,
+  discoveries: [
+    {
+      id: "d2",
+      what: "found a sentinel branch",
+      found_at: "notes.yaml",
+      mattered_because: "evidence scope changes",
+      applies_to: { kind: "repository" },
+    },
+  ],
+  decisions: [
+    {
+      id: "d1",
+      what: "used ajv for schema validation",
+      because: "audited, widely used, draft-2020-12 aware",
+      rests_on: [],
+      hunks: ["notes.yaml"],
+      applies_to: { kind: "path", path: "packages/substrate/src/evidence.ts" },
+    },
+  ],
+};
+
 const okNotes = {
   interlock: "notes@v0",
   node: "substrate-protocol",
@@ -266,6 +289,43 @@ describe("corpus: substrate@v1, request and response per verb", () => {
       ],
     };
     expect(validate(value), JSON.stringify(validate.errors)).toBe(true);
+  });
+
+  it("validates additive debrief applicability while keeping strict item@v1 unchanged", () => {
+    const validate = schemaFor("absorb.request");
+    const request = { debrief: applicableDebrief, notes: okNotes, receipts: [okReceipt] };
+    expect(validate(request), JSON.stringify(validate.errors)).toBe(true);
+    for (const path of [
+      "",
+      ".",
+      "./",
+      "./.",
+      " ",
+      " /outside",
+      " ../outside",
+      "../outside",
+      "a/../outside",
+      "/outside",
+      "\\outside",
+      "C:\\outside",
+      "a\\b",
+      "a\0b",
+    ]) {
+      expect(
+        validate({
+          ...request,
+          debrief: {
+            ...applicableDebrief,
+            decisions: [
+              {
+                ...applicableDebrief.decisions[0],
+                applies_to: { kind: "path", path },
+              },
+            ],
+          },
+        }),
+      ).toBe(false);
+    }
   });
 
   it("accepts the optional repository selector on both evolving requests", () => {

@@ -6,6 +6,9 @@ export interface WireDiscovery {
   readonly what: string;
   readonly found_at: string;
   readonly mattered_because: string;
+  readonly applies_to?:
+    | { readonly kind: "repository" }
+    | { readonly kind: "path"; readonly path: string };
 }
 
 export interface WireDecision {
@@ -14,6 +17,9 @@ export interface WireDecision {
   readonly because: string;
   readonly rests_on: readonly string[];
   readonly hunks: readonly string[];
+  readonly applies_to?:
+    | { readonly kind: "repository" }
+    | { readonly kind: "path"; readonly path: string };
   readonly produces?: readonly string[];
   readonly rejected?: string;
 }
@@ -62,6 +68,7 @@ export function toWireDebrief(debrief: Debrief): WireDebrief {
       what: discovery.what,
       found_at: discovery.foundAt,
       mattered_because: discovery.matteredBecause,
+      ...(discovery.appliesTo === undefined ? {} : { applies_to: discovery.appliesTo }),
     })),
     decisions: debrief.decisions.map((decision) => ({
       id: decision.id,
@@ -69,6 +76,7 @@ export function toWireDebrief(debrief: Debrief): WireDebrief {
       because: decision.because,
       rests_on: decision.restsOn,
       hunks: decision.hunks,
+      ...(decision.appliesTo === undefined ? {} : { applies_to: decision.appliesTo }),
       ...(decision.produces === undefined ? {} : { produces: decision.produces }),
       ...(decision.rejected === undefined ? {} : { rejected: decision.rejected }),
     })),

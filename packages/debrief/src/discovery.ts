@@ -1,5 +1,5 @@
 import { err, ok, type Result } from "@phyxiusjs/fp";
-import type { Discovery } from "ledger";
+import { type Discovery, isAppliesTo } from "ledger";
 import { isRecord, isString, prop } from "./validate.ts";
 
 export function parseDiscovery(raw: unknown, index: number): Result<Discovery, string> {
@@ -18,5 +18,15 @@ export function parseDiscovery(raw: unknown, index: number): Result<Discovery, s
   if (!isString(matteredBecause))
     return err(`discovery "${id}": "mattered_because" is missing or not a string`);
 
-  return ok({ id, what, foundAt, matteredBecause });
+  const appliesTo = prop(raw, "applies_to");
+  if (appliesTo !== undefined && !isAppliesTo(appliesTo))
+    return err(`discovery "${id}": "applies_to" must be repository or a safe repository path`);
+
+  return ok({
+    id,
+    what,
+    foundAt,
+    matteredBecause,
+    ...(appliesTo === undefined ? {} : { appliesTo }),
+  });
 }

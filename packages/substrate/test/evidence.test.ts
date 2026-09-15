@@ -1,6 +1,7 @@
 import { derivation, duration, gate, mark, spend } from "ledger";
 import { describe, expect, it } from "vitest";
 import { type EvidenceSession, evidenceOf, personEventsFor } from "../src/evidence.ts";
+import { explicitlyApplicableHistoricalDecision } from "./support/fixtures.ts";
 
 const D = derivation.gate("verifier-hunks", "verifier@0", "test");
 const node = { graph: "0003-translator", id: "evidence" };
@@ -138,6 +139,73 @@ describe("evidenceOf: decisions", () => {
     ]);
   });
 
+  it("uses an explicit applicability path without changing the historical notes support location", () => {
+    const { items } = evidenceOf(
+      baseSession({
+        decisions: [
+          {
+            decision: explicitlyApplicableHistoricalDecision,
+            marks: [
+              mark.rooted(
+                D,
+                ".interlock/sessions/0014-qualified-citations/qualify-explicit-location/notes.yaml",
+              ),
+            ],
+          },
+        ],
+      }),
+    );
+    expect(items[0]?.scope).toEqual({ kind: "path", path: "packages/substrate/src/evidence.ts" });
+    expect(explicitlyApplicableHistoricalDecision.hunks).toEqual([
+      ".interlock/sessions/0014-qualified-citations/qualify-explicit-location/notes.yaml",
+    ]);
+  });
+
+  it("keeps the same historical decision notes-scoped when applicability is absent", () => {
+    const { appliesTo: _drop, ...legacyDecision } = explicitlyApplicableHistoricalDecision;
+    const { items } = evidenceOf(
+      baseSession({
+        decisions: [
+          {
+            decision: legacyDecision,
+            marks: [
+              mark.rooted(
+                D,
+                ".interlock/sessions/0014-qualified-citations/qualify-explicit-location/notes.yaml",
+              ),
+            ],
+          },
+        ],
+      }),
+    );
+    expect(items[0]?.scope).toEqual({
+      kind: "path",
+      path: ".interlock/sessions/0014-qualified-citations/qualify-explicit-location/notes.yaml",
+    });
+  });
+
+  it("does not add a false multi-hunk fallback gap when applicability is explicit", () => {
+    const { items, gaps } = evidenceOf(
+      baseSession({
+        decisions: [
+          {
+            decision: {
+              id: "c1",
+              what: "x",
+              because: "y",
+              restsOn: [],
+              hunks: ["a.ts", "b.ts"],
+              appliesTo: { kind: "path", path: "packages/substrate/src/evidence.ts" },
+            },
+            marks: [mark.rooted(D, "a.ts"), mark.rooted(D, "b.ts")],
+          },
+        ],
+      }),
+    );
+    expect(items[0]?.scope).toEqual({ kind: "path", path: "packages/substrate/src/evidence.ts" });
+    expect(gaps).toEqual([]);
+  });
+
   it("carries a human-authored debrief's derivation as human:<who>", () => {
     const { items } = evidenceOf(
       baseSession({
@@ -244,6 +312,46 @@ describe("evidenceOf: discoveries carry a location", () => {
       }),
     );
     expect(items).toEqual([]);
+  });
+
+  it("excludes an unrooted discovery even when its author proposed an applicability path", () => {
+    const { items } = evidenceOf(
+      baseSession({
+        discoveries: [
+          {
+            discovery: {
+              id: "d1",
+              what: "something",
+              foundAt: "nowhere.ts",
+              matteredBecause: "test",
+              appliesTo: { kind: "path", path: "packages/substrate/src/evidence.ts" },
+            },
+            mark: mark.unrooted(D, "nowhere.ts is not a file"),
+          },
+        ],
+      }),
+    );
+    expect(items).toEqual([]);
+  });
+
+  it("uses a rooted discovery's explicit repository applicability instead of its support path", () => {
+    const { items } = evidenceOf(
+      baseSession({
+        discoveries: [
+          {
+            discovery: {
+              id: "d1",
+              what: "something",
+              foundAt: "notes.yaml",
+              matteredBecause: "test",
+              appliesTo: { kind: "repository" },
+            },
+            mark: mark.rooted(D, "notes.yaml"),
+          },
+        ],
+      }),
+    );
+    expect(items[0]?.scope).toEqual({ kind: "repository" });
   });
 });
 
