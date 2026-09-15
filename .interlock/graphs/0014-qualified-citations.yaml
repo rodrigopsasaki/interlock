@@ -1,0 +1,68 @@
+interlock: graph@v0
+id: 0014-qualified-citations
+ask: Keep an explicit source citation tied to the quoted location before reusing its discovery.
+derivation:
+  kind: model
+  model: gpt-6-astra
+  prompt: third-six-2026-09-15-slot-1
+authorization:
+  granted_by: Rodrigo Sasaki
+  mandate: third-six-graph-mandate-2026-09-15
+  slot: 1
+  limit: 6
+  source: interlock-notes/third-six-graph-mandate-2026-09-15.md
+read: >
+  The previous review exposed a real weakness: file existence and a quoted string
+  somewhere in a file do not establish an explicitly cited line. Improve that
+  deterministic boundary while keeping marks distinct from semantic verdicts.
+  One node, one initial attempt and at most one explicitly recorded recovery;
+  25-minute work timeout. Root owns review and exact candidate assembly.
+  A fresh disposable candidate receiver may supply context and accept the harness
+  debrief for controlled follow-on experiments. Existing project brain untouched.
+  No push, main merge, deployment, inference/probe, waiver or ratification.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: qualify-explicit-location
+    depends_on: []
+    acceptance: |
+      Parse explicit source path:line and path:start-end in discovery found_at.
+      Require a real committed file, valid positive ascending in-bounds line range,
+      and at least one nonempty quoted extract occurring within that exact range.
+      Absent quote, quote outside range, missing/unresolved explicit path, zero,
+      negative, descending, out-of-bounds or malformed numeric range is unrooted
+      with an explainable reason, never rooted by the out-of-band fallback.
+      Recognize a path wrapped in backticks as the citation, not its own supporting
+      quote. A separate quotation is required for the explicit-location case.
+      Keep normal bare-path, command-form and genuine quote-only legacy behavior.
+      Do not introduce a new artifact/wire shape, semantic evaluator, dependency,
+      gate, authority or substrate requirement. Change new mark derivation from
+      verifier@0 to verifier@1; old artifacts remain readable and unmodified.
+      Rooted means the declared location and quoted content matched, not that the
+      discovery's interpretation is correct. In particular, a false conclusion
+      beside a genuine quote is not something this deterministic parser can settle.
+      Add fixture tests for valid single/range, CRLF, exact boundary lines,
+      quotation outside range but elsewhere in file, absent/malformed range,
+      unresolved explicit location with quotes, multiple citations, ordinary prose,
+      legacy path/command/quote-only and source-at-head rather than current files.
+      State a conservative supported grammar; ambiguous explicit citations must
+      not accidentally borrow a different valid file or quote to gain rootedness.
+      Through the existing real gateJudge verify/evidence/spy-absorb test, prove
+      an invalid explicit discovery is excluded from supplied items and a good
+      explicit discovery arrives only as standing hypothesis. Prove new marks
+      carry verifier@1; do not mutate old proofs or claim semantic endorsement.
+      Allowed changes: verifier source/tests, narrowly necessary runner regression
+      fixture/tests, tests asserting the version, design bend row and generated
+      docs/shapes.md. No unrelated fixes. Early notes map acceptance to assertions.
+      Notes/debrief cite actual source and exact quotes at their committed SHA.
+      Final artifacts then regenerate docs/shapes.md; commit and stop.
+    gates:
+      - id: citation-proof
+        kind: command
+        run: pnpm --filter verifier --fail-if-no-match exec vitest run test/foundAt.test.ts test/verify.test.ts --reporter=verbose
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: reuse-filter-proof
+        kind: command
+        run: pnpm --filter runner --fail-if-no-match exec vitest run test/gateJudge.test.ts --reporter=verbose
+        expect_output: 'Tests +[1-9][0-9]* passed'
