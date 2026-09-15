@@ -127,7 +127,10 @@ export function checkFoundAt(
     }
     const resolved = resolveCandidate(repoRoot, headSha, graph, location.path);
     if (resolved === undefined) {
-      return mark.unrooted(derivation, `"${location.source}" names no path that exists at ${headSha}`);
+      return mark.unrooted(
+        derivation,
+        `"${location.source}" names no path that exists at ${headSha}`,
+      );
     }
     const quotes = quotedSubstrings(trimmed, location.source);
     if (quotes.length !== 1) {
