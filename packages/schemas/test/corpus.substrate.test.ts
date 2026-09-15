@@ -295,6 +295,21 @@ describe("corpus: substrate@v1, request and response per verb", () => {
     const validate = schemaFor("absorb.request");
     const request = { debrief: applicableDebrief, notes: okNotes, receipts: [okReceipt] };
     expect(validate(request), JSON.stringify(validate.errors)).toBe(true);
+    expect(
+      validate({
+        ...request,
+        debrief: {
+          ...applicableDebrief,
+          decisions: [
+            {
+              ...applicableDebrief.decisions[0],
+              applies_to: { kind: "path", path: "packages/with space/evidence.ts" },
+            },
+          ],
+        },
+      }),
+      JSON.stringify(validate.errors),
+    ).toBe(true);
     for (const path of [
       "",
       ".",
@@ -310,6 +325,8 @@ describe("corpus: substrate@v1, request and response per verb", () => {
       "C:\\outside",
       "a\\b",
       "a\0b",
+      "src/a\nb.ts",
+      "src/a\rb.ts",
     ]) {
       expect(
         validate({

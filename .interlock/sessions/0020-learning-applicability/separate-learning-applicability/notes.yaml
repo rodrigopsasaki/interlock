@@ -25,3 +25,11 @@ entries:
     at: "2026-09-15T22:58:02Z"
     chose: "Document support and authored applicability together as a debrief example, without extending verifier or item@v1 behavior."
     because: "The example keeps the historical notes hunk as support and shows applies_to as a separately authored path; schema reference completed after the schema artifacts were finalized."
+  - kind: surprise
+    at: "2026-09-15T22:59:35Z"
+    expected: "The canonical path guard and JSON Schema pattern rejected the same input set."
+    observed: "A source check demonstrated that a path with an embedded line feed or carriage return passed the guard but failed the schema; both now need explicit control-character rejection while ordinary internal spaces remain valid."
+  - kind: surprise
+    at: "2026-09-15T23:00:35Z"
+    expected: "The generic model family name was sufficient derivation metadata."
+    observed: "Root verified session 01a0a73f-0899-74d1-9975-8b3dc3fe57b5 ran as codex / gpt-5.6-terra / high, so the final debrief must record gpt-5.6-terra exactly."

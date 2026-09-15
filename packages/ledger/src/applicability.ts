@@ -5,9 +5,17 @@ export type AppliesTo =
   | { readonly kind: "repository" }
   | { readonly kind: "path"; readonly path: string };
 
+function hasControlCharacter(path: string): boolean {
+  for (const character of path) {
+    const code = character.charCodeAt(0);
+    if (code <= 31 || code === 127) return true;
+  }
+  return false;
+}
+
 export function isSafeAppliesToPath(path: string): boolean {
   if (path.length === 0 || path.trim() !== path || isAbsolute(path)) return false;
-  if (path.includes("\0") || path.includes(":") || path.includes("\\")) return false;
+  if (hasControlCharacter(path) || path.includes(":") || path.includes("\\")) return false;
   return path.split("/").every((segment) => segment !== "" && segment !== "." && segment !== "..");
 }
 

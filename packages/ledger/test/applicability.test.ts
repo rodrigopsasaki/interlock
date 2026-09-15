@@ -5,6 +5,7 @@ describe("applies_to", () => {
   it("accepts repository and ordinary nested repository paths", () => {
     expect(isAppliesTo({ kind: "repository" })).toBe(true);
     expect(isAppliesTo({ kind: "path", path: "packages/substrate/src/evidence.ts" })).toBe(true);
+    expect(isAppliesTo({ kind: "path", path: "packages/with space/evidence.ts" })).toBe(true);
     expect(
       isSafeAppliesToPath("docs/experiments/comparable-learning/inputs/source-debrief.yaml"),
     ).toBe(true);
@@ -26,6 +27,8 @@ describe("applies_to", () => {
       "C:\\outside",
       "a\\b",
       "a\0b",
+      "src/a\nb.ts",
+      "src/a\rb.ts",
     ]) {
       expect(isSafeAppliesToPath(path)).toBe(false);
       expect(isAppliesTo({ kind: "path", path })).toBe(false);
