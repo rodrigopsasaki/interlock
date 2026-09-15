@@ -17,3 +17,11 @@ entries:
     at: 2026-09-15T01:08:01Z
     chose: Base the report on the current parser, runner, serializer, opening-view source, and their targeted tests.
     because: Those sources directly answer query selection versus authority, omitted-selector behavior, typed refusal, and the no-substrate path without treating the brief's hypotheses as proof.
+  - kind: surprise
+    at: 2026-09-15T01:09:49Z
+    expected: The package test commands with file arguments would run only the named review tests.
+    observed: Each package script expanded to its full Vitest suite. The runner suite reached unrelated live-socket and GPG-dependent worktree tests, which failed in this environment; the relevant sessionBrief and briefRewrite tests shown in that run passed.
+  - kind: choice
+    at: 2026-09-15T01:10:15Z
+    chose: Run the three relevant test files through Vitest directly and retain their results as local review evidence.
+    because: Direct file arguments kept verification deterministic and avoided repeating the unrelated environment-dependent tests reached by the package scripts.
