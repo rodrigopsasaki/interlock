@@ -36,6 +36,8 @@ needs to read old invalid bytes. Keep the history check narrow and affirmative:
 prove custody by exact SHA-256, and leave every non-history artifact under its
 normal schema checks. Add tests that would fail if a canonical bad file were
 merely moved, renamed or silently exempted. No new dependency or substrate verb.
+Legacy non-hash revision files remain ordinary schema-validated files; a malformed
+archive name must never grant invalid bytes the retained-history treatment.
 
 You own only this checkout. No extra agents, sibling edits, push, merge, new
 trust, sandbox edits or network effects. The runner owns the disposable substrate
