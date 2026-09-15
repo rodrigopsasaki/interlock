@@ -772,69 +772,56 @@ open:
 
 #### `debrief@v2`
 
-Source: `.interlock/sessions/0010-learning-transfer/fresh-test-design/debrief.yaml`
+Source: `.interlock/sessions/0014-qualified-citations/qualify-explicit-location/debrief.yaml`
 
 ```yaml
 interlock: debrief@v2
-graph: 0010-learning-transfer
-node: fresh-test-design
+graph: 0014-qualified-citations
+node: qualify-explicit-location
 role: worker
-graph_base_sha: 4e45e200ddc13b4630fa75e680b33bc4293dda73
-session_start_sha: 9802b5eb60bed7ca2e6a75e525954923d52a617f
-head_sha: 871ee4358c287402fc71682ccff8a0f0952717fc
+graph_base_sha: f7dee08d98ebe4da760be51d6e776b51939ffd0b
+session_start_sha: 223b5eb872e5976867015b7713f5145824756a3f
+head_sha: 7029a3f55c6693f814923222f7f67d04917b12e0
 derivation:
   kind: agent
   runtime: codex
   model: gpt-5.6-terra
-discoveries: []
+discoveries:
+  - id: d1
+    what: A rooted discovery's mark hunk is the path that evidence uses as its item scope.
+    found_at: 'packages/substrate/src/evidence.ts:98-102 "path: entry.mark.hunk"'
+    mattered_because: Keeping explicit-location qualification out of the hunk preserves the evidence seam.
 decisions:
-  - id: selection-scope
-    what: A partly verified multi-path decision produces neither an item nor a repository-scope gap, while a separately all-rooted decision remains a path-scoped hypothesis item.
-    because: "The immutable context states \"A decision is projected only when it has one or more marks and every mark is rooted; several cited paths become repository scope with a gap.\" (derivation: agent:codex:gpt-5.6-terra). Current packages/substrate/src/evidence.ts checks marks before hunkScope, so the test checks that selection happens before scope projection."
-    rests_on:
-      - packages/substrate/src/evidence.ts
-      - .interlock/sessions/0010-learning-transfer/fresh-test-design/brief.md
-    hunks:
-      - packages/substrate/test/learningBoundary.test.ts:9-59
-  - id: provenance
-    what: A rooted decision retains its generic test debrief derivation and does not inherit the verifier gate derivation that marked it rooted.
-    because: evidenceOf derives projected decision provenance from the session debrief before it maps decision marks, so the test keeps verifier proof and authored claim provenance distinct.
-    rests_on:
-      - packages/substrate/src/evidence.ts
-      - packages/substrate/src/derivationString.ts
-    hunks:
-      - packages/substrate/test/learningBoundary.test.ts:61-89
-  - id: standing
-    what: The projection admits this node's events and the graph's approved human gate, while excluding a sibling node event and a different graph-level gate.
-    because: personEventsFor filters the ledger stream to the node plus the graph-level approved gate before evidenceOf projects human authority, so the bounded fixture checks both selection and the resulting professed item.
-    rests_on:
-      - packages/substrate/src/evidence.ts
-    hunks:
-      - packages/substrate/test/learningBoundary.test.ts:91-145
+  - id: c1
+    what: Required one unambiguous explicit location and one exact-range quotation before rooting it.
+    because: The acceptance requires a real committed location and quoted extract without semantic endorsement.
+    rests_on: ["brief: acceptance"]
+    hunks: ["packages/verifier/src/foundAt.ts", "packages/verifier/test/foundAt.test.ts"]
+  - id: c2
+    what: Versioned newly computed verifier marks as verifier@1 and asserted the new derivation.
+    because: The acceptance requires a new derivation while preserving old artifacts without mutation.
+    rests_on: ["brief: acceptance"]
+    hunks: ["packages/verifier/src/verify.ts", "packages/verifier/test/verify.test.ts"]
+  - id: c3
+    what: Extended the existing absorb spy to filter invalid explicit discoveries and retain a good hypothesis.
+    because: The existing evidence seam uses a rooted discovery mark's path as its scope.
+    rests_on: [d1]
+    hunks: ["packages/runner/test/gateJudge.test.ts"]
+  - id: c4
+    what: Recorded the supported grammar, test map, compatibility constraint, and suffix repair while working.
+    because: The brief requires notes for every choice and surprise before the final debrief closes them.
+    rests_on: ["brief: acceptance"]
+    hunks: [".interlock/sessions/0014-qualified-citations/qualify-explicit-location/notes.yaml"]
 gates_run_by_agent:
-  - id: typecheck
+  - id: citation-proof
     result: pass
-    invocation: mise exec -- pnpm typecheck
-    note: All eight workspace packages passed TypeScript checking under the pinned Node runtime.
-  - id: lint
+    invocation: mise exec -- pnpm --filter verifier --fail-if-no-match exec vitest run test/foundAt.test.ts test/verify.test.ts
+    note: 21 tests passed after the malformed-suffix regression.
+  - id: reuse-filter-proof
     result: pass
-    invocation: mise exec -- pnpm lint
-    note: Biome checked 317 files without diagnostics after the formatting-only wrap.
-  - id: comments
-    result: pass
-    invocation: mise exec -- pnpm check:comments
-    note: packages/*/src reported no comments.
-  - id: learning-boundary-tests
-    result: pass
-    invocation: mise exec -- pnpm --filter substrate --fail-if-no-match exec vitest run test/learningBoundary.test.ts
-    note: Three focused cases passed for selection and scope, provenance, and standing-event boundaries.
-  - id: shape-reference-fresh
-    result: pass
-    invocation: mise exec -- node packages/cli/src/bin.ts schema reference
-    note: The required generator completed with docs/shapes.md already current.
-open:
-  - "Isolation limitation: before bounded work, this session opened .interlock/sessions/0009-delivery-boundary-proof/prove-dispatch-boundary/notes.yaml, .interlock/sessions/0009-delivery-boundary-proof/prove-dispatch-boundary/debrief.yaml, and .interlock/sessions/0010-learning-transfer/source-diagnosis/brief.md. The source-diagnosis brief contained its instructions, not its report, notes, or debrief. Required schema generation later exposed the rendered representative of .interlock/sessions/0009-delivery-boundary-proof/prove-storage-boundary/debrief.yaml through docs/shapes.md. These exposures prevent a clean fresh-session attribution claim."
-  - The listener-dependent full pnpm test gate was not run locally because the brief says local listeners are denied; the harness must produce that receipt.
+    invocation: mise exec -- pnpm --filter runner --fail-if-no-match exec vitest run test/gateJudge.test.ts --reporter=verbose
+    note: 27 tests passed with the existing absorb spy.
+open: []
 ```
 
 ## event

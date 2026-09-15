@@ -1,0 +1,47 @@
+interlock: debrief@v2
+graph: 0014-qualified-citations
+node: qualify-explicit-location
+role: worker
+graph_base_sha: f7dee08d98ebe4da760be51d6e776b51939ffd0b
+session_start_sha: 223b5eb872e5976867015b7713f5145824756a3f
+head_sha: 7029a3f55c6693f814923222f7f67d04917b12e0
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries:
+  - id: d1
+    what: A rooted discovery's mark hunk is the path that evidence uses as its item scope.
+    found_at: 'packages/substrate/src/evidence.ts:98-102 "path: entry.mark.hunk"'
+    mattered_because: Keeping explicit-location qualification out of the hunk preserves the evidence seam.
+decisions:
+  - id: c1
+    what: Required one unambiguous explicit location and one exact-range quotation before rooting it.
+    because: The acceptance requires a real committed location and quoted extract without semantic endorsement.
+    rests_on: ["brief: acceptance"]
+    hunks: ["packages/verifier/src/foundAt.ts", "packages/verifier/test/foundAt.test.ts"]
+  - id: c2
+    what: Versioned newly computed verifier marks as verifier@1 and asserted the new derivation.
+    because: The acceptance requires a new derivation while preserving old artifacts without mutation.
+    rests_on: ["brief: acceptance"]
+    hunks: ["packages/verifier/src/verify.ts", "packages/verifier/test/verify.test.ts"]
+  - id: c3
+    what: Extended the existing absorb spy to filter invalid explicit discoveries and retain a good hypothesis.
+    because: The existing evidence seam uses a rooted discovery mark's path as its scope.
+    rests_on: [d1]
+    hunks: ["packages/runner/test/gateJudge.test.ts"]
+  - id: c4
+    what: Recorded the supported grammar, test map, compatibility constraint, and suffix repair while working.
+    because: The brief requires notes for every choice and surprise before the final debrief closes them.
+    rests_on: ["brief: acceptance"]
+    hunks: [".interlock/sessions/0014-qualified-citations/qualify-explicit-location/notes.yaml"]
+gates_run_by_agent:
+  - id: citation-proof
+    result: pass
+    invocation: mise exec -- pnpm --filter verifier --fail-if-no-match exec vitest run test/foundAt.test.ts test/verify.test.ts
+    note: 21 tests passed after the malformed-suffix regression.
+  - id: reuse-filter-proof
+    result: pass
+    invocation: mise exec -- pnpm --filter runner --fail-if-no-match exec vitest run test/gateJudge.test.ts --reporter=verbose
+    note: 27 tests passed with the existing absorb spy.
+open: []
