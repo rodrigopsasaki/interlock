@@ -1,0 +1,38 @@
+interlock: debrief@v2
+graph: 0017-comparable-test-designs
+node: test-design-b
+role: worker
+graph_base_sha: 6db110bb56b85b5b4245965f3ea610be8e225e9c
+session_start_sha: 9e30ce5f1e6eb0816c15f298137a4f13791b4306
+head_sha: a4d15dd5897085ba37027eb50f15ce74835cd7f4
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries:
+  - id: d1
+    what: Explicit discovery locations are rooted by quoted text containment in the stated source range.
+    found_at: 'packages/verifier/src/foundAt.ts:158 "return sourceRange.includes(quote)"'
+    mattered_because: The report separates that lexical check from an interpretation's truth.
+  - id: d2
+    what: Reuse excludes an unrooted discovery and records a rooted discovery as a hypothesis item.
+    found_at: 'packages/substrate/src/evidence.ts:98-109 "if (entry.mark.kind !== \"rooted\") return undefined;"'
+    mattered_because: The report's expected reusable result must remain a hypothesis rather than a semantic verdict.
+  - id: d3
+    what: The runner integration already filters a discovery whose explicit location names a nonexistent source line.
+    found_at: 'packages/runner/test/gateJudge.test.ts:1035-1038 "statement: \"no test yet covered a nonexistent fourth source line\","'
+    mattered_because: The report identifies the wrong-range case as an existing coverage control rather than a claimed defect.
+decisions:
+  - id: document-citation-learning-boundaries
+    what: Wrote four discriminating citation and learning boundary regression cases.
+    because: 'The received hypothesis said "Added final-real-line fixture proof for both newline states, ordinary prose punctuation, and the adjacent out-of-bounds lines." (derivation: agent:codex:gpt-5.6-terra). Source check: packages/verifier/test/foundAt.test.ts:141-180 contains "it(\"roots exact final real lines and rejects each adjacent out-of-bounds line\", () => {". The report retains that as an existing coverage control and proposes only the uncovered semantic-limit and end-to-end sentinel boundaries.'
+    rests_on:
+      - d1
+      - d2
+      - d3
+    hunks:
+      - docs/experiments/comparable-learning/test-design.md:1-122
+    produces:
+      - docs/experiments/comparable-learning/test-design.md
+gates_run_by_agent: []
+open: []

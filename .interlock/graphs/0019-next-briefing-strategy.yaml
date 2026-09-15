@@ -1,0 +1,37 @@
+interlock: graph@v0
+id: 0019-next-briefing-strategy
+ask: Propose the next briefing strategy from the observed comparisons.
+derivation:
+  kind: model
+  model: gpt-6-astra
+  prompt: third-six-2026-09-15-slot-6
+authorization:
+  granted_by: Rodrigo Sasaki
+  mandate: third-six-graph-mandate-2026-09-15
+  slot: 6
+  limit: 6
+read: >
+  The final allocation turns source-checked outcome evidence into at most three
+  proposals, not automatic ratification. One initial node and at most one
+  recorded recovery, 25 minutes; address none. No implementation, push, main
+  merge, trust change, inference/probe, gate waiver or live-plan mutation.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: propose-next-briefs
+    depends_on: []
+    acceptance: |
+      Read the supplied outcome report against its original evidence and propose
+      at most three bounded changes or deliberate non-changes to future briefs
+      and orchestration. Each has observed deficiency, exact support, smallest
+      intervention, discriminating next check, falsification, authority and way back.
+      Separate operational defects, product limits and evaluation qualifications.
+      Keep the master-plan spine and axioms explicit; M5 is not yet graduated.
+      Do not turn values or conventions into gates or ratify a policy yourself.
+      Change only the proposal report, own typed notes/debrief and generated
+      docs/shapes.md. Actual metadata, clean commit and all standing gates.
+    gates:
+      - id: report-present
+        kind: command
+        run: test -s docs/experiments/comparable-learning/next-briefing-strategy.md

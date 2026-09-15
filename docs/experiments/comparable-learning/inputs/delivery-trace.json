@@ -1,0 +1,271 @@
+{
+  "shape": "comparison-delivery-trace@v0",
+  "source": {
+    "session": "4a5a85d4-3cfb-4edb-b27e-5991ef44be22",
+    "final": "bf5cd453844d92412f36b44c261bd198b18bc8bf",
+    "effect": "225780137036e260b0a9881b9bb65580cfbb8472b4a8613a7667fb1b486903d4",
+    "request": "outbox/request/5060bc08197a24cff835c3967a03a1e196e6b6ca92fcbb223a91cc595802a04e.json",
+    "ack": "outbox/acknowledgment/9f93156fc81b3adf51473c51abc1a29c2687f35a3c4a8e54600743d640790e3b.json",
+    "hypotheses": [
+      {
+        "kind": "decision",
+        "statement": "Added final-real-line fixture proof for both newline states, ordinary prose punctuation, and the adjacent out-of-bounds lines.",
+        "because": "The parser already removes only the newline-created terminal empty line; the repair needed discriminating assertions rather than a production change.",
+        "scope": {
+          "kind": "path",
+          "path": "packages/verifier/test/foundAt.test.ts"
+        },
+        "standing": "hypothesis",
+        "derivation": "agent:codex:gpt-5.6-terra"
+      },
+      {
+        "kind": "decision",
+        "statement": "Qualified the retained discovery-scope claim to non-sentinel rooted hunks and preserved sentinel rooted hunks as repository scope.",
+        "because": "discoveryItem returns no item for an unrooted mark, repository scope for command or out-of-band citation, and path scope only in its remaining rooted branch.",
+        "scope": {
+          "kind": "path",
+          "path": ".interlock/sessions/0014-qualified-citations/qualify-explicit-location/notes.yaml"
+        },
+        "standing": "hypothesis",
+        "derivation": "agent:codex:gpt-5.6-terra"
+      }
+    ],
+    "responses": [
+      {
+        "utc": "2026-09-15T20:48:10.785Z",
+        "status": 200,
+        "body": {
+          "items": [
+            {
+              "kind": "absence",
+              "statement": "Nothing is held about packages/verifier/src/foundAt.ts.",
+              "scope": {
+                "kind": "path",
+                "path": "packages/verifier/src/foundAt.ts"
+              },
+              "standing": "observed",
+              "derivation": "preston:coverage@v1"
+            },
+            {
+              "kind": "absence",
+              "statement": "Nothing is held about packages/substrate/src/evidence.ts.",
+              "scope": {
+                "kind": "path",
+                "path": "packages/substrate/src/evidence.ts"
+              },
+              "standing": "observed",
+              "derivation": "preston:coverage@v1"
+            }
+          ],
+          "vocabulary": "unversioned"
+        }
+      },
+      {
+        "utc": "2026-09-15T20:56:52.055Z",
+        "status": 200,
+        "body": {
+          "decisions_absorbed": [],
+          "discoveries": [],
+          "gaps": []
+        }
+      }
+    ],
+    "databaseManifest": {
+      "shape": "isolated-receiver-database@v0",
+      "commit": "864d984c6e5513267b842c7113e6593d1d91523e",
+      "databaseFile": "/Users/rodrigosasaki/dev/private/interlock-notes/evidence/third-six-graphs-2026-09-15/accepted-source-receiver/database.tar.gz",
+      "sha256": "4094dcfc5d82477618637b00bbcc1e180360e573a59306d3531497379fe6aef4",
+      "contentStateSha256": "24fb15056c6165ab87d9fbc114cf068dc9e99a5fab350a4cb2bb7629bd8dcd57",
+      "sourceManifest": "/Users/rodrigosasaki/dev/private/interlock-notes/evidence/third-six-graphs-2026-09-15/accepted-source-receiver/manifest.json",
+      "exportedUtc": "2026-09-15T20:57:03.859Z",
+      "reason": "SIGTERM"
+    }
+  },
+  "reviewContext": {
+    "shape": "isolated-receiver-exchange@v0",
+    "kind": "response",
+    "id": 1,
+    "utc": "2026-09-15T21:10:34.772Z",
+    "status": 200,
+    "body": {
+      "items": [
+        {
+          "kind": "decision",
+          "statement": "Added final-real-line fixture proof for both newline states, ordinary prose punctuation, and the adjacent out-of-bounds lines.",
+          "because": "The parser already removes only the newline-created terminal empty line; the repair needed discriminating assertions rather than a production change.",
+          "scope": {
+            "kind": "path",
+            "path": "packages/verifier/test/foundAt.test.ts"
+          },
+          "standing": "hypothesis",
+          "derivation": "agent:codex:gpt-5.6-terra"
+        },
+        {
+          "kind": "absence",
+          "statement": "Nothing is held about packages/verifier/src/foundAt.ts.",
+          "scope": {
+            "kind": "path",
+            "path": "packages/verifier/src/foundAt.ts"
+          },
+          "standing": "observed",
+          "derivation": "preston:coverage@v1"
+        },
+        {
+          "kind": "absence",
+          "statement": "Nothing is held about packages/verifier/src/verify.ts.",
+          "scope": {
+            "kind": "path",
+            "path": "packages/verifier/src/verify.ts"
+          },
+          "standing": "observed",
+          "derivation": "preston:coverage@v1"
+        },
+        {
+          "kind": "absence",
+          "statement": "Nothing is held about packages/substrate/src/evidence.ts.",
+          "scope": {
+            "kind": "path",
+            "path": "packages/substrate/src/evidence.ts"
+          },
+          "standing": "observed",
+          "derivation": "preston:coverage@v1"
+        },
+        {
+          "kind": "absence",
+          "statement": "Nothing is held about packages/verifier/test/verify.test.ts.",
+          "scope": {
+            "kind": "path",
+            "path": "packages/verifier/test/verify.test.ts"
+          },
+          "standing": "observed",
+          "derivation": "preston:coverage@v1"
+        },
+        {
+          "kind": "absence",
+          "statement": "Nothing is held about packages/substrate/test/evidence.test.ts.",
+          "scope": {
+            "kind": "path",
+            "path": "packages/substrate/test/evidence.test.ts"
+          },
+          "standing": "observed",
+          "derivation": "preston:coverage@v1"
+        },
+        {
+          "kind": "absence",
+          "statement": "Nothing is held about packages/runner/test/gateJudge.test.ts.",
+          "scope": {
+            "kind": "path",
+            "path": "packages/runner/test/gateJudge.test.ts"
+          },
+          "standing": "observed",
+          "derivation": "preston:coverage@v1"
+        }
+      ],
+      "vocabulary": "unversioned"
+    }
+  },
+  "testDesignContext": {
+    "shape": "isolated-receiver-exchange@v0",
+    "kind": "response",
+    "id": 1,
+    "utc": "2026-09-15T21:16:36.261Z",
+    "status": 200,
+    "body": {
+      "items": [
+        {
+          "kind": "decision",
+          "statement": "Added final-real-line fixture proof for both newline states, ordinary prose punctuation, and the adjacent out-of-bounds lines.",
+          "because": "The parser already removes only the newline-created terminal empty line; the repair needed discriminating assertions rather than a production change.",
+          "scope": {
+            "kind": "path",
+            "path": "packages/verifier/test/foundAt.test.ts"
+          },
+          "standing": "hypothesis",
+          "derivation": "agent:codex:gpt-5.6-terra"
+        },
+        {
+          "kind": "absence",
+          "statement": "Nothing is held about packages/verifier/src/foundAt.ts.",
+          "scope": {
+            "kind": "path",
+            "path": "packages/verifier/src/foundAt.ts"
+          },
+          "standing": "observed",
+          "derivation": "preston:coverage@v1"
+        },
+        {
+          "kind": "absence",
+          "statement": "Nothing is held about packages/verifier/src/verify.ts.",
+          "scope": {
+            "kind": "path",
+            "path": "packages/verifier/src/verify.ts"
+          },
+          "standing": "observed",
+          "derivation": "preston:coverage@v1"
+        },
+        {
+          "kind": "absence",
+          "statement": "Nothing is held about packages/substrate/src/evidence.ts.",
+          "scope": {
+            "kind": "path",
+            "path": "packages/substrate/src/evidence.ts"
+          },
+          "standing": "observed",
+          "derivation": "preston:coverage@v1"
+        },
+        {
+          "kind": "absence",
+          "statement": "Nothing is held about packages/verifier/test/verify.test.ts.",
+          "scope": {
+            "kind": "path",
+            "path": "packages/verifier/test/verify.test.ts"
+          },
+          "standing": "observed",
+          "derivation": "preston:coverage@v1"
+        },
+        {
+          "kind": "absence",
+          "statement": "Nothing is held about packages/substrate/test/evidence.test.ts.",
+          "scope": {
+            "kind": "path",
+            "path": "packages/substrate/test/evidence.test.ts"
+          },
+          "standing": "observed",
+          "derivation": "preston:coverage@v1"
+        },
+        {
+          "kind": "absence",
+          "statement": "Nothing is held about packages/runner/test/gateJudge.test.ts.",
+          "scope": {
+            "kind": "path",
+            "path": "packages/runner/test/gateJudge.test.ts"
+          },
+          "standing": "observed",
+          "derivation": "preston:coverage@v1"
+        }
+      ],
+      "vocabulary": "unversioned"
+    }
+  },
+  "identicalContextBodies": true,
+  "serializedContextBodySha256": "83139e9d30a9b943a6d817819003ef896e6fcc3410f364db79abc031f15a5728",
+  "restorations": [
+    {
+      "name": "review-treatment-receiver",
+      "manifestSha256": "788fc90f10440ce6c68a40626823b45bcc662b5858f117d8b1a6317e9a7c063e",
+      "databaseSha256": "4094dcfc5d82477618637b00bbcc1e180360e573a59306d3531497379fe6aef4",
+      "contentStateSha256": "24fb15056c6165ab87d9fbc114cf068dc9e99a5fab350a4cb2bb7629bd8dcd57",
+      "stopped": true,
+      "finalClaimCount": 36
+    },
+    {
+      "name": "test-design-treatment-receiver",
+      "manifestSha256": "4886ee7c7d68ff802aacaa2f2b97168d5e2c157f651cba453e13d3bf9c158c6c",
+      "databaseSha256": "4094dcfc5d82477618637b00bbcc1e180360e573a59306d3531497379fe6aef4",
+      "contentStateSha256": "24fb15056c6165ab87d9fbc114cf068dc9e99a5fab350a4cb2bb7629bd8dcd57",
+      "stopped": true,
+      "finalClaimCount": 34
+    }
+  ],
+  "qualification": "Raw responses are supplied data. Hypothesis is not a verdict; identical returned items do not establish usefulness. Source database historical gate facts do not occur in these responses. No keys or database archive are included."
+}

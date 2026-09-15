@@ -1,0 +1,33 @@
+interlock: debrief@v2
+graph: 0014-qualified-citations
+node: qualify-explicit-location
+role: worker
+graph_base_sha: f7dee08d98ebe4da760be51d6e776b51939ffd0b
+session_start_sha: 02f6310cafd18cb30d91d75933034dd657b05581
+head_sha: e8f43ed51f07c695699f91a5c8afc63b962e2500
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries: []
+decisions:
+  - id: c1
+    what: Added final-real-line fixture proof for both newline states, ordinary prose punctuation, and the adjacent out-of-bounds lines.
+    because: The parser already removes only the newline-created terminal empty line; the repair needed discriminating assertions rather than a production change.
+    rests_on: ["brief: outstanding requirement 1", "notes: final-line fixture choice"]
+    hunks: ["packages/verifier/test/foundAt.test.ts"]
+  - id: c2
+    what: Qualified the retained discovery-scope claim to non-sentinel rooted hunks and preserved sentinel rooted hunks as repository scope.
+    because: discoveryItem returns no item for an unrooted mark, repository scope for command or out-of-band citation, and path scope only in its remaining rooted branch.
+    rests_on: ["brief: outstanding requirement 2", "notes: retained-scope qualification choice"]
+    hunks: [".interlock/sessions/0014-qualified-citations/qualify-explicit-location/notes.yaml"]
+gates_run_by_agent:
+  - id: citation-proof
+    result: pass
+    invocation: mise exec -- pnpm --filter verifier --fail-if-no-match exec vitest run test/foundAt.test.ts test/verify.test.ts --reporter=verbose
+    note: 22 tests passed, including the two final-line successes and two adjacent out-of-bounds assertions.
+  - id: reuse-filter-proof
+    result: pass
+    invocation: mise exec -- pnpm --filter runner --fail-if-no-match exec vitest run test/gateJudge.test.ts --reporter=verbose
+    note: 27 tests passed with the retained evidence/absorb proof.
+open: []

@@ -888,57 +888,46 @@ The directed acyclic graph of nodes produced from one ask.
 
 #### `graph@v0`
 
-Source: `.interlock/graphs/0015-hypothesis-context.yaml`
+Source: `.interlock/graphs/0019-next-briefing-strategy.yaml`
 
 ```yaml
 interlock: graph@v0
-id: 0015-hypothesis-context
-ask: Make unratified learning unmistakable when it enters a session brief.
+id: 0019-next-briefing-strategy
+ask: Propose the next briefing strategy from the observed comparisons.
 derivation:
   kind: model
   model: gpt-6-astra
-  prompt: third-six-2026-09-15-slot-2
+  prompt: third-six-2026-09-15-slot-6
 authorization:
   granted_by: Rodrigo Sasaki
   mandate: third-six-graph-mandate-2026-09-15
-  slot: 2
+  slot: 6
   limit: 6
 read: >
-  Use the existing shared renderer to say that hypotheses are unratified and
-  need checking. One node, one initial attempt and at most one recorded recovery,
-  25-minute work timeout. Address none; source-only receiver stays untouched.
-  No push, main merge, deployment, inference, new authority or ratification.
+  The final allocation turns source-checked outcome evidence into at most three
+  proposals, not automatic ratification. One initial node and at most one
+  recorded recovery, 25 minutes; address none. No implementation, push, main
+  merge, trust change, inference/probe, gate waiver or live-plan mutation.
 gates:
   - id: approved
     kind: human
 nodes:
-  - id: qualify-context-hypotheses
+  - id: propose-next-briefs
     depends_on: []
     acceptance: |
-      In renderSlice prepend one concise statement only when an addressed response
-      contains an item with standing hypothesis: those items are unratified and
-      must be checked against source before relying on them. A receipt, rooted
-      mark or retrieval is not semantic truth. No item statement, because, scope,
-      standing, derivation, grouping or order changes. None, empty response,
-      absent standing and only observed/professed/ratified items keep exact output.
-      Multiple hypotheses produce just one notice. No wire/schema/artifact shape,
-      dependency or automatic ratification. Positive/mixed/negative tests in
-      debrief slice tests plus a real addressed generated sessionBrief fixture.
-      Verify notice survives concise opening projection once, preserving canonical
-      metadata, context_scope and full authority. Allowed files: debrief slice
-      renderer/tests and runner sessionBrief/openingPrompt tests; production runner
-      only if existing seam cannot preserve the statement, with a recorded reason.
-      No unrelated changes. Early notes map assertions; typed notes/debrief and
-      generated docs/shapes.md finalized; clean commit, all standing gates, review.
+      Read the supplied outcome report against its original evidence and propose
+      at most three bounded changes or deliberate non-changes to future briefs
+      and orchestration. Each has observed deficiency, exact support, smallest
+      intervention, discriminating next check, falsification, authority and way back.
+      Separate operational defects, product limits and evaluation qualifications.
+      Keep the master-plan spine and axioms explicit; M5 is not yet graduated.
+      Do not turn values or conventions into gates or ratify a policy yourself.
+      Change only the proposal report, own typed notes/debrief and generated
+      docs/shapes.md. Actual metadata, clean commit and all standing gates.
     gates:
-      - id: hypothesis-rendering
+      - id: report-present
         kind: command
-        run: pnpm --filter debrief --fail-if-no-match exec vitest run test/slice.test.ts --reporter=verbose
-        expect_output: 'Tests +[1-9][0-9]* passed'
-      - id: generated-context
-        kind: command
-        run: pnpm --filter runner --fail-if-no-match exec vitest run test/sessionBrief.test.ts test/openingPrompt.test.ts --reporter=verbose
-        expect_output: 'Tests +[1-9][0-9]* passed'
+        run: test -s docs/experiments/comparable-learning/next-briefing-strategy.md
 ```
 
 ## item
@@ -1025,11 +1014,9 @@ worktree_setup:
   - pnpm install --frozen-lockfile
 lease_ms: 120000
 run_timeout_ms: 1500000
-answer_grace_ms: 300000
+answer_grace_ms: 120000
 substrate:
-  address: http://127.0.0.1:61126
-  key_file: /Users/rodrigosasaki/dev/private/interlock-notes/evidence/third-six-graphs-2026-09-15/accepted-source-receiver/receiver.key
-  send_repository: true
+  address: none
 ```
 
 ## notes

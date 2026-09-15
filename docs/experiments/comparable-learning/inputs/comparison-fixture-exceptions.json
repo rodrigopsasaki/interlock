@@ -1,0 +1,43 @@
+{
+  "shape": "comparison-fixture-exceptions@v0",
+  "reason": "Pre-launch full-suite preflight exposed real repository fixture dependencies. Retain identical legacy graph/brief inputs in both conditions, no debriefs/notes/outcome additions; source/test/schema code unchanged. Worker reading remains prohibited.",
+  "source": "e8d72d362d4b32627c8d48fa2b337298b427c058",
+  "files": [
+    {
+      "path": ".interlock/graphs/0001-bootstrap.yaml",
+      "blob": "d54ab9a2fb5a9adab9bd9baddba2f76e7c8204d4"
+    },
+    {
+      "path": ".interlock/sessions/0001-bootstrap/debrief-schema/brief.md",
+      "blob": "e7e99c434ba331346224e12e41f30278240b9291"
+    },
+    {
+      "path": ".interlock/sessions/0001-bootstrap/face-read/brief.md",
+      "blob": "ac7fb0cefc05fa19dc4e78e312ff65095e591a67"
+    },
+    {
+      "path": ".interlock/sessions/0001-bootstrap/ledger-gaps/brief.md",
+      "blob": "44d017b3fb107dc6944ce4e7e66aa8b1ada28148"
+    },
+    {
+      "path": ".interlock/sessions/0001-bootstrap/ledger/brief.md",
+      "blob": "2b4708aa722e80553520dc2b512403edc4786a0e"
+    },
+    {
+      "path": ".interlock/sessions/0001-bootstrap/runner-command-gate/brief.md",
+      "blob": "94a32ea02059cee37fa99f0eebdb21c795368e12"
+    },
+    {
+      "path": ".interlock/sessions/0001-bootstrap/scaffold/brief.md",
+      "blob": "27d63e0ede96d6049a8af0a4ebb173a6cdaabe53"
+    },
+    {
+      "path": ".interlock/sessions/0001-bootstrap/verifier-hunks/brief.md",
+      "blob": "9815a235ede97085556a243c6066f506106c5e55"
+    },
+    {
+      "path": ".interlock/sessions/0002-shapes/brief-shape/brief.md",
+      "blob": "57182ec483b31a13942909a15ee71d8ed702e435"
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+interlock: notes@v0
+node: test-design-a
+entries:
+  - kind: choice
+    at: "2026-09-15T21:27:57Z"
+    chose: "Derive a small proposal set from the supplied verifier, evidence, and integration sources."
+    because: "The brief asks for discriminating regression-case proposals and prohibits implementation or new test code."
+    rejected:
+      - "Changing source or test code."
+      - "Inferring a sibling comparison's result."
+  - kind: surprise
+    at: "2026-09-15T21:28:26Z"
+    expected: "The focused test search would run in this worktree."
+    observed: "The command used an invalid worktree path and did not start; no repository content was read or changed by it."
+  - kind: choice
+    at: "2026-09-15T21:29:29Z"
+    chose: "Propose three seam cases: semantic citation limits, unrooted-decision exclusion, and multi-path scope preservation."
+    because: "They distinguish citation membership, evidence admission, and lossy scope conversion without proposing implementation or redundant unit cases."
+    rejected:
+      - "Treating a rooted quotation as proof of the discovery's interpretation."
+      - "Proposing a separate case already fully covered by the supplied unit and integration tests."
+  - kind: choice
+    at: "2026-09-15T21:30:48Z"
+    chose: "Record the verifier's text-containment rule as a discovery."
+    because: "The canonical brief required inspecting current citation verification but did not state the rule; the report's semantic-limit case rests on the checked source line."
+  - kind: surprise
+    at: "2026-09-15T21:31:36Z"
+    expected: "The initial debrief YAML would parse during schema validation."
+    observed: "A doubly escaped quotation in the decision's because field made the YAML invalid; it will be represented as a block scalar without changing the recorded claim."

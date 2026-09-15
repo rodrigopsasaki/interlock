@@ -1,0 +1,372 @@
+{
+  "shape": "comparison-run-evidence@v0",
+  "node": "test-design-b",
+  "session": "464669b5-275f-40c1-a792-9955c6729c6d",
+  "commit": "c4894f8ade801621040753533e5b55d7167b3d0f",
+  "promptAt": 1789507028536,
+  "settledReadAt": 1789507298239,
+  "promptToSettledReadMs": 269703,
+  "reportBytes": 5484,
+  "reportSha256": "74068bc7c29b6654aa72945dcdc2266e517b4193fb3fb87c5c568626faa282a4",
+  "briefBytes": 22321,
+  "briefSha256": "50aa76d1bef46c579535865e554d5cf75d57916ed35fbb188b65c549bae74707",
+  "outcome": {
+    "kind": "cleared",
+    "receipts": [
+      {
+        "id": "152b785907d16f5a970ed2c86322dd9bc8e26fae44d4ceb0b881b91c2457adcb",
+        "gate": "typecheck",
+        "commitSha": "c4894f8ade801621040753533e5b55d7167b3d0f",
+        "spend": {
+          "kind": "none"
+        },
+        "duration": {
+          "kind": "measured",
+          "ms": 6330.8898749999935
+        },
+        "derivation": {
+          "kind": "gate",
+          "gate": "typecheck",
+          "version": "runner@0",
+          "runner": "run-464669b5-275f-40c1-a792-9955c6729c6d"
+        },
+        "proof": {
+          "exitCode": 0,
+          "outputHash": "afff1ffdcd6c2e6d2dbe31804a553cf57f3569a374fbb9e3b09a2a7e21db94bf",
+          "gateOutput": {
+            "interlock": "gate-output@v0",
+            "stdout": {
+              "sha256": "719d32b34d150b2fbd0e6971d5bff7c427bf99f497fcc856c9fca89ebdc88d30",
+              "bytes": 613,
+              "artifact": "gate-output/sha256/719d32b34d150b2fbd0e6971d5bff7c427bf99f497fcc856c9fca89ebdc88d30"
+            },
+            "stderr": {
+              "sha256": "5f4e8cc6357cefc741b3a602e29a1ff25113a452f8eb55da8e072868a898984e",
+              "bytes": 24,
+              "artifact": "gate-output/sha256/5f4e8cc6357cefc741b3a602e29a1ff25113a452f8eb55da8e072868a898984e"
+            }
+          }
+        }
+      },
+      {
+        "id": "d5fce81ff6860c5526d99d513dd16225e1ea92846bfffe2174134cfc0e548cd4",
+        "gate": "lint",
+        "commitSha": "c4894f8ade801621040753533e5b55d7167b3d0f",
+        "spend": {
+          "kind": "none"
+        },
+        "duration": {
+          "kind": "measured",
+          "ms": 1379.1491250000545
+        },
+        "derivation": {
+          "kind": "gate",
+          "gate": "lint",
+          "version": "runner@0",
+          "runner": "run-464669b5-275f-40c1-a792-9955c6729c6d"
+        },
+        "proof": {
+          "exitCode": 0,
+          "outputHash": "b5ceb4b74e673396b2058c99cb12fb4fcb7555ef8555db908fbfcd8c77c507c1",
+          "gateOutput": {
+            "interlock": "gate-output@v0",
+            "stdout": {
+              "sha256": "b9ec52d0c774c91bda0d942677b92ba6d0c6f958b55a8a4639652cc159eeb0fe",
+              "bytes": 45,
+              "artifact": "gate-output/sha256/b9ec52d0c774c91bda0d942677b92ba6d0c6f958b55a8a4639652cc159eeb0fe"
+            },
+            "stderr": {
+              "sha256": "bc2f32db81a9c840e767407aa31deff3b6d3df5e5388f721e9489867b535d47d",
+              "bytes": 16,
+              "artifact": "gate-output/sha256/bc2f32db81a9c840e767407aa31deff3b6d3df5e5388f721e9489867b535d47d"
+            }
+          }
+        }
+      },
+      {
+        "id": "e40832dfb43a9bac4cdbf5fee38ad90f2a7bc50ede5db51da183ec9602830d52",
+        "gate": "comments",
+        "commitSha": "c4894f8ade801621040753533e5b55d7167b3d0f",
+        "spend": {
+          "kind": "none"
+        },
+        "duration": {
+          "kind": "measured",
+          "ms": 487.4745840000105
+        },
+        "derivation": {
+          "kind": "gate",
+          "gate": "comments",
+          "version": "runner@0",
+          "runner": "run-464669b5-275f-40c1-a792-9955c6729c6d"
+        },
+        "proof": {
+          "exitCode": 0,
+          "outputHash": "e765de26702e88a2765a65f51c9b90be1a02a6ec615aafc153af644ba0d715bc",
+          "gateOutput": {
+            "interlock": "gate-output@v0",
+            "stdout": {
+              "sha256": "5b199bf5a7a88daa7ef18f94609a052a1efc5f66a0989764ebb632b8d4add6c8",
+              "bytes": 35,
+              "artifact": "gate-output/sha256/5b199bf5a7a88daa7ef18f94609a052a1efc5f66a0989764ebb632b8d4add6c8"
+            },
+            "stderr": {
+              "sha256": "2a1d2c7e10d72a1aea485d8db5bbe7aa45c3c7e7711e6bcc41bdb7d59a6490fb",
+              "bytes": 29,
+              "artifact": "gate-output/sha256/2a1d2c7e10d72a1aea485d8db5bbe7aa45c3c7e7711e6bcc41bdb7d59a6490fb"
+            }
+          }
+        }
+      },
+      {
+        "id": "248e904d3d7b3a65d6d35842a373df9ddacb43c13ab32bf082a66a88542123b6",
+        "gate": "test",
+        "commitSha": "c4894f8ade801621040753533e5b55d7167b3d0f",
+        "spend": {
+          "kind": "none"
+        },
+        "duration": {
+          "kind": "measured",
+          "ms": 50366.108750000014
+        },
+        "derivation": {
+          "kind": "gate",
+          "gate": "test",
+          "version": "runner@0",
+          "runner": "run-464669b5-275f-40c1-a792-9955c6729c6d"
+        },
+        "proof": {
+          "exitCode": 0,
+          "outputHash": "4aba86a62dd712b8b58c93415ba413d05893e60f7863dd78738884a583e753f9",
+          "gateOutput": {
+            "interlock": "gate-output@v0",
+            "stdout": {
+              "sha256": "8c99fadc31f5d4dcf318a37fad1dcf4b6629d70400d34aec304084b8dfd0d6d6",
+              "bytes": 52152,
+              "artifact": "gate-output/sha256/8c99fadc31f5d4dcf318a37fad1dcf4b6629d70400d34aec304084b8dfd0d6d6"
+            },
+            "stderr": {
+              "sha256": "eeb216c2080a9f1b8538bea0d20881d840dd7389c3f54fbf5e68e2dc284dd318",
+              "bytes": 19,
+              "artifact": "gate-output/sha256/eeb216c2080a9f1b8538bea0d20881d840dd7389c3f54fbf5e68e2dc284dd318"
+            }
+          }
+        }
+      },
+      {
+        "id": "ed6263063528eec3157ed9700062d1713ae3124bf135ac6fa0c3e64a41d4eb7b",
+        "gate": "debrief-valid",
+        "commitSha": "c4894f8ade801621040753533e5b55d7167b3d0f",
+        "spend": {
+          "kind": "none"
+        },
+        "duration": {
+          "kind": "measured",
+          "ms": 392.71133399999235
+        },
+        "derivation": {
+          "kind": "gate",
+          "gate": "debrief-valid",
+          "version": "runner@0",
+          "runner": "run-464669b5-275f-40c1-a792-9955c6729c6d"
+        },
+        "proof": {
+          "exitCode": 0,
+          "outputHash": "a97d54fc4c8696060137608df16b9790721fbcb9ad2e16698fd47db915cfe4fe",
+          "gateOutput": {
+            "interlock": "gate-output@v0",
+            "stdout": {
+              "sha256": "21a06f73aec65240d16aee9296438f3a98deb56cc4c2a7ef890fce400809d5e2",
+              "bytes": 192,
+              "artifact": "gate-output/sha256/21a06f73aec65240d16aee9296438f3a98deb56cc4c2a7ef890fce400809d5e2"
+            },
+            "stderr": {
+              "sha256": "9594ffe1dfd817b2ddaf1f2fde748d880da9f27e80c44b427250bf335b41b03a",
+              "bytes": 91,
+              "artifact": "gate-output/sha256/9594ffe1dfd817b2ddaf1f2fde748d880da9f27e80c44b427250bf335b41b03a"
+            }
+          }
+        }
+      },
+      {
+        "id": "d8fed9a66746a4532dcf6aa6c626febd1b453caf056ba01542cc8ec5ef85d044",
+        "gate": "report-present",
+        "commitSha": "c4894f8ade801621040753533e5b55d7167b3d0f",
+        "spend": {
+          "kind": "none"
+        },
+        "duration": {
+          "kind": "measured",
+          "ms": 19.399957999994513
+        },
+        "derivation": {
+          "kind": "gate",
+          "gate": "report-present",
+          "version": "runner@0",
+          "runner": "run-464669b5-275f-40c1-a792-9955c6729c6d"
+        },
+        "proof": {
+          "exitCode": 0,
+          "outputHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "gateOutput": {
+            "interlock": "gate-output@v0",
+            "stdout": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "bytes": 0,
+              "artifact": "gate-output/sha256/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "stderr": {
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "bytes": 0,
+              "artifact": "gate-output/sha256/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          }
+        }
+      }
+    ]
+  },
+  "narration": [
+    {
+      "interlock": "event@v5",
+      "kind": "session-narrated",
+      "session": "464669b5-275f-40c1-a792-9955c6729c6d",
+      "at": 1789506996162,
+      "line": "leased test-design-b (session 464669b5-275f-40c1-a792-9955c6729c6d, expires 2026-09-15T21:18:36.153Z)"
+    },
+    {
+      "interlock": "event@v5",
+      "kind": "session-narrated",
+      "session": "464669b5-275f-40c1-a792-9955c6729c6d",
+      "at": 1789506996167,
+      "line": "worktree at /Users/rodrigosasaki/dev/private/interlock-worktrees/learning-witness/.worktrees/third-comparison-base/.worktrees/test-design-b on 6db110bb56b85b5b4245965f3ea610be8e225e9c"
+    },
+    {
+      "interlock": "event@v5",
+      "kind": "session-narrated",
+      "session": "464669b5-275f-40c1-a792-9955c6729c6d",
+      "at": 1789506996273,
+      "line": "brief written"
+    },
+    {
+      "interlock": "event@v5",
+      "kind": "session-narrated",
+      "session": "464669b5-275f-40c1-a792-9955c6729c6d",
+      "at": 1789506996278,
+      "line": "gates: the runner added typecheck, lint, comments, test, debrief-valid, report-present."
+    },
+    {
+      "interlock": "event@v5",
+      "kind": "session-narrated",
+      "session": "464669b5-275f-40c1-a792-9955c6729c6d",
+      "at": 1789506996282,
+      "line": "scope: the repository copy declared 7 path(s); the runner's view declares 439; overwritten."
+    },
+    {
+      "interlock": "event@v5",
+      "kind": "session-narrated",
+      "session": "464669b5-275f-40c1-a792-9955c6729c6d",
+      "at": 1789506996286,
+      "line": "context http://127.0.0.1:61753: 7 item(s), vocabulary unversioned"
+    },
+    {
+      "interlock": "event@v5",
+      "kind": "session-narrated",
+      "session": "464669b5-275f-40c1-a792-9955c6729c6d",
+      "at": 1789506996579,
+      "line": "brief committed 9e30ce5"
+    },
+    {
+      "interlock": "event@v5",
+      "kind": "session-narrated",
+      "session": "464669b5-275f-40c1-a792-9955c6729c6d",
+      "at": 1789506996586,
+      "line": "worktree setup: pnpm install --frozen-lockfile"
+    },
+    {
+      "interlock": "event@v5",
+      "kind": "session-narrated",
+      "session": "464669b5-275f-40c1-a792-9955c6729c6d",
+      "at": 1789506997322,
+      "line": "pane w0:pG opened"
+    },
+    {
+      "interlock": "event@v5",
+      "kind": "session-narrated",
+      "session": "464669b5-275f-40c1-a792-9955c6729c6d",
+      "at": 1789506997438,
+      "line": "agent test-design-b started (codex)"
+    },
+    {
+      "interlock": "event@v5",
+      "kind": "session-narrated",
+      "session": "464669b5-275f-40c1-a792-9955c6729c6d",
+      "at": 1789506997545,
+      "line": "identity reported"
+    },
+    {
+      "interlock": "event@v5",
+      "kind": "session-narrated",
+      "session": "464669b5-275f-40c1-a792-9955c6729c6d",
+      "at": 1789507028410,
+      "line": "agent ready (idle)"
+    },
+    {
+      "interlock": "event@v5",
+      "kind": "session-narrated",
+      "session": "464669b5-275f-40c1-a792-9955c6729c6d",
+      "at": 1789507028536,
+      "line": "prompt sent"
+    },
+    {
+      "interlock": "event@v5",
+      "kind": "session-narrated",
+      "session": "464669b5-275f-40c1-a792-9955c6729c6d",
+      "at": 1789507029074,
+      "line": "agent working"
+    },
+    {
+      "interlock": "event@v5",
+      "kind": "session-narrated",
+      "session": "464669b5-275f-40c1-a792-9955c6729c6d",
+      "at": 1789507029079,
+      "line": "waiting for idle, blocked or done (timeout 1500000ms)"
+    },
+    {
+      "interlock": "event@v5",
+      "kind": "session-narrated",
+      "session": "464669b5-275f-40c1-a792-9955c6729c6d",
+      "at": 1789507298239,
+      "line": "agent screen:   Press enter to confirm or esc to go back"
+    },
+    {
+      "interlock": "event@v5",
+      "kind": "session-narrated",
+      "session": "464669b5-275f-40c1-a792-9955c6729c6d",
+      "at": 1789507357802,
+      "line": "absorb http://127.0.0.1:61753: 0 decision(s) absorbed, discoveries 3 known/0 unknown against the slice, 0 gap(s)"
+    }
+  ],
+  "measurementLimit": "Prompt-to-settled-screen observation only; not total wall cost, billed tokens, or causal savings.",
+  "artifacts": {
+    "report": {
+      "sourcePath": "docs/experiments/comparable-learning/test-design.md",
+      "sha256": "74068bc7c29b6654aa72945dcdc2266e517b4193fb3fb87c5c568626faa282a4",
+      "bytes": 5484
+    },
+    "brief": {
+      "sourcePath": ".interlock/sessions/0017-comparable-test-designs/test-design-b/brief.md",
+      "sha256": "50aa76d1bef46c579535865e554d5cf75d57916ed35fbb188b65c549bae74707",
+      "bytes": 22321
+    },
+    "notes": {
+      "sourcePath": ".interlock/sessions/0017-comparable-test-designs/test-design-b/notes.yaml",
+      "sha256": "76033f54169a739cae79b8d54adc656ebfa8e62728e24db1e0c8fed3fa95f9b9",
+      "bytes": 1501
+    },
+    "debrief": {
+      "sourcePath": ".interlock/sessions/0017-comparable-test-designs/test-design-b/debrief.yaml",
+      "sha256": "b1196ed7644ce1248c8b495b669fa9462d0ffcd91126e635d0393338ba3ea662",
+      "bytes": 2260
+    }
+  }
+}

@@ -1,0 +1,36 @@
+interlock: debrief@v2
+graph: 0016-comparable-reviews
+node: review-a
+role: worker
+graph_base_sha: 6db110bb56b85b5b4245965f3ea610be8e225e9c
+session_start_sha: 2b5b1f34c26f529288a0547c1a4432003fc5993c
+head_sha: 4f44de9d3c537db2e127905c2dbfd8efbd0e53e4
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries:
+  - id: d1
+    what: An explicit source citation is rooted only when its separate quotation occurs inside its declared range.
+    found_at: 'packages/verifier/src/foundAt.ts:157-159 "return sourceRange.includes(quote)"'
+    mattered_because: The report could distinguish a citation that identifies the relevant source range from a quotation that merely appears elsewhere in the file.
+  - id: d2
+    what: Only rooted discoveries are converted into reusable evidence, at hypothesis standing.
+    found_at: >-
+      packages/substrate/src/evidence.ts:98-100 `if (entry.mark.kind !== "rooted") return undefined;`
+    mattered_because: The report could trace how a verifier mark bounds the material supplied for learning.
+decisions:
+  - id: c1
+    what: Reported no source defect and separated citation support from causal support.
+    because: The independent wrong-range citation check was unrooted, while converted discoveries retain hypothesis standing.
+    rests_on:
+      - d1
+      - d2
+    hunks:
+      - docs/experiments/comparable-learning/review.md:1-11
+gates_run_by_agent:
+  - id: debrief-valid
+    result: pass
+    invocation: mise exec -- pnpm interlock debrief validate 0016-comparable-reviews review-a
+open:
+  - No inspected consumer demonstrated that it would treat a rooted quotation as proof of a causal conclusion.

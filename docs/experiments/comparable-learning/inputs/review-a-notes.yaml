@@ -1,0 +1,34 @@
+interlock: notes@v0
+node: review-a
+entries:
+  - kind: surprise
+    at: 2026-09-15T21:04:28Z
+    expected: The canonical brief could be read without viewing sibling session material.
+    observed: Its scope inventory named sibling-session brief paths; I did not open those files.
+  - kind: choice
+    at: 2026-09-15T21:04:28Z
+    chose: Limit the review to the brief-named current source, tests, schemas, and design material.
+    because: The brief prohibits reading other sessions and frames this as a bounded review.
+    rejected:
+      - Reading sibling-session briefs or reports for comparison.
+  - kind: surprise
+    at: 2026-09-15T21:05:39Z
+    expected: A manual verifier check could use the notes commit's abbreviated SHA after expansion.
+    observed: The unverified expansion named no commit content; I removed the scratch script and will use only a SHA emitted by git rev-parse.
+  - kind: surprise
+    at: 2026-09-15T21:06:27Z
+    expected: The requested report directory already existed.
+    observed: docs/experiments/comparable-learning does not yet exist and must be created for the permitted report artifact.
+  - kind: choice
+    at: 2026-09-15T21:06:27Z
+    chose: Report three demonstrated safeguards and one unproven causal-inference boundary, with no source defect claimed.
+    because: The independent wrong-range citation check returned unrooted, and the named source and integration tests show rooted material is filtered before evidence conversion.
+    rejected:
+      - Calling a rooted quotation proof of a causal conclusion.
+      - Reporting a defect without a failing behavior.
+  - kind: choice
+    at: 2026-09-15T21:07:40Z
+    chose: File the demonstrated citation-range rule and rooted-evidence filter as discoveries, and root the reporting decision in the report hunk.
+    because: Both discoveries were learned from the named source rather than supplied by the brief, and the report is the diff produced by this review.
+    rejected:
+      - Treating the bounded causal-inference concern as a defect discovery.

@@ -1,0 +1,39 @@
+interlock: graph@v0
+id: 0018-learning-comparison-read
+ask: Read what the matched sessions establish about retained learning and subsequent work.
+derivation:
+  kind: model
+  model: gpt-6-astra
+  prompt: third-six-2026-09-15-slot-5
+authorization:
+  granted_by: Rodrigo Sasaki
+  mandate: third-six-graph-mandate-2026-09-15
+  slot: 5
+  limit: 6
+read: >
+  Use the completed frozen comparison evidence, not another trial or new framework.
+  One node, one initial attempt and at most one recorded recovery, 25 minutes.
+  Address none. Findings and weaknesses in raw reports are outcome data, not
+  reasons to manufacture cleaner comparative results. No push, main merge,
+  production changes, inference/probe, waiver or automatic ratification.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: read-comparable-outcomes
+    depends_on: []
+    acceptance: |
+      Produce the source-linked outcome read specified by the brief using all
+      four completed trial reports, their actual context/debriefs and supplied
+      harness receipts. Separate supported properties/cases from unsupported
+      conclusions. Trace actual checked reuse without inferring improvement.
+      Record comparable setup, snapshot equality, source boundaries and leaks,
+      observed costs and their limits. Two pairs cannot establish general benefit.
+      Negative and equal results remain data; do not repair source reports.
+      No invented metrics, tests, discoveries or semantic endorsement by a gate.
+      Change only the outcome report, own typed notes/debrief and generated
+      docs/shapes.md. Actual metadata, clean commit, all standing gates and review.
+    gates:
+      - id: report-present
+        kind: command
+        run: test -s docs/experiments/comparable-learning/outcome-read.md

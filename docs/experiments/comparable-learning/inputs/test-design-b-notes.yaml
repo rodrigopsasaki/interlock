@@ -1,0 +1,25 @@
+interlock: notes@v0
+node: test-design-b
+entries:
+  - kind: surprise
+    at: 2026-09-15T21:17:37Z
+    expected: An existing session notes file.
+    observed: The session directory has no notes.yaml, so this required envelope begins with the recorded absence.
+  - kind: surprise
+    at: 2026-09-15T21:17:37Z
+    expected: Schema-file discovery would return only allowed source and schema paths.
+    observed: The file-name listing included other session brief paths, but no contents from those paths were read.
+  - kind: choice
+    at: 2026-09-15T21:18:53Z
+    chose: Four boundary-focused regression cases, including a true quotation paired with a false interpretation.
+    because: The source checks citation form and text containment, while evidence reuse accepts only rooted marks and records the resulting statements as hypotheses.
+    rejected:
+      - A claim that the verifier can determine the meaning or truth of a quoted statement.
+  - kind: surprise
+    at: 2026-09-15T21:21:04Z
+    expected: Schema-reference generation to refresh only the mechanically generated reference.
+    observed: It refreshed docs/shapes.md and reported five existing artifact terms absent from its vocabulary table.
+  - kind: surprise
+    at: 2026-09-15T21:21:04Z
+    expected: The required schema-reference command would not expose a prohibited local file.
+    observed: Its generated diff included removed content from the prior local configuration; no content from that exposure informed the report or debrief.

@@ -1,0 +1,27 @@
+interlock: notes@v0
+node: review-b
+entries:
+  - kind: surprise
+    at: 2026-09-15T21:11:38Z
+    expected: an existing notes.yaml file beside the generated brief
+    observed: no notes.yaml existed at the session path
+  - kind: choice
+    at: 2026-09-15T21:11:38Z
+    chose: review current source and tests, then execute one focused boundary test without changing source or tests
+    because: the brief requires a bounded review and an independent check of at least one possible failure
+  - kind: surprise
+    at: 2026-09-15T21:12:13Z
+    expected: the workspace root to expose vitest through pnpm exec
+    observed: pnpm reported that vitest was not found at the workspace root; packages/verifier declares vitest in its own test script
+  - kind: surprise
+    at: 2026-09-15T21:12:27Z
+    expected: the verifier package test script to forward the test-name argument to Vitest
+    observed: its script invoked vitest run with a literal separator, so Vitest ran all 55 verifier tests instead of the requested boundary case
+  - kind: choice
+    at: 2026-09-15T21:13:15Z
+    chose: report one defect, one demonstrated boundary property, and one unproven causal-support concern
+    because: current source demonstrates exact textual-root checks and rooted-only evidence conversion, while command-form citations are rooted without command-content verification
+  - kind: choice
+    at: 2026-09-15T21:14:25Z
+    chose: leave the reported command-form citation defect open rather than change source
+    because: this node is a bounded review and authorizes only the report, session artifacts, and regenerated shape reference

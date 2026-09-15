@@ -1,0 +1,33 @@
+interlock: debrief@v2
+graph: 0016-comparable-reviews
+node: review-b
+role: worker
+graph_base_sha: 6db110bb56b85b5b4245965f3ea610be8e225e9c
+session_start_sha: 313737c43295b4ae3678c5db255331b9154c7f91
+head_sha: 9eb7131f308334294278b59ba043037a07c24472
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries:
+  - id: d1
+    what: command-form found_at is rooted before any command output or exit status is checked
+    found_at: 'packages/verifier/src/foundAt.ts:112 "return mark.rooted(derivation,"'
+    mattered_because: a rooted discovery can be converted into reusable hypothesis evidence, so this is the report's defect at docs/experiments/comparable-learning/review.md:21-37
+  - id: d2
+    what: explicit source quotation verification checks textual containment rather than causal support for a discovery statement
+    found_at: 'packages/verifier/src/foundAt.ts:158 "sourceRange.includes(quote)"'
+    mattered_because: the report must distinguish a traceable source location from proof of the conclusion drawn from it at docs/experiments/comparable-learning/review.md:39-53
+  - id: d3
+    what: the runner integration fixture excludes the discovery aimed at the nonexistent fourth source line
+    found_at: 'packages/runner/test/gateJudge.test.ts:1035-1038 "no test yet covered a nonexistent fourth source line"'
+    mattered_because: this demonstrates the intended filter at the evidence handoff in docs/experiments/comparable-learning/review.md:55-73
+decisions:
+  - id: c1
+    what: published the bounded citation and reusable-evidence review
+    because: 'The received hypothesis stated “Added final-real-line fixture proof for both newline states, ordinary prose punctuation, and the adjacent out-of-bounds lines.” (derivation: agent:codex:gpt-5.6-terra). I checked packages/verifier/test/foundAt.test.ts:141-180 and independently ran the final-line boundary case; the resulting source check is recorded at docs/experiments/comparable-learning/review.md:7-19.'
+    rests_on: [d1, d2, d3]
+    hunks: [docs/experiments/comparable-learning/review.md:1-73]
+gates_run_by_agent: []
+open:
+  - command-form found_at is rooted without a command receipt and can become hypothesis evidence; no source change was authorized for this review node
