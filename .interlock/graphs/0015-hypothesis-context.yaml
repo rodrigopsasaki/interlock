@@ -1,0 +1,48 @@
+interlock: graph@v0
+id: 0015-hypothesis-context
+ask: Make unratified learning unmistakable when it enters a session brief.
+derivation:
+  kind: model
+  model: gpt-6-astra
+  prompt: third-six-2026-09-15-slot-2
+authorization:
+  granted_by: Rodrigo Sasaki
+  mandate: third-six-graph-mandate-2026-09-15
+  slot: 2
+  limit: 6
+read: >
+  Use the existing shared renderer to say that hypotheses are unratified and
+  need checking. One node, one initial attempt and at most one recorded recovery,
+  25-minute work timeout. Address none; source-only receiver stays untouched.
+  No push, main merge, deployment, inference, new authority or ratification.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: qualify-context-hypotheses
+    depends_on: []
+    acceptance: |
+      In renderSlice prepend one concise statement only when an addressed response
+      contains an item with standing hypothesis: those items are unratified and
+      must be checked against source before relying on them. A receipt, rooted
+      mark or retrieval is not semantic truth. No item statement, because, scope,
+      standing, derivation, grouping or order changes. None, empty response,
+      absent standing and only observed/professed/ratified items keep exact output.
+      Multiple hypotheses produce just one notice. No wire/schema/artifact shape,
+      dependency or automatic ratification. Positive/mixed/negative tests in
+      debrief slice tests plus a real addressed generated sessionBrief fixture.
+      Verify notice survives concise opening projection once, preserving canonical
+      metadata, context_scope and full authority. Allowed files: debrief slice
+      renderer/tests and runner sessionBrief/openingPrompt tests; production runner
+      only if existing seam cannot preserve the statement, with a recorded reason.
+      No unrelated changes. Early notes map assertions; typed notes/debrief and
+      generated docs/shapes.md finalized; clean commit, all standing gates, review.
+    gates:
+      - id: hypothesis-rendering
+        kind: command
+        run: pnpm --filter debrief --fail-if-no-match exec vitest run test/slice.test.ts --reporter=verbose
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: generated-context
+        kind: command
+        run: pnpm --filter runner --fail-if-no-match exec vitest run test/sessionBrief.test.ts test/openingPrompt.test.ts --reporter=verbose
+        expect_output: 'Tests +[1-9][0-9]* passed'
