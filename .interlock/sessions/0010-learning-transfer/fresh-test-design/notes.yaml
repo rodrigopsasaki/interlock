@@ -17,3 +17,19 @@ entries:
     at: "2026-09-15T00:12:10Z"
     chose: Add three focused evidence mapper cases covering selection before scope gaps, agent debrief provenance independent of verifier derivation, and filtering of node plus graph-approved standing events.
     because: The current source maps only fully rooted decisions, derives their item provenance from the debrief, and relies on personEventsFor to admit the node's events plus the graph's approved event; these cases cover the requested boundaries without repeating the existing isolated assertions.
+  - kind: surprise
+    at: "2026-09-15T00:13:51Z"
+    expected: The first passing test draft would already satisfy the repository's strict TypeScript convention.
+    observed: Its standing-event fixtures used an as const assertion; it will instead use a LedgerEvent annotation so the fixture is checked without an assertion.
+  - kind: choice
+    at: "2026-09-15T00:14:08Z"
+    chose: Keep test-only debrief provenance generic as agent:test-runtime:test-model while retaining truthful Codex runtime and model provenance only in this session's artifacts.
+    because: The test proves the boundary between debrief provenance and verifier derivation without inventing a provider-specific fixture assumption.
+  - kind: surprise
+    at: "2026-09-15T00:14:48Z"
+    expected: The first focused-test draft would satisfy the repository formatter after its assertions passed.
+    observed: Lint required a line wrap for the two-path hunk fixture; the correction is formatting-only.
+  - kind: surprise
+    at: "2026-09-15T00:15:31Z"
+    expected: The required schema-reference generation would either update docs/shapes.md for this session's artifacts or complete without a diagnostic.
+    observed: The reference was already current, but generation reported five existing artifact terms missing from the vocabulary table: config, event, item, local, and notes. No generated reference diff resulted, and this is not a learning-boundary test finding.
