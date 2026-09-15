@@ -23,7 +23,10 @@ function contextSliceBounds(lines: readonly string[]): ContextSliceBounds | unde
 export function withRenderedContextSlice(body: string, rendered: string): string {
   const lines = body.split("\n");
   const bounds = contextSliceBounds(lines);
-  if (bounds === undefined) return body;
+  if (bounds === undefined) {
+    const separator = body === "" || body.endsWith("\n\n") ? "" : "\n";
+    return `${body}${separator}${CONTEXT_HEADING}\n\n${rendered}\n`;
+  }
 
   return [
     ...lines.slice(0, bounds.headingIndex + 1),

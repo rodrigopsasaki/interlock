@@ -6,6 +6,7 @@ import { type Item, readBriefFile } from "debrief";
 import type { GateDeclaration } from "face";
 import { noneClient, type SubstrateClient } from "substrate";
 import { afterEach, describe, expect, it } from "vitest";
+import { contextSliceOf, withRenderedContextSlice } from "../src/contextSlice.ts";
 import {
   briefPath,
   explainSessionBriefRefusal,
@@ -381,6 +382,7 @@ const v1WithContextSliceSection = [
 const addressedItem: Item = {
   kind: "convention",
   statement: "commits state the why in the subject",
+  standing: "professed",
   derivation: "human:Rodrigo Sasaki",
 };
 
@@ -402,6 +404,68 @@ function fakeSubstrateAt(
 }
 
 describe("writeBriefIntoWorktree with a substrate that renders a slice", () => {
+  it("appends an unheaded rendered slice to the canonical brief and opening projection", async () => {
+    const unheaded = v1WithMatchingGatesAndScope.replace(
+      "# brief\n",
+      "# brief\n\n## Constraints\n\nRetain this authored content.\n",
+    );
+    const hypothesis: Item = {
+      kind: "decision",
+      statement: "A retrieved item is not semantic truth",
+      standing: "hypothesis",
+      derivation: "agent:test-runtime:test-model",
+    };
+    const { repo, worktree } = fixture(unheaded);
+    const result = await writeBriefIntoWorktree(
+      repo,
+      worktree,
+      "g",
+      "n",
+      "e".repeat(40),
+      "session-1",
+      standing,
+      nodeGates,
+      fakeSubstrateAt("http://fake-substrate.example", [addressedItem, hypothesis]),
+    );
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) return;
+
+    const written = await readBriefFile(briefPath(worktree, "g", "n"));
+    if (!isOk(written) || written.value.kind !== "v1") throw new Error("expected v1");
+    const body = written.value.body;
+    const slice = contextSliceOf(body);
+    expect(body).toContain("## Constraints\n\nRetain this authored content.");
+    expect(body.match(/^## Context slice$/gm)).toHaveLength(1);
+    expect(slice).toContain("[professed] commits state the why in the subject");
+    expect(slice).toContain("derivation: human:Rodrigo Sasaki");
+    expect(slice).toContain("[hypothesis] A retrieved item is not semantic truth");
+    expect(slice).toContain("derivation: agent:test-runtime:test-model");
+    expect(result.value.openingView?.endsWith(body)).toBe(true);
+  });
+
+  it("appends the canonical section for an empty body and an empty rendered slice", async () => {
+    const { repo, worktree } = fixture(v1WithMatchingGatesAndScope.replace("# brief\n", ""));
+    const result = await writeBriefIntoWorktree(
+      repo,
+      worktree,
+      "g",
+      "n",
+      "f".repeat(40),
+      "session-1",
+      standing,
+      nodeGates,
+      fakeSubstrateAt("http://fake-substrate.example", []),
+    );
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) return;
+
+    const written = await readBriefFile(briefPath(worktree, "g", "n"));
+    if (!isOk(written) || written.value.kind !== "v1") throw new Error("expected v1");
+    expect(written.value.body).toContain("## Context slice");
+    expect(contextSliceOf(written.value.body).trim()).toBe("");
+    expect(result.value.openingView?.endsWith(written.value.body)).toBe(true);
+  });
+
   it("replaces the 'no substrate' section with the rendered slice and narrates the call", async () => {
     const { repo, worktree } = fixture(v1WithContextSliceSection);
     const result = await writeBriefIntoWorktree(
@@ -491,5 +555,15 @@ describe("writeBriefIntoWorktree with a substrate that renders a slice", () => {
       "tracked.ts",
     ]);
     expect(written.value.frontMatter.contextScope).toEqual(["tracked.ts"]);
+  });
+});
+
+describe("withRenderedContextSlice", () => {
+  it("replaces an appended section without duplicating it", () => {
+    const first = withRenderedContextSlice("# brief", "first rendered item");
+    const second = withRenderedContextSlice(first, "second rendered item");
+    expect(second.match(/^## Context slice$/gm)).toHaveLength(1);
+    expect(second).not.toContain("first rendered item");
+    expect(contextSliceOf(second)).toContain("second rendered item");
   });
 });

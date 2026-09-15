@@ -1,0 +1,19 @@
+interlock: notes@v0
+node: deliver-context-slice
+entries:
+  - kind: surprise
+    at: "2026-09-15T23:28:35Z"
+    expected: The generated session would already contain its notes artifact.
+    observed: notes.yaml was absent, so this file was created before implementation work.
+  - kind: choice
+    at: "2026-09-15T23:28:35Z"
+    chose: Append the canonical Context slice section only when the rendered composition source has no such heading.
+    because: The existing headed path already replaces through the following section, while the unheaded path must retain authored body and make the rendered slice readable by the same bounds reader.
+  - kind: choice
+    at: "2026-09-15T23:30:07Z"
+    chose: Preserve the authored body as the prefix and add only the separator needed before an appended Context slice heading.
+    because: This keeps authored content intact for empty and nonempty bodies while later composition finds the canonical heading and replaces rather than duplicates the rendered section.
+  - kind: surprise
+    at: "2026-09-15T23:30:28Z"
+    expected: The focused style check would accept the added context-slice import.
+    observed: Biome requires sibling source imports in path order, so the test import was reordered before committing.
