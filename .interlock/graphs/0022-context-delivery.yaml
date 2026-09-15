@@ -1,0 +1,42 @@
+interlock: graph@v0
+id: 0022-context-delivery
+ask: Deliver a retrieved context slice even when the brief author omitted its heading.
+derivation:
+  kind: model
+  model: gpt-6-astra
+  prompt: brief-learning-find-shape-2026-09-15-round-4
+read: >
+  M5 iteration 4. The preceding runner retrieved seven items but wrote none
+  into its brief because the authored body lacked a Context slice heading.
+  Its revision command cleared six gates and preserves the way back. Fix this
+  newly observed composition loss next, without confusing delivery with use.
+  One bounded 25-minute attempt, normal gates and disposable substrate only.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: deliver-context-slice
+    depends_on: []
+    acceptance: |
+      A successful rendered context response must appear in the new canonical
+      worktree brief and its opening projection whether or not the authored
+      brief contains the canonical Context slice heading. At the existing
+      runner composition seam, append one canonical section when absent;
+      preserve the original authored body and existing headed replacement
+      behavior, including following sections. Repeated composition must replace
+      the section, not duplicate it. Cover empty bodies and rendered empty
+      slices as well as actual hypothesis items and their derivation/standing.
+      Leave non-rendered outcomes (none and refusal), address semantics,
+      authoritative scope, deliberate context_scope, gates and existing source
+      briefs unchanged. No mutation of already-started briefs or hidden runtime
+      injection. Use real temporary-repository integration tests to show the
+      same delivered body in canonical brief and opening projection and its
+      readability by contextSliceOf; preserve unrelated authored content.
+      No new substrate verb, selection heuristic, dependency, ratification,
+      schema change or weakened standing gate. Typed notes, truthful debrief,
+      clean commits and full harness gates. Delivery is the claim, not benefit.
+    gates:
+      - id: context-composition
+        kind: command
+        run: pnpm --filter runner --fail-if-no-match exec vitest run test/sessionBrief.test.ts --reporter=verbose
+        expect_output: 'Tests +[1-9][0-9]* passed'
