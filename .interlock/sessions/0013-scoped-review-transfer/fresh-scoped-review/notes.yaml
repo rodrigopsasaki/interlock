@@ -1,0 +1,15 @@
+interlock: notes@v0
+node: fresh-scoped-review
+entries:
+  - kind: choice
+    at: 2026-09-15T01:06:45Z
+    chose: Assess the current source and its targeted tests, then write a bounded report without implementation or test changes.
+    because: The brief requires an assessment of current behavior at docs/experiments/learning-transfer/scoped-review.md and explicitly excludes implementation and test edits.
+  - kind: surprise
+    at: 2026-09-15T01:06:45Z
+    expected: Reading the canonical brief would not expose excluded session artifacts.
+    observed: The canonical brief's authoritative scope inventory listed paths for other sessions' artifacts, including their briefs, notes, and debriefs; I did not read any of their contents.
+  - kind: surprise
+    at: 2026-09-15T01:07:05Z
+    expected: The configured Git commit signer would create the requested checkpoint commit.
+    observed: Git's GPG signer could not access its key store, so the initial commit failed before writing a commit object; the brief permits an unsigned per-command commit.
