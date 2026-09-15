@@ -35,9 +35,14 @@ export async function runDebriefRevise(
   if (isErr(revised)) {
     return { exitCode: 1, message: explainDebriefRevisionRefusal(revised.error) };
   }
-  const action = revised.value.changed ? "selected" : "already current";
+  if (revised.value.kind === "already-current") {
+    return {
+      exitCode: 0,
+      message: `${graph}/${node}: already current; canonical ${revised.value.currentPath}, source ${revised.value.candidatePath}.`,
+    };
+  }
   return {
     exitCode: 0,
-    message: `${graph}/${node}: ${action}; current ${revised.value.currentPath}, retained ${revised.value.archivePath}, source ${revised.value.candidatePath}.`,
+    message: `${graph}/${node}: selected; current ${revised.value.currentPath}, retained ${revised.value.archivePath}, source ${revised.value.candidatePath}.`,
   };
 }

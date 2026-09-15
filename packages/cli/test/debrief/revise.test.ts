@@ -87,4 +87,17 @@ describe("interlock debrief revise", () => {
     expect(result.message).toContain("retained");
     expect(result.message).toContain(source.candidate);
   });
+
+  it("reports an already-current selection without claiming an archive", async () => {
+    const source = fixture();
+    await runDebriefRevise(["g", "n", "--from", source.candidate], { cwd: source.root });
+
+    const result = await runDebriefRevise(["g", "n", "--from", source.candidate], {
+      cwd: source.root,
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.message).toContain("already current");
+    expect(result.message).not.toContain("retained");
+  });
 });

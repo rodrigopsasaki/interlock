@@ -39,7 +39,11 @@ export {
   notesFilePath,
   sessionDirectory,
 } from "./paths.ts";
-export type { DebriefRevisionOutcome, DebriefRevisionRefusal } from "./revise.ts";
+export type {
+  DebriefRevisionOptions,
+  DebriefRevisionOutcome,
+  DebriefRevisionRefusal,
+} from "./revise.ts";
 export { explainDebriefRevisionRefusal, reviseDebrief } from "./revise.ts";
 export { isPlainWord } from "./role.ts";
 export type { Item, ItemKind, ItemScope, ItemStanding } from "./slice.ts";

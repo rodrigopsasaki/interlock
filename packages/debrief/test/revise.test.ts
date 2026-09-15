@@ -1,5 +1,14 @@
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { isErr, isOk } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
@@ -21,6 +30,8 @@ const BASE = "a".repeat(40);
 const START = "b".repeat(40);
 
 function debrief(options: {
+  readonly graph?: string;
+  readonly node?: string;
   readonly role?: string;
   readonly start?: string;
   readonly version?: string;
@@ -28,8 +39,8 @@ function debrief(options: {
 }): string {
   return [
     `interlock: ${options.version ?? "debrief@v2"}`,
-    `graph: ${GRAPH}`,
-    `node: ${NODE}`,
+    `graph: ${options.graph ?? GRAPH}`,
+    `node: ${options.node ?? NODE}`,
     `role: ${options.role ?? "worker"}`,
     `graph_base_sha: ${BASE}`,
     `session_start_sha: ${options.start ?? START}`,
@@ -99,7 +110,8 @@ describe("reviseDebrief", () => {
 
     expect(isOk(result)).toBe(true);
     if (!isOk(result)) return;
-    expect(result.value.changed).toBe(true);
+    expect(result.value.kind).toBe("selected");
+    if (result.value.kind !== "selected") return;
     expect(readFileSync(source.current)).toEqual(Buffer.from(authored));
     expect(readFileSync(from)).toEqual(Buffer.from(authored));
     expect(readFileSync(result.value.archivePath)).toEqual(Buffer.from(initial));
@@ -113,8 +125,9 @@ describe("reviseDebrief", () => {
 
     expect(isOk(result)).toBe(true);
     if (!isOk(result)) return;
-    expect(result.value.changed).toBe(false);
-    expect(() => readFileSync(result.value.archivePath)).toThrow();
+    expect(result.value.kind).toBe("already-current");
+    if (result.value.kind !== "already-current") return;
+    expect(existsSync(debriefRevisionsDirectory(source.root, GRAPH, NODE))).toBe(false);
   });
 
   it("refuses a candidate whose role does not belong to this session", async () => {
@@ -142,6 +155,28 @@ describe("reviseDebrief", () => {
     if (!isErr(result)) return;
     expect(result.error.kind).toBe("identity");
     expect(readFileSync(source.current).toString("utf8")).toContain("original");
+  });
+
+  it("refuses a candidate for another graph", async () => {
+    const source = fixture();
+    const from = candidate(source.session, debrief({ graph: "other", what: "wrong graph" }));
+
+    const result = await reviseDebrief(source.root, GRAPH, NODE, from);
+
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) return;
+    expect(result.error.kind).toBe("identity");
+  });
+
+  it("refuses a candidate for another node", async () => {
+    const source = fixture();
+    const from = candidate(source.session, debrief({ node: "other", what: "wrong node" }));
+
+    const result = await reviseDebrief(source.root, GRAPH, NODE, from);
+
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) return;
+    expect(result.error.kind).toBe("identity");
   });
 
   it("refuses legacy candidates without changing the canonical debrief", async () => {
@@ -194,6 +229,34 @@ describe("reviseDebrief", () => {
     expect(result.error.kind).toBe("candidate-path");
   });
 
+  it("refuses a symbolic-link brief", async () => {
+    const source = fixture();
+    const from = candidate(source.session);
+    const brief = join(source.session, "brief.md");
+    unlinkSync(brief);
+    symlinkSync(join(source.root, "outside-brief.md"), brief);
+
+    const result = await reviseDebrief(source.root, GRAPH, NODE, from);
+
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) return;
+    expect(result.error.kind).toBe("brief-read");
+  });
+
+  it("refuses graph and node values that are not confined path segments", async () => {
+    const source = fixture();
+    const from = candidate(source.session);
+
+    const graphResult = await reviseDebrief(source.root, "../g", NODE, from);
+    const nodeResult = await reviseDebrief(source.root, GRAPH, "n/other", from);
+
+    expect(isErr(graphResult)).toBe(true);
+    expect(isErr(nodeResult)).toBe(true);
+    if (!isErr(graphResult) || !isErr(nodeResult)) return;
+    expect(graphResult.error.kind).toBe("session-path");
+    expect(nodeResult.error.kind).toBe("session-path");
+  });
+
   it("refuses a differing archive collision before replacing the canonical bytes", async () => {
     const source = fixture();
     const from = candidate(source.session);
@@ -221,5 +284,24 @@ describe("reviseDebrief", () => {
     if (!isErr(result)) return;
     expect(result.error.kind).toBe("write-failed");
     expect(readFileSync(source.current).toString("utf8")).toContain("original");
+  });
+
+  it("preserves canonical bytes when installation fails after retention", async () => {
+    const original = debrief({ what: "original" });
+    const source = fixture(original);
+    const from = candidate(source.session);
+
+    const result = await reviseDebrief(source.root, GRAPH, NODE, from, {
+      install: async () => Promise.reject(new Error("fixture install failure")),
+    });
+
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) return;
+    expect(result.error.kind).toBe("write-failed");
+    expect(readFileSync(source.current)).toEqual(Buffer.from(original));
+    const digest = createHash("sha256").update(Buffer.from(original)).digest("hex");
+    expect(
+      readFileSync(join(debriefRevisionsDirectory(source.root, GRAPH, NODE), `${digest}.yaml`)),
+    ).toEqual(Buffer.from(original));
   });
 });

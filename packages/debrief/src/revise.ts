@@ -16,11 +16,21 @@ export type DebriefRevisionRefusal =
   | { readonly kind: "archive-collision"; readonly path: string }
   | { readonly kind: "write-failed"; readonly path: string; readonly because: string };
 
-export interface DebriefRevisionOutcome {
-  readonly currentPath: string;
-  readonly candidatePath: string;
-  readonly archivePath: string;
-  readonly changed: boolean;
+export type DebriefRevisionOutcome =
+  | {
+      readonly kind: "selected";
+      readonly currentPath: string;
+      readonly candidatePath: string;
+      readonly archivePath: string;
+    }
+  | {
+      readonly kind: "already-current";
+      readonly currentPath: string;
+      readonly candidatePath: string;
+    };
+
+export interface DebriefRevisionOptions {
+  readonly install?: (temporaryPath: string, currentPath: string) => Promise<void>;
 }
 
 export function explainDebriefRevisionRefusal(refusal: DebriefRevisionRefusal): string {
@@ -42,6 +52,16 @@ export function explainDebriefRevisionRefusal(refusal: DebriefRevisionRefusal): 
 function isWithin(directory: string, path: string): boolean {
   const pathRelative = relative(directory, path);
   return pathRelative === "" || (pathRelative !== ".." && !pathRelative.startsWith(`..${sep}`));
+}
+
+function isSessionSegment(value: string): boolean {
+  return (
+    value.length > 0 &&
+    value !== "." &&
+    value !== ".." &&
+    !value.includes("/") &&
+    !value.includes("\\")
+  );
 }
 
 function because(error: unknown): string {
@@ -151,7 +171,15 @@ export async function reviseDebrief(
   graph: string,
   node: string,
   candidate: string,
+  options: DebriefRevisionOptions = {},
 ): Promise<Result<DebriefRevisionOutcome, DebriefRevisionRefusal>> {
+  if (!isSessionSegment(graph) || !isSessionSegment(node)) {
+    return err({
+      kind: "session-path",
+      path: repoRoot,
+      because: "graph and node must each be one non-traversing path segment",
+    });
+  }
   const sessionPath = sessionDirectory(repoRoot, graph, node);
   const sessionRefusal = await sessionPathIsDirect(repoRoot, sessionPath);
   if (sessionRefusal !== undefined)
@@ -168,6 +196,9 @@ export async function reviseDebrief(
     return err({ kind: "current-read", path: currentPath, because: currentPathRefusal });
 
   const briefPath = resolve(sessionPath, "brief.md");
+  const briefPathRefusal = await isRegularPath(briefPath);
+  if (briefPathRefusal !== undefined)
+    return err({ kind: "brief-read", path: briefPath, because: briefPathRefusal });
   const briefRead = await readBriefFile(briefPath);
   if (isErr(briefRead))
     return err({
@@ -225,7 +256,7 @@ export async function reviseDebrief(
   const revisionsPath = debriefRevisionsDirectory(repoRoot, graph, node);
   const archivePath = revisionPath(revisionsPath, currentBytes);
   if (currentBytes.equals(candidateBytes))
-    return ok({ currentPath, candidatePath, archivePath, changed: false });
+    return ok({ kind: "already-current", currentPath, candidatePath });
   try {
     await mkdir(revisionsPath, { recursive: true });
   } catch (error) {
@@ -241,10 +272,10 @@ export async function reviseDebrief(
   const temporaryPath = resolve(sessionPath, `.${basename(currentPath)}.${randomUUID()}.tmp`);
   try {
     await writeFile(temporaryPath, candidateBytes, { flag: "wx" });
-    await rename(temporaryPath, currentPath);
+    await (options.install ?? rename)(temporaryPath, currentPath);
   } catch (error) {
     await unlink(temporaryPath).catch(() => undefined);
     return err({ kind: "write-failed", path: currentPath, because: because(error) });
   }
-  return ok({ currentPath, candidatePath, archivePath, changed: true });
+  return ok({ kind: "selected", currentPath, candidatePath, archivePath });
 }
