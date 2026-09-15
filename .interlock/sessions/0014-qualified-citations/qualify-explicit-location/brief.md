@@ -46,6 +46,7 @@ scope:
   - .interlock/graphs/0012-delivery-read.yaml
   - .interlock/graphs/0013-scoped-review-transfer.yaml
   - .interlock/graphs/0014-qualified-citations.yaml
+  - .interlock/graphs/0015-hypothesis-context.yaml
   - .interlock/graphs/readme-interlock-concept.yaml
   - .interlock/local.example.yaml
   - .interlock/sessions/0001-bootstrap/attempts/brief.md
@@ -148,6 +149,9 @@ scope:
   - .interlock/sessions/0013-scoped-review-transfer/fresh-scoped-review/notes.yaml
   - .interlock/sessions/0013-scoped-review-transfer/select-context-paths/brief.md
   - .interlock/sessions/0014-qualified-citations/qualify-explicit-location/brief.md
+  - .interlock/sessions/0015-hypothesis-context/qualify-context-hypotheses/brief.md
+  - .interlock/sessions/0015-hypothesis-context/qualify-context-hypotheses/debrief.yaml
+  - .interlock/sessions/0015-hypothesis-context/qualify-context-hypotheses/notes.yaml
   - .interlock/sessions/readme-interlock-concept/readme/brief.md
   - .interlock/sessions/readme-interlock-concept/readme/debrief.yaml
   - .interlock/sessions/readme-interlock-concept/readme/notes.yaml
@@ -575,57 +579,75 @@ scope:
   - vitest.setup.ts
 context_scope:
   - packages/verifier/src/foundAt.ts
-  - packages/verifier/src/verify.ts
   - packages/substrate/src/evidence.ts
 substrate:
-  address: http://127.0.0.1:54501
+  address: http://127.0.0.1:61126
 graph_base_sha: f7dee08d98ebe4da760be51d6e776b51939ffd0b
-session: 2878e20d-a4ed-4394-af7f-6b7e1abfa295
+session: 4a5a85d4-3cfb-4edb-b27e-5991ef44be22
 ---
 
-# Match the citation, not merely the file
+# Complete the citation acceptance, preserving the previous attempt
 
-Read AGENTS/design and your graph acceptance. The current foundAt tokenizer loses
-line suffixes, searches quotes across the file, and can turn a missing explicit
-path with a quotation into out-of-band rootedness. Fix that bounded class; do not
-claim semantic understanding. The evidence filter already omits unrooted
-discoveries. Extend its real gateJudge regression; do not build a second harness.
+This is the single additional repair explicitly authorized by Rodrigo after
+acceptance review. Existing implementation at ebb7794 passes seven harness gates;
+do not reimplement it. Read AGENTS/design, the approved graph and the current
+source. Your changes are confined to the missing fixture proof and your retained
+recovery artifacts. No new production behavior, dependencies, semantic evaluator,
+scope rewrite or automatic ratification.
 
-Before code, record your supported explicit-location grammar and the test map.
-Use conservative handling when several paths or quotation delimiters appear.
-Preserve old artifacts; only newly computed marks get verifier@1. A bare legacy
-path is a weaker citation and remains so. No silent automatic ratification.
+The outstanding requirements are:
 
-Read current source, schemas and tests, not prior sessions, receiver data, notes
-repository, sibling worktrees or Git history of earlier session artifacts.
-Record genuine discoveries only; every found_at with a numeric location needs a
-separate exact source quotation. A claim's because must follow from its source;
-if it does not, name the uncertainty rather than inventing a cause.
+1. Add successful exact final-real-line fixtures, including a source ending in
+   newline and a source without it, and an ordinary-prose explicit citation with
+   the supported trailing punctuation. Keep an adjacent out-of-bounds case so
+   the success is discriminating. The existing parser already intends to support
+   these cases. Test the contract; do not weaken it to fit a result.
+2. Correct the retained learning's qualification. Original discovery d1 says a
+   rooted discovery's mark hunk supplies path scope, and c3 repeats it. Current
+   packages/substrate/src/evidence.ts distinguishes the sentinel hunks `command`
+   and `out-of-band citation` (repository scope) from non-sentinel rooted hunks
+   (path scope). A quote from the latter branch alone does not justify a universal
+   statement. Source-check the whole branch and keep that qualifier explicit.
+   Do not modify evidence.ts. Do not claim that this deterministic verifier
+   establishes semantic truth.
 
-## Environment and closure
+The initial attempt's brief, notes and debrief must stay available at their
+recorded commits and under the prior-attempt archive prepared by root. Do not
+edit that archive. Write a new recovery debrief for this session with actual
+metadata and supported decisions. Do not present information supplied here as
+a new discovery, or imply that the initial implementation was written in this
+session. It is fine to have no new discoveries. The earlier claim is not erased.
 
-Use mise exec -- pnpm (Node24.14.0). For targeted tests use exactly
-`mise exec -- pnpm --filter verifier --fail-if-no-match exec vitest run test/foundAt.test.ts test/verify.test.ts`.
-Use per-command `git -c commit.gpgsign=false commit` for commits, not global or
-shared config. No as, non-null assertions or as const, including fixtures.
-Consult current schemas/notes@v0.json and schemas/debrief@v2.json; do not copy an
-older session. Actual UTC, runtime codex/model gpt-5.6-terra, initial generated
-brief commit as session_start_sha, and graph_base_sha from your generated brief.
-head_sha is your last implementation commit, preceding final notes/debrief.
-Quote YAML containing colon-space. Finalize your own artifacts, then run
-`mise exec -- pnpm interlock schema reference` and commit the resulting reference
-with those artifacts. Leave full-suite/listener gates to the harness. No repeated
-EPERM tests, external service, extra agent/session, manual absorb, push, main
-merge, waiver or existing-brain change. Commit clean work and stop.
+## Verification and pre-release review
+
+Use mise exec -- pnpm (Node24.14.0). Use current notes@v0/debrief@v2 readers and
+schemas. Actual runtime is codex/model gpt-5.6-terra; root verifies it independently.
+Use actual UTC; graph_base_sha and session_start_sha come from this new generated
+brief and its initial commit. head_sha precedes final artifacts. Explicit numeric
+found_at citations require a separate exact quotation at the committed location.
+
+Map these repairs to exact assertions in notes. Format only changed files before
+running the targeted verifier tests. Leave full-suite/listener gates to the harness.
+Per-command git -c commit.gpgsign=false commit only; no shared/global config edits.
+
+Before the final artifact commit, write your draft debrief and notes, leave those
+draft changes uncommitted, and request root's pre-release review. Do not claim
+completion, commit the final artifacts or close while waiting for that review.
+Root must confirm the actual waiting state; do not invent a blocked state or run
+a keepalive loop. Once root releases you, apply only in-scope feedback, finalize
+notes/debrief, run mise exec -- pnpm interlock schema reference, commit clean work
+and stop. No follow-on work after final release.
+
+Read current source/tests/schemas and your own retained attempt only. No sibling
+sessions, receiver files, previous comparison reports or external calls. Do not
+manually absorb anything or start another agent/session. No push, main merge,
+waiver, existing-brain change or ratification.
 
 ## Context slice
 
 ### Absence
 
 - [observed, path packages/verifier/src/foundAt.ts] Nothing is held about packages/verifier/src/foundAt.ts.
-  derivation: preston:coverage@v1
-
-- [observed, path packages/verifier/src/verify.ts] Nothing is held about packages/verifier/src/verify.ts.
   derivation: preston:coverage@v1
 
 - [observed, path packages/substrate/src/evidence.ts] Nothing is held about packages/substrate/src/evidence.ts.
