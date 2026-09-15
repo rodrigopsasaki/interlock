@@ -20,6 +20,9 @@ sessionBrief's authoritative inventory/context call, and briefRewrite's final
 frontmatter. A new optional context_scope is an advisory selection of existing
 tracked paths. The full scope remains the runner's work/proof authority.
 Do not repurpose scope or introduce brief@v2. Preserve omitted legacy behavior.
+No type assertions, including as const, in source or fixtures: use explicit
+contract annotations and narrowing. Quote YAML prose containing a colon-space
+or use block scalars so notes remain valid without a repair pass.
 
 Before code, record a map for parser/schema invalid forms, selected query/full
 canonical scope, omitted legacy query, missing-path zero-call refusal, none,
