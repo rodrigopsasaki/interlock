@@ -13,3 +13,7 @@ entries:
     at: 2026-09-15T17:55:38Z
     expected: The mixed-slice assertion would place Decision after Risk.
     observed: The pre-existing KIND_ORDER places Decision before Risk, so the targeted renderer test failed only on that reversed assertion while all generated-brief tests passed.
+  - kind: choice
+    at: 2026-09-15T17:56:50Z
+    chose: Keep the single hypothesis notice in the shared renderer while explicitly stating that a receipt, rooted mark, or retrieval is not semantic truth; extend unchanged-output coverage with professed standing and assert the rendered hypothesis item in the concise opening view.
+    because: The graph acceptance requires both source-checkable status and preserved full/concise rendering without changing item provenance, standing, grouping, or order.

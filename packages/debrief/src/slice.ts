@@ -79,7 +79,7 @@ export function renderSlice(substrateAddress: string, items: readonly Item[]): s
         `### ${KIND_LABEL[section.kind]}\n\n${section.items.map(renderItem).join("\n\n")}`,
     );
   const hypothesisNotice = items.some((item) => item.standing === "hypothesis")
-    ? "Hypothesis items are unratified and must be checked against source before relying on them."
+    ? "Hypothesis items are unratified and must be checked against source before relying on them; a receipt, rooted mark, or retrieval is not semantic truth."
     : undefined;
   return [hypothesisNotice, ...sections]
     .filter((part): part is string => part !== undefined)

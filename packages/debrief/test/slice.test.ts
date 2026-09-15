@@ -10,6 +10,12 @@ const fixtureSlice: readonly Item[] = [
     derivation: "substrate@v1 context",
   },
   {
+    kind: "discipline",
+    statement: "Gate results are proof, not semantic truth",
+    standing: "professed",
+    derivation: "substrate@v1 context",
+  },
+  {
     kind: "risk",
     statement: "Renaming the debrief package would stale an approved graph's gate",
     because: "the brief-legacy gate filters on --filter debrief literally",
@@ -43,6 +49,9 @@ const secondHypothesisItem: Item = {
 const fixtureSliceRendered =
   "### Convention\n\n" +
   "- [ratified, repository] Conventional Commits, why-subjects and bodies\n" +
+  "  derivation: substrate@v1 context\n\n" +
+  "### Discipline\n\n" +
+  "- [professed] Gate results are proof, not semantic truth\n" +
   "  derivation: substrate@v1 context\n\n" +
   "### Risk\n\n" +
   "- [observed, path .interlock/graphs/0002-shapes.yaml] Renaming the debrief package would stale " +
@@ -88,7 +97,7 @@ describe("renderSlice", () => {
   it("prepends one notice for hypothesis items without changing their rendering", () => {
     const rendered = renderSlice("local", [hypothesisItem]);
     expect(rendered).toBe(
-      "Hypothesis items are unratified and must be checked against source before relying on them.\n\n" +
+      "Hypothesis items are unratified and must be checked against source before relying on them; a receipt, rooted mark, or retrieval is not semantic truth.\n\n" +
         "### Decision\n\n" +
         "- [hypothesis, path packages/debrief/src/slice.ts] The renderer is the shared context seam " +
         "(because generated briefs and opening views use its output)\n" +
@@ -108,7 +117,7 @@ describe("renderSlice", () => {
     expect(rendered).toContain(secondHypothesisItem.statement);
   });
 
-  it("leaves a slice with observed, ratified, or absent standing unchanged", () => {
+  it("leaves a slice with observed, ratified, professed, or absent standing unchanged", () => {
     expect(renderSlice("local", fixtureSlice)).toBe(fixtureSliceRendered);
   });
 

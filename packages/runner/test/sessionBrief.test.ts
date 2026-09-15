@@ -477,6 +477,10 @@ describe("writeBriefIntoWorktree with a substrate that renders a slice", () => {
     const content = readFileSync(briefPath(worktree, "g", "n"), "utf-8");
     expect(content.match(/Hypothesis items are unratified/g)).toHaveLength(1);
     expect(result.value.openingView?.match(/Hypothesis items are unratified/g)).toHaveLength(1);
+    expect(result.value.openingView).toContain(
+      "### Decision\n\n- [hypothesis] A retrieved item is not semantic truth\n" +
+        "  derivation: agent:test-runtime:test-model",
+    );
     expect(result.value.openingView).toContain("scope_count: 2");
     expect(result.value.openingView).toContain("context_scope:\n  - tracked.ts");
     const written = await readBriefFile(briefPath(worktree, "g", "n"));
