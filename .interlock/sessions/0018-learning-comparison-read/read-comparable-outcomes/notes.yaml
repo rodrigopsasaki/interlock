@@ -17,3 +17,11 @@ entries:
     at: 2026-09-15T00:00:00-03:00
     chose: "Classify report claims by source support, bounded omissions, and traceable use rather than score either condition."
     because: "The brief forbids inventing a winner or quality score and requires equal or worse outcomes, overlap, unsupported assertions, and actual provenance boundaries to remain visible."
+  - kind: choice
+    at: 2026-09-15T21:39:39Z
+    chose: "Preserve the four existing placeholder-timestamp entries and append this correction."
+    because: "Their 2026-09-15T00:00:00-03:00 timestamps were placeholders rather than observed execution times. The affected entries are the initial missing-notes surprise, the source-boundary choice, the supplied-read-audit surprise, and the classification choice; their exact original times were not observed and are not invented."
+  - kind: choice
+    at: 2026-09-15T21:39:39Z
+    chose: "Treat the test-design-b read-boundary discrepancy as supplied comparison evidence."
+    because: "The supplied read audits already record the excluded brief-content exposure; this session uses that evidence to qualify attribution and does not file it as a new source discovery."
