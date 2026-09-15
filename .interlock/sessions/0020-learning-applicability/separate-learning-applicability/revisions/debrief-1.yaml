@@ -1,12 +1,10 @@
 interlock: debrief@v2
-revision: 2
-supersedes: ".interlock/sessions/0020-learning-applicability/separate-learning-applicability/debrief.yaml at d8f878808d6ab4aee0aa584162d57848d0a28d31"
 graph: 0020-learning-applicability
 node: separate-learning-applicability
 role: worker
 graph_base_sha: e4b0b447e369f18c4a2e2ba08c16b6babd6ed2cf
 session_start_sha: ea708ca272aa515eb6f4f7411d243c53de854164
-head_sha: 414c96999c465f4642133d2330d0620317e14a2e
+head_sha: a8b942b86c4c9a3a70aa45a1a6e7bffe96ac0739
 derivation:
   kind: agent
   runtime: codex
@@ -30,15 +28,10 @@ decisions:
     rests_on: ["docs/experiments/comparable-learning/inputs/source-debrief.yaml", "notes: receiver compatibility choice"]
     hunks: [packages/substrate/src/wire.ts, packages/substrate/test/support/fixtures.ts, packages/substrate/test/wire.test.ts, docs/design/0001-interlock.md]
   - id: c4
-    what: Replaced the duplicated event applicability schema with the same applies-to part used by the outbound debrief shape.
-    because: One schema expression makes the persisted ledger event and receiver request reject the same canonical portable path bytes instead of drifting through separately edited patterns.
-    rests_on: ["notes: schema control-character class"]
-    hunks: [schemas/parts/applies-to.json, schemas/parts/debrief-event.json]
-  - id: c5
-    what: Proved compiled-schema and runtime-guard parity for every ASCII control, DEL, U+2028, U+2029, internal spaces, and Unicode filename bytes.
-    because: The original line-separator reproduction exposed a partial test; exhaustive cases keep the explicit no-normalization policy observable at both boundaries.
-    rests_on: ["notes: schema control-character class"]
-    hunks: [packages/ledger/src/applicability.ts, packages/schemas/test/corpus.substrate.test.ts]
+    what: Aligned canonical applicability guard and schema coverage to reject embedded control characters while accepting ordinary internal spaces.
+    because: A reproduced line-feed and carriage-return mismatch would let the runtime preserve an applicability value the checked schema rejects, so both boundaries must refuse the same unsafe paths.
+    rests_on: ["notes: canonical path guard and JSON Schema pattern"]
+    hunks: [packages/ledger/src/applicability.ts, packages/ledger/test/applicability.test.ts, packages/schemas/test/corpus.substrate.test.ts]
 gates_run_by_agent:
   - id: typecheck
     result: pass
@@ -53,8 +46,4 @@ gates_run_by_agent:
     result: pass
     invocation: mise exec -- pnpm --filter substrate --fail-if-no-match exec vitest run test/evidence.test.ts test/wire.test.ts --reporter=verbose
     note: 34 tests passed.
-  - id: applicability-parity
-    result: pass
-    invocation: mise exec -- pnpm --filter ledger --filter schemas exec vitest run test/applicability.test.ts test/corpus.guards.test.ts test/corpus.substrate.test.ts --reporter=verbose
-    note: 82 tests passed, including the exhaustive portable-path parity table.
 open: []
