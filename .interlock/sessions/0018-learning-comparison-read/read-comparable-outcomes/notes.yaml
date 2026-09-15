@@ -1,0 +1,11 @@
+interlock: notes@v0
+node: read-comparable-outcomes
+entries:
+  - kind: surprise
+    at: 2026-09-15T00:00:00-03:00
+    expected: "An existing notes.yaml file for this session."
+    observed: "The session directory contained no notes.yaml, so this entry creates the required typed notes artifact."
+  - kind: choice
+    at: 2026-09-15T00:00:00-03:00
+    chose: "Read only the supplied comparison inputs, current source/tests, schemas, design, and this node's artifacts."
+    because: "The canonical brief makes the supplied evidence the source for the outcome read and explicitly excludes unrelated sessions, history, journals, receivers, external calls, and extra agents."
