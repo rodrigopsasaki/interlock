@@ -17,3 +17,7 @@ entries:
     at: "2026-09-15T23:30:28Z"
     expected: The focused style check would accept the added context-slice import.
     observed: Biome requires sibling source imports in path order, so the test import was reordered before committing.
+  - kind: choice
+    at: "2026-09-15T23:31:48Z"
+    chose: Prove the rendered result retains the full source body as its exact prefix and exercise refusal separately from no substrate.
+    because: Prefix equality makes authored-content preservation explicit, while a refused addressed context must retain body and address without being treated as the none outcome.

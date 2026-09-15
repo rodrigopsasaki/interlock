@@ -403,6 +403,15 @@ function fakeSubstrateAt(
   };
 }
 
+function fakeRefusalAt(address: string): SubstrateClient {
+  return {
+    address,
+    context: () => Promise.resolve({ kind: "refused", because: "context is refused" }),
+    absorb: () => Promise.resolve({ kind: "empty" }),
+    capabilities: () => Promise.resolve([]),
+  };
+}
+
 describe("writeBriefIntoWorktree with a substrate that renders a slice", () => {
   it("appends an unheaded rendered slice to the canonical brief and opening projection", async () => {
     const unheaded = v1WithMatchingGatesAndScope.replace(
@@ -416,6 +425,8 @@ describe("writeBriefIntoWorktree with a substrate that renders a slice", () => {
       derivation: "agent:test-runtime:test-model",
     };
     const { repo, worktree } = fixture(unheaded);
+    const source = await readBriefFile(briefPath(repo, "g", "n"));
+    if (!isOk(source) || source.value.kind !== "v1") throw new Error("expected v1");
     const result = await writeBriefIntoWorktree(
       repo,
       worktree,
@@ -434,7 +445,7 @@ describe("writeBriefIntoWorktree with a substrate that renders a slice", () => {
     if (!isOk(written) || written.value.kind !== "v1") throw new Error("expected v1");
     const body = written.value.body;
     const slice = contextSliceOf(body);
-    expect(body).toContain("## Constraints\n\nRetain this authored content.");
+    expect(body.startsWith(source.value.body)).toBe(true);
     expect(body.match(/^## Context slice$/gm)).toHaveLength(1);
     expect(slice).toContain("[professed] commits state the why in the subject");
     expect(slice).toContain("derivation: human:Rodrigo Sasaki");
@@ -514,6 +525,31 @@ describe("writeBriefIntoWorktree with a substrate that renders a slice", () => {
     );
     const content = readFileSync(briefPath(worktree, "g", "n"), "utf-8");
     expect(content).toContain("address: none");
+  });
+
+  it("leaves the authored body and address unchanged after a refused unheaded context", async () => {
+    const { repo, worktree } = fixture(v1WithMatchingGatesAndScope);
+    const source = await readBriefFile(briefPath(repo, "g", "n"));
+    if (!isOk(source) || source.value.kind !== "v1") throw new Error("expected v1");
+    const result = await writeBriefIntoWorktree(
+      repo,
+      worktree,
+      "g",
+      "n",
+      "f".repeat(40),
+      "session-1",
+      standing,
+      nodeGates,
+      fakeRefusalAt("http://refused-substrate.example"),
+    );
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) return;
+
+    const written = await readBriefFile(briefPath(worktree, "g", "n"));
+    if (!isOk(written) || written.value.kind !== "v1") throw new Error("expected v1");
+    expect(written.value.body).toBe(source.value.body);
+    expect(written.value.body).not.toContain("## Context slice");
+    expect(written.value.frontMatter.substrate.address).toBe("none");
   });
 
   it("projects one hypothesis notice while retaining canonical metadata and context scope", async () => {
