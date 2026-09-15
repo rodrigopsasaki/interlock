@@ -1,0 +1,28 @@
+interlock: notes@v0
+node: qualify-explicit-location
+entries:
+  - kind: choice
+    at: 2026-09-15T17:28:32Z
+    chose: >-
+      Treat an explicit citation as exactly one path:line or path:start-end,
+      optionally path-wrapped in backticks, with exactly one separate nonblank
+      double-quoted or backtick-quoted extract.
+    because: >-
+      The acceptance requires an exact-range quote and conservative handling of
+      several paths or quotation delimiters; rejecting ambiguity prevents a
+      valid path or quotation from borrowing support from another citation.
+    rejected: >-
+      Searching every path candidate for any quotation, because it can root an
+      invalid explicit location with unrelated file content.
+  - kind: choice
+    at: 2026-09-15T17:28:32Z
+    chose: >-
+      Map foundAt tests to explicit valid single/range, CRLF, boundary,
+      quotation-outside-range, invalid numeric/range/path, ambiguous citations,
+      legacy forms, and source-at-head; map verify tests to verifier@1; extend
+      the existing gateJudge absorb spy for filtered invalid and hypothesis good
+      discoveries.
+    because: >-
+      These are the acceptance's observable boundaries, while the existing
+      gateJudge test already exercises verifyDebrief through evidenceOf and the
+      absorb seam.
