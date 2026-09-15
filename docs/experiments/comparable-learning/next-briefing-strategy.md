@@ -25,11 +25,13 @@ source link is location provenance, not semantic truth:
 hypothesis scoped by its hunk. A hunk says where support lives; it does not say
 what a later task needs to know.
 
-**Smallest intervention.** In the next treatment brief, put each received item
-with its derivation and scope beside one required report response: checked use
+**Smallest intervention.** Put the same conditional clause in both authored
+briefs: for each task-relevant received hypothesis, if any, record checked use
 with a report hunk, justified rejection with its reason, or no use with its
-task-relevance explanation. This is an authored brief/report convention, not a
-gate or a claim that context must be used.
+task-relevance explanation. Zero hypotheses is valid; coverage-absence notices
+do not each demand a ritual response. Only actual substrate context varies.
+This is an authored brief/report convention, not a gate or a claim that context
+must be used.
 
 **Next check and falsification.** A source check and report hunk must make the
 predeclared response independently readable. The change has no demonstrated
@@ -55,11 +57,12 @@ the report-level response above. Keep the assessor's condition hidden where
 practical and retain a read audit that names any extra visible content. This is
 operating practice using the current artifacts, not a new framework or gate.
 
-**Next check and falsification.** Read the pair only if the audit records no
-material extra content and the assessment can identify each predeclared
-response without condition labels. If either condition fails, the result is a
-qualified observation, not evidence of benefit. Rodrigo authorizes the new
-comparison; the frozen inputs, audit, and commits retain the way back.
+**Next check and falsification.** Interpret the pair as clean only if the audit
+records no material extra content and the assessment can identify each
+predeclared response without condition labels. Always read and retain a
+qualified or negative observation; if either condition fails, it is not
+evidence of benefit. Rodrigo authorizes the new comparison; the frozen inputs,
+audit, and commits retain the way back.
 
 ## 3. Product defect — separate review-grace timing from learning transfer
 
