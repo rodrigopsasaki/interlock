@@ -621,6 +621,24 @@ bend against an invariant means we redesign, and the entry says how.
 | 2026-09-14 | A command-gate receipt retained only a decoded combined-output hash; a held run could identify that output existed but could not inspect its assertion trace without rerunning the gate | Receipts, I8 | The old hash is a useful identity but is a one-way compression, while gate output is precisely the evidence a failed gate needs to explain itself | Yes, old receipt events and their identity stay unchanged and read as evidence absent; `gate-output@v0` adds hash-derived journal-relative raw stream artifacts to new proofs | Runner stores stdout and stderr bytes before writing the receipt, using SHA-256-addressed immutable artifacts beside the shared journal. The additive proof envelope records each stream's hash, byte count and reference; a reader verifies all three and refuses invalid, missing or corrupt evidence rather than presenting empty output. The legacy combined decoded-chunk `outputHash`, exit, and pattern semantics remain untouched. |
 | 2026-09-14 | The first actual absorb path sent its request directly after gate judgement, while the journal's file sink was a Phyxius subscriber whose failure `append` cannot report | D8, I7, I8 | An in-memory append and projection are not durable intent, and a response cannot become acknowledged when its evidence has not survived | Yes, v1-v4 events remain readable through their own guards; legacy string intents remain present but do not invent a payload or delivery fact | `event@v5` adds typed intent and delivery facts. The ledger confirms a sink's fsynced Phyxius entry before projection advances, then poisons further confirmed appends on failure. The substrate adapter prepares a credential-free target and exact body; runner retains a self-verifying versioned request envelope before dispatch and an acknowledgment envelope before recording acknowledgment. A replayed intent with no delivery fact reads uncertain and never dispatches itself; changed body, missing evidence, transport, HTTP, schema, or storage doubt is refused rather than guessed. The seam deliberately has no dispatcher, retry, reconciliation, or exactly-once claim. |
 | 2026-09-15 | An explicit `found_at` location could name one file and find its quotation elsewhere in that file, treating an unbounded file match as support for a bounded citation | The verifier | The existing deterministic rule knew paths and quotations but did not preserve the line suffix or bind the quotation to it | Yes, old marks and artifacts remain readable and unmodified; only new verification produces `verifier@1` | An explicit location now accepts exactly one positive, ascending in-bounds `path:line` or `path:start-end`, optionally path-wrapped in backticks, and exactly one separate nonblank extract found in that range at the declared head. Ambiguous, malformed, unresolved, or unsupported locations are unrooted. The rooted mark keeps the resolved path hunk shape, so downstream evidence stays compatible; the verifier qualifies citation, not interpretation. |
+| 2026-09-15 | A rooted debrief claim had only its support location, so a lesson rooted in a notes hunk was automatically scoped to that notes path even when its author knew the code path where it applies | D6, I4, I8 | Rooting verifies where the source supports a claim; it does not establish where the claim is useful, and inferring that application from prose would rewrite the claim's meaning | Yes, `applies_to` is optional, old artifacts retain their hunk-derived scope, and the support hunk remains unchanged | A decision or discovery may author a repository or canonical repository-relative `applies_to`; only an already-rooted claim emits it through the existing hypothesis item scope, while the claim's hunk or found-at remains its support. |
+
+---
+
+### Authored applicability example
+
+```yaml
+decisions:
+  - id: c1
+    what: Qualified discovery scope without changing sentinel handling.
+    because: Rooted evidence chooses a support location, while the author names where the lesson applies.
+    rests_on: [notes: retained-scope qualification choice]
+    hunks: [.interlock/sessions/0014-qualified-citations/qualify-explicit-location/notes.yaml]
+    applies_to: { kind: path, path: packages/substrate/src/evidence.ts }
+```
+
+Here the notes hunk remains the support for `c1`; `applies_to` carries the separate authored path
+that a rooted hypothesis item may use as its scope.
 
 ---
 

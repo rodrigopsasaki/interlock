@@ -21,3 +21,7 @@ entries:
     at: "2026-09-15T22:55:56Z"
     chose: "Require applies_to paths to be canonical portable repository paths and retain the legacy multi-hunk gap only when applicability is absent."
     because: "Receiver normalization trims then rejects whitespace, dot, rooted, and parent paths; an explicit authored scope makes the old hunk-derived repository fallback untrue, while the absent-field behavior remains an exact legacy interpretation."
+  - kind: choice
+    at: "2026-09-15T22:58:02Z"
+    chose: "Document support and authored applicability together as a debrief example, without extending verifier or item@v1 behavior."
+    because: "The example keeps the historical notes hunk as support and shows applies_to as a separately authored path; schema reference completed after the schema artifacts were finalized."
