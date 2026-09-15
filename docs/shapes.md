@@ -772,69 +772,75 @@ open:
 
 #### `debrief@v2`
 
-Source: `.interlock/sessions/0010-learning-transfer/fresh-test-design/debrief.yaml`
+Source: `.interlock/sessions/0015-hypothesis-context/qualify-context-hypotheses/debrief.yaml`
 
 ```yaml
 interlock: debrief@v2
-graph: 0010-learning-transfer
-node: fresh-test-design
+graph: 0015-hypothesis-context
+node: qualify-context-hypotheses
 role: worker
-graph_base_sha: 4e45e200ddc13b4630fa75e680b33bc4293dda73
-session_start_sha: 9802b5eb60bed7ca2e6a75e525954923d52a617f
-head_sha: 871ee4358c287402fc71682ccff8a0f0952717fc
+graph_base_sha: 3cf4d8c73a2b01b2693dc2fa97866f1497983df3
+session_start_sha: 61000f51d7505103a2b1c98571b1119b615cc2b8
+head_sha: 6ff32c34ef0af6e007e6070a4c15968e8d8bfb39
 derivation:
   kind: agent
   runtime: codex
-  model: gpt-5.6-terra
-discoveries: []
+  model: gpt-5
+discoveries:
+  - id: opening-view-reuses-rendered-body
+    what: writeBriefIntoWorktree derives the concise opening view from the written brief front matter and body after rendering its addressed context slice.
+    found_at: packages/runner/src/sessionBrief.ts
+    mattered_because: The shared debrief renderer can carry the hypothesis notice to both the full brief and concise opening view without a production runner change.
 decisions:
-  - id: selection-scope
-    what: A partly verified multi-path decision produces neither an item nor a repository-scope gap, while a separately all-rooted decision remains a path-scoped hypothesis item.
-    because: "The immutable context states \"A decision is projected only when it has one or more marks and every mark is rooted; several cited paths become repository scope with a gap.\" (derivation: agent:codex:gpt-5.6-terra). Current packages/substrate/src/evidence.ts checks marks before hunkScope, so the test checks that selection happens before scope projection."
+  - id: qualify-hypothesis-at-shared-renderer
+    what: Prepend one conditional notice only when an addressed context slice contains a hypothesis-standing item, stating that it is unratified, must be checked against source, and that a receipt, rooted mark, or retrieval is not semantic truth.
+    because: The shared renderer preserves all received items and their existing provenance, standing, scope, grouping, and order while distinguishing unratified learning from semantic truth.
     rests_on:
-      - packages/substrate/src/evidence.ts
-      - .interlock/sessions/0010-learning-transfer/fresh-test-design/brief.md
+      - .interlock/graphs/0015-hypothesis-context.yaml:24-37
+      - packages/debrief/src/slice.ts:67-86
     hunks:
-      - packages/substrate/test/learningBoundary.test.ts:9-59
-  - id: provenance
-    what: A rooted decision retains its generic test debrief derivation and does not inherit the verifier gate derivation that marked it rooted.
-    because: evidenceOf derives projected decision provenance from the session debrief before it maps decision marks, so the test keeps verifier proof and authored claim provenance distinct.
+      - packages/debrief/src/slice.ts:72-86
+    produces:
+      - packages/debrief/src/slice.ts
+  - id: retain-unchanged-and-projected-rendering
+    what: Assert byte-for-byte unchanged output for no-address, empty, and all non-hypothesis slices; one notice for single and multiple hypotheses; and the rendered hypothesis item in both generated brief and concise opening view.
+    because: The acceptance requires a useful distinction without altering the none, empty, observed, professed, ratified, or absent-standing branches, canonical scope authority, context_scope, or item provenance.
     rests_on:
-      - packages/substrate/src/evidence.ts
-      - packages/substrate/src/derivationString.ts
+      - .interlock/graphs/0015-hypothesis-context.yaml:24-39
+      - packages/debrief/test/slice.test.ts:63-126
+      - packages/runner/test/sessionBrief.test.ts:455-494
     hunks:
-      - packages/substrate/test/learningBoundary.test.ts:61-89
-  - id: standing
-    what: The projection admits this node's events and the graph's approved human gate, while excluding a sibling node event and a different graph-level gate.
-    because: personEventsFor filters the ledger stream to the node plus the graph-level approved gate before evidenceOf projects human authority, so the bounded fixture checks both selection and the resulting professed item.
-    rests_on:
-      - packages/substrate/src/evidence.ts
-    hunks:
-      - packages/substrate/test/learningBoundary.test.ts:91-145
+      - packages/debrief/test/slice.test.ts:49-126
+      - packages/runner/test/sessionBrief.test.ts:455-494
+    produces:
+      - packages/debrief/test/slice.test.ts
+      - packages/runner/test/sessionBrief.test.ts
 gates_run_by_agent:
+  - id: hypothesis-rendering
+    result: pass
+    invocation: mise exec -- pnpm --filter debrief --fail-if-no-match exec vitest run test/slice.test.ts --reporter=verbose
+    note: 8 tests passed.
+  - id: generated-context
+    result: pass
+    invocation: mise exec -- pnpm --filter runner --fail-if-no-match exec vitest run test/sessionBrief.test.ts test/openingPrompt.test.ts --reporter=verbose
+    note: 21 tests passed.
   - id: typecheck
     result: pass
     invocation: mise exec -- pnpm typecheck
-    note: All eight workspace packages passed TypeScript checking under the pinned Node runtime.
+    note: All workspace TypeScript checks passed.
   - id: lint
     result: pass
     invocation: mise exec -- pnpm lint
-    note: Biome checked 317 files without diagnostics after the formatting-only wrap.
+    note: Biome checked 319 files with no fixes.
   - id: comments
     result: pass
     invocation: mise exec -- pnpm check:comments
-    note: packages/*/src reported no comments.
-  - id: learning-boundary-tests
+    note: packages/*/src has no comments.
+  - id: schema-reference
     result: pass
-    invocation: mise exec -- pnpm --filter substrate --fail-if-no-match exec vitest run test/learningBoundary.test.ts
-    note: Three focused cases passed for selection and scope, provenance, and standing-event boundaries.
-  - id: shape-reference-fresh
-    result: pass
-    invocation: mise exec -- node packages/cli/src/bin.ts schema reference
-    note: The required generator completed with docs/shapes.md already current.
-open:
-  - "Isolation limitation: before bounded work, this session opened .interlock/sessions/0009-delivery-boundary-proof/prove-dispatch-boundary/notes.yaml, .interlock/sessions/0009-delivery-boundary-proof/prove-dispatch-boundary/debrief.yaml, and .interlock/sessions/0010-learning-transfer/source-diagnosis/brief.md. The source-diagnosis brief contained its instructions, not its report, notes, or debrief. Required schema generation later exposed the rendered representative of .interlock/sessions/0009-delivery-boundary-proof/prove-storage-boundary/debrief.yaml through docs/shapes.md. These exposures prevent a clean fresh-session attribution claim."
-  - The listener-dependent full pnpm test gate was not run locally because the brief says local listeners are denied; the harness must produce that receipt.
+    invocation: mise exec -- pnpm interlock schema reference
+    note: docs/shapes.md regenerated from the current representative artifacts.
+open: []
 ```
 
 ## event
@@ -911,58 +917,57 @@ The directed acyclic graph of nodes produced from one ask.
 
 #### `graph@v0`
 
-Source: `.interlock/graphs/readme-interlock-concept.yaml`
+Source: `.interlock/graphs/0015-hypothesis-context.yaml`
 
 ```yaml
 interlock: graph@v0
-id: readme-interlock-concept
-
-ask: >
-  Turn the approved local presentation into a GitHub-native README on a separate branch,
-  preserving the selected keystone identity and explaining interlocks, proof, plan control,
-  critical-path visibility, and the intended evolution from human judgment to bounded automation.
-
+id: 0015-hypothesis-context
+ask: Make unratified learning unmistakable when it enters a session brief.
 derivation:
-  kind: agent
-  runtime: codex
-  model: unknown
-
+  kind: model
+  model: gpt-6-astra
+  prompt: third-six-2026-09-15-slot-2
+authorization:
+  granted_by: Rodrigo Sasaki
+  mandate: third-six-graph-mandate-2026-09-15
+  slot: 2
+  limit: 6
 read: >
-  One documentation node. Keep prose in Markdown, embed the existing wordmark and diagrams
-  as repository assets, refresh implementation claims against this branch, and open a draft PR.
-  Do not merge, change runtime behavior, or disturb the active development checkout.
-
+  Use the existing shared renderer to say that hypotheses are unratified and
+  need checking. One node, one initial attempt and at most one recorded recovery,
+  25-minute work timeout. Address none; source-only receiver stays untouched.
+  No push, main merge, deployment, inference, new authority or ratification.
 gates:
   - id: approved
     kind: human
-
 nodes:
-  - id: readme
-    acceptance: >
-      README.md presents the interlock concept using GitHub-supported Markdown and HTML.
-      The selected blue open loop and gold-completed loop are reused in the checked-in
-      wordmark and explanatory diagrams. Prose remains searchable and accessible; unsupported
-      CSS layouts become native tables, lists, or quotations. Relative image and documentation
-      links resolve. Current capabilities are distinguished from planned work, including the
-      newly implemented cancel, reset, and gate-waiver commands. No verbatim session history,
-      dossier excerpts, private filesystem paths, or celebratory metrics appear in the public
-      presentation. GitHub's rendered README and artwork are visually inspected. The branch
-      is pushed and a draft PR is opened for human review; no merge is performed.
+  - id: qualify-context-hypotheses
     depends_on: []
+    acceptance: |
+      In renderSlice prepend one concise statement only when an addressed response
+      contains an item with standing hypothesis: those items are unratified and
+      must be checked against source before relying on them. A receipt, rooted
+      mark or retrieval is not semantic truth. No item statement, because, scope,
+      standing, derivation, grouping or order changes. None, empty response,
+      absent standing and only observed/professed/ratified items keep exact output.
+      Multiple hypotheses produce just one notice. No wire/schema/artifact shape,
+      dependency or automatic ratification. Positive/mixed/negative tests in
+      debrief slice tests plus a real addressed generated sessionBrief fixture.
+      Verify notice survives concise opening projection once, preserving canonical
+      metadata, context_scope and full authority. Allowed files: debrief slice
+      renderer/tests and runner sessionBrief/openingPrompt tests; production runner
+      only if existing seam cannot preserve the statement, with a recorded reason.
+      No unrelated changes. Early notes map assertions; typed notes/debrief and
+      generated docs/shapes.md finalized; clean commit, all standing gates, review.
     gates:
-      - id: readme-whitespace
+      - id: hypothesis-rendering
         kind: command
-        run: git diff 1aef03d --check
-      - id: readme-assets
+        run: pnpm --filter debrief --fail-if-no-match exec vitest run test/slice.test.ts --reporter=verbose
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: generated-context
         kind: command
-        run: >-
-          node --input-type=module -e "import {readFileSync,existsSync} from 'node:fs';
-          const text=readFileSync('README.md','utf8');
-          const files=['docs/brand/interlock-wordmark.png','docs/brand/interlock-concept.svg','docs/brand/interlock-concept-mobile.svg','docs/brand/interlock-critical-path.svg'];
-          if(files.some(file=>!existsSync(file)||!text.includes(file)))throw Error('A README asset is missing or unused');
-          if(/<style|<script|style=|class=|file:\/\/|127\.0\.0\.1|\/Users\//i.test(text))throw Error('README contains local-only styling or paths');
-          console.log('README assets and markup checked');"
-        expect_output: README assets and markup checked
+        run: pnpm --filter runner --fail-if-no-match exec vitest run test/sessionBrief.test.ts test/openingPrompt.test.ts --reporter=verbose
+        expect_output: 'Tests +[1-9][0-9]* passed'
 ```
 
 ## item

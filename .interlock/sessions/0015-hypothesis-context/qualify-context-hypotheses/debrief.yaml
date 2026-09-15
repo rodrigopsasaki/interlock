@@ -1,0 +1,66 @@
+interlock: debrief@v2
+graph: 0015-hypothesis-context
+node: qualify-context-hypotheses
+role: worker
+graph_base_sha: 3cf4d8c73a2b01b2693dc2fa97866f1497983df3
+session_start_sha: 61000f51d7505103a2b1c98571b1119b615cc2b8
+head_sha: 6ff32c34ef0af6e007e6070a4c15968e8d8bfb39
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries:
+  - id: opening-view-reuses-rendered-body
+    what: writeBriefIntoWorktree derives the concise opening view from the written brief front matter and body after rendering its addressed context slice.
+    found_at: packages/runner/src/sessionBrief.ts
+    mattered_because: The shared debrief renderer can carry the hypothesis notice to both the full brief and concise opening view without a production runner change.
+decisions:
+  - id: qualify-hypothesis-at-shared-renderer
+    what: Prepend one conditional notice only when an addressed context slice contains a hypothesis-standing item, stating that it is unratified, must be checked against source, and that a receipt, rooted mark, or retrieval is not semantic truth.
+    because: The shared renderer preserves all received items and their existing provenance, standing, scope, grouping, and order while distinguishing unratified learning from semantic truth.
+    rests_on:
+      - .interlock/graphs/0015-hypothesis-context.yaml:24-37
+      - packages/debrief/src/slice.ts:67-86
+    hunks:
+      - packages/debrief/src/slice.ts:72-86
+    produces:
+      - packages/debrief/src/slice.ts
+  - id: retain-unchanged-and-projected-rendering
+    what: Assert byte-for-byte unchanged output for no-address, empty, and all non-hypothesis slices; one notice for single and multiple hypotheses; and the rendered hypothesis item in both generated brief and concise opening view.
+    because: The acceptance requires a useful distinction without altering the none, empty, observed, professed, ratified, or absent-standing branches, canonical scope authority, context_scope, or item provenance.
+    rests_on:
+      - .interlock/graphs/0015-hypothesis-context.yaml:24-39
+      - packages/debrief/test/slice.test.ts:63-126
+      - packages/runner/test/sessionBrief.test.ts:455-494
+    hunks:
+      - packages/debrief/test/slice.test.ts:49-126
+      - packages/runner/test/sessionBrief.test.ts:455-494
+    produces:
+      - packages/debrief/test/slice.test.ts
+      - packages/runner/test/sessionBrief.test.ts
+gates_run_by_agent:
+  - id: hypothesis-rendering
+    result: pass
+    invocation: mise exec -- pnpm --filter debrief --fail-if-no-match exec vitest run test/slice.test.ts --reporter=verbose
+    note: 8 tests passed.
+  - id: generated-context
+    result: pass
+    invocation: mise exec -- pnpm --filter runner --fail-if-no-match exec vitest run test/sessionBrief.test.ts test/openingPrompt.test.ts --reporter=verbose
+    note: 21 tests passed.
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: All workspace TypeScript checks passed.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Biome checked 319 files with no fixes.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+    note: packages/*/src has no comments.
+  - id: schema-reference
+    result: pass
+    invocation: mise exec -- pnpm interlock schema reference
+    note: docs/shapes.md regenerated from the current representative artifacts.
+open: []
