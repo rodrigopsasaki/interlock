@@ -15,8 +15,11 @@ read: >
   The previous review exposed a real weakness: file existence and a quoted string
   somewhere in a file do not establish an explicitly cited line. Improve that
   deterministic boundary while keeping marks distinct from semantic verdicts.
-  One node, one initial attempt and at most one explicitly recorded recovery;
-  25-minute work timeout. Root owns review and exact candidate assembly.
+  One node. The initial attempt and formatter recovery are retained. Rodrigo
+  authorized exactly one additional repair on 2026-09-15: missing boundary/prose
+  fixtures and the debrief's non-sentinel scope qualification, no production
+  redesign. 25-minute work timeout. Root reviews the uncommitted final draft
+  before releasing the worker and owns exact candidate assembly.
   A fresh disposable candidate receiver may supply context and accept the harness
   debrief for controlled follow-on experiments. Existing project brain untouched.
   No push, main merge, deployment, inference/probe, waiver or ratification.
