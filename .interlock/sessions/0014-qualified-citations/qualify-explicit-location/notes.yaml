@@ -36,3 +36,24 @@ entries:
       The rooted hunk remains compatible with existing evidence consumers while
       qualification belongs to verifier@1; nested delimiters inside one code
       excerpt are not separate source extracts.
+  - kind: choice
+    at: 2026-09-15T17:33:23Z
+    chose: Record the explicit-location qualification as a bend in the design note.
+    because: >-
+      The graph acceptance requires the row, and the prior verifier rule checked
+      only that a file contained some quotation rather than that the declared
+      location contained its supporting extract.
+  - kind: surprise
+    at: 2026-09-15T17:34:49Z
+    expected: The explicit-location tokenizer would pass the full numeric suffix to range validation.
+    observed: >-
+      It excluded punctuation from the suffix, so path.ts:1.5, path.ts:1..2,
+      and path.ts:1,2 could validate only the prefix line 1.
+  - kind: choice
+    at: 2026-09-15T17:34:49Z
+    chose: >-
+      Capture the complete explicit suffix and accept only a numeric range with
+      at most one terminal sentence punctuation mark.
+    because: >-
+      A single terminal mark permits ordinary prose while rejecting an added
+      numeric component or a second punctuation mark conservatively.

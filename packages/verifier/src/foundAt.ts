@@ -5,7 +5,7 @@ const PATH_CHARS = /[A-Za-z0-9_./-]+/g;
 const TRAILING_PUNCTUATION = /[.,;:]+$/;
 const HAS_KNOWN_EXTENSION = /\.(ts|tsx|json|ya?ml|md|js)$/;
 const STARTS_A_COMMAND = /^\$\s/m;
-const EXPLICIT_LOCATION = /([A-Za-z0-9_./-]+):([^\s`"',.;!?)]*)/g;
+const EXPLICIT_LOCATION = /([A-Za-z0-9_./-]+):([^\s`"]*)/g;
 
 interface ExplicitLocation {
   readonly source: string;
@@ -63,8 +63,9 @@ function quotedSubstrings(text: string, explicitLocation: string | undefined): r
 }
 
 function parseLineRange(suffix: string): LineRange | undefined {
-  if (!/^\d+(?:-\d+)?$/.test(suffix)) return undefined;
-  const values = suffix.split("-").map((value) => Number(value));
+  if (!/^\d+(?:-\d+)?[.,;!?]?$/.test(suffix)) return undefined;
+  const range = /[.,;!?]$/.test(suffix) ? suffix.slice(0, -1) : suffix;
+  const values = range.split("-").map((value) => Number(value));
   const start = values[0];
   const end = values[1] ?? start;
   if (

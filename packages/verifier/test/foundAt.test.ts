@@ -157,6 +157,9 @@ describe("checkFoundAt", () => {
       'packages/ledger/src/mark.ts:2-1 "rooted"',
       'packages/ledger/src/mark.ts:5 "rooted"',
       'packages/ledger/src/mark.ts:1- "rooted"',
+      'packages/ledger/src/mark.ts:1.5 "rooted"',
+      'packages/ledger/src/mark.ts:1..2 "rooted"',
+      'packages/ledger/src/mark.ts:1,2 "rooted"',
       'missing.ts:1 "rooted"',
     ];
     for (const foundAt of locations) {
@@ -168,6 +171,18 @@ describe("checkFoundAt", () => {
     const { dir, sha } = repoWithSession();
     const result = checkFoundAt(
       'packages/ledger/src/mark.ts:1 "rooted" crlf.ts:2 "second"',
+      dir,
+      sha,
+      "0001-bootstrap",
+      DERIVATION,
+    );
+    expect(result.kind).toBe("unrooted");
+  });
+
+  it("unroots one explicit location with two separate quotations", () => {
+    const { dir, sha } = repoWithSession();
+    const result = checkFoundAt(
+      'packages/ledger/src/mark.ts:1 "rooted" "boundary"',
       dir,
       sha,
       "0001-bootstrap",
