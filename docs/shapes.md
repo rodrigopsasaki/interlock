@@ -1051,40 +1051,20 @@ No vocabulary entry for `notes`.
 
 #### `notes@v0`
 
-Source: `.interlock/sessions/0008-learning-witness/prove-delivery/notes.yaml`
+Source: `.interlock/sessions/0019-next-briefing-strategy/propose-next-briefs/notes.yaml`
 
 ```yaml
 interlock: notes@v0
-node: prove-delivery
+node: propose-next-briefs
 entries:
-  - kind: surprise
-    at: "2026-09-14T22:52:11Z"
-    expected: The earlier session state would include this node's notes artifact.
-    observed: The generated brief was committed, but notes.yaml was absent from the node directory.
   - kind: choice
-    at: "2026-09-14T22:52:11Z"
-    chose: Inspect the existing delivery implementation and its focused proofs against every graph acceptance obligation before changing code.
-    because: This bounded repair inherits code from the held slot-5 candidate, and the graph requires actual production seams and discriminating failure proof rather than a replacement implementation.
-  - kind: surprise
-    at: "2026-09-14T22:53:16Z"
-    expected: The focused checks would run under the repository's pinned Node 24.14.0 runtime.
-    observed: The prepared environment ran Node 26.0.0 and pnpm warned about the engine mismatch, although the deterministic runner, ledger, and response-detail checks passed.
+    at: "2026-09-15T21:48:09Z"
+    chose: "Treat the supplied outcome classifications as claims to check against the retained reports, audit, and current source."
+    because: "The brief makes those materials inputs rather than authority, while the proposal must identify exact evidence and avoid treating rooted location or gate history as semantic truth."
   - kind: choice
-    at: "2026-09-14T22:53:16Z"
-    chose: Keep deterministic proof local and defer listener-dependent absorb checks to the harness.
-    because: The brief identifies local listeners as unavailable in this sandbox, while the runner and ledger seams can be tested without a receiver and must receive the failure-matrix coverage.
-  - kind: choice
-    at: "2026-09-14T22:54:13Z"
-    chose: Make acknowledged delivery a distinct type requiring its retained acknowledgment and expose lookup only through verified artifact reads.
-    because: The graph requires the missing-proof state to be refused rather than represented, and a reference alone is not evidence until its envelope, byte count, and SHA-256 all verify.
-  - kind: surprise
-    at: "2026-09-14T22:57:54Z"
-    expected: The new focused files would already meet the repository formatter's layout rules.
-    observed: The lint gate found formatting-only differences in the added proof and boundary files; the formatter made no semantic changes.
-  - kind: surprise
-    at: "2026-09-14T22:58:36Z"
-    expected: The schema reference would be fresh immediately after its first regeneration.
-    observed: Its first final-head check reported a difference at line 1151; a second regeneration and check were fresh, matching the known generated-reference behavior in the earlier session record.
+    at: "2026-09-15T21:49:09Z"
+    chose: "Propose one brief-content change, one comparison-orchestration change, and one separate product-regression brief; do not install retained context as policy."
+    because: "The retained evidence shows a traceable checked use in one report and no established report-level use in the other, while sequential execution and a breached read boundary prevent an improvement or causal conclusion."
 ```
 
 ## position
