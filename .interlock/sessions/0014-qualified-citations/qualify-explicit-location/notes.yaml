@@ -57,3 +57,18 @@ entries:
     because: >-
       A single terminal mark permits ordinary prose while rejecting an added
       numeric component or a second punctuation mark conservatively.
+  - kind: choice
+    at: 2026-09-15T20:49:32Z
+    chose: >-
+      Add committed-source fixtures for the final real line with and without a
+      trailing newline, use ordinary prose with terminal comma and semicolon
+      citation punctuation, and pair each success with its immediately
+      out-of-bounds next line.
+    because: >-
+      foundAt.ts removes only the terminal split artifact for newline-terminated
+      content; these assertions distinguish that behavior from accepting a
+      nonexistent trailing line while exercising the supported prose grammar.
+    rejected: >-
+      Altering line parsing or its supported suffix grammar, because the
+      existing implementation already expresses the required behavior and the
+      authorized repair is fixture proof only.

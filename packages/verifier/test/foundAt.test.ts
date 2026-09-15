@@ -31,6 +31,7 @@ function repoWithSession(): { readonly dir: string; readonly sha: string } {
     ].join("\n"),
   );
   writeFileSync(join(directory, "crlf.ts"), "first\r\nsecond\r\nthird\r\n");
+  writeFileSync(join(directory, "no-final-newline.ts"), "first\nlast exact");
   mkdirSync(join(directory, ".interlock/sessions/0001-bootstrap/other"), {
     recursive: true,
   });
@@ -135,6 +136,47 @@ describe("checkFoundAt", () => {
     const { dir, sha } = repoWithSession();
     const result = checkFoundAt('crlf.ts:2 "second"', dir, sha, "0001-bootstrap", DERIVATION);
     expect(result).toEqual(expect.objectContaining({ kind: "rooted", hunk: "crlf.ts" }));
+  });
+
+  it("roots exact final real lines and rejects each adjacent out-of-bounds line", () => {
+    const { dir, sha } = repoWithSession();
+    const finalLineWithNewline = checkFoundAt(
+      'The final declaration is at packages/ledger/src/mark.ts:3, with "export const stale".',
+      dir,
+      sha,
+      "0001-bootstrap",
+      DERIVATION,
+    );
+    const finalLineWithoutNewline = checkFoundAt(
+      'The final line in no-final-newline.ts:2; is "last exact".',
+      dir,
+      sha,
+      "0001-bootstrap",
+      DERIVATION,
+    );
+    const beyondNewlineTerminatedFile = checkFoundAt(
+      'packages/ledger/src/mark.ts:4 "export const stale"',
+      dir,
+      sha,
+      "0001-bootstrap",
+      DERIVATION,
+    );
+    const beyondNonTerminatedFile = checkFoundAt(
+      'no-final-newline.ts:3 "last exact"',
+      dir,
+      sha,
+      "0001-bootstrap",
+      DERIVATION,
+    );
+
+    expect(finalLineWithNewline).toEqual(
+      expect.objectContaining({ kind: "rooted", hunk: "packages/ledger/src/mark.ts" }),
+    );
+    expect(finalLineWithoutNewline).toEqual(
+      expect.objectContaining({ kind: "rooted", hunk: "no-final-newline.ts" }),
+    );
+    expect(beyondNewlineTerminatedFile.kind).toBe("unrooted");
+    expect(beyondNonTerminatedFile.kind).toBe("unrooted");
   });
 
   it("unroots an explicit quote outside its declared range even when it appears elsewhere", () => {
