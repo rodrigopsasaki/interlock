@@ -88,6 +88,7 @@ function frontMatterRecord(frontMatter: BriefFrontMatter): Record<string, unknow
     role: frontMatter.role,
     gates: frontMatter.gates.map(gateRecord),
     scope: frontMatter.scope,
+    ...(frontMatter.contextScope === undefined ? {} : { context_scope: frontMatter.contextScope }),
     substrate: {
       address: frontMatter.substrate.address,
       ...(frontMatter.substrate.handle === undefined

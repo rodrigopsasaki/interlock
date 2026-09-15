@@ -34,6 +34,11 @@ export type SessionBriefRefusal =
   | { readonly kind: "read"; readonly refusal: BriefRefusal }
   | { readonly kind: "legacy"; readonly graph: string; readonly node: string }
   | {
+      readonly kind: "context-scope-not-tracked";
+      readonly path: string;
+      readonly selectedPath: string;
+    }
+  | {
       readonly kind: "write-failed";
       readonly path: string;
       readonly because: string;
@@ -45,6 +50,8 @@ export function explainSessionBriefRefusal(refusal: SessionBriefRefusal): string
       return explainBriefRefusal(refusal.refusal);
     case "legacy":
       return `brief for ${refusal.graph}/${refusal.node} is brief@v0; the runner requires brief@v1; add front matter`;
+    case "context-scope-not-tracked":
+      return `${refusal.path}: context_scope path "${refusal.selectedPath}" is not an exact tracked path.`;
     case "write-failed":
       return `${refusal.path}: ${refusal.because}`;
   }
@@ -67,6 +74,16 @@ export async function writeBriefIntoWorktree(
 
   const authoritativeGates = authoritativeBriefGates(standing, nodeGates);
   const authoritativeScope = gitTrackedFiles(repoRoot);
+  const contextScope = read.value.frontMatter.contextScope ?? authoritativeScope;
+  const tracked = new Set(authoritativeScope);
+  const missingSelectedPath = contextScope.find((path) => !tracked.has(path));
+  if (missingSelectedPath !== undefined) {
+    return err({
+      kind: "context-scope-not-tracked",
+      path: briefPath(repoRoot, graph, node),
+      selectedPath: missingSelectedPath,
+    });
+  }
   const narration = [
     ...diffGates(read.value.frontMatter.gates, authoritativeGates),
     ...diffScope(read.value.frontMatter.scope, authoritativeScope),
@@ -74,7 +91,7 @@ export async function writeBriefIntoWorktree(
 
   const contextOutcome = await substrate.context(
     { graph, id: node },
-    authoritativeScope,
+    contextScope,
     read.value.frontMatter.role,
   );
   narration.push(narrateContext(substrate.address, contextOutcome));

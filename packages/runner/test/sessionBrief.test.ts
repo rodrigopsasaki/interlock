@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { isErr, isOk } from "@phyxiusjs/fp";
-import { readBriefFile } from "debrief";
+import { type Item, readBriefFile } from "debrief";
 import type { GateDeclaration } from "face";
 import { noneClient, type SubstrateClient } from "substrate";
 import { afterEach, describe, expect, it } from "vitest";
@@ -135,6 +135,162 @@ describe("writeBriefIntoWorktree", () => {
     expect(result.value.openingView).not.toContain("  - tracked.ts");
   });
 
+  it("uses a valid context_scope for context while preserving the full canonical scope", async () => {
+    const selected = v1WithMatchingGatesAndScope.replace(
+      "substrate:\n  address: none",
+      "context_scope:\n  - tracked.ts\nsubstrate:\n  address: none",
+    );
+    const { repo, worktree } = fixture(selected);
+    let requestedScope: readonly string[] | undefined;
+    const capturedSubstrate: SubstrateClient = {
+      address: "http://captured.example",
+      context: (_node, scope) => {
+        requestedScope = scope;
+        return Promise.resolve({ kind: "empty" });
+      },
+      absorb: () => Promise.resolve({ kind: "empty" }),
+      capabilities: () => Promise.resolve([]),
+    };
+    const result = await writeBriefIntoWorktree(
+      repo,
+      worktree,
+      "g",
+      "n",
+      "b".repeat(40),
+      "session-1",
+      standing,
+      nodeGates,
+      capturedSubstrate,
+    );
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) return;
+    expect(requestedScope).toEqual(["tracked.ts"]);
+    const written = await readBriefFile(briefPath(worktree, "g", "n"));
+    if (!isOk(written) || written.value.kind !== "v1") throw new Error("expected v1");
+    expect(written.value.frontMatter.scope).toEqual([
+      ".interlock/sessions/g/n/brief.md",
+      "tracked.ts",
+    ]);
+    expect(written.value.frontMatter.contextScope).toEqual(["tracked.ts"]);
+    expect(result.value.openingView).toContain("context_scope:");
+    expect(result.value.openingView).toContain("  - tracked.ts");
+  });
+
+  it("refuses an untracked context_scope before calling the substrate", async () => {
+    const selected = v1WithMatchingGatesAndScope.replace(
+      "substrate:\n  address: none",
+      "context_scope:\n  - missing.ts\nsubstrate:\n  address: none",
+    );
+    const { repo, worktree } = fixture(selected);
+    let calls = 0;
+    const countedSubstrate: SubstrateClient = {
+      address: "http://captured.example",
+      context: () => {
+        calls += 1;
+        return Promise.resolve({ kind: "empty" });
+      },
+      absorb: () => Promise.resolve({ kind: "empty" }),
+      capabilities: () => Promise.resolve([]),
+    };
+    const result = await writeBriefIntoWorktree(
+      repo,
+      worktree,
+      "g",
+      "n",
+      "b".repeat(40),
+      "session-1",
+      standing,
+      nodeGates,
+      countedSubstrate,
+    );
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) return;
+    expect(explainSessionBriefRefusal(result.error)).toContain('context_scope path "missing.ts"');
+    expect(calls).toBe(0);
+  });
+
+  it("refuses a reader-safe context_scope alias that is not an exact tracked path", async () => {
+    const selected = v1WithMatchingGatesAndScope.replace(
+      "substrate:\n  address: none",
+      "context_scope:\n  - tracked/../tracked.ts\nsubstrate:\n  address: none",
+    );
+    const { repo, worktree } = fixture(selected);
+    let calls = 0;
+    const countedSubstrate: SubstrateClient = {
+      address: "http://captured.example",
+      context: () => {
+        calls += 1;
+        return Promise.resolve({ kind: "empty" });
+      },
+      absorb: () => Promise.resolve({ kind: "empty" }),
+      capabilities: () => Promise.resolve([]),
+    };
+    const result = await writeBriefIntoWorktree(
+      repo,
+      worktree,
+      "g",
+      "n",
+      "b".repeat(40),
+      "session-1",
+      standing,
+      nodeGates,
+      countedSubstrate,
+    );
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) return;
+    expect(explainSessionBriefRefusal(result.error)).toContain("not an exact tracked path");
+    expect(calls).toBe(0);
+  });
+
+  it("uses the full tracked scope for an addressed legacy query without context_scope", async () => {
+    const { repo, worktree } = fixture(v1WithMatchingGatesAndScope);
+    let requestedScope: readonly string[] | undefined;
+    const capturedSubstrate: SubstrateClient = {
+      address: "http://captured.example",
+      context: (_node, scope) => {
+        requestedScope = scope;
+        return Promise.resolve({ kind: "empty" });
+      },
+      absorb: () => Promise.resolve({ kind: "empty" }),
+      capabilities: () => Promise.resolve([]),
+    };
+    const result = await writeBriefIntoWorktree(
+      repo,
+      worktree,
+      "g",
+      "n",
+      "b".repeat(40),
+      "session-1",
+      standing,
+      nodeGates,
+      capturedSubstrate,
+    );
+    expect(isOk(result)).toBe(true);
+    expect(requestedScope).toEqual([".interlock/sessions/g/n/brief.md", "tracked.ts"]);
+  });
+
+  it("accepts a valid context_scope without an addressed substrate", async () => {
+    const selected = v1WithMatchingGatesAndScope.replace(
+      "substrate:\n  address: none",
+      "context_scope:\n  - tracked.ts\nsubstrate:\n  address: none",
+    );
+    const { repo, worktree } = fixture(selected);
+    const result = await writeBriefIntoWorktree(
+      repo,
+      worktree,
+      "g",
+      "n",
+      "b".repeat(40),
+      "session-1",
+      standing,
+      nodeGates,
+      substrate,
+    );
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) return;
+    expect(result.value.narration).toEqual(["context none: no substrate addressed"]);
+  });
+
   it("rewrites and narrates when the repository copy's gates are stale", async () => {
     const stale = v1WithMatchingGatesAndScope.replace(
       "  - id: own-gate\n    kind: command\n    run: pnpm test\n",
@@ -221,18 +377,17 @@ const v1WithContextSliceSection = [
 ].join("\n");
 
 function fakeSubstrateAt(address: string): SubstrateClient {
+  const item: Item = {
+    kind: "convention",
+    statement: "commits state the why in the subject",
+    derivation: "human:Rodrigo Sasaki",
+  };
   return {
     address,
     context: () =>
       Promise.resolve({
         kind: "rendered",
-        items: [
-          {
-            kind: "convention" as const,
-            statement: "commits state the why in the subject",
-            derivation: "human:Rodrigo Sasaki",
-          },
-        ],
+        items: [item],
         vocabulary: "reference@v1",
       }),
     absorb: () => Promise.resolve({ kind: "empty" }),

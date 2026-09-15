@@ -130,6 +130,19 @@ describe("readBriefFile", () => {
     });
   });
 
+  it("reads an optional context_scope separately from the full scope", async () => {
+    const selected = v1FrontMatter.replace(
+      "substrate:\n  address: none\n---",
+      "context_scope:\n  - packages/x.ts\nsubstrate:\n  address: none\n---",
+    );
+    const path = write(selected);
+    const result = await readBriefFile(path);
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result) || result.value.kind !== "v1") throw new Error("expected v1");
+    expect(result.value.frontMatter.scope).toEqual(["packages/x.ts"]);
+    expect(result.value.frontMatter.contextScope).toEqual(["packages/x.ts"]);
+  });
+
   it("refuses graph_base_sha present without session", async () => {
     const partial = v1FrontMatter.replace(
       "substrate:\n  address: none\n---",
@@ -188,6 +201,74 @@ describe("readBriefFile", () => {
     expect(isErr(result)).toBe(true);
     if (!isErr(result)) return;
     expect(explainBriefRefusal(result.error)).toContain("scope[0]");
+  });
+
+  it.each([
+    ["a scalar", "context_scope: packages/x.ts"],
+    ["a mixed list", "context_scope: [packages/x.ts, 3]"],
+    ["null", "context_scope: null"],
+    ["an empty list", "context_scope: []"],
+  ])("refuses context_scope with %s", async (_name, contextScope) => {
+    const empty = write(
+      v1FrontMatter.replace(
+        "substrate:\n  address: none",
+        `${contextScope}\nsubstrate:\n  address: none`,
+      ),
+    );
+    const emptyResult = await readBriefFile(empty);
+    expect(isErr(emptyResult)).toBe(true);
+    if (!isErr(emptyResult)) return;
+    expect(explainBriefRefusal(emptyResult.error)).toContain("context_scope");
+  });
+
+  it("refuses duplicate context_scope entries", async () => {
+    const duplicate = write(
+      v1FrontMatter.replace(
+        "substrate:\n  address: none",
+        "context_scope:\n  - packages/x.ts\n  - packages/x.ts\nsubstrate:\n  address: none",
+      ),
+    );
+    const duplicateResult = await readBriefFile(duplicate);
+    expect(isErr(duplicateResult)).toBe(true);
+    if (!isErr(duplicateResult)) return;
+    expect(explainBriefRefusal(duplicateResult.error)).toContain("duplicate path");
+  });
+
+  it("uses the existing normalized path rule for context_scope", async () => {
+    const normalized = write(
+      v1FrontMatter.replace(
+        "substrate:\n  address: none",
+        "context_scope:\n  - packages/a/../x.ts\nsubstrate:\n  address: none",
+      ),
+    );
+    const result = await readBriefFile(normalized);
+    expect(isOk(result)).toBe(true);
+  });
+
+  it("refuses a context_scope path that escapes the repository root", async () => {
+    const path = write(
+      v1FrontMatter.replace(
+        "substrate:\n  address: none",
+        "context_scope:\n  - ../outside.ts\nsubstrate:\n  address: none",
+      ),
+    );
+    const result = await readBriefFile(path);
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) return;
+    expect(explainBriefRefusal(result.error)).toContain("context_scope[0]");
+  });
+
+  it("refuses an absolute context_scope path", async () => {
+    const path = write(
+      v1FrontMatter.replace(
+        "substrate:\n  address: none",
+        "context_scope:\n  - /etc/passwd\nsubstrate:\n  address: none",
+      ),
+    );
+    const result = await readBriefFile(path);
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) return;
+    expect(explainBriefRefusal(result.error)).toContain("context_scope[0]");
   });
 });
 

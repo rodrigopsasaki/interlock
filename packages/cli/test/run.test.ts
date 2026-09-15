@@ -583,12 +583,29 @@ describe("interlock run", () => {
   }, 30_000);
 
   it("sends a concise prompt projection after committing a complete 3000-path canonical brief", async () => {
-    const cwd = fixture({ withBrief: false });
+    server = await startFakeSubstrateServer();
+    server.responseFor("context", { items: [], vocabulary: "reference@v1" });
+    const cwd = fixture({
+      withBrief: false,
+      localYaml: localYamlFor(server.url, false),
+    });
     const authoredBrief = join(cwd, ".interlock", "sessions", "demo", "a", "brief.md");
     mkdirSync(dirname(authoredBrief), { recursive: true });
     writeFileSync(
       authoredBrief,
-      demoBriefV1.replace("# brief", "# brief\n\nRetain body/retained.txt in the opening view."),
+      demoBriefV1
+        .replace(
+          "substrate:\n  address: none",
+          [
+            "context_scope:",
+            "  - body/retained.txt",
+            "  - inventory/0000.txt",
+            "  - inventory/2999.txt",
+            "substrate:",
+            `  address: ${server.url}`,
+          ].join("\n"),
+        )
+        .replace("# brief", "# brief\n\nRetain body/retained.txt in the opening view."),
     );
     mkdirSync(join(cwd, "body"), { recursive: true });
     writeFileSync(join(cwd, "body", "retained.txt"), "body path\n");
@@ -645,6 +662,17 @@ describe("interlock run", () => {
       ...inventoryPaths,
     ];
     expect(canonical.value.frontMatter.scope).toEqual(expectedScope);
+    expect(canonical.value.frontMatter.contextScope).toEqual([
+      "body/retained.txt",
+      "inventory/0000.txt",
+      "inventory/2999.txt",
+    ]);
+    expect(server.calls).toHaveLength(1);
+    expect(server.calls[0]?.body).toEqual({
+      node: { graph: "demo", id: "a" },
+      scope: ["body/retained.txt", "inventory/0000.txt", "inventory/2999.txt"],
+      role: "worker",
+    });
 
     const journal = readFileSync(join(cwd, ".interlock", "ledger", "journal.jsonl"), "utf-8");
     const started = journal
@@ -667,7 +695,7 @@ describe("interlock run", () => {
     expect(prompt).toContain("role: worker");
     expect(prompt).toContain("id: standing");
     expect(prompt).toContain('run: "true"');
-    expect(prompt).toContain("address: none");
+    expect(prompt).toContain(`address: ${server.url}`);
     expect(prompt).toMatch(/graph_base_sha: [0-9a-f]{40}/);
     expect(prompt).toMatch(/session: [0-9a-f-]{36}/);
     expect(prompt).toContain("scope_count: 3005");
@@ -677,9 +705,16 @@ describe("interlock run", () => {
         .digest("hex")}`,
     );
     expect(prompt).toContain("scope_serialization: UTF-8 JSON.stringify(scope)");
+    expect(prompt).toContain("context_scope:");
+    expect(prompt).toContain("  - body/retained.txt");
+    expect(prompt).toContain("  - inventory/0000.txt");
+    expect(prompt).toContain("  - inventory/2999.txt");
     expect(prompt).toContain("canonical_path: .interlock/sessions/demo/a/brief.md");
     expect(prompt).toContain("Retain body/retained.txt in the opening view.");
-    expect(prompt).not.toContain("inventory/");
+    for (const path of inventoryPaths) {
+      if (path === "inventory/0000.txt" || path === "inventory/2999.txt") continue;
+      expect(prompt).not.toContain(path);
+    }
   }, 30_000);
 
   it("writes the brief into the worktree even though it is not yet committed in the repository", async () => {

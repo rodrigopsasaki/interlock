@@ -10,7 +10,14 @@ import { isRecord, isString, isStringArray, prop } from "./validate.ts";
 
 export const BRIEF_V1 = "brief@v1";
 
-const V1_REQUIRED_FIELDS = ["graph", "node", "role", "gates", "scope", "substrate"] as const;
+const V1_REQUIRED_FIELDS: readonly string[] = [
+  "graph",
+  "node",
+  "role",
+  "gates",
+  "scope",
+  "substrate",
+];
 
 export type BriefRunnerFields =
   | { readonly kind: "repository" }
@@ -26,6 +33,7 @@ export interface BriefFrontMatter {
   readonly role: string;
   readonly gates: readonly BriefGate[];
   readonly scope: readonly string[];
+  readonly contextScope?: readonly string[];
   readonly substrate: BriefSubstrate;
   readonly runner: BriefRunnerFields;
 }
@@ -135,6 +143,30 @@ function parseScope(
   return ok(raw);
 }
 
+function parseContextScope(
+  parsed: Record<string, unknown>,
+  path: string,
+): Result<readonly string[] | undefined, BriefRefusal> {
+  const raw = prop(parsed, "context_scope");
+  if (raw === undefined) return ok(undefined);
+  if (!isStringArray(raw) || raw.length === 0) {
+    return invalid(path, '"context_scope" must be a non-empty list of strings');
+  }
+  const selected = new Set<string>();
+  for (const [index, entry] of raw.entries()) {
+    if (selected.has(entry))
+      return invalid(path, `context_scope[${index}]: duplicate path "${entry}"`);
+    if (!isValidScopePath(entry)) {
+      return invalid(
+        path,
+        `context_scope[${index}]: "${entry}" is absolute or escapes the repository root`,
+      );
+    }
+    selected.add(entry);
+  }
+  return ok(raw);
+}
+
 function parseRunnerFields(
   parsed: Record<string, unknown>,
   path: string,
@@ -178,6 +210,9 @@ function parseV1(
   const scope = parseScope(parsed, path);
   if (isErr(scope)) return scope;
 
+  const contextScope = parseContextScope(parsed, path);
+  if (isErr(contextScope)) return contextScope;
+
   const substrate = parseBriefSubstrate(prop(parsed, "substrate"));
   if (isErr(substrate)) return invalid(path, substrate.error);
 
@@ -192,6 +227,7 @@ function parseV1(
       role,
       gates: gates.value,
       scope: scope.value,
+      ...(contextScope.value === undefined ? {} : { contextScope: contextScope.value }),
       substrate: substrate.value,
       runner: runner.value,
     },

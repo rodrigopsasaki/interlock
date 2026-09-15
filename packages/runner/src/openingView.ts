@@ -38,6 +38,11 @@ export function renderOpeningView(
     scope_count: frontMatter.scope.length,
     scope_sha256: createHash("sha256").update(scope, "utf8").digest("hex"),
     scope_serialization: "UTF-8 JSON.stringify(scope)",
+    ...(frontMatter.contextScope === undefined
+      ? {}
+      : {
+          context_scope: frontMatter.contextScope,
+        }),
     canonical_path: canonicalPath,
   };
   return (
