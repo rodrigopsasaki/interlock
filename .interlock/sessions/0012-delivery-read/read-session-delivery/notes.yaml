@@ -44,3 +44,16 @@ entries:
     rejected: >
       Relying on aggregate substring assertions, which prove terms are present
       but not that each retained artifact is attributed to its own effect.
+  - kind: surprise
+    at: 2026-09-15T00:42:19Z
+    expected: The complete workspace test gate would finish after the focused delivery proof passed.
+    observed: >
+      The substrate capabilities fixture timed out twice at its five-second
+      limit while the other completed packages passed; the brief warns that
+      local listeners can be denied, so the timeout was not retried or changed.
+  - kind: surprise
+    at: 2026-09-15T00:43:17Z
+    expected: The required schema reference command would verify docs/shapes.md.
+    observed: >
+      The generator and its --check completed; its final tracked output had no
+      docs/shapes.md diff.

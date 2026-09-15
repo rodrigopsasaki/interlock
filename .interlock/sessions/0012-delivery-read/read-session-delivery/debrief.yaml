@@ -1,0 +1,98 @@
+interlock: debrief@v2
+graph: 0012-delivery-read
+node: read-session-delivery
+role: worker
+graph_base_sha: 7a3f3b9c5e1569ed72f662ee7253a182e2355830
+session_start_sha: 7519879aee2fcda39ff6d67a7c136d449df917a4
+head_sha: 0894d6457175edcb19875f8b4158745539535bd6
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries: []
+decisions:
+  - id: delivery-branch
+    what: >
+      Added the opt-in evidence G N --delivery [--session S] branch after
+      replay and exact session selection but before the ordinary judged-session
+      guard; delivery-mode options are strictly validated while ordinary calls
+      retain their existing option path.
+    because: >
+      A retained intent may be all a crash left behind, and the existing
+      evidence read must remain byte-for-byte compatible outside the opt-in.
+    rests_on:
+      - .interlock/graphs/0012-delivery-read.yaml
+      - packages/cli/src/evidence.ts
+    hunks:
+      - packages/cli/src/evidence.ts:30-75
+      - packages/cli/src/evidence.ts:112-170
+  - id: retained-view
+    what: >
+      Filtered replayed outbox intents by the selected graph, node, and session
+      and called readOutboxEvidence for each one. The rendered discriminated
+      view gives state acknowledged or uncertain only for verified evidence;
+      missing and corrupt evidence give their retained ref without a delivery
+      state.
+    because: >
+      Delivery evidence must be read from its retained artifacts rather than
+      reconstructed from current receipts, configuration, or a substrate.
+    rests_on:
+      - packages/ledger/src/outbox.ts
+      - packages/cli/src/evidence.ts
+    hunks:
+      - packages/cli/src/evidence.ts:49-75
+      - packages/cli/src/evidence.ts:159-215
+  - id: retained-artifact-proof
+    what: >
+      Added real-ledger fixtures for crash-state acknowledgement, intent-only
+      and explicit uncertainty, missing and corrupt request and acknowledgment
+      artifacts, exact graph/node/session isolation, latest-session default,
+      no selected session/effect, strict malformed options, ordinary-output
+      compatibility, and sentinel-secret exclusion.
+    because: >
+      The public delivery read needs proof over retained artifact files and
+      journal replay, not mocked reader responses.
+    rests_on:
+      - .interlock/graphs/0012-delivery-read.yaml
+      - packages/cli/test/evidence.test.ts
+    hunks:
+      - packages/cli/test/evidence.test.ts:152-192
+      - packages/cli/test/evidence.test.ts:356-547
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: All eight workspace packages passed strict TypeScript checking.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Biome checked 318 files without diagnostics.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+    note: packages/*/src reported no comments.
+  - id: delivery-read-proof
+    result: pass
+    invocation: mise exec -- pnpm --filter cli --fail-if-no-match exec vitest run test/evidence.test.ts --reporter=verbose
+    note: Eleven focused CLI evidence cases passed.
+  - id: test
+    result: fail
+    invocation: mise exec -- pnpm test
+    note: >
+      Ledger, face, debrief, verifier, and the completed substrate cases passed,
+      but two substrate capabilities cases timed out at their existing
+      five-second limit; no listener workaround or timeout change was attempted.
+  - id: debrief-valid
+    result: pass
+    invocation: mise exec -- pnpm interlock debrief validate 0012-delivery-read read-session-delivery
+    note: The final debrief and notes validate against their current schemas.
+  - id: shape-reference
+    result: pass
+    invocation: mise exec -- pnpm interlock schema reference && mise exec -- pnpm interlock schema reference --check
+    note: The generator and freshness check passed with no final docs/shapes.md diff.
+open:
+  - >
+    The delivery-read acceptance is met by the committed CLI branch and focused
+    retained-artifact proof. The complete test gate remains unmet locally
+    because the substrate capabilities fixture timed out in this environment;
+    the harness must produce the standing-gate receipt.
