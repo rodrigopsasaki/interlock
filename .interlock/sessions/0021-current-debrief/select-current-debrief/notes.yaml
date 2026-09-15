@@ -1,0 +1,27 @@
+interlock: notes@v0
+node: select-current-debrief
+entries:
+  - kind: surprise
+    at: "2026-09-15T23:11:17Z"
+    expected: The generated session would already contain its notes artifact.
+    observed: notes.yaml was absent, so this file was created before implementation work.
+  - kind: choice
+    at: "2026-09-15T23:11:17Z"
+    chose: Keep legacy debrief readers unchanged and add an explicit v2-only revision-selection operation in the artifact package.
+    because: Existing validation and runner ingestion retain their canonical and legacy behavior, while the new command must select only an authored session-compatible v2 debrief.
+  - kind: surprise
+    at: "2026-09-15T23:11:17Z"
+    expected: The immutable brief's fetched context would be rendered as a Context slice for this session.
+    observed: Root confirmed that the brief has no Context slice section, so no received-context use can be claimed and composition behavior remains outside this node's scope.
+  - kind: surprise
+    at: "2026-09-15T23:15:35Z"
+    expected: The shared focused-test command would address both packages with the same test-relative path.
+    observed: The CLI test is nested under test/debrief, so the debrief path selected no CLI file; the artifact-package proof passed and the CLI test will be rerun at its package-relative path.
+  - kind: choice
+    at: "2026-09-15T23:15:54Z"
+    chose: Put revision-selection guidance in the ordinary opening prompt and make its exact worker-prompt test name that behavior.
+    because: The prompt is the runner's normal handoff to workers, so it can direct explicit authored corrections without changing canonical or legacy readers.
+  - kind: choice
+    at: "2026-09-15T23:16:54Z"
+    chose: Archive the current debrief under its SHA-256 filename before a temporary-file rename installs selected candidate bytes.
+    because: Content-addressed retention preserves the exact prior artifact and an atomic replacement leaves the canonical debrief intact if the later write fails.

@@ -35,9 +35,12 @@ export { explainNotesRefusal, NOTES_V0, readNotesFile } from "./notes.ts";
 export {
   briefFilePath,
   debriefFilePath,
+  debriefRevisionsDirectory,
   notesFilePath,
   sessionDirectory,
 } from "./paths.ts";
+export type { DebriefRevisionOutcome, DebriefRevisionRefusal } from "./revise.ts";
+export { explainDebriefRevisionRefusal, reviseDebrief } from "./revise.ts";
 export { isPlainWord } from "./role.ts";
 export type { Item, ItemKind, ItemScope, ItemStanding } from "./slice.ts";
 export { renderSlice } from "./slice.ts";

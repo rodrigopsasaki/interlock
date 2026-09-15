@@ -2,13 +2,15 @@ import { describe, expect, it } from "vitest";
 import { buildOpeningPrompt } from "../src/openingPrompt.ts";
 
 describe("buildOpeningPrompt", () => {
-  it("preserves the legacy worker prompt exactly when no derived view is supplied", () => {
+  it("gives every worker the explicit debrief revision handoff", () => {
     expect(buildOpeningPrompt("g", "n")).toBe(
       "This is an interlock session for node n of graph g. " +
         "Your brief is at .interlock/sessions/g/n/brief.md in this worktree. " +
         "Read it first and treat it as binding. Work only in this worktree. " +
         "Append .interlock/sessions/g/n/notes.yaml at every choice and surprise, " +
         "commit as you go, and file .interlock/sessions/g/n/debrief.yaml as your final commit. " +
+        "When correcting an authored debrief, keep the correction in this session directory and run " +
+        "interlock debrief revise g n --from <candidate-path> to select it. " +
         "When the debrief is committed, stop and wait. " +
         "Keep scratch work under this package's test/.runs/ directory, never /tmp, and remove it " +
         "with plain rm, never rm -rf. " +
