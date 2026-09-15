@@ -9,7 +9,7 @@ What a session is given: node, acceptance, gates, context slice, role.
 ### Versions
 
 - `brief@v0`: the first version.
-- `brief@v1`: added `graph` (required); added `node` (required); added `role` (required); added `gates` (required); added `scope` (required); added `substrate` (required); added `graph_base_sha` (optional); added `session` (optional).
+- `brief@v1`: added `graph` (required); added `node` (required); added `role` (required); added `gates` (required); added `scope` (required); added `context_scope` (optional); added `substrate` (required); added `graph_base_sha` (optional); added `session` (optional).
 
 ### Fields (`brief@v1`)
 
@@ -21,6 +21,7 @@ What a session is given: node, acceptance, gates, context slice, role.
 | `role` | string matching `^\S+$` | yes |  |
 | `gates` | array of gate-declaration | yes | A gate as declared on a graph node, a graph, or a brief's front matter: an id, a kind, and an optional command and output check. A human gate carries no run. |
 | `scope` | array of string | yes |  |
+| `context_scope` | array of string | no |  |
 | `substrate` | object | yes | fields: address (string, required); handle (string, optional) |
 | `graph_base_sha` | string matching `^[0-9a-fA-F]{40}$` | no |  |
 | `session` | string | no |  |
