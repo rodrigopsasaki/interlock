@@ -29,3 +29,7 @@ entries:
     at: 2026-09-15T21:40:23Z
     chose: "File the outcome read with no discoveries."
     because: "The report interprets supplied comparison evidence and source-checks its consequential claims; treating supplied evidence or historical gate facts as new discoveries would fabricate a brief deficiency."
+  - kind: choice
+    at: 2026-09-15T21:41:41Z
+    chose: "Correct two bounded report statements and allow non-positive next-check outcomes."
+    because: "Independent source review established that the observation table contains brief sizes but not hashes, and that test-design-a selected three cases from an up-to-four-case ask. The next check must permit checked use, justified rejection, and no use without requiring a positive trace."

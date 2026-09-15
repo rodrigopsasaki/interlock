@@ -53,8 +53,9 @@ context bodies. Each returned one hypothesis, scoped to
 plus six observed coverage absences. The committed treatment contexts preserve
 that exact item in review-b's brief at final
 `674f9ad4d524c354999aa586def31c98ca575487` and test-design-b's brief at final
-`c4894f8ade801621040753533e5b55d7167b3d0f`; their full brief hashes and sizes
-are listed in the observations table. The other source hypothesis was scoped to
+`c4894f8ade801621040753533e5b55d7167b3d0f`; the supplied context and evidence
+artifacts retain their full brief hashes, while the observations table lists
+their sizes. The other source hypothesis was scoped to
 an unqueried notes hunk and did not reach either context. Historical source
 gate facts likewise did not reach either response. A correct scoped source
 claim being absent from this query is a coverage fact, not a refutation.
@@ -131,8 +132,9 @@ no-defect conclusion remains bounded to its inspected source and tests.
 
 ### Materially missed boundary and unsupported assertions
 
-Test-design-a omits the command/out-of-band sentinel distinction; under its
-three-case bounded ask, that is a limitation rather than a required addition.
+Test-design-a omits the command/out-of-band sentinel distinction; it selected
+three cases from an up-to-four-case bounded ask, so that is a limitation rather
+than a required addition.
 Test-design-b omits an end-to-end unrooted-decision case and gives a wrong-range
 fixture whose one-line input cannot distinguish an in-bounds wrong line from an
 out-of-bounds line. Its first displayed source quotation also joins separate
@@ -194,8 +196,8 @@ and a source-checked debrief use; that trace alone does not establish
 report-level use in every case, improved work, or causal benefit. Equal and
 qualified outcomes remain evidence.
 
-The next unanswered question is whether a cleanly isolated later pair can make
-a predeclared, source-checked report-level use of a returned hypothesis while
-an assessment keeps conditions hidden enough to distinguish that use from
-ordinary source review. That would be a next check, not a change to runtime,
-gates, plans, trust settings, or strategy.
+The next unanswered question is whether a cleanly isolated later pair can yield
+a predeclared, source-checked report-level outcome—checked use, justified
+rejection, or no use—while an assessment keeps conditions hidden enough to
+distinguish that outcome from ordinary source review. That would be a next
+check, not a change to runtime, gates, plans, trust settings, or strategy.
