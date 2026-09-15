@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { isErr, isOk } from "@phyxiusjs/fp";
@@ -120,6 +121,18 @@ describe("writeBriefIntoWorktree", () => {
       graphBaseSha: sha,
       session: "session-1",
     });
+    expect(result.value.openingView).toContain("Prompt projection, not a brief file.");
+    expect(result.value.openingView).toContain("It deliberately omits scope entries");
+    expect(result.value.openingView).toContain("must not replace the canonical file");
+    expect(result.value.openingView).toContain("scope_count: 2");
+    expect(result.value.openingView).toContain(
+      `scope_sha256: ${createHash("sha256")
+        .update(JSON.stringify([".interlock/sessions/g/n/brief.md", "tracked.ts"]), "utf8")
+        .digest("hex")}`,
+    );
+    expect(result.value.openingView).toContain("scope_serialization: UTF-8 JSON.stringify(scope)");
+    expect(result.value.openingView).toContain("canonical_path: .interlock/sessions/g/n/brief.md");
+    expect(result.value.openingView).not.toContain("  - tracked.ts");
   });
 
   it("rewrites and narrates when the repository copy's gates are stale", async () => {
@@ -152,8 +165,11 @@ describe("writeBriefIntoWorktree", () => {
   });
 
   it("preserves the body verbatim", async () => {
-    const { repo, worktree } = fixture(v1WithMatchingGatesAndScope);
-    await writeBriefIntoWorktree(
+    const body = "\n# brief\n\nA blank line above remains.\n\n";
+    const { repo, worktree } = fixture(
+      v1WithMatchingGatesAndScope.replace("# brief\n", body.slice(1)),
+    );
+    const result = await writeBriefIntoWorktree(
       repo,
       worktree,
       "g",
@@ -165,7 +181,12 @@ describe("writeBriefIntoWorktree", () => {
       substrate,
     );
     const content = readFileSync(briefPath(worktree, "g", "n"), "utf-8");
-    expect(content).toContain("# brief");
+    const bodyStart = content.indexOf("\n---\n") + "\n---\n".length;
+    expect(bodyStart).toBeGreaterThan("\n---\n".length - 1);
+    expect(content.slice(bodyStart)).toBe(body);
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) return;
+    expect(result.value.openingView?.endsWith(body)).toBe(true);
   });
 });
 
@@ -248,6 +269,9 @@ describe("writeBriefIntoWorktree with a substrate that renders a slice", () => {
     // so the brief never tells a person it carried no substrate while its own body disagrees.
     expect(content).not.toContain("address: none");
     expect(content).toContain("address: http://fake-substrate.example");
+    const bodyStart = content.indexOf("\n---\n") + "\n---\n".length;
+    expect(bodyStart).toBeGreaterThan("\n---\n".length - 1);
+    expect(result.value.openingView?.endsWith(content.slice(bodyStart))).toBe(true);
   });
 
   it("leaves the committed front matter's address untouched when no slice was rendered", async () => {

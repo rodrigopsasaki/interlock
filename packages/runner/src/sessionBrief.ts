@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
+import { dirname, relative } from "node:path";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import {
   type BriefRefusal,
@@ -14,6 +14,7 @@ import type { Brief } from "ledger";
 import { narrateContext, type SubstrateClient } from "substrate";
 import { authoritativeBriefGates, diffGates, diffScope, renderBriefFile } from "./briefRewrite.ts";
 import { withRenderedContextSlice } from "./contextSlice.ts";
+import { renderOpeningView } from "./openingView.ts";
 import { gitTrackedFiles } from "./scope.ts";
 import type { StandingGate } from "./standingGates.ts";
 
@@ -26,6 +27,7 @@ export function briefExists(repoRoot: string, graph: string, node: string): bool
 export interface BriefWriteOutcome {
   readonly path: string;
   readonly narration: readonly string[];
+  readonly openingView?: string;
 }
 
 export type SessionBriefRefusal =
@@ -108,7 +110,18 @@ export async function writeBriefIntoWorktree(
       because: error instanceof Error ? error.message : String(error),
     });
   }
-  return ok({ path: destination, narration });
+  const written = await readBriefFile(destination);
+  if (isErr(written)) return err({ kind: "read", refusal: written.error });
+  if (written.value.kind === "legacy") return err({ kind: "legacy", graph, node });
+  return ok({
+    path: destination,
+    narration,
+    openingView: renderOpeningView(
+      written.value.frontMatter,
+      written.value.body,
+      relative(worktreePath, destination),
+    ),
+  });
 }
 
 export function buildBrief(

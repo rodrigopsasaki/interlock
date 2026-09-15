@@ -1,0 +1,47 @@
+interlock: notes@v0
+node: project-opening-view
+entries:
+  - kind: surprise
+    at: "2026-09-15T00:22:49Z"
+    expected: The generated session would already contain its notes artifact.
+    observed: notes.yaml was absent, so this file was created before implementation work.
+  - kind: choice
+    at: "2026-09-15T00:22:49Z"
+    chose: Render a transient opening view from the parsed canonical brief after it is written, then pass it through BriefWriteOutcome to sessionDrive.
+    because: This retains one authoritative committed brief and its complete scope while making the opening prompt a concise derived read with an explicit path back.
+  - kind: choice
+    at: "2026-09-15T00:22:49Z"
+    chose: Use Node's built-in SHA-256 over UTF-8 JSON.stringify of the parsed canonical scope array, with no added dependency.
+    because: The acceptance fixes that serialization and digest, and the runtime already supplies the required cryptographic primitive.
+  - kind: surprise
+    at: "2026-09-15T00:25:20Z"
+    expected: Appending the view to the existing prompt would leave the concise opening usable.
+    observed: The inherited read-it-first instruction would still direct workers to the full canonical brief before the view, defeating the intended opening read.
+  - kind: choice
+    at: "2026-09-15T00:25:20Z"
+    chose: Preserve the legacy brief-first sentence only when no view is available and direct view-mode sessions to the included derived view.
+    because: The canonical brief remains binding and on demand, while the initial worker read must be concise.
+  - kind: choice
+    at: "2026-09-15T00:26:11Z"
+    chose: Label the derived read as a prompt projection that deliberately omits scope entries and cannot replace the canonical brief.
+    because: It preserves canonical metadata and body without suggesting that an invalid transient projection is a persisted artifact.
+  - kind: surprise
+    at: "2026-09-15T00:26:44Z"
+    expected: The first focused test run would express the new prompt and raw-body assertions with available matchers and the fixture's intended body boundary.
+    observed: This Vitest version has no toEndWith matcher, and the canonical parser preserves the blank line after the front-matter divider as part of the body.
+  - kind: surprise
+    at: "2026-09-15T00:28:04Z"
+    expected: The required full CLI runtime test file would run its fixtures normally.
+    observed: Two existing substrate fixtures could not open localhost listeners under the environment's EPERM restriction, and Git commit signing prevented later fixtures from committing their generated brief. The listener-dependent full gate will require a harness receipt; the new non-listening case can run with commit signing disabled for that subprocess.
+  - kind: surprise
+    at: "2026-09-15T00:28:32Z"
+    expected: The raw-body test could call a projection method directly after a successful brief write.
+    observed: BriefWriteOutcome deliberately makes the projection optional for callers without a view, so strict TypeScript required the test assertion to narrow it.
+  - kind: choice
+    at: "2026-09-15T00:29:00Z"
+    chose: Assert the 3000-path inventory as the exact expected canonical scope and compare the rendered projection against the raw canonical body suffix.
+    because: These checks distinguish complete retention and byte-preserving body derivation from a coincidental count or normalized parse result.
+  - kind: surprise
+    at: "2026-09-15T00:29:45Z"
+    expected: The first lint pass after focused proofs would accept the changed files.
+    observed: Biome required only an import reorder and one test line wrap; no semantic diagnostic was reported.

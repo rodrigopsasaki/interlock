@@ -298,7 +298,10 @@ export async function driveInteractiveSession(
     }
     narrate("agent ready (idle)");
 
-    const prompted = await runtime.prompt(agent, buildOpeningPrompt(graph, node, priorWork, role));
+    const prompted = await runtime.prompt(
+      agent,
+      buildOpeningPrompt(graph, node, priorWork, role, briefWritten.value.openingView),
+    );
     if (isErr(prompted)) {
       const result = refuse("prompt", explainRuntimeRefusal(prompted.error));
       lease.stop();

@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
@@ -579,6 +580,106 @@ describe("interlock run", () => {
     expect(calls.indexOf("prompt")).toBeGreaterThan(calls.indexOf("reportIdentity"));
     expect(calls.indexOf("prompt")).toBeLessThan(calls.indexOf("waitUntil:working,blocked,done"));
     expect(promptText).toContain(".interlock/sessions/demo/a/brief.md");
+  }, 30_000);
+
+  it("sends a concise prompt projection after committing a complete 3000-path canonical brief", async () => {
+    const cwd = fixture({ withBrief: false });
+    const authoredBrief = join(cwd, ".interlock", "sessions", "demo", "a", "brief.md");
+    mkdirSync(dirname(authoredBrief), { recursive: true });
+    writeFileSync(
+      authoredBrief,
+      demoBriefV1.replace("# brief", "# brief\n\nRetain body/retained.txt in the opening view."),
+    );
+    mkdirSync(join(cwd, "body"), { recursive: true });
+    writeFileSync(join(cwd, "body", "retained.txt"), "body path\n");
+    mkdirSync(join(cwd, "inventory"), { recursive: true });
+    const inventoryPaths = Array.from(
+      { length: 3000 },
+      (_, index) => `inventory/${index.toString().padStart(4, "0")}.txt`,
+    );
+    for (const path of inventoryPaths) writeFileSync(join(cwd, path), "inventory path\n");
+    commitAll(cwd, "add opening-view inventory");
+    await runGraphApprove(["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"], { cwd });
+
+    const worktree = join(cwd, ".worktrees", "a");
+    let canonicalCommittedBeforePrompt = false;
+    let promptText: string | undefined;
+    const runtime: Runtime = {
+      ...stubRuntime(),
+      prompt: (agent, text) => {
+        try {
+          execFileSync(
+            "git",
+            ["diff", "--quiet", "HEAD", "--", ".interlock/sessions/demo/a/brief.md"],
+            { cwd: worktree },
+          );
+          canonicalCommittedBeforePrompt = true;
+        } catch {
+          canonicalCommittedBeforePrompt = false;
+        }
+        promptText = text;
+        return stubRuntime().prompt(agent, text);
+      },
+    };
+
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime,
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(canonicalCommittedBeforePrompt).toBe(true);
+    if (promptText === undefined) throw new Error("expected an opening prompt");
+    const prompt = promptText;
+    const canonical = await readBriefFile(
+      join(worktree, ".interlock", "sessions", "demo", "a", "brief.md"),
+    );
+    if (!isOk(canonical) || canonical.value.kind !== "v1") throw new Error("expected brief@v1");
+    const expectedScope = [
+      ".interlock/config.yaml",
+      ".interlock/graphs/demo.yaml",
+      ".interlock/local.yaml",
+      ".interlock/sessions/demo/a/brief.md",
+      "body/retained.txt",
+      ...inventoryPaths,
+    ];
+    expect(canonical.value.frontMatter.scope).toEqual(expectedScope);
+
+    const journal = readFileSync(join(cwd, ".interlock", "ledger", "journal.jsonl"), "utf-8");
+    const started = journal
+      .trim()
+      .split("\n")
+      .map((line): unknown => JSON.parse(line))
+      .filter(isLedgerEvent)
+      .find((event) => event.kind === "session-started");
+    if (started === undefined || started.kind !== "session-started") {
+      throw new Error("expected a session-started event in the journal");
+    }
+    expect(started.brief.scope).toEqual(canonical.value.frontMatter.scope);
+    expect(prompt).toContain("Prompt projection, not a brief file.");
+    expect(prompt).toContain("It deliberately omits scope entries");
+    expect(prompt).toContain("must not replace the canonical file");
+    expect(prompt).not.toContain("Read it first and treat it as binding.");
+    expect(prompt).toContain("interlock: brief@v1");
+    expect(prompt).toContain("graph: demo");
+    expect(prompt).toContain("node: a");
+    expect(prompt).toContain("role: worker");
+    expect(prompt).toContain("id: standing");
+    expect(prompt).toContain('run: "true"');
+    expect(prompt).toContain("address: none");
+    expect(prompt).toMatch(/graph_base_sha: [0-9a-f]{40}/);
+    expect(prompt).toMatch(/session: [0-9a-f-]{36}/);
+    expect(prompt).toContain("scope_count: 3005");
+    expect(prompt).toContain(
+      `scope_sha256: ${createHash("sha256")
+        .update(JSON.stringify(canonical.value.frontMatter.scope), "utf8")
+        .digest("hex")}`,
+    );
+    expect(prompt).toContain("scope_serialization: UTF-8 JSON.stringify(scope)");
+    expect(prompt).toContain("canonical_path: .interlock/sessions/demo/a/brief.md");
+    expect(prompt).toContain("Retain body/retained.txt in the opening view.");
+    expect(prompt).not.toContain("inventory/");
   }, 30_000);
 
   it("writes the brief into the worktree even though it is not yet committed in the repository", async () => {

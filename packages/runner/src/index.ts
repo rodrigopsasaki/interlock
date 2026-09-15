@@ -61,6 +61,7 @@ export {
 export { recordingNarrate } from "./narration.ts";
 export type { PriorWork } from "./openingPrompt.ts";
 export { buildOpeningPrompt } from "./openingPrompt.ts";
+export { renderOpeningView } from "./openingView.ts";
 export type {
   Agent,
   AgentIdentity,

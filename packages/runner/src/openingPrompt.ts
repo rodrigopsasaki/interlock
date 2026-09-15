@@ -8,16 +8,22 @@ export function buildOpeningPrompt(
   node: string,
   priorWork?: PriorWork,
   role = "worker",
+  openingView?: string,
 ): string {
   const roleSentence =
     role === "interpreter"
       ? `This session produces .interlock/graphs/${graph}.yaml for a person to approve or ` +
         "correct; it never leases or runs a node. "
       : "";
+  const briefSentence =
+    openingView === undefined
+      ? `Your brief is at .interlock/sessions/${graph}/${node}/brief.md in this worktree. ` +
+        `Read it first and treat it as binding. `
+      : `Your canonical brief is at .interlock/sessions/${graph}/${node}/brief.md in this worktree. ` +
+        `Read the derived opening view included below first; the canonical brief remains binding and is available on demand. `;
   const base =
     `This is an interlock session for node ${node} of graph ${graph}. ` +
-    `Your brief is at .interlock/sessions/${graph}/${node}/brief.md in this worktree. ` +
-    `Read it first and treat it as binding. Work only in this worktree. ` +
+    `${briefSentence}Work only in this worktree. ` +
     roleSentence +
     `Append .interlock/sessions/${graph}/${node}/notes.yaml at every choice and surprise, ` +
     `commit as you go, and file .interlock/sessions/${graph}/${node}/debrief.yaml as your final commit. ` +
@@ -27,12 +33,12 @@ export function buildOpeningPrompt(
     `If the connection drops or your turn ends early, the next prompt resumes from git status ` +
     `and notes.yaml.`;
 
-  if (priorWork === undefined) return base;
-
-  return (
-    `${base} ` +
-    `This worktree carries work from an earlier session of this node: ` +
-    `${priorWork.uncommittedPaths} uncommitted path(s) and ${priorWork.commitsBeyondBase} commit(s) beyond the graph base. ` +
-    `Read notes.yaml, git status and git log before you continue, and do not redo finished work.`
-  );
+  const withPriorWork =
+    priorWork === undefined
+      ? base
+      : `${base} ` +
+        `This worktree carries work from an earlier session of this node: ` +
+        `${priorWork.uncommittedPaths} uncommitted path(s) and ${priorWork.commitsBeyondBase} commit(s) beyond the graph base. ` +
+        `Read notes.yaml, git status and git log before you continue, and do not redo finished work.`;
+  return openingView === undefined ? withPriorWork : `${withPriorWork}\n\n${openingView}`;
 }
