@@ -45,3 +45,11 @@ entries:
     at: "2026-09-15T00:29:45Z"
     expected: The first lint pass after focused proofs would accept the changed files.
     observed: Biome required only an import reorder and one test line wrap; no semantic diagnostic was reported.
+  - kind: choice
+    at: "2026-09-15T00:30:51Z"
+    chose: Record the full runtime gate as locally failed and the non-listening 3000-path proof separately as passed.
+    because: The full command produced environment failures before its later fixtures, while the focused proof verified the new runtime behavior without claiming the harness receipt.
+  - kind: surprise
+    at: "2026-09-15T00:31:52Z"
+    expected: The abbreviated implementation SHA expanded while drafting the debrief would match the committed object.
+    observed: The verified full SHA differed from the drafted suffix, so head_sha is corrected from git rev-parse before final artifact commit.

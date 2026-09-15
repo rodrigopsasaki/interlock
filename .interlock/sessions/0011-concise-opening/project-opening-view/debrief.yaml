@@ -1,0 +1,73 @@
+interlock: debrief@v2
+graph: 0011-concise-opening
+node: project-opening-view
+role: worker
+graph_base_sha: 2a4e5ccb05fe1ba3ff2d960de0475099144a3df9
+session_start_sha: c73f65561f5e8b22adf7401bcd0cd0202faa9cae
+head_sha: e577728ef6265f938fb29f5b735e4e9cfc958720
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries: []
+decisions:
+  - id: projection
+    what: The runner renders a prompt-only projection from the parsed written canonical brief, retaining every non-scope frontmatter field, the exact body, and a count, UTF-8 JSON.stringify SHA-256, and canonical path for the omitted inventory.
+    because: The acceptance requires a concise opening without weakening the authoritative committed brief, its scope, or the way back to it.
+    rests_on:
+      - packages/runner/src/sessionBrief.ts
+      - packages/runner/src/openingView.ts
+      - .interlock/graphs/0011-concise-opening.yaml
+    hunks:
+      - packages/runner/src/sessionBrief.ts:102-124
+      - packages/runner/src/openingView.ts:14-47
+  - id: prompt-reading
+    what: A caller with no projection receives the legacy prompt exactly, while a projection directs the initial read to the included prompt projection and keeps canonical binding, role, recovery, stop, and safety instructions.
+    because: The full brief-first sentence would otherwise undo the concise opening, and fallback callers including interpreter sessions remain compatible.
+    rests_on:
+      - packages/runner/src/openingPrompt.ts
+    hunks:
+      - packages/runner/src/openingPrompt.ts:6-43
+      - packages/runner/src/sessionDrive.ts:301-304
+      - packages/runner/test/openingPrompt.test.ts:4-89
+  - id: runtime-proof
+    what: The runtime proof creates an independently enumerated 3000-path inventory and verifies that the committed canonical reader and session-started ledger retain the full exact scope while the captured prompt excludes inventory entries and retains required metadata and body.
+    because: Count-only proof could hide omitted paths; exact scope equality and prompt capture prove the required compression boundary and commit ordering.
+    rests_on:
+      - packages/cli/test/run.test.ts
+      - packages/runner/test/sessionBrief.test.ts
+    hunks:
+      - packages/cli/test/run.test.ts:585-683
+      - packages/runner/test/sessionBrief.test.ts:167-189
+      - packages/runner/test/sessionBrief.test.ts:244-275
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: All eight workspace packages passed strict TypeScript checking.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Biome checked 318 files without diagnostics.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+    note: packages/*/src reported no comments.
+  - id: opening-view-proof
+    result: pass
+    invocation: mise exec -- pnpm --filter runner --fail-if-no-match exec vitest run test/openingPrompt.test.ts test/sessionBrief.test.ts --reporter=verbose
+    note: Fifteen focused runner cases passed for fallback, projection, rendered context, recovery, and interpreter compatibility.
+  - id: runtime-opening-focused
+    result: pass
+    invocation: GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=commit.gpgsign GIT_CONFIG_VALUE_0=false mise exec -- pnpm --filter cli --fail-if-no-match exec vitest run test/run.test.ts --reporter=verbose -t 'sends a concise prompt projection'
+    note: The non-listening 3000-path captured-runtime proof passed after committing the canonical brief.
+  - id: runtime-opening-proof
+    result: fail
+    invocation: mise exec -- pnpm --filter cli --fail-if-no-match exec vitest run test/run.test.ts --reporter=verbose
+    note: Two existing localhost substrate fixtures received EPERM and later fixtures could not sign generated brief commits; this is an environment limitation, not a passing gate.
+  - id: shape-reference
+    result: pass
+    invocation: mise exec -- pnpm interlock schema reference && mise exec -- pnpm interlock schema reference --check
+    note: The reference generator and freshness check completed with no docs/shapes.md diff.
+open:
+  - "Acceptance implementation is met by the committed projection and focused proofs. The required runtime-opening-proof gate remains unmet locally: localhost listeners are denied with EPERM, and the inherited Git signing policy rejects fixture commits. The harness must produce that receipt."
