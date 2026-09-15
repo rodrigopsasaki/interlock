@@ -144,12 +144,12 @@ open:
 
 #### `brief@v1`
 
-Source: `.interlock/sessions/0008-learning-witness/source-a/brief.md`
+Source: `.interlock/sessions/0010-learning-transfer/source-diagnosis/brief.md`
 
 ```yaml
 interlock: brief@v1
-graph: 0008-learning-witness
-node: source-a
+graph: 0010-learning-transfer
+node: source-diagnosis
 role: worker
 gates: []
 scope:
