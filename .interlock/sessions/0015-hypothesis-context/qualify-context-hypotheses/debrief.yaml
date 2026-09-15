@@ -8,7 +8,7 @@ head_sha: 6ff32c34ef0af6e007e6070a4c15968e8d8bfb39
 derivation:
   kind: agent
   runtime: codex
-  model: gpt-5
+  model: gpt-5.6-terra
 discoveries:
   - id: opening-view-reuses-rendered-body
     what: writeBriefIntoWorktree derives the concise opening view from the written brief front matter and body after rendering its addressed context slice.

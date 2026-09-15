@@ -25,3 +25,7 @@ entries:
     at: 2026-09-15T17:59:29Z
     expected: Regenerating the schema reference after an implementation-only change would leave docs/shapes.md unchanged.
     observed: The generator selected this node's new graph, notes, and debrief as current representative artifacts and rewrote their rendered examples in docs/shapes.md; it also reported five artifact terms missing from the vocabulary table.
+  - kind: choice
+    at: 2026-09-15T18:00:37Z
+    chose: Correct the debrief derivation model to gpt-5.6-terra without adding a reasoning-effort field, and retain the existing produces paths and numeric hunk citations.
+    because: The supplied session metadata identifies the exact model; the current decision reader accepts produces as a string list and the verifier parses numeric line and range suffixes as hunk citations.
