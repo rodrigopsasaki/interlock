@@ -1,5 +1,5 @@
 import type { Item } from "debrief";
-import { derivation, duration, mark, note, type Receipt, spend } from "ledger";
+import { derivation, duration, isSafeAppliesToPath, mark, note, type Receipt, spend } from "ledger";
 import { describe, expect, it } from "vitest";
 import { buildRegistry } from "../src/registry.ts";
 
@@ -88,6 +88,19 @@ const applicableDebrief = {
     },
   ],
 };
+
+const controlPaths = Array.from(
+  { length: 32 },
+  (_, code) => `packages/src/a${String.fromCharCode(code)}b.ts`,
+);
+
+const applicabilityPathCases = [
+  { path: "packages/with space/naïve-証拠.ts", accepted: true },
+  ...controlPaths.map((path) => ({ path, accepted: false })),
+  { path: `packages/src/a${String.fromCharCode(127)}b.ts`, accepted: false },
+  { path: "packages/src/a\u2028b.ts", accepted: false },
+  { path: "packages/src/a\u2029b.ts", accepted: false },
+];
 
 const okNotes = {
   interlock: "notes@v0",
@@ -342,6 +355,27 @@ describe("corpus: substrate@v1, request and response per verb", () => {
           },
         }),
       ).toBe(false);
+    }
+  });
+
+  it("keeps the runtime guard and compiled request schema in parity for portable paths", () => {
+    const validate = schemaFor("absorb.request");
+    for (const { path, accepted } of applicabilityPathCases) {
+      const request = {
+        debrief: {
+          ...applicableDebrief,
+          decisions: [
+            {
+              ...applicableDebrief.decisions[0],
+              applies_to: { kind: "path", path },
+            },
+          ],
+        },
+        notes: okNotes,
+        receipts: [okReceipt],
+      };
+      expect(isSafeAppliesToPath(path)).toBe(accepted);
+      expect(validate(request), JSON.stringify(validate.errors)).toBe(accepted);
     }
   });
 

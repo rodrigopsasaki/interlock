@@ -89,27 +89,6 @@
       "required": ["by", "from"],
       "additionalProperties": false
     },
-    "appliesTo": {
-      "oneOf": [
-        {
-          "type": "object",
-          "properties": { "kind": { "const": "repository" } },
-          "required": ["kind"],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "kind": { "const": "path" },
-            "path": {
-              "type": "string",
-              "pattern": "^(?!\\s)(?!.*\\s$)(?!/)(?!.*[\\\\:\\u0000])(?!.*//)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*\\/$).+$"
-            }
-          },
-          "required": ["kind", "path"],
-          "additionalProperties": false
-        }
-      ]
-    }
+    "appliesTo": { "$ref": "applies-to.json" }
   }
 }

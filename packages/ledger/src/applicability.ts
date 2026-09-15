@@ -8,7 +8,7 @@ export type AppliesTo =
 function hasControlCharacter(path: string): boolean {
   for (const character of path) {
     const code = character.charCodeAt(0);
-    if (code <= 31 || code === 127) return true;
+    if (code <= 31 || code === 127 || code === 0x2028 || code === 0x2029) return true;
   }
   return false;
 }
