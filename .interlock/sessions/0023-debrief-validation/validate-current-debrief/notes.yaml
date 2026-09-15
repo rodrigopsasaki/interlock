@@ -27,3 +27,7 @@ entries:
     at: "2026-09-15T23:51:29Z"
     chose: Record current validation and retained-history custody as separate obligations in the bend log.
     because: The schema must reject a current artifact without discarding the exact old bytes that explain a repaired revision, so the design record needs both the boundary and the way back.
+  - kind: choice
+    at: "2026-09-15T23:52:47Z"
+    chose: File a v2 debrief rooted in the implementation commit and report only focused checks run in this session.
+    because: The runner owns standing-gate receipts, while the debrief must truthfully preserve the worker's local compatibility and custody evidence.
