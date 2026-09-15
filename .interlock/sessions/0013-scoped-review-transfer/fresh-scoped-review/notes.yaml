@@ -13,3 +13,7 @@ entries:
     at: 2026-09-15T01:07:05Z
     expected: The configured Git commit signer would create the requested checkpoint commit.
     observed: Git's GPG signer could not access its key store, so the initial commit failed before writing a commit object; the brief permits an unsigned per-command commit.
+  - kind: choice
+    at: 2026-09-15T01:08:01Z
+    chose: Base the report on the current parser, runner, serializer, opening-view source, and their targeted tests.
+    because: Those sources directly answer query selection versus authority, omitted-selector behavior, typed refusal, and the no-substrate path without treating the brief's hypotheses as proof.
