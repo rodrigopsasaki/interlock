@@ -1,0 +1,39 @@
+interlock: graph@v0
+id: 0011-concise-opening
+ask: Give sessions a concise opening view without losing the canonical brief or its authoritative scope.
+derivation:
+  kind: model
+  model: gpt-6-astra
+  prompt: second-six-2026-09-14-slot-4
+authorization:
+  granted_by: Rodrigo Sasaki
+  mandate: second-six-graph-mandate-2026-09-14
+  slot: 4
+  limit: 6
+  source: interlock-notes/second-six-graph-mandate-2026-09-14.md
+read: >
+  M4 to M5, reduce an observed handoff cost without hiding evidence.
+  One initial session plus at most one explicitly root-authorized recovery,
+  25 minutes each. Substrate none; no push, main merge, deployment, waiver,
+  other implementation agents or changes to old session artifacts.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: project-opening-view
+    depends_on: []
+    acceptance: |
+      Give worker sessions a concise opening view derived from the canonical generated brief, without changing persisted formats. Keep committed brief@v1, full authoritative inventory, ledger Brief.scope, gate/receipt scope and substrate context request unchanged. The view carries all non-scope front matter (graph,node,role,gates with commands,substrate,graph_base_sha,session), body/rendered context verbatim, inventory count and deterministic SHA256 with declared serialization, and a direct canonical path. No individual inventory entries in the opening view; any paths actually in body/context stay. Canonical brief is binding and is the on-demand way back; do not instruct the worker to immediately dump all of it anyway. Preserve normal role/recovery/stop/safety opening instructions. Carry the derived view through BriefWriteOutcome/sessionDrive to buildOpeningPrompt; a caller without a view preserves the old prompt behavior, including interpreter compatibility. Do not introduce brief@v2, scope artifact, schema migration, new dependency or altered retrieval selection. Prove a generated fixture with3000 tracked paths preserves all paths in canonical reader and session-started ledger, while actual captured runtime prompt excludes only inventory entries and includes metadata/body/gates/count/hash/canonical path. Canonical commit precedes prompt. Relevant existing tests plus none/rendered-context/recovery/fallback cases; old default protocol readers remain valid. Source limited to runner sessionBrief,sessionDrive,openingPrompt and at most a small local formatter; tests same areas and directly affected CLI run/plan fixtures. Valid typed artifacts, all standing gates, root independent review. One initial25min plus one root-authorized recovery at most.
+      Mechanically regenerate docs/shapes.md through the existing CLI after
+      final artifact content is present. Keep notes/debrief truthful, use actual
+      UTC and initial generated brief commit, preserve provenance and stop.
+    gates:
+      - id: opening-view-proof
+        kind: command
+        run: pnpm --filter runner --fail-if-no-match exec vitest run test/openingPrompt.test.ts test/sessionBrief.test.ts --reporter=verbose
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: runtime-opening-proof
+        kind: command
+        run: pnpm --filter cli --fail-if-no-match exec vitest run test/run.test.ts --reporter=verbose
+        expect_output: 'Tests +[1-9][0-9]* passed'
+

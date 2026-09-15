@@ -1,0 +1,40 @@
+interlock: graph@v0
+id: 0012-delivery-read
+ask: Let a person read what happened to one session's evidence without reconstructing journal events.
+derivation:
+  kind: model
+  model: gpt-6-astra
+  prompt: second-six-2026-09-14-slot-5
+authorization:
+  granted_by: Rodrigo Sasaki
+  mandate: second-six-graph-mandate-2026-09-14
+  slot: 5
+  limit: 6
+  source: interlock-notes/second-six-graph-mandate-2026-09-14.md
+read: >
+  M4 to M5, reduce an observed handoff cost without hiding evidence.
+  One initial session plus at most one explicitly root-authorized recovery,
+  25 minutes each. Substrate none; no push, main merge, deployment, waiver,
+  other implementation agents or changes to old session artifacts.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: read-session-delivery
+    depends_on: []
+    acceptance: |
+      The delivery branch must work before any debrief or node outcome exists:
+      select the exact session, then read delivery before the ordinary judged-
+      session guard. A persisted intent may be all a crash left behind. Prove
+      that case with a session and real retained intent, no debrief/outcome.
+      Strictly validate options in delivery mode; preserve ordinary valid
+      calls and their existing output. Do not broaden this into CLI cleanup.
+      Add exact opt-in interlock evidence G N --delivery [--session S], preserving ordinary evidence output byte-for-byte. Read-only and network-free. Reuse journal replay/session selection, filter persisted projection.outbox by exact intent.node/session, and call readOutboxEvidence for each effect. Never recompute delivered evidence from current receipts, evidenceOf, configuration or substrate. Print session/effect IDs and safe retained refs only; no request/ack bytes, target/origin URL, because or secret-bearing content. A verified acknowledged record plus verified retained ack is the only acknowledged result. Intent-only/explicit uncertainty stays uncertain. Missing/corrupt are evidence conditions, not invented stored delivery states; absent means no recorded evidence, not proof of no receiver action or historical none. No dispatch, retry, reconcile or usefulness claim. Existing CLI code/helper plus tests only; no ledger/schema change. Real retained artifact fixtures: ack, intent-only, absent session/effect, missing/corrupt each artifact, session isolation/default-latest, default-output preserved and sentinel secrets never printed.
+      Mechanically regenerate docs/shapes.md through the existing CLI after
+      final artifact content is present. Keep notes/debrief truthful, use actual
+      UTC and initial generated brief commit, preserve provenance and stop.
+    gates:
+      - id: delivery-read-proof
+        kind: command
+        run: pnpm --filter cli --fail-if-no-match exec vitest run test/evidence.test.ts --reporter=verbose
+        expect_output: 'Tests +[1-9][0-9]* passed'
