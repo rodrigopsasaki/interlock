@@ -25,3 +25,7 @@ entries:
     at: 2026-09-15T01:10:15Z
     chose: Run the three relevant test files through Vitest directly and retain their results as local review evidence.
     because: Direct file arguments kept verification deterministic and avoided repeating the unrelated environment-dependent tests reached by the package scripts.
+  - kind: choice
+    at: 2026-09-15T01:11:10Z
+    chose: Describe the selector as an allowed query membership checked against authority, not as authority itself.
+    because: The runner's authoritative scope remains the complete tracked set; the selector only narrows the context request after an exact-membership check.
