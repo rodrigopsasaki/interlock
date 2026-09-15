@@ -1,0 +1,19 @@
+interlock: notes@v0
+node: propose-next-briefs
+entries:
+  - kind: choice
+    at: "2026-09-15T21:48:09Z"
+    chose: "Treat the supplied outcome classifications as claims to check against the retained reports, audit, and current source."
+    because: "The brief makes those materials inputs rather than authority, while the proposal must identify exact evidence and avoid treating rooted location or gate history as semantic truth."
+  - kind: choice
+    at: "2026-09-15T21:49:09Z"
+    chose: "Propose one brief-content change, one comparison-orchestration change, and one separate product-regression brief; do not install retained context as policy."
+    because: "The retained evidence shows a traceable checked use in one report and no established report-level use in the other, while sequential execution and a breached read boundary prevent an improvement or causal conclusion."
+  - kind: surprise
+    at: "2026-09-15T21:51:05Z"
+    expected: "The full workspace test gate would complete after the already-passing typecheck, lint, and comments gates."
+    observed: "packages/substrate/test/capabilities.test.ts timed out two tests at 5,000 ms during the full run; no task files changed while it ran."
+  - kind: choice
+    at: "2026-09-15T21:51:05Z"
+    chose: "Clarify the existing proposal symmetrically for both authored briefs and retain every comparison observation as clean or qualified."
+    because: "The acceptance review preserves the matched comparison: only actual substrate context varies, zero hypotheses is valid, and qualified or negative observations remain evidence."

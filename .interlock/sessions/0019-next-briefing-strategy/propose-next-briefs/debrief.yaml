@@ -1,0 +1,48 @@
+interlock: debrief@v2
+graph: 0019-next-briefing-strategy
+node: propose-next-briefs
+role: worker
+graph_base_sha: 828b545df7f2e73d33c9767297657e0da814b5e2
+session_start_sha: e60d56086d2b8c47196231c1374693a6baa958b2
+head_sha: 07444bb653dd6e279d708b06ea6010af3c588967
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries: []
+decisions:
+  - id: bounded-next-brief-strategy
+    what: "Proposed a symmetric conditional response for task-relevant received hypotheses, a cleaner later comparison read, and a separate review-grace regression without installing policy."
+    because: "The retained evidence establishes one checked report-level use and one unsupported report-level use, while read-boundary and assessment limitations prevent a benefit or causal conclusion."
+    rests_on:
+      - "docs/experiments/comparable-learning/outcome-read.md:50-72"
+      - "docs/experiments/comparable-learning/outcome-read.md:151-203"
+      - "docs/experiments/comparable-learning/inputs/comparison-index.md:74-81"
+      - "packages/verifier/src/foundAt.ts:157-163"
+      - "packages/substrate/src/evidence.ts:74-110"
+    hunks:
+      - "docs/experiments/comparable-learning/next-briefing-strategy.md:1-81"
+    produces:
+      - "docs/experiments/comparable-learning/next-briefing-strategy.md"
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: "mise exec -- pnpm typecheck"
+  - id: lint
+    result: pass
+    invocation: "mise exec -- pnpm lint"
+  - id: comments
+    result: pass
+    invocation: "mise exec -- pnpm check:comments"
+  - id: test
+    result: fail
+    invocation: "mise exec -- pnpm test"
+    note: "packages/substrate/test/capabilities.test.ts timed out two tests at 5,000 ms."
+  - id: report-present
+    result: pass
+    invocation: "test -s docs/experiments/comparable-learning/next-briefing-strategy.md"
+  - id: debrief-valid
+    result: pass
+    invocation: "mise exec -- pnpm interlock debrief validate 0019-next-briefing-strategy propose-next-briefs"
+open:
+  - "The full test gate is not satisfied: two capabilities tests timed out; this proposal does not change unrelated source."
