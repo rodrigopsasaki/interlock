@@ -15,3 +15,32 @@ entries:
       Starting implementation from the existing ordinary evidence assertions
       alone, which would omit the crash-state ordering and retained-artifact
       boundary the acceptance specifically requires.
+  - kind: choice
+    at: 2026-09-15T00:38:44Z
+    chose: >
+      Render delivery reads as a discriminated view: verified evidence carries
+      acknowledged or uncertain, while missing, corrupt, and absent evidence
+      carry only their condition and safe retained artifact reference.
+    because: >
+      A missing or corrupt retained artifact cannot rewrite the stored delivery
+      event; acknowledged is earned only after the retained acknowledgment is
+      verified.
+    rejected: >
+      Rendering uncertain for missing or corrupt bytes, which would conflate an
+      observed evidence condition with a delivery state.
+  - kind: surprise
+    at: 2026-09-15T00:39:55Z
+    expected: The focused proof and standing lint would both pass after the variant correction.
+    observed: The proof passed, while lint required only mechanical line wrapping in the edited files.
+  - kind: choice
+    at: 2026-09-15T00:40:37Z
+    chose: >
+      Strengthen the delivery proof by parsing the rendered artifact-failure
+      view and comparing every effect variant exactly, including graph/session
+      isolation and the unchanged ordinary crash read.
+    because: >
+      Aggregate text checks can miss a ref or evidence condition attached to
+      the wrong effect, while the public read is a serialized view.
+    rejected: >
+      Relying on aggregate substring assertions, which prove terms are present
+      but not that each retained artifact is attributed to its own effect.

@@ -1,7 +1,7 @@
 import { isErr } from "@phyxiusjs/fp";
 import type { Item, ItemKind, ItemStanding } from "debrief";
 import { findRepoRoot, sharedJournalDirectory } from "face";
-import { type Gap, nodeKey, readRawEvents, readReplay } from "ledger";
+import { type Gap, nodeKey, readOutboxEvidence, readRawEvents, readReplay } from "ledger";
 import { HARNESS_AUTHORITIES } from "runner";
 import { type EvidenceSession, evidenceOf, personEventsFor } from "substrate";
 import { explainVerifyRefusal, verifyDebrief } from "verifier";
@@ -25,6 +25,55 @@ const STANDING_ORDER: readonly ItemStanding[] = ["ratified", "professed", "obser
 function sessionOverrideFrom(args: readonly string[]): string | undefined {
   const flagIndex = args.indexOf("--session");
   return flagIndex === -1 ? undefined : args[flagIndex + 1];
+}
+
+type DeliveryOptions =
+  | { readonly kind: "ordinary" }
+  | { readonly kind: "delivery"; readonly session: string | undefined }
+  | { readonly kind: "invalid" };
+
+function deliveryOptions(args: readonly string[]): DeliveryOptions {
+  const deliveryIndex = args.indexOf("--delivery");
+  if (deliveryIndex === -1) return { kind: "ordinary" };
+  if (args[0] !== "--delivery") return { kind: "invalid" };
+  if (args.length === 1) return { kind: "delivery", session: undefined };
+  const session = args[2];
+  return args.length === 3 &&
+    args[1] === "--session" &&
+    session !== undefined &&
+    session !== "" &&
+    !session.startsWith("--")
+    ? { kind: "delivery", session }
+    : { kind: "invalid" };
+}
+
+type DeliveryEffect =
+  | {
+      readonly id: string;
+      readonly evidence: "verified";
+      readonly state: "acknowledged";
+      readonly request: string;
+      readonly acknowledgment: string;
+    }
+  | {
+      readonly id: string;
+      readonly evidence: "verified";
+      readonly state: "uncertain";
+      readonly request: string;
+    }
+  | {
+      readonly id: string;
+      readonly evidence: "missing" | "corrupt";
+      readonly artifact: string;
+    }
+  | {
+      readonly id: string;
+      readonly evidence: "absent";
+    };
+
+function renderDelivery(session: string, effects: readonly DeliveryEffect[]): string {
+  if (effects.length === 0) return `session: ${session}\nno recorded effect.`;
+  return `session: ${session}\neffects:\n${stringify(effects).trimEnd()}`;
 }
 
 function countKey(item: Item): string {
@@ -60,6 +109,14 @@ export async function runInterlockEvidence(
     return { exitCode: 1, message: USAGE };
   }
 
+  const requestedOptions = deliveryOptions(args.slice(2));
+  if (requestedOptions.kind === "invalid") {
+    return {
+      exitCode: 1,
+      message: "interlock evidence --delivery: expected --delivery [--session S].",
+    };
+  }
+
   const cwd = options.cwd ?? process.cwd();
   const repoRoot = findRepoRoot(cwd);
   if (repoRoot === undefined) {
@@ -85,7 +142,8 @@ export async function runInterlockEvidence(
     (session) => session.node.graph === graph && session.node.id === node,
   );
   const latest = nodeSessions[nodeSessions.length - 1];
-  const requestedSessionId = sessionOverrideFrom(args);
+  const requestedSessionId =
+    requestedOptions.kind === "delivery" ? requestedOptions.session : sessionOverrideFrom(args);
   const sessionView =
     requestedSessionId === undefined
       ? latest
@@ -96,6 +154,61 @@ export async function runInterlockEvidence(
       exitCode: 0,
       message: `${graph}/${node}: no session "${requestedSessionId}" recorded for this node.`,
     };
+  }
+
+  if (requestedOptions.kind === "delivery") {
+    if (sessionView === undefined) {
+      return { exitCode: 0, message: `${graph}/${node}: no session recorded for this node.` };
+    }
+    const effects = [...projection.outbox.values()]
+      .filter(
+        ({ intent }) =>
+          intent.node.graph === graph &&
+          intent.node.id === node &&
+          intent.session === sessionView.session,
+      )
+      .map(({ intent }): DeliveryEffect => {
+        const evidence = readOutboxEvidence(
+          projection.outbox,
+          journal,
+          targetNode,
+          sessionView.session,
+          intent.id,
+        );
+        if (evidence.kind === "missing" || evidence.kind === "corrupt") {
+          const effect: DeliveryEffect = {
+            id: intent.id,
+            evidence: evidence.kind,
+            artifact: evidence.ref,
+          };
+          return effect;
+        }
+        if (evidence.kind === "absent") {
+          const effect: DeliveryEffect = {
+            id: intent.id,
+            evidence: evidence.kind,
+          };
+          return effect;
+        }
+        if (evidence.delivery?.state === "acknowledged" && evidence.acknowledgment !== undefined) {
+          const effect: DeliveryEffect = {
+            id: intent.id,
+            evidence: "verified",
+            state: "acknowledged",
+            request: evidence.intent.request.ref,
+            acknowledgment: evidence.delivery.acknowledgment.ref,
+          };
+          return effect;
+        }
+        const effect: DeliveryEffect = {
+          id: intent.id,
+          evidence: "verified",
+          state: "uncertain",
+          request: evidence.intent.request.ref,
+        };
+        return effect;
+      });
+    return { exitCode: 0, message: renderDelivery(sessionView.session, effects) };
   }
 
   if (sessionView?.debrief === undefined || nodeView?.outcome === undefined) {
