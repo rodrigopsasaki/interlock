@@ -21,3 +21,11 @@ entries:
     at: "2026-09-15T23:31:48Z"
     chose: Prove the rendered result retains the full source body as its exact prefix and exercise refusal separately from no substrate.
     because: Prefix equality makes authored-content preservation explicit, while a refused addressed context must retain body and address without being treated as the none outcome.
+  - kind: surprise
+    at: "2026-09-15T23:35:55Z"
+    expected: The locally validated debrief derivation would be accepted by the real receiver.
+    observed: The real receiver held iteration 4 with HTTP 400 because /debrief/derivation forbids the additional reasoning_effort property.
+  - kind: choice
+    at: "2026-09-15T23:35:55Z"
+    chose: Select an authored schema-compatible debrief revision with only kind, runtime, and model in derivation.
+    because: The published derivation schema is authoritative for receiver compatibility, and debrief revise retains the original authored bytes before installing the correction.

@@ -1,6 +1,4 @@
 interlock: debrief@v2
-revision: 1
-supersedes: ".interlock/sessions/0022-context-delivery/deliver-context-slice/debrief.yaml at 3dc10b7"
 graph: 0022-context-delivery
 node: deliver-context-slice
 role: worker
@@ -11,6 +9,7 @@ derivation:
   kind: agent
   runtime: codex
   model: gpt-5.6-terra
+  reasoning_effort: high
 discoveries: []
 decisions:
   - id: append-unheaded-slice
@@ -31,15 +30,6 @@ decisions:
       - packages/runner/src/openingView.ts
     hunks:
       - packages/runner/test/sessionBrief.test.ts
-  - id: repair-derivation
-    what: Removed reasoning_effort from the debrief derivation after the real receiver rejected that additional property.
-    because: The published agent-derivation schema accepts only kind, runtime, and model, while revision selection preserves the refused artifact bytes.
-    rests_on:
-      - schemas/parts/debrief-derivation.json
-      - .interlock/sessions/0022-context-delivery/deliver-context-slice/notes.yaml
-    hunks:
-      - .interlock/sessions/0022-context-delivery/deliver-context-slice/debrief.yaml
-      - .interlock/sessions/0022-context-delivery/deliver-context-slice/debrief-revision-1.yaml
 gates_run_by_agent:
   - id: context-composition
     result: pass
@@ -51,14 +41,4 @@ gates_run_by_agent:
   - id: runner-style
     result: pass
     invocation: mise exec -- pnpm exec biome check packages/runner/src/contextSlice.ts packages/runner/test/sessionBrief.test.ts
-  - id: receiver-debrief
-    result: fail
-    invocation: real receiver /debrief
-    note: "HTTP 400: /debrief/derivation must NOT have additional properties."
-  - id: debrief-valid
-    result: pass
-    invocation: mise exec -- pnpm interlock debrief validate 0022-context-delivery deliver-context-slice
-  - id: published-schema
-    result: pass
-    invocation: mise exec -- pnpm interlock schema validate .interlock/sessions/0022-context-delivery/deliver-context-slice/debrief-revision-1.yaml
 open: []
