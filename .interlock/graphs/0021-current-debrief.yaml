@@ -1,0 +1,45 @@
+interlock: graph@v0
+id: 0021-current-debrief
+ask: Make a worker's corrected debrief the one the harness reads without losing earlier versions.
+derivation:
+  kind: model
+  model: gpt-6-astra
+  prompt: brief-learning-find-shape-2026-09-15-round-3
+read: >
+  M5 iteration 3. The preceding worker preserved a corrected debrief beside
+  the canonical file, so the harness would ingest stale learning. Give the
+  author an explicit revision-selection command and normal handoff guidance.
+  One bounded attempt, 25 minutes, real context from the disposable receiver.
+  No main merge, push, existing-brain change, waiver or ratification.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: select-current-debrief
+    depends_on: []
+    acceptance: |
+      Provide interlock debrief revise <graph> <node> --from <candidate-path>.
+      It explicitly selects an already-authored valid debrief for this session;
+      it never chooses the latest filename, drafts claims, ratifies learning,
+      modifies a brief or changes what existing readers consider canonical.
+      Require current and candidate debrief@v2 and matching graph/node/role and
+      session-start/base identity. Candidate and all writes stay in this node's
+      session directory, refusing escapes/symlinks and malformed input before
+      replacing anything. Retain exact original bytes under an immutable
+      content-addressed revisions path, then atomically install exact candidate
+      bytes as debrief.yaml. Keep source revision intact. Repeat same selection
+      is a no-op; archive collision with different bytes refuses. Failed writes
+      must not lose the current debrief. Do not auto-commit or change ledger/gates.
+      Return actionable paths and readable refusal messages. Shared IO belongs
+      in the artifact package, CLI dispatch thin. Test byte preservation,
+      idempotence, wrong session/role, invalid/legacy payloads, path bounds,
+      symlinks and failure preservation through actual temp-directory fixtures.
+      Update ordinary worker handoff guidance to use this command when revising,
+      without overriding existing canonical or legacy reads. Exercise the tool
+      on your own authored debrief revision, retaining both versions. All
+      standing gates, generated reference current, typed notes and clean commits.
+    gates:
+      - id: revision-contract
+        kind: command
+        run: pnpm --filter debrief --fail-if-no-match exec vitest run --reporter=verbose
+        expect_output: 'Tests +[1-9][0-9]* passed'
