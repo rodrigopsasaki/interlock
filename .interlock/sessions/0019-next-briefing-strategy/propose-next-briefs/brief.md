@@ -59,3 +59,11 @@ Resolve actual generated graph_base_sha and session_start_sha; do not guess SHAs
 Do not manufacture discoveries from supplied facts. Empty discoveries are fine.
 Use literal source quotes and exact line ranges for any new discovery. Record
 the report commit as head_sha, then commit its debrief and regenerated reference.
+
+The outcome reader needed a correction for invented midnight note timestamps.
+Use the actual UTC clock (date -u) for each new note; never fill time from a date
+alone. Preserve any prior versions if a correction is needed. The derived opening
+already supplies the task and authority summary: consult the canonical inventory
+only when a specific question requires it. Keep this proposal concise (roughly
+700 words or fewer). Checked use, justified rejection and no-use are equally valid
+outcomes for any next experiment; never create a positive-use requirement.
