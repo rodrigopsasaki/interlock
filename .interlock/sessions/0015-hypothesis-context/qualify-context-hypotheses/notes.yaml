@@ -1,0 +1,15 @@
+interlock: notes@v0
+node: qualify-context-hypotheses
+entries:
+  - kind: choice
+    at: 2026-09-15T17:52:59Z
+    chose: Add one conditional notice in renderSlice before the existing kind-grouped sections, triggered only by an addressed slice containing a hypothesis-standing item.
+    because: The shared renderer is the existing seam used by generated briefs and their concise opening views; a single preamble preserves every item and its existing provenance formatting, grouping, and order.
+  - kind: choice
+    at: 2026-09-15T17:54:55Z
+    chose: Map acceptance to exact no-address, empty, and all-non-hypothesis renderer outputs; one notice for single and multiple hypotheses; and generated canonical brief plus concise opening-view assertions for metadata, context_scope, and full scope.
+    because: These assertions separately retain unchanged branches and prove the notice reaches both render targets without treating retrieved hypothesis content as endorsed.
+  - kind: surprise
+    at: 2026-09-15T17:55:38Z
+    expected: The mixed-slice assertion would place Decision after Risk.
+    observed: The pre-existing KIND_ORDER places Decision before Risk, so the targeted renderer test failed only on that reversed assertion while all generated-brief tests passed.

@@ -362,6 +362,8 @@ const v1WithContextSliceSection = [
   "scope:",
   "  - .interlock/sessions/g/n/brief.md",
   "  - tracked.ts",
+  "context_scope:",
+  "  - tracked.ts",
   "substrate:",
   "  address: none",
   "---",
@@ -376,18 +378,22 @@ const v1WithContextSliceSection = [
   "",
 ].join("\n");
 
-function fakeSubstrateAt(address: string): SubstrateClient {
-  const item: Item = {
-    kind: "convention",
-    statement: "commits state the why in the subject",
-    derivation: "human:Rodrigo Sasaki",
-  };
+const addressedItem: Item = {
+  kind: "convention",
+  statement: "commits state the why in the subject",
+  derivation: "human:Rodrigo Sasaki",
+};
+
+function fakeSubstrateAt(
+  address: string,
+  items: readonly Item[] = [addressedItem],
+): SubstrateClient {
   return {
     address,
     context: () =>
       Promise.resolve({
         kind: "rendered",
-        items: [item],
+        items,
         vocabulary: "reference@v1",
       }),
     absorb: () => Promise.resolve({ kind: "empty" }),
@@ -444,5 +450,42 @@ describe("writeBriefIntoWorktree with a substrate that renders a slice", () => {
     );
     const content = readFileSync(briefPath(worktree, "g", "n"), "utf-8");
     expect(content).toContain("address: none");
+  });
+
+  it("projects one hypothesis notice while retaining canonical metadata and context scope", async () => {
+    const hypothesis: Item = {
+      kind: "decision",
+      statement: "A retrieved item is not semantic truth",
+      standing: "hypothesis",
+      derivation: "agent:test-runtime:test-model",
+    };
+    const { repo, worktree } = fixture(v1WithContextSliceSection);
+    const result = await writeBriefIntoWorktree(
+      repo,
+      worktree,
+      "g",
+      "n",
+      "1".repeat(40),
+      "session-1",
+      standing,
+      nodeGates,
+      fakeSubstrateAt("http://fake-substrate.example", [addressedItem, hypothesis]),
+    );
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) return;
+
+    const content = readFileSync(briefPath(worktree, "g", "n"), "utf-8");
+    expect(content.match(/Hypothesis items are unratified/g)).toHaveLength(1);
+    expect(result.value.openingView?.match(/Hypothesis items are unratified/g)).toHaveLength(1);
+    expect(result.value.openingView).toContain("scope_count: 2");
+    expect(result.value.openingView).toContain("context_scope:\n  - tracked.ts");
+    const written = await readBriefFile(briefPath(worktree, "g", "n"));
+    expect(isOk(written)).toBe(true);
+    if (!isOk(written) || written.value.kind !== "v1") return;
+    expect(written.value.frontMatter.scope).toEqual([
+      ".interlock/sessions/g/n/brief.md",
+      "tracked.ts",
+    ]);
+    expect(written.value.frontMatter.contextScope).toEqual(["tracked.ts"]);
   });
 });

@@ -69,7 +69,7 @@ export function renderSlice(substrateAddress: string, items: readonly Item[]): s
     return "No substrate is configured; this brief carries no context slice.";
   }
 
-  return KIND_ORDER.map((kind) => ({
+  const sections = KIND_ORDER.map((kind) => ({
     kind,
     items: items.filter((item) => item.kind === kind),
   }))
@@ -77,6 +77,11 @@ export function renderSlice(substrateAddress: string, items: readonly Item[]): s
     .map(
       (section) =>
         `### ${KIND_LABEL[section.kind]}\n\n${section.items.map(renderItem).join("\n\n")}`,
-    )
+    );
+  const hypothesisNotice = items.some((item) => item.standing === "hypothesis")
+    ? "Hypothesis items are unratified and must be checked against source before relying on them."
+    : undefined;
+  return [hypothesisNotice, ...sections]
+    .filter((part): part is string => part !== undefined)
     .join("\n\n");
 }
