@@ -29,7 +29,11 @@ If useful, name its exact statement and derivation in decision.because, tie it
 to a concrete test hunk, and check it against source. Absence or no useful reuse
 is a valid outcome; never force the desired result.
 
-Only the new test and your own notes/debrief may change. Use mise exec -- pnpm
+Only the new test and your own notes/debrief may change, except for mechanical
+docs/shapes.md regeneration through `mise exec -- node packages/cli/src/bin.ts
+schema reference` once final artifact content is present. Do not hand-edit it
+or read other sessions to generate it. This setup correction supplies no
+diagnosis finding. Use mise exec -- pnpm
 (Node24.14.0; shell default26). Focused deterministic tests are available; local
 listeners are denied, so leave listener/full-suite gates to the harness without
 retrying EPERM. No other agents, network, service calls, graph/brief changes,
