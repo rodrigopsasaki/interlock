@@ -1051,36 +1051,40 @@ No vocabulary entry for `notes`.
 
 #### `notes@v0`
 
-Source: `.interlock/sessions/0018-learning-comparison-read/read-comparable-outcomes/notes.yaml`
+Source: `.interlock/sessions/0008-learning-witness/prove-delivery/notes.yaml`
 
 ```yaml
 interlock: notes@v0
-node: read-comparable-outcomes
+node: prove-delivery
 entries:
   - kind: surprise
-    at: 2026-09-15T00:00:00-03:00
-    expected: "An existing notes.yaml file for this session."
-    observed: "The session directory contained no notes.yaml, so this entry creates the required typed notes artifact."
+    at: "2026-09-14T22:52:11Z"
+    expected: The earlier session state would include this node's notes artifact.
+    observed: The generated brief was committed, but notes.yaml was absent from the node directory.
   - kind: choice
-    at: 2026-09-15T00:00:00-03:00
-    chose: "Read only the supplied comparison inputs, current source/tests, schemas, design, and this node's artifacts."
-    because: "The canonical brief makes the supplied evidence the source for the outcome read and explicitly excludes unrelated sessions, history, journals, receivers, external calls, and extra agents."
+    at: "2026-09-14T22:52:11Z"
+    chose: Inspect the existing delivery implementation and its focused proofs against every graph acceptance obligation before changing code.
+    because: This bounded repair inherits code from the held slot-5 candidate, and the graph requires actual production seams and discriminating failure proof rather than a replacement implementation.
   - kind: surprise
-    at: 2026-09-15T00:00:00-03:00
-    expected: "The treatment test-design worker's filenames-only note to describe the disclosed read boundary."
-    observed: "The supplied final read audit and treatment read audit establish that raw command output contained excluded brief content, so that pair is qualified rather than clean attribution."
+    at: "2026-09-14T22:53:16Z"
+    expected: The focused checks would run under the repository's pinned Node 24.14.0 runtime.
+    observed: The prepared environment ran Node 26.0.0 and pnpm warned about the engine mismatch, although the deterministic runner, ledger, and response-detail checks passed.
   - kind: choice
-    at: 2026-09-15T00:00:00-03:00
-    chose: "Classify report claims by source support, bounded omissions, and traceable use rather than score either condition."
-    because: "The brief forbids inventing a winner or quality score and requires equal or worse outcomes, overlap, unsupported assertions, and actual provenance boundaries to remain visible."
+    at: "2026-09-14T22:53:16Z"
+    chose: Keep deterministic proof local and defer listener-dependent absorb checks to the harness.
+    because: The brief identifies local listeners as unavailable in this sandbox, while the runner and ledger seams can be tested without a receiver and must receive the failure-matrix coverage.
   - kind: choice
-    at: 2026-09-15T21:39:39Z
-    chose: "Preserve the four existing placeholder-timestamp entries and append this correction."
-    because: "Their 2026-09-15T00:00:00-03:00 timestamps were placeholders rather than observed execution times. The affected entries are the initial missing-notes surprise, the source-boundary choice, the supplied-read-audit surprise, and the classification choice; their exact original times were not observed and are not invented."
-  - kind: choice
-    at: 2026-09-15T21:39:39Z
-    chose: "Treat the test-design-b read-boundary discrepancy as supplied comparison evidence."
-    because: "The supplied read audits already record the excluded brief-content exposure; this session uses that evidence to qualify attribution and does not file it as a new source discovery."
+    at: "2026-09-14T22:54:13Z"
+    chose: Make acknowledged delivery a distinct type requiring its retained acknowledgment and expose lookup only through verified artifact reads.
+    because: The graph requires the missing-proof state to be refused rather than represented, and a reference alone is not evidence until its envelope, byte count, and SHA-256 all verify.
+  - kind: surprise
+    at: "2026-09-14T22:57:54Z"
+    expected: The new focused files would already meet the repository formatter's layout rules.
+    observed: The lint gate found formatting-only differences in the added proof and boundary files; the formatter made no semantic changes.
+  - kind: surprise
+    at: "2026-09-14T22:58:36Z"
+    expected: The schema reference would be fresh immediately after its first regeneration.
+    observed: Its first final-head check reported a difference at line 1151; a second regeneration and check were fresh, matching the known generated-reference behavior in the earlier session record.
 ```
 
 ## position

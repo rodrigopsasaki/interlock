@@ -25,3 +25,7 @@ entries:
     at: 2026-09-15T21:39:39Z
     chose: "Treat the test-design-b read-boundary discrepancy as supplied comparison evidence."
     because: "The supplied read audits already record the excluded brief-content exposure; this session uses that evidence to qualify attribution and does not file it as a new source discovery."
+  - kind: choice
+    at: 2026-09-15T21:40:23Z
+    chose: "File the outcome read with no discoveries."
+    because: "The report interprets supplied comparison evidence and source-checks its consequential claims; treating supplied evidence or historical gate facts as new discoveries would fabricate a brief deficiency."
