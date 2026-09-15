@@ -26,3 +26,13 @@ entries:
       These are the acceptance's observable boundaries, while the existing
       gateJudge test already exercises verifyDebrief through evidenceOf and the
       absorb seam.
+  - kind: choice
+    at: 2026-09-15T17:32:15Z
+    chose: >-
+      Keep a rooted explicit-location mark's hunk as the resolved path and
+      treat a backtick-delimited code excerpt with nested double quotes as one
+      supporting quotation.
+    because: >-
+      The rooted hunk remains compatible with existing evidence consumers while
+      qualification belongs to verifier@1; nested delimiters inside one code
+      excerpt are not separate source extracts.

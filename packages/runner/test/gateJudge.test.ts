@@ -978,8 +978,12 @@ describe("absorb carries live evidence", () => {
       "  model: claude-sonnet-5",
       "discoveries:",
       "  - id: d1",
+      "    what: no test yet covered a nonexistent fourth source line",
+      '    found_at: src/widget.ts:4 "export interface Widget {"',
+      "    mattered_because: the acceptance asked for a filtered discovery",
+      "  - id: d2",
       "    what: no test yet covered Widget's own shape",
-      "    found_at: src/widget.ts",
+      '    found_at: src/widget.ts:1 "export interface Widget {"',
       "    mattered_because: the acceptance asked for it",
       "decisions:",
       "  - id: c1",
@@ -1019,6 +1023,19 @@ describe("absorb carries live evidence", () => {
     if (evidence === undefined) throw new Error("expected evidence");
     expect(evidence.items).toContainEqual(
       expect.objectContaining({ kind: "decision", statement: "added Widget" }),
+    );
+    expect(evidence.items).toContainEqual(
+      expect.objectContaining({
+        kind: "absence",
+        statement: "no test yet covered Widget's own shape",
+        scope: { kind: "path", path: "src/widget.ts" },
+        standing: "hypothesis",
+      }),
+    );
+    expect(evidence.items).not.toContainEqual(
+      expect.objectContaining({
+        statement: "no test yet covered a nonexistent fourth source line",
+      }),
     );
     expect(evidence.items).toContainEqual(
       expect.objectContaining({
