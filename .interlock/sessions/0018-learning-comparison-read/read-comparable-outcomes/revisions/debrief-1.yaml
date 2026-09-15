@@ -1,0 +1,39 @@
+interlock: debrief@v2
+graph: 0018-learning-comparison-read
+node: read-comparable-outcomes
+role: worker
+graph_base_sha: 4bd31d9436604168c7489aa15322cd8bb53fb09a
+session_start_sha: b379b384477b46e64bff6ef607d34585f3b19eca
+head_sha: ff21e7e359b832327e1adf10b3581ad3d6af9496
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries: []
+decisions:
+  - id: outcome-read
+    what: "Published a bounded read of the matched review and test-design outcomes."
+    because: "The supplied comparison evidence and current source checks support classifications of observations, omissions, unsupported assertions, overlap, and actual received-hypothesis use, but not a winner, causal benefit, general compounding claim, or M6 graduation."
+    rests_on:
+      - "docs/experiments/comparable-learning/inputs/comparison-index.md"
+      - "docs/experiments/comparable-learning/inputs/delivery-trace.json"
+      - "docs/experiments/comparable-learning/inputs/review-pair-assessment.md"
+      - "docs/experiments/comparable-learning/inputs/test-pair-assessment.md"
+      - "packages/verifier/src/foundAt.ts:111-113 and 157-163"
+      - "packages/substrate/src/evidence.ts:74-76 and 98-110"
+    hunks:
+      - "docs/experiments/comparable-learning/outcome-read.md:1-201"
+    produces:
+      - "docs/experiments/comparable-learning/outcome-read.md"
+  - id: timestamp-correction
+    what: "Preserved the retained placeholder timestamps and appended their correction with observed UTC time."
+    because: "The user identified four earlier notes with placeholder timestamps; their original times were not observed, so rewriting or inventing them would lose the way back."
+    rests_on:
+      - "User-provided bounded provenance correction during this session."
+    hunks:
+      - ".interlock/sessions/0018-learning-comparison-read/read-comparable-outcomes/notes.yaml:20-30"
+    produces:
+      - ".interlock/sessions/0018-learning-comparison-read/read-comparable-outcomes/notes.yaml"
+gates_run_by_agent: []
+open:
+  - "Whether a cleanly isolated later pair can show predeclared, source-checked report-level use of a returned hypothesis while assessment conditions remain sufficiently hidden to distinguish it from ordinary source review."

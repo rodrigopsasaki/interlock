@@ -1,10 +1,12 @@
 interlock: debrief@v2
+revision: 2
+supersedes: ".interlock/sessions/0018-learning-comparison-read/read-comparable-outcomes/debrief.yaml at 4f3c56b4db89adc64b085a7a940db349fa02e22a"
 graph: 0018-learning-comparison-read
 node: read-comparable-outcomes
 role: worker
 graph_base_sha: 4bd31d9436604168c7489aa15322cd8bb53fb09a
 session_start_sha: b379b384477b46e64bff6ef607d34585f3b19eca
-head_sha: ff21e7e359b832327e1adf10b3581ad3d6af9496
+head_sha: 94f1e721a3f1cd7e960eda30d2780eb81f89ec76
 derivation:
   kind: agent
   runtime: codex
@@ -13,7 +15,7 @@ discoveries: []
 decisions:
   - id: outcome-read
     what: "Published a bounded read of the matched review and test-design outcomes."
-    because: "The supplied comparison evidence and current source checks support classifications of observations, omissions, unsupported assertions, overlap, and actual received-hypothesis use, but not a winner, causal benefit, general compounding claim, or M6 graduation."
+    because: "The supplied comparison evidence and current source checks support classifications of observations, omissions, unsupported assertions, overlap, and actual received-hypothesis outcomes, but not a winner, causal benefit, general compounding claim, or M6 graduation."
     rests_on:
       - "docs/experiments/comparable-learning/inputs/comparison-index.md"
       - "docs/experiments/comparable-learning/inputs/delivery-trace.json"
@@ -22,18 +24,23 @@ decisions:
       - "packages/verifier/src/foundAt.ts:111-113 and 157-163"
       - "packages/substrate/src/evidence.ts:74-76 and 98-110"
     hunks:
-      - "docs/experiments/comparable-learning/outcome-read.md:1-201"
+      - "docs/experiments/comparable-learning/outcome-read.md:1-203"
     produces:
       - "docs/experiments/comparable-learning/outcome-read.md"
-  - id: timestamp-correction
-    what: "Preserved the retained placeholder timestamps and appended their correction with observed UTC time."
-    because: "The user identified four earlier notes with placeholder timestamps; their original times were not observed, so rewriting or inventing them would lose the way back."
+  - id: provenance-corrections
+    what: "Preserved the timestamp correction and corrected bounded outcome-read wording without overwriting the prior debrief."
+    because: "The user identified placeholder note times and two report wording inaccuracies; the original debrief remains retained, while this revision names the corrected artifact head."
     rests_on:
       - "User-provided bounded provenance correction during this session."
+      - "User-provided independent source review during this session."
     hunks:
-      - ".interlock/sessions/0018-learning-comparison-read/read-comparable-outcomes/notes.yaml:20-30"
+      - ".interlock/sessions/0018-learning-comparison-read/read-comparable-outcomes/notes.yaml:20-39"
+      - "docs/experiments/comparable-learning/outcome-read.md:53-60"
+      - "docs/experiments/comparable-learning/outcome-read.md:132-140"
+      - "docs/experiments/comparable-learning/outcome-read.md:199-203"
     produces:
       - ".interlock/sessions/0018-learning-comparison-read/read-comparable-outcomes/notes.yaml"
+      - "docs/experiments/comparable-learning/outcome-read.md"
 gates_run_by_agent: []
 open:
-  - "Whether a cleanly isolated later pair can show predeclared, source-checked report-level use of a returned hypothesis while assessment conditions remain sufficiently hidden to distinguish it from ordinary source review."
+  - "Whether a cleanly isolated later pair can yield a predeclared, source-checked report-level outcome of checked use, justified rejection, or no use while assessment conditions remain sufficiently hidden to distinguish it from ordinary source review."
