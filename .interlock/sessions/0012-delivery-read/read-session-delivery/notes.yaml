@@ -1,0 +1,17 @@
+interlock: notes@v0
+node: read-session-delivery
+entries:
+  - kind: choice
+    at: 2026-09-15T00:35:19Z
+    chose: >
+      Map the acceptance to assertions for delivery-before-judgement crash reads,
+      strict delivery options, exact session/node filtering, retained-artifact
+      states, latest-session selection, unchanged ordinary output, and secret-free
+      rendering.
+    because: >
+      The graph acceptance is the bounded contract; its delivery path must use
+      replayed outbox evidence without reconstructing an effect from other state.
+    rejected: >
+      Starting implementation from the existing ordinary evidence assertions
+      alone, which would omit the crash-state ordering and retained-artifact
+      boundary the acceptance specifically requires.
