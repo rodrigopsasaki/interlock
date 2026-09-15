@@ -1,0 +1,45 @@
+interlock: graph@v0
+id: 0020-learning-applicability
+ask: Let a session preserve where a lesson applies separately from where it was proved.
+derivation:
+  kind: model
+  model: gpt-6-astra
+  prompt: brief-learning-find-shape-2026-09-15-round-1
+read: >
+  M5, iteration 1 of a six-iteration emergent learning loop. The unchanged
+  receiver misses a code-relevant lesson because its evidence lives in notes.
+  Preserve explicitly authored applicability in debriefs and emitted hypotheses;
+  source verification stays independent. One attempt, no automatic recovery.
+  25-minute bounds, address none, no push, merge to main, live-brain write or ratification.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: separate-learning-applicability
+    depends_on: []
+    acceptance: |
+      Add optional applies_to to decision and discovery entries of debrief@v2:
+      repository or one safe repository-relative path. Keep this independent of
+      hunks, rests_on, found_at and verifier marks. Absent preserves exact legacy
+      output. Invalid authored scope is refused by file readers and runtime
+      guards; schemas and replay agree, prior artifacts remain readable forever.
+      Evidence emission uses explicit applicability only for claims that already
+      meet the existing rooted filter; standing stays hypothesis. No changed
+      verification, authority, ratification, new substrate verb or guessed relevance.
+      Preserve the explicit field through parsing, ledger events and outbound
+      debrief where receiver compatibility permits, and produce existing item@v1
+      scope with no new wire item field. Prove receiver compatibility against the
+      checked-in request schema; refuse rather than invent compatibility if needed.
+      Add a real historical-content regression: a claim supported in a notes hunk
+      can be explicitly applicable to packages/substrate/src/evidence.ts, without
+      altering the support location; legacy counterpart stays notes-scoped.
+      Also test discoveries, unrooted exclusion, invalid paths, multi-hunk legacy
+      fallback, and parse/event/wire preservation. Use the existing seams, not a
+      second knowledge store. Record why in the design bend log and a concise
+      authored debrief example so the new field can actually be used. Clean
+      commit, notes/debrief and current generated schema reference; standing gates.
+    gates:
+      - id: learning-contract
+        kind: command
+        run: pnpm --filter substrate --fail-if-no-match exec vitest run test/evidence.test.ts test/wire.test.ts --reporter=verbose
+        expect_output: 'Tests +[1-9][0-9]* passed'
