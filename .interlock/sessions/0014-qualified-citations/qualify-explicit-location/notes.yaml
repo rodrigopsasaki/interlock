@@ -72,3 +72,43 @@ entries:
       Altering line parsing or its supported suffix grammar, because the
       existing implementation already expresses the required behavior and the
       authorized repair is fixture proof only.
+    assertions:
+      - >-
+        packages/verifier/test/foundAt.test.ts:172-179 asserts rooted marks for
+        the two final real lines and unrooted marks for their adjacent lines 4
+        and 3.
+      - >-
+        The success inputs at packages/verifier/test/foundAt.test.ts:144 and
+        :151 are ordinary prose and retain the parser's supported comma and
+        semicolon punctuation after the explicit line number.
+  - kind: choice
+    at: 2026-09-15T20:51:15Z
+    chose: >-
+      Qualify the retained scope claim: only a rooted discovery whose hunk is
+      neither command nor out-of-band citation becomes a path-scoped item;
+      sentinel rooted hunks become repository-scoped items.
+    because: >-
+      The source defines SENTINEL_HUNKS as "command" and "out-of-band citation"
+      and its full discoveryItem branch returns undefined for non-rooted marks,
+      repository scope for a sentinel, and `{ kind: "path", path:
+      entry.mark.hunk }` only otherwise.
+    rejected: >-
+      Repeating the retained universal statement that every rooted discovery
+      hunk supplies path scope, because the sentinel branch disproves it.
+    assertions:
+      - >-
+        packages/substrate/src/evidence.ts:47 contains
+        `new Set(["command", "out-of-band citation"])`; lines 98-110 contain
+        the rooted guard, both scope branches, and the returned item.
+  - kind: surprise
+    at: 2026-09-15T20:52:02Z
+    expected: The abbreviated brief commit identifier would be enough to reproduce its full session_start_sha.
+    observed: >-
+      git rev-parse resolved 02f6310 to
+      02f6310cafd18cb30d91d75933034dd657b05581, not the initially drafted
+      value; the recovery debrief now uses the resolved commit SHA.
+  - kind: choice
+    at: 2026-09-15T20:54:21Z
+    chose: Finalize the root-reviewed recovery artifacts without changing their fixture or scope claims.
+    because: Root and independent review accepted the exact assertions, qualified c2 claim, retained archive, and resolved derivation metadata.
+    rejected: Any further semantic or production change, because release authorizes only committing the reviewed draft and regenerating the required schema reference.
