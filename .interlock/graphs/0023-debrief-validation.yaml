@@ -1,0 +1,50 @@
+interlock: graph@v0
+id: 0023-debrief-validation
+ask: Validate the current debrief without making retained mistakes impossible to keep.
+derivation:
+  kind: model
+  model: gpt-6-astra
+  prompt: brief-learning-find-shape-2026-09-15-round-6
+read: >
+  M5 iteration 6, the last authorized change. A corrected debrief now reaches
+  the receiver, but the real-file corpus rejects its preserved invalid prior
+  version. Keep both obligations: current artifacts must conform, and retained
+  history must keep its exact bytes. No waiver, deletion or history rewrite.
+  Work from the accepted local base; root will assemble this proved change
+  into the held context-delivery candidate and rejudge that actual case.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: validate-current-debrief
+    depends_on: []
+    acceptance: |
+      Make interlock debrief validate apply the existing published schema to
+      current debrief@v2 files in both graph/node and --file forms before saying
+      valid. Compose the existing schema registry; no duplicate derivation
+      grammar. Preserve existing valid output, legacy v0/v1 validation behavior,
+      notes handling, historical readers, revise's ability to read an invalid
+      current v2 for repair, ledger replay, schemas and wire serialization.
+      Distinguish retained revisions from current artifacts in the real-file
+      corpus: only the exact registered session revisions location and a valid
+      SHA-256 filename may receive retained-history treatment. Verify the exact
+      raw bytes against the filename; do not merely exclude or ignore archives.
+      Invalid schema in a correctly retained old revision is evidence of a past
+      mistake, not a valid current artifact. Reject corrupted hashes, malformed
+      archive names and symbolic-link archive files. Current canonical debriefs,
+      authored revision candidates and files outside the exact history location
+      keep normal schema validation. No broad path/substr exclusion. Direct
+      schema validation must still truthfully reject the invalid historical
+      payload. Add real-temp-file tests showing invalid current rejection,
+      exact invalid history retained successfully, tampering/misplacement
+      rejected, valid current agent/human v2 and old readers unaffected, and a
+      repair through the existing revise command remains possible. Explain the
+      current-versus-history distinction in the design bend log with the way
+      back. Do not alter retained repository artifacts, schemas, standing gate
+      commands, timeouts, approvals, or outbox history. Full normal harness gates
+      plus independent review, truthful typed artifacts and clean commits.
+    gates:
+      - id: current-and-retained
+        kind: command
+        run: pnpm --filter cli --filter schemas --fail-if-no-match test
+        expect_output: 'Tests +[1-9][0-9]* passed'
