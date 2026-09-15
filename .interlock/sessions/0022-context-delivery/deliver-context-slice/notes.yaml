@@ -29,3 +29,15 @@ entries:
     at: "2026-09-15T23:35:55Z"
     chose: Select an authored schema-compatible debrief revision with only kind, runtime, and model in derivation.
     because: The published derivation schema is authoritative for receiver compatibility, and debrief revise retains the original authored bytes before installing the correction.
+  - kind: surprise
+    at: "2026-09-15T23:37:39Z"
+    expected: The reported receiver refusal could be listed as a gate run in the worker debrief.
+    observed: Root reported that the real receiver held the prior debrief with HTTP 400, but the worker did not run that receiver operation.
+  - kind: surprise
+    at: "2026-09-15T23:37:39Z"
+    expected: The full harness test gate would provide a passing receipt after the correction.
+    observed: Root reported that its full harness test gate failed in corpus.files.test.ts on the same derivation field, while debrief validation passed.
+  - kind: choice
+    at: "2026-09-15T23:37:39Z"
+    chose: Keep root-reported receiver and harness outcomes in attributed notes and remove the receiver outcome from gates_run_by_agent.
+    because: The debrief gate list records only commands this worker ran, while typed notes retain externally reported facts without presenting them as worker proof.
