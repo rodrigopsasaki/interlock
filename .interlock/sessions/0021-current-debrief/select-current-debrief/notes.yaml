@@ -25,3 +25,23 @@ entries:
     at: "2026-09-15T23:16:54Z"
     chose: Archive the current debrief under its SHA-256 filename before a temporary-file rename installs selected candidate bytes.
     because: Content-addressed retention preserves the exact prior artifact and an atomic replacement leaves the canonical debrief intact if the later write fails.
+  - kind: choice
+    at: "2026-09-15T23:18:42Z"
+    chose: Select the authored debrief-revision-2.yaml through the new command after committing the initial debrief.
+    because: The command retained the initial bytes at revisions/e5f67d8b469c9fe15d4eda9b1877f17ab0c5fa6c7a8180f0bb2ea466e404379f.yaml and installed exact selected bytes at debrief.yaml while leaving the source revision intact.
+  - kind: surprise
+    at: "2026-09-15T23:19:08Z"
+    expected: The initial no-op result and direct-session checks fully described the selection contract.
+    observed: Review found that no-op output named a possible rather than retained archive path and that the brief path itself needed the same symbolic-link refusal as candidate and write paths.
+  - kind: choice
+    at: "2026-09-15T23:21:09Z"
+    chose: Use a discriminated selection outcome and a final third authored revision after committing the review correction.
+    because: Already-current selection has no retained artifact to report, and the final debrief must name the actual implementation head f77ac48f030f5c502ac021bcb76c00d0499f796f before its artifact commit.
+  - kind: surprise
+    at: "2026-09-15T23:22:27Z"
+    expected: The workspace test gate would finish after the packages whose checks had already passed.
+    observed: The full run reached substrate capability tests and timed out twice at their five-second local-listener boundary; typecheck, lint, comments, the full 70-test debrief revision contract, debrief validation, and schema-reference generation completed successfully.
+  - kind: choice
+    at: "2026-09-15T23:23:13Z"
+    chose: Add the worker-observed workspace-test timeout to a fourth authored debrief revision and select it through the command.
+    because: The harness will earn standing-gate receipts separately, while this session's debrief must truthfully retain the failed worker invocation without changing its tests or timeout.

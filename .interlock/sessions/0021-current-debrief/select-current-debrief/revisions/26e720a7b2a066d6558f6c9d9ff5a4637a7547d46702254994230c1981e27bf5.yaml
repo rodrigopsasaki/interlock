@@ -1,12 +1,12 @@
 interlock: debrief@v2
-revision: 4
-supersedes: ".interlock/sessions/0021-current-debrief/select-current-debrief/debrief.yaml revision 3"
+revision: 2
+supersedes: ".interlock/sessions/0021-current-debrief/select-current-debrief/debrief.yaml at 307cd55f88bdebaba335252e2846da5715c6e316"
 graph: 0021-current-debrief
 node: select-current-debrief
 role: worker
 graph_base_sha: 5969b6ed488166c2547637c082a2101a49a947b3
 session_start_sha: b65a0a9e008d441e194e623f92bcae168cdc1472
-head_sha: f77ac48f030f5c502ac021bcb76c00d0499f796f
+head_sha: 307cd55f88bdebaba335252e2846da5715c6e316
 derivation:
   kind: agent
   runtime: codex
@@ -29,47 +29,31 @@ decisions:
     because: A correction needs an actionable handoff that selects the authored candidate without changing what existing canonical or legacy readers accept.
     rests_on:
       - .interlock/graphs/0021-current-debrief.yaml
+      - .interlock/sessions/0021-current-debrief/select-current-debrief/notes.yaml
     hunks:
       - packages/runner/src/openingPrompt.ts
       - packages/runner/test/openingPrompt.test.ts
   - id: exercised-selection
-    what: Selected authored revisions through interlock debrief revise, retaining each replaced canonical debrief by content address while leaving the revision source files intact.
-    because: Explicit invocation proves the intended authored candidate becomes the reader input and preserves the way back without inferring authority from its filename.
+    what: Selected this authored revision into debrief.yaml with interlock debrief revise while retaining the initial debrief under its content-addressed revisions path.
+    because: The command's own session must demonstrate that the explicit candidate, rather than a filename heuristic, becomes the current reader input while both authored versions remain available.
     rests_on:
       - .interlock/graphs/0021-current-debrief.yaml
       - packages/debrief/src/revise.ts
     hunks:
       - .interlock/sessions/0021-current-debrief/select-current-debrief/debrief.yaml
       - .interlock/sessions/0021-current-debrief/select-current-debrief/debrief-revision-2.yaml
-      - .interlock/sessions/0021-current-debrief/select-current-debrief/debrief-revision-3.yaml
-      - .interlock/sessions/0021-current-debrief/select-current-debrief/debrief-revision-4.yaml
       - .interlock/sessions/0021-current-debrief/select-current-debrief/revisions
-  - id: truthful-no-op
-    what: Made selected and already-current outcomes distinct so a same-byte selection reports no archive that was not retained.
-    because: A write-free no-op must not imply history that does not exist, while a post-retention install failure must preserve the original canonical bytes.
-    rests_on:
-      - .interlock/sessions/0021-current-debrief/select-current-debrief/notes.yaml
-    hunks:
-      - packages/debrief/src/revise.ts
-      - packages/debrief/test/revise.test.ts
-      - packages/cli/src/debrief/revise.ts
-      - packages/cli/test/debrief/revise.test.ts
 gates_run_by_agent:
-  - id: typecheck
+  - id: focused-revision-tests
     result: pass
-    invocation: mise exec -- pnpm typecheck
-  - id: lint
+    invocation: mise exec -- pnpm --filter debrief exec vitest run test/revise.test.ts --reporter=verbose
+    note: 10 tests passed.
+  - id: focused-cli-tests
     result: pass
-    invocation: mise exec -- pnpm lint
-  - id: comments
+    invocation: mise exec -- pnpm --filter cli exec vitest run test/debrief/revise.test.ts --reporter=verbose
+    note: 2 tests passed.
+  - id: focused-handoff-tests
     result: pass
-    invocation: mise exec -- pnpm check:comments
-  - id: test
-    result: fail
-    invocation: mise exec -- pnpm test
-    note: Substrate capability tests timed out twice at five seconds on their local-listener boundary; no timeout or test was changed.
-  - id: revision-contract
-    result: pass
-    invocation: mise exec -- pnpm --filter debrief --fail-if-no-match exec vitest run --reporter=verbose
-    note: 70 tests passed.
+    invocation: mise exec -- pnpm --filter runner exec vitest run test/openingPrompt.test.ts --reporter=verbose
+    note: 9 tests passed.
 open: []

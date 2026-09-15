@@ -1,0 +1,49 @@
+interlock: debrief@v2
+revision: 1
+graph: 0021-current-debrief
+node: select-current-debrief
+role: worker
+graph_base_sha: 5969b6ed488166c2547637c082a2101a49a947b3
+session_start_sha: b65a0a9e008d441e194e623f92bcae168cdc1472
+head_sha: b3bdad87a884432e6ec1709cc4773d8cc22487c3
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries: []
+decisions:
+  - id: selected-current
+    what: Added an explicit v2-only debrief selection operation that archives the prior canonical bytes and atomically installs an authored compatible candidate.
+    because: The harness must read an author-selected correction while preserving the original artifact and refusing escaped, symbolic-link, malformed, legacy, or mismatched session input.
+    rests_on:
+      - .interlock/graphs/0021-current-debrief.yaml
+      - .interlock/sessions/0021-current-debrief/select-current-debrief/notes.yaml
+    hunks:
+      - packages/debrief/src/revise.ts
+      - packages/debrief/test/revise.test.ts
+      - packages/cli/src/debrief/revise.ts
+      - packages/cli/test/debrief/revise.test.ts
+  - id: worker-handoff
+    what: Added the explicit revise command to the ordinary worker opening prompt.
+    because: A correction needs an actionable handoff that selects the authored candidate without changing what existing canonical or legacy readers accept.
+    rests_on:
+      - .interlock/graphs/0021-current-debrief.yaml
+      - .interlock/sessions/0021-current-debrief/select-current-debrief/notes.yaml
+    hunks:
+      - packages/runner/src/openingPrompt.ts
+      - packages/runner/test/openingPrompt.test.ts
+gates_run_by_agent:
+  - id: focused-revision-tests
+    result: pass
+    invocation: mise exec -- pnpm --filter debrief exec vitest run test/revise.test.ts --reporter=verbose
+    note: 10 tests passed.
+  - id: focused-cli-tests
+    result: pass
+    invocation: mise exec -- pnpm --filter cli exec vitest run test/debrief/revise.test.ts --reporter=verbose
+    note: 2 tests passed.
+  - id: focused-handoff-tests
+    result: pass
+    invocation: mise exec -- pnpm --filter runner exec vitest run test/openingPrompt.test.ts --reporter=verbose
+    note: 9 tests passed.
+open:
+  - Run the standing gates, then select the authored correction through interlock debrief revise.
