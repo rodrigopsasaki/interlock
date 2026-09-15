@@ -1,0 +1,44 @@
+interlock: debrief@v2
+graph: 0022-context-delivery
+node: deliver-context-slice
+role: worker
+graph_base_sha: 09303e6c2044a0ce92e689fcc232b816da4074df
+session_start_sha: 0d28f45dec0ebc696b2a92b480a9472151b20e98
+head_sha: d1017a1c072ede645e295c05d7c641be9b05fb13
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+  reasoning_effort: high
+discoveries: []
+decisions:
+  - id: append-unheaded-slice
+    what: Appended one canonical Context slice section when rendered composition has no existing heading.
+    because: A successful rendered response must reach the canonical brief and opening projection while preserving authored body and the existing headed replacement behavior.
+    rests_on:
+      - .interlock/graphs/0022-context-delivery.yaml
+      - .interlock/sessions/0022-context-delivery/deliver-context-slice/notes.yaml
+    hunks:
+      - packages/runner/src/contextSlice.ts
+      - packages/runner/test/sessionBrief.test.ts
+  - id: prove-composition-read
+    what: Covered unheaded actual items, the exact authored-body prefix, empty body and rendered slice, canonical/opening parity, contextSliceOf readability, repeated replacement, and refused context.
+    because: Delivery needs proof at the runner composition seam without changing retrieval, scope, gates, or non-rendered outcomes.
+    rests_on:
+      - .interlock/graphs/0022-context-delivery.yaml
+      - packages/runner/src/sessionBrief.ts
+      - packages/runner/src/openingView.ts
+    hunks:
+      - packages/runner/test/sessionBrief.test.ts
+gates_run_by_agent:
+  - id: context-composition
+    result: pass
+    invocation: mise exec -- pnpm --filter runner --fail-if-no-match exec vitest run test/sessionBrief.test.ts --reporter=verbose
+    note: 16 tests passed.
+  - id: runner-typecheck
+    result: pass
+    invocation: mise exec -- pnpm --filter runner --fail-if-no-match exec tsc --noEmit
+  - id: runner-style
+    result: pass
+    invocation: mise exec -- pnpm exec biome check packages/runner/src/contextSlice.ts packages/runner/test/sessionBrief.test.ts
+open: []
