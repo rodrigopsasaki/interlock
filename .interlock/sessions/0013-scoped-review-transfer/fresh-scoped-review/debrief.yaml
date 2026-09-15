@@ -1,0 +1,60 @@
+interlock: debrief@v2
+graph: 0013-scoped-review-transfer
+node: fresh-scoped-review
+role: worker
+graph_base_sha: 1ebbca94408de34821d329cf006f1d950a67ead9
+session_start_sha: da10f3c1d97507e6f6bca2a727defc552e1520f2
+head_sha: 555449ed31b7be2c9f9f6c752cd850ab77ab1c6e
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries:
+  - id: direct-test-selection
+    what: The package test scripts expand file arguments into the full package suite; direct Vitest invocation is required to keep this review's local verification to its three named files.
+    found_at: package.json:10
+    mattered_because: The expanded runner suite reached unrelated live-socket and GPG-dependent tests, so their failures could not serve as evidence about this report.
+decisions:
+  - id: selector-is-not-authority
+    what: Report context_scope as allowed query membership checked against the runner's tracked authority, rather than as authority itself.
+    because: The runner derives authoritativeScope from gitTrackedFiles, rejects a selected string absent from that set before context, and rewrites the persisted scope from that authority.
+    rests_on:
+      - 'brief.md:626-627 exact supplied hypothesis: "Kept full gitTrackedFiles scope canonical and in the ledger, while dispatching context with a validated selector only when every selected spelling exactly matches a tracked path. (because A reader-safe alias or missing path must produce a typed refusal before context rather than normalize into a different authority or make an unbounded request.)" Derivation: "agent:codex:gpt-5.6-terra".'
+      - packages/runner/src/sessionBrief.ts:75-116
+      - packages/runner/test/sessionBrief.test.ts:138-243
+    hunks:
+      - docs/experiments/learning-transfer/scoped-review.md:5
+      - docs/experiments/learning-transfer/scoped-review.md:7
+    produces:
+      - docs/experiments/learning-transfer/scoped-review.md
+  - id: omitted-selector-is-additive
+    what: Limit backward-compatibility findings to brief@v1 files that omit context_scope, and do not claim that brief@v0 dispatches.
+    because: The parser makes context_scope optional and the runner falls back to the full tracked list, while a legacy read still returns a typed refusal before selection.
+    rests_on:
+      - 'brief.md:623-624 exact supplied hypothesis: "Added optional context_scope to brief@v1 with nonempty, unique structural schema checks and reader-side path checks that preserve omitted-selector legacy behavior. (because The selector is advisory retrieval input, so its structural schema must not claim semantic path safety that the existing normalize-based reader owns.)" Derivation: "agent:codex:gpt-5.6-terra".'
+      - packages/debrief/src/brief.ts:146-168
+      - packages/runner/src/sessionBrief.ts:71-96
+      - packages/runner/test/sessionBrief.test.ts:245-290
+    hunks:
+      - docs/experiments/learning-transfer/scoped-review.md:13
+      - docs/experiments/learning-transfer/scoped-review.md:15
+    produces:
+      - docs/experiments/learning-transfer/scoped-review.md
+gates_run_by_agent:
+  - id: package-debrief-script
+    result: pass
+    invocation: mise exec -- pnpm --filter debrief test -- brief.test.ts
+    note: The package script expanded to the debrief package suite; all 50 tests passed, but this result is broader than requested.
+  - id: package-runner-script
+    result: fail
+    invocation: mise exec -- pnpm --filter runner test -- sessionBrief.test.ts briefRewrite.test.ts
+    note: The package script expanded to the runner package suite; unrelated live-socket and GPG-dependent worktree tests failed, while sessionBrief and briefRewrite passed.
+  - id: targeted-brief-parser
+    result: pass
+    invocation: mise exec -- pnpm --filter debrief exec vitest run test/brief.test.ts
+    note: 30 brief parser tests passed.
+  - id: targeted-context-selection
+    result: pass
+    invocation: mise exec -- pnpm --filter runner exec vitest run test/sessionBrief.test.ts test/briefRewrite.test.ts
+    note: 22 session-brief and brief-rewrite tests passed.
+open: []

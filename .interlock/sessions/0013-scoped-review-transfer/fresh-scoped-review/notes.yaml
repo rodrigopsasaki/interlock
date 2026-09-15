@@ -29,3 +29,7 @@ entries:
     at: 2026-09-15T01:11:10Z
     chose: Describe the selector as an allowed query membership checked against authority, not as authority itself.
     because: The runner's authoritative scope remains the complete tracked set; the selector only narrows the context request after an exact-membership check.
+  - kind: choice
+    at: 2026-09-15T01:11:47Z
+    chose: File a debrief that quotes only the two supplied hypotheses used by the report and leaves the uninspected production-scale quantity out of the decisions.
+    because: The report source-checks optional-selector compatibility and exact tracked membership, while its one-path test does not establish the supplied 3,000-path runtime claim.
