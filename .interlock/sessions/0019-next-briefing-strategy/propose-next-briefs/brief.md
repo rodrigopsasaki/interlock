@@ -67,3 +67,10 @@ already supplies the task and authority summary: consult the canonical inventory
 only when a specific question requires it. Keep this proposal concise (roughly
 700 words or fewer). Checked use, justified rejection and no-use are equally valid
 outcomes for any next experiment; never create a positive-use requirement.
+
+The outcome reader also saved its second debrief under a new name while leaving
+debrief.yaml on the old payload. The harness reads debrief.yaml. If revising a
+committed debrief, preserve its exact previous bytes in an explicit revisions
+path and keep the latest authored payload at that canonical path before handback.
+Never leave the harness to guess a revision filename. This is a filing correction,
+not a new protocol version or permission to delete prior artifacts.
