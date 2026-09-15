@@ -1,0 +1,60 @@
+interlock: debrief@v2
+revision: 2
+supersedes: ".interlock/sessions/0020-learning-applicability/separate-learning-applicability/debrief.yaml at d8f878808d6ab4aee0aa584162d57848d0a28d31"
+graph: 0020-learning-applicability
+node: separate-learning-applicability
+role: worker
+graph_base_sha: e4b0b447e369f18c4a2e2ba08c16b6babd6ed2cf
+session_start_sha: ea708ca272aa515eb6f4f7411d243c53de854164
+head_sha: 414c96999c465f4642133d2330d0620317e14a2e
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries: []
+decisions:
+  - id: c1
+    what: Added optional applies_to on debrief decisions and discoveries, guarded as repository or a canonical portable repository path.
+    because: The author can propose applicability without changing source support, while a strict new guard rejects unsafe input and leaves brief@v1's legacy path interpretation unchanged.
+    rests_on: ["brief: Preserve useful applicability without changing proof", "notes: canonical portable applicability choice"]
+    hunks: [packages/ledger/src/applicability.ts, packages/ledger/src/debrief.ts, packages/debrief/src/decision.ts, packages/debrief/src/discovery.ts, schemas/parts/applies-to.json, schemas/parts/debrief-event.json, schemas/parts/decision.json, schemas/parts/discovery.json, packages/ledger/test/applicability.test.ts, packages/debrief/test/debrief.test.ts, packages/schemas/test/corpus.guards.test.ts, packages/schemas/test/corpus.substrate.test.ts]
+  - id: c2
+    what: Emitted authored applicability only for rooted evidence and retained the old hunk-derived scope and multi-hunk gap when applies_to is absent.
+    because: A verifier mark establishes support rather than semantic relevance; suppressing an untrue repository fallback is correct only when an explicit authored applicability already supplies the item scope.
+    rests_on: ["brief: Preserve useful applicability without changing proof", "notes: canonical portable applicability choice"]
+    hunks: [packages/substrate/src/evidence.ts, packages/substrate/test/evidence.test.ts]
+    applies_to: { kind: path, path: packages/substrate/src/evidence.ts }
+  - id: c3
+    what: Preserved the qualified historical discovery-scope claim as notes-supported while documenting its separate evidence.ts applicability and outbound debrief mapping.
+    because: The checked historical claim identifies discoveryItem's rooted branches, but only an explicit applies_to can make that code path useful without reinterpreting the notes hunk as code support.
+    rests_on: ["docs/experiments/comparable-learning/inputs/source-debrief.yaml", "notes: receiver compatibility choice"]
+    hunks: [packages/substrate/src/wire.ts, packages/substrate/test/support/fixtures.ts, packages/substrate/test/wire.test.ts, docs/design/0001-interlock.md]
+  - id: c4
+    what: Replaced the duplicated event applicability schema with the same applies-to part used by the outbound debrief shape.
+    because: One schema expression makes the persisted ledger event and receiver request reject the same canonical portable path bytes instead of drifting through separately edited patterns.
+    rests_on: ["notes: schema control-character class"]
+    hunks: [schemas/parts/applies-to.json, schemas/parts/debrief-event.json]
+  - id: c5
+    what: Proved compiled-schema and runtime-guard parity for every ASCII control, DEL, U+2028, U+2029, internal spaces, and Unicode filename bytes.
+    because: The original line-separator reproduction exposed a partial test; exhaustive cases keep the explicit no-normalization policy observable at both boundaries.
+    rests_on: ["notes: schema control-character class"]
+    hunks: [packages/ledger/src/applicability.ts, packages/schemas/test/corpus.substrate.test.ts]
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+  - id: learning-contract
+    result: pass
+    invocation: mise exec -- pnpm --filter substrate --fail-if-no-match exec vitest run test/evidence.test.ts test/wire.test.ts --reporter=verbose
+    note: 34 tests passed.
+  - id: applicability-parity
+    result: pass
+    invocation: mise exec -- pnpm --filter ledger --filter schemas exec vitest run test/applicability.test.ts test/corpus.guards.test.ts test/corpus.substrate.test.ts --reporter=verbose
+    note: 82 tests passed, including the exhaustive portable-path parity table.
+open: []

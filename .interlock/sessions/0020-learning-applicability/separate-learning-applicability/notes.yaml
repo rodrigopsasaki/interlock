@@ -37,3 +37,7 @@ entries:
     at: "2026-09-15T23:02:43Z"
     expected: "The schema control-character class matched the runtime guard beyond the reproduced line separators."
     observed: "Source review found the schema only excluded NUL while its dot handling happened to reject some line separators; parity requires one explicit policy rejecting C0, DEL, U+2028, and U+2029 at both boundaries without normalizing accepted bytes."
+  - kind: choice
+    at: "2026-09-15T23:04:03Z"
+    chose: "File a versioned debrief revision for the completed parity repair instead of changing the committed debrief."
+    because: "The original debrief remains a retained receipt; this revision records the corrected implementation head and the exhaustive guard/schema contract test without rewriting prior provenance."
