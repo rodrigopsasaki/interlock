@@ -61,6 +61,8 @@ nodes:
       optional corresponding exports, schemas/brief@v1.json and generated reference.
       Narrowly necessary openingPrompt/sessionDrive wiring is allowed only
       if the prior opening-view seam does not already preserve the selector.
+      The existing openingView formatter may be updated to retain context_scope
+      explicitly; do not silently omit new canonical metadata from the view.
       Also allow CLI run.test.ts for one real stub-runtime discriminator:
       3000 tracked paths, exact three-path context query, full canonical and
       ledger scope, selector in actual opening prompt, canonical commit before
