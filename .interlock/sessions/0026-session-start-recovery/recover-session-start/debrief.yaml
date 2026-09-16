@@ -1,0 +1,73 @@
+interlock: debrief@v2
+graph: 0026-session-start-recovery
+node: recover-session-start
+role: worker
+graph_base_sha: d80969b4aacbee4266bfaa072e54fe0541fc1559
+session_start_sha: d80969b4aacbee4266bfaa072e54fe0541fc1559
+head_sha: 92dd3287e7bad842c6af5b1cffb558bdd90752d6
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries:
+  - id: recovery-start-needs-earliest-identity
+    what: A matching later brief commit cannot establish session start because a committed brief edit preserves the same session metadata.
+    mattered_because: Recovery must first derive the earliest matching session identity and then compare its original raw bytes with the local immutable brief.
+    found_at: packages/cli/test/debrief/recoverSessionStart.test.ts
+    applies_to:
+      kind: path
+      path: packages/cli/src/debrief/recoverSessionStart.ts
+decisions:
+  - id: recover-session-start-from-independent-evidence
+    what: Added an explicit CLI recovery proof that requires a nonexistent current start SHA, one matching typed session-started event with graph base and graph-base acceptance, and one ancestry-path Git introduction whose raw brief bytes remain unchanged.
+    because: A correction must establish the original session independently of the erroneous debrief without treating a caller-supplied SHA, narration, later commit, or torn journal as authority.
+    rests_on:
+      - .interlock/graphs/0026-session-start-recovery.yaml
+      - .interlock/sessions/0026-session-start-recovery/recover-session-start/notes.yaml
+      - packages/ledger/src/replay.ts
+    hunks:
+      - packages/cli/src/debrief/recoverSessionStart.ts
+      - packages/cli/test/debrief/recoverSessionStart.test.ts
+  - id: preserve-ordinary-revision-custody
+    what: Kept ordinary debrief revision identity matching unchanged and made recovery an explicit typed callback before the existing exact-byte archive and atomic selection path.
+    because: A narrow recovery proof may replace only the mistaken session-start field while all prior path, identity, symlink, retention, and no-mutation-on-refusal behavior remains in force.
+    rests_on:
+      - .interlock/graphs/0026-session-start-recovery.yaml
+      - .interlock/sessions/0026-session-start-recovery/recover-session-start/notes.yaml
+      - packages/debrief/test/revise.test.ts
+    hunks:
+      - packages/debrief/src/revise.ts
+      - packages/cli/src/debrief/revise.ts
+      - packages/cli/test/debrief/revise.test.ts
+  - id: reuse-document-readers-for-git-bytes
+    what: Factored the existing brief and graph readers into raw-document entry points used by the CLI recovery proof.
+    because: Git-held bytes need the same validation as file-held artifacts, while keeping graph parsing at the CLI boundary avoids a debrief-to-face dependency edge.
+    rests_on:
+      - .interlock/graphs/0026-session-start-recovery.yaml
+      - .interlock/sessions/0026-session-start-recovery/recover-session-start/notes.yaml
+    hunks:
+      - packages/debrief/src/brief.ts
+      - packages/debrief/src/index.ts
+      - packages/face/src/document.ts
+      - packages/face/src/index.ts
+      - docs/design/0001-interlock.md
+gates_run_by_agent:
+  - id: focused-typecheck
+    result: pass
+    invocation: mise exec -- node packages/debrief/node_modules/typescript/bin/tsc --noEmit -p packages/debrief/tsconfig.json; mise exec -- node packages/face/node_modules/typescript/bin/tsc --noEmit -p packages/face/tsconfig.json; mise exec -- node packages/cli/node_modules/typescript/bin/tsc --noEmit -p packages/cli/tsconfig.json
+  - id: focused-recovery
+    result: pass
+    invocation: mise exec -- node packages/cli/node_modules/vitest/vitest.mjs run packages/cli/test/debrief/recoverSessionStart.test.ts packages/cli/test/debrief/revise.test.ts
+    note: 7 tests passed.
+  - id: focused-format
+    result: pass
+    invocation: mise exec -- ./node_modules/.bin/biome check --write packages/cli/src/debrief/recoverSessionStart.ts packages/cli/test/debrief/recoverSessionStart.test.ts docs/design/0001-interlock.md
+  - id: comments
+    result: pass
+    invocation: mise exec -- node scripts/noComments.ts
+  - id: test
+    result: fail
+    invocation: mise exec -- pnpm --filter cli --filter debrief test
+    note: The full CLI run inherited commit signing failures and unrelated enabled-origin timeouts before the dependency-tree interruption; no recovery test failed.
+open:
+  - The declared pnpm gates remain under proof. An offline package-tree rebuild stopped because required tarballs were absent; root will restore the task-owned generated tree before additional package commands run.

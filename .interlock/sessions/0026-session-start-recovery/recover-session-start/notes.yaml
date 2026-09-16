@@ -45,3 +45,7 @@ entries:
     at: "2026-09-16T04:19:03Z"
     chose: Treat a journal without its harness-written final newline as torn during recovery.
     because: Exceptional recovery needs a complete typed record; accepting a syntactically complete final fragment would weaken the journal's ordinary append boundary.
+  - kind: surprise
+    at: "2026-09-16T04:20:20Z"
+    expected: The later commit labelled as writing this session brief would be its initial Git introduction.
+    observed: Git log --diff-filter=A identified d80969b4aacbee4266bfaa072e54fe0541fc1559 as the brief introduction, so the debrief uses that mechanically retrieved SHA.
