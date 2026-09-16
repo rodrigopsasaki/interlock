@@ -1,0 +1,77 @@
+interlock: debrief@v2
+graph: 0037-learning-exchange-read
+node: plan/0037-learning-exchange-read
+role: interpreter
+graph_base_sha: 0f9f2572140be4e42937dd6ea7c659b35d2e25b3
+session_start_sha: b8eee70eddd0972fe63edda68812be95c0b82342
+head_sha: 2f9f0d38fa3c4475ee8d2af6830484b6a585ebba
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries:
+  - id: sender-evidence-is-already-separate
+    what: gateJudge derives translated items and gaps before absorb, sends them as optional evidence through prepareAbsorb, then narrates only the receiver outcome plus an optional lexical slice count.
+    found_at: packages/runner/src/gateJudge.ts:337-404
+    mattered_because: The existing local seams can expose the sent translation without a new receiver protocol or a second request, while runner wiring must preserve its actual observed payload and separate metadata.
+  - id: verifier-refusal-does-not-erase-derived-evidence
+    what: evidenceForAbsorb keeps deriving evidence from fallback decision marks, receipts, and person events after verifyDebrief refuses, then returns any resulting items and gaps.
+    found_at: packages/runner/src/gateJudge.ts:337-367
+    mattered_because: Narration metadata must not call known outgoing items unavailable merely because a claim source did not verify, and the exact existing payload must remain unchanged.
+  - id: receiver-decision-ids-are-legacy-response-data
+    what: the absorb response carries decisions_absorbed separately from optional request items, and the current narration labels only that response array as decisions absorbed.
+    found_at: packages/substrate/src/httpClient.ts:299-316
+    mattered_because: An empty receiver decision-ID array cannot establish that the sender translated no items, so the proposed narration must render those observations independently.
+  - id: lexical-fallback-is-not-receiver-placement
+    what: current narration substitutes known and unknown counts from textual path references in the Context slice when the receiver supplies no discovery placements.
+    found_at: packages/substrate/src/narrate.ts:31-51
+    mattered_because: The textual comparison needs its own label and unavailable state rather than standing in for receiver knowledge or collapsing missing brief evidence to zero.
+decisions:
+  - id: separate-local-absorb-observations
+    what: Planned one bounded implementation node that makes translated request evidence, receiver-reported response data, and lexical brief-reference comparison distinct local narration observations through the existing narration and runner seams.
+    because: The existing sender and narration seams already hold all three meanings but currently print the receiver's legacy decision IDs beside a fallback lexical count; one atomic acceptance keeps observed empty and unavailable evidence distinct without changing receiver bytes or authority.
+    rests_on:
+      - packages/substrate/src/client.ts
+      - packages/substrate/src/narrate.ts
+      - packages/substrate/src/httpClient.ts
+      - packages/substrate/test/absorb.test.ts
+      - packages/substrate/test/sliceCount.test.ts
+      - .interlock/sessions/0037-learning-exchange-read/plan/0037-learning-exchange-read/notes.yaml
+    hunks:
+      - .interlock/graphs/0037-learning-exchange-read.yaml
+    applies_to:
+      kind: repository
+  - id: preserve-runner-outbox-boundary
+    what: Included runner wiring in that same implementation node so narration receives the actual translated-evidence and brief-read state while the existing outbox request, identity, durability, retry, and delivery paths remain intact.
+    because: gateJudge is the seam that both determines whether local translation and brief bytes are available and forwards evidence to absorb; testing its real path can prove a positive translated request with zero reported decision IDs without treating an acknowledgment as proof of any semantic outcome.
+    rests_on:
+      - packages/runner/src/gateJudge.ts
+      - packages/runner/test/gateJudge.test.ts
+      - packages/runner/test/absorbOutbox.test.ts
+      - packages/runner/test/absorbOutbox.failure.test.ts
+      - packages/runner/test/absorbStorageBoundary.test.ts
+      - .interlock/sessions/0037-learning-exchange-read/plan/0037-learning-exchange-read/notes.yaml
+    hunks:
+      - .interlock/graphs/0037-learning-exchange-read.yaml
+    applies_to:
+      kind: repository
+gates_run_by_agent:
+  - id: graph-load
+    result: pass
+    invocation: mise exec -- pnpm interlock graph show 0037-learning-exchange-read
+    note: The first committed graph loaded with two pending focused gates; the retained revision is checked again before filing and remains not approved.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint -- .interlock/graphs/0037-learning-exchange-read.yaml .interlock/sessions/0037-learning-exchange-read/plan/0037-learning-exchange-read/notes.yaml .interlock/sessions/0037-learning-exchange-read/plan/0037-learning-exchange-read/debrief.yaml
+    note: Biome checked 336 files with no fixes applied.
+  - id: debrief-valid
+    result: pass
+    invocation: mise exec -- pnpm interlock debrief validate 0037-learning-exchange-read plan/0037-learning-exchange-read
+    note: The authored canonical debrief and notes validated as their current shapes before this observed result was recorded.
+  - id: lint-final-artifact
+    result: pass
+    invocation: mise exec -- pnpm lint -- .interlock/sessions/0037-learning-exchange-read/plan/0037-learning-exchange-read/debrief.yaml
+    note: Biome checked 336 files with no fixes applied before the final commit.
+open:
+  - The proposed graph is not approved; its implementation node was not leased or run.
+  - The received handoff preview was used only as a source-check pointer. This plan establishes no claim about receiver storage, truth, adoption, usefulness, or semantic prior knowledge.
