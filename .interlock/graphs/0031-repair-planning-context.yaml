@@ -1,0 +1,39 @@
+interlock: graph@v0
+id: 0031-repair-planning-context
+ask: Let selected planning context work without breaking older corrections.
+derivation:
+  kind: model
+  model: gpt-6-astra
+  prompt: ten-iteration-learning-2026-09-16-round-1
+read: >
+  Fresh judgment of the unchanged prior candidate is held. Four addressed-context
+  tests omit their repository origin; corrections with an explicit ask and no
+  previous brief now refuse. Legacy briefs also need the old omitted-selector
+  behavior. Repair these together, preserving strict present-invalid refusals.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: repair-planning-context
+    depends_on: []
+    acceptance: |
+      Repair the held planning-context feature with no new surface or protocol.
+      An explicit-ask correction of an unapproved existing graph with no previous
+      planner brief or a valid legacy brief falls back to omitted context selection.
+      A present malformed, unknown or invalid brief still refuses when inheritance
+      is requested, before context dispatch, session-started or lease. Explicit
+      replacement preserves existing behavior. Valid v1 selectors inherit;
+      explicit [] replaces rather than inherits. Work authority stays all tracked
+      paths regardless of selected context. Omission and [] remain distinct.
+      Correct the HTTP test fixtures' missing origins, not production origin checks.
+      Observe actual outgoing scopes, committed selector and complete authority.
+      Cover absent/legacy/invalid prior briefs, inheritance/override, and exact-set
+      rejection of a normalizable alias with no context request or session-started.
+      Preserve old artifacts, approval, none address, retry boundaries and readers.
+      No dependency, broad refactor or gate weakening. Clean source commits and an
+      honest valid notes/debrief handoff. One 25-minute attempt; stop after handoff.
+    gates:
+      - id: planning-context-proof
+        kind: command
+        run: pnpm --filter cli exec vitest run test/plan.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
