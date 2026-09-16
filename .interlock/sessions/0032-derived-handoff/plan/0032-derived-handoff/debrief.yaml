@@ -1,0 +1,65 @@
+interlock: debrief@v2
+graph: 0032-derived-handoff
+node: plan/0032-derived-handoff
+role: interpreter
+graph_base_sha: 783ebd1d075e09b715a99532159680d29e9993fb
+session_start_sha: fde28ac1ae62ca1b8dc130bed98ae25973b881fa
+head_sha: e8b55d1b07b5b0267b252347a7e83119b4e2d0a7
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries: []
+decisions:
+  - id: use-noncanonical-creation
+    what: "Planned a creation-only candidate followed by explicit file-derived first filing, rather than writing a canonical scaffold before the worker has authored a debrief."
+    because: "A candidate can carry harness-derived identity while preserving an empty canonical path for first filing; file-derived can create that path without clobbering a concurrent canonical file, while later ordinary revise retains existing canonical bytes through established revision custody."
+    rests_on:
+      - packages/debrief/src/revise.ts
+      - packages/cli/src/debrief/revise.ts
+      - .interlock/sessions/0032-derived-handoff/plan/0032-derived-handoff/notes.yaml
+    hunks:
+      - .interlock/graphs/0032-derived-handoff.yaml
+  - id: require-honest-derivation-input
+    what: "Planned explicit mutually exclusive agent runtime/model or human-name input for debrief derivation, with no model inference by the harness."
+    because: "The typed session-started record corroborates session identity and graph base but contains no derivation or model field, so the existing sources cannot truthfully derive that required v2 metadata."
+    rests_on:
+      - packages/ledger/src/event.ts
+      - packages/ledger/src/brief.ts
+      - packages/runner/src/sessionDrive.ts
+      - packages/ledger/src/debrief.ts
+    hunks:
+      - .interlock/graphs/0032-derived-handoff.yaml
+  - id: refuse-stale-derived-first-file
+    what: "Planned only file-derived first filing to require its Git-derived head_sha to equal current HEAD and to direct a worker who changes source to commit it and prepare a fresh candidate."
+    because: "Ordinary revise compares graph, node, role, graph base, and normally session start without requiring a current source head; that compatibility must remain because historical corrections can deliberately retain an earlier source head. The new filing door can reject stale prepared candidates without changing ordinary revision."
+    rests_on:
+      - packages/debrief/src/revise.ts
+      - packages/cli/src/debrief/recoverSessionStart.ts
+      - .interlock/sessions/0032-derived-handoff/plan/0032-derived-handoff/notes.yaml
+    hunks:
+      - .interlock/graphs/0032-derived-handoff.yaml
+  - id: make-first-file-no-clobber
+    what: "Planned file-derived to use an OS-level no-replace creation for canonical debrief.yaml and to refuse a concurrent canonical appearance without changing either file."
+    because: "Checking that the canonical path is absent before an overwrite-capable rename leaves a race in which another authored debrief can be lost; first-file custody requires one atomic creation boundary."
+    rests_on:
+      - packages/debrief/src/revise.ts
+      - .interlock/sessions/0032-derived-handoff/plan/0032-derived-handoff/notes.yaml
+    hunks:
+      - .interlock/graphs/0032-derived-handoff.yaml
+  - id: treat-context-as-source-check-pointer
+    what: "Used the provisional context claims about revision custody and session-start recovery as pointers, then based the graph on the current source behavior."
+    because: "The brief requires hypotheses to be checked before reliance; source confirmed the two stated review findings, while the candidate-only workflow is a new plan choice rather than a context verdict."
+    rests_on:
+      - packages/debrief/src/revise.ts
+      - packages/cli/src/debrief/recoverSessionStart.ts
+      - .interlock/sessions/0032-derived-handoff/plan/0032-derived-handoff/brief.md
+    hunks:
+      - .interlock/graphs/0032-derived-handoff.yaml
+gates_run_by_agent:
+  - id: debrief-valid
+    result: pass
+    invocation: pnpm interlock debrief validate 0032-derived-handoff plan/0032-derived-handoff
+    note: "The canonical planning-session debrief and notes validated as their supported shapes before this observed result was recorded."
+open:
+  - "The harness must run derived-handoff-proof and the standing gates after a person approves the graph; this interpreter session did not run the planned implementation node or its gate."
