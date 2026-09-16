@@ -25,3 +25,7 @@ entries:
     at: "2026-09-16T05:06:49Z"
     expected: The implementation commit would use the repository's configured signing path.
     observed: The configured signer cannot create its local keybox files in this worktree environment, so the commit will disable signing explicitly while preserving the staged content and commit message.
+  - kind: surprise
+    at: "2026-09-16T05:08:09Z"
+    expected: The declared full test gate would complete after the focused runner and CLI proofs passed.
+    observed: pnpm test reached substrate and two existing capabilities tests timed out at their five-second limit before the runner and CLI package suites, so the declared aggregate test gate remains failed independently of this filing seam.

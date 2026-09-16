@@ -1,0 +1,74 @@
+interlock: debrief@v2
+graph: 0028-current-handoff
+node: record-current-handoff
+role: worker
+graph_base_sha: 2338a90cebebc68909301fc9c9d46ccf33866695
+session_start_sha: 2c018516b9f8aeba7728be2b295835c655a78168
+head_sha: 1f668563d8dddacf727a85cc8597f4c1a53649c1
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries:
+  - id: filing-is-session-scoped
+    what: The projection stores a current debrief on each session and later debrief-filed events replace that session's read without rewriting earlier events.
+    mattered_because: A corrected selected debrief must be filed against the judged session, while a second session for the same node remains unchanged.
+    found_at: packages/ledger/src/projection.ts:161-165
+decisions:
+  - id: file-changed-v2-content-without-replaying-notes
+    what: Read the current valid v2 debrief before deciding whether to file it, append a debrief-filed event only when its decoded value differs from the session's projected debrief, and append notes only with the first filing.
+    because: The latest filing becomes the session position while unchanged, malformed, legacy, and missing reads retain the prior current debrief and cannot duplicate notes.
+    rests_on:
+      - .interlock/graphs/0028-current-handoff.yaml
+      - .interlock/sessions/0028-current-handoff/record-current-handoff/notes.yaml
+      - packages/ledger/src/projection.ts
+    hunks:
+      - packages/runner/src/gateJudge.ts:323-334
+  - id: prove-session-local-content-sensitive-filing
+    what: Added runner coverage for two sessions of the same node, one corrected filing, semantic equality after reordered reserialization, and malformed, legacy, and missing current reads.
+    because: The filing boundary must distinguish session identity from node identity, retain raw history, and make every unreadable or equivalent rejudge a no-op.
+    rests_on:
+      - .interlock/graphs/0028-current-handoff.yaml
+      - .interlock/sessions/0028-current-handoff/record-current-handoff/notes.yaml
+    hunks:
+      - packages/runner/test/gateJudge.test.ts:932-1006
+  - id: prove-ordinary-evidence-reads-corrected-replay
+    what: Added a CLI fixture that selects an authored correction, rejudges it, checks raw filings and notes, and reads ordinary evidence from the persisted journal.
+    because: Public evidence must show the corrected judged filing rather than the first source range or a direct current-disk fallback.
+    rests_on:
+      - .interlock/graphs/0028-current-handoff.yaml
+      - .interlock/sessions/0028-current-handoff/record-current-handoff/notes.yaml
+      - packages/cli/src/evidence.ts
+    hunks:
+      - packages/cli/test/evidence.test.ts:359-432
+gates_run_by_agent:
+  - id: focused-runner-proof
+    result: pass
+    invocation: mise exec -- pnpm --filter runner exec vitest run test/gateJudge.test.ts
+    note: 28 tests passed.
+  - id: focused-cli-proof
+    result: pass
+    invocation: mise exec -- pnpm --filter cli exec vitest run test/evidence.test.ts
+    note: 12 tests passed.
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+  - id: debrief-valid
+    result: pass
+    invocation: mise exec -- pnpm interlock debrief validate 0028-current-handoff record-current-handoff
+  - id: corpus-reference-fresh
+    result: pass
+    invocation: mise exec -- pnpm --filter schemas exec vitest run test/corpus.files.test.ts test/reference.test.ts test/reference/corpus.test.ts
+    note: 196 tests passed.
+  - id: test
+    result: fail
+    invocation: mise exec -- pnpm test
+    note: Two existing substrate capabilities tests timed out at five seconds before runner and CLI suites ran.
+open:
+  - The declared aggregate test gate remains failed because existing substrate capabilities tests time out; focused runner and CLI handoff proofs passed.
