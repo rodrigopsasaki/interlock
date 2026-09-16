@@ -15,11 +15,25 @@ import {
 } from "debrief";
 import { findRepoRoot } from "face";
 import { shapeTag } from "ledger";
+import {
+  buildRegistry,
+  describeOutcome,
+  isRefusal,
+  judgeValue,
+  type SchemaRegistry,
+} from "schemas";
 import { parse as parseYaml } from "yaml";
 import type { CommandResult } from "../main.ts";
 
 const USAGE =
   'interlock debrief validate: expected a graph id and a node id, e.g. "interlock debrief validate 0001-bootstrap debrief-schema", or "interlock debrief validate --file <path>".';
+
+let schemaRegistry: SchemaRegistry | undefined;
+
+function currentSchemaRegistry(): SchemaRegistry {
+  if (schemaRegistry === undefined) schemaRegistry = buildRegistry();
+  return schemaRegistry;
+}
 
 export function describeDebriefRead(read: DebriefRead): string {
   if (read.kind === "v2") return `valid as ${DEBRIEF_V2}.`;
@@ -41,6 +55,16 @@ async function peekShapeTag(path: string): Promise<string | undefined> {
   }
 }
 
+async function schemaRefusal(path: string): Promise<string | undefined> {
+  try {
+    const value: unknown = parseYaml(await readFile(path, "utf-8"));
+    const outcome = judgeValue(currentSchemaRegistry(), value);
+    return isRefusal(outcome) ? `${path}: ${describeOutcome(outcome)}` : undefined;
+  } catch (error) {
+    return `${path}: ${error instanceof Error ? error.message : "could not validate the file"}`;
+  }
+}
+
 async function validateOneFile(path: string): Promise<CommandResult> {
   const tag = await peekShapeTag(path);
   if (tag?.startsWith("notes@")) {
@@ -51,6 +75,10 @@ async function validateOneFile(path: string): Promise<CommandResult> {
 
   const debriefRead = await readDebriefFile(path);
   if (isErr(debriefRead)) return { exitCode: 1, message: explainDebriefRefusal(debriefRead.error) };
+  if (debriefRead.value.kind === "v2") {
+    const refusal = await schemaRefusal(path);
+    if (refusal !== undefined) return { exitCode: 1, message: refusal };
+  }
   return {
     exitCode: 0,
     message: `${path}: ${describeDebriefRead(debriefRead.value)}`,
@@ -98,6 +126,10 @@ export async function validateDebrief(
   const debriefRead = await readDebriefFile(debriefPath);
   if (isErr(debriefRead)) {
     return { exitCode: 1, message: explainDebriefRefusal(debriefRead.error) };
+  }
+  if (debriefRead.value.kind === "v2") {
+    const refusal = await schemaRefusal(debriefPath);
+    if (refusal !== undefined) return { exitCode: 1, message: refusal };
   }
 
   const notesPath = notesFilePath(repoRoot, graph, node);

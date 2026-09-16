@@ -1,0 +1,38 @@
+interlock: graph@v0
+id: 0025-stable-examples
+ask: Let new sessions complete without silently choosing new published examples.
+derivation:
+  kind: model
+  model: gpt-6-astra
+  prompt: product-learning-find-shape-2026-09-16-cycle-1
+read: >
+  The previous worker fixed debrief validation, but its shorter debrief replaced
+  a documentation example selected by live corpus size, failing normal gates.
+  Cycle 1 removes that accidental dependency. Published examples are deliberate
+  selections, not a competition every newly completed session participates in.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: stabilize-reference-examples
+    depends_on: []
+    acceptance: |
+      Make reference example selection stable when unrelated valid session
+      artifacts are added, even shorter ones. Preserve the current published
+      examples where possible using explicit maintainable selections with their
+      source paths; compose existing readers and schema validation. Do not copy
+      narrative facts into a new authority, silently fall back from a missing or
+      wrong-shape selection, or mutate old artifacts. Unrepresented artifact
+      shapes retain an honest no-example result. Schema or selected-source
+      changes still change the generated reference and require deliberate
+      regeneration. Full current artifact corpus validation stays unchanged.
+      Add isolated fixture tests proving a smaller new debrief cannot churn
+      examples and missing/wrong-shape/invalid selection fails clearly. Existing
+      deterministic reference, vocabulary and freshness tests still pass. No
+      gate waiver, ignored session path, timeout or schema relaxation. Record
+      the design bend and truthful new session artifacts, then clean commits.
+    gates:
+      - id: stable-reference
+        kind: command
+        run: pnpm --filter schemas --filter cli --fail-if-no-match test
+        expect_output: 'Tests +[1-9][0-9]* passed'

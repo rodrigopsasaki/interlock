@@ -1,0 +1,39 @@
+interlock: graph@v0
+id: 0024-debrief-content
+ask: Validate debrief bytes consistently and finish the retained-history repair.
+derivation:
+  kind: model
+  model: gpt-6-astra
+  prompt: product-learning-find-shape-2026-09-16-preliminary-repair
+read: >
+  The user authorized one bounded repair before a new six-cycle exercise.
+  The previous candidate distinguishes current validity from retained custody,
+  but its generic filename-dispatched schema check permits a .md bypass.
+  This fresh session completes that exact repair without reopening or modifying
+  the old session. Its proof must be independent of the prior dirty-tree run.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: validate-debrief-content
+    depends_on: []
+    acceptance: |
+      Close the filename-based bypass in current v2 debrief validation through
+      the existing value-level schema registry, not duplicate validation rules.
+      Equivalent supported debrief YAML bytes have the same validation result
+      under .yaml, .md and .jsonl filenames. Valid agent and human v2 still pass;
+      invalid extra derivation metadata must fail before any valid-v2 message.
+      Keep lazy schema construction, notes handling, v0/v1 legacy behavior,
+      permissive historical readers and revise's repair path unchanged.
+      Preserve the previous exact-path raw-SHA regular-file custody rule and
+      prove current invalid bytes can be corrected while retaining exact invalid
+      prior bytes. No edits to old session artifacts, schema relaxation, broad
+      history exclusions, standing gates, timeout or permission changes.
+      Add discriminating tests; truthful new notes and debrief, clean commit,
+      normal harness gates plus independent review. Do not merge sibling work;
+      the orchestrator owns subsequent combined-candidate assembly and proof.
+    gates:
+      - id: debrief-content
+        kind: command
+        run: pnpm --filter cli --filter schemas --fail-if-no-match test
+        expect_output: 'Tests +[1-9][0-9]* passed'

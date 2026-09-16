@@ -1,0 +1,61 @@
+interlock: debrief@v2
+graph: 0025-stable-examples
+node: stabilize-reference-examples
+role: worker
+graph_base_sha: 73a8d894ae1a9c938cbfae374340427000338ce9
+session_start_sha: d5f01b4d0c52ed54f23eb3d4ee0baea0a1085dc6
+head_sha: f052b99b9f9c3b35f7025c5db9daedb16c7b1ce1
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries: []
+decisions:
+  - id: select-published-sources
+    what: Replaced size-based corpus competition with explicit source paths and expected shape tags matching the published reference examples.
+    because: Published examples need deliberate provenance, while newly completed valid sessions must remain in the independently validated corpus without choosing reference content.
+    rests_on:
+      - .interlock/graphs/0025-stable-examples.yaml
+      - .interlock/sessions/0025-stable-examples/stabilize-reference-examples/notes.yaml
+      - docs/shapes.md
+    hunks:
+      - packages/schemas/src/reference/corpus.ts
+      - packages/schemas/src/reference.ts
+      - docs/design/0001-interlock.md
+  - id: refuse-invalid-selections
+    what: Validated every selected candidate through the existing schema registry and added isolated fixture coverage for unchanged selection, missing sources, wrong shapes, and invalid values.
+    because: A missing or invalid deliberate selection must stop clearly instead of silently falling back to another live artifact.
+    rests_on:
+      - .interlock/graphs/0025-stable-examples.yaml
+      - .interlock/sessions/0025-stable-examples/stabilize-reference-examples/notes.yaml
+    hunks:
+      - packages/schemas/src/reference/corpus.ts
+      - packages/schemas/test/reference/corpus.test.ts
+gates_run_by_agent:
+  - id: focused-reference
+    result: pass
+    invocation: mise exec -- pnpm --filter schemas --fail-if-no-match exec vitest run test/reference.test.ts test/reference/corpus.test.ts --reporter=verbose
+    note: 8 tests passed.
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+  - id: reference-freshness
+    result: pass
+    invocation: mise exec -- pnpm interlock schema reference --check
+    note: docs/shapes.md was fresh after the new session artifacts existed.
+  - id: stable-reference
+    result: fail
+    invocation: GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=commit.gpgsign GIT_CONFIG_VALUE_0=false mise exec -- pnpm --filter schemas --filter cli --fail-if-no-match test
+    note: Schemas passed 731 tests and the reference CLI tests passed; unrelated enabled-origin CLI tests timed out at five seconds.
+  - id: test
+    result: fail
+    invocation: mise exec -- pnpm test
+    note: Reference-selection tests passed before unrelated substrate capability tests timed out at five seconds.
+open:
+  - The declared test gates remain under proof because unrelated enabled-origin and substrate capability tests timed out at their five-second limit.

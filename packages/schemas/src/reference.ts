@@ -25,8 +25,7 @@ export function generateReference(options: ReferenceOptions = {}): ReferenceResu
 
   const { artifacts, files } = loadArtifacts(schemasDirectory);
   const vocabulary = vocabularyPurposes(join(repoRoot, "AGENTS.md"));
-  const ledgerFixturesDirectory = join(repoRoot, "packages", "ledger", "test", "fixtures");
-  const examples = buildCorpusExamples(repoRoot, ledgerFixturesDirectory);
+  const examples = buildCorpusExamples(repoRoot);
 
   const missingVocabularyTerms = artifacts
     .map((artifact) => artifact.term)

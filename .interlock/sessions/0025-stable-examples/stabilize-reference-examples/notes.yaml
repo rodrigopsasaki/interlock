@@ -1,0 +1,52 @@
+interlock: notes@v0
+node: stabilize-reference-examples
+entries:
+  - kind: choice
+    at: "2026-09-16T03:43:05Z"
+    chose: Replace corpus-size competition with explicit source and shape selections matching the currently published examples.
+    because: The generated reference must retain readable provenance while unrelated valid session artifacts cannot participate in choosing a published example.
+  - kind: choice
+    at: "2026-09-16T03:48:02Z"
+    chose: Validate each selected candidate against the existing schema registry before rendering it.
+    because: A selected path is a deliberate published example only when it still carries its expected valid shape; missing, wrong-shape, and invalid selections must not silently change the page.
+  - kind: surprise
+    at: "2026-09-16T03:50:18Z"
+    expected: The focused formatter would complete before the isolated reference tests ran.
+    observed: Biome found an unused test import, so the import was removed before retrying the formatter and tests.
+  - kind: surprise
+    at: "2026-09-16T03:46:02Z"
+    expected: Notes timestamps would come from the current clock as events occurred.
+    observed: The 03:48:02Z and 03:50:18Z entries were drafted placeholders ahead of the root clock, so they remain as an audit record rather than actual-time entries.
+  - kind: choice
+    at: "2026-09-16T03:46:32Z"
+    chose: Keep the isolated fixture cleanup non-recursive inside the package test runs directory.
+    because: The reference-selection tests need temporary artifacts without leaving scratch work or broad deletion behavior.
+  - kind: surprise
+    at: "2026-09-16T03:48:21Z"
+    expected: The combined schemas and CLI gate would use the repository test configuration without environmental interference.
+    observed: CLI worktree tests inherited global commit signing and failed their internal setup commits, including unrelated timeouts; the focused schemas tests and reference freshness check had already passed.
+  - kind: surprise
+    at: "2026-09-16T03:50:00Z"
+    expected: Disabling signing for the test process would restore the combined gate.
+    observed: Internal worktree commits then succeeded, but the unrelated enabled-origin CLI tests still timed out at their five-second limit while the reference CLI tests passed.
+  - kind: surprise
+    at: "2026-09-16T03:51:29Z"
+    expected: The declared root test gate would complete after the focused reference and package checks passed.
+    observed: Unrelated substrate capability tests timed out at their five-second limit; no reference-selection test failed before that interruption.
+  - kind: surprise
+    at: "2026-09-16T03:52:46Z"
+    expected: The authored debrief would carry the full source and session commit SHAs.
+    observed: Its two SHA values were abbreviated incorrectly, so a corrected candidate will replace it through the debrief revision path.
+  - kind: choice
+    at: "2026-09-16T03:52:46Z"
+    chose: Place both regression debriefs beneath .interlock session paths in the isolated fixture.
+    because: The previous size-based selector scanned .interlock, so the regression must demonstrate that a smaller realistic session artifact cannot regain control of the published example.
+  - kind: surprise
+    at: "2026-09-16T03:54:57Z"
+    expected: The debrief revision command would retain the draft and select the candidate with the real initial brief commit.
+    observed: Revision correctly refused because the authored draft carries a nonexistent session_start_sha and the revision identity rule makes that field immutable.
+  - kind: surprise
+    at: "2026-09-16T03:56:17Z"
+    expected: The revision record would identify the immutable field and its source values exactly.
+    observed: >
+      interlock debrief revise 0025-stable-examples stabilize-reference-examples --from .interlock/sessions/0025-stable-examples/stabilize-reference-examples/debrief-candidate.yaml returned "debrief revise: session_start_sha does not match the current debrief". Git verified the initial brief commit as d5f01b4f4a9faf752c90fb29c97e52043ad2b41a, the reference-selection commit as f052b994d580b7922b40f4435199a1626850cdb7, and the session-path regression commit as 92f0e0ac6a8955ff0580f2e75d1c59194e1f1107; git cat-file rejected the authored d5f01b4d0c52ed54f23eb3d4ee0baea0a1085dc6 value as not a valid object name.

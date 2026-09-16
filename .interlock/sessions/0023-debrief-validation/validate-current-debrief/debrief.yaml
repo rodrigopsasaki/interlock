@@ -1,0 +1,55 @@
+interlock: debrief@v2
+graph: 0023-debrief-validation
+node: validate-current-debrief
+role: worker
+graph_base_sha: 735349886bb223466f701d6948bd941babd7251c
+session_start_sha: 8cdf3f0eb9861b7e47f5f3b9c144a635b9cf216f
+head_sha: 6156ff6df251b20c4703d85f0771ee72529910be
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries: []
+decisions:
+  - id: validate-current-v2
+    what: Applied the published schema at the v2 debrief validation door while keeping registry construction lazy.
+    because: Current v2 artifacts must reject schema-only derivation metadata without changing legacy reads or adding schema work to unrelated CLI commands.
+    rests_on:
+      - .interlock/graphs/0023-debrief-validation.yaml
+      - .interlock/sessions/0023-debrief-validation/validate-current-debrief/notes.yaml
+    hunks:
+      - packages/cli/src/debrief/validate.ts
+      - packages/cli/test/debrief/validate.test.ts
+  - id: retain-exact-history
+    what: Treated only a regular hash-named session revision whose raw bytes match its SHA-256 filename as retained history in the real-file corpus.
+    because: A retained invalid revision is evidence of a past mistake, while moved, malformed, tampered, and symbolic-link artifacts must retain ordinary validation or refusal.
+    rests_on:
+      - .interlock/graphs/0023-debrief-validation.yaml
+      - .interlock/sessions/0023-debrief-validation/validate-current-debrief/notes.yaml
+    hunks:
+      - packages/schemas/test/corpus.files.test.ts
+      - docs/design/0001-interlock.md
+  - id: prove-repair-compatibility
+    what: Proved that an invalid current v2 remains repairable through the existing revise command, which retains its exact old bytes before installing a schema-valid candidate.
+    because: Validation must not close the repair path or rewrite the evidence that explains the correction.
+    rests_on:
+      - packages/debrief/src/revise.ts
+      - .interlock/graphs/0023-debrief-validation.yaml
+    hunks:
+      - packages/cli/test/debrief/validate.test.ts
+gates_run_by_agent:
+  - id: focused-format
+    result: pass
+    invocation: mise exec -- pnpm exec biome check packages/cli/src/debrief/validate.ts packages/cli/test/debrief/validate.test.ts packages/schemas/test/corpus.files.test.ts
+  - id: focused-typecheck
+    result: pass
+    invocation: mise exec -- pnpm --filter cli --filter schemas --fail-if-no-match typecheck
+  - id: focused-cli-validation
+    result: pass
+    invocation: mise exec -- pnpm --filter cli --fail-if-no-match exec vitest run test/debrief/validate.test.ts --reporter=verbose
+    note: 15 tests passed.
+  - id: focused-corpus
+    result: pass
+    invocation: mise exec -- pnpm --filter schemas --fail-if-no-match exec vitest run test/corpus.files.test.ts --reporter=verbose
+    note: 163 tests passed.
+open: []

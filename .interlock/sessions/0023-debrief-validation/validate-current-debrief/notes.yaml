@@ -1,0 +1,33 @@
+interlock: notes@v0
+node: validate-current-debrief
+entries:
+  - kind: surprise
+    at: "2026-09-15T23:45:47Z"
+    expected: The generated session would already contain its notes artifact.
+    observed: notes.yaml was absent, so this file was created before implementation work.
+  - kind: choice
+    at: "2026-09-15T23:45:47Z"
+    chose: Apply the published schema only after the existing reader identifies a current debrief@v2, and treat retained bytes separately in the real-file corpus.
+    because: The v2 validation door must reject schema-only violations without tightening legacy readers or preventing revise from reading an invalid current artifact, while a SHA-named immutable revision proves custody rather than validity.
+  - kind: surprise
+    at: "2026-09-15T23:48:52Z"
+    expected: One filtered workspace Vitest invocation could select the CLI and schemas tests together.
+    observed: pnpm ran Vitest from the schemas package and found no CLI-relative test path, so focused tests need one package invocation each.
+  - kind: surprise
+    at: "2026-09-15T23:49:17Z"
+    reported_by: root
+    expected: The focused tests would already follow the repository's no-assertion convention and the second schema read would be safely contained.
+    observed: Root's early draft review found a new as const assertion and requested that schema read and parse failures stay in the CLI refusal path.
+  - kind: choice
+    at: "2026-09-15T23:49:56Z"
+    reported_by: root
+    chose: Construct the schema registry only when a v2 debrief reaches validation, show retained-history custody failures directly, and prove repair compatibility across the CLI and revise operation.
+    because: Root's active-draft review correctly distinguishes ordinary command startup from the advertised v2 validation door, and demands that an invalid current artifact remain repairable while the prior bytes stay recoverable.
+  - kind: choice
+    at: "2026-09-15T23:51:29Z"
+    chose: Record current validation and retained-history custody as separate obligations in the bend log.
+    because: The schema must reject a current artifact without discarding the exact old bytes that explain a repaired revision, so the design record needs both the boundary and the way back.
+  - kind: choice
+    at: "2026-09-15T23:52:47Z"
+    chose: File a v2 debrief rooted in the implementation commit and report only focused checks run in this session.
+    because: The runner owns standing-gate receipts, while the debrief must truthfully preserve the worker's local compatibility and custody evidence.
