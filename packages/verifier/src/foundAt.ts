@@ -6,11 +6,16 @@ const TRAILING_PUNCTUATION = /[.,;:]+$/;
 const HAS_KNOWN_EXTENSION = /\.(ts|tsx|json|ya?ml|md|js)$/;
 const STARTS_A_COMMAND = /^\$\s/m;
 const EXPLICIT_LOCATION = /([A-Za-z0-9_./-]+):([^\s`"]*)/g;
+const WHOLE_EXPLICIT_LOCATION = /^([A-Za-z0-9_./-]+):([^\s`"]*)$/;
 
 interface ExplicitLocation {
   readonly source: string;
   readonly path: string;
   readonly suffix: string;
+  readonly locatorQuote?: {
+    readonly start: number;
+    readonly end: number;
+  };
 }
 
 interface LineRange {
@@ -32,16 +37,60 @@ function pathLike(candidate: string): boolean {
 
 function explicitLocations(text: string): readonly ExplicitLocation[] {
   const locations: ExplicitLocation[] = [];
-  for (const found of text.matchAll(EXPLICIT_LOCATION)) {
-    const path = found[1];
-    const suffix = found[2];
-    if (path === undefined || suffix === undefined || !pathLike(path)) continue;
-    locations.push({ source: `${path}:${suffix}`, path, suffix });
+  let cursor = 0;
+
+  function addLocation(
+    path: string,
+    suffix: string,
+    firstToken: boolean,
+    locatorQuote?: ExplicitLocation["locatorQuote"],
+  ): void {
+    if (!pathLike(path) && !firstToken) return;
+    locations.push({ source: `${path}:${suffix}`, path, suffix, locatorQuote });
   }
+
+  while (cursor < text.length) {
+    const delimiter = text[cursor];
+    if (delimiter === '"' || delimiter === "`") {
+      const end = text.indexOf(delimiter, cursor + 1);
+      if (end === -1) {
+        break;
+      }
+      if (delimiter === "`" && locations.length === 0) {
+        const locator = text.slice(cursor + 1, end).match(WHOLE_EXPLICIT_LOCATION);
+        const path = locator?.[1];
+        const suffix = locator?.[2];
+        if (path !== undefined && suffix !== undefined) {
+          addLocation(path, suffix, text.slice(0, cursor).trim().length === 0, {
+            start: cursor,
+            end,
+          });
+        }
+      }
+      cursor = end + 1;
+      continue;
+    }
+
+    const nextQuote = text.slice(cursor).search(/["`]/);
+    const end = nextQuote === -1 ? text.length : cursor + nextQuote;
+    const segment = text.slice(cursor, end);
+    for (const found of segment.matchAll(EXPLICIT_LOCATION)) {
+      const path = found[1];
+      const suffix = found[2];
+      const index = found.index;
+      if (path === undefined || suffix === undefined || index === undefined) continue;
+      addLocation(path, suffix, text.slice(0, cursor + index).trim().length === 0);
+    }
+    cursor = end;
+  }
+
   return locations;
 }
 
-function quotedSubstrings(text: string, explicitLocation: string | undefined): readonly string[] {
+function quotedSubstrings(
+  text: string,
+  explicitLocation: ExplicitLocation | undefined,
+): readonly string[] {
   const quotes: string[] = [];
   let start = 0;
   while (start < text.length) {
@@ -56,7 +105,15 @@ function quotedSubstrings(text: string, explicitLocation: string | undefined): r
       continue;
     }
     const quote = text.slice(start + 1, end);
-    if (delimiter !== "`" || quote !== explicitLocation) quotes.push(quote);
+    const locatorQuote = explicitLocation?.locatorQuote;
+    if (
+      delimiter !== "`" ||
+      locatorQuote === undefined ||
+      locatorQuote.start !== start ||
+      locatorQuote.end !== end
+    ) {
+      quotes.push(quote);
+    }
     start = end + 1;
   }
   return quotes.filter((quote) => quote.trim().length > 0);
@@ -132,7 +189,7 @@ export function checkFoundAt(
         `"${location.source}" names no path that exists at ${headSha}`,
       );
     }
-    const quotes = quotedSubstrings(trimmed, location.source);
+    const quotes = quotedSubstrings(trimmed, location);
     if (quotes.length !== 1) {
       return mark.unrooted(
         derivation,

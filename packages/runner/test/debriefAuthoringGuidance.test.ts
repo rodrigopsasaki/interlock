@@ -174,6 +174,93 @@ describe("debrief authoring guidance", () => {
     expect(missingQuoteVerified.value.discoveryMarks[0]?.mark.kind).toBe("unrooted");
   });
 
+  it("translates only a correctly quoted bare explicit discovery into path-scoped evidence", async () => {
+    const fixture = mkdtempSync(join(runsRoot, "explicit-citation-"));
+    directory = fixture;
+    writeFileSync(join(fixture, "AGENTS.md"), "# Fixture\n");
+    gitInitFixtureWithContent(fixture);
+    const from = headSha(fixture);
+    writeFileSync(
+      join(fixture, "evidence.txt"),
+      "opening line\ndurable exact excerpt\nclosing line\n",
+    );
+    commitAll(fixture, "add text fixture evidence");
+    const sha = headSha(fixture);
+    const discovery = [
+      "discoveries:",
+      "  - id: explicit-text-range",
+      "    what: The text evidence has a durable exact excerpt.",
+      "    found_at: 'evidence.txt:2-3 \"durable exact excerpt\"'",
+      "    mattered_because: A later session can re-read the cited source.",
+    ].join("\n");
+    const correct = readDebriefDocument(
+      discoveryDocument(from, from, sha, discovery),
+      "correct-quote.yaml",
+    );
+    const wrong = readDebriefDocument(
+      discoveryDocument(
+        from,
+        from,
+        sha,
+        discovery.replace(
+          'evidence.txt:2-3 "durable exact excerpt"',
+          'evidence.txt:2-3 "wrong excerpt"',
+        ),
+      ),
+      "wrong-quote.yaml",
+    );
+    const missing = readDebriefDocument(
+      discoveryDocument(from, from, sha, discovery.replace(' "durable exact excerpt"', "")),
+      "missing-quote.yaml",
+    );
+    expect(isOk(correct)).toBe(true);
+    expect(isOk(wrong)).toBe(true);
+    expect(isOk(missing)).toBe(true);
+    if (
+      !isOk(correct) ||
+      !isOk(wrong) ||
+      !isOk(missing) ||
+      correct.value.kind !== "v2" ||
+      wrong.value.kind !== "v2" ||
+      missing.value.kind !== "v2"
+    ) {
+      return;
+    }
+
+    const correctVerified = await verifyDebrief(fixture, correct.value.debrief, {
+      runner: "fixture",
+    });
+    const wrongVerified = await verifyDebrief(fixture, wrong.value.debrief, { runner: "fixture" });
+    const missingVerified = await verifyDebrief(fixture, missing.value.debrief, {
+      runner: "fixture",
+    });
+    expect(isOk(correctVerified)).toBe(true);
+    expect(isOk(wrongVerified)).toBe(true);
+    expect(isOk(missingVerified)).toBe(true);
+    if (!isOk(correctVerified) || !isOk(wrongVerified) || !isOk(missingVerified)) return;
+
+    expect(correctVerified.value.discoveryMarks[0]?.mark).toEqual(
+      expect.objectContaining({ kind: "rooted", hunk: "evidence.txt" }),
+    );
+    expect(wrongVerified.value.discoveryMarks[0]?.mark.kind).toBe("unrooted");
+    expect(missingVerified.value.discoveryMarks[0]?.mark.kind).toBe("unrooted");
+    const translated = evidenceOf({
+      derivation: correct.value.debrief.derivation,
+      decisions: [],
+      discoveries: [
+        ...correctVerified.value.discoveryMarks,
+        ...wrongVerified.value.discoveryMarks,
+        ...missingVerified.value.discoveryMarks,
+      ],
+      receipts: [],
+      personEvents: [],
+      harnessAuthorities: new Set<string>(),
+    });
+    expect(translated.items).toEqual([
+      expect.objectContaining({ kind: "decision", scope: { kind: "path", path: "evidence.txt" } }),
+    ]);
+  });
+
   it("is present once in interpreter briefs while retaining received context and correction bytes", () => {
     const context = "### Decision\n\n- [hypothesis] Check this\n  derivation: human:Pat";
     const previousGraphYaml = "interlock: graph@v0\nid: old\n";

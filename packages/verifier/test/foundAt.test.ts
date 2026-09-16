@@ -32,6 +32,9 @@ function repoWithSession(): { readonly dir: string; readonly sha: string } {
   );
   writeFileSync(join(directory, "crlf.ts"), "first\r\nsecond\r\nthird\r\n");
   writeFileSync(join(directory, "no-final-newline.ts"), "first\nlast exact");
+  writeFileSync(join(directory, "evidence.txt"), "opening\nother.ts:2\nclosing\n");
+  writeFileSync(join(directory, "other.ts"), "opening\nother.ts:2\nclosing\n");
+  writeFileSync(join(directory, "Makefile"), "build:\n\t@echo ready\n");
   mkdirSync(join(directory, ".interlock/sessions/0001-bootstrap/other"), {
     recursive: true,
   });
@@ -132,6 +135,29 @@ describe("checkFoundAt", () => {
     );
   });
 
+  it("preserves embedded known-path backtick locators and their range refusal", () => {
+    const { dir, sha } = repoWithSession();
+    const valid = checkFoundAt(
+      'See `packages/ledger/src/mark.ts:1` "export const rooted"',
+      dir,
+      sha,
+      "0001-bootstrap",
+      DERIVATION,
+    );
+    const invalid = checkFoundAt(
+      'See `packages/ledger/src/mark.ts:999` "export const rooted"',
+      dir,
+      sha,
+      "0001-bootstrap",
+      DERIVATION,
+    );
+
+    expect(valid).toEqual(
+      expect.objectContaining({ kind: "rooted", hunk: "packages/ledger/src/mark.ts" }),
+    );
+    expect(invalid.kind).toBe("unrooted");
+  });
+
   it("counts CRLF source lines when checking an explicit location", () => {
     const { dir, sha } = repoWithSession();
     const result = checkFoundAt('crlf.ts:2 "second"', dir, sha, "0001-bootstrap", DERIVATION);
@@ -207,6 +233,102 @@ describe("checkFoundAt", () => {
     for (const foundAt of locations) {
       expect(checkFoundAt(foundAt, dir, sha, "0001-bootstrap", DERIVATION).kind).toBe("unrooted");
     }
+  });
+
+  it("checks bare explicit locations before they can fall back to out-of-band citations", () => {
+    const { dir, sha } = repoWithSession();
+    const rootedText = checkFoundAt(
+      'evidence.txt:2 "other.ts:2"',
+      dir,
+      sha,
+      "0001-bootstrap",
+      DERIVATION,
+    );
+    const rootedRawBasename = checkFoundAt(
+      'Makefile:2 "@echo ready"',
+      dir,
+      sha,
+      "0001-bootstrap",
+      DERIVATION,
+    );
+    const rootedBacktickBasename = checkFoundAt(
+      '`Makefile:2` "@echo ready"',
+      dir,
+      sha,
+      "0001-bootstrap",
+      DERIVATION,
+    );
+    const explicitFailures = [
+      'evidence.txt:two "other.ts:2"',
+      'evidence.txt:3-2 "other.ts:2"',
+      'missing.txt:2 "other.ts:2"',
+      "evidence.txt:2",
+      'evidence.txt:2 "wrong excerpt"',
+      'Makefile:two "@echo ready"',
+      'Missingfile:2 "@echo ready"',
+      "Makefile:2",
+      'Makefile:2 "wrong excerpt"',
+      '`Makefile:two` "@echo ready"',
+      '`Missingfile:2` "@echo ready"',
+      "`Makefile:2`",
+      '`Makefile:2` "wrong excerpt"',
+    ];
+
+    expect(rootedText).toEqual(expect.objectContaining({ kind: "rooted", hunk: "evidence.txt" }));
+    expect(rootedRawBasename).toEqual(
+      expect.objectContaining({ kind: "rooted", hunk: "Makefile" }),
+    );
+    expect(rootedBacktickBasename).toEqual(
+      expect.objectContaining({ kind: "rooted", hunk: "Makefile" }),
+    );
+    for (const foundAt of explicitFailures) {
+      expect(checkFoundAt(foundAt, dir, sha, "0001-bootstrap", DERIVATION).kind).toBe("unrooted");
+    }
+  });
+
+  it("does not treat later prose or a quoted extract as another bare location", () => {
+    const { dir, sha } = repoWithSession();
+    const prose = checkFoundAt(
+      'The release is version:2 and the reviewer said "out of band".',
+      dir,
+      sha,
+      "0001-bootstrap",
+      DERIVATION,
+    );
+    const doubleQuotedLocation = checkFoundAt(
+      'evidence.txt:2 "other.ts:2"',
+      dir,
+      sha,
+      "0001-bootstrap",
+      DERIVATION,
+    );
+    const backtickQuotedLocation = checkFoundAt(
+      "evidence.txt:2 `other.ts:2`",
+      dir,
+      sha,
+      "0001-bootstrap",
+      DERIVATION,
+    );
+    const exactLocatorExtract = checkFoundAt(
+      "other.ts:2 `other.ts:2`",
+      dir,
+      sha,
+      "0001-bootstrap",
+      DERIVATION,
+    );
+
+    expect(prose).toEqual(
+      expect.objectContaining({ kind: "rooted", hunk: "out-of-band citation" }),
+    );
+    expect(doubleQuotedLocation).toEqual(
+      expect.objectContaining({ kind: "rooted", hunk: "evidence.txt" }),
+    );
+    expect(backtickQuotedLocation).toEqual(
+      expect.objectContaining({ kind: "rooted", hunk: "evidence.txt" }),
+    );
+    expect(exactLocatorExtract).toEqual(
+      expect.objectContaining({ kind: "rooted", hunk: "other.ts" }),
+    );
   });
 
   it("unroots ambiguous explicit citations and never borrows another quote", () => {

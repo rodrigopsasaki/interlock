@@ -9,3 +9,23 @@ entries:
     at: "2026-09-16T14:01:15Z"
     chose: "Extend foundAt's explicit-location recognition and its existing focused verifier and evidence-translation tests."
     because: "The accepted seam already owns numeric-range validation, path resolution, separate quotation checks, and rooted marks; the runner test already verifies the guidance example through verifyDebrief and evidenceOf."
+  - kind: surprise
+    at: "2026-09-16T14:04:16Z"
+    expected: "The new evidence translation assertion would use discovery as its emitted item kind."
+    observed: "The focused runner test showed that evidenceOf maps this discovery through the existing discovery-kind rule to a decision item, while retaining the required evidence.txt path scope; the assertion will preserve the actual kind rather than change translation behavior."
+  - kind: choice
+    at: "2026-09-16T14:04:16Z"
+    chose: "Cover raw and backtick extensionless locators, malformed suffixes, and recognized locators inside double-quoted and backtick extracts."
+    because: "The added bare-name recognition must be bounded without turning a separate extract into another location, while established multiple unquoted locator refusals remain intact."
+  - kind: surprise
+    at: "2026-09-16T14:05:56Z"
+    expected: "The focused source and test edits would already satisfy the repository formatter."
+    observed: "pnpm lint reported only Biome formatting changes in the two touched test files; no semantic or repository-wide lint issue was reported."
+  - kind: surprise
+    at: "2026-09-16T14:06:32Z"
+    expected: "Restricting all backtick locators to the first token would preserve established known-path backtick citations."
+    observed: "An embedded known-path locator such as See `packages/ledger/src/mark.ts:999` must continue through explicit range refusal, while a later backtick extract after an already-recognized locator must remain an extract."
+  - kind: choice
+    at: "2026-09-16T14:06:32Z"
+    chose: "Record explicit locator spans and exclude only the actual backtick locator span from separate quotations."
+    because: "Content equality confuses a source extract that happens to equal a locator string with the locator token itself; source position keeps the existing quotation requirement intact."
