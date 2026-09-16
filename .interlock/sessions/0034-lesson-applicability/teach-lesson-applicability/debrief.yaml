@@ -1,0 +1,55 @@
+interlock: debrief@v2
+graph: 0034-lesson-applicability
+node: teach-lesson-applicability
+role: worker
+graph_base_sha: 26827c32d3cc8d4fc729183ccb1764950dd3f1d0
+session_start_sha: 874f94874af105f8966c60cdbd69d63656c350e9
+head_sha: cc9e79e3394a2d2c9c0a73345f13228b3cedf439
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries: []
+decisions:
+  - id: compose-owned-authoring-guidance
+    what: Composed one marked debrief-authoring section into worker and interpreter briefs, with the same canonical body projected through their ordinary openings.
+    because: Support locations and authored applicability are separate meanings, so authors need reusable instruction without a new field, a required lesson, or inferred future judgment.
+    rests_on:
+      - .interlock/graphs/0034-lesson-applicability.yaml
+      - .interlock/sessions/0034-lesson-applicability/teach-lesson-applicability/notes.yaml
+      - packages/runner/src/sessionBrief.ts
+      - packages/runner/src/interpreterBrief.ts
+      - packages/cli/src/plan.ts
+    hunks:
+      - packages/runner/src/debriefAuthoringGuidance.ts
+      - packages/runner/src/sessionBrief.ts
+      - packages/runner/src/interpreterBrief.ts
+      - packages/cli/src/plan.ts
+      - packages/runner/test/sessionBrief.test.ts
+      - packages/cli/test/plan.test.ts
+  - id: preserve-authored-guidance-boundaries
+    what: Recognized generated guidance only through its paired markers outside matching backtick or tilde fences, preserving authored headings and quoted marker pairs while keeping composition idempotent.
+    because: A generic heading or a marker quoted in fenced author content is not harness-owned guidance and must not be removed during a later composition.
+    rests_on:
+      - .interlock/graphs/0034-lesson-applicability.yaml
+      - .interlock/sessions/0034-lesson-applicability/teach-lesson-applicability/notes.yaml
+      - packages/runner/src/debriefAuthoringGuidance.ts
+    hunks:
+      - packages/runner/src/debriefAuthoringGuidance.ts
+      - packages/runner/test/debriefAuthoringGuidance.test.ts
+gates_run_by_agent:
+  - id: focused-worker-guidance
+    result: pass
+    invocation: mise exec -- pnpm --filter runner exec vitest run test/debriefAuthoringGuidance.test.ts test/sessionBrief.test.ts
+    note: 20 tests passed, including reader, wire, rooted, omitted, unrooted, canonical, opening, and fenced-marker preservation coverage.
+  - id: focused-interpreter-opening
+    result: pass
+    invocation: mise exec -- pnpm --filter cli exec vitest run test/plan.test.ts -t "delivers authoring guidance"
+    note: 1 actual planning-route test passed with the interpreter canonical brief and captured opening projection.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Biome checked 334 files with no fixes applied.
+open:
+  - The harness must run the declared gates and retain their receipts.
+  - The supplied Context slice was not relied on as semantic support; its hypotheses remained available to check, reject, or leave unused.
