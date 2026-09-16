@@ -1,0 +1,41 @@
+interlock: debrief@v2
+graph: 0033-handoff-format
+node: repair-handoff-format
+role: worker
+graph_base_sha: e004b6355bf6b368672ea60f56d81c9dc9b3dc0e
+session_start_sha: 94764566ea9abbd5869e50c615d6a408a161f571
+head_sha: 7f4c7eafca2bf1df57dd0e8d27e2cf63fb59ea9f
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries: []
+decisions:
+  - id: apply-derived-handoff-lint-repair
+    what: Applied Biome formatting, import organization, and the required type-only import syntax to the derived-handoff files reported by lint.
+    because: The held delivery required the repository's existing mechanical fixes without changing behavior, tests, gates, timeouts, dependencies, or old session bytes.
+    rests_on:
+      - .interlock/graphs/0033-handoff-format.yaml
+      - .interlock/sessions/0033-handoff-format/repair-handoff-format/notes.yaml
+      - packages/cli/src/debrief/derived.ts
+      - packages/cli/src/debrief/sessionIdentity.ts
+      - packages/debrief/src/custody.ts
+    hunks:
+      - packages/cli/src/debrief/derived.ts
+      - packages/cli/src/debrief/recoverSessionStart.ts
+      - packages/cli/src/debrief/sessionIdentity.ts
+      - packages/cli/src/main.ts
+      - packages/cli/test/debrief/derived.test.ts
+      - packages/debrief/src/custody.ts
+      - packages/debrief/src/debrief.ts
+      - packages/debrief/src/index.ts
+      - packages/debrief/src/revise.ts
+      - packages/runner/test/openingPrompt.test.ts
+gates_run_by_agent:
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: Biome checked 332 files with no fixes applied; pnpm warned that the active Node 26.0.0 differs from the pinned 24.14.0.
+open:
+  - The harness must run the declared gates and retain their receipts.
+  - The supplied Context slice was not relied on for a semantic source claim; the repair was bounded by the graph, lint output, and reviewed formatter diff.
