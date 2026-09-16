@@ -1,0 +1,50 @@
+interlock: debrief@v2
+graph: 0041-citation-type-repair
+node: repair-citation-types
+role: worker
+graph_base_sha: 96ab2d7879fb781c33ba1f08a498159ba7f153a4
+session_start_sha: 30187743f44b6a0046bb92cfbb1e02624aa579b7
+head_sha: 6cf3cffea9e7e712cb7b9417444a725805599b91
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries: []
+decisions:
+  - id: omit-absent-locator-quote
+    what: Constructed explicit locations without locatorQuote when no backtick locator supplied quotation bounds.
+    because: exactOptionalPropertyTypes rejects an optional property supplied as undefined; omitting that field retains the parser's existing absence semantics while the bounded locator still carries its bounds.
+    rests_on:
+      - packages/verifier/src/foundAt.ts:38-76
+      - .interlock/sessions/0041-citation-type-repair/repair-citation-types/notes.yaml
+    hunks:
+      - packages/verifier/src/foundAt.ts
+    applies_to: { kind: path, path: packages/verifier/src/foundAt.ts }
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: All eight workspace projects with typecheck scripts reported Done.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Biome checked 336 files with no fixes applied.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+    note: The source comment check found no comments in packages/*/src.
+  - id: explicit-citation-parser-proof
+    result: pass
+    invocation: mise exec -- pnpm --filter verifier exec vitest run test/foundAt.test.ts
+    note: 21 tests passed.
+  - id: explicit-citation-translation-proof
+    result: pass
+    invocation: mise exec -- pnpm --filter runner exec vitest run test/debriefAuthoringGuidance.test.ts
+    note: 6 tests passed.
+  - id: test
+    result: fail
+    invocation: mise exec -- pnpm test
+    note: packages/substrate/test/capabilities.test.ts timed out in two cases after verifier completed all 58 tests successfully; this is outside the narrow citation type repair.
+open:
+  - The harness must run the declared gates and retain its receipts.
+  - The full test gate remains failed because two substrate capability cases timed out; this repair does not broaden into that unrelated behavior.
