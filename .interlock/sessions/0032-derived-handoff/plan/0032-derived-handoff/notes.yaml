@@ -1,0 +1,7 @@
+interlock: notes@v0
+node: plan/0032-derived-handoff
+entries:
+  - kind: choice
+    at: "2026-09-16T11:41:23Z"
+    chose: "Derive the implementation handoff from the published graph and debrief contracts, the cleared graph corpus, and source checks of the named workflow boundaries."
+    because: "The ask requires a usable truthful workflow and explicitly makes supplied context provisional, so the plan must separate verified constraints from unrecorded authorship input before it decomposes work."
