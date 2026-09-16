@@ -1,0 +1,28 @@
+interlock: debrief@v2
+graph: 0039-authoring-feedback
+node: make-authoring-actionable
+role: worker
+graph_base_sha: 162cd1ffaf97d4d6065e77a5a821d2db6ea36337
+session_start_sha: b2aee006ae31e2fd6bf07440b3d540d03e56f549
+head_sha: e823430a04341bdc347cf690859b0dbd1f7656cb
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries: []
+decisions:
+  - id: actionable-authoring-feedback
+    what: "Made the shared debrief guidance and ordinary handoffs teach exact ranged discovery support and optional read-only preview."
+    because: "Authors need a fixture-proved YAML form that separates found_at support from decision hunks and applicability, plus a clear optional feedback step before filing without changing verifier or filing behavior."
+    rests_on:
+      - .interlock/sessions/0039-authoring-feedback/make-authoring-actionable/notes.yaml
+      - packages/verifier/src/foundAt.ts:114-159
+    hunks:
+      - packages/runner/src/debriefAuthoringGuidance.ts:7-14
+      - packages/runner/src/debriefAuthoringGuidance.ts:23-34
+      - packages/runner/src/debriefAuthoringGuidance.ts:51
+      - packages/runner/src/openingPrompt.ts:21-25
+      - packages/runner/src/openingPrompt.ts:40
+    applies_to: { kind: path, path: packages/runner/src/debriefAuthoringGuidance.ts }
+gates_run_by_agent: []
+open: []
