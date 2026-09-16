@@ -41,6 +41,7 @@ import {
   spend,
 } from "ledger";
 import {
+  type AbsorbNarration,
   type AbsorbOutcome,
   type EvidenceForAbsorb,
   type EvidenceSession,
@@ -50,7 +51,7 @@ import {
   type SubstrateClient,
 } from "substrate";
 import { verifyDebrief } from "verifier";
-import { contextSliceOf } from "./contextSlice.ts";
+import { type ContextSlice, contextSlice } from "./contextSlice.ts";
 import { type GateCommand, type PlaceholderRefusal, substituteGateCommand } from "./gateCommand.ts";
 import {
   explainGateOutputRefusal,
@@ -334,13 +335,18 @@ async function ingestDebrief(
   }
 }
 
+interface AbsorbEvidence {
+  readonly request: EvidenceForAbsorb | undefined;
+  readonly narration: Extract<AbsorbNarration["translation"], { readonly kind: "observed" }>;
+}
+
 async function evidenceForAbsorb(
   worktree: string,
   debrief: Debrief,
   receipts: readonly Receipt[],
   node: Node,
   personEvents: readonly LedgerEvent[],
-): Promise<EvidenceForAbsorb | undefined> {
+): Promise<AbsorbEvidence> {
   const verified = await verifyDebrief(worktree, debrief);
   const decisions: EvidenceSession["decisions"] = isErr(verified)
     ? debrief.decisions.map((decision) => ({ decision, marks: [] }))
@@ -362,9 +368,11 @@ async function evidenceForAbsorb(
   });
 
   const gaps = [...vocabularyGaps, ...evidence.gaps];
-  return evidence.items.length === 0 && gaps.length === 0
-    ? undefined
-    : { items: evidence.items, gaps };
+  const translated = { items: evidence.items, gaps };
+  return {
+    request: translated.items.length === 0 && translated.gaps.length === 0 ? undefined : translated,
+    narration: { kind: "observed", itemCount: translated.items.length, gaps: translated.gaps },
+  };
 }
 
 async function absorbDebrief(
@@ -391,15 +399,20 @@ async function absorbDebrief(
     read.debrief,
     read.notes,
     receipts,
-    evidence,
+    evidence.request,
   );
   const briefRead = await readBriefFile(briefFilePath(worktree, node.graph, node.id));
-  const sliceBody =
-    !isErr(briefRead) && briefRead.value.kind === "v1" ? contextSliceOf(briefRead.value.body) : "";
+  const slice: ContextSlice =
+    !isErr(briefRead) && briefRead.value.kind === "v1"
+      ? contextSlice(briefRead.value.body)
+      : { kind: "absent" };
   narrate(
     narrateAbsorb(substrate.address, acknowledged, {
-      body: sliceBody,
-      discoveries: read.debrief.discoveries,
+      translation: evidence.narration,
+      slice:
+        slice.kind === "present"
+          ? { kind: "present", body: slice.body, discoveries: read.debrief.discoveries }
+          : { kind: "unavailable" },
     }),
   );
 }

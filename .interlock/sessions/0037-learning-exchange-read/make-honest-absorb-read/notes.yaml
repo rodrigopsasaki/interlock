@@ -1,0 +1,35 @@
+interlock: notes@v0
+node: make-honest-absorb-read
+entries:
+  - kind: choice
+    at: "2026-09-16T13:13:55Z"
+    chose: "Keep the existing absorb request and response contracts intact, and add only local narration observations at the substrate and gate-judge seam."
+    because: "The approved graph requires translated request, receiver response, and lexical brief comparison to remain distinct while preserving the durable outbox path and its bytes."
+  - kind: surprise
+    at: "2026-09-16T13:13:55Z"
+    expected: "The current runner narration would preserve whether a Context slice could be read."
+    observed: "gateJudge converts both an unreadable or absent brief and a present empty Context slice into an empty body before it calls narrateAbsorb."
+  - kind: choice
+    at: "2026-09-16T13:13:55Z"
+    chose: "Model supplied translation and Context slice observations explicitly as observed or unavailable, preserving observed empty payloads."
+    because: "An optional request payload preserves legacy wire omission, but cannot itself say whether no translated evidence was observed or the evidence could not be determined."
+  - kind: choice
+    at: "2026-09-16T13:18:00Z"
+    chose: "Limit unavailable translation proof to the public narrator and keep every valid-v2 gate-judge translation observed."
+    because: "The reviewed source establishes that gate judging always derives a translation for a valid v2 debrief, including empty and receipts-only results; creating a runner-unavailable branch would misstate that route and risk delivery behavior."
+  - kind: surprise
+    at: "2026-09-16T13:18:00Z"
+    expected: "The focused substrate package command would execute only absorb.test.ts."
+    observed: "The package test script forwarded the positional filter after its own separator, ran the suite, and exposed two existing capabilities-test timeouts; direct Vitest invocation then yielded after startup without a usable result under the local Node 26 runtime."
+  - kind: surprise
+    at: "2026-09-16T13:21:00Z"
+    expected: "A Context slice followed by a blank line would have an empty raw body."
+    observed: "The existing slice reader retains that trailing newline, so the proof fixture must omit it to represent a byte-empty present slice without changing reader behavior."
+  - kind: surprise
+    at: "2026-09-16T13:22:00Z"
+    expected: "Repository lint would pass after the focused tests and typecheck."
+    observed: "Biome reported only formatting and import ordering in the changed files."
+  - kind: surprise
+    at: "2026-09-16T13:23:00Z"
+    expected: "The source commit would use the configured signer."
+    observed: "GPG could not create its keybox lock outside the permitted workspace, so the commit must use the brief's allowed unsigned fallback."

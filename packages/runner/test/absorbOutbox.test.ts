@@ -38,7 +38,7 @@ function writeDebrief(root: string): void {
 }
 
 describe("absorb outbox", () => {
-  it("persists the exact request before the adapter receives it and retains validated acknowledgment evidence", async () => {
+  it("retains a partial-verification translation request before dispatch and reads its zero-ID response separately", async () => {
     const root = fixture();
     writeDebrief(root);
     expect(await readDebriefFile(debriefFilePath(root, "fixture", "n1"))).toEqual(
@@ -95,7 +95,9 @@ describe("absorb outbox", () => {
 
     expect(judged).toEqual(expect.objectContaining({ _tag: "Ok" }));
     if (judged._tag === "Ok") expect(judged.value.kind).toBe("cleared");
-    expect(narrated).not.toEqual([]);
+    expect(narrated).toContain(
+      "absorb https://receiver.example: translated request supplied: 1 item(s), 0 gap(s); receiver response: 0 decision ID(s), discoveries 0 known/0 new/0 unplaced, 0 gap(s); textual Context slice reference comparison: unavailable",
+    );
     expect(received).not.toBe("");
     const effect = [...ledger.projection().outbox.values()][0];
     if (effect?.delivery?.state !== "acknowledged") throw new Error("missing acknowledgment");

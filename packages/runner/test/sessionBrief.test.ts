@@ -6,7 +6,7 @@ import { type Item, readBriefFile } from "debrief";
 import type { GateDeclaration } from "face";
 import { noneClient, type SubstrateClient } from "substrate";
 import { afterEach, describe, expect, it } from "vitest";
-import { contextSliceOf, withRenderedContextSlice } from "../src/contextSlice.ts";
+import { contextSlice, contextSliceOf, withRenderedContextSlice } from "../src/contextSlice.ts";
 import {
   briefPath,
   explainSessionBriefRefusal,
@@ -604,6 +604,11 @@ describe("writeBriefIntoWorktree with a substrate that renders a slice", () => {
 });
 
 describe("withRenderedContextSlice", () => {
+  it("distinguishes an absent Context slice from a present empty slice", () => {
+    expect(contextSlice("# brief")).toEqual({ kind: "absent" });
+    expect(contextSlice("# brief\n\n## Context slice")).toEqual({ kind: "present", body: "" });
+  });
+
   it("replaces an appended section without duplicating it", () => {
     const first = withRenderedContextSlice("# brief", "first rendered item");
     const second = withRenderedContextSlice(first, "second rendered item");

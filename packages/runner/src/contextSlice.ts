@@ -5,6 +5,10 @@ interface ContextSliceBounds {
   readonly sectionEnd: number;
 }
 
+export type ContextSlice =
+  | { readonly kind: "absent" }
+  | { readonly kind: "present"; readonly body: string };
+
 function contextSliceBounds(lines: readonly string[]): ContextSliceBounds | undefined {
   const headingIndex = lines.findIndex((line) => line.trim() === CONTEXT_HEADING);
   if (headingIndex === -1) return undefined;
@@ -38,9 +42,17 @@ export function withRenderedContextSlice(body: string, rendered: string): string
 }
 
 export function contextSliceOf(body: string): string {
+  const slice = contextSlice(body);
+  return slice.kind === "present" ? slice.body : "";
+}
+
+export function contextSlice(body: string): ContextSlice {
   const lines = body.split("\n");
   const bounds = contextSliceBounds(lines);
-  if (bounds === undefined) return "";
+  if (bounds === undefined) return { kind: "absent" };
 
-  return lines.slice(bounds.headingIndex + 1, bounds.sectionEnd).join("\n");
+  return {
+    kind: "present",
+    body: lines.slice(bounds.headingIndex + 1, bounds.sectionEnd).join("\n"),
+  };
 }

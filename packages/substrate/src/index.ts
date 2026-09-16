@@ -21,7 +21,7 @@ export type {
 } from "./evidence.ts";
 export { evidenceOf, personEventsFor } from "./evidence.ts";
 export { httpClient } from "./httpClient.ts";
-export type { AbsorbSlice } from "./narrate.ts";
+export type { AbsorbNarration } from "./narrate.ts";
 export { narrateAbsorb, narrateContext } from "./narrate.ts";
 export { noneClient } from "./noneClient.ts";
 export { refusalClient } from "./refusalClient.ts";

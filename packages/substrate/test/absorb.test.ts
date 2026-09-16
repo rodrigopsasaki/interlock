@@ -21,7 +21,7 @@ afterEach(async () => {
 });
 
 describe("absorb", () => {
-  it("narrates a cleared session's absorb acknowledged with its counts", async () => {
+  it("keeps the receiver response distinct from unavailable local observations", async () => {
     server = await startFakeSubstrateServer();
     server.responseFor("absorb", {
       decisions_absorbed: ["c1"],
@@ -39,7 +39,7 @@ describe("absorb", () => {
       gaps: [],
     });
     expect(narrateAbsorb(server.url, outcome)).toBe(
-      `absorb ${server.url}: 1 decision(s) absorbed, discoveries 0 known/1 new/0 unplaced, 0 gap(s)`,
+      `absorb ${server.url}: translated request supplied: unavailable; receiver response: 1 decision ID(s), discoveries 0 known/1 new/0 unplaced, 0 gap(s); textual Context slice reference comparison: unavailable`,
     );
 
     const sent = server.calls[0]?.body;
@@ -50,7 +50,7 @@ describe("absorb", () => {
     });
   });
 
-  it("narrates a held session's absorb acknowledged the same as a cleared session's", async () => {
+  it("retains receiver-reported discovery placements in the response read", async () => {
     server = await startFakeSubstrateServer();
     server.responseFor("absorb", {
       decisions_absorbed: [],
@@ -65,7 +65,7 @@ describe("absorb", () => {
     const outcome = await client.absorb(node, fixtureDebrief, fixtureNotes, [fixtureReceipt]);
 
     expect(narrateAbsorb(server.url, outcome)).toBe(
-      `absorb ${server.url}: 0 decision(s) absorbed, discoveries 1 known/0 new/1 unplaced, 1 gap(s)`,
+      `absorb ${server.url}: translated request supplied: unavailable; receiver response: 0 decision ID(s), discoveries 1 known/0 new/1 unplaced, 1 gap(s); textual Context slice reference comparison: unavailable`,
     );
   });
 
@@ -166,7 +166,7 @@ describe("absorb", () => {
     );
   }, 8_000);
 
-  it("counts a debrief's discoveries against the slice when the acknowledged response declares no such detail", async () => {
+  it("reports a textual Context slice reference comparison apart from the response", async () => {
     server = await startFakeSubstrateServer();
     server.responseFor("absorb", {
       decisions_absorbed: [],
@@ -186,15 +186,15 @@ describe("absorb", () => {
 
     expect(
       narrateAbsorb(server.url, outcome, {
-        body: sliceBody,
-        discoveries: fixtureDebrief.discoveries,
+        translation: { kind: "observed", itemCount: 1, gaps: [] },
+        slice: { kind: "present", body: sliceBody, discoveries: fixtureDebrief.discoveries },
       }),
     ).toBe(
-      `absorb ${server.url}: 0 decision(s) absorbed, discoveries 1 known/0 unknown against the slice, 0 gap(s)`,
+      `absorb ${server.url}: translated request supplied: 1 item(s), 0 gap(s); receiver response: 0 decision ID(s), discoveries 0 known/0 new/0 unplaced, 0 gap(s); textual Context slice reference comparison: 1 matching/0 not matching`,
     );
   });
 
-  it("says the rest is unknown when nothing in the slice names a discovery's own reference", async () => {
+  it("does not turn a nonmatching textual reference into a receiver placement", async () => {
     server = await startFakeSubstrateServer();
     server.responseFor("absorb", {
       decisions_absorbed: [],
@@ -207,12 +207,46 @@ describe("absorb", () => {
 
     expect(
       narrateAbsorb(server.url, outcome, {
-        body: "No path from this debrief is named here.",
-        discoveries: fixtureDebrief.discoveries,
+        translation: { kind: "observed", itemCount: 0, gaps: [] },
+        slice: {
+          kind: "present",
+          body: "No path from this debrief is named here.",
+          discoveries: fixtureDebrief.discoveries,
+        },
       }),
     ).toBe(
-      `absorb ${server.url}: 0 decision(s) absorbed, discoveries 0 known/1 unknown against the slice, 0 gap(s)`,
+      `absorb ${server.url}: translated request supplied: 0 item(s), 0 gap(s); receiver response: 0 decision ID(s), discoveries 0 known/0 new/0 unplaced, 0 gap(s); textual Context slice reference comparison: 0 matching/1 not matching`,
     );
+  });
+
+  it("keeps observed-empty translation and an empty Context slice distinct from unavailable at the public formatter boundary", async () => {
+    const outcome: {
+      readonly kind: "acknowledged";
+      readonly decisionsAbsorbed: readonly string[];
+      readonly discoveries: readonly [];
+      readonly gaps: readonly [];
+    } = {
+      kind: "acknowledged",
+      decisionsAbsorbed: [],
+      discoveries: [],
+      gaps: [],
+    };
+
+    const observedEmpty = narrateAbsorb("spy", outcome, {
+      translation: { kind: "observed", itemCount: 0, gaps: [] },
+      slice: { kind: "present", body: "", discoveries: fixtureDebrief.discoveries },
+    });
+    const unavailable = narrateAbsorb("spy", outcome, {
+      translation: { kind: "unavailable" },
+      slice: { kind: "unavailable" },
+    });
+
+    expect(observedEmpty).toContain("translated request supplied: 0 item(s), 0 gap(s)");
+    expect(observedEmpty).toContain(
+      "textual Context slice reference comparison: 0 matching/1 not matching",
+    );
+    expect(unavailable).toContain("translated request supplied: unavailable");
+    expect(unavailable).toContain("textual Context slice reference comparison: unavailable");
   });
 
   it("carries items and gaps in the request body when evidence is given", async () => {

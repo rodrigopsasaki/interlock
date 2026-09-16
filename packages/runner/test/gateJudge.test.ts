@@ -1313,11 +1313,34 @@ describe("absorb narrates discoveries against the slice its brief carried", () =
     if (isErr(judged)) throw new Error("expected an outcome");
 
     expect(narrated).toContain(
-      "absorb spy: 0 decision(s) absorbed, discoveries 1 known/0 unknown against the slice, 0 gap(s)",
+      "absorb spy: translated request supplied: 1 item(s), 0 gap(s); receiver response: 0 decision ID(s), discoveries 0 known/0 new/0 unplaced, 0 gap(s); textual Context slice reference comparison: 1 matching/0 not matching",
+    );
+
+    writeFileSync(join(briefDir, "brief.md"), "not: [a readable brief");
+    const unreadable = await judgeGates({
+      ledger,
+      clock: createControlledClock(),
+      node,
+      session: "s2",
+      declaredGateIds: ["always-pass"],
+      commandFor: new Map([["always-pass", { kind: "command", run: passCommand }]]),
+      worktree: root,
+      scopeRoot: root,
+      scopePaths: ["content.txt"],
+      commitSha: "deadbeef",
+      runnerId: "run-1",
+      holdMs: 60_000,
+      substrate: client,
+      narrate: (line) => narrated.push(line),
+    });
+    if (isErr(unreadable)) throw new Error("expected an outcome");
+
+    expect(narrated).toContain(
+      "absorb spy: translated request supplied: 1 item(s), 0 gap(s); receiver response: 0 decision ID(s), discoveries 0 known/0 new/0 unplaced, 0 gap(s); textual Context slice reference comparison: unavailable",
     );
   });
 
-  it("counts a discovery unknown when only a section outside the slice names its own reference", async () => {
+  it("keeps an explicitly empty Context slice distinct from an unavailable slice", async () => {
     const root = fixture();
     const debriefWithDiscovery = [
       "interlock: debrief@v2",
@@ -1358,11 +1381,6 @@ describe("absorb narrates discoveries against the slice its brief carried", () =
         "---",
         "",
         "## Context slice",
-        "",
-        "### Discipline",
-        "",
-        "- [observed, repository] content.txt already named",
-        "  derivation: human:Rodrigo",
         "",
         "## Deliverable",
         "",
@@ -1417,7 +1435,7 @@ describe("absorb narrates discoveries against the slice its brief carried", () =
     if (isErr(judged)) throw new Error("expected an outcome");
 
     expect(narrated).toContain(
-      "absorb spy: 0 decision(s) absorbed, discoveries 0 known/1 unknown against the slice, 0 gap(s)",
+      "absorb spy: translated request supplied: 1 item(s), 0 gap(s); receiver response: 0 decision ID(s), discoveries 0 known/0 new/0 unplaced, 0 gap(s); textual Context slice reference comparison: 0 matching/1 not matching",
     );
   });
 });
