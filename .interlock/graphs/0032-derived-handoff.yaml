@@ -18,11 +18,12 @@ read: >
   compares debrief identity yet does not establish candidate head_sha against
   Git. One node therefore adds a creation-only candidate command, not a
   canonical scaffold: the worker declares only unrecorded derivation metadata,
-  authors the claims and reports, then selects the candidate through the
-  existing custody seam while its derived source head is still current. This
-  leaves legacy readers and address none untouched, retains prior authored
-  bytes on revision, and makes a post-preparation source change a refusal that
-  requires a fresh candidate rather than a guessed head.
+  authors the claims and reports, then uses an explicit derived-filing door
+  while its derived source head is still current. Ordinary revise remains the
+  compatible correction door. This leaves legacy readers and address none
+  untouched, retains prior authored bytes on revision, and makes a
+  post-preparation source change a refusal that requires a fresh candidate
+  rather than a guessed head.
 gates:
   - id: approved
     kind: human
@@ -55,31 +56,44 @@ nodes:
       arguments, narration, environment, or a default. Emit empty discoveries,
       decisions and gates_run_by_agent for the worker to author truthfully; do
       not invent a check. The worker authors claims and reports in the candidate
-      and uses existing `interlock debrief revise ... --from <candidate-path>`
-      to select it. On first filing, selection validates the same proof and
-      atomically creates canonical debrief.yaml without an archive; on a later
-      filing, retain the exact existing canonical bytes through the existing
-      content-addressed revisions custody before atomic replacement. Never
+      and uses an explicit
+      `interlock debrief file-derived <graph> <node> --from <candidate-path>`
+      door to make the first canonical filing. That door validates the same
+      proof and atomically creates debrief.yaml only when it is absent, using
+      an OS-level no-replace operation rather than an existence check followed
+      by overwrite-capable rename. If another canonical debrief appears
+      concurrently, refuse and preserve its bytes and the source candidate.
+      It creates no archive because no canonical bytes existed at its successful
+      creation. Later corrections continue through existing `interlock debrief
+      revise ... --from <candidate-path>`, which retains the exact current
+      canonical bytes through the established content-addressed revisions
+      custody before atomic replacement. Do not change ordinary revise identity
+      checks or its acceptance of legitimate historical source heads. Never
       overwrite an authored canonical debrief, source candidate or retained
       bytes, including on any refusal or install failure.
 
-      Make revise require the candidate head_sha to be the current Git HEAD at
-      selection and a descendant of the recovered session start. Explain that
-      after source changes the user first commits those source changes, then
-      prepares a fresh candidate and authors it before selection; a candidate
-      prepared against an older head refuses rather than silently filing a stale
-      source identity. Keep the existing explicit recovery mode narrow, legacy
-      debrief@v0/v1 readers and validation behavior intact, and address none
-      usable because this handoff neither requires nor calls a substrate.
+      Make only file-derived require its candidate head_sha to be the current
+      Git HEAD and a descendant of the recovered session start. Explain that
+      after source changes before first filing the user first commits those
+      changes, then prepares a fresh candidate and authors it before
+      file-derived; a candidate prepared against an older head refuses rather
+      than silently filing a stale source identity. Ordinary revise remains
+      unchanged because a valid historical correction may intentionally retain
+      a source head below later metadata or debrief commits. Keep the existing
+      explicit recovery mode narrow, legacy debrief@v0/v1 readers and validation
+      behavior intact, and address none usable because this handoff neither
+      requires nor calls a substrate.
       Reuse the current brief/debrief readers, Git identity recovery, revision
       path custody and atomic install rather than duplicate parsers or weaken
       their path/symlink checks. Add real temporary Git/journal fixtures proving
-      first filing, later archive-and-replace filing, all derived fields,
+      first filing, concurrent canonical appearance with no clobber, later
+      ordinary archive-and-replace filing, all derived fields,
       explicit agent and human derivation, source-head change refusal, missing/
       ambiguous/mismatched/altered identity, candidate path and symlink
       refusal, no-write-on-refusal, unrun-check preservation, and old reader/
       ordinary-revise compatibility. Update the worker handoff text with the
-      exact prepare-author-select and source-change sequence. No schema/event
+      exact prepare-author-file-derived first-filing, ordinary-revision, and
+      source-change sequence. No schema/event
       version change, runtime-specific behavior outside its adapter, dependency,
       old-session edit, approval bypass, push, merge, deployment, permission
       change or substrate call. Record truthful typed notes/debrief and clean
