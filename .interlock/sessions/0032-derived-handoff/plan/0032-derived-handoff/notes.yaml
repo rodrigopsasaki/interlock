@@ -9,3 +9,7 @@ entries:
     at: "2026-09-16T11:43:48Z"
     chose: "Plan a creation-and-selection handoff that derives identity from the immutable brief, one typed session-started record, and Git, while requiring an explicit authored derivation declaration."
     because: "The current session record has graph, node, role, acceptance, gates, scope, session id, and graph base but no runtime/model identity; accepting a guessed derivation would make the required v2 field untruthful. Ordinary revise also does not compare candidate head_sha with Git, so selection must refuse a stale source head and direct the worker to regenerate the candidate after committing source changes."
+  - kind: choice
+    at: "2026-09-16T11:46:11Z"
+    chose: "Keep the implementation graph to one independently executable node with a graph-level approval gate and one focused debrief/CLI proof gate."
+    because: "Creation, identity proof, authored derivation input, first filing, revision custody, and stale-head refusal are one inseparable worker handoff; splitting them would leave an unusable partial workflow or make a dependency edge carry unproved behavior."
