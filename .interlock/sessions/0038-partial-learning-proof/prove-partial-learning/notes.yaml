@@ -1,0 +1,7 @@
+interlock: notes@v0
+node: prove-partial-learning
+entries:
+  - kind: surprise
+    at: "2026-09-16T13:28:08Z"
+    expected: "The session directory would contain its notes artifact when the worker session opened."
+    observed: "The canonical brief exists but notes.yaml is absent, so this first observed session fact must establish the artifact."
