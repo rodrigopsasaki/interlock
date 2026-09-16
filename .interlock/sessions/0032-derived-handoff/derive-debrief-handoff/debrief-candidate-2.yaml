@@ -1,0 +1,65 @@
+interlock: debrief@v2
+graph: 0032-derived-handoff
+node: derive-debrief-handoff
+role: worker
+graph_base_sha: f9a500194a43a60e887767f84eb68b6d03890f3e
+session_start_sha: 7abcc372979733d8864f5c1d778e548c87b771f2
+head_sha: 211a2ed979402859a5d7e10f539eb8f15260c1a3
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries:
+  - id: planning-node-custody
+    what: Planning sessions use nested node identifiers of the form plan/<graph>, while their session artifacts remain beneath the graph's session directory.
+    mattered_because: First filing and ordinary revision must permit that real node form without allowing traversal or symbolic-link indirection.
+    found_at: .interlock/sessions/0032-derived-handoff/plan/0032-derived-handoff/brief.md
+decisions:
+  - id: share-derived-identity-proof
+    what: Extracted the journal, immutable brief, graph-base acceptance, and Git transition checks from recovery into a shared CLI identity proof for preparation and first filing.
+    because: Recovery's repair-only wrapper requires an intentionally invalid old start and cannot truthfully establish a new canonical debrief on its own.
+    rests_on:
+      - .interlock/graphs/0032-derived-handoff.yaml
+      - .interlock/sessions/0032-derived-handoff/derive-debrief-handoff/notes.yaml
+      - packages/cli/src/debrief/recoverSessionStart.ts
+    hunks:
+      - packages/cli/src/debrief/sessionIdentity.ts
+      - packages/cli/src/debrief/derived.ts
+  - id: retain-derived-custody
+    what: Reused shared safe graph, nested-node, direct-path, candidate, and symbolic-link custody for ordinary revise, preparation, and first filing.
+    because: Planning nodes must work through the same custody seam, while unsafe paths and existing authored artifacts remain refusals before a write.
+    rests_on:
+      - .interlock/graphs/0032-derived-handoff.yaml
+      - .interlock/sessions/0032-derived-handoff/derive-debrief-handoff/notes.yaml
+    hunks:
+      - packages/debrief/src/custody.ts
+      - packages/debrief/src/revise.ts
+      - packages/cli/src/debrief/derived.ts
+  - id: make-first-filing-no-replace
+    what: file-derived validates a private temporary copy and links it into a missing canonical path, while corrections retain the ordinary content-addressed revision workflow.
+    because: Link creation cannot replace a concurrently created debrief.yaml, and rechecking nonempty authored derivation prevents an edited candidate from bypassing honest authorship input.
+    rests_on:
+      - .interlock/graphs/0032-derived-handoff.yaml
+      - .interlock/sessions/0032-derived-handoff/derive-debrief-handoff/notes.yaml
+      - packages/debrief/src/revise.ts
+    hunks:
+      - packages/cli/src/debrief/derived.ts
+      - packages/cli/test/debrief/derived.test.ts
+gates_run_by_agent:
+  - id: focused-typecheck
+    result: pass
+    invocation: mise exec -- pnpm --filter debrief --filter cli typecheck
+  - id: focused-derived-handoff
+    result: pass
+    invocation: mise exec -- pnpm --filter debrief --filter cli --fail-if-no-match test
+    note: Debrief's 70 tests and derived-handoff's 8 tests passed before an unrelated CLI repository-origin timeout made the aggregate command fail.
+  - id: focused-opening-handoff
+    result: pass
+    invocation: mise exec -- pnpm --filter runner exec vitest run test/openingPrompt.test.ts
+    note: 10 tests passed.
+  - id: derived-handoff-proof
+    result: fail
+    invocation: mise exec -- pnpm --filter debrief --filter cli --fail-if-no-match test
+    note: An existing repository-origin test timed out at five seconds; no aggregate pass is claimed.
+open:
+  - The harness must run the declared gates; the scoped aggregate proof remains failed on the unrelated repository-origin timeout.

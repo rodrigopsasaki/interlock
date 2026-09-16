@@ -1,0 +1,81 @@
+interlock: debrief@v2
+graph: 0032-derived-handoff
+node: derive-debrief-handoff
+role: worker
+graph_base_sha: f9a500194a43a60e887767f84eb68b6d03890f3e
+session_start_sha: 7abcc372979733d8864f5c1d778e548c87b771f2
+head_sha: 60c5688829172f4a80d2a521bb7b57444a04f6bf
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries:
+  - id: planning-identity-limit
+    what: A planning session synthesizes its acceptance before its graph is present at graph base, so it lacks one of the independent facts required by the derived identity proof.
+    mattered_because: Derived first filing must not be offered to interpreter sessions until an independent planning identity proof exists.
+    found_at: packages/cli/src/plan.ts
+decisions:
+  - id: derive-worker-first-filing
+    what: Added worker-facing prepare and file-derived doors that derive graph, node, role, graph base, session start, and current head from the immutable brief, typed session record, and Git.
+    because: Those fields are observed identity, while runtime/model or a human name are not in the session record and remain explicit authored input.
+    rests_on:
+      - .interlock/graphs/0032-derived-handoff.yaml
+      - .interlock/sessions/0032-derived-handoff/derive-debrief-handoff/notes.yaml
+      - packages/cli/src/debrief/recoverSessionStart.ts
+    hunks:
+      - packages/cli/src/debrief/sessionIdentity.ts
+      - packages/cli/src/debrief/derived.ts
+  - id: preserve-custody-and-authorship
+    what: Shared direct-path custody permits safe nested worker node paths while refusing traversal and symbolic links; file-derived validates a temporary copy, rechecks nonempty authored derivation, and hard-links only into a missing canonical path.
+    because: A candidate edited after preparation or a concurrent canonical creation must not bypass authorship or overwrite any authored bytes.
+    rests_on:
+      - .interlock/graphs/0032-derived-handoff.yaml
+      - .interlock/sessions/0032-derived-handoff/derive-debrief-handoff/notes.yaml
+      - packages/debrief/src/revise.ts
+    hunks:
+      - packages/debrief/src/custody.ts
+      - packages/debrief/src/revise.ts
+      - packages/cli/src/debrief/derived.ts
+      - packages/cli/test/debrief/derived.test.ts
+  - id: prove-historical-revision-custody
+    what: Added one fixture that prepares with empty agent-reported checks, first files with no archive, then ordinarily revises from that original historical head after a later metadata commit.
+    because: The full sequence proves the new first-filing door does not alter ordinary revision's exact archive custody or legitimate historical-head compatibility.
+    rests_on:
+      - .interlock/graphs/0032-derived-handoff.yaml
+      - .interlock/sessions/0032-derived-handoff/derive-debrief-handoff/notes.yaml
+      - packages/debrief/src/revise.ts
+    hunks:
+      - packages/cli/test/debrief/derived.test.ts
+  - id: limit-handoff-to-proven-role
+    what: The opening prompt gives the executable derived first-filing sequence only to worker sessions and retains the existing authored debrief handoff for interpreter sessions.
+    because: The graph-base proof does not establish a planning session identity, so promising the command there would be an unusable handoff rather than a truthful one.
+    rests_on:
+      - .interlock/graphs/0032-derived-handoff.yaml
+      - .interlock/sessions/0032-derived-handoff/derive-debrief-handoff/notes.yaml
+      - packages/cli/src/plan.ts
+    hunks:
+      - packages/runner/src/openingPrompt.ts
+      - packages/runner/test/openingPrompt.test.ts
+gates_run_by_agent:
+  - id: focused-typecheck
+    result: pass
+    invocation: mise exec -- pnpm --filter debrief --filter cli typecheck
+  - id: focused-derived-handoff
+    result: pass
+    invocation: mise exec -- pnpm --filter cli exec vitest run test/debrief/derived.test.ts
+    note: 9 tests passed.
+  - id: focused-recovery-and-revise
+    result: pass
+    invocation: mise exec -- pnpm --filter cli exec vitest run test/debrief/derived.test.ts test/debrief/recoverSessionStart.test.ts test/debrief/revise.test.ts
+    note: 15 tests passed.
+  - id: focused-opening-handoff
+    result: pass
+    invocation: mise exec -- pnpm --filter runner exec vitest run test/openingPrompt.test.ts
+    note: 10 tests passed.
+  - id: derived-handoff-proof
+    result: fail
+    invocation: mise exec -- pnpm --filter debrief --filter cli --fail-if-no-match test
+    note: Debrief's 70 tests and derived-handoff's 8 tests passed before an existing repository-origin test timed out at five seconds.
+open:
+  - The harness must run the declared gates; the scoped aggregate proof remains failed on the unrelated repository-origin timeout.
+  - Interpreter sessions retain the existing authored filing handoff until independent planning identity evidence exists.

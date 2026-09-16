@@ -49,3 +49,7 @@ entries:
     at: "2026-09-16T12:06:42Z"
     chose: "Prove the complete derived first filing followed by ordinary historical-head revision in one focused fixture."
     because: "The sequence demonstrates that prepare creates no claimed check, file-derived creates no archive, and ordinary revise still retains exact canonical bytes while accepting an intentional historical source head."
+  - kind: choice
+    at: "2026-09-16T12:06:59Z"
+    chose: "Prepare a fourth candidate from the focused custody-proof commit and retain all earlier candidates unchanged."
+    because: "Each later source commit deliberately invalidates the preceding candidate's derived head, while retained authored candidates keep the way back to every preparation attempt."

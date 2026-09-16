@@ -1,0 +1,51 @@
+interlock: debrief@v2
+graph: 0032-derived-handoff
+node: derive-debrief-handoff
+role: worker
+graph_base_sha: f9a500194a43a60e887767f84eb68b6d03890f3e
+session_start_sha: 7abcc372979733d8864f5c1d778e548c87b771f2
+head_sha: a2e5302f38091a21f599908c735363c443a52ef1
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries:
+  - id: recovery-proof-was-local
+    what: The existing recovery callback already proved typed session-start evidence, graph-base acceptance, immutable brief bytes, and the Git transition, but it owned that proof inside repair-only control flow.
+    mattered_because: First filing needs the same identity proof without supplying a false current debrief to the recovery wrapper.
+    found_at: packages/cli/src/debrief/recoverSessionStart.ts
+decisions:
+  - id: derive-first-filing-identity
+    what: Added prepare and file-derived CLI doors that derive session identity from the worktree brief, shared journal, and Git while requiring authored derivation metadata and authored content.
+    because: A worker should not copy recoverable identity fields, while runtime and model identity are not recorded by the typed session start and must remain explicit authored input.
+    rests_on:
+      - .interlock/graphs/0032-derived-handoff.yaml
+      - .interlock/sessions/0032-derived-handoff/derive-debrief-handoff/notes.yaml
+      - packages/cli/src/debrief/recoverSessionStart.ts
+    hunks:
+      - packages/cli/src/debrief/sessionIdentity.ts
+      - packages/cli/src/debrief/derived.ts
+  - id: preserve-first-filing-custody
+    what: First filing links a validated temporary candidate copy into the missing canonical path and leaves later corrections on the established revision path.
+    because: Link creation has no replacement operation, so a concurrent canonical appearance and every refusal leave the candidate and existing canonical bytes intact.
+    rests_on:
+      - .interlock/graphs/0032-derived-handoff.yaml
+      - .interlock/sessions/0032-derived-handoff/derive-debrief-handoff/notes.yaml
+      - packages/debrief/src/revise.ts
+    hunks:
+      - packages/cli/src/debrief/derived.ts
+      - packages/cli/test/debrief/derived.test.ts
+gates_run_by_agent:
+  - id: focused-cli-proof
+    result: pass
+    invocation: mise exec -- pnpm --filter cli exec vitest run test/debrief/derived.test.ts test/debrief/recoverSessionStart.test.ts test/debrief/revise.test.ts
+    note: 11 tests passed.
+  - id: focused-runner-proof
+    result: pass
+    invocation: mise exec -- pnpm --filter runner exec vitest run test/openingPrompt.test.ts
+    note: 10 tests passed.
+  - id: focused-cli-typecheck
+    result: pass
+    invocation: mise exec -- pnpm --filter cli typecheck
+open:
+  - The harness must run the declared aggregate gates; this session ran only focused local checks.
