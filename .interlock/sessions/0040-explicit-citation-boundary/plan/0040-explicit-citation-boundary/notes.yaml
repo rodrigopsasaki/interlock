@@ -1,0 +1,11 @@
+interlock: notes@v0
+node: plan/0040-explicit-citation-boundary
+entries:
+  - kind: surprise
+    at: "2026-09-16T13:51:40Z"
+    expected: "The existing explicit-location branch would recognize the bare evidence.txt range described in the received note."
+    observed: "At f8eb642eb473a76fdbeddab0908bd97bf1277cf7, explicitLocations calls pathLike, which accepts only a slash-containing path or one with a ts, tsx, json, yaml, yml, md, or js extension; evidence.txt therefore bypasses explicit range and quotation checks and can root as an out-of-band quotation."
+  - kind: choice
+    at: "2026-09-16T13:51:40Z"
+    chose: "Plan one parser-seam implementation node that recognizes syntactically explicit path:range claims before the ordinary path-like and out-of-band fallback paths."
+    because: "checkFoundAt already centralizes explicit range parsing, repository/session path resolution, quotation counting, and rooted marks; a bounded change and focused tests there can cover ordinary extensions and extensionless basenames without changing command-form or genuine out-of-band citation behavior."
