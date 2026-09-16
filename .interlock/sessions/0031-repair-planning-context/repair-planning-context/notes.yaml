@@ -1,0 +1,15 @@
+interlock: notes@v0
+node: repair-planning-context
+entries:
+  - kind: choice
+    at: "2026-09-16T11:31:42Z"
+    chose: "For a correction with an explicit ask and no explicit context selector, distinguish a missing or valid legacy prior brief from a present-invalid prior brief."
+    because: "The first two cannot supply an inherited selector and must retain omitted-selector behavior, while a present malformed, unknown, or invalid artifact must not be silently treated as absent."
+  - kind: surprise
+    at: "2026-09-16T11:35:38Z"
+    expected: "One retained focused planner test process would report its result before another was started."
+    observed: "Three duplicate focused planner test process trees remained alive after yielded executions whose session identifiers were not retained; they were interrupted before completion and are not evidence of a passing gate."
+  - kind: surprise
+    at: "2026-09-16T11:36:07Z"
+    expected: "The source commit would use the repository's configured signing path."
+    observed: "GPG could not access its user keybox in this worktree sandbox, so the commit requires the same per-command unsigned fixture setting used by planner tests."

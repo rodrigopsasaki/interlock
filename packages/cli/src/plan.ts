@@ -3,7 +3,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
 import { type Clock, createSystemClock } from "@phyxiusjs/clock";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
-import { readBriefFile, renderSlice } from "debrief";
+import { explainBriefRefusal, readBriefFile, renderSlice } from "debrief";
 import {
   approvalState,
   explainGraphRefusal,
@@ -274,10 +274,13 @@ export async function runInterlockPlan(
           "brief.md",
         );
         const previousBrief = await readBriefFile(previousBriefPath);
-        if (isErr(previousBrief) || previousBrief.value.kind !== "v1") {
-          return err(`${previousBriefPath}: no previous brief to carry a context selector from.`);
+        if (isErr(previousBrief)) {
+          if (previousBrief.error.kind !== "missing-file") {
+            return err(explainBriefRefusal(previousBrief.error));
+          }
+        } else if (previousBrief.value.kind === "v1") {
+          selectedContextScope = previousBrief.value.frontMatter.contextScope;
         }
-        selectedContextScope = previousBrief.value.frontMatter.contextScope;
       }
 
       if (selectedContextScope !== undefined) {
