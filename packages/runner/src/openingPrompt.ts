@@ -18,7 +18,11 @@ export function buildOpeningPrompt(
   const derivedFilingSentence =
     role === "worker"
       ? `For a first filing, run interlock debrief prepare ${graph} ${node} --to <candidate-path> --agent-runtime <runtime> --agent-model <model>, or replace both agent flags with --human <name>; author its claims and reports, then run ` +
-        `interlock debrief file-derived ${graph} ${node} --from <candidate-path>. After source changes, commit, prepare a fresh candidate, author it, and file it. `
+        `interlock debrief preview --file <candidate-path> to inspect it read-only if useful before interlock debrief file-derived ${graph} ${node} --from <candidate-path>. After source changes, commit, prepare a fresh candidate, author it, inspect it if useful, and file it. `
+      : "";
+  const previewSentence =
+    role === "interpreter"
+      ? "Before filing a candidate, optionally inspect it read-only with interlock debrief preview --file <candidate-path>. "
       : "";
   const briefSentence =
     openingView === undefined
@@ -33,6 +37,7 @@ export function buildOpeningPrompt(
     `Append .interlock/sessions/${graph}/${node}/notes.yaml at every choice and surprise, ` +
     `commit as you go, and file .interlock/sessions/${graph}/${node}/debrief.yaml as your final commit. ` +
     derivedFilingSentence +
+    previewSentence +
     `When correcting an authored debrief, keep the correction in this session directory and run ` +
     `interlock debrief revise ${graph} ${node} --from <candidate-path> to select it. ` +
     `When the debrief is committed, stop and wait. ` +

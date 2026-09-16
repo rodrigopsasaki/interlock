@@ -4,6 +4,14 @@ const END = "<!-- interlock: debrief-authoring-guidance@v1:end -->";
 export const pathAppliesToExample =
   "applies_to: { kind: path, path: packages/substrate/src/evidence.ts }";
 export const repositoryAppliesToExample = "applies_to: { kind: repository }";
+export const rangedDiscoveryFoundAt = 'evidence.ts:2-3 "durable exact excerpt"';
+export const rangedDiscoveryExample = [
+  "discoveries:",
+  "  - id: exact-range",
+  "    what: The evidence records a durable exact excerpt.",
+  `    found_at: '${rangedDiscoveryFoundAt}'`,
+  "    mattered_because: A later session can re-read the cited source.",
+].join("\n");
 
 export const debriefAuthoringGuidance = [
   START,
@@ -11,6 +19,18 @@ export const debriefAuthoringGuidance = [
   "",
   "`found_at`, `rests_on`, and `hunks` say what supports a claim. Optional `applies_to` says",
   "where you judge a rooted lesson useful; it never supplies support or ratifies a claim.",
+  "",
+  "Review notes for discoveries worth handing on. For an explicit `found_at` path and line or",
+  "range, write one separate exact quotation from that range at the authored head. A bare ranged",
+  "path does not establish the discovery:",
+  "",
+  "```yaml",
+  rangedDiscoveryExample,
+  "```",
+  "",
+  "No discovery, no justified applicability, an unrooted claim, and declining a received hypothesis",
+  "are all valid. Do not invent claims, infer applicability, rewrite citations, or promote notes",
+  "automatically.",
   "",
   "Prefer a justified narrow path:",
   "",
@@ -28,7 +48,7 @@ export const debriefAuthoringGuidance = [
   "a future session can act on. It changes neither authority nor gates, and does not establish better",
   "judgment. Treat received context as a hypothesis: check, reject, or leave it unused.",
   "",
-  "Before filing, optionally inspect an authored candidate with `interlock debrief preview --file <candidate>`.",
+  "Before filing, optionally inspect an authored candidate read-only with `interlock debrief preview --file <candidate>`.",
   END,
 ].join("\n");
 

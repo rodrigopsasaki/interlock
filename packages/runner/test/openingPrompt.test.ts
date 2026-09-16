@@ -10,7 +10,7 @@ describe("buildOpeningPrompt", () => {
         "Append .interlock/sessions/g/n/notes.yaml at every choice and surprise, " +
         "commit as you go, and file .interlock/sessions/g/n/debrief.yaml as your final commit. " +
         "For a first filing, run interlock debrief prepare g n --to <candidate-path> --agent-runtime <runtime> --agent-model <model>, or replace both agent flags with --human <name>; author its claims and reports, then run " +
-        "interlock debrief file-derived g n --from <candidate-path>. After source changes, commit, prepare a fresh candidate, author it, and file it. " +
+        "interlock debrief preview --file <candidate-path> to inspect it read-only if useful before interlock debrief file-derived g n --from <candidate-path>. After source changes, commit, prepare a fresh candidate, author it, inspect it if useful, and file it. " +
         "When correcting an authored debrief, keep the correction in this session directory and run " +
         "interlock debrief revise g n --from <candidate-path> to select it. " +
         "When the debrief is committed, stop and wait. " +
@@ -26,9 +26,12 @@ describe("buildOpeningPrompt", () => {
     expect(prompt).toContain("interlock debrief prepare g n --to <candidate-path>");
     expect(prompt).toContain("--agent-runtime <runtime> --agent-model <model>");
     expect(prompt).toContain("--human <name>");
+    expect(prompt).toContain(
+      "interlock debrief preview --file <candidate-path> to inspect it read-only if useful before",
+    );
     expect(prompt).toContain("interlock debrief file-derived g n --from <candidate-path>");
     expect(prompt).toContain(
-      "After source changes, commit, prepare a fresh candidate, author it, and file it",
+      "After source changes, commit, prepare a fresh candidate, author it, inspect it if useful, and file it",
     );
   });
 
@@ -76,6 +79,9 @@ describe("buildOpeningPrompt", () => {
     expect(prompt).toContain(".interlock/graphs/demo.yaml");
     expect(prompt).toContain("for a person to approve or correct");
     expect(prompt).toContain("it never leases or runs a node");
+    expect(prompt).toContain(
+      "Before filing a candidate, optionally inspect it read-only with interlock debrief preview",
+    );
     expect(prompt).not.toContain("interlock debrief prepare");
     expect(prompt).not.toContain("interlock debrief file-derived");
   });
@@ -86,6 +92,7 @@ describe("buildOpeningPrompt", () => {
     expect(prompt).toContain("the canonical brief remains binding and is available on demand");
     expect(prompt).not.toContain("Read it first and treat it as binding.");
     expect(prompt.endsWith("\n\nPrompt projection.")).toBe(true);
+    expect(prompt).toContain("interlock debrief preview --file <candidate-path>");
   });
 
   it("retains interpreter and recovery instructions when a view is supplied", () => {
@@ -100,6 +107,7 @@ describe("buildOpeningPrompt", () => {
     expect(prompt).toContain("it never leases or runs a node");
     expect(prompt).toContain("1 uncommitted path(s) and 2 commit(s) beyond the graph base");
     expect(prompt).toContain("Read notes.yaml, git status and git log before you continue");
+    expect(prompt).toContain("interlock debrief preview --file <candidate-path>");
     expect(prompt).not.toContain("Read it first and treat it as binding.");
   });
 });

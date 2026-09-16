@@ -7,6 +7,7 @@ import type { GateDeclaration } from "face";
 import { noneClient, type SubstrateClient } from "substrate";
 import { afterEach, describe, expect, it } from "vitest";
 import { contextSlice, contextSliceOf, withRenderedContextSlice } from "../src/contextSlice.ts";
+import { buildOpeningPrompt } from "../src/openingPrompt.ts";
 import {
   briefPath,
   explainSessionBriefRefusal,
@@ -347,11 +348,19 @@ describe("writeBriefIntoWorktree", () => {
       "applies_to: { kind: path, path: packages/substrate/src/evidence.ts }",
     );
     expect(writtenBody).toContain("interlock debrief preview --file <candidate>");
+    expect(writtenBody).toContain("found_at: 'evidence.ts:2-3 \"durable exact excerpt\"'");
+    expect(writtenBody).toContain("Review notes for discoveries worth handing on");
     expect(isOk(result)).toBe(true);
     if (!isOk(result)) return;
     expect(result.value.openingView?.endsWith(writtenBody)).toBe(true);
     expect(result.value.openingView).toContain("## Debrief authoring");
     expect(result.value.openingView).toContain("interlock debrief preview --file <candidate>");
+    expect(result.value.openingView).toContain(
+      "found_at: 'evidence.ts:2-3 \"durable exact excerpt\"'",
+    );
+    const opening = buildOpeningPrompt("g", "n", undefined, "worker", result.value.openingView);
+    expect(opening).toContain("found_at: 'evidence.ts:2-3 \"durable exact excerpt\"'");
+    expect(opening).toContain("interlock debrief preview --file <candidate>");
   });
 });
 

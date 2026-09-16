@@ -1,0 +1,23 @@
+interlock: notes@v0
+node: make-authoring-actionable
+entries:
+  - kind: surprise
+    at: "2026-09-16T13:37:52Z"
+    expected: "The opened session would already contain a notes artifact."
+    observed: "The canonical brief was present at b2aee006ae31e2fd6bf07440b3d540d03e56f549, but notes.yaml was absent, so this entry establishes the first session receipt."
+  - kind: choice
+    at: "2026-09-16T13:37:52Z"
+    chose: "Extend the existing shared guidance and ordinary opening composition rather than change found_at semantics."
+    because: "Graph 0039's acceptance asks authors to understand the current verifier contract and optional preview; packages/runner/src/debriefAuthoringGuidance.ts and packages/runner/src/openingPrompt.ts are the existing instruction seams, while packages/verifier/src/foundAt.ts already enforces the stated explicit-range rule."
+  - kind: surprise
+    at: "2026-09-16T13:41:28Z"
+    expected: "A focused worker test would prove a bare explicit range unrooted in an isolated Git fixture."
+    observed: "The first ad hoc fixture resolved to the parent repository instead of its own committed content, and the focused test showed the assertion needed a real candidate verification path; the replacement proof will use a fixture SHA in parsed metadata and verifyDebrief under that authored head."
+  - kind: choice
+    at: "2026-09-16T13:41:28Z"
+    chose: "Make worker preview explicitly optional, parse the exported guidance YAML block, and prove it through verifyDebrief with neutral fixture derivation strings."
+    because: "The review preserves the approved scope while making the handoff truthful: the guide's own example must be the verified artifact, preview remains an author choice, and a real fixture head prevents dummy candidate metadata from implying usable verification."
+  - kind: surprise
+    at: "2026-09-16T13:45:06Z"
+    expected: "The guide's evidence.txt range would exercise found_at's explicit-path branch."
+    observed: "At b2aee006ae31e2fd6bf07440b3d540d03e56f549, the existing verifier treats a bare filename as path-like only for its known extensions; evidence.txt therefore made a wrong quote rooted as an out-of-band citation. The exported fixture will use evidence.ts so missing and wrong quotes test the existing explicit-range refusal."
