@@ -1,0 +1,30 @@
+interlock: debrief@v2
+graph: 0037-learning-exchange-read
+node: make-honest-absorb-read
+role: worker
+graph_base_sha: 2c3f37a663686b650c4aa01d5563b71e6c209d37
+session_start_sha: 1449d68a8aa736856160bd0a4bc2a4815d8e7abb
+head_sha: 8620f07f9cb5bb28dd4bea13e269e35e5be2b24d
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries: []
+decisions:
+  - id: honest-absorb-read
+    what: "Separated the supplied translation, receiver response report, and textual Context slice comparison in the absorb narration."
+    because: "A valid v2 gate-judge route always derives observed translation data, including an empty payload, while the public narrator alone can report an unavailable caller observation; keeping the request object separate preserves legacy omission and the durable outbox bytes."
+    rests_on:
+      - .interlock/sessions/0037-learning-exchange-read/make-honest-absorb-read/notes.yaml
+      - packages/runner/src/gateJudge.ts:343-416
+      - packages/substrate/src/narrate.ts:33-70
+    hunks:
+      - packages/runner/src/contextSlice.ts:8-58
+      - packages/runner/src/gateJudge.ts:338-417
+      - packages/substrate/src/narrate.ts:5-70
+      - packages/runner/test/absorbOutbox.test.ts:40-107
+      - packages/runner/test/gateJudge.test.ts:1219-1441
+      - packages/substrate/test/absorb.test.ts:169-250
+    applies_to: { kind: repository }
+gates_run_by_agent: []
+open: []
