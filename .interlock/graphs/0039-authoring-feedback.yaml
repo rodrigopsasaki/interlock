@@ -1,0 +1,52 @@
+interlock: graph@v0
+id: 0039-authoring-feedback
+ask: Make verifiable discovery authoring and preview usable in the normal handoff.
+derivation:
+  kind: model
+  model: gpt-6-astra
+  prompt: ten-iteration-learning-2026-09-16-round-9
+read: >
+  Two real planner handoffs lost discoveries because explicit ranged citations
+  omitted the verifier's separate quotation. One skipped the optional preview.
+  The existing shared authoring guide explains applicability but not citation
+  grammar; the actual opening's filing sequence omits preview. Improve that
+  existing instruction seam, not verifier semantics or author authority.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: make-authoring-actionable
+    depends_on: []
+    acceptance: |
+      Improve the existing shared debrief authoring guidance and the ordinary
+      worker/interpreter opening handoff so an author knows how to retain a
+      useful discovery and inspect it before filing. Explain the existing
+      found_at contract: explicit path:line or path:start-end needs a separate
+      exact quotation from that range at the authored head; a bare ranged path
+      does not establish the claimed discovery. Include concise valid YAML
+      demonstrating that form without confusing found_at with decision hunks
+      or applicability. Prove the example against the actual parser and verifier
+      in a real Git fixture; prove a missing/wrong quote remains unrooted.
+      Keep examples maintainable rather than depending on unrelated moving lines.
+
+      Give optional read-only debrief preview a clear place before normal filing
+      for both worker and interpreter openings, including when no derived opening
+      view is supplied. Do not promise worker-only prepare/file-derived to an
+      interpreter. Explain that authors should review notes for discoveries worth
+      handing on, and that no discovery, no justified applicability, unrooted
+      claims and declining a hypothesis remain valid. Do not invent claims, infer
+      applicability, rewrite citations, promote notes automatically, require
+      preview, ratify learning, add gates, change validation/filing/verifier/
+      evidence semantics or write journals/receipts as a result of guidance.
+
+      Preserve the canonical brief, concise opening's way back, generated-section
+      ownership, idempotence, and existing authored/fenced content byte preservation.
+      Focused tests must exercise actual worker and interpreter composition plus
+      fallback opening, not only a standalone string. Retain all older artifacts.
+      No dependencies, runtime adapter, authority, permissions, config or wire
+      changes. Typed notes/debrief, clean commits, one25-minute attempt.
+    gates:
+      - id: authoring-feedback-proof
+        kind: command
+        run: pnpm --filter runner --filter cli --filter verifier --fail-if-no-match test
+        expect_output: 'Tests +[1-9][0-9]* passed'
