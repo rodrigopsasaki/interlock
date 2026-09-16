@@ -1,0 +1,38 @@
+interlock: debrief@v2
+graph: 0040-explicit-citation-boundary
+node: enforce-explicit-citation-boundary
+role: worker
+graph_base_sha: 84692ec00443757cc9a5644bb94c1b7619395b3c
+session_start_sha: e5b8a88fc73dc5d014c32e2562984e70da1e590c
+head_sha: 5366fbfee94473019c0f769a782ca16d794f03b6
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries: []
+decisions:
+  - id: explicit-citation-boundary
+    what: "Route first-token bare file locations and established known-path backtick locations through the existing explicit range, path, and separate-quotation checks."
+    because: "A bare evidence.txt location previously reached the out-of-band fallback, while separate extracts must not become a second location or be discarded merely because their text equals a locator."
+    rests_on:
+      - .interlock/sessions/0040-explicit-citation-boundary/enforce-explicit-citation-boundary/notes.yaml
+      - packages/verifier/src/foundAt.ts:38-120
+    hunks:
+      - packages/verifier/src/foundAt.ts:38-120
+      - packages/verifier/test/foundAt.test.ts:138-159
+      - packages/verifier/test/foundAt.test.ts:238-332
+      - packages/runner/test/debriefAuthoringGuidance.test.ts:177-261
+    applies_to: { kind: path, path: packages/verifier/src/foundAt.ts }
+gates_run_by_agent:
+  - id: explicit-citation-parser-proof
+    result: pass
+    invocation: mise exec -- pnpm --filter verifier exec vitest run test/foundAt.test.ts
+    note: 21 tests passed
+  - id: explicit-citation-translation-proof
+    result: pass
+    invocation: mise exec -- pnpm --filter runner exec vitest run test/debriefAuthoringGuidance.test.ts
+    note: 6 tests passed
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+open: []
