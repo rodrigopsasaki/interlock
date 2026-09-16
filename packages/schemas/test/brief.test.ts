@@ -1,3 +1,5 @@
+import { isOk } from "@phyxiusjs/fp";
+import { readBriefDocument } from "debrief";
 import { describe, expect, it } from "vitest";
 import { buildRegistry } from "../src/registry.ts";
 
@@ -29,7 +31,6 @@ describe("brief@v1 context_scope schema", () => {
     ["a scalar", "packages/x.ts"],
     ["a mixed list", ["packages/x.ts", 3]],
     ["null", null],
-    ["an empty list", []],
     ["duplicates", ["packages/x.ts", "packages/x.ts"]],
   ])("refuses %s", (_name, contextScope) => {
     expect(schemaValid(briefWith(contextScope))).toBe(false);
@@ -38,5 +39,29 @@ describe("brief@v1 context_scope schema", () => {
   it("keeps normalized path safety in the reader, not a schema regex", () => {
     expect(schemaValid(briefWith(["packages/a/../x.ts"]))).toBe(true);
     expect(schemaValid(briefWith(["../outside.ts"]))).toBe(true);
+  });
+
+  it("accepts an explicit empty selector in both schema and reader", () => {
+    expect(schemaValid(briefWith([]))).toBe(true);
+    const read = readBriefDocument(
+      [
+        "---",
+        "interlock: brief@v1",
+        "graph: g",
+        "node: n",
+        "role: worker",
+        "gates: []",
+        "scope: []",
+        "context_scope: []",
+        "substrate:",
+        "  address: none",
+        "---",
+        "",
+      ].join("\n"),
+      "brief.md",
+    );
+    expect(isOk(read)).toBe(true);
+    if (!isOk(read) || read.value.kind !== "v1") throw new Error("expected brief@v1");
+    expect(read.value.frontMatter.contextScope).toEqual([]);
   });
 });

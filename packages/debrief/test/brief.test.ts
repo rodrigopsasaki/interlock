@@ -207,7 +207,6 @@ describe("readBriefFile", () => {
     ["a scalar", "context_scope: packages/x.ts"],
     ["a mixed list", "context_scope: [packages/x.ts, 3]"],
     ["null", "context_scope: null"],
-    ["an empty list", "context_scope: []"],
   ])("refuses context_scope with %s", async (_name, contextScope) => {
     const empty = write(
       v1FrontMatter.replace(
@@ -219,6 +218,19 @@ describe("readBriefFile", () => {
     expect(isErr(emptyResult)).toBe(true);
     if (!isErr(emptyResult)) return;
     expect(explainBriefRefusal(emptyResult.error)).toContain("context_scope");
+  });
+
+  it("reads an empty context_scope as an explicit repository-level query", async () => {
+    const path = write(
+      v1FrontMatter.replace(
+        "substrate:\n  address: none",
+        "context_scope: []\nsubstrate:\n  address: none",
+      ),
+    );
+    const result = await readBriefFile(path);
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result) || result.value.kind !== "v1") throw new Error("expected v1");
+    expect(result.value.frontMatter.contextScope).toEqual([]);
   });
 
   it("refuses duplicate context_scope entries", async () => {

@@ -44,10 +44,58 @@ import { substrateClientForRepository } from "./repositoryOrigin.ts";
 
 const USAGE =
   'interlock plan: expected a graph id and --ask, e.g. "interlock plan 0004-example ' +
-  '--ask "<text>" [--correction "<reason>"]".';
+  '--ask "<text>" [--context-scope \'["packages/api.ts"]\'] [--correction "<reason>"]". ' +
+  "The context selector narrows only the context query, never the plan's work authority.";
 
 function isNodeError(error: unknown): error is NodeJS.ErrnoException {
   return error instanceof Error && "code" in error;
+}
+
+function parseContextScope(args: readonly string[]): Result<readonly string[] | undefined, string> {
+  const positions = args
+    .map((argument, index) => (argument === "--context-scope" ? index : undefined))
+    .filter((index): index is number => index !== undefined);
+  if (positions.length === 0) return ok(undefined);
+  if (positions.length > 1) {
+    return err("interlock plan: --context-scope may be given only once.");
+  }
+
+  const position = positions[0];
+  if (position === undefined) return err("interlock plan: --context-scope requires a JSON array.");
+  const source = args[position + 1];
+  if (source === undefined || source.startsWith("--")) {
+    return err("interlock plan: --context-scope requires a JSON array.");
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(source);
+  } catch {
+    return err("interlock plan: --context-scope must be a JSON array of tracked paths.");
+  }
+  if (!Array.isArray(parsed) || !parsed.every((path) => typeof path === "string")) {
+    return err("interlock plan: --context-scope must be a JSON array of tracked paths.");
+  }
+  const selected = new Set<string>();
+  for (const path of parsed) {
+    if (selected.has(path)) {
+      return err(`interlock plan: --context-scope repeats path "${path}".`);
+    }
+    selected.add(path);
+  }
+  return ok(parsed);
+}
+
+function untrackedContextScopePath(
+  contextScope: readonly string[],
+  authoritativeScope: readonly string[],
+): string | undefined {
+  const tracked = new Set(authoritativeScope);
+  return contextScope.find((path) => !tracked.has(path));
+}
+
+function explainUntrackedContextScope(path: string): string {
+  return `interlock plan: --context-scope path "${path}" is not an exact tracked path.`;
 }
 
 async function readIfExists(path: string): Promise<Result<string | undefined, string>> {
@@ -91,6 +139,10 @@ export async function runInterlockPlan(
 
   const ask = parseFlag(args, "--ask");
   const correctionReason = parseFlag(args, "--correction");
+  const parsedContextScope = parseContextScope(args);
+  if (isErr(parsedContextScope)) {
+    return { exitCode: 1, message: parsedContextScope.error };
+  }
   if (ask === undefined && correctionReason === undefined) {
     return {
       exitCode: 1,
@@ -155,7 +207,18 @@ export async function runInterlockPlan(
       return { exitCode: 1, message: approvalRefusal.error };
     }
 
+    if (parsedContextScope.value !== undefined) {
+      const missingSelectedPath = untrackedContextScopePath(
+        parsedContextScope.value,
+        gitTrackedFiles(repoRoot),
+      );
+      if (missingSelectedPath !== undefined) {
+        return { exitCode: 1, message: explainUntrackedContextScope(missingSelectedPath) };
+      }
+    }
+
     let resolvedAsk = ask;
+    let selectedContextScope = parsedContextScope.value;
     let correction: InterpreterCorrection | undefined;
 
     const afterWorktree = async (worktreePath: string): Promise<Result<void, string>> => {
@@ -201,6 +264,31 @@ export async function runInterlockPlan(
         resolvedAsk = recoveredAsk;
       }
 
+      if (correctionReason !== undefined && selectedContextScope === undefined) {
+        const previousBriefPath = join(
+          worktreePath,
+          ".interlock",
+          "sessions",
+          graph,
+          node,
+          "brief.md",
+        );
+        const previousBrief = await readBriefFile(previousBriefPath);
+        if (isErr(previousBrief) || previousBrief.value.kind !== "v1") {
+          return err(`${previousBriefPath}: no previous brief to carry a context selector from.`);
+        }
+        selectedContextScope = previousBrief.value.frontMatter.contextScope;
+      }
+
+      if (selectedContextScope !== undefined) {
+        const missingSelectedPath = untrackedContextScopePath(
+          selectedContextScope,
+          gitTrackedFiles(repoRoot),
+        );
+        if (missingSelectedPath !== undefined)
+          return err(explainUntrackedContextScope(missingSelectedPath));
+      }
+
       return ok(undefined);
     };
 
@@ -213,7 +301,12 @@ export async function runInterlockPlan(
       if (correction !== undefined) narration.push(`correction: ${correction.reason}`);
 
       const scope = gitTrackedFiles(repoRoot);
-      const contextOutcome = await substrate.context(targetNode, scope, "interpreter");
+      const contextScope = selectedContextScope ?? scope;
+      const missingSelectedPath = untrackedContextScopePath(contextScope, scope);
+      if (missingSelectedPath !== undefined) {
+        return err(explainUntrackedContextScope(missingSelectedPath));
+      }
+      const contextOutcome = await substrate.context(targetNode, contextScope, "interpreter");
       narration.push(narrateContext(substrate.address, contextOutcome));
       const contextSlice =
         contextOutcome.kind === "rendered"
@@ -232,6 +325,7 @@ export async function runInterlockPlan(
           role: "interpreter",
           gates: authoritativeBriefGates(standingGates.value, []),
           scope,
+          ...(selectedContextScope === undefined ? {} : { contextScope: selectedContextScope }),
           substrate: { address: substrate.address },
           runner: { kind: "worktree", graphBaseSha, session },
         },

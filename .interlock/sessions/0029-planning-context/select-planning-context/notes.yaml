@@ -1,0 +1,31 @@
+interlock: notes@v0
+node: select-planning-context
+entries:
+  - kind: choice
+    at: "2026-09-16T05:41:20Z"
+    chose: Parse the planning selector at the CLI boundary, retain its explicit presence in brief@v1 front matter, and validate its exact tracked members immediately before the context request.
+    because: An absent selector must retain the historical all-tracked query while an explicit empty list remains distinguishable and cannot alter the full scope that grants planning authority.
+  - kind: surprise
+    at: "2026-09-16T05:46:50Z"
+    expected: The focused planner proof would exercise the new addressed-context cases locally.
+    observed: This worktree sandbox refuses a loopback listener with EPERM, so the existing fake substrate server cannot start and the focused planner test times out before its assertions.
+  - kind: surprise
+    at: "2026-09-16T05:48:20Z"
+    expected: The published brief@v1 schema would match the reader after accepting an explicit empty context selector.
+    observed: The schema still required one context_scope item, so it rejected the authorized empty repository-level query that the reader now accepts.
+  - kind: surprise
+    at: "2026-09-16T05:49:28Z"
+    expected: The selector refusal inside composeBrief would occur before any live session state existed.
+    observed: driveInteractiveSession records session-started and takes a lease before calling composeBrief, so an untracked selector could leave an unused live lease despite no context request or runnable brief.
+  - kind: surprise
+    at: "2026-09-16T05:51:18Z"
+    expected: The new schema/reader parity fixture would contain YAML front matter.
+    observed: Its first rendering joined lines with literal backslash-n bytes, which correctly read as a legacy brief; the fixture now uses newline bytes before judging parity.
+  - kind: surprise
+    at: "2026-09-16T05:51:40Z"
+    expected: The isolated planner fixture's worktree brief commit would share its setup commits' unsigned behavior.
+    observed: Its setup disabled signing only per commit invocation, while the runner's normal brief commit inherited unavailable global signing and prevented the correction refusal proof from reaching its intended assertion.
+  - kind: choice
+    at: "2026-09-16T05:52:17Z"
+    chose: Check explicit tracked selectors after the existing graph-approval refusal but before the session driver, and check inherited selectors in afterWorktree before session-started.
+    because: This preserves approval's existing priority while ensuring selector refusal cannot create a session or lease.

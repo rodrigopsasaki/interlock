@@ -149,8 +149,8 @@ function parseContextScope(
 ): Result<readonly string[] | undefined, BriefRefusal> {
   const raw = prop(parsed, "context_scope");
   if (raw === undefined) return ok(undefined);
-  if (!isStringArray(raw) || raw.length === 0) {
-    return invalid(path, '"context_scope" must be a non-empty list of strings');
+  if (!isStringArray(raw)) {
+    return invalid(path, '"context_scope" must be a list of strings');
   }
   const selected = new Set<string>();
   for (const [index, entry] of raw.entries()) {

@@ -57,6 +57,7 @@ function fixture(local = localYaml): string {
   writeFileSync(join(directory, ".interlock", "config.yaml"), configYaml);
   writeFileSync(join(directory, ".interlock", "local.yaml"), local);
   gitInitFixture(directory);
+  execFileSync("git", ["config", "commit.gpgsign", "false"], { cwd: directory });
   commitAll(directory, "fixture content");
   return directory;
 }
@@ -173,6 +174,96 @@ describe("interlock plan", () => {
       },
     });
   });
+
+  it("uses an explicit context selector without narrowing the committed planning authority", async () => {
+    server = await startFakeSubstrateServer();
+    server.responseFor("context", { items: [], vocabulary: "reference@v1" });
+    const cwd = fixture(localYamlFor(server.url));
+    const worktreePath = join(cwd, ".worktrees", "plan", "demo");
+    const selected = [".interlock/config.yaml"];
+    const authoritativeScope = execFileSync("git", ["ls-files"], { cwd, encoding: "utf-8" })
+      .split("\n")
+      .filter((path) => path.length > 0);
+
+    const result = await runInterlockPlan(
+      ["demo", "--ask", "add context", "--context-scope", JSON.stringify(selected)],
+      {
+        cwd,
+        clock: createControlledClock(),
+        runtime: {
+          ...stubRuntime(),
+          waitUntil: finishedWaitUntil(worktreePath, "demo", "plan/demo", graphYaml("demo")),
+        },
+      },
+    );
+
+    expect(result.exitCode).toBe(0);
+    const request = server.calls.find((call) => call.verb === "context");
+    expect(request?.body).toMatchObject({ scope: selected });
+    const brief = await readBriefFile(
+      join(worktreePath, ".interlock", "sessions", "demo", "plan", "demo", "brief.md"),
+    );
+    if (isErr(brief) || brief.value.kind !== "v1") throw new Error("expected a planning brief");
+    expect(brief.value.frontMatter.contextScope).toEqual(selected);
+    expect(brief.value.frontMatter.scope).toEqual(authoritativeScope);
+  }, 30_000);
+
+  it("uses an empty context selector as an explicit repository-level query", async () => {
+    server = await startFakeSubstrateServer();
+    server.responseFor("context", { items: [], vocabulary: "reference@v1" });
+    const cwd = fixture(localYamlFor(server.url));
+    const worktreePath = join(cwd, ".worktrees", "plan", "demo");
+
+    const result = await runInterlockPlan(
+      ["demo", "--ask", "add context", "--context-scope", "[]"],
+      {
+        cwd,
+        clock: createControlledClock(),
+        runtime: {
+          ...stubRuntime(),
+          waitUntil: finishedWaitUntil(worktreePath, "demo", "plan/demo", graphYaml("demo")),
+        },
+      },
+    );
+
+    expect(result.exitCode).toBe(0);
+    const request = server.calls.find((call) => call.verb === "context");
+    expect(request?.body).toMatchObject({ scope: [] });
+    const brief = await readBriefFile(
+      join(worktreePath, ".interlock", "sessions", "demo", "plan", "demo", "brief.md"),
+    );
+    if (isErr(brief) || brief.value.kind !== "v1") throw new Error("expected a planning brief");
+    expect(brief.value.frontMatter.contextScope).toEqual([]);
+  }, 30_000);
+
+  it("keeps the full tracked context query when the selector is omitted", async () => {
+    server = await startFakeSubstrateServer();
+    server.responseFor("context", { items: [], vocabulary: "reference@v1" });
+    const cwd = fixture(localYamlFor(server.url));
+    const worktreePath = join(cwd, ".worktrees", "plan", "demo");
+    const authoritativeScope = execFileSync("git", ["ls-files"], { cwd, encoding: "utf-8" })
+      .split("\n")
+      .filter((path) => path.length > 0);
+
+    const result = await runInterlockPlan(["demo", "--ask", "add context"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime: {
+        ...stubRuntime(),
+        waitUntil: finishedWaitUntil(worktreePath, "demo", "plan/demo", graphYaml("demo")),
+      },
+    });
+
+    expect(result.exitCode).toBe(0);
+    const request = server.calls.find((call) => call.verb === "context");
+    expect(request?.body).toMatchObject({ scope: authoritativeScope });
+    const brief = await readBriefFile(
+      join(worktreePath, ".interlock", "sessions", "demo", "plan", "demo", "brief.md"),
+    );
+    if (isErr(brief) || brief.value.kind !== "v1") throw new Error("expected a planning brief");
+    expect(brief.value.frontMatter.contextScope).toBeUndefined();
+    expect(brief.value.frontMatter.scope).toEqual(authoritativeScope);
+  }, 30_000);
 
   it("refuses without a graph id", async () => {
     const result = await runInterlockPlan([]);
@@ -400,6 +491,135 @@ describe("interlock plan", () => {
       throw new Error("expected the worktree copy to read as brief@v1");
     }
     expect(read.value.body).toContain("> add a health check endpoint");
+  }, 30_000);
+
+  it("inherits a correction's context selector unless an explicit replacement is given", async () => {
+    server = await startFakeSubstrateServer();
+    server.responseFor("context", { items: [], vocabulary: "reference@v1" });
+    const cwd = fixture(localYamlFor(server.url));
+    const worktreePath = join(cwd, ".worktrees", "plan", "demo");
+    const runtime = {
+      ...stubRuntime(),
+      waitUntil: finishedWaitUntil(worktreePath, "demo", "plan/demo", graphYaml("demo")),
+    };
+    const selected = [".interlock/config.yaml"];
+
+    const first = await runInterlockPlan(
+      ["demo", "--ask", "add context", "--context-scope", JSON.stringify(selected)],
+      { cwd, clock: createControlledClock(), runtime },
+    );
+    const inherited = await runInterlockPlan(
+      ["demo", "--correction", "make the graph more specific"],
+      { cwd, clock: createControlledClock(), runtime },
+    );
+    const replaced = await runInterlockPlan(
+      ["demo", "--correction", "query only the repository", "--context-scope", "[]"],
+      { cwd, clock: createControlledClock(), runtime },
+    );
+
+    expect(first.exitCode).toBe(0);
+    expect(inherited.exitCode).toBe(0);
+    expect(replaced.exitCode).toBe(0);
+    const requests = server.calls
+      .filter((call) => call.verb === "context")
+      .map((call) => call.body);
+    expect(requests).toEqual([
+      expect.objectContaining({ scope: selected }),
+      expect.objectContaining({ scope: selected }),
+      expect.objectContaining({ scope: [] }),
+    ]);
+  }, 30_000);
+
+  it.each([
+    ["malformed JSON", ["--context-scope", "not-json"]],
+    ["non-array JSON", ["--context-scope", "{}"]],
+    ["non-string member", ["--context-scope", '[".interlock/config.yaml", 1]']],
+    ["missing value", ["--context-scope"]],
+    ["repeated flag", ["--context-scope", "[]", "--context-scope", "[]"]],
+    ["duplicate path", ["--context-scope", '[".interlock/config.yaml", ".interlock/config.yaml"]']],
+    ["untracked path", ["--context-scope", '["missing.ts"]']],
+  ])(
+    "refuses a %s context selector before sending context or creating a session",
+    async (_name, selector) => {
+      server = await startFakeSubstrateServer();
+      server.responseFor("context", { items: [], vocabulary: "reference@v1" });
+      const cwd = fixture(localYamlFor(server.url));
+
+      const result = await runInterlockPlan(["demo", "--ask", "add context", ...selector], {
+        cwd,
+        clock: createControlledClock(),
+        runtime: stubRuntime(),
+      });
+
+      expect(result.exitCode).toBe(1);
+      expect(server.calls.filter((call) => call.verb === "context")).toEqual([]);
+      const journalPath = join(cwd, ".interlock", "ledger", "journal.jsonl");
+      const events =
+        existsSync(journalPath) && readFileSync(journalPath, "utf-8").trim().length > 0
+          ? readFileSync(journalPath, "utf-8")
+              .trim()
+              .split("\n")
+              .map((line): unknown => JSON.parse(line))
+              .filter(isLedgerEvent)
+          : [];
+      expect(
+        events.filter((event) => event.kind === "session-started" || event.kind === "lease-taken"),
+      ).toEqual([]);
+      expect(
+        existsSync(
+          join(
+            cwd,
+            ".worktrees",
+            "plan",
+            "demo",
+            ".interlock",
+            "sessions",
+            "demo",
+            "plan",
+            "demo",
+            "brief.md",
+          ),
+        ),
+      ).toBe(false);
+    },
+  );
+
+  it("refuses an inherited correction selector that is no longer tracked before creating a session", async () => {
+    const cwd = fixture();
+    const worktreePath = join(cwd, ".worktrees", "plan", "demo");
+    const runtime = {
+      ...stubRuntime(),
+      waitUntil: finishedWaitUntil(worktreePath, "demo", "plan/demo", graphYaml("demo")),
+    };
+    const first = await runInterlockPlan(
+      ["demo", "--ask", "add context", "--context-scope", '[".interlock/config.yaml"]'],
+      { cwd, clock: createControlledClock(), runtime },
+    );
+    expect(first.exitCode).toBe(0);
+
+    const journalPath = join(cwd, ".interlock", "ledger", "journal.jsonl");
+    const before = readFileSync(journalPath, "utf-8")
+      .trim()
+      .split("\n")
+      .map((line): unknown => JSON.parse(line))
+      .filter(isLedgerEvent)
+      .filter((event) => event.kind === "session-started" || event.kind === "lease-taken");
+    execFileSync("git", ["rm", "--cached", ".interlock/config.yaml"], { cwd });
+
+    const correction = await runInterlockPlan(
+      ["demo", "--correction", "the selected context path is no longer tracked"],
+      { cwd, clock: createControlledClock(), runtime },
+    );
+
+    expect(correction.exitCode).toBe(1);
+    expect(correction.message).toContain("not an exact tracked path");
+    const after = readFileSync(journalPath, "utf-8")
+      .trim()
+      .split("\n")
+      .map((line): unknown => JSON.parse(line))
+      .filter(isLedgerEvent)
+      .filter((event) => event.kind === "session-started" || event.kind === "lease-taken");
+    expect(after).toEqual(before);
   }, 30_000);
 
   it("a correction reopens with the reason as the brief's first paragraph and the reason narrated", async () => {
