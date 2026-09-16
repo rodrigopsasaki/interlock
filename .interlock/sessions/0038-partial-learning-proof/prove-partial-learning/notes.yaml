@@ -5,3 +5,19 @@ entries:
     at: "2026-09-16T13:28:08Z"
     expected: "The session directory would contain its notes artifact when the worker session opened."
     observed: "The canonical brief exists but notes.yaml is absent, so this first observed session fact must establish the artifact."
+  - kind: choice
+    at: "2026-09-16T13:28:48Z"
+    chose: "Repair only the absorb-outbox HTTP regression with two authored-debrief fixtures, one yielding an unrooted decision mark and one yielding a verifier range refusal."
+    because: "The current source already keeps command receipts separate from translated claims and retains request and acknowledgment bytes; the missing proof is that both rejected authored-claim routes preserve those observed artifacts."
+  - kind: surprise
+    at: "2026-09-16T13:31:21Z"
+    expected: "The runner package test command with absorbOutbox.test.ts would run only that focused file."
+    observed: "The package script forwarded the path after its own separator and ran the full runner suite; the repaired two-case file passed, while the unrelated live-herdr and signer-dependent worktree checks failed in this restricted session."
+  - kind: surprise
+    at: "2026-09-16T13:31:51Z"
+    expected: "Repository lint would accept the new regression after its focused test passed."
+    observed: "Biome reported only formatting in packages/runner/test/absorbOutbox.test.ts, with no semantic or unrelated lint finding."
+  - kind: surprise
+    at: "2026-09-16T13:32:49Z"
+    expected: "The runner package would expose the repository lint script."
+    observed: "pnpm lint from packages/runner has no such package script, so lint must run from the workspace root where it previously passed."
