@@ -1,0 +1,25 @@
+interlock: debrief@v2
+graph: 0036-handoff-preview
+node: preview-candidate-learning
+role: worker
+graph_base_sha: 8d6e05be3c75e733f5c81e012c417e2b290ff0df
+session_start_sha: 03528e84830c80d711869786be140c3fb81c8731
+head_sha: 6e6423db6b5f0c61c3480b2fdc39a693b70bdfc4
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries: []
+decisions:
+  - id: candidate-preview
+    what: "Added a read-only candidate preview that reports marks and translated scopes before filing."
+    because: "Authors need local feedback on unfiled claims while canonical judgment, journal effects, and applicability authority remain separate."
+    rests_on:
+      - .interlock/sessions/0036-handoff-preview/preview-candidate-learning/notes.yaml
+    hunks:
+      - packages/cli/src/debrief/preview.ts:97-169
+      - packages/runner/src/debriefAuthoringGuidance.ts:27-31
+      - packages/cli/test/debrief/preview.test.ts:188-240
+    applies_to: { kind: repository }
+gates_run_by_agent: []
+open: []
