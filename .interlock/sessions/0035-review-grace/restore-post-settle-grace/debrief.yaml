@@ -1,0 +1,35 @@
+interlock: debrief@v2
+graph: 0035-review-grace
+node: restore-post-settle-grace
+role: worker
+graph_base_sha: b9c05f97ab1718bc0524dfdcd1824d9c43c1de61
+session_start_sha: 7547b44a13ed7b6c59a2026646043368662f1081
+head_sha: 39f063beb0baa2eb684215825027a9943b71a4a9
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries: []
+decisions:
+  - id: arm-grace-after-blocking-wait
+    what: Armed post-settle grace from the injected clock after each successful runtime wait, so person-answer and unfinished-work settlement each receive the configured response interval while the original deadline remains the cap.
+    because: A pre-wait clock sample omitted time spent in a blocking settled wait; the controlled-clock regressions now consume that time and prove the next grace wait is complete for both affected routes.
+    rests_on:
+      - .interlock/graphs/0035-review-grace.yaml
+      - .interlock/sessions/0035-review-grace/restore-post-settle-grace/notes.yaml
+      - packages/runner/src/sessionWait.ts
+    hunks:
+      - packages/runner/src/sessionWait.ts
+      - packages/runner/test/sessionWait.test.ts
+gates_run_by_agent:
+  - id: session-wait-grace-proof
+    result: pass
+    invocation: mise exec -- pnpm --filter runner exec vitest run test/sessionWait.test.ts
+    note: 17 tests passed, including controlled-clock regressions for person-answer and unfinished-work settling, deadline capping, resumption, refusal, clean settlement, and original-deadline timeout.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Biome checked 334 files with no fixes applied.
+open:
+  - The harness must run the declared gates and retain their receipts.
+  - The supplied Context slice was checked against the two scoped files but not relied on as semantic support; its absence observations did not determine this repair.

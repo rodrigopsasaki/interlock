@@ -21,3 +21,7 @@ entries:
     at: "2026-09-16T12:41:40Z"
     chose: "Use the brief-authorized unsigned commit fallback for this session."
     because: "The observed GPG keybox and keyboxd failure prevents the configured signature, while the brief permits unsigned commits without a configuration change."
+  - kind: choice
+    at: "2026-09-16T12:42:18Z"
+    chose: "File one narrow debrief decision rooted in the graph, session notes, source seam, and controlled-clock regressions."
+    because: "Those artifacts support the timing repair and its two affected routes without making a claim from the provisional Context slice or from standing gates that only the harness may run."
