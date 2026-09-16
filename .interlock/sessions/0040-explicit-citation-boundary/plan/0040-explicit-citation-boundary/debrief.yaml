@@ -1,0 +1,69 @@
+interlock: debrief@v2
+graph: 0040-explicit-citation-boundary
+node: plan/0040-explicit-citation-boundary
+role: interpreter
+graph_base_sha: d52079ccff33683d60f9458ae57a4baf5584ace6
+session_start_sha: f8eb642eb473a76fdbeddab0908bd97bf1277cf7
+head_sha: b0a234c448e62fd94f220d257d8c155b967e7a92
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries:
+  - id: explicit-location-heuristic-bypasses-checks
+    what: The explicit-location parser drops a path-and-suffix match unless its path passes pathLike before the explicit range, path, and quotation checks run.
+    found_at: 'packages/verifier/src/foundAt.ts:33-41 "if (path === undefined || suffix === undefined || !pathLike(path)) continue;"'
+    mattered_because: A bare filename with an unrecognized extension can reach the quoted out-of-band fallback instead of being checked as an explicit file location.
+decisions:
+  - id: plan-one-parser-seam-repair
+    what: Planned one approval-gated implementation node that routes bounded explicit nonquoted filename-and-range claims through the existing checkFoundAt range, path, and quotation branch without changing ordinary fallback citations.
+    because: The current parser seam owns both the extension heuristic and the downstream checks, so one bounded change can correct evidence.txt and extensionless basenames while preserving command and genuine out-of-band behavior.
+    rests_on:
+      - packages/verifier/src/foundAt.ts:21-42
+      - packages/verifier/test/foundAt.test.ts
+      - .interlock/sessions/0039-authoring-feedback/make-authoring-actionable/notes.yaml
+      - .interlock/sessions/0040-explicit-citation-boundary/plan/0040-explicit-citation-boundary/notes.yaml
+    hunks:
+      - .interlock/graphs/0040-explicit-citation-boundary.yaml
+    applies_to: { kind: path, path: packages/verifier/src/foundAt.ts }
+  - id: bound-new-bare-locator-grammar
+    what: Required a new unrecognized-extension or extensionless locator to occupy the first nonblank citation token, raw or locator-wrapped in backticks, with a separate quotation; later ordinary-prose version:2 is not a file claim.
+    because: This preserves established slash and known-extension prose forms while making standalone Makefile:2 useful and preventing the extension repair from assigning arbitrary prose a new citation meaning.
+    rests_on:
+      - packages/verifier/src/foundAt.ts:21-42
+      - packages/verifier/test/foundAt.test.ts
+      - .interlock/sessions/0040-explicit-citation-boundary/plan/0040-explicit-citation-boundary/notes.yaml
+    hunks:
+      - .interlock/graphs/0040-explicit-citation-boundary.yaml
+    applies_to: { kind: path, path: packages/verifier/src/foundAt.ts }
+  - id: require-translated-path-proof
+    what: Required direct parser discriminators together with a real verifyDebrief-to-evidenceOf assertion for a rooted evidence.txt discovery and its unrooted quote variants.
+    because: A direct parser mark does not show whether the repaired discovery retains its resolved path through evidence translation, where an out-of-band root would instead become repository-scoped.
+    rests_on:
+      - packages/verifier/src/verify.ts
+      - packages/substrate/src/evidence.ts
+      - packages/runner/test/debriefAuthoringGuidance.test.ts
+      - .interlock/sessions/0040-explicit-citation-boundary/plan/0040-explicit-citation-boundary/notes.yaml
+    hunks:
+      - .interlock/graphs/0040-explicit-citation-boundary.yaml
+    applies_to: { kind: repository }
+gates_run_by_agent:
+  - id: graph-load
+    result: pass
+    invocation: mise exec -- pnpm interlock graph show 0040-explicit-citation-boundary
+    note: The graph loaded as graph@v0, showed its two focused gates pending, and remained not approved.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Biome checked 336 files with no fixes applied.
+  - id: debrief-valid
+    result: pass
+    invocation: mise exec -- pnpm interlock debrief validate 0040-explicit-citation-boundary plan/0040-explicit-citation-boundary
+    note: The authored canonical debrief and notes validated as their current shapes before this result was recorded.
+  - id: lint-final-artifact
+    result: pass
+    invocation: mise exec -- pnpm lint -- .interlock/graphs/0040-explicit-citation-boundary.yaml .interlock/sessions/0040-explicit-citation-boundary/plan/0040-explicit-citation-boundary/notes.yaml .interlock/sessions/0040-explicit-citation-boundary/plan/0040-explicit-citation-boundary/debrief.yaml
+    note: Biome checked 336 files with no fixes applied before the final commit.
+open:
+  - The proposed graph is not approved and its implementation node was neither leased nor run.
+  - The received 0039 note was used as a source-check pointer; this plan establishes the parser boundary, not any claim about the truth of a cited discovery.
