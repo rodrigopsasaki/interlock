@@ -1,0 +1,42 @@
+interlock: graph@v0
+id: 0029-planning-context
+ask: Let planning ask for relevant context without giving up its authority.
+derivation:
+  kind: model
+  model: gpt-6-astra
+  prompt: product-learning-find-shape-2026-09-16-cycle-6
+read: >
+  The actual planner request, once its role was accepted, returned665 items:
+  25 decisions and640 path-coverage absences. It sent all650 tracked paths
+  because plan.ts uses authority as query scope. Reuse the existing optional
+  context_scope seam. This is the final sixth cycle, one25-minute worker attempt.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: select-planning-context
+    depends_on: []
+    acceptance: |
+      Add explicit --context-scope <JSON array of tracked paths> to interlock plan.
+      Reuse brief@v1 context_scope meaning/readers/rendering. The selection affects
+      only the substrate context query and is retained in the generated immutable
+      brief; authority scope remains the complete tracked set. No protocol or
+      substrate-specific behavior. Omission retains legacy all-tracked behavior;
+      [] is an explicit repository-level query. A correction inherits its previous
+      selector when omitted, or uses an explicit replacement including [].
+      Reject malformed JSON, non-arrays/non-string entries, missing/repeated flag
+      values and paths not exactly tracked before context dispatch or agent startup;
+      do not normalize unsafe inputs into valid paths. Prove invalid selection
+      cannot create a runnable brief or cause a context request. Preserve graph
+      approval, old readers, original briefs, none-address behavior and retries.
+      Use existing parser/brief seams; add no dependency or parallel vocabulary.
+      Tests must observe actual outgoing context scope, committed context_scope
+      and full authority simultaneously; include omission, [], correction inheritance
+      and override/refusal. Add a concise public CLI usage example explaining why
+      query selection is not authority. Root will run one fresh unapproved planning
+      demonstration after acceptance. Honest typed notes/debrief and clean commits.
+    gates:
+      - id: planning-context-proof
+        kind: command
+        run: pnpm --filter cli exec vitest run test/plan.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
