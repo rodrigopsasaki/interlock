@@ -33,3 +33,7 @@ entries:
     at: "2026-09-16T12:58:03Z"
     expected: "Repository lint would pass after the focused TypeScript checks."
     observed: "Biome reported only import ordering and line wrapping in the new preview source and fixtures; it found no semantic or pre-existing lint failure in the changed paths."
+  - kind: choice
+    at: "2026-09-16T12:59:33Z"
+    chose: "File one repository-scoped decision about the preview seam, rooted in the command, shared guidance, and its focused proof."
+    because: "The new command intentionally composes three package seams and the guidance is shared by worker and interpreter briefs, so repository applicability is explicit and justified without relying on the provisional Context slice."
