@@ -1,0 +1,102 @@
+interlock: graph@v0
+id: 0037-learning-exchange-read
+ask: "The latest completed handoff preview shows one rooted repository-scoped hypothesis, but its completion says 0 decisions absorbed and 51 gaps. In the real items-capable receiver an empty legacy decisions_absorbed list does not count translated items. Inspect the current sender/narration seams and propose one complete bounded implementation graph that makes this learning exchange honest and legible: distinguish the translated request (when known), the receiver-reported response and any lexical discovery-reference comparison against a brief. Do not call an acknowledgment proof of storage, truth, adoption, usefulness or semantic prior knowledge; do not count unavailable evidence as zero. Preserve address-none, refusal, legacy/no-items and all outbox retry/identity/durability behavior. Prefer changing existing local narration and its supplied evidence over a new protocol, artifact or receiver. Require discriminating focused tests including positive translated evidence with zero reported decision IDs, true empty versus unknown evidence, refusal/none, real runner wiring and existing delivery-boundary regressions. Produce only graph, typed notes and truthful debrief; never implement, approve or lease its nodes. Use AGENTS and current source; received context is provisional and no-use is valid. Work from this checkout with mise exec; retain yielded exec handles and run one local check at a time, lint before handoff, leave full suites to harness. Actual authorship is codex/gpt-5.6-terra. Use date -u for each note, real full Git IDs, preserve all prior artifacts. Interpreter filing remains authored, not worker-only derived filing. No agents, dependencies, trust/permission/config changes, push, merge, deploy or real brain access. Per-command unsigned commits allowed if signing is inaccessible. Stop after committed debrief."
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+  graph_base_sha: 0f9f2572140be4e42937dd6ea7c659b35d2e25b3
+  session_start_sha: b8eee70eddd0972fe63edda68812be95c0b82342
+  session: 45d780f7-9f86-4dba-a902-289cad254a43
+  date: 2026-09-16
+read: >
+  Current gate judging derives items and gaps before absorb, then sends that
+  evidence through the durable outbox. The HTTP adapter accepts the existing
+  receiver response with legacy decision IDs, discovery placements and gaps.
+  Current narration conflates that receiver report with an optional lexical
+  count of discovery references in the rendered brief, so a nonempty translated
+  request can appear as zero decisions absorbed. Keep the existing request and
+  response protocol, receiver, and outbox intact. First define local narration
+  input that keeps sender translation, receiver response and lexical comparison
+  explicitly separate. Then wire the runner's already-derived evidence and
+  readable brief slice to it, preserving unknown versus observed-empty evidence
+  and proving the actual judging route still retains and dispatches the same
+  outbox artifacts.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: make-absorb-narration-explicit
+    depends_on: []
+    acceptance: |
+      Change the existing local substrate narration seam and its supplied types
+      so an absorb position reports three distinct observations when available:
+      the translated request the sender supplied (its item and gap counts), the
+      receiver-reported response (its decision IDs, discovery placements and
+      gaps), and the lexical comparison of debrief discovery references against
+      the actual brief Context slice. A receiver report is only a report in a
+      received response: do not describe it as proof of storage, truth,
+      adoption, usefulness, or semantic prior knowledge. Name the lexical result
+      as a textual reference comparison, not receiver knowledge.
+
+      Make the local narration input discriminate observed-empty translation or
+      comparison from unavailable translation or comparison; unavailable input
+      must remain unavailable rather than rendering as zero. Preserve a true
+      empty request and a true empty discovery set as explicit empty
+      observations. Keep address none and refusal narration as their existing
+      graceful outcomes, preserve legacy/no-items request compatibility, and do
+      not change substrate request or response schemas, receiver behavior,
+      vocabulary, artifacts, network calls, authority, or gates.
+
+      Add focused substrate tests that fail against the old count-only line and
+      prove a positive translated item with zero receiver-reported decision IDs,
+      true empty versus unavailable translated evidence, a lexical found/missing
+      comparison versus unavailable brief evidence, receiver discovery-placement
+      reporting, and unchanged none and refusal narration. Retain the existing
+      lexical-reference parser coverage. Use actual authorship, typed notes and
+      debrief, clean commits, and no dependency, trust, permission, config,
+      approval, lease, push, merge, deployment, or receiver changes. The
+      harness runs standing gates.
+    gates:
+      - id: explicit-absorb-narration-proof
+        kind: command
+        run: pnpm --filter substrate exec vitest run test/absorb.test.ts test/sliceCount.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+  - id: wire-honest-absorb-read
+    depends_on: [make-absorb-narration-explicit]
+    acceptance: |
+      Wire packages/runner/src/gateJudge.ts to pass the same local evidence
+      observation used for the outgoing absorb request into the explicit
+      narration seam, without reconstructing translation from receiver IDs or
+      introducing a second request. Distinguish a successfully derived empty
+      translation from evidence unavailable because verification or the relevant
+      local read could not supply it. Read the current v1 brief Context slice
+      only for the separate lexical discovery-reference comparison; if its
+      bytes, shape, or slice are unavailable, report that comparison as
+      unavailable rather than zero known or unknown references. Preserve
+      receiver-reported placements exactly when they exist, and do not use a
+      lexical fallback to replace them.
+
+      Preserve address-none and refusal completion, omitted legacy items and
+      gaps when no outbound evidence exists, protocol bytes, stable effect
+      identity, intent-before-dispatch durability, acknowledged and uncertain
+      delivery handling, retry behavior, and retained request and response
+      artifacts. Do not change the receiver, protocol or artifact version,
+      verification or evidence semantics, approval, authority, gates, leases,
+      dependencies, trust, permissions, configuration, or network policy.
+
+      Add focused runner and command-route regressions using the real judging
+      wiring: prove a positive translated request is sent and narrated
+      separately from a receiver response with zero decision IDs; prove true
+      empty and unavailable sender or brief evidence do not collapse; preserve
+      refusal and none behavior; and retain the existing outbox request-before-
+      dispatch, identity/retry, acknowledged/uncertain, and storage-failure
+      boundary proofs. The tests must exercise the actual runner wiring rather
+      than only a formatter stub. Keep truthful typed notes and debrief, clean
+      commits and actual authorship; do not lease or run another node, push,
+      merge, deploy, approve, or use agents. The harness runs standing gates.
+    gates:
+      - id: honest-absorb-runner-proof
+        kind: command
+        run: pnpm --filter runner --filter substrate --filter cli --fail-if-no-match test
+        expect_output: 'Tests +[1-9][0-9]* passed'
