@@ -1,0 +1,11 @@
+interlock: notes@v0
+node: validate-debrief-content
+entries:
+  - kind: choice
+    at: "2026-09-16T03:34:18Z"
+    chose: Judge the parsed debrief value with the existing schema registry after the debrief reader identifies debrief@v2.
+    because: Filename dispatch treats Markdown as a brief and JSON Lines as independent JSON values, so the current debrief validation door must judge its YAML value directly while legacy reader behavior remains unchanged.
+  - kind: surprise
+    at: "2026-09-16T03:35:04Z"
+    expected: The focused formatter check would accept the new schema imports.
+    observed: Biome required the expanded import layout, so the source was formatted before running the focused test.

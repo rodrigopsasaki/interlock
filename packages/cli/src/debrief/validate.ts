@@ -15,7 +15,13 @@ import {
 } from "debrief";
 import { findRepoRoot } from "face";
 import { shapeTag } from "ledger";
-import { buildRegistry, describeFileValidation, type SchemaRegistry, validateFile } from "schemas";
+import {
+  buildRegistry,
+  describeOutcome,
+  isRefusal,
+  judgeValue,
+  type SchemaRegistry,
+} from "schemas";
 import { parse as parseYaml } from "yaml";
 import type { CommandResult } from "../main.ts";
 
@@ -51,9 +57,9 @@ async function peekShapeTag(path: string): Promise<string | undefined> {
 
 async function schemaRefusal(path: string): Promise<string | undefined> {
   try {
-    const validation = await validateFile(currentSchemaRegistry(), path);
-    const described = describeFileValidation(validation);
-    return described.exitCode === 0 ? undefined : described.message;
+    const value: unknown = parseYaml(await readFile(path, "utf-8"));
+    const outcome = judgeValue(currentSchemaRegistry(), value);
+    return isRefusal(outcome) ? `${path}: ${describeOutcome(outcome)}` : undefined;
   } catch (error) {
     return `${path}: ${error instanceof Error ? error.message : "could not validate the file"}`;
   }

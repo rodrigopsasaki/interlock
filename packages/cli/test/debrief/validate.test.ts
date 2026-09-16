@@ -235,13 +235,31 @@ describe("validateDebrief", () => {
     expect(result.message).toContain("valid as debrief@v2.");
   });
 
-  it("refuses extra v2 derivation metadata in both advertised forms", async () => {
+  it("validates equivalent current v2 YAML through every supported filename", async () => {
+    const cwd = repoWithSession("g", "n", v2Debrief, notesYaml);
+    for (const extension of [".yaml", ".md", ".jsonl"]) {
+      const path = join(cwd, `debrief${extension}`);
+      writeFileSync(path, v2Debrief);
+      const result = await validateDebrief(["--file", path], { cwd });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.message).toContain("valid as debrief@v2.");
+    }
+  });
+
+  it("refuses extra v2 derivation metadata through every supported filename", async () => {
     const cwd = repoWithSession("g", "n", v2WithExtraDerivationMetadata, notesYaml);
-    const path = join(cwd, ".interlock", "sessions", "g", "n", "debrief.yaml");
 
     const graphNode = await validateDebrief(["g", "n"], { cwd });
-    const file = await validateDebrief(["--file", path], { cwd });
-    for (const result of [graphNode, file]) {
+    expect(graphNode.exitCode).not.toBe(0);
+    expect(graphNode.message).toContain("derivation");
+    expect(graphNode.message).toContain("additional properties");
+
+    for (const extension of [".yaml", ".md", ".jsonl"]) {
+      const path = join(cwd, `invalid${extension}`);
+      writeFileSync(path, v2WithExtraDerivationMetadata);
+      const result = await validateDebrief(["--file", path], { cwd });
+
       expect(result.exitCode).not.toBe(0);
       expect(result.message).toContain("derivation");
       expect(result.message).toContain("additional properties");
