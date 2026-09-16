@@ -230,15 +230,7 @@ function parseLegacy(
   });
 }
 
-export async function readDebriefFile(path: string): Promise<Result<DebriefRead, DebriefRefusal>> {
-  let raw: string;
-  try {
-    raw = await readFile(path, "utf-8");
-  } catch (error) {
-    if (isNodeError(error) && error.code === "ENOENT") return err({ kind: "missing-file", path });
-    throw error;
-  }
-
+export function readDebriefDocument(raw: string, path: string): Result<DebriefRead, DebriefRefusal> {
   let parsed: unknown;
   try {
     parsed = parseYaml(raw);
@@ -260,4 +252,15 @@ export async function readDebriefFile(path: string): Promise<Result<DebriefRead,
     default:
       return err({ kind: "unknown-shape", path, tag });
   }
+}
+
+export async function readDebriefFile(path: string): Promise<Result<DebriefRead, DebriefRefusal>> {
+  let raw: string;
+  try {
+    raw = await readFile(path, "utf-8");
+  } catch (error) {
+    if (isNodeError(error) && error.code === "ENOENT") return err({ kind: "missing-file", path });
+    throw error;
+  }
+  return readDebriefDocument(raw, path);
 }

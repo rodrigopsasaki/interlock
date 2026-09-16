@@ -27,6 +27,8 @@ export function buildOpeningPrompt(
     roleSentence +
     `Append .interlock/sessions/${graph}/${node}/notes.yaml at every choice and surprise, ` +
     `commit as you go, and file .interlock/sessions/${graph}/${node}/debrief.yaml as your final commit. ` +
+    `For a first filing, prepare a candidate with explicit authorship, author its claims and reports, then run ` +
+    `interlock debrief file-derived ${graph} ${node} --from <candidate-path>; after source changes, commit, prepare a fresh candidate, author it, and file it. ` +
     `When correcting an authored debrief, keep the correction in this session directory and run ` +
     `interlock debrief revise ${graph} ${node} --from <candidate-path> to select it. ` +
     `When the debrief is committed, stop and wait. ` +

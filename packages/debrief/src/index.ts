@@ -29,6 +29,7 @@ export {
   DEBRIEF_V1,
   DEBRIEF_V2,
   explainDebriefRefusal,
+  readDebriefDocument,
   readDebriefFile,
 } from "./debrief.ts";
 export type { NotesRefusal } from "./notes.ts";

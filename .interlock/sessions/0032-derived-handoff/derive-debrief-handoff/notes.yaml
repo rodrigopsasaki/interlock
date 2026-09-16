@@ -1,0 +1,19 @@
+interlock: notes@v0
+node: derive-debrief-handoff
+entries:
+  - kind: surprise
+    at: "2026-09-16T11:52:56Z"
+    expected: "The session directory would already contain the required notes artifact."
+    observed: "Only the immutable brief was present, so this session creates the notes artifact before implementation choices."
+  - kind: choice
+    at: "2026-09-16T11:56:34Z"
+    chose: "Extract the shared typed-session, immutable-brief, graph-base, and Git transition proof from recovery into a CLI-local identity seam."
+    because: "Prepare and file-derived need the same independent evidence, while recovery must retain its additional refusal for an old session_start_sha that names a real commit."
+  - kind: surprise
+    at: "2026-09-16T11:56:34Z"
+    expected: "The new CLI module would typecheck on its first focused run."
+    observed: "Strict unused-local checking rejected an unused Result helper and repository helper parameter; both were removed without changing the workflow."
+  - kind: choice
+    at: "2026-09-16T11:58:09Z"
+    chose: "Use a validated private temporary copy and an OS hard-link create for first filing."
+    because: "The temporary copy freezes the validated candidate bytes while link creates debrief.yaml without a replace-capable rename; an existing concurrent canonical path makes the link fail and leaves both authored artifacts intact."
