@@ -9,3 +9,7 @@ entries:
     at: "2026-09-16T13:06:13Z"
     chose: "Decompose the graph into a local narration contract and a dependent runner-wiring node."
     because: "The substrate seam can render explicitly discriminated local evidence without changing the receiver protocol, while the runner alone knows whether translation and brief reading succeeded and must prove existing outbox behavior remains intact."
+  - kind: choice
+    at: "2026-09-16T13:08:12Z"
+    chose: "Revise the retained two-node graph into one implementation node with narration and runner wiring accepted together."
+    because: "The review requires one complete product outcome in the iteration; the two seams remain internal organization, while a single acceptance can protect the unchanged outbound payload when some claim verification is unavailable."
