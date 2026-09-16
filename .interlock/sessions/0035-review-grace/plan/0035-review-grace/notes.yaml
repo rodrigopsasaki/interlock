@@ -1,0 +1,23 @@
+interlock: notes@v0
+node: plan/0035-review-grace
+entries:
+  - kind: surprise
+    at: "2026-09-16T00:00:00Z"
+    expected: "The session directory would already contain the required notes artifact."
+    observed: "Only the immutable brief was present, so this session creates notes before recording its source-checked planning choice."
+  - kind: choice
+    at: "2026-09-16T00:00:00Z"
+    chose: "Plan one bounded session-wait repair with controlled-clock regressions for both post-answer and unfinished-work settle routes."
+    because: "Current source takes now before the blocking runtime wait and passes that stale value to armGrace after settlement, while the existing route tests do not consume clock time during that wait; one seam-local change and two discriminating regressions address the defect without altering adjacent runner rules."
+  - kind: surprise
+    at: "2026-09-16T12:33:39Z"
+    expected: "The configured Git signature would be available for the first incremental commit."
+    observed: "GPG could not create its keybox lock or reach keyboxd under this session, so the brief's allowed unsigned-commit fallback is required without changing Git configuration."
+  - kind: surprise
+    at: "2026-09-16T12:33:55Z"
+    expected: "The first two entries would retain their observed event times."
+    observed: "Their 2026-09-16T00:00:00Z timestamps were placeholders, not observed event times; this correction preserves those entries and does not invent replacement past times."
+  - kind: choice
+    at: "2026-09-16T12:34:09Z"
+    chose: "Use the brief-authorized unsigned commit fallback for this session."
+    because: "The observed GPG keybox and keyboxd failure prevents the configured signature, while the brief permits unsigned commits without a configuration change."
