@@ -2,7 +2,13 @@ import { lstat } from "node:fs/promises";
 import { relative, resolve, sep } from "node:path";
 
 function isSegment(value: string): boolean {
-  return value.length > 0 && value !== "." && value !== ".." && !value.includes("/") && !value.includes("\\");
+  return (
+    value.length > 0 &&
+    value !== "." &&
+    value !== ".." &&
+    !value.includes("/") &&
+    !value.includes("\\")
+  );
 }
 
 export function isSafeGraphId(value: string): boolean {

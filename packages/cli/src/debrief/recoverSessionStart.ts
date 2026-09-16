@@ -1,4 +1,4 @@
-import { type SessionStartRecoveryInput } from "debrief";
+import type { SessionStartRecoveryInput } from "debrief";
 import { deriveSessionStart, gitAncestor, gitCommit } from "./sessionIdentity.ts";
 
 export async function recoverSessionStart(

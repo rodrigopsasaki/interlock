@@ -115,20 +115,24 @@ export async function deriveSessionStart(
   briefBytes: Buffer,
   head: string,
 ): Promise<DerivedSessionStart> {
-  if (brief.runner.kind !== "worktree") return { kind: "refusal", because: "requires a worktree brief@v1" };
-  if (!gitCommit(repoRoot, head)) return { kind: "refusal", because: "source head is not a commit" };
+  if (brief.runner.kind !== "worktree")
+    return { kind: "refusal", because: "requires a worktree brief@v1" };
+  if (!gitCommit(repoRoot, head))
+    return { kind: "refusal", because: "source head is not a commit" };
   const runner = brief.runner;
   if (!gitAncestor(repoRoot, runner.graphBaseSha, head))
     return { kind: "refusal", because: "source head is not descended from the graph base" };
 
   const journal = journalDirectory(repoRoot);
-  if (journal === undefined) return { kind: "refusal", because: "could not locate the shared journal" };
+  if (journal === undefined)
+    return { kind: "refusal", because: "could not locate the shared journal" };
   const journalRead = await readStrictJournal(journal);
   if (typeof journalRead === "string") return { kind: "refusal", because: journalRead };
   const starts = journalRead.filter(
     (event) => event.kind === "session-started" && event.session.id === runner.session,
   );
-  if (starts.length !== 1) return { kind: "refusal", because: "requires exactly one session-started event" };
+  if (starts.length !== 1)
+    return { kind: "refusal", because: "requires exactly one session-started event" };
   const started = starts[0];
   if (started === undefined || started.kind !== "session-started")
     return { kind: "refusal", because: "requires exactly one session-started event" };
@@ -138,19 +142,26 @@ export async function deriveSessionStart(
     started.brief.graph !== graph ||
     started.brief.node !== node ||
     started.brief.role !== brief.role ||
-    !sameStrings(started.brief.gates, brief.gates.map((gate) => gate.id)) ||
+    !sameStrings(
+      started.brief.gates,
+      brief.gates.map((gate) => gate.id),
+    ) ||
     !sameStrings(started.brief.scope, brief.scope)
   ) {
     return { kind: "refusal", because: "session-started event does not match the local brief" };
   }
   if (started.graphBaseSha !== runner.graphBaseSha)
-    return { kind: "refusal", because: "session-started event graph base does not match the local brief" };
+    return {
+      kind: "refusal",
+      because: "session-started event graph base does not match the local brief",
+    };
 
   const graphBytes = gitBytes(repoRoot, [
     "show",
     `${runner.graphBaseSha}:.interlock/graphs/${graph}.yaml`,
   ]);
-  if (graphBytes === undefined) return { kind: "refusal", because: "graph base does not contain this graph" };
+  if (graphBytes === undefined)
+    return { kind: "refusal", because: "graph base does not contain this graph" };
   const graphDocument = loadGraphDocumentText(
     graphBytes.toString("utf-8"),
     `${runner.graphBaseSha}:.interlock/graphs/${graph}.yaml`,
@@ -158,7 +169,10 @@ export async function deriveSessionStart(
   if (isErr(graphDocument)) return { kind: "refusal", because: "graph base graph is invalid" };
   const graphNode = graphDocument.value.nodes.find((entry) => entry.id === node);
   if (graphNode?.acceptance !== started.brief.acceptance)
-    return { kind: "refusal", because: "session-started event acceptance does not match the graph base" };
+    return {
+      kind: "refusal",
+      because: "session-started event acceptance does not match the graph base",
+    };
 
   const history = gitText(repoRoot, [
     "rev-list",
@@ -179,9 +193,11 @@ export async function deriveSessionStart(
     });
     if (!parentHasIdentity) startsAt.push({ sha: commit, bytes: child.bytes });
   }
-  if (startsAt.length !== 1) return { kind: "refusal", because: "requires one unambiguous brief transition" };
+  if (startsAt.length !== 1)
+    return { kind: "refusal", because: "requires one unambiguous brief transition" };
   const derived = startsAt[0];
-  if (derived === undefined) return { kind: "refusal", because: "requires one unambiguous brief transition" };
+  if (derived === undefined)
+    return { kind: "refusal", because: "requires one unambiguous brief transition" };
   if (!derived.bytes.equals(briefBytes))
     return { kind: "refusal", because: "local brief bytes changed after the session started" };
   return { kind: "derived", sha: derived.sha };

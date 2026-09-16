@@ -1,0 +1,19 @@
+interlock: notes@v0
+node: repair-handoff-format
+entries:
+  - kind: surprise
+    at: "2026-09-16T12:12:07Z"
+    expected: "The session directory would already contain the required notes artifact."
+    observed: "Only the immutable brief was present, so this session creates notes before making the formatter choice."
+  - kind: choice
+    at: "2026-09-16T12:12:07Z"
+    chose: "Limit Biome's formatter and import fixes to the eleven source and test files changed by derived-handoff."
+    because: "The graph accepts only mechanical lint repair and forbids changes to old session artifacts, tests, gates, timeouts, dependencies, and runtime behavior."
+  - kind: choice
+    at: "2026-09-16T12:13:01Z"
+    chose: "Retain the formatter output after reviewing each changed hunk."
+    because: "The diff contains line wrapping, import sorting, and one type-only import conversion; it changes no branch, value, test expectation, timeout, gate, dependency, or prior session artifact."
+  - kind: surprise
+    at: "2026-09-16T12:13:44Z"
+    expected: "The local lint gate would run under the repository's pinned Node version."
+    observed: "pnpm reported Node 26.0.0 instead of the pinned 24.14.0, then Biome checked 332 files successfully with no fixes applied."

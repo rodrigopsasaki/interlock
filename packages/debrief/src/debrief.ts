@@ -230,7 +230,10 @@ function parseLegacy(
   });
 }
 
-export function readDebriefDocument(raw: string, path: string): Result<DebriefRead, DebriefRefusal> {
+export function readDebriefDocument(
+  raw: string,
+  path: string,
+): Result<DebriefRead, DebriefRefusal> {
   let parsed: unknown;
   try {
     parsed = parseYaml(raw);

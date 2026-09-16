@@ -17,8 +17,8 @@ import {
   sessionDirectory,
   sessionPathIsDirect,
 } from "debrief";
-import { stringify } from "yaml";
 import { findRepoRoot } from "face";
+import { stringify } from "yaml";
 import { parseFlag } from "../flags.ts";
 import type { CommandResult } from "../main.ts";
 import { deriveSessionStart, gitAncestor, gitHead } from "./sessionIdentity.ts";
@@ -69,7 +69,8 @@ function authorship(args: readonly string[]): Authorship | string {
   const human = parseFlag(args, "--human");
   if (human !== undefined && (runtime !== undefined || model !== undefined))
     return "requires either --agent-runtime with --agent-model, or --human, not both";
-  if (human !== undefined) return human.length > 0 ? { kind: "human", who: human } : "--human must be nonempty";
+  if (human !== undefined)
+    return human.length > 0 ? { kind: "human", who: human } : "--human must be nonempty";
   if (runtime === undefined || model === undefined)
     return "requires --agent-runtime <runtime> and --agent-model <model>, or --human <name>";
   if (runtime.length === 0 || model.length === 0) return "agent runtime and model must be nonempty";
@@ -110,7 +111,10 @@ function candidateDocument(
 function repo(cwd: string): { readonly root: string } | CommandResult {
   const root = findRepoRoot(cwd);
   return root === undefined
-    ? { exitCode: 1, message: `${cwd}: no .interlock directory found in this directory or any parent; expected to run inside an interlock repository.` }
+    ? {
+        exitCode: 1,
+        message: `${cwd}: no .interlock directory found in this directory or any parent; expected to run inside an interlock repository.`,
+      }
     : { root };
 }
 
@@ -122,31 +126,56 @@ export async function runDebriefPrepare(
   if (graph === undefined || node === undefined)
     return { exitCode: 1, message: "interlock debrief prepare: expected a graph id and node id." };
   const to = parseFlag(args, "--to");
-  if (to === undefined) return { exitCode: 1, message: "interlock debrief prepare: refuses without --to <candidate-path>." };
+  if (to === undefined)
+    return {
+      exitCode: 1,
+      message: "interlock debrief prepare: refuses without --to <candidate-path>.",
+    };
   const declared = authorship(args);
-  if (typeof declared === "string") return { exitCode: 1, message: `interlock debrief prepare: ${declared}.` };
+  if (typeof declared === "string")
+    return { exitCode: 1, message: `interlock debrief prepare: ${declared}.` };
   const cwd = options.cwd ?? process.cwd();
   const repository = repo(cwd);
   if ("exitCode" in repository) return repository;
   const brief = await readSessionBrief(repository.root, graph, node);
-  if (typeof brief === "string") return { exitCode: 1, message: `interlock debrief prepare: ${brief}.` };
+  if (typeof brief === "string")
+    return { exitCode: 1, message: `interlock debrief prepare: ${brief}.` };
   const session = sessionDirectory(repository.root, graph, node);
   const candidate = resolve(repository.root, to);
   if (candidate === debriefFilePath(repository.root, graph, node))
-    return { exitCode: 1, message: "interlock debrief prepare: refuses debrief.yaml as a candidate target." };
+    return {
+      exitCode: 1,
+      message: "interlock debrief prepare: refuses debrief.yaml as a candidate target.",
+    };
   const pathRefusal = await candidatePathIsAbsent(session, candidate);
   if (pathRefusal !== undefined)
     return { exitCode: 1, message: `interlock debrief prepare: ${candidate}: ${pathRefusal}.` };
   const head = gitHead(repository.root);
-  if (head === undefined) return { exitCode: 1, message: "interlock debrief prepare: source head is not a commit." };
-  const start = await deriveSessionStart(repository.root, graph, node, brief.frontMatter, brief.bytes, head);
-  if (start.kind === "refusal") return { exitCode: 1, message: `interlock debrief prepare: ${start.because}.` };
+  if (head === undefined)
+    return { exitCode: 1, message: "interlock debrief prepare: source head is not a commit." };
+  const start = await deriveSessionStart(
+    repository.root,
+    graph,
+    node,
+    brief.frontMatter,
+    brief.bytes,
+    head,
+  );
+  if (start.kind === "refusal")
+    return { exitCode: 1, message: `interlock debrief prepare: ${start.because}.` };
   try {
-    await writeFile(candidate, candidateDocument(graph, node, brief.frontMatter, start.sha, head, declared), { flag: "wx" });
+    await writeFile(
+      candidate,
+      candidateDocument(graph, node, brief.frontMatter, start.sha, head, declared),
+      { flag: "wx" },
+    );
   } catch (error) {
     return { exitCode: 1, message: `interlock debrief prepare: ${candidate}: ${because(error)}.` };
   }
-  return { exitCode: 0, message: `${graph}/${node}: prepared ${candidate}; author claims and reports, then file it with interlock debrief file-derived ${graph} ${node} --from ${candidate}.` };
+  return {
+    exitCode: 0,
+    message: `${graph}/${node}: prepared ${candidate}; author claims and reports, then file it with interlock debrief file-derived ${graph} ${node} --from ${candidate}.`,
+  };
 }
 
 export async function runDebriefFileDerived(
@@ -155,51 +184,100 @@ export async function runDebriefFileDerived(
 ): Promise<CommandResult> {
   const [graph, node] = args;
   if (graph === undefined || node === undefined)
-    return { exitCode: 1, message: "interlock debrief file-derived: expected a graph id and node id." };
+    return {
+      exitCode: 1,
+      message: "interlock debrief file-derived: expected a graph id and node id.",
+    };
   const from = parseFlag(args, "--from");
-  if (from === undefined) return { exitCode: 1, message: "interlock debrief file-derived: refuses without --from <candidate-path>." };
+  if (from === undefined)
+    return {
+      exitCode: 1,
+      message: "interlock debrief file-derived: refuses without --from <candidate-path>.",
+    };
   const cwd = options.cwd ?? process.cwd();
   const repository = repo(cwd);
   if ("exitCode" in repository) return repository;
   const brief = await readSessionBrief(repository.root, graph, node);
-  if (typeof brief === "string") return { exitCode: 1, message: `interlock debrief file-derived: ${brief}.` };
+  if (typeof brief === "string")
+    return { exitCode: 1, message: `interlock debrief file-derived: ${brief}.` };
   const session = sessionDirectory(repository.root, graph, node);
   const candidate = resolve(repository.root, from);
   const current = debriefFilePath(repository.root, graph, node);
   if (candidate === current)
-    return { exitCode: 1, message: "interlock debrief file-derived: refuses debrief.yaml as a candidate source." };
+    return {
+      exitCode: 1,
+      message: "interlock debrief file-derived: refuses debrief.yaml as a candidate source.",
+    };
   const pathRefusal = await candidatePathIsDirect(session, candidate);
   if (pathRefusal !== undefined)
-    return { exitCode: 1, message: `interlock debrief file-derived: ${candidate}: ${pathRefusal}.` };
+    return {
+      exitCode: 1,
+      message: `interlock debrief file-derived: ${candidate}: ${pathRefusal}.`,
+    };
   let bytes: Buffer;
   try {
     bytes = await readFile(candidate);
   } catch (error) {
-    return { exitCode: 1, message: `interlock debrief file-derived: ${candidate}: ${because(error)}.` };
+    return {
+      exitCode: 1,
+      message: `interlock debrief file-derived: ${candidate}: ${because(error)}.`,
+    };
   }
   const read = readDebriefDocument(bytes.toString("utf-8"), candidate);
   if (isErr(read) || read.value.kind !== "v2")
-    return { exitCode: 1, message: `interlock debrief file-derived: ${isErr(read) ? explainDebriefRefusal(read.error) : "requires debrief@v2"}.` };
+    return {
+      exitCode: 1,
+      message: `interlock debrief file-derived: ${isErr(read) ? explainDebriefRefusal(read.error) : "requires debrief@v2"}.`,
+    };
   const head = gitHead(repository.root);
-  if (head === undefined) return { exitCode: 1, message: "interlock debrief file-derived: source head is not a commit." };
-  const start = await deriveSessionStart(repository.root, graph, node, brief.frontMatter, brief.bytes, head);
-  if (start.kind === "refusal") return { exitCode: 1, message: `interlock debrief file-derived: ${start.because}.` };
+  if (head === undefined)
+    return { exitCode: 1, message: "interlock debrief file-derived: source head is not a commit." };
+  const start = await deriveSessionStart(
+    repository.root,
+    graph,
+    node,
+    brief.frontMatter,
+    brief.bytes,
+    head,
+  );
+  if (start.kind === "refusal")
+    return { exitCode: 1, message: `interlock debrief file-derived: ${start.because}.` };
   const debrief = read.value.debrief;
   if (!declaredAuthorshipIsNonempty(debrief.derivation))
-    return { exitCode: 1, message: "interlock debrief file-derived: candidate derivation must be nonempty authored input." };
+    return {
+      exitCode: 1,
+      message:
+        "interlock debrief file-derived: candidate derivation must be nonempty authored input.",
+    };
   if (
-    debrief.graph !== graph || debrief.node !== node || debrief.role !== brief.frontMatter.role ||
-    brief.frontMatter.runner.kind !== "worktree" || debrief.graphBaseSha !== brief.frontMatter.runner.graphBaseSha ||
-    debrief.sessionStartSha !== start.sha || debrief.headSha !== head || !gitAncestor(repository.root, start.sha, debrief.headSha)
-  ) return { exitCode: 1, message: "interlock debrief file-derived: candidate identity does not match the current derived proof." };
+    debrief.graph !== graph ||
+    debrief.node !== node ||
+    debrief.role !== brief.frontMatter.role ||
+    brief.frontMatter.runner.kind !== "worktree" ||
+    debrief.graphBaseSha !== brief.frontMatter.runner.graphBaseSha ||
+    debrief.sessionStartSha !== start.sha ||
+    debrief.headSha !== head ||
+    !gitAncestor(repository.root, start.sha, debrief.headSha)
+  )
+    return {
+      exitCode: 1,
+      message:
+        "interlock debrief file-derived: candidate identity does not match the current derived proof.",
+    };
   const temporary = resolve(session, `.${basename(current)}.${randomUUID()}.tmp`);
   try {
     await writeFile(temporary, bytes, { flag: "wx" });
     await link(temporary, current);
   } catch (error) {
     await unlink(temporary).catch(() => undefined);
-    return { exitCode: 1, message: `interlock debrief file-derived: ${current}: ${because(error)}.` };
+    return {
+      exitCode: 1,
+      message: `interlock debrief file-derived: ${current}: ${because(error)}.`,
+    };
   }
   await unlink(temporary).catch(() => undefined);
-  return { exitCode: 0, message: `${graph}/${node}: filed derived candidate at ${current}; source ${candidate} remains authored and no revision was created.` };
+  return {
+    exitCode: 0,
+    message: `${graph}/${node}: filed derived candidate at ${current}; source ${candidate} remains authored and no revision was created.`,
+  };
 }

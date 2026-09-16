@@ -27,7 +27,9 @@ describe("buildOpeningPrompt", () => {
     expect(prompt).toContain("--agent-runtime <runtime> --agent-model <model>");
     expect(prompt).toContain("--human <name>");
     expect(prompt).toContain("interlock debrief file-derived g n --from <candidate-path>");
-    expect(prompt).toContain("After source changes, commit, prepare a fresh candidate, author it, and file it");
+    expect(prompt).toContain(
+      "After source changes, commit, prepare a fresh candidate, author it, and file it",
+    );
   });
 
   it("names the brief path for a fresh worktree, with no prior-work sentence", () => {

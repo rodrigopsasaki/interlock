@@ -1,7 +1,7 @@
 import { runInterlockBackfill } from "./backfill.ts";
 import { validateBrief } from "./brief/validate.ts";
-import { runDebriefRevise } from "./debrief/revise.ts";
 import { runDebriefFileDerived, runDebriefPrepare } from "./debrief/derived.ts";
+import { runDebriefRevise } from "./debrief/revise.ts";
 import { validateDebrief } from "./debrief/validate.ts";
 import { runInterlockEvidence } from "./evidence.ts";
 import { runInterlockFace } from "./face/run.ts";
