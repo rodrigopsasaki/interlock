@@ -21,3 +21,11 @@ entries:
     at: "2026-09-16T12:34:09Z"
     chose: "Use the brief-authorized unsigned commit fallback for this session."
     because: "The observed GPG keybox and keyboxd failure prevents the configured signature, while the brief permits unsigned commits without a configuration change."
+  - kind: choice
+    at: "2026-09-16T12:34:57Z"
+    chose: "Require fresh controlled-clock sampling after each successful blocking wait before grace is armed, while retaining the original deadline cap."
+    because: "Sampling after the wait supplies the actual settle time for both person-answer and unfinished-work routes; the existing cap keeps the run deadline authoritative, and existing resumption, refusal, clean-settle, and deadline tests protect neighboring behavior."
+  - kind: surprise
+    at: "2026-09-16T12:36:03Z"
+    expected: "The lint invocation with the two planning artifact paths would limit checking to those paths."
+    observed: "The repository lint script invoked Biome on the workspace and checked 334 files; it passed with no fixes, and no full test suite was run."

@@ -1,0 +1,60 @@
+interlock: graph@v0
+id: 0035-review-grace
+ask: >
+  An earlier review handoff advertised a 300-second answer grace but provided about 83 seconds; the retained next-briefing-strategy proposal identifies time spent inside runtime.waitUntil as a possible cause. Inspect current reality. If confirmed, propose one bounded implementation node that gives the full configured post-settle grace after a blocking wait, both after a person answers and when unfinished work settles, without extending the original run deadline or changing resumption, terminal status, retry, lease or authority rules. Require a deterministic controlled-clock regression that would fail unchanged source, no wall-clock sleeps, plus relevant existing behavior tests. Reuse the existing clock and session-wait seams. Produce only the graph, typed notes and a truthful debrief; never implement or lease its nodes. This is a real product repair, not a demand for a positive learning claim. Received hypotheses are provisional and must be checked before reliance. Actual authorship is agent/codex/gpt-5.6-terra; use current date and real full Git identities. Interpreter filing remains authored, not the worker-only derived command. Keep existing artifacts, no new dependencies, no agents, push, main merge, deployment, permission/trust changes or existing-brain access. Use mise exec for local commands, retain yielded exec session handles instead of duplicate runs, and leave full suites to the harness. Run lint on touched files before committing. Per-command unsigned commits are allowed if signing is inaccessible; no config changes. Stop after the committed debrief.
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+  graph_base_sha: 6f046acf0b1f8a1661f2d9728502f132eaabb33f
+  session_start_sha: 4219f6bfc07512892a37adb983448da2441a8248
+  session: dc671887-310a-455a-b700-3e4c67d60527
+  date: 2026-09-16
+read: >
+  Current sessionWait takes its clock sample before calling the potentially
+  blocking runtime.waitUntil, then arms grace from that stale sample when a
+  person-answer or unfinished-work settle returns. Existing controlled-clock
+  tests verify that grace elapses, that resumption clears it, and that grace is
+  capped at the original deadline, but their initial waits consume no time.
+  One seam-local repair can sample after a successful wait without changing
+  deadlines or runner policy. Two controlled-clock regressions must advance
+  through the relevant blocking wait and then prove a complete configured grace
+  remains; unchanged source instead leaves only the time remaining from the
+  earlier sample. The focused runner test gate keeps the repair bounded while
+  standing gates remain the harness's proof.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: restore-post-settle-grace
+    depends_on: []
+    acceptance: |
+      Repair packages/runner/src/sessionWait.ts so a grace window is armed from
+      a fresh reading of the existing injected clock after a successful blocking
+      runtime.waitUntil returns a settled status, rather than from the reading
+      made before that wait. Apply the same seam-local timing correction to both
+      the settled-after-a-person's-turn and unfinished-work-settled routes.
+      When sufficient original run time remains, each route receives the full
+      configured answerGraceMs after settlement; retain the existing cap at the
+      original run deadline, so this repair never extends that deadline.
+
+      Add deterministic controlled-clock regressions in
+      packages/runner/test/sessionWait.test.ts. Each must advance the injected
+      clock during the blocking wait that returns the settled status, then prove
+      that the following grace wait is the full configured interval: one after
+      blocked then settled, and one after an unfinished-work settle. They must
+      fail on the unchanged stale-sample source and use no wall-clock sleep or
+      real-time delay. Keep and run the relevant existing session-wait behavior
+      coverage for grace expiration, deadline capping, resumption clearing and
+      re-arming grace, clean immediate settlement, runtime refusal, and original
+      deadline timeout. Do not alter resumption, terminal-status, retry, lease,
+      approval, authority, runtime-adapter, dependency, artifact, or substrate
+      behavior. Run lint on the touched files before committing, retain truthful
+      typed notes and debrief, use actual authorship and Git identity, and do
+      not lease or run another node, push, merge, deploy, change permissions or
+      trust, or use agents. The harness runs standing gates.
+    gates:
+      - id: session-wait-grace-proof
+        kind: command
+        run: pnpm --filter runner exec vitest run test/sessionWait.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
