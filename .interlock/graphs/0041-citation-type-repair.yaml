@@ -1,0 +1,48 @@
+interlock: graph@v0
+id: 0041-citation-type-repair
+ask: Finish the held citation boundary without weakening its strict type contract.
+derivation:
+  kind: model
+  model: gpt-6-astra
+  prompt: m5-exit-2026-09-16-iteration-1
+read: >
+  The preceding citation candidate passed its six other gates but failed strict
+  typechecking: an optional locatorQuote is supplied as undefined. Its semantic
+  review and focused proof remain intact. This fresh repair keeps the held
+  attempt and its receipts, narrows the absent-field construction, and re-earns
+  every gate before the source can support measured learning comparisons.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: repair-citation-types
+    depends_on: []
+    acceptance: |
+      Repair only the optional locatorQuote construction in
+      packages/verifier/src/foundAt.ts so absent quotation bounds are omitted,
+      not explicitly set to undefined, under exactOptionalPropertyTypes.
+      Preserve current parser semantics, established legacy citation behavior,
+      new raw/backtick locator behavior and all explicit refusal discriminators.
+      Do not loosen the interface, compiler options, gates or strictness; do
+      not use assertions or add dependencies. Keep existing proof tests intact.
+      If another behavior problem is found, record it without broadening this
+      repair. Preserve every historical brief, debrief, note and receipt.
+
+      Before canonical handoff, run the full pinned-toolchain typecheck, both
+      declared focused test files, and lint. Keep yielded command handles and
+      run one local check at a time. Report actual outcomes without equating
+      local checks with harness receipts. Append truthful typed notes, commit
+      the narrow source change, author and preview a populated derived debrief,
+      then file-derived and validate it. Actual runtime/model derivation must
+      match the supplied runtime. Stop after committing the canonical debrief.
+      No new sessions, graph approvals, configuration changes, permissions,
+      live-brain calls, external inference, push, merge or deployment.
+    gates:
+      - id: explicit-citation-parser-proof
+        kind: command
+        run: pnpm --filter verifier exec vitest run test/foundAt.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: explicit-citation-translation-proof
+        kind: command
+        run: pnpm --filter runner exec vitest run test/debriefAuthoringGuidance.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
