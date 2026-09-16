@@ -1,0 +1,46 @@
+interlock: graph@v0
+id: 0026-session-start-recovery
+ask: Recover a mistyped debrief session start without losing or reassigning its evidence.
+derivation:
+  kind: model
+  model: gpt-6-astra
+  prompt: product-learning-find-shape-2026-09-16-cycle-2
+read: >
+  Cycle 1 cleared its source gates, but an invented session-start hash left its
+  decisions unverifiable. A correct authored candidate exists. Ordinary revise
+  refuses to change that identity field. A customer needs a proved recovery,
+  not an orchestrator rewriting artifacts or weakening identity checks.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: recover-session-start
+    depends_on: []
+    acceptance: |
+      Add an explicit debrief revise --recover-session-start mode. Ordinary
+      revision remains unchanged. Recover only when the old session-start SHA
+      is not a commit and an independently derived exact start can be proved.
+      The local immutable worktree brief must identify the graph, node, role,
+      graph base and session. Exactly one typed session-started journal event
+      must corroborate that identity and the fields it actually records.
+      Do not parse narration or commit messages as authority. Derive the unique
+      first Git transition after the graph base introducing that session's
+      byte-identical brief, with different parent bytes and matching metadata;
+      this may modify a preexisting authored brief rather than add a new path.
+      Candidate session_start_sha must equal the derived commit and its head
+      must be a real descendant. Refuse altered briefs, arbitrary later commits,
+      ambiguous history, cross-session candidates, mismatched/absent/duplicate
+      start records and corrupt journals. Never take a caller-supplied SHA as
+      sufficient authority. All existing path, identity and symlink checks stay.
+      Reuse exact-byte archive and atomic selection. No mutation on refusal;
+      old bytes and candidate survive success. No automatic recovery on judge,
+      graph/session launch, gate weakening, backfill or journal rewriting.
+      Real Git/journal fixtures prove success and the critical refusal matrix;
+      existing ordinary-revise tests stay valid. Record the design bend and
+      truthful own notes/debrief. Do not repair the old session yourself: root
+      will exercise the command on that retained case after independent review.
+    gates:
+      - id: recovery-proof
+        kind: command
+        run: pnpm --filter cli --filter debrief --fail-if-no-match test
+        expect_output: 'Tests +[1-9][0-9]* passed'
