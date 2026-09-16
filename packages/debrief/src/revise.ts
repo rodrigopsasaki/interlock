@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { chmod, lstat, mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { basename, relative, resolve, sep } from "node:path";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
-import { explainBriefRefusal, readBriefFile } from "./brief.ts";
+import { type BriefFrontMatter, explainBriefRefusal, readBriefFile } from "./brief.ts";
 import { type DebriefRead, explainDebriefRefusal, readDebriefFile } from "./debrief.ts";
 import { debriefFilePath, debriefRevisionsDirectory, sessionDirectory } from "./paths.ts";
 
@@ -31,6 +31,17 @@ export type DebriefRevisionOutcome =
 
 export interface DebriefRevisionOptions {
   readonly install?: (temporaryPath: string, currentPath: string) => Promise<void>;
+  readonly recoverSessionStart?: (input: SessionStartRecoveryInput) => Promise<string | undefined>;
+}
+
+export interface SessionStartRecoveryInput {
+  readonly repoRoot: string;
+  readonly graph: string;
+  readonly node: string;
+  readonly brief: BriefFrontMatter;
+  readonly briefBytes: Buffer;
+  readonly current: Extract<DebriefRead, { readonly kind: "v2" }>["debrief"];
+  readonly candidate: Extract<DebriefRead, { readonly kind: "v2" }>["debrief"];
 }
 
 export function explainDebriefRevisionRefusal(refusal: DebriefRevisionRefusal): string {
@@ -131,13 +142,14 @@ function sameIdentity(
   node: string,
   role: string,
   graphBaseSha: string,
+  requireMatchingSessionStartSha: boolean,
 ): string | undefined {
   if (current.graph !== graph || candidate.graph !== graph) return `graph must be "${graph}"`;
   if (current.node !== node || candidate.node !== node) return `node must be "${node}"`;
   if (current.role !== role || candidate.role !== role) return `role must be "${role}"`;
   if (current.graphBaseSha !== graphBaseSha || candidate.graphBaseSha !== graphBaseSha)
     return "graph_base_sha does not match the session brief";
-  if (current.sessionStartSha !== candidate.sessionStartSha)
+  if (requireMatchingSessionStartSha && current.sessionStartSha !== candidate.sessionStartSha)
     return "session_start_sha does not match the current debrief";
   return undefined;
 }
@@ -241,8 +253,28 @@ export async function reviseDebrief(
     node,
     briefRead.value.frontMatter.role,
     briefRead.value.frontMatter.runner.graphBaseSha,
+    options.recoverSessionStart === undefined,
   );
   if (identityRefusal !== undefined) return err({ kind: "identity", because: identityRefusal });
+
+  let briefBytes: Buffer;
+  try {
+    briefBytes = await readFile(briefPath);
+  } catch (error) {
+    return err({ kind: "brief-read", path: briefPath, because: because(error) });
+  }
+  if (options.recoverSessionStart !== undefined) {
+    const recoveryRefusal = await options.recoverSessionStart({
+      repoRoot,
+      graph,
+      node,
+      brief: briefRead.value.frontMatter,
+      briefBytes,
+      current: currentRead.value.debrief,
+      candidate: candidateRead.value.debrief,
+    });
+    if (recoveryRefusal !== undefined) return err({ kind: "identity", because: recoveryRefusal });
+  }
 
   let currentBytes: Buffer;
   let candidateBytes: Buffer;

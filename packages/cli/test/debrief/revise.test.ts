@@ -100,4 +100,16 @@ describe("interlock debrief revise", () => {
     expect(result.message).toContain("already current");
     expect(result.message).not.toContain("retained");
   });
+
+  it("requires independent recovery proof when asked to recover a session start", async () => {
+    const source = fixture();
+
+    const result = await runDebriefRevise(
+      ["g", "n", "--from", source.candidate, "--recover-session-start"],
+      { cwd: source.root },
+    );
+
+    expect(result.exitCode).not.toBe(0);
+    expect(result.message).toContain("recovery");
+  });
 });

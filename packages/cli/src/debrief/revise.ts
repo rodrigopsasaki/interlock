@@ -3,6 +3,7 @@ import { explainDebriefRevisionRefusal, reviseDebrief } from "debrief";
 import { findRepoRoot } from "face";
 import { parseFlag } from "../flags.ts";
 import type { CommandResult } from "../main.ts";
+import { recoverSessionStart } from "./recoverSessionStart.ts";
 
 export async function runDebriefRevise(
   args: readonly string[],
@@ -31,7 +32,9 @@ export async function runDebriefRevise(
       message: `${cwd}: no .interlock directory found in this directory or any parent; expected to run inside an interlock repository.`,
     };
   }
-  const revised = await reviseDebrief(repoRoot, graph, node, candidate);
+  const revised = await reviseDebrief(repoRoot, graph, node, candidate, {
+    ...(args.includes("--recover-session-start") ? { recoverSessionStart } : {}),
+  });
   if (isErr(revised)) {
     return { exitCode: 1, message: explainDebriefRevisionRefusal(revised.error) };
   }

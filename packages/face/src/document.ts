@@ -154,17 +154,10 @@ function parseShape(parsed: unknown): Result<GraphDocument, string> {
   return ok({ id, gates: parsedGates.value, nodes });
 }
 
-export async function loadGraphDocument(
+export function loadGraphDocumentText(
+  raw: string,
   path: string,
-): Promise<Result<GraphDocument, GraphRefusal>> {
-  let raw: string;
-  try {
-    raw = await readFile(path, "utf-8");
-  } catch (error) {
-    if (isNodeError(error) && error.code === "ENOENT") return err({ kind: "missing-file", path });
-    throw error;
-  }
-
+): Result<GraphDocument, GraphRefusal> {
   let parsed: unknown;
   try {
     parsed = parseYaml(raw);
@@ -194,6 +187,19 @@ export async function loadGraphDocument(
   if (isErr(ordered)) return err({ kind: "cycle", path, nodes: ordered.error.nodes });
 
   return ok(document);
+}
+
+export async function loadGraphDocument(
+  path: string,
+): Promise<Result<GraphDocument, GraphRefusal>> {
+  let raw: string;
+  try {
+    raw = await readFile(path, "utf-8");
+  } catch (error) {
+    if (isNodeError(error) && error.code === "ENOENT") return err({ kind: "missing-file", path });
+    throw error;
+  }
+  return loadGraphDocumentText(raw, path);
 }
 
 function isNodeError(error: unknown): error is NodeJS.ErrnoException {

@@ -235,15 +235,7 @@ function parseV1(
   });
 }
 
-export async function readBriefFile(path: string): Promise<Result<BriefRead, BriefRefusal>> {
-  let raw: string;
-  try {
-    raw = await readFile(path, "utf-8");
-  } catch (error) {
-    if (isNodeError(error) && error.code === "ENOENT") return err({ kind: "missing-file", path });
-    throw error;
-  }
-
+export function readBriefDocument(raw: string, path: string): Result<BriefRead, BriefRefusal> {
   const split = splitFrontMatter(raw);
   if (split === undefined) return ok(legacyRead);
 
@@ -265,4 +257,15 @@ export async function readBriefFile(path: string): Promise<Result<BriefRead, Bri
   }
 
   return parseV1(parsed, split.body, path);
+}
+
+export async function readBriefFile(path: string): Promise<Result<BriefRead, BriefRefusal>> {
+  let raw: string;
+  try {
+    raw = await readFile(path, "utf-8");
+  } catch (error) {
+    if (isNodeError(error) && error.code === "ENOENT") return err({ kind: "missing-file", path });
+    throw error;
+  }
+  return readBriefDocument(raw, path);
 }

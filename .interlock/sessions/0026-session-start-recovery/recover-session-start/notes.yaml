@@ -1,0 +1,47 @@
+interlock: notes@v0
+node: recover-session-start
+entries:
+  - kind: choice
+    at: "2026-09-16T00:00:00Z"
+    chose: Extend the existing debrief revision seam with an explicit recovery proof instead of changing ordinary revision identity checks.
+    because: Existing revision already retains exact prior bytes and installs atomically; recovery must be limited to independently established session identity.
+  - kind: surprise
+    at: "2026-09-16T04:03:29Z"
+    expected: The first note would use the current clock when it was authored.
+    observed: The first note used a placeholder timestamp; it is preserved as an audit record and this entry records the correction.
+  - kind: choice
+    at: "2026-09-16T04:04:45Z"
+    chose: Require one matching typed session-started event and one Git transition whose child brief bytes equal the local brief while all parent bytes differ.
+    because: The journal corroborates session identity without narration, and the byte transition proves the authored brief start independently of the mistaken debrief field.
+  - kind: surprise
+    at: "2026-09-16T04:06:00Z"
+    expected: The first recovery-helper typecheck would accept the worktree brief narrowing across the journal read.
+    observed: TypeScript widened the runner fields after the asynchronous read, so the worktree identity will be retained in a narrowed local value before that read.
+  - kind: surprise
+    at: "2026-09-16T04:08:15Z"
+    expected: The isolated recovery suite would assert the retained debrief body directly after its first run.
+    observed: The retained artifact is read as bytes, so the assertion must decode those bytes; handled Git probes also need captured stderr to avoid narrating expected nonexistent-object checks.
+  - kind: surprise
+    at: "2026-09-16T04:09:12Z"
+    expected: The full CLI package suite would complete after the focused packages passed.
+    observed: Existing CLI worktree fixtures inherited commit signing and unrelated enabled-origin tests timed out at five seconds; lint also requested only mechanical formatting of the new files.
+  - kind: surprise
+    at: "2026-09-16T04:09:59Z"
+    expected: A byte-equal transition plus replayed session-started event would distinguish the original session start.
+    observed: Merged ancestry, omitted graph-base evidence, later committed brief edits, and malformed replay tails can otherwise admit an insufficient recovery proof, so the proof must establish the earliest matching session identity and reject every malformed journal line.
+  - kind: surprise
+    at: "2026-09-16T04:12:37Z"
+    expected: The focused package checks would run after adding the existing graph reader to the recovery proof.
+    observed: pnpm detected the workspace dependency change and required a non-interactive modules-directory rebuild before it could run package commands.
+  - kind: surprise
+    at: "2026-09-16T04:16:38Z"
+    expected: The normal offline rebuild would restore the package tree after the dependency edge was removed.
+    observed: The installer had already recreated a partial tree and the local store lacks required tarballs; intact generated dependencies remain in a sibling worktree and can be used without a network download.
+  - kind: choice
+    at: "2026-09-16T04:18:14Z"
+    chose: Keep the recovery proof in the CLI and pass it to debrief revision as a typed callback.
+    because: The CLI already depends on the graph reader and command boundary, so this composes existing readers without a debrief-to-face dependency edge or changing ordinary revision behavior.
+  - kind: choice
+    at: "2026-09-16T04:19:03Z"
+    chose: Treat a journal without its harness-written final newline as torn during recovery.
+    because: Exceptional recovery needs a complete typed record; accepting a syntactically complete final fragment would weaken the journal's ordinary append boundary.

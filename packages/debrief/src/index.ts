@@ -10,6 +10,7 @@ export {
   BRIEF_V1,
   explainBriefRefusal,
   explainLegacyBrief,
+  readBriefDocument,
   readBriefFile,
 } from "./brief.ts";
 export type { BriefGate } from "./briefGate.ts";
@@ -43,6 +44,7 @@ export type {
   DebriefRevisionOptions,
   DebriefRevisionOutcome,
   DebriefRevisionRefusal,
+  SessionStartRecoveryInput,
 } from "./revise.ts";
 export { explainDebriefRevisionRefusal, reviseDebrief } from "./revise.ts";
 export { isPlainWord } from "./role.ts";

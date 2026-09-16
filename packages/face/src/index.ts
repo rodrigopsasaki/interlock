@@ -12,6 +12,7 @@ export {
   explainGraphRefusal,
   GRAPH_SHAPE,
   loadGraphDocument,
+  loadGraphDocumentText,
 } from "./document.ts";
 export { reduce } from "./faceReducer.ts";
 export type {
