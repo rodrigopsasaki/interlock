@@ -1,0 +1,46 @@
+interlock: graph@v0
+id: 0034-lesson-applicability
+ask: Help sessions say where a supported lesson is useful without inventing its applicability.
+derivation:
+  kind: model
+  model: gpt-6-astra
+  prompt: ten-iteration-learning-2026-09-16-round-4
+read: >
+  The planner's claims were supported in graph YAML, so fallback scope kept them
+  out of the next code-path query. Existing optional applies_to already separates
+  those meanings. Teach authors that seam in the real immutable brief instead of
+  broadening retrieval automatically or treating a useful lesson as a condition.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: teach-lesson-applicability
+    depends_on: []
+    acceptance: |
+      Deliver concise shared debrief-authoring guidance in both generated worker
+      and interpreter canonical briefs, and therefore their ordinary opening
+      route, without mutating already-started briefs. Explain that found_at,
+      rests_on and hunks support a claim; optional applies_to states where an
+      author judges it useful. Use the existing valid repository/path object
+      syntax in a small example. Prefer a justified narrow code path; repository
+      scope requires an explicit cross-cutting reason. Omission remains valid:
+      do not force a lesson, a claim of context use, or a broad target. Encourage
+      a future-actionable statement rather than only a completed-work changelog,
+      while preserving the real decision and its why. Received context remains
+      a hypothesis to check, reject or leave unused, never authority or proof.
+      Applicability neither roots an unsupported claim nor ratifies it, changes
+      work authority, waives a gate, or establishes improved future judgment.
+      Reuse existing brief/debrief/translation seams; no schema, event, protocol,
+      receiver, dependency or old-session change. Avoid duplicate guidance when
+      composing from a previously generated brief and preserve authored body,
+      context and correction content exactly apart from the new owned section.
+      Prove actual worker and interpreter brief delivery, opening compatibility,
+      valid example/read/translation, omission fallback, and unrooted exclusion
+      with focused tests. Existing address-none operation remains usable. Keep
+      conventions non-gating; no validator requiring applicability or useful
+      lesson. Honest notes/debrief and clean commits; one 25-minute attempt.
+    gates:
+      - id: authoring-guidance-proof
+        kind: command
+        run: pnpm --filter runner --filter debrief --filter substrate --filter cli --fail-if-no-match test
+        expect_output: 'Tests +[1-9][0-9]* passed'
