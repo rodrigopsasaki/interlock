@@ -3,8 +3,8 @@ graph: 0025-stable-examples
 node: stabilize-reference-examples
 role: worker
 graph_base_sha: 73a8d894ae1a9c938cbfae374340427000338ce9
-session_start_sha: d5f01b4f4a9faf752c90fb29c97e52043ad2b41a
-head_sha: 92f0e0ac6a8955ff0580f2e75d1c59194e1f1107
+session_start_sha: d5f01b4d0c52ed54f23eb3d4ee0baea0a1085dc6
+head_sha: f052b99b9f9c3b35f7025c5db9daedb16c7b1ce1
 derivation:
   kind: agent
   runtime: codex
@@ -35,7 +35,7 @@ gates_run_by_agent:
   - id: focused-reference
     result: pass
     invocation: mise exec -- pnpm --filter schemas --fail-if-no-match exec vitest run test/reference.test.ts test/reference/corpus.test.ts --reporter=verbose
-    note: 8 tests passed after both fixture debriefs were placed beneath .interlock session paths.
+    note: 8 tests passed.
   - id: typecheck
     result: pass
     invocation: mise exec -- pnpm typecheck
