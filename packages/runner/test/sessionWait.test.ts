@@ -161,7 +161,7 @@ describe("waitForSession", () => {
     ]);
   });
 
-  it("does not settle on done until the grace window actually elapses", async () => {
+  it("gives a full grace window after a blocking settled wait following a person's turn", async () => {
     const clock = createControlledClock({ initialTime: 0 });
     const graceMs = 120_000;
     const requestedWaits: number[] = [];
@@ -170,7 +170,10 @@ describe("waitForSession", () => {
       waitUntil: (_agent, until, timeoutMs) => {
         requestedWaits.push(timeoutMs);
         const next = script.shift();
-        if (next !== undefined) return Promise.resolve(ok(next));
+        if (next !== undefined) {
+          if (next === "done") clock.advanceBy(ms(47_000));
+          return Promise.resolve(ok(next));
+        }
         clock.advanceBy(ms(timeoutMs));
         return Promise.resolve(err({ kind: "timeout", until, timeoutMs, status: "done" }));
       },
@@ -191,7 +194,7 @@ describe("waitForSession", () => {
 
     expect(result).toEqual({ _tag: "Ok", value: "done" });
     expect(requestedWaits[2]).toBe(graceMs);
-    expect(clock.now().monoMs).toBe(graceMs);
+    expect(clock.now().monoMs).toBe(47_000 + graceMs);
   });
 
   it("returns idle at once when no blocked turn preceded it", async () => {
@@ -411,7 +414,7 @@ describe("waitForSession", () => {
     expect(lines).toEqual([]);
   });
 
-  it("does not settle on an unfinished done until the grace window actually elapses", async () => {
+  it("gives a full grace window after a blocking unfinished-work settle", async () => {
     const clock = createControlledClock({ initialTime: 0 });
     const graceMs = 120_000;
     const requestedWaits: number[] = [];
@@ -420,7 +423,10 @@ describe("waitForSession", () => {
       waitUntil: (_agent, until, timeoutMs) => {
         requestedWaits.push(timeoutMs);
         const next = script.shift();
-        if (next !== undefined) return Promise.resolve(ok(next));
+        if (next !== undefined) {
+          clock.advanceBy(ms(47_000));
+          return Promise.resolve(ok(next));
+        }
         clock.advanceBy(ms(timeoutMs));
         return Promise.resolve(err({ kind: "timeout", until, timeoutMs, status: "done" }));
       },
@@ -440,7 +446,7 @@ describe("waitForSession", () => {
 
     expect(result).toEqual({ _tag: "Ok", value: "done" });
     expect(requestedWaits[1]).toBe(graceMs);
-    expect(clock.now().monoMs).toBe(graceMs);
+    expect(clock.now().monoMs).toBe(47_000 + graceMs);
   });
 
   it("caps the unfinished-settle grace window at the run's own deadline", async () => {

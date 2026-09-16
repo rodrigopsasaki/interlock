@@ -1,0 +1,23 @@
+interlock: notes@v0
+node: restore-post-settle-grace
+entries:
+  - kind: choice
+    at: "2026-09-16T12:40:07Z"
+    chose: "Repair grace arming with a clock reading taken after each successful settled wait and add one time-consuming controlled-clock regression for each grace route."
+    because: "The checked source takes now before runtime.waitUntil and reuses it when blocked-turn or unfinished-work settlement arms grace, while the checked tests leave those settled waits instantaneous; sampling immediately after the successful wait preserves the existing deadline cap and limits the repair to the session-wait seam."
+  - kind: surprise
+    at: "2026-09-16T12:40:43Z"
+    expected: "The new controlled-clock regressions would receive the configured 120000ms grace interval after each settled wait consumed 47000ms."
+    observed: "Unchanged source requested only 73000ms for both the person-answer and unfinished-work routes, confirming that grace was measured from the stale pre-wait clock reading."
+  - kind: choice
+    at: "2026-09-16T12:41:09Z"
+    chose: "Sample the injected clock once immediately after each successful runtime wait and use that sample whenever the returned status arms a grace window."
+    because: "The post-wait sample gives both settled routes their full configured interval after blocking, while armGrace continues to cap against the original deadline and the focused 17-test suite passes."
+  - kind: surprise
+    at: "2026-09-16T12:41:40Z"
+    expected: "The configured Git signature would be available for the source commit."
+    observed: "GPG could not create its keybox lock or connect to keyboxd under this session, so the brief-authorized unsigned-commit fallback is required without changing Git configuration."
+  - kind: choice
+    at: "2026-09-16T12:41:40Z"
+    chose: "Use the brief-authorized unsigned commit fallback for this session."
+    because: "The observed GPG keybox and keyboxd failure prevents the configured signature, while the brief permits unsigned commits without a configuration change."

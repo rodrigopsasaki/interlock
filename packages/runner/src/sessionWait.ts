@@ -84,6 +84,7 @@ export async function waitForSession(
       }
       return waited;
     }
+    const settledAt = clock.now().monoMs;
     lastStatus = waited.value;
 
     if (waited.value === "blocked") {
@@ -114,7 +115,7 @@ export async function waitForSession(
       narrate(
         `agent settled after a person's turn; judging in ${Math.round(answerGraceMs / 1000)}s unless it resumes`,
       );
-      grace = armGrace(now, deadline, answerGraceMs, waited.value);
+      grace = armGrace(settledAt, deadline, answerGraceMs, waited.value);
       until = AFTER_SETTLED;
       continue;
     }
@@ -124,7 +125,7 @@ export async function waitForSession(
       narrate(
         `agent settled with ${describeUnfinishedWork(unfinished)}; judging in ${Math.round(answerGraceMs / 1000)}s unless it resumes`,
       );
-      grace = armGrace(now, deadline, answerGraceMs, waited.value);
+      grace = armGrace(settledAt, deadline, answerGraceMs, waited.value);
       until = AFTER_SETTLED;
       continue;
     }
