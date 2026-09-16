@@ -1,8 +1,10 @@
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { runDebriefFileDerived, runDebriefPrepare } from "../../src/debrief/derived.ts";
+import { runDebriefRevise } from "../../src/debrief/revise.ts";
 
 const runsRoot = join(import.meta.dirname, "..", ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -142,6 +144,29 @@ describe("interlock debrief derived handoff", () => {
 
     expect(prepared.exitCode).not.toBe(0);
     expect(existsSync(outside)).toBe(false);
+  });
+
+  it("files derived bytes then ordinarily revises from their historical source head with exact custody", async () => {
+    const source = fixture();
+    const first = join(source.sessionPath, "first.yaml");
+    expect((await runDebriefPrepare(prepareArgs(first), { cwd: source.root })).exitCode).toBe(0);
+    expect(readFileSync(first, "utf-8")).toContain("gates_run_by_agent: []");
+    expect((await runDebriefFileDerived([graph, node, "--from", first], { cwd: source.root })).exitCode).toBe(0);
+    const canonical = join(source.sessionPath, "debrief.yaml");
+    const original = readFileSync(canonical);
+    writeFileSync(join(source.root, "metadata.txt"), "later\n");
+    commit(source.root, "later metadata");
+    const correction = join(source.sessionPath, "correction.yaml");
+    const correctionBytes = Buffer.from(readFileSync(first, "utf-8").replace("open: []", "open:\n  - historical correction"));
+    writeFileSync(correction, correctionBytes);
+
+    const revised = await runDebriefRevise([graph, node, "--from", correction], { cwd: source.root });
+
+    expect(revised.exitCode).toBe(0);
+    expect(readFileSync(canonical)).toEqual(correctionBytes);
+    expect(readFileSync(correction)).toEqual(correctionBytes);
+    const archived = join(source.sessionPath, "revisions", `${createHash("sha256").update(original).digest("hex")}.yaml`);
+    expect(readFileSync(archived)).toEqual(original);
   });
 
   it("supports safe nested worker-node custody and the explicit human authorship form", async () => {
