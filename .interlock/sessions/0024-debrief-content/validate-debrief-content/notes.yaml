@@ -9,3 +9,7 @@ entries:
     at: "2026-09-16T03:35:04Z"
     expected: The focused formatter check would accept the new schema imports.
     observed: Biome required the expanded import layout, so the source was formatted before running the focused test.
+  - kind: choice
+    at: "2026-09-16T03:36:04Z"
+    chose: Record only the focused formatter, validator, typecheck, and custody checks run in this session.
+    because: The runner owns declared-gate receipts, while the debrief should retain an accurate account of the local checks that supported this bounded repair.

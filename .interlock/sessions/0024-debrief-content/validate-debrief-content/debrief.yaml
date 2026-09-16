@@ -1,0 +1,39 @@
+interlock: debrief@v2
+graph: 0024-debrief-content
+node: validate-debrief-content
+role: worker
+graph_base_sha: 3f4ac645b932926f9464ce5bb38dc5d97ad4c750
+session_start_sha: 5db0d1b2b70b16a0ce897decf216f5a6df21a3e9
+head_sha: dd28d029cd123f2d3f190dbdca3e500dc805a939
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries: []
+decisions:
+  - id: judge-current-v2-value
+    what: Judged parsed current debrief@v2 YAML values through the existing lazy schema registry instead of filename-dispatched file validation.
+    because: The current reader parses YAML regardless of filename, so schema validation must preserve that same content meaning for Markdown and JSON Lines paths.
+    rests_on:
+      - .interlock/graphs/0024-debrief-content.yaml
+      - .interlock/sessions/0024-debrief-content/validate-debrief-content/notes.yaml
+      - packages/schemas/src/validate.ts
+    hunks:
+      - packages/cli/src/debrief/validate.ts
+      - packages/cli/test/debrief/validate.test.ts
+gates_run_by_agent:
+  - id: focused-format
+    result: pass
+    invocation: mise exec -- pnpm exec biome check packages/cli/src/debrief/validate.ts packages/cli/test/debrief/validate.test.ts
+  - id: focused-cli-validation
+    result: pass
+    invocation: mise exec -- pnpm --filter cli --fail-if-no-match exec vitest run test/debrief/validate.test.ts --reporter=verbose
+    note: 16 tests passed.
+  - id: focused-typecheck
+    result: pass
+    invocation: mise exec -- pnpm --filter cli --filter schemas --fail-if-no-match typecheck
+  - id: focused-corpus
+    result: pass
+    invocation: mise exec -- pnpm --filter schemas --fail-if-no-match exec vitest run test/corpus.files.test.ts --reporter=verbose
+    note: 167 tests passed.
+open: []
