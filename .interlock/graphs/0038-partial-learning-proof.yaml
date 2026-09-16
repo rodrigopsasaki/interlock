@@ -1,0 +1,43 @@
+interlock: graph@v0
+id: 0038-partial-learning-proof
+ask: Prove rejected claims cannot erase observed evidence or cross the learning boundary.
+derivation:
+  kind: model
+  model: gpt-6-astra
+  prompt: ten-iteration-learning-2026-09-16-round-8
+read: >
+  The preceding handoff passed its command gates, but review found the named
+  partial-verification test contains no authored claims. Its invalid range
+  exercises verifier refusal, not the distinction between an excluded claim
+  and retained observed evidence. Preserve that result and repair the proof.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: prove-partial-learning
+    depends_on: []
+    acceptance: |
+      Strengthen the actual judgeGates to HTTP outbox regression in
+      packages/runner/test/absorbOutbox.test.ts. Exercise two distinct real
+      verifier outcomes: a valid historical range with an authored claim marked
+      unrooted, and a refused historical range with a nonempty authored claim.
+      Assert those verifier outcomes explicitly. Through the real gate runner
+      earn and retain independent command receipt evidence. Inspect exact
+      translated request items: the rejected claim must not be a translated
+      hypothesis; the harness receipt must remain an observed item. Authored
+      debrief bytes may still carry the rejected claim as raw provenance.
+      Prove request intent and retained bytes exist before dispatch, retained
+      bytes equal dispatched bytes, receiver zero decision IDs remain separate
+      from positive known supplied translation, and acknowledgment artifacts
+      remain available. Keep existing empty/unavailable, Context slice,
+      refusal/none, retry, uncertainty and storage-boundary tests unchanged.
+      No production behavior, verifier/evidence semantics, schema, dependency,
+      permissions, config, approval or gate relaxation. If a source bug is
+      exposed, record and hold rather than silently broadening this proof repair.
+      Use typed notes, truthful derived first handoff and clean commits.
+      Preserve all older artifacts. One bounded 25-minute implementation attempt.
+    gates:
+      - id: partial-learning-proof
+        kind: command
+        run: pnpm --filter runner --filter substrate --fail-if-no-match test
+        expect_output: 'Tests +[1-9][0-9]* passed'
