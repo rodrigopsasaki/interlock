@@ -13,3 +13,11 @@ entries:
     at: "2026-09-16T14:42:27Z"
     expected: "The configured Git signature would be available for the source commit."
     observed: "GPG could not create its keybox lock or connect to keyboxd under this session, so the brief-authorized unsigned-commit fallback is required without changing Git configuration."
+  - kind: surprise
+    at: "2026-09-16T14:43:50Z"
+    expected: "The full workspace test gate would complete successfully after the focused citation proofs passed."
+    observed: "pnpm test timed out in two packages/substrate/test/capabilities.test.ts cases after verifier completed all 58 tests successfully; the failing behavior is outside this repair's acceptance and is not broadened here."
+  - kind: surprise
+    at: "2026-09-16T14:43:50Z"
+    expected: "A process listing could confirm whether the yielded full-test command remained live."
+    observed: "The sandbox denied ps, so no process listing was available; the command had already returned without a reusable handle."
