@@ -1,0 +1,31 @@
+interlock: notes@v0
+node: stabilize-reference-examples
+entries:
+  - kind: choice
+    at: "2026-09-16T03:43:05Z"
+    chose: Replace corpus-size competition with explicit source and shape selections matching the currently published examples.
+    because: The generated reference must retain readable provenance while unrelated valid session artifacts cannot participate in choosing a published example.
+  - kind: choice
+    at: "2026-09-16T03:48:02Z"
+    chose: Validate each selected candidate against the existing schema registry before rendering it.
+    because: A selected path is a deliberate published example only when it still carries its expected valid shape; missing, wrong-shape, and invalid selections must not silently change the page.
+  - kind: surprise
+    at: "2026-09-16T03:50:18Z"
+    expected: The focused formatter would complete before the isolated reference tests ran.
+    observed: Biome found an unused test import, so the import was removed before retrying the formatter and tests.
+  - kind: surprise
+    at: "2026-09-16T03:46:02Z"
+    expected: Notes timestamps would come from the current clock as events occurred.
+    observed: The 03:48:02Z and 03:50:18Z entries were drafted placeholders ahead of the root clock, so they remain as an audit record rather than actual-time entries.
+  - kind: choice
+    at: "2026-09-16T03:46:32Z"
+    chose: Keep the isolated fixture cleanup non-recursive inside the package test runs directory.
+    because: The reference-selection tests need temporary artifacts without leaving scratch work or broad deletion behavior.
+  - kind: surprise
+    at: "2026-09-16T03:48:21Z"
+    expected: The combined schemas and CLI gate would use the repository test configuration without environmental interference.
+    observed: CLI worktree tests inherited global commit signing and failed their internal setup commits, including unrelated timeouts; the focused schemas tests and reference freshness check had already passed.
+  - kind: surprise
+    at: "2026-09-16T03:50:00Z"
+    expected: Disabling signing for the test process would restore the combined gate.
+    observed: Internal worktree commits then succeeded, but the unrelated enabled-origin CLI tests still timed out at their five-second limit while the reference CLI tests passed.
