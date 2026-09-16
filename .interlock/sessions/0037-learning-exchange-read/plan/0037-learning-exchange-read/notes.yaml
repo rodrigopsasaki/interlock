@@ -1,0 +1,7 @@
+interlock: notes@v0
+node: plan/0037-learning-exchange-read
+entries:
+  - kind: choice
+    at: "2026-09-16T13:05:14Z"
+    chose: "Separate the sender's translated evidence, the receiver's acknowledged response, and the local brief comparison in the proposed graph."
+    because: "Current narration uses the legacy decision-ID count beside a lexical slice fallback, although the runner already supplies translated items independently; an empty receiver list therefore cannot honestly summarize a nonempty translated request."
