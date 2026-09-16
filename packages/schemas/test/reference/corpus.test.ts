@@ -1,5 +1,5 @@
-import { mkdirSync, mkdtempSync, readdirSync, rmdirSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, mkdtempSync, rmdirSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildCorpusExamples, type ReferenceSource } from "../../src/reference/corpus.ts";
 
@@ -7,16 +7,30 @@ const runsRoot = join(import.meta.dirname, "..", ".runs");
 mkdirSync(runsRoot, { recursive: true });
 
 let runDirectory: string | undefined;
+let fixturePaths: string[] = [];
+let fixtureDirectories: string[] = [];
 
 afterEach(() => {
   if (runDirectory !== undefined) {
-    for (const entry of readdirSync(runDirectory)) rmSync(join(runDirectory, entry));
+    for (const path of fixturePaths.toReversed()) {
+      if (existsSync(path)) rmSync(path);
+    }
+    for (const directory of fixtureDirectories.toSorted((a, b) => b.length - a.length)) {
+      if (existsSync(directory)) rmdirSync(directory);
+    }
     rmdirSync(runDirectory);
   }
   runDirectory = undefined;
+  fixturePaths = [];
+  fixtureDirectories = [];
 });
 
-const selected: readonly ReferenceSource[] = [{ sourcePath: "published.yaml", tag: "debrief@v2" }];
+const publishedSource: ReferenceSource = {
+  sourcePath: ".interlock/sessions/published/node/debrief.yaml",
+  tag: "debrief@v2",
+};
+const selected: readonly ReferenceSource[] = [publishedSource];
+const unrelatedSource = ".interlock/sessions/new/node/debrief.yaml";
 
 function validDebrief(open: string): string {
   return [
@@ -45,58 +59,57 @@ function startFixture(): string {
 }
 
 function writeFixture(root: string, sourcePath: string, content: string): void {
-  writeFileSync(join(root, sourcePath), content);
+  const path = join(root, sourcePath);
+  let directory = dirname(path);
+  while (directory !== root) {
+    fixtureDirectories.push(directory);
+    directory = dirname(directory);
+  }
+  mkdirSync(dirname(path), { recursive: true });
+  fixturePaths.push(path);
+  writeFileSync(path, content);
 }
 
 describe("reference corpus selections", () => {
   it("keeps the selected example when a smaller valid debrief arrives", () => {
     const root = startFixture();
-    const publishedPath = selected[0]?.sourcePath;
-    expect(publishedPath).toBeDefined();
-    if (publishedPath === undefined) return;
     const published = validDebrief('["published example retains deliberately chosen provenance"]');
     const unrelated = validDebrief("[]");
-    writeFixture(root, publishedPath, published);
+    writeFixture(root, publishedSource.sourcePath, published);
 
     const before = buildCorpusExamples(root, selected);
 
-    writeFixture(root, "unrelated.yaml", unrelated);
+    writeFixture(root, unrelatedSource, unrelated);
     expect(unrelated.length).toBeLessThan(published.length);
     const after = buildCorpusExamples(root, selected);
 
     expect(after).toEqual(before);
-    expect(after.get("debrief@v2")?.sourcePath).toBe(publishedPath);
+    expect(after.get("debrief@v2")?.sourcePath).toBe(publishedSource.sourcePath);
   });
 
   it("rejects a missing selected source", () => {
     const root = startFixture();
 
     expect(() => buildCorpusExamples(root, selected)).toThrow(
-      'Reference source "published.yaml" for "debrief@v2" does not exist.',
+      'Reference source ".interlock/sessions/published/node/debrief.yaml" for "debrief@v2" does not exist.',
     );
   });
 
   it("rejects a selected source that carries another shape", () => {
     const root = startFixture();
-    const publishedPath = selected[0]?.sourcePath;
-    expect(publishedPath).toBeDefined();
-    if (publishedPath === undefined) return;
-    writeFixture(root, publishedPath, "interlock: notes@v0\nnode: n\nentries: []\n");
+    writeFixture(root, publishedSource.sourcePath, "interlock: notes@v0\nnode: n\nentries: []\n");
 
     expect(() => buildCorpusExamples(root, selected)).toThrow(
-      'Reference source "published.yaml" does not carry expected shape "debrief@v2".',
+      'Reference source ".interlock/sessions/published/node/debrief.yaml" does not carry expected shape "debrief@v2".',
     );
   });
 
   it("rejects a selected source that does not validate its expected shape", () => {
     const root = startFixture();
-    const publishedPath = selected[0]?.sourcePath;
-    expect(publishedPath).toBeDefined();
-    if (publishedPath === undefined) return;
-    writeFixture(root, publishedPath, "interlock: debrief@v2\n");
+    writeFixture(root, publishedSource.sourcePath, "interlock: debrief@v2\n");
 
     expect(() => buildCorpusExamples(root, selected)).toThrow(
-      'Reference source "published.yaml" selects invalid "debrief@v2":',
+      'Reference source ".interlock/sessions/published/node/debrief.yaml" selects invalid "debrief@v2":',
     );
   });
 });
