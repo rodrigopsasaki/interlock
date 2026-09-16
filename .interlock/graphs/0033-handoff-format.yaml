@@ -1,0 +1,32 @@
+interlock: graph@v0
+id: 0033-handoff-format
+ask: Make the held derived handoff pass its unchanged delivery gates.
+derivation:
+  kind: model
+  model: gpt-6-astra
+  prompt: ten-iteration-learning-2026-09-16-round-3
+read: >
+  The preceding worker proved first filing on itself, and five of six harness
+  gates passed. Lint alone held the result. Apply mechanical formatting and
+  import corrections, not new behavior or relaxed checks, then re-earn proof.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: repair-handoff-format
+    depends_on: []
+    acceptance: |
+      Repair the lint findings in the held derived-handoff source using the
+      existing formatter and import organization. No runtime behavior, test
+      expectation, timeout, gate, dependency or old artifact may change.
+      Preserve worker-only derived filing, historical-head ordinary revision,
+      strict recorded identity and no-clobber byte custody. Inspect the mechanical
+      diff and run lint before final handoff. Use the new prepare/author/file-derived
+      workflow for this new session after committing source; preserve all authored
+      candidates. Report actual context use or irrelevance, never invent usefulness.
+      Typed notes/debrief, clean commits, no post-handoff edits. One 25-minute attempt.
+    gates:
+      - id: derived-handoff-proof
+        kind: command
+        run: pnpm --filter debrief --filter cli --fail-if-no-match test
+        expect_output: 'Tests +[1-9][0-9]* passed'
