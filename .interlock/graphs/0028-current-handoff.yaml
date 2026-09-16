@@ -1,0 +1,39 @@
+interlock: graph@v0
+id: 0028-current-handoff
+ask: Show the corrected handoff that the runner actually judged.
+derivation:
+  kind: model
+  model: gpt-6-astra
+  prompt: product-learning-find-shape-2026-09-16-cycle-3
+read: >
+  The actual recovered0025 debrief is current on disk and reached the disposable
+  receiver, but ordinary evidence still reads the first filed bad source range.
+  ingestDebrief returns whenever the session already has any debrief. Preserve
+  the history while bringing the current position into agreement with rejudge.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: record-current-handoff
+    depends_on: []
+    acceptance: |
+      Make explicit rejudge ingestion content-sensitive at the existing runner
+      seam. The first valid v2 filing and note ingestion behave as before. A
+      changed selected v2 appends a new debrief-filed event for the same exact
+      session; prior events remain. A semantically unchanged selected debrief
+      adds no filing, and rejudgment never duplicates notes. Compose existing
+      readers/types and projection (which already selects the latest filing).
+      Missing, invalid and legacy reads must not erase a prior current debrief.
+      No direct CLI fallback to unjudged disk state, journal rewrite, old-file
+      edit, new event version, automatic source correction or changed absorb
+      identity/retry policy. Prove supported revision followed by rejudge makes
+      ordinary session/evidence views use the corrected range, with old raw
+      filing retained, exactly one replacement and no extra notes on repeated
+      unchanged judgment. Include two-session isolation. Root will exercise
+      this on the retained0025 case after review. Truthful own artifacts and
+      clean commits; normal standing gates plus focused runner/CLI proof.
+    gates:
+      - id: current-handoff-proof
+        kind: command
+        run: pnpm --filter runner --filter cli --fail-if-no-match test
+        expect_output: 'Tests +[1-9][0-9]* passed'
