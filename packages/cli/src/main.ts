@@ -1,6 +1,7 @@
 import { runInterlockBackfill } from "./backfill.ts";
 import { validateBrief } from "./brief/validate.ts";
 import { runDebriefFileDerived, runDebriefPrepare } from "./debrief/derived.ts";
+import { runDebriefPreview } from "./debrief/preview.ts";
 import { runDebriefRevise } from "./debrief/revise.ts";
 import { validateDebrief } from "./debrief/validate.ts";
 import { runInterlockEvidence } from "./evidence.ts";
@@ -31,6 +32,10 @@ export async function run(argv: readonly string[]): Promise<CommandResult> {
 
   if (group === "debrief" && action === "validate") {
     return validateDebrief(argv.slice(2));
+  }
+
+  if (group === "debrief" && action === "preview") {
+    return runDebriefPreview(argv.slice(2));
   }
 
   if (group === "debrief" && action === "revise") {

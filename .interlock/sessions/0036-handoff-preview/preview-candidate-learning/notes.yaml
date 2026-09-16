@@ -1,0 +1,35 @@
+interlock: notes@v0
+node: preview-candidate-learning
+entries:
+  - kind: choice
+    at: "2026-09-16T12:49:23Z"
+    chose: "Compose the preview from the existing debrief reader, verifier, and evidence translator in a new read-only CLI door."
+    because: "The approved graph requires current marks and translated scope without copied policy, and the checked seams already associate marks with decision and discovery IDs and derive hypothesis scope and gaps without journal input."
+  - kind: choice
+    at: "2026-09-16T12:50:09Z"
+    chose: "Render one claim block per authored ID with its verifier marks, then use a one-claim evidence translation to show either the included scope and gaps or that no hypothesis was translated."
+    because: "The translator has no outward effects and preserves the existing rooted and applicability behavior, while per-claim invocation keeps duplicate claim prose distinct by authored ID and makes a non-included result observable without treating it as a gate."
+  - kind: surprise
+    at: "2026-09-16T12:52:37Z"
+    expected: "The translator's first returned item would always carry a scope for preview rendering."
+    observed: "The public item contract permits items with no scope, so the preview must render that legitimate translator result without assuming a path or repository target."
+  - kind: choice
+    at: "2026-09-16T12:52:37Z"
+    chose: "Render a scope-less translated item explicitly instead of narrowing the shared item contract."
+    because: "Claims currently translated through the selected evidence paths carry scopes, but preserving the translator's wider result contract makes the read-only preview honest if that seam later returns a valid scope-less item."
+  - kind: surprise
+    at: "2026-09-16T12:53:05Z"
+    expected: "A present item scope could only be repository or path."
+    observed: "The shared item contract also permits organisation scope, so the preview must preserve that translated result instead of treating it as a malformed local case."
+  - kind: surprise
+    at: "2026-09-16T12:55:07Z"
+    expected: "The CLI package test command would finish with only deterministic fixture results."
+    observed: "The new seven-preview fixture suite passed, but the existing repository-origin suite timed out while unrelated runner fixtures also encountered the known unavailable GPG signer, so the aggregate package command did not provide a clean repository-wide result."
+  - kind: choice
+    at: "2026-09-16T12:55:46Z"
+    chose: "Strengthen the existing command fixtures at the actual ledger path and rendered brief boundaries without changing preview behavior."
+    because: "The pre-handoff review identifies proof gaps rather than a semantic defect: byte preservation must cover candidate and canonical artifacts beside .interlock/ledger/journal.jsonl, while the shared guidance must be asserted where worker and interpreter authors actually receive it."
+  - kind: surprise
+    at: "2026-09-16T12:58:03Z"
+    expected: "Repository lint would pass after the focused TypeScript checks."
+    observed: "Biome reported only import ordering and line wrapping in the new preview source and fixtures; it found no semantic or pre-existing lint failure in the changed paths."

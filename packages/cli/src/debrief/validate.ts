@@ -55,11 +55,15 @@ async function peekShapeTag(path: string): Promise<string | undefined> {
   }
 }
 
+export function debriefSchemaRefusal(value: unknown, path: string): string | undefined {
+  const outcome = judgeValue(currentSchemaRegistry(), value);
+  return isRefusal(outcome) ? `${path}: ${describeOutcome(outcome)}` : undefined;
+}
+
 async function schemaRefusal(path: string): Promise<string | undefined> {
   try {
     const value: unknown = parseYaml(await readFile(path, "utf-8"));
-    const outcome = judgeValue(currentSchemaRegistry(), value);
-    return isRefusal(outcome) ? `${path}: ${describeOutcome(outcome)}` : undefined;
+    return debriefSchemaRefusal(value, path);
   } catch (error) {
     return `${path}: ${error instanceof Error ? error.message : "could not validate the file"}`;
   }

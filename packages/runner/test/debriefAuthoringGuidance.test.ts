@@ -54,6 +54,7 @@ describe("debrief authoring guidance", () => {
     expect(debriefAuthoringGuidance).toContain(repositoryAppliesToExample);
     expect(debriefAuthoringGuidance).toContain("Omit `applies_to` when no target is warranted");
     expect(debriefAuthoringGuidance).toContain("never supplies support or ratifies a claim");
+    expect(debriefAuthoringGuidance).toContain("interlock debrief preview --file <candidate>");
     expect(decisionFromExample(pathAppliesToExample).decision.appliesTo).toEqual({
       kind: "path",
       path: "packages/substrate/src/evidence.ts",
@@ -71,6 +72,7 @@ describe("debrief authoring guidance", () => {
       previousGraphYaml,
     });
     expect(body.match(/^## Debrief authoring$/gm)).toHaveLength(1);
+    expect(body).toContain("interlock debrief preview --file <candidate>");
     expect(body).toContain(context);
     expect(body).toContain(previousGraphYaml);
   });

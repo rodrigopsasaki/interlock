@@ -346,10 +346,12 @@ describe("writeBriefIntoWorktree", () => {
     expect(writtenBody).toContain(
       "applies_to: { kind: path, path: packages/substrate/src/evidence.ts }",
     );
+    expect(writtenBody).toContain("interlock debrief preview --file <candidate>");
     expect(isOk(result)).toBe(true);
     if (!isOk(result)) return;
     expect(result.value.openingView?.endsWith(writtenBody)).toBe(true);
     expect(result.value.openingView).toContain("## Debrief authoring");
+    expect(result.value.openingView).toContain("interlock debrief preview --file <candidate>");
   });
 });
 

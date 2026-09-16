@@ -27,6 +27,8 @@ export const debriefAuthoringGuidance = [
   "Omit `applies_to` when no target is warranted. Keep the real decision and its why, and say what",
   "a future session can act on. It changes neither authority nor gates, and does not establish better",
   "judgment. Treat received context as a hypothesis: check, reject, or leave it unused.",
+  "",
+  "Before filing, optionally inspect an authored candidate with `interlock debrief preview --file <candidate>`.",
   END,
 ].join("\n");
 
