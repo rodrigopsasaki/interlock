@@ -1,0 +1,11 @@
+interlock: notes@v0
+node: enforce-explicit-citation-boundary
+entries:
+  - kind: surprise
+    at: "2026-09-16T14:01:15Z"
+    expected: "The session directory would already contain notes.yaml."
+    observed: "At e5b8a88fc73dc5d014c32e2562984e70da1e590c, the canonical brief and graph were present but notes.yaml was absent, so this entry establishes the first session receipt."
+  - kind: choice
+    at: "2026-09-16T14:01:15Z"
+    chose: "Extend foundAt's explicit-location recognition and its existing focused verifier and evidence-translation tests."
+    because: "The accepted seam already owns numeric-range validation, path resolution, separate quotation checks, and rooted marks; the runner test already verifies the guidance example through verifyDebrief and evidenceOf."
