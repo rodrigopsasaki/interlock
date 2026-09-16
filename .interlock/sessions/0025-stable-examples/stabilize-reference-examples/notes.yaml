@@ -45,3 +45,8 @@ entries:
     at: "2026-09-16T03:54:57Z"
     expected: The debrief revision command would retain the draft and select the candidate with the real initial brief commit.
     observed: Revision correctly refused because the authored draft carries a nonexistent session_start_sha and the revision identity rule makes that field immutable.
+  - kind: surprise
+    at: "2026-09-16T03:56:17Z"
+    expected: The revision record would identify the immutable field and its source values exactly.
+    observed: >
+      interlock debrief revise 0025-stable-examples stabilize-reference-examples --from .interlock/sessions/0025-stable-examples/stabilize-reference-examples/debrief-candidate.yaml returned "debrief revise: session_start_sha does not match the current debrief". Git verified the initial brief commit as d5f01b4f4a9faf752c90fb29c97e52043ad2b41a, the reference-selection commit as f052b994d580b7922b40f4435199a1626850cdb7, and the session-path regression commit as 92f0e0ac6a8955ff0580f2e75d1c59194e1f1107; git cat-file rejected the authored d5f01b4d0c52ed54f23eb3d4ee0baea0a1085dc6 value as not a valid object name.
