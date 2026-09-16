@@ -1,0 +1,25 @@
+interlock: debrief@v2
+graph: 0038-partial-learning-proof
+node: prove-partial-learning
+role: worker
+graph_base_sha: e6964d9c2357dfa19ca38d7ba813ee43a2b3b1b3
+session_start_sha: f1434becbb69b2bcd88e00ee4ce84a3bb50a75d8
+head_sha: 5408769f968fa09d10ffb32e18badf1db2ceab07
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries: []
+decisions:
+  - id: partial-learning-proof
+    what: "Proved rejected authored claims stay out of translated hypotheses while independent command receipts remain observed and retained."
+    because: "The HTTP gate-judge regression now checks both a valid range with an unrooted claim and a reversed real historical range refused by the verifier, while preserving raw debrief provenance, outbox intent before dispatch, request-byte equality, zero receiver decision IDs, and acknowledgment bytes."
+    rests_on:
+      - .interlock/sessions/0038-partial-learning-proof/prove-partial-learning/notes.yaml
+      - packages/runner/src/gateJudge.ts:343-416
+      - packages/substrate/src/evidence.ts:46-173
+    hunks:
+      - packages/runner/test/absorbOutbox.test.ts:31-160
+    applies_to: { kind: path, path: packages/runner/test/absorbOutbox.test.ts }
+gates_run_by_agent: []
+open: []
