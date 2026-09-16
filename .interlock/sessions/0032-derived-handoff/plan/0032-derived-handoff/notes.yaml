@@ -13,3 +13,11 @@ entries:
     at: "2026-09-16T11:46:11Z"
     chose: "Keep the implementation graph to one independently executable node with a graph-level approval gate and one focused debrief/CLI proof gate."
     because: "Creation, identity proof, authored derivation input, first filing, revision custody, and stale-head refusal are one inseparable worker handoff; splitting them would leave an unusable partial workflow or make a dependency edge carry unproved behavior."
+  - kind: surprise
+    at: "2026-09-16T11:47:06Z"
+    expected: "Requiring candidate head_sha to equal current Git HEAD in revise would complete the derived workflow without changing compatible historical correction behavior."
+    observed: "Review identified that ordinary revisions can deliberately retain a source head below later metadata or debrief commits, so a global equality check would break an existing valid workflow."
+  - kind: choice
+    at: "2026-09-16T11:47:06Z"
+    chose: "Keep ordinary revise unchanged and plan an explicit derived-filing door that owns first filing, source-head proof, and atomic no-clobber creation."
+    because: "The new workflow needs stronger current-head evidence only for candidates it creates, while historical corrections retain their existing identity and custody semantics. A no-replace install is required because an existence check alone cannot protect a concurrently created canonical debrief."
