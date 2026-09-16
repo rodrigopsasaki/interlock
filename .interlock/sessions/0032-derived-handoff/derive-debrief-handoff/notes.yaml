@@ -33,3 +33,11 @@ entries:
     at: "2026-09-16T12:03:13Z"
     expected: "The scoped debrief and CLI proof command would complete without unrelated failures."
     observed: "Debrief's 70 tests and the new derived-handoff fixture's 8 tests passed, but an existing CLI repository-origin test timed out at five seconds; this session does not treat the aggregate scoped command as a passing receipt."
+  - kind: choice
+    at: "2026-09-16T12:03:57Z"
+    chose: "Prepare a new second candidate from the review-correction source commit and retain the earlier candidate unchanged."
+    because: "file-derived requires the candidate head to remain the current committed source identity, so correcting custody after the first preparation needs a new authored artifact rather than a silent metadata rewrite."
+  - kind: surprise
+    at: "2026-09-16T12:03:57Z"
+    expected: "Safe nested custody would make the graph-base identity proof usable for planning sessions."
+    observed: "Planning sessions synthesize their acceptance before the graph exists, so they have no graph-base graph-node evidence; derived filing remains limited to worker sessions and interpreter handoff retains the existing authored workflow."

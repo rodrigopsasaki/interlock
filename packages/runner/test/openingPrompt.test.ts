@@ -74,6 +74,8 @@ describe("buildOpeningPrompt", () => {
     expect(prompt).toContain(".interlock/graphs/demo.yaml");
     expect(prompt).toContain("for a person to approve or correct");
     expect(prompt).toContain("it never leases or runs a node");
+    expect(prompt).not.toContain("interlock debrief prepare");
+    expect(prompt).not.toContain("interlock debrief file-derived");
   });
 
   it("directs a view-mode session to the included view, without the legacy brief-first instruction", () => {

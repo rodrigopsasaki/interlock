@@ -15,6 +15,11 @@ export function buildOpeningPrompt(
       ? `This session produces .interlock/graphs/${graph}.yaml for a person to approve or ` +
         "correct; it never leases or runs a node. "
       : "";
+  const derivedFilingSentence =
+    role === "worker"
+      ? `For a first filing, run interlock debrief prepare ${graph} ${node} --to <candidate-path> --agent-runtime <runtime> --agent-model <model>, or replace both agent flags with --human <name>; author its claims and reports, then run ` +
+        `interlock debrief file-derived ${graph} ${node} --from <candidate-path>. After source changes, commit, prepare a fresh candidate, author it, and file it. `
+      : "";
   const briefSentence =
     openingView === undefined
       ? `Your brief is at .interlock/sessions/${graph}/${node}/brief.md in this worktree. ` +
@@ -27,8 +32,7 @@ export function buildOpeningPrompt(
     roleSentence +
     `Append .interlock/sessions/${graph}/${node}/notes.yaml at every choice and surprise, ` +
     `commit as you go, and file .interlock/sessions/${graph}/${node}/debrief.yaml as your final commit. ` +
-    `For a first filing, run interlock debrief prepare ${graph} ${node} --to <candidate-path> --agent-runtime <runtime> --agent-model <model>, or replace both agent flags with --human <name>; author its claims and reports, then run ` +
-    `interlock debrief file-derived ${graph} ${node} --from <candidate-path>. After source changes, commit, prepare a fresh candidate, author it, and file it. ` +
+    derivedFilingSentence +
     `When correcting an authored debrief, keep the correction in this session directory and run ` +
     `interlock debrief revise ${graph} ${node} --from <candidate-path> to select it. ` +
     `When the debrief is committed, stop and wait. ` +

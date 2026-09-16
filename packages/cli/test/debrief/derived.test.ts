@@ -97,6 +97,7 @@ describe("interlock debrief derived handoff", () => {
     expect(bytes).toContain(`session_start_sha: ${source.start}`);
     expect(bytes).toContain(`head_sha: ${source.start}`);
     expect(bytes).toContain("runtime: codex");
+    expect(bytes).toContain("gates_run_by_agent: []");
     const filed = await runDebriefFileDerived([graph, node, "--from", candidate], { cwd: source.root });
     expect(filed.exitCode).toBe(0);
     expect(readFileSync(join(source.sessionPath, "debrief.yaml"))).toEqual(readFileSync(candidate));
@@ -143,7 +144,7 @@ describe("interlock debrief derived handoff", () => {
     expect(existsSync(outside)).toBe(false);
   });
 
-  it("supports safe planning-node custody and the explicit human authorship form", async () => {
+  it("supports safe nested worker-node custody and the explicit human authorship form", async () => {
     const planningNode = "plan/g";
     const source = fixture(planningNode);
     const candidate = join(source.sessionPath, "human.yaml");
@@ -151,6 +152,9 @@ describe("interlock debrief derived handoff", () => {
 
     expect(prepared.exitCode).toBe(0);
     expect(readFileSync(candidate, "utf-8")).toContain("who: Ada");
+    writeFileSync(candidate, readFileSync(candidate, "utf-8").replace("who: Ada", "who: ''"));
+    expect((await runDebriefFileDerived([graph, planningNode, "--from", candidate], { cwd: source.root })).exitCode).not.toBe(0);
+    writeFileSync(candidate, readFileSync(candidate, "utf-8").replace("who: ''", "who: Ada"));
     expect((await runDebriefFileDerived([graph, planningNode, "--from", candidate], { cwd: source.root })).exitCode).toBe(0);
     const mixed = await runDebriefPrepare([...prepareArgs(join(source.sessionPath, "mixed.yaml"), planningNode), "--human", "Ada"], { cwd: source.root });
     expect(mixed.exitCode).not.toBe(0);
