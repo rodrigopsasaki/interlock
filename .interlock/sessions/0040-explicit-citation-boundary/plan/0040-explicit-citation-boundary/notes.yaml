@@ -9,3 +9,7 @@ entries:
     at: "2026-09-16T13:51:40Z"
     chose: "Plan one parser-seam implementation node that recognizes syntactically explicit path:range claims before the ordinary path-like and out-of-band fallback paths."
     because: "checkFoundAt already centralizes explicit range parsing, repository/session path resolution, quotation counting, and rooted marks; a bounded change and focused tests there can cover ordinary extensions and extensionless basenames without changing command-form or genuine out-of-band citation behavior."
+  - kind: choice
+    at: "2026-09-16T13:53:18Z"
+    chose: "Require direct parser discriminators and an end-to-end verifyDebrief-to-evidenceOf proof in the same implementation node."
+    because: "verifyDebrief is the real mark producer and evidenceOf includes only rooted discoveries as path-scoped hypotheses, so a direct mark alone would not prove that a corrected explicit filename avoids the out-of-band repository scope during translation."

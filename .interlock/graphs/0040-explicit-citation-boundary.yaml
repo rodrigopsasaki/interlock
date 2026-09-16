@@ -1,0 +1,76 @@
+interlock: graph@v0
+id: 0040-explicit-citation-boundary
+ask: 'Inspect the actual latest surprise in .interlock/sessions/0039-authoring-feedback/make-authoring-actionable/notes.yaml: a bare evidence.txt explicit ranged citation allowed a wrong quote to root as out-of-band. Verify current reality and produce one complete bounded implementation node that makes explicit file-location claims go through existing range/path/quotation checks regardless of ordinary filename extension or extensionless basename. Preserve genuine out-of-band prose/quoted extracts and command-form legacy behavior; text inside the quoted extract must not become another locator just because it contains colon-number syntax. Keep malformed explicit ranges, missing files, wrong and missing quotes visibly unrooted, with exact discriminator tests and positive rooted-path assertions through the real verifier and evidence translation. Do not broaden arbitrary citation semantics, auto-correct old claims, change authority, dependencies, artifacts, receiver, outbox, or approve anything. Favor the existing parser seam and a complete25-minute implementation; make interpretation boundaries explicit rather than guessing. Produce graph, typed notes and truthful interpreter debrief only, not implementation or node approval. Use current sources and AGENTS; received hypotheses remain unratified, no-use is valid. Actual authorship codex/gpt-5.6-terra. Use actual UTC note times and full Git hashes, mise exec, one focused command at a time with retained yielded handles, lint before handoff; full suites belong to harness. Keep all earlier artifacts. No agents, trust/permission/config changes, external inference or live-brain calls, push, merge or deployment. Per-command unsigned commits allowed if signing unavailable. Stop after committed canonical debrief.'
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+  graph_base_sha: d52079ccff33683d60f9458ae57a4baf5584ace6
+  session_start_sha: f8eb642eb473a76fdbeddab0908bd97bf1277cf7
+  session: 1d6bd0db-2b07-465a-950c-46536ff0eeaf
+  date: 2026-09-16
+read: >
+  The reported wrong root is current: checkFoundAt recognizes an explicit
+  location only after its path passes a known-extension-or-slash heuristic, so
+  evidence.txt:2-3 bypasses the range, path, and separate-quotation checks and
+  reaches the out-of-band quotation fallback. The existing parser already owns
+  explicit range validation, historical path resolution, quotation counting,
+  and marks. One small implementation node can make a syntactically explicit,
+  nonquoted file-location claim enter that seam regardless of its ordinary or
+  absent extension, while retaining command and actual out-of-band branches.
+  Its focused direct tests distinguish the boundary, and its real verifier and
+  evidence translation proof establishes the rooted path rather than a
+  repository-scoped out-of-band item.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: enforce-explicit-citation-boundary
+    depends_on: []
+    acceptance: |
+      Change only the existing explicit-location parser seam in
+      packages/verifier/src/foundAt.ts so a syntactically explicit file location
+      with a numeric line or line-range suffix is handled by the existing
+      range/path/separate-quotation checks whether the path has an ordinary
+      filename extension, an unrecognized extension such as evidence.txt, or
+      no extension. Do not use that change to give arbitrary prose a new
+      citation meaning: preserve the existing path-like fallback for ordinary
+      non-explicit text, command-form roots, and genuinely out-of-band quoted
+      extracts with no explicit location. Do not scan colon-number text inside
+      the separate quoted extract as another location.
+
+      Extend packages/verifier/test/foundAt.test.ts with exact discriminators in
+      committed Git fixtures. A correct quote for both evidence.txt and an
+      extensionless basename must root with that resolved path. For each
+      explicit form, malformed or reversed ranges, a missing file, a missing
+      quote, and a wrong quote must remain unrooted rather than fall back to an
+      out-of-band root. A valid explicit citation whose quoted source text
+      itself contains colon-number syntax must still have one location and root
+      its cited path. Retain explicit assertions that a command-form citation
+      roots and a genuine quoted out-of-band citation roots as out-of-band.
+
+      Extend the existing real Git-fixture verification coverage in
+      packages/runner/test/debriefAuthoringGuidance.test.ts (or an equally
+      narrow existing verifier-and-evidence test seam) with an authored v2
+      discovery using evidence.txt. Through verifyDebrief, assert the correct
+      quotation is rooted with hunk evidence.txt and the wrong and missing
+      quotations are unrooted. Feed those actual discovery marks into evidenceOf
+      and assert the rooted discovery becomes a path-scoped hypothesis for
+      evidence.txt while each unrooted discovery is excluded. Keep all existing
+      guidance, artifact, schema, authority, dependency, receiver, outbox, and
+      historical-debrief behavior unchanged; do not auto-correct any old claim.
+
+      Run the two focused test files through the pinned toolchain and lint the
+      touched files before handoff. Record truthful typed notes and debrief with
+      actual provenance. Do not lease or run another node, approve a graph,
+      change trust, permissions, or configuration, make external inference or
+      live-brain calls, push, merge, or deploy. The harness runs standing gates.
+    gates:
+      - id: explicit-citation-parser-proof
+        kind: command
+        run: pnpm --filter verifier exec vitest run test/foundAt.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: explicit-citation-translation-proof
+        kind: command
+        run: pnpm --filter runner exec vitest run test/debriefAuthoringGuidance.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
