@@ -1,15 +1,21 @@
 import { randomUUID } from "node:crypto";
-import { link, lstat, readFile, unlink, writeFile } from "node:fs/promises";
-import { basename, relative, resolve, sep } from "node:path";
+import { link, readFile, unlink, writeFile } from "node:fs/promises";
+import { basename, resolve } from "node:path";
 import { isErr } from "@phyxiusjs/fp";
 import {
   type BriefFrontMatter,
+  candidatePathIsAbsent,
+  candidatePathIsDirect,
   debriefFilePath,
+  directRegular,
   explainBriefRefusal,
   explainDebriefRefusal,
+  isSafeGraphId,
+  isSafeNodeId,
   readBriefFile,
   readDebriefDocument,
   sessionDirectory,
+  sessionPathIsDirect,
 } from "debrief";
 import { stringify } from "yaml";
 import { findRepoRoot } from "face";
@@ -27,82 +33,8 @@ interface SessionBrief {
   readonly frontMatter: BriefFrontMatter;
 }
 
-function isWithin(directory: string, path: string): boolean {
-  const pathRelative = relative(directory, path);
-  return pathRelative === "" || (pathRelative !== ".." && !pathRelative.startsWith(`..${sep}`));
-}
-
-function isSegment(value: string): boolean {
-  return value.length > 0 && value !== "." && value !== ".." && !value.includes("/") && !value.includes("\\");
-}
-
 function because(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
-}
-
-async function directDirectory(path: string): Promise<string | undefined> {
-  try {
-    const status = await lstat(path);
-    if (status.isSymbolicLink()) return "refuses symbolic links";
-    if (!status.isDirectory()) return "is not a directory";
-    return undefined;
-  } catch (error) {
-    return because(error);
-  }
-}
-
-async function directRegular(path: string): Promise<string | undefined> {
-  try {
-    const status = await lstat(path);
-    if (status.isSymbolicLink()) return "refuses symbolic links";
-    if (!status.isFile()) return "is not a regular file";
-    return undefined;
-  } catch (error) {
-    return because(error);
-  }
-}
-
-async function directSession(repoRoot: string, path: string): Promise<string | undefined> {
-  if (!isWithin(repoRoot, path)) return "escapes the repository root";
-  let current = repoRoot;
-  const rootRefusal = await directDirectory(current);
-  if (rootRefusal !== undefined) return `${current}: ${rootRefusal}`;
-  for (const segment of relative(repoRoot, path).split(sep)) {
-    current = resolve(current, segment);
-    const refusal = await directDirectory(current);
-    if (refusal !== undefined) return `${current}: ${refusal}`;
-  }
-  return undefined;
-}
-
-async function directCandidate(session: string, path: string): Promise<string | undefined> {
-  if (!isWithin(session, path)) return "escapes this session directory";
-  let current = session;
-  for (const segment of relative(session, resolve(path, "..")).split(sep)) {
-    if (segment.length === 0) continue;
-    current = resolve(current, segment);
-    const refusal = await directDirectory(current);
-    if (refusal !== undefined) return `${current}: ${refusal}`;
-  }
-  return directRegular(path);
-}
-
-async function absentCandidate(session: string, path: string): Promise<string | undefined> {
-  if (!isWithin(session, path)) return "escapes this session directory";
-  let current = session;
-  for (const segment of relative(session, resolve(path, "..")).split(sep)) {
-    if (segment.length === 0) continue;
-    current = resolve(current, segment);
-    const refusal = await directDirectory(current);
-    if (refusal !== undefined) return `${current}: ${refusal}`;
-  }
-  try {
-    await lstat(path);
-    return "already exists";
-  } catch (error) {
-    if (error instanceof Error && "code" in error && error.code === "ENOENT") return undefined;
-    return because(error);
-  }
 }
 
 async function readSessionBrief(
@@ -110,10 +42,10 @@ async function readSessionBrief(
   graph: string,
   node: string,
 ): Promise<SessionBrief | string> {
-  if (!isSegment(graph) || !isSegment(node))
-    return "graph and node must each be one non-traversing path segment";
+  if (!isSafeGraphId(graph) || !isSafeNodeId(node))
+    return "graph must be one non-traversing path segment and node must be non-traversing path segments";
   const session = sessionDirectory(repoRoot, graph, node);
-  const sessionRefusal = await directSession(repoRoot, session);
+  const sessionRefusal = await sessionPathIsDirect(repoRoot, session);
   if (sessionRefusal !== undefined) return sessionRefusal;
   const path = resolve(session, "brief.md");
   const pathRefusal = await directRegular(path);
@@ -142,6 +74,12 @@ function authorship(args: readonly string[]): Authorship | string {
     return "requires --agent-runtime <runtime> and --agent-model <model>, or --human <name>";
   if (runtime.length === 0 || model.length === 0) return "agent runtime and model must be nonempty";
   return { kind: "agent", runtime, model };
+}
+
+function declaredAuthorshipIsNonempty(derivation: Authorship): boolean {
+  return derivation.kind === "agent"
+    ? derivation.runtime.length > 0 && derivation.model.length > 0
+    : derivation.who.length > 0;
 }
 
 function candidateDocument(
@@ -196,7 +134,7 @@ export async function runDebriefPrepare(
   const candidate = resolve(repository.root, to);
   if (candidate === debriefFilePath(repository.root, graph, node))
     return { exitCode: 1, message: "interlock debrief prepare: refuses debrief.yaml as a candidate target." };
-  const pathRefusal = await absentCandidate(session, candidate);
+  const pathRefusal = await candidatePathIsAbsent(session, candidate);
   if (pathRefusal !== undefined)
     return { exitCode: 1, message: `interlock debrief prepare: ${candidate}: ${pathRefusal}.` };
   const head = gitHead(repository.root);
@@ -230,7 +168,7 @@ export async function runDebriefFileDerived(
   const current = debriefFilePath(repository.root, graph, node);
   if (candidate === current)
     return { exitCode: 1, message: "interlock debrief file-derived: refuses debrief.yaml as a candidate source." };
-  const pathRefusal = await directCandidate(session, candidate);
+  const pathRefusal = await candidatePathIsDirect(session, candidate);
   if (pathRefusal !== undefined)
     return { exitCode: 1, message: `interlock debrief file-derived: ${candidate}: ${pathRefusal}.` };
   let bytes: Buffer;
@@ -247,6 +185,8 @@ export async function runDebriefFileDerived(
   const start = await deriveSessionStart(repository.root, graph, node, brief.frontMatter, brief.bytes, head);
   if (start.kind === "refusal") return { exitCode: 1, message: `interlock debrief file-derived: ${start.because}.` };
   const debrief = read.value.debrief;
+  if (!declaredAuthorshipIsNonempty(debrief.derivation))
+    return { exitCode: 1, message: "interlock debrief file-derived: candidate derivation must be nonempty authored input." };
   if (
     debrief.graph !== graph || debrief.node !== node || debrief.role !== brief.frontMatter.role ||
     brief.frontMatter.runner.kind !== "worktree" || debrief.graphBaseSha !== brief.frontMatter.runner.graphBaseSha ||

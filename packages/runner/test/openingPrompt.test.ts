@@ -9,8 +9,8 @@ describe("buildOpeningPrompt", () => {
         "Read it first and treat it as binding. Work only in this worktree. " +
         "Append .interlock/sessions/g/n/notes.yaml at every choice and surprise, " +
         "commit as you go, and file .interlock/sessions/g/n/debrief.yaml as your final commit. " +
-        "For a first filing, prepare a candidate with explicit authorship, author its claims and reports, then run " +
-        "interlock debrief file-derived g n --from <candidate-path>; after source changes, commit, prepare a fresh candidate, author it, and file it. " +
+        "For a first filing, run interlock debrief prepare g n --to <candidate-path> --agent-runtime <runtime> --agent-model <model>, or replace both agent flags with --human <name>; author its claims and reports, then run " +
+        "interlock debrief file-derived g n --from <candidate-path>. After source changes, commit, prepare a fresh candidate, author it, and file it. " +
         "When correcting an authored debrief, keep the correction in this session directory and run " +
         "interlock debrief revise g n --from <candidate-path> to select it. " +
         "When the debrief is committed, stop and wait. " +
@@ -23,9 +23,11 @@ describe("buildOpeningPrompt", () => {
 
   it("gives a worker the prepare-author-file-derived sequence and its source-change rule", () => {
     const prompt = buildOpeningPrompt("g", "n");
-    expect(prompt).toContain("prepare a candidate with explicit authorship, author its claims and reports");
+    expect(prompt).toContain("interlock debrief prepare g n --to <candidate-path>");
+    expect(prompt).toContain("--agent-runtime <runtime> --agent-model <model>");
+    expect(prompt).toContain("--human <name>");
     expect(prompt).toContain("interlock debrief file-derived g n --from <candidate-path>");
-    expect(prompt).toContain("after source changes, commit, prepare a fresh candidate, author it, and file it");
+    expect(prompt).toContain("After source changes, commit, prepare a fresh candidate, author it, and file it");
   });
 
   it("names the brief path for a fresh worktree, with no prior-work sentence", () => {

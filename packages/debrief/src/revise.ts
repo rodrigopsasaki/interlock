@@ -1,10 +1,11 @@
 import { createHash, randomUUID } from "node:crypto";
-import { chmod, lstat, mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
-import { basename, relative, resolve, sep } from "node:path";
+import { chmod, mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { basename, resolve } from "node:path";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import { type BriefFrontMatter, explainBriefRefusal, readBriefFile } from "./brief.ts";
 import { type DebriefRead, explainDebriefRefusal, readDebriefFile } from "./debrief.ts";
 import { debriefFilePath, debriefRevisionsDirectory, sessionDirectory } from "./paths.ts";
+import { candidatePathIsDirect, directRegular, isSafeGraphId, isSafeNodeId, sessionPathIsDirect } from "./custody.ts";
 
 export type DebriefRevisionRefusal =
   | { readonly kind: "session-path"; readonly path: string; readonly because: string }
@@ -60,79 +61,8 @@ export function explainDebriefRevisionRefusal(refusal: DebriefRevisionRefusal): 
   }
 }
 
-function isWithin(directory: string, path: string): boolean {
-  const pathRelative = relative(directory, path);
-  return pathRelative === "" || (pathRelative !== ".." && !pathRelative.startsWith(`..${sep}`));
-}
-
-function isSessionSegment(value: string): boolean {
-  return (
-    value.length > 0 &&
-    value !== "." &&
-    value !== ".." &&
-    !value.includes("/") &&
-    !value.includes("\\")
-  );
-}
-
 function because(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
-}
-
-async function isRegularPath(path: string): Promise<string | undefined> {
-  try {
-    const status = await lstat(path);
-    if (status.isSymbolicLink()) return "refuses symbolic links";
-    if (!status.isFile()) return "is not a regular file";
-    return undefined;
-  } catch (error) {
-    return because(error);
-  }
-}
-
-async function isDirectDirectory(path: string): Promise<string | undefined> {
-  try {
-    const status = await lstat(path);
-    if (status.isSymbolicLink()) return "refuses symbolic links";
-    if (!status.isDirectory()) return "is not a directory";
-    return undefined;
-  } catch (error) {
-    return because(error);
-  }
-}
-
-async function sessionPathIsDirect(
-  repoRoot: string,
-  sessionPath: string,
-): Promise<string | undefined> {
-  if (!isWithin(repoRoot, sessionPath)) return "escapes the repository root";
-  const paths = [repoRoot];
-  let path = repoRoot;
-  for (const segment of relative(repoRoot, sessionPath).split(sep)) {
-    path = resolve(path, segment);
-    paths.push(path);
-  }
-  for (const candidate of paths) {
-    const refusal = await isDirectDirectory(candidate);
-    if (refusal !== undefined) return `${candidate}: ${refusal}`;
-  }
-  return undefined;
-}
-
-async function candidatePathIsDirect(
-  sessionPath: string,
-  candidatePath: string,
-): Promise<string | undefined> {
-  if (!isWithin(sessionPath, candidatePath)) return "escapes this session directory";
-  const parent = resolve(candidatePath, "..");
-  let path = sessionPath;
-  for (const segment of relative(sessionPath, parent).split(sep)) {
-    if (segment.length === 0) continue;
-    path = resolve(path, segment);
-    const refusal = await isDirectDirectory(path);
-    if (refusal !== undefined) return `${path}: ${refusal}`;
-  }
-  return isRegularPath(candidatePath);
 }
 
 function sameIdentity(
@@ -171,7 +101,7 @@ async function retainCurrent(
     if (!(error instanceof Error) || !("code" in error) || error.code !== "EEXIST") {
       return { kind: "write-failed", path, because: because(error) };
     }
-    const existing = await isRegularPath(path);
+    const existing = await directRegular(path);
     if (existing !== undefined) return { kind: "write-failed", path, because: existing };
     const retained = await readFile(path);
     return retained.equals(bytes) ? path : { kind: "archive-collision", path };
@@ -185,7 +115,7 @@ export async function reviseDebrief(
   candidate: string,
   options: DebriefRevisionOptions = {},
 ): Promise<Result<DebriefRevisionOutcome, DebriefRevisionRefusal>> {
-  if (!isSessionSegment(graph) || !isSessionSegment(node)) {
+  if (!isSafeGraphId(graph) || !isSafeNodeId(node)) {
     return err({
       kind: "session-path",
       path: repoRoot,
@@ -203,12 +133,12 @@ export async function reviseDebrief(
     return err({ kind: "candidate-path", path: candidatePath, because: candidateRefusal });
 
   const currentPath = debriefFilePath(repoRoot, graph, node);
-  const currentPathRefusal = await isRegularPath(currentPath);
+  const currentPathRefusal = await directRegular(currentPath);
   if (currentPathRefusal !== undefined)
     return err({ kind: "current-read", path: currentPath, because: currentPathRefusal });
 
   const briefPath = resolve(sessionPath, "brief.md");
-  const briefPathRefusal = await isRegularPath(briefPath);
+  const briefPathRefusal = await directRegular(briefPath);
   if (briefPathRefusal !== undefined)
     return err({ kind: "brief-read", path: briefPath, because: briefPathRefusal });
   const briefRead = await readBriefFile(briefPath);
@@ -294,7 +224,7 @@ export async function reviseDebrief(
   } catch (error) {
     return err({ kind: "write-failed", path: revisionsPath, because: because(error) });
   }
-  const revisionsRefusal = await isDirectDirectory(revisionsPath);
+  const revisionsRefusal = await sessionPathIsDirect(repoRoot, revisionsPath);
   if (revisionsRefusal !== undefined)
     return err({ kind: "session-path", path: revisionsPath, because: revisionsRefusal });
 

@@ -17,3 +17,19 @@ entries:
     at: "2026-09-16T11:58:09Z"
     chose: "Use a validated private temporary copy and an OS hard-link create for first filing."
     because: "The temporary copy freezes the validated candidate bytes while link creates debrief.yaml without a replace-capable rename; an existing concurrent canonical path makes the link fail and leaves both authored artifacts intact."
+  - kind: choice
+    at: "2026-09-16T11:58:39Z"
+    chose: "Use the derived prepare-author-file-derived workflow for this session's first handoff."
+    because: "The source checkpoint is committed and the new command recovered this session's immutable brief, typed session start, and current Git head without inventing identity fields."
+  - kind: surprise
+    at: "2026-09-16T11:59:08Z"
+    expected: "The first shared custody implementation would accept every valid session node path."
+    observed: "It rejected the repository's planning node form plan/<graph>; the first authored candidate remains untouched while custody is extracted to accept safe nested node segments and continue refusing traversal and symbolic links."
+  - kind: choice
+    at: "2026-09-16T12:03:13Z"
+    chose: "Revalidate nonempty authored derivation at file-derived as well as prepare."
+    because: "The generic v2 reader deliberately accepts legacy-compatible empty strings, so a candidate edited after preparation must not bypass the explicit authorship requirement."
+  - kind: surprise
+    at: "2026-09-16T12:03:13Z"
+    expected: "The scoped debrief and CLI proof command would complete without unrelated failures."
+    observed: "Debrief's 70 tests and the new derived-handoff fixture's 8 tests passed, but an existing CLI repository-origin test timed out at five seconds; this session does not treat the aggregate scoped command as a passing receipt."

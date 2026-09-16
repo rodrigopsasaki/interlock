@@ -16,6 +16,14 @@ export {
 export type { BriefGate } from "./briefGate.ts";
 export { parseBriefGate } from "./briefGate.ts";
 export { isValidScopePath } from "./briefScopePath.ts";
+export {
+  candidatePathIsAbsent,
+  candidatePathIsDirect,
+  directRegular,
+  isSafeGraphId,
+  isSafeNodeId,
+  sessionPathIsDirect,
+} from "./custody.ts";
 export type { BriefSubstrate } from "./briefSubstrate.ts";
 export { parseBriefSubstrate } from "./briefSubstrate.ts";
 export type {
