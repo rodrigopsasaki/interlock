@@ -1,0 +1,61 @@
+interlock: debrief@v2
+graph: 0035-review-grace
+node: plan/0035-review-grace
+role: interpreter
+graph_base_sha: 6f046acf0b1f8a1661f2d9728502f132eaabb33f
+session_start_sha: 4219f6bfc07512892a37adb983448da2441a8248
+head_sha: e8465797ad99edeea3d460a83656f57528eaf72b
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries:
+  - id: stale-pre-wait-clock-sample
+    what: sessionWait samples the injected clock before runtime.waitUntil and uses that earlier sample to arm grace after a settled wait returns.
+    found_at: packages/runner/src/sessionWait.ts:67-127
+    mattered_because: The elapsed blocking wait shortens the advertised post-settle grace, confirming the received timing hypothesis without relying on it as authority.
+decisions:
+  - id: repair-at-session-wait-seam
+    what: Planned one approval-gated implementation node that samples the existing injected clock after settlement before arming grace for both person-answer and unfinished-work routes.
+    because: One shared seam owns both affected routes, and fresh post-wait time restores the configured interval while the existing grace cap preserves the original run deadline.
+    rests_on:
+      - packages/runner/src/sessionWait.ts
+      - packages/runner/test/sessionWait.test.ts
+      - docs/experiments/comparable-learning/next-briefing-strategy.md
+      - .interlock/sessions/0035-review-grace/plan/0035-review-grace/notes.yaml
+    hunks:
+      - .interlock/graphs/0035-review-grace.yaml
+  - id: require-discriminating-controlled-clock-proof
+    what: Required one controlled-clock regression for each affected settle route that advances during the settle-producing wait and then requires a complete configured grace interval.
+    because: Existing tests prove grace expiry but leave the initial wait at zero elapsed time; the proposed pair fails unchanged source without a wall-clock delay and retains the adjacent resumption, terminal, refusal, and deadline behavior checks.
+    rests_on:
+      - packages/runner/test/sessionWait.test.ts
+      - packages/runner/src/sessionWait.ts
+      - .interlock/sessions/0035-review-grace/plan/0035-review-grace/notes.yaml
+    hunks:
+      - .interlock/graphs/0035-review-grace.yaml
+gates_run_by_agent:
+  - id: graph-load
+    result: pass
+    invocation: mise exec -- pnpm interlock graph show 0035-review-grace
+    note: The graph loaded as graph@v0, showed one pending focused gate, and remained not approved.
+  - id: session-wait-existing-behavior
+    result: pass
+    invocation: mise exec -- pnpm --filter runner exec vitest run test/sessionWait.test.ts
+    note: 17 tests passed; this was a focused existing-behavior check, not a graph-node run.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint -- .interlock/graphs/0035-review-grace.yaml .interlock/sessions/0035-review-grace/plan/0035-review-grace/notes.yaml
+    note: Biome checked 334 files with no fixes applied.
+  - id: debrief-valid
+    result: pass
+    invocation: mise exec -- pnpm interlock debrief validate 0035-review-grace plan/0035-review-grace
+    note: The authored canonical debrief and notes validated before this observed result was recorded.
+  - id: lint-final-artifact
+    result: pass
+    invocation: mise exec -- pnpm lint -- .interlock/sessions/0035-review-grace/plan/0035-review-grace/debrief.yaml
+    note: Biome checked 334 files with no fixes applied before the final commit.
+open:
+  - The proposed graph is not approved and its implementation node was neither leased nor run.
+  - The retained next-briefing proposal was used only as a source-check pointer; this plan establishes a runner timing repair, not a positive learning claim.
+  - The first two notes retain their placeholder timestamps with an explicit later correction; no past event time was invented.
