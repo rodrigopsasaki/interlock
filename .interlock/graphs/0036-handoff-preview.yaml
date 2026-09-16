@@ -1,0 +1,54 @@
+interlock: graph@v0
+id: 0036-handoff-preview
+ask: See what a candidate debrief can contribute before closing the session.
+derivation:
+  kind: model
+  model: gpt-6-astra
+  prompt: ten-iteration-learning-2026-09-16-round-6
+read: >
+  The fresh0035 planner filed a schema-valid discovery whose explicit line range
+  lacked a quotation, so verification excluded it from translated learning.
+  Its supported decisions remained graph-scoped. Existing verify reads canonical
+  artifacts and evidence reads judged journal state. A candidate preview can
+  expose these consequences before handoff without changing their meaning.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: preview-candidate-learning
+    depends_on: []
+    acceptance: |
+      Add interlock debrief preview --file <candidate> as a strictly read-only
+      authoring aid, available before a canonical filing or judged session exists.
+      Compose existing debrief reader/schema validation, verifyDebrief and
+      evidenceOf rather than copying mark or scope policy. Read one candidate
+      byte snapshot for all checks. Resolve a relative file against the supplied
+      cwd. For v2 show the declared source range, each decision/discovery ID,
+      actual verifier marks and exclusion reasons, and each included hypothesis's
+      actual translated scope plus scope gaps. Duplicate statements must not
+      confuse per-claim association. No receipts or person events are invented.
+      Label this a candidate preview, not filing, judgment, delivery, proof of
+      truth or a session-identity attestation. A changed candidate requires a
+      new preview; final judgment still verifies canonical bytes independently.
+      Unrooted claims, no claims, omitted applies_to and an unsuitable target
+      remain observable, non-gating outcomes with exit zero. Malformed/schema-
+      invalid input, invalid arguments and unverifiable Git ranges refuse
+      clearly; legacy artifacts retain their existing compatibility and report
+      that current marks need v2. Never mutate candidate/canonical/history,
+      open or append the journal, send context/absorb, ratify, change gates or
+      authority, infer applicability, or alter existing verify/evidence/validate
+      semantics. Keep address-none use independent of config and network.
+      Add a concise optional command to the shared authoring guidance for new
+      worker and interpreter briefs; started briefs remain immutable. Test the
+      real command with missing/malformed/schema-invalid files, legacy and
+      invalid ranges, the missing-quote exclusion and corrected quotation,
+      rooted scope fallback and explicit applicability, unrooted exclusion even
+      with applies_to, duplicate statement IDs, no-claim input, unchanged files
+      and absent journal/network, and actual guidance delivery. Reuse existing
+      seams, no dependencies or artifact/protocol version change. Honest notes
+      and debrief, clean commits, one bounded25-minute implementation attempt.
+    gates:
+      - id: candidate-preview-proof
+        kind: command
+        run: pnpm --filter cli --filter runner --filter substrate --filter verifier --fail-if-no-match test
+        expect_output: 'Tests +[1-9][0-9]* passed'
