@@ -13,3 +13,11 @@ entries:
     at: "2026-09-16T13:53:18Z"
     chose: "Require direct parser discriminators and an end-to-end verifyDebrief-to-evidenceOf proof in the same implementation node."
     because: "verifyDebrief is the real mark producer and evidenceOf includes only rooted discoveries as path-scoped hypotheses, so a direct mark alone would not prove that a corrected explicit filename avoids the out-of-band repository scope during translation."
+  - kind: surprise
+    at: "2026-09-16T13:55:24Z"
+    expected: "The abbreviated graph commit identifier was sufficient to transcribe the debrief head SHA."
+    observed: "The full graph commit is 66e13d4b739ba192f3ec9b52f02fbb9997c79ec6; the initially drafted suffix was not its full hash and was corrected before preview or validation."
+  - kind: choice
+    at: "2026-09-16T13:56:50Z"
+    chose: "Limit newly recognized unrecognized-extension and extensionless locators to citation position: the first nonblank token, raw or wrapped as the locator token in backticks, followed by one separate quotation."
+    because: "Existing slash and known-extension citations keep their established prose and backtick behavior, while version:2 embedded later in ordinary prose is not promoted to a file claim; the parser must also ignore locator-like text inside the separate extract."

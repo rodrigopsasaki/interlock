@@ -18,9 +18,13 @@ read: >
   and marks. One small implementation node can make a syntactically explicit,
   nonquoted file-location claim enter that seam regardless of its ordinary or
   absent extension, while retaining command and actual out-of-band branches.
-  Its focused direct tests distinguish the boundary, and its real verifier and
-  evidence translation proof establishes the rooted path rather than a
-  repository-scoped out-of-band item.
+  The added bare-name grammar is deliberately narrower than existing path-like
+  prose: only the first nonblank citation token, raw or locator-wrapped in
+  backticks, may be an unrecognized-extension or extensionless location; an
+  embedded prose token such as version:2 is not one. Text in its separate quote
+  is not scanned for locations. Its focused direct tests distinguish that
+  boundary, and its real verifier and evidence translation proof establishes
+  the rooted path rather than a repository-scoped out-of-band item.
 gates:
   - id: approved
     kind: human
@@ -33,21 +37,30 @@ nodes:
       with a numeric line or line-range suffix is handled by the existing
       range/path/separate-quotation checks whether the path has an ordinary
       filename extension, an unrecognized extension such as evidence.txt, or
-      no extension. Do not use that change to give arbitrary prose a new
-      citation meaning: preserve the existing path-like fallback for ordinary
-      non-explicit text, command-form roots, and genuinely out-of-band quoted
-      extracts with no explicit location. Do not scan colon-number text inside
-      the separate quoted extract as another location.
+      no extension. The added bare-name grammar is bounded: an
+      unrecognized-extension or extensionless locator is valid only as the
+      first nonblank citation token, raw or as the locator token wrapped in
+      backticks, with one separate quotation. Thus standalone Makefile:2 with
+      its separate quotation is explicit, but version:2 embedded later in
+      ordinary prose is not automatically a file claim. Keep established
+      slash/known-extension prose and backtick forms unchanged. Do not use this
+      change to give arbitrary prose a new citation meaning; preserve
+      command-form roots and genuinely out-of-band quoted extracts with no
+      explicit location. Do not scan colon-number text inside the separate
+      quoted extract as another location.
 
       Extend packages/verifier/test/foundAt.test.ts with exact discriminators in
-      committed Git fixtures. A correct quote for both evidence.txt and an
-      extensionless basename must root with that resolved path. For each
-      explicit form, malformed or reversed ranges, a missing file, a missing
-      quote, and a wrong quote must remain unrooted rather than fall back to an
-      out-of-band root. A valid explicit citation whose quoted source text
-      itself contains colon-number syntax must still have one location and root
-      its cited path. Retain explicit assertions that a command-form citation
-      roots and a genuine quoted out-of-band citation roots as out-of-band.
+      committed Git fixtures. A correct quote for evidence.txt and standalone
+      Makefile:2 must root with its resolved path. For each newly explicit form,
+      malformed or reversed ranges, a missing file, a missing quote, and a
+      wrong quote must remain unrooted rather than fall back to an out-of-band
+      root. Add a discriminating ordinary-prose case showing that embedded
+      version:2 is not selected as a file location, alongside retained
+      slash/known-extension prose and backtick-form assertions. A valid
+      explicit citation whose quoted source text itself contains colon-number
+      syntax must still have one location and root its cited path. Retain
+      explicit assertions that a command-form citation roots and a genuine
+      quoted out-of-band citation roots as out-of-band.
 
       Extend the existing real Git-fixture verification coverage in
       packages/runner/test/debriefAuthoringGuidance.test.ts (or an equally
