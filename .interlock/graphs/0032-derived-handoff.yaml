@@ -1,0 +1,91 @@
+interlock: graph@v0
+id: 0032-derived-handoff
+ask: >
+  Make a complete usable CLI workflow for a worker to file a truthful v2 debrief without manually copying graph, node, role, graph-base, session-start or source-head identity. Derive those fields only from the immutable worktree brief, exact typed session record and Git. The worker still authors discoveries, decisions and honest reports. Reuse existing readers and identity-recovery/revision custody, preserve legacy formats and address none, and refuse missing, ambiguous, mismatched or altered identity before any write. Never overwrite an existing authored debrief or invent a session start or unrun check. A previous unapproved proposal suggested a creation-only canonical scaffold followed by an authored candidate and explicit revise; assess the complete user workflow, do not assume the proposal is correct. Two source-checked review findings need resolution: debrief v2 requires derivation but the session journal does not record model identity, and revise does not verify a changed head_sha. Define honest authorship input for unrecorded metadata and what the user must do after source changes. Produce one bounded implementation node with executable discriminating gates, not implementation or an executed node. We will use its output on the next real session. The present session is gpt-5.6-terra via codex; use actual Git hashes and date, not example provenance. No dependencies, agents, push, main merge, deployment, permissions, old-session edits or existing-brain access. Received context is provisional: check useful hypotheses against source and report actual use, rejection or irrelevance without forcing a positive claim. Leave full suites to the harness. If any local check yields, retain its session_id and poll rather than starting a duplicate. Stop after committing the planning graph, typed notes and debrief.
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+  graph_base_sha: 783ebd1d075e09b715a99532159680d29e9993fb
+  session_start_sha: fde28ac1ae62ca1b8dc130bed98ae25973b881fa
+  session: 4d7a08f9-9b2b-46c3-8ba2-efc07d5dcb5d
+  date: 2026-09-16
+read: >
+  The current worktree brief at fde28ac1ae62ca1b8dc130bed98ae25973b881fa
+  supplies graph, node, role, graph base and session id; the one typed
+  session-started event corroborates the session but has no runtime/model field.
+  At graph base 783ebd1d075e09b715a99532159680d29e9993fb, ordinary revise
+  compares debrief identity yet does not establish candidate head_sha against
+  Git. One node therefore adds a creation-only candidate command, not a
+  canonical scaffold: the worker declares only unrecorded derivation metadata,
+  authors the claims and reports, then selects the candidate through the
+  existing custody seam while its derived source head is still current. This
+  leaves legacy readers and address none untouched, retains prior authored
+  bytes on revision, and makes a post-preparation source change a refusal that
+  requires a fresh candidate rather than a guessed head.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: derive-debrief-handoff
+    depends_on: []
+    acceptance: |
+      Provide a complete worker CLI handoff for filing a truthful debrief@v2
+      without hand-copying graph, node, role, graph_base_sha,
+      session_start_sha or head_sha. Add a creation-only
+      `interlock debrief prepare <graph> <node> --to <candidate-path>` flow
+      that creates a new regular candidate only beneath that exact session
+      directory and never writes debrief.yaml or replaces an existing
+      candidate. It derives graph/node/role/graph base/session identity from
+      the immutable local worktree brief, exactly one matching typed
+      session-started record, and Git: the session-start commit is the unique
+      graph-base ancestry transition introducing byte-identical matching brief
+      bytes, and head_sha is the current Git HEAD. Refuse before any write for
+      a missing, legacy, altered or non-worktree brief; absent, duplicate or
+      mismatched typed session start; absent, ambiguous, non-ancestral or
+      byte-different Git identity; unsafe graph/node/candidate path; symbolic
+      link; existing candidate; or a non-commit source head. Do not create a
+      session, lease, journal event, gate result or receipt while preparing.
+
+      The only identity metadata not recoverable from those sources is
+      debrief.derivation. Require it as explicit honest authorship input:
+      either a nonempty agent runtime and model, or a nonempty human name,
+      with mutually exclusive forms. Preserve exactly that supplied declaration
+      in the candidate; do not infer model identity from runtime kind, command
+      arguments, narration, environment, or a default. Emit empty discoveries,
+      decisions and gates_run_by_agent for the worker to author truthfully; do
+      not invent a check. The worker authors claims and reports in the candidate
+      and uses existing `interlock debrief revise ... --from <candidate-path>`
+      to select it. On first filing, selection validates the same proof and
+      atomically creates canonical debrief.yaml without an archive; on a later
+      filing, retain the exact existing canonical bytes through the existing
+      content-addressed revisions custody before atomic replacement. Never
+      overwrite an authored canonical debrief, source candidate or retained
+      bytes, including on any refusal or install failure.
+
+      Make revise require the candidate head_sha to be the current Git HEAD at
+      selection and a descendant of the recovered session start. Explain that
+      after source changes the user first commits those source changes, then
+      prepares a fresh candidate and authors it before selection; a candidate
+      prepared against an older head refuses rather than silently filing a stale
+      source identity. Keep the existing explicit recovery mode narrow, legacy
+      debrief@v0/v1 readers and validation behavior intact, and address none
+      usable because this handoff neither requires nor calls a substrate.
+      Reuse the current brief/debrief readers, Git identity recovery, revision
+      path custody and atomic install rather than duplicate parsers or weaken
+      their path/symlink checks. Add real temporary Git/journal fixtures proving
+      first filing, later archive-and-replace filing, all derived fields,
+      explicit agent and human derivation, source-head change refusal, missing/
+      ambiguous/mismatched/altered identity, candidate path and symlink
+      refusal, no-write-on-refusal, unrun-check preservation, and old reader/
+      ordinary-revise compatibility. Update the worker handoff text with the
+      exact prepare-author-select and source-change sequence. No schema/event
+      version change, runtime-specific behavior outside its adapter, dependency,
+      old-session edit, approval bypass, push, merge, deployment, permission
+      change or substrate call. Record truthful typed notes/debrief and clean
+      commits; the harness runs standing gates.
+    gates:
+      - id: derived-handoff-proof
+        kind: command
+        run: pnpm --filter debrief --filter cli --fail-if-no-match test
+        expect_output: 'Tests +[1-9][0-9]* passed'
