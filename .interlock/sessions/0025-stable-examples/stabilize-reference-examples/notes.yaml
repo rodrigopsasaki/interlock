@@ -41,3 +41,7 @@ entries:
     at: "2026-09-16T03:52:46Z"
     chose: Place both regression debriefs beneath .interlock session paths in the isolated fixture.
     because: The previous size-based selector scanned .interlock, so the regression must demonstrate that a smaller realistic session artifact cannot regain control of the published example.
+  - kind: surprise
+    at: "2026-09-16T03:54:57Z"
+    expected: The debrief revision command would retain the draft and select the candidate with the real initial brief commit.
+    observed: Revision correctly refused because the authored draft carries a nonexistent session_start_sha and the revision identity rule makes that field immutable.
