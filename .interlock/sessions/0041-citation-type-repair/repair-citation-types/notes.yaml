@@ -1,0 +1,15 @@
+interlock: notes@v0
+node: repair-citation-types
+entries:
+  - kind: surprise
+    at: "2026-09-16T14:42:05Z"
+    expected: "The session directory would already contain the required notes artifact."
+    observed: "Only the immutable brief was present, so this session creates notes before recording the source-checked repair choice."
+  - kind: choice
+    at: "2026-09-16T14:42:05Z"
+    chose: "Construct an explicit-location object without locatorQuote when its bounds are absent."
+    because: "The optional property is rejected when supplied as undefined under exactOptionalPropertyTypes; a two-branch construction preserves the same runtime fields while making absence representable by omission."
+  - kind: surprise
+    at: "2026-09-16T14:42:27Z"
+    expected: "The configured Git signature would be available for the source commit."
+    observed: "GPG could not create its keybox lock or connect to keyboxd under this session, so the brief-authorized unsigned-commit fallback is required without changing Git configuration."

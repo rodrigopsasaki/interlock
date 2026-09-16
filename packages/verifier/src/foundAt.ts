@@ -46,6 +46,10 @@ function explicitLocations(text: string): readonly ExplicitLocation[] {
     locatorQuote?: ExplicitLocation["locatorQuote"],
   ): void {
     if (!pathLike(path) && !firstToken) return;
+    if (locatorQuote === undefined) {
+      locations.push({ source: `${path}:${suffix}`, path, suffix });
+      return;
+    }
     locations.push({ source: `${path}:${suffix}`, path, suffix, locatorQuote });
   }
 
