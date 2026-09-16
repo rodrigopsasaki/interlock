@@ -1,0 +1,61 @@
+interlock: debrief@v2
+graph: 0031-repair-planning-context
+node: repair-planning-context
+role: worker
+graph_base_sha: d33edc58e1f331e373806204eeca0a0f2c5f6fc7
+session_start_sha: eeabc25152864df9391fda4bdc0c354f0c10266b
+head_sha: eba3ecedbe645d16c2a5f4a80f333641b82c8028
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries:
+  - id: prior-brief-read-is-three-state
+    what: "The brief reader reports a missing file as a refusal, returns valid legacy content as a successful legacy read, and reports present malformed, unknown-tag, or invalid brief@v1 content as refusals."
+    mattered_because: "Explicit corrections can safely fall back only when no v1 selector exists, while a present invalid artifact must retain its refusal."
+    found_at: packages/debrief/src/brief.ts
+  - id: scope-reader-permits-normalization
+    what: "The brief path reader allows a repository-relative normalizable alias, but plan's exact tracked-set check rejects it before session state or context dispatch."
+    mattered_because: "A regression proof must exercise the exact-set boundary rather than only a plainly untracked path."
+    found_at: packages/debrief/src/briefScopePath.ts
+decisions:
+  - id: preserve-omitted-context-for-compatible-corrections
+    what: "For an explicit correction ask with no replacement selector, retained inherited selection only from a valid v1 prior brief; missing and valid legacy prior briefs now leave context selection omitted."
+    because: "Omission continues to query the full tracked scope, while only valid v1 front matter has an authored selector to inherit."
+    rests_on:
+      - .interlock/graphs/0031-repair-planning-context.yaml
+      - .interlock/sessions/0031-repair-planning-context/repair-planning-context/notes.yaml
+      - packages/debrief/src/brief.ts
+    hunks:
+      - packages/cli/src/plan.ts
+      - packages/cli/test/plan.test.ts
+  - id: retain-invalid-prior-brief-refusal
+    what: "Preserved refusal for a present malformed, unknown-tag, or invalid prior planner brief, and covered each before context dispatch or session state."
+    because: "Treating present-invalid bytes as if they were absent would silently discard a corrupted authored artifact and weaken correction inheritance."
+    rests_on:
+      - .interlock/graphs/0031-repair-planning-context.yaml
+      - .interlock/sessions/0031-repair-planning-context/repair-planning-context/notes.yaml
+      - packages/debrief/src/brief.ts
+    hunks:
+      - packages/cli/src/plan.ts
+      - packages/cli/test/plan.test.ts
+  - id: exercise-addressed-context-through-origin
+    what: "Reused the valid Git origin fixture for addressed planner cases and added a normalizable context-path alias to the exact tracked-set refusal cases."
+    because: "The planner's real context client must keep origin refusal intact, and normalization must not make an alias authoritative."
+    rests_on:
+      - .interlock/graphs/0031-repair-planning-context.yaml
+      - .interlock/sessions/0031-repair-planning-context/repair-planning-context/notes.yaml
+      - packages/cli/src/repositoryOrigin.ts
+    hunks:
+      - packages/cli/test/plan.test.ts
+gates_run_by_agent:
+  - id: planning-context-proof
+    result: fail
+    invocation: mise exec -- pnpm --filter cli exec vitest run test/plan.test.ts
+    note: "The retained focused test session was interrupted with exit 143 after yielded sessions were not retained. The other duplicate trees are externally unverified because the sandbox process list was unavailable; no planner assertions completed or passed."
+  - id: debrief-valid
+    result: pass
+    invocation: mise exec -- pnpm interlock debrief validate 0031-repair-planning-context repair-planning-context
+    note: "The debrief and notes validated as their supported shapes."
+open:
+  - "The harness must run planning-context-proof and the remaining standing gates; this session has no completed test receipt."

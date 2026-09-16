@@ -13,3 +13,7 @@ entries:
     at: "2026-09-16T11:36:07Z"
     expected: "The source commit would use the repository's configured signing path."
     observed: "GPG could not access its user keybox in this worktree sandbox, so the commit requires the same per-command unsigned fixture setting used by planner tests."
+  - kind: surprise
+    at: "2026-09-16T11:37:35Z"
+    expected: "The sandbox would permit targeted inspection and termination of the two unretained duplicate test process trees."
+    observed: "The process-list service was unavailable, so targeted pkill could not inspect or signal them; the retained session exited 143, while the other two are externally unverified and none is a passing receipt."
