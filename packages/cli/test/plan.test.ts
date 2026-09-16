@@ -425,15 +425,20 @@ describe("interlock plan", () => {
     expect(result.message).toContain("--correction");
   });
 
-  it("omits the Context slice section from the brief when there is no substrate to render", async () => {
+  it("delivers authoring guidance in the interpreter canonical brief and ordinary opening", async () => {
     const cwd = fixture();
     const worktreePath = join(cwd, ".worktrees", "plan", "demo");
+    let prompt: string | undefined;
 
     const result = await runInterlockPlan(["demo", "--ask", "add a health check endpoint"], {
       cwd,
       clock: createControlledClock(),
       runtime: {
         ...stubRuntime(),
+        prompt: (_agent, text) => {
+          prompt = text;
+          return Promise.resolve(ok(undefined));
+        },
         waitUntil: finishedWaitUntil(worktreePath, "demo", "plan/demo", graphYaml("demo")),
       },
     });
@@ -453,6 +458,10 @@ describe("interlock plan", () => {
       throw new Error("expected the worktree copy to read as brief@v1");
     }
     expect(read.value.body).not.toContain("## Context slice");
+    expect(read.value.body).toContain("## Debrief authoring");
+    if (prompt === undefined) throw new Error("expected an opening prompt");
+    expect(prompt).toContain("Prompt projection, not a brief file.");
+    expect(prompt).toContain("## Debrief authoring");
   }, 30_000);
 
   it("carries the previous ask forward when --correction omits --ask", async () => {

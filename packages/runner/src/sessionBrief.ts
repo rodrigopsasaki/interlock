@@ -14,6 +14,7 @@ import type { Brief } from "ledger";
 import { narrateContext, type SubstrateClient } from "substrate";
 import { authoritativeBriefGates, diffGates, diffScope, renderBriefFile } from "./briefRewrite.ts";
 import { withRenderedContextSlice } from "./contextSlice.ts";
+import { withDebriefAuthoringGuidance } from "./debriefAuthoringGuidance.ts";
 import { renderOpeningView } from "./openingView.ts";
 import { gitTrackedFiles } from "./scope.ts";
 import type { StandingGate } from "./standingGates.ts";
@@ -96,12 +97,10 @@ export async function writeBriefIntoWorktree(
   );
   narration.push(narrateContext(substrate.address, contextOutcome));
   const rendered = contextOutcome.kind === "rendered";
+  const authoredBody = withDebriefAuthoringGuidance(read.value.body);
   const body = rendered
-    ? withRenderedContextSlice(
-        read.value.body,
-        renderSlice(substrate.address, contextOutcome.items),
-      )
-    : read.value.body;
+    ? withRenderedContextSlice(authoredBody, renderSlice(substrate.address, contextOutcome.items))
+    : authoredBody;
 
   const content = renderBriefFile(
     {

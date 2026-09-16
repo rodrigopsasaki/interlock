@@ -3,7 +3,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
 import { type Clock, createSystemClock } from "@phyxiusjs/clock";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
-import { explainBriefRefusal, readBriefFile, renderSlice } from "debrief";
+import { type BriefFrontMatter, explainBriefRefusal, readBriefFile, renderSlice } from "debrief";
 import {
   approvalState,
   explainGraphRefusal,
@@ -36,6 +36,7 @@ import {
   loadStandingGates,
   type Runtime,
   renderBriefFile,
+  renderOpeningView,
 } from "runner";
 import { narrateContext } from "substrate";
 import { parseFlag } from "./flags.ts";
@@ -321,19 +322,17 @@ export async function runInterlockPlan(
       }
 
       const body = interpreterBriefBody(graph, node, resolvedAsk, contextSlice, correction);
-      const content = renderBriefFile(
-        {
-          graph,
-          node,
-          role: "interpreter",
-          gates: authoritativeBriefGates(standingGates.value, []),
-          scope,
-          ...(selectedContextScope === undefined ? {} : { contextScope: selectedContextScope }),
-          substrate: { address: substrate.address },
-          runner: { kind: "worktree", graphBaseSha, session },
-        },
-        body,
-      );
+      const frontMatter: BriefFrontMatter = {
+        graph,
+        node,
+        role: "interpreter",
+        gates: authoritativeBriefGates(standingGates.value, []),
+        scope,
+        ...(selectedContextScope === undefined ? {} : { contextScope: selectedContextScope }),
+        substrate: { address: substrate.address },
+        runner: { kind: "worktree", graphBaseSha, session },
+      };
+      const content = renderBriefFile(frontMatter, body);
 
       const destination = join(worktreePath, ".interlock", "sessions", graph, node, "brief.md");
       try {
@@ -342,7 +341,11 @@ export async function runInterlockPlan(
       } catch (error) {
         return err(`${destination}: ${error instanceof Error ? error.message : String(error)}`);
       }
-      return ok({ path: destination, narration });
+      return ok({
+        path: destination,
+        narration,
+        openingView: renderOpeningView(frontMatter, body, relative(worktreePath, destination)),
+      });
     };
 
     const beforeJudge = async (worktreePath: string): Promise<Result<void, BeforeJudgeRefusal>> => {

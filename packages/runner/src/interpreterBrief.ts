@@ -1,3 +1,5 @@
+import { debriefAuthoringGuidance } from "./debriefAuthoringGuidance.ts";
+
 export interface InterpreterCorrection {
   readonly reason: string;
   readonly previousGraphYaml: string;
@@ -52,6 +54,8 @@ export function interpreterBriefBody(
   if (correction !== undefined) {
     lines.push(...correctedFromSection(correction));
   }
+
+  lines.push(debriefAuthoringGuidance, "");
 
   lines.push(
     "## Read first",

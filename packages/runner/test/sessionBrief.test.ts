@@ -321,7 +321,7 @@ describe("writeBriefIntoWorktree", () => {
     ]);
   });
 
-  it("preserves the body verbatim", async () => {
+  it("adds shared authoring guidance while retaining the authored body and ordinary opening", async () => {
     const body = "\n# brief\n\nA blank line above remains.\n\n";
     const { repo, worktree } = fixture(
       v1WithMatchingGatesAndScope.replace("# brief\n", body.slice(1)),
@@ -340,10 +340,16 @@ describe("writeBriefIntoWorktree", () => {
     const content = readFileSync(briefPath(worktree, "g", "n"), "utf-8");
     const bodyStart = content.indexOf("\n---\n") + "\n---\n".length;
     expect(bodyStart).toBeGreaterThan("\n---\n".length - 1);
-    expect(content.slice(bodyStart)).toBe(body);
+    const writtenBody = content.slice(bodyStart);
+    expect(writtenBody.startsWith(body)).toBe(true);
+    expect(writtenBody.match(/^## Debrief authoring$/gm)).toHaveLength(1);
+    expect(writtenBody).toContain(
+      "applies_to: { kind: path, path: packages/substrate/src/evidence.ts }",
+    );
     expect(isOk(result)).toBe(true);
     if (!isOk(result)) return;
-    expect(result.value.openingView?.endsWith(body)).toBe(true);
+    expect(result.value.openingView?.endsWith(writtenBody)).toBe(true);
+    expect(result.value.openingView).toContain("## Debrief authoring");
   });
 });
 
@@ -527,7 +533,7 @@ describe("writeBriefIntoWorktree with a substrate that renders a slice", () => {
     expect(content).toContain("address: none");
   });
 
-  it("leaves the authored body and address unchanged after a refused unheaded context", async () => {
+  it("retains the authored body and adds guidance after a refused unheaded context", async () => {
     const { repo, worktree } = fixture(v1WithMatchingGatesAndScope);
     const source = await readBriefFile(briefPath(repo, "g", "n"));
     if (!isOk(source) || source.value.kind !== "v1") throw new Error("expected v1");
@@ -547,7 +553,8 @@ describe("writeBriefIntoWorktree with a substrate that renders a slice", () => {
 
     const written = await readBriefFile(briefPath(worktree, "g", "n"));
     if (!isOk(written) || written.value.kind !== "v1") throw new Error("expected v1");
-    expect(written.value.body).toBe(source.value.body);
+    expect(written.value.body.startsWith(source.value.body)).toBe(true);
+    expect(written.value.body.match(/^## Debrief authoring$/gm)).toHaveLength(1);
     expect(written.value.body).not.toContain("## Context slice");
     expect(written.value.frontMatter.substrate.address).toBe("none");
   });

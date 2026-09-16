@@ -1,0 +1,35 @@
+interlock: notes@v0
+node: teach-lesson-applicability
+entries:
+  - kind: surprise
+    at: "2026-09-16T12:18:58Z"
+    expected: "The session directory would already contain the required notes artifact."
+    observed: "Only the immutable brief was present, so this session creates notes before its implementation choice."
+  - kind: choice
+    at: "2026-09-16T12:18:58Z"
+    chose: "Compose one replaceable debrief-authoring section at both generated brief bodies."
+    because: "The applicability decision separates support from authored usefulness, while an owned section can reach worker and interpreter canonical briefs and their opening views without changing debrief semantics or existing session artifacts."
+  - kind: surprise
+    at: "2026-09-16T12:20:30Z"
+    expected: "The runner package test command with focused file arguments would run only those files."
+    observed: "Its package script ran the whole runner suite; the new guidance and session-brief tests passed, while unrelated live-herdr and GPG-dependent tests failed because the local socket and signing service are unavailable."
+  - kind: surprise
+    at: "2026-09-16T12:20:50Z"
+    expected: "A generic generated guidance heading would be sufficient to identify only harness-owned text."
+    observed: "Review found that the heading can collide with authored or fenced content, and the combined YAML alternatives repeat a key, so ownership markers and separate parseable examples are required."
+  - kind: surprise
+    at: "2026-09-16T12:24:49Z"
+    expected: "The first reader fixture would parse its `rests_on` example as a string."
+    observed: "YAML treated the unquoted colon-plus-space value as structure, so the fixture now uses the established no-space notes reference form."
+  - kind: choice
+    at: "2026-09-16T12:24:49Z"
+    chose: "Recognize generated guidance only outside matching Markdown fences."
+    because: "The ownership markers identify the harness section, but fenced text is authored literal content and must remain opaque so a quoted marker pair cannot be removed during composition."
+  - kind: surprise
+    at: "2026-09-16T12:26:04Z"
+    expected: "A matching fence delimiter anywhere at the start of a line would unambiguously close a fenced quotation."
+    observed: "Review reproduced a delimiter followed by text before a quoted marker pair; only a delimiter followed by optional whitespace closes the fence, so the preservation fixture now covers both backtick and tilde forms."
+  - kind: choice
+    at: "2026-09-16T12:27:52Z"
+    chose: "Project the interpreter canonical brief into its ordinary opening through the existing opening-view route."
+    because: "The shared section must reach the actual planning session, and rendering the already-written canonical body preserves the same guidance without inventing another prompt format."
