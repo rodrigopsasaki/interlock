@@ -1,0 +1,87 @@
+interlock: debrief@v2
+graph: 0029-planning-context
+node: select-planning-context
+role: worker
+graph_base_sha: bbd6caa3d756d72e902d0e5f5cd6d41844858946
+session_start_sha: 9636e4cfb9fdf0e9ccd873f67ecc5a8036ce7f72
+head_sha: 459ea50c332f6fe00a42d788037ee5a7acd26423
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries:
+  - id: empty-selector-schema-mismatch
+    what: The published brief@v1 schema still required one context_scope item after the reader accepted an explicit empty selector.
+    mattered_because: A generated immutable brief with the authorized repository-level query would otherwise fail schema validation despite being readable by the harness.
+    found_at: schemas/brief@v1.json:33-40
+  - id: compose-follows-session-start
+    what: The planner's composeBrief callback runs after the session driver records session-started and takes its lease.
+    mattered_because: Exact-tracked selector refusal must happen before the driver or it leaves a live session with no runnable brief.
+    found_at: packages/runner/src/sessionDrive.ts:119-175
+decisions:
+  - id: retain-deliberate-query-selection
+    what: Added --context-scope as one JSON list selector, retained it as context_scope when present, and continued to render the full tracked set as scope.
+    because: Query selection must be explicit and inspectable while planning authority remains the complete tracked repository.
+    rests_on:
+      - .interlock/graphs/0029-planning-context.yaml
+      - .interlock/sessions/0029-planning-context/select-planning-context/notes.yaml
+      - packages/runner/src/sessionBrief.ts
+    hunks:
+      - packages/cli/src/plan.ts
+  - id: refuse-invalid-selectors-before-session
+    what: Rejected malformed, duplicate, untracked, and inherited no-longer-tracked selectors before session creation, while retaining a defensive check at brief composition.
+    because: A refusal must prevent both a context request and session or lease state, and correction inheritance must not trust paths that left the tracked repository.
+    rests_on:
+      - .interlock/graphs/0029-planning-context.yaml
+      - .interlock/sessions/0029-planning-context/select-planning-context/notes.yaml
+      - packages/runner/src/sessionDrive.ts
+    hunks:
+      - packages/cli/src/plan.ts
+      - packages/cli/test/plan.test.ts
+  - id: make-empty-selector-a-published-brief-contract
+    what: "Allowed context_scope: [] in the brief reader and the published brief@v1 schema, with a combined schema-and-reader parity proof."
+    because: An explicit empty list is the repository-level query contract and must be accepted consistently without changing omitted-selector behavior or any substrate wire shape.
+    rests_on:
+      - .interlock/graphs/0029-planning-context.yaml
+      - .interlock/sessions/0029-planning-context/select-planning-context/notes.yaml
+      - schemas/brief@v1.json
+    hunks:
+      - packages/debrief/src/brief.ts
+      - packages/debrief/test/brief.test.ts
+      - packages/schemas/test/brief.test.ts
+      - schemas/brief@v1.json
+gates_run_by_agent:
+  - id: planning-context-proof
+    result: fail
+    invocation: mise exec -- pnpm --filter cli exec vitest run test/plan.test.ts
+    note: The sandbox refused fake loopback listeners with EPERM, so the addressed planner cases timed out before their assertions.
+  - id: focused-inherited-selector-proof
+    result: pass
+    invocation: mise exec -- pnpm --filter cli exec vitest run test/plan.test.ts --testNamePattern='inherited correction selector'
+    note: 1 test passed.
+  - id: focused-brief-schema-proof
+    result: pass
+    invocation: mise exec -- pnpm --filter schemas exec vitest run test/brief.test.ts
+    note: 6 tests passed.
+  - id: focused-brief-reader-proof
+    result: pass
+    invocation: mise exec -- pnpm --filter debrief exec vitest run test/brief.test.ts
+    note: 30 tests passed.
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+  - id: debrief-valid
+    result: pass
+    invocation: mise exec -- pnpm interlock debrief validate 0029-planning-context select-planning-context
+  - id: test
+    result: fail
+    invocation: mise exec -- pnpm test
+    note: The sandbox refused loopback listeners with EPERM; substrate server tests timed out before runner and CLI suites.
+open:
+  - Run the planner proof and aggregate suite in an environment that permits the repository's loopback fake substrate server.

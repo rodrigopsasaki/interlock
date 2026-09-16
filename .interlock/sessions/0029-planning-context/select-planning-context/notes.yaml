@@ -29,3 +29,11 @@ entries:
     at: "2026-09-16T05:52:17Z"
     chose: Check explicit tracked selectors after the existing graph-approval refusal but before the session driver, and check inherited selectors in afterWorktree before session-started.
     because: This preserves approval's existing priority while ensuring selector refusal cannot create a session or lease.
+  - kind: surprise
+    at: "2026-09-16T05:54:13Z"
+    expected: The declared aggregate test gate would reach every package after the focused non-network proofs passed.
+    observed: The substrate package's loopback-server tests timed out under the sandbox's EPERM listener restriction, so pnpm test stopped before runner and CLI suites.
+  - kind: surprise
+    at: "2026-09-16T05:55:21Z"
+    expected: The authored debrief would parse on its first validation.
+    observed: "A decision scalar containing context_scope: [] was unquoted, so YAML treated it as an invalid compact mapping; it is now quoted as required."
