@@ -1,0 +1,27 @@
+interlock: notes@v0
+node: record-current-handoff
+entries:
+  - kind: choice
+    at: "2026-09-16T04:59:44Z"
+    chose: Compare the currently readable v2 debrief with the session projection before filing, while retaining note ingestion only for a session with no filed debrief.
+    because: The projection already holds the last filed debrief and applies later debrief-filed events as the current position; comparing it prevents a corrected selected debrief from being hidden while unchanged rejudgment cannot duplicate notes.
+  - kind: surprise
+    at: "2026-09-16T05:02:08Z"
+    expected: The focused runner command would run only gateJudge.test.ts.
+    observed: The package test script passed its trailing argument through Vitest after its run mode and executed the full runner package; the new gateJudge proof passed, while existing socket and commit-signing fixtures failed outside this change.
+  - kind: choice
+    at: "2026-09-16T05:04:03Z"
+    chose: Exercise correction against two distinct sessions for the same graph and node, and read ordinary CLI evidence from the persisted journal after revision and rejudge.
+    because: Session identity rather than node identity must bound the replacement, and the public evidence view must demonstrate the projection formed from retained filings rather than a current disk read.
+  - kind: surprise
+    at: "2026-09-16T05:04:46Z"
+    expected: Event-kind filtering in the new raw-event assertions would narrow the array element type automatically.
+    observed: TypeScript retained the LedgerEvent union after the session predicate, so explicit discriminating type guards now preserve the raw-event count assertions without a type assertion.
+  - kind: choice
+    at: "2026-09-16T05:05:59Z"
+    chose: Rejudge a changed-order reserialization of the corrected v2 debrief, then malformed, legacy, and absent current files.
+    because: Only a decoded semantic comparison can distinguish equivalent selected content from a corrected filing, and every unreadable current state must leave the last valid projected debrief and its single note ingestion intact.
+  - kind: surprise
+    at: "2026-09-16T05:06:49Z"
+    expected: The implementation commit would use the repository's configured signing path.
+    observed: The configured signer cannot create its local keybox files in this worktree environment, so the commit will disable signing explicitly while preserving the staged content and commit message.

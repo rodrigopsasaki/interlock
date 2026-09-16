@@ -5,10 +5,11 @@ import { join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
 import { isErr } from "@phyxiusjs/fp";
 import { sharedJournalDirectory } from "face";
-import { nodeKey, type Receipt } from "ledger";
+import { type Brief, type LedgerEvent, nodeKey, type Receipt } from "ledger";
 import type { AbsorbOutcome, EvidenceForAbsorb, SubstrateClient } from "substrate";
 import { noneClient } from "substrate";
 import { afterAll, afterEach, describe, expect, it } from "vitest";
+import { parse, stringify } from "yaml";
 import type { GateCommand } from "../src/gateCommand.ts";
 import { judgeGates, legacyOutputForChunk } from "../src/gateJudge.ts";
 import { readGateOutput, storeGateOutput } from "../src/gateOutput.ts";
@@ -795,6 +796,18 @@ const notesYaml = [
   "",
 ].join("\n");
 
+const correctedV2Debrief = v2Debrief.replace("did a thing", "did the corrected thing");
+const reformattedCorrectedV2Debrief = stringify(
+  parse(correctedV2Debrief.replace("graph: fixture\nnode: n1", "node: n1\ngraph: fixture")),
+);
+
+function isDebriefFiledForSession(
+  event: LedgerEvent,
+  session: string,
+): event is Extract<LedgerEvent, { readonly kind: "debrief-filed" }> {
+  return event.kind === "debrief-filed" && event.session === session;
+}
+
 describe("debrief ingestion", () => {
   it("appends debrief-filed and every note-appended before the outcome, for a cleared v2 node", async () => {
     const root = fixture();
@@ -872,7 +885,7 @@ describe("debrief ingestion", () => {
     expect(kinds).not.toContain("note-appended");
   });
 
-  it("ingests a v2 debrief only once, when the same session is judged a second time", async () => {
+  it("does not duplicate an unchanged v2 debrief when the same session is judged again", async () => {
     const root = fixture();
     writeSession(root, "fixture", "n1", v2Debrief, notesYaml);
     const { ledger, events } = memoryLedgerWithLog();
@@ -914,6 +927,83 @@ describe("debrief ingestion", () => {
     const kinds = events.map((event) => event.kind);
     expect(kinds.filter((kind) => kind === "debrief-filed")).toHaveLength(1);
     expect(kinds.filter((kind) => kind === "note-appended")).toHaveLength(1);
+  });
+
+  it("files a selected correction once, keeps the original filing and notes, and isolates another session", async () => {
+    const root = fixture();
+    writeSession(root, "fixture", "n1", v2Debrief, notesYaml);
+    const { ledger, events } = memoryLedgerWithLog();
+    const brief: Brief = {
+      graph: node.graph,
+      node: node.id,
+      role: "worker",
+      acceptance: "fixture",
+      gates: ["always-pass"],
+      scope: [],
+    };
+    ledger.append({ kind: "session-started", session: { id: "s1", node }, brief });
+    ledger.append({ kind: "session-started", session: { id: "s2", node }, brief });
+
+    const options = {
+      ledger,
+      clock: createControlledClock(),
+      node,
+      session: "s1",
+      declaredGateIds: ["always-pass"],
+      commandFor: new Map([["always-pass", { kind: "command", run: passCommand }]]),
+      worktree: root,
+      scopeRoot: root,
+      scopePaths: ["content.txt"],
+      commitSha: "deadbeef",
+      runnerId: "run-1",
+      holdMs: 60_000,
+      substrate,
+      narrate: () => {},
+    };
+
+    const first = await judgeGates(options);
+    if (isErr(first)) throw new Error("expected an outcome");
+    const isolated = await judgeGates({ ...options, session: "s2" });
+    if (isErr(isolated)) throw new Error("expected an outcome");
+
+    writeSession(root, "fixture", "n1", correctedV2Debrief, notesYaml);
+    const corrected = await judgeGates(options);
+    if (isErr(corrected)) throw new Error("expected an outcome");
+
+    expect(reformattedCorrectedV2Debrief).not.toBe(correctedV2Debrief);
+    writeSession(root, "fixture", "n1", reformattedCorrectedV2Debrief, notesYaml);
+    const unchanged = await judgeGates(options);
+    if (isErr(unchanged)) throw new Error("expected an outcome");
+
+    writeSession(root, "fixture", "n1", v0Debrief, notesYaml);
+    const legacy = await judgeGates(options);
+    if (isErr(legacy)) throw new Error("expected an outcome");
+    writeSession(root, "fixture", "n1", "not: [valid", notesYaml);
+    const malformed = await judgeGates(options);
+    if (isErr(malformed)) throw new Error("expected an outcome");
+    unlinkSync(join(root, ".interlock", "sessions", "fixture", "n1", "debrief.yaml"));
+    const missing = await judgeGates(options);
+    if (isErr(missing)) throw new Error("expected an outcome");
+
+    const firstFilings = events.filter((event) => isDebriefFiledForSession(event, "s1"));
+    const firstNotes = events.filter(
+      (event) => event.kind === "note-appended" && event.session === "s1",
+    );
+    const secondFilings = events.filter((event) => isDebriefFiledForSession(event, "s2"));
+    const secondNotes = events.filter(
+      (event) => event.kind === "note-appended" && event.session === "s2",
+    );
+
+    expect(firstFilings).toHaveLength(2);
+    expect(firstNotes).toHaveLength(1);
+    expect(secondFilings).toHaveLength(1);
+    expect(secondNotes).toHaveLength(1);
+    expect(firstFilings[0]?.debrief.decisions[0]?.what).toBe("did a thing");
+    expect(firstFilings[1]?.debrief.decisions[0]?.what).toBe("did the corrected thing");
+    expect(ledger.projection().sessions.get("s1")?.debrief?.decisions[0]?.what).toBe(
+      "did the corrected thing",
+    );
+    expect(ledger.projection().sessions.get("s2")?.debrief?.decisions[0]?.what).toBe("did a thing");
   });
 });
 

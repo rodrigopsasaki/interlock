@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 import type { Clock } from "@phyxiusjs/clock";
 import { elapsedSince } from "@phyxiusjs/clock";
 import { err, isErr, isOk, ok, type Result } from "@phyxiusjs/fp";
@@ -319,13 +320,15 @@ async function ingestDebrief(
   worktree: string,
   node: Node,
 ): Promise<void> {
-  const alreadyIngested = ledger.projection().sessions.get(session)?.debrief !== undefined;
-  if (alreadyIngested) return;
-
   const read = await readV2Debrief(worktree, node);
   if (read === undefined) return;
 
+  const filed = ledger.projection().sessions.get(session)?.debrief;
+  if (filed !== undefined && isDeepStrictEqual(filed, read.debrief)) return;
+
   ledger.append({ kind: "debrief-filed", session, debrief: read.debrief });
+  if (filed !== undefined) return;
+
   for (const note of read.notes) {
     ledger.append({ kind: "note-appended", session, note });
   }

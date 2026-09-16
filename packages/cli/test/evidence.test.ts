@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
-import { unwrap } from "@phyxiusjs/fp";
+import { isErr, unwrap } from "@phyxiusjs/fp";
 import { sharedJournalDirectory } from "face";
 import {
   type Brief,
@@ -12,13 +12,17 @@ import {
   duration,
   gate,
   type Ledger,
+  type LedgerEvent,
   OUTBOX_INTENT_SHAPE,
+  readRawEvents,
   retainOutboxArtifact,
   spend,
 } from "ledger";
-import { ABANDONED_AUTHORITY } from "runner";
+import { ABANDONED_AUTHORITY, judgeGates } from "runner";
+import { noneClient } from "substrate";
 import { afterEach, describe, expect, it } from "vitest";
 import { parse } from "yaml";
+import { runDebriefRevise } from "../src/debrief/revise.ts";
 import { runInterlockEvidence } from "../src/evidence.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
@@ -137,6 +141,68 @@ function fixtureDebrief(from: string, to: string): Debrief {
     gatesRunByAgent: [],
     open: [],
   };
+}
+
+function handoffDebrief(from: string, to: string, what: string, hunk: string): string {
+  return [
+    "interlock: debrief@v2",
+    `graph: ${node.graph}`,
+    `node: ${node.id}`,
+    "role: worker",
+    `graph_base_sha: ${from}`,
+    `session_start_sha: ${from}`,
+    `head_sha: ${to}`,
+    "derivation:",
+    "  kind: agent",
+    "  runtime: codex",
+    "  model: gpt-5.6-terra",
+    "discoveries: []",
+    "decisions:",
+    "  - id: c1",
+    `    what: ${what}`,
+    "    because: notes:1",
+    "    rests_on: []",
+    `    hunks: [${hunk}]`,
+    "gates_run_by_agent: []",
+    "open: []",
+    "",
+  ].join("\n");
+}
+
+function handoffBrief(from: string): string {
+  return [
+    "---",
+    "interlock: brief@v1",
+    `graph: ${node.graph}`,
+    `node: ${node.id}`,
+    "role: worker",
+    "gates: []",
+    "scope: []",
+    "substrate:",
+    "  address: none",
+    `graph_base_sha: ${from}`,
+    "session: s1",
+    "---",
+    "",
+  ].join("\n");
+}
+
+const handoffNotes = [
+  "interlock: notes@v0",
+  `node: ${node.id}`,
+  "entries:",
+  "  - kind: choice",
+  '    at: "2026-09-16T00:00:00Z"',
+  "    chose: recorded the handoff",
+  "    because: the acceptance requires it",
+  "",
+].join("\n");
+
+function isDebriefFiledForSession(
+  event: LedgerEvent,
+  session: string,
+): event is Extract<LedgerEvent, { readonly kind: "debrief-filed" }> {
+  return event.kind === "debrief-filed" && event.session === session;
 }
 
 const satisfiedReceipt = {
@@ -288,6 +354,76 @@ describe("interlock evidence", () => {
     const first = await runInterlockEvidence([node.graph, node.id], { cwd: dir });
     const second = await runInterlockEvidence([node.graph, node.id], { cwd: dir });
     expect(first).toEqual(second);
+  });
+
+  it("reads the corrected handoff from replay after supported revision and rejudge", async () => {
+    const { dir, from, to } = fixtureRepo();
+    const session = join(dir, ".interlock", "sessions", node.graph, node.id);
+    mkdirSync(session, { recursive: true });
+    writeFileSync(join(session, "brief.md"), handoffBrief(from));
+    writeFileSync(
+      join(session, "debrief.yaml"),
+      handoffDebrief(from, to, "recorded src/widget.ts:1", "src/widget.ts:1-1"),
+    );
+    writeFileSync(join(session, "notes.yaml"), handoffNotes);
+    const candidate = join(session, "corrected.yaml");
+    writeFileSync(
+      candidate,
+      handoffDebrief(from, to, "recorded corrected src/widget.ts:2-3", "src/widget.ts:2-3"),
+    );
+
+    const ledger = await openLedger(dir);
+    ledger.append({
+      kind: "session-started",
+      session: { id: "s1", node },
+      brief: { ...brief, gates: ["always-pass"] },
+    });
+    const judge = () =>
+      judgeGates({
+        ledger,
+        clock: createControlledClock(),
+        node,
+        session: "s1",
+        declaredGateIds: ["always-pass"],
+        commandFor: new Map([
+          ["always-pass", { kind: "command", run: `${process.execPath} -e process.exit(0)` }],
+        ]),
+        worktree: dir,
+        scopeRoot: dir,
+        scopePaths: ["src/widget.ts"],
+        commitSha: to,
+        runnerId: "runner-1",
+        holdMs: 60_000,
+        substrate: noneClient(),
+        narrate: () => {},
+      });
+
+    const first = await judge();
+    if (isErr(first)) throw new Error("expected first judgment to clear");
+    const revised = await runDebriefRevise([node.graph, node.id, "--from", candidate], {
+      cwd: dir,
+    });
+    expect(revised.exitCode).toBe(0);
+    expect(revised.message).toContain("selected");
+
+    const corrected = await judge();
+    if (isErr(corrected)) throw new Error("expected corrected judgment to clear");
+    const unchanged = await judge();
+    if (isErr(unchanged)) throw new Error("expected unchanged judgment to clear");
+    await ledger.close();
+
+    const raw = unwrap(await readRawEvents(sharedJournalDirectory(dir)));
+    const filings = raw.filter((event) => isDebriefFiledForSession(event, "s1"));
+    const notes = raw.filter((event) => event.kind === "note-appended" && event.session === "s1");
+    expect(filings).toHaveLength(2);
+    expect(notes).toHaveLength(1);
+    expect(filings[0]?.debrief.decisions[0]?.what).toBe("recorded src/widget.ts:1");
+    expect(filings[1]?.debrief.decisions[0]?.what).toBe("recorded corrected src/widget.ts:2-3");
+
+    const evidence = await runInterlockEvidence([node.graph, node.id], { cwd: dir });
+    expect(evidence.exitCode).toBe(0);
+    expect(evidence.message).toContain("recorded corrected src/widget.ts:2-3");
+    expect(evidence.message).not.toContain("statement: recorded src/widget.ts:1");
   });
 
   it("carries a person's waiver into evidence as a professed decision", async () => {
