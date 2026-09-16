@@ -6,7 +6,8 @@ role: worker
 gates: []
 scope: []
 context_scope:
-  - packages/schemas/src/reference
+  - packages/schemas/src/reference.ts
+  - packages/schemas/src/reference/corpus.ts
   - packages/schemas/test/reference.test.ts
   - docs/shapes.md
 substrate:
