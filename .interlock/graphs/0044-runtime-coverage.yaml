@@ -1,0 +1,86 @@
+interlock: graph@v0
+id: 0044-runtime-coverage
+ask: Close the five runtime coverage gaps the 0043 review found, on two vendors with no hands.
+derivation:
+  kind: model
+  model: claude-fable-5-1
+  prompt: rodrigo-conversation-2026-09-24-runtime-coverage
+read: >
+  Graph 0043 landed the per-attempt runtime on main with two review lenses clean on
+  correctness. The ledger lens found five places where the new read is only exercised
+  transitively: a fixture whose name promises event@v4 lines it does not contain, the new
+  event@v5 fixture missing from the corpus journal check, a position@v1 example that never
+  carries an attempt, and two face paths (renderNodeRuntime, runtimeAttempts) with no test of
+  their own. This graph closes them as two independent nodes, one to be run on the Codex
+  runtime and one on the Kimi runtime, after the runner's prompt-delivery fix lands. The graph
+  is also the proof that the fix works: both nodes must go from lease to working with nobody
+  at the keyboard, and their session records say so. Nothing here changes behaviour; a test
+  that exposes a defect records it as a discovery and fixes the smallest thing that makes the
+  test honest.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: fixtures-and-corpus
+    depends_on: []
+    acceptance: |
+      Make the ledger fixtures and the corpus checks say what they cover. Three changes,
+      tests only unless a test exposes a defect.
+
+      One. `packages/ledger/test/fixtures/journal-v3-v4-2026-09-11.jsonl` contains no
+      `event@v4` line although its name promises one. Either add genuine event@v4 lines
+      copied verbatim from this repository's shared journal (read-only; the journal is at the
+      git common dir's `.interlock/ledger/journal.jsonl`; take a `session-started` line and
+      the lines its session produced, never edit them) so the v4 upcast path is exercised by
+      a real fixture, or rename the fixture to the shapes it holds and update every test that
+      names it. Choose, and say why in the debrief.
+
+      Two. `packages/schemas/test/corpus.journal.test.ts` lists the journals it validates
+      line by line; add `journal-v5-run-with-runtime-2026-09-24.jsonl` and any fixture added
+      in change one, so every fixture on disk is under that check.
+
+      Three. `packages/schemas/test/corpus.position.test.ts` validates a position@v1 example
+      built from events that never include `session-started`, so `attempts` is always empty
+      and its required fields are never exercised. Build the example from a fold that includes
+      a session-started event carrying a runtime, and validate the produced position with the
+      schema; keep the existing example too.
+
+      Strict TypeScript, no assertions. Preserve every historical artifact. Append typed
+      notes. Run the focused tests and lint before handoff. No push, no merge; the human
+      merges.
+    gates:
+      - id: corpus-proof
+        kind: command
+        run: pnpm --filter schemas exec vitest run test/corpus.journal.test.ts test/corpus.position.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: replay-proof
+        kind: command
+        run: pnpm --filter ledger exec vitest run test/replay.test.ts test/runtime.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+  - id: face-runtime-coverage
+    depends_on: []
+    acceptance: |
+      Give the face's runtime read tests of its own. Two changes, tests only unless a test
+      exposes a defect.
+
+      One. `packages/face/src/render.ts` renders a node's runtime line from its live or
+      latest attempt (`renderNodeRuntime`, used by `renderPosition`), and no test in
+      `packages/face/test/render.test.ts` builds a position with an attempt, so that branch
+      never runs. Add tests that fold a `session-started` event with a known runtime and one
+      with `unknown`, and pin the rendered line for each, including that an `unknown` runtime
+      degrades to the word unknown and a runtime without a model says model undeclared.
+
+      Two. `packages/face/src/runtimeAttempts.ts` selects attempts per runtime for the
+      runtime list and skips sessions whose runtime is `unknown`; it has no test under
+      `packages/face/test`. Add `packages/face/test/runtimeAttempts.test.ts` pinning: unknown
+      sessions are skipped; the latest attempt per runtime wins; a runtime with no attempt is
+      absent.
+
+      Strict TypeScript, no assertions. Preserve every historical artifact. Append typed
+      notes. Run the focused tests and lint before handoff. No push, no merge; the human
+      merges.
+    gates:
+      - id: face-proof
+        kind: command
+        run: pnpm --filter face exec vitest run test/render.test.ts test/runtimeAttempts.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
