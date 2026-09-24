@@ -46,3 +46,11 @@ notes:
     because: >-
       This records the compatibility seam required by the design and keeps the way back for
       pre-v6 sessions and the local runtime block.
+  - kind: surprise
+    what: >-
+      Regenerating docs/shapes.md reported six artifact terms missing from the vocabulary table,
+      including the required runtimes shape's plural term.
+    because: >-
+      The reference generator derives the term directly from each shape tag; the existing
+      repository convention records this vocabulary gap rather than changing the out-of-scope
+      vocabulary table.

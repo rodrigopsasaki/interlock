@@ -1006,10 +1006,9 @@ runtime:
   # move off idle before the long wait judges it. Defaults to 20000.
   # prompt_taken_timeout_ms: 20000
 
-# Optional. The name of the runtime this repository starts by default: an entry from the
-# runtime catalogue (runtimes.example.yaml documents that file's shape), or "default" for the
-# runtime: block above. Absent, this file's own runtime: block above is what starts.
-# default_runtime: default
+# The catalogue is per machine and lives outside the repository. This repository starts sonnet
+# by default; "default" remains available for the legacy runtime: block above.
+default_runtime: sonnet
 
 # Where the runner creates a node's git worktree, relative to the repository root.
 worktree_root: .worktrees
@@ -1140,22 +1139,126 @@ interlock: runtimes@v0
 
 runtimes:
   # A name matches ^[a-z][a-z0-9_-]{0,31}$, the same shape herdr accepts for an agent name.
-  fast:
-    kind: <agent-cli>
-    args: []
-    # A declared label kept for the record; the code never parses it.
-    model: <model-label>
+  # Claude Code 2.1.282: these are the repository's recorded unattended flags, with each model
+  # label swapped into --model. The startup answer is the trust choice from local.example.yaml.
+  sonnet:
+    kind: claude
+    args: [--dangerously-skip-permissions, --model, claude-sonnet-5, --strict-mcp-config]
+    model: claude-sonnet-5
+    startup_answers:
+      - matches: "one you trust"
+        keys: [Down, Enter]
+    startup_timeout_ms: 90000
 
-  careful:
-    kind: <agent-cli>
-    args: []
-    model: <model-label>
-    # Optional. Each entry names the text the runtime shows when it needs an answer before it
-    # is ready, and the keys to send it. Entries are tried in order, at most once each.
-    # startup_answers:
-    #   - matches: "the text the runtime shows when it needs an answer before it is ready"
-    #     keys: [Down, Enter]
-    # Optional. How long the runner waits for the runtime to become ready before sending the
-    # opening prompt. Defaults to 60000.
-    # startup_timeout_ms: 60000
+  opus:
+    kind: claude
+    args: [--dangerously-skip-permissions, --model, claude-opus-5-5, --strict-mcp-config]
+    model: claude-opus-5-5
+    startup_answers:
+      - matches: "one you trust"
+        keys: [Down, Enter]
+    startup_timeout_ms: 90000
+
+  fable:
+    kind: claude
+    args: [--dangerously-skip-permissions, --model, claude-fable-5-1, --strict-mcp-config]
+    model: claude-fable-5-1
+    startup_answers:
+      - matches: "one you trust"
+        keys: [Down, Enter]
+    startup_timeout_ms: 90000
+
+  # Codex CLI 0.155.0-alpha.9.2: --model, -c, --disable/--enable, --sandbox,
+  # --ask-for-approval and --add-dir are documented by `codex --help`. The high reasoning
+  # effort is the level used by this repository's earlier Codex sessions.
+  # --add-dir is needed because a node worktree's .git is a file pointing at the repository's
+  # common git directory; workspace-write must be allowed to write there for commits to land.
+  astra:
+    kind: codex
+    args:
+      - --model
+      - gpt-6-astra
+      - -c
+      - model_reasoning_effort="high"
+      - --disable
+      - multi_agent
+      - --enable
+      - code_mode_host
+      - --disable
+      - apps
+      - --disable
+      - computer_use
+      - --disable
+      - browser_use
+      - --sandbox
+      - workspace-write
+      - --ask-for-approval
+      - never
+      - --add-dir
+      - "<git-common-dir>"
+    model: gpt-6-astra
+    startup_timeout_ms: 90000
+
+  terra:
+    kind: codex
+    args:
+      - --model
+      - gpt-5.6-terra
+      - -c
+      - model_reasoning_effort="high"
+      - --disable
+      - multi_agent
+      - --enable
+      - code_mode_host
+      - --disable
+      - apps
+      - --disable
+      - computer_use
+      - --disable
+      - browser_use
+      - --sandbox
+      - workspace-write
+      - --ask-for-approval
+      - never
+      - --add-dir
+      - "<git-common-dir>"
+    model: gpt-5.6-terra
+    startup_timeout_ms: 90000
+
+  luna:
+    kind: codex
+    args:
+      - --model
+      - gpt-5.6-luna
+      - -c
+      - model_reasoning_effort="high"
+      - --disable
+      - multi_agent
+      - --enable
+      - code_mode_host
+      - --disable
+      - apps
+      - --disable
+      - computer_use
+      - --disable
+      - browser_use
+      - --sandbox
+      - workspace-write
+      - --ask-for-approval
+      - never
+      - --add-dir
+      - "<git-common-dir>"
+    model: gpt-5.6-luna
+    startup_timeout_ms: 90000
+
+  # Kimi Code CLI 2.1.1 documented behaviour, read on 2026-09-24; not run in this node.
+  k3:
+    kind: kimi
+    args: [--auto]
+    model: kimi-code/k3
+    startup_answers:
+      - matches: "Trust this folder"
+        keys: [Enter]
+    startup_timeout_ms: 90000
+    # Unverified until the k3-first-run node clears its human gate.
 ```
