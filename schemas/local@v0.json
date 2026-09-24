@@ -31,6 +31,12 @@
         },
         "prompt_taken_timeout_ms": {
           "type": "number"
+        },
+        "ready_settle_ms": {
+          "type": "number"
+        },
+        "prompt_retries": {
+          "type": "number"
         }
       },
       "required": [

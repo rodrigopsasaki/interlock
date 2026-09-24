@@ -10,6 +10,10 @@ export function isStringArray(value: unknown): value is readonly string[] {
   return Array.isArray(value) && value.every(isString);
 }
 
+export function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
+}
+
 export function prop(value: Record<string, unknown>, key: string): unknown {
   return value[key];
 }

@@ -276,6 +276,10 @@ export function startFakeHerdrServer(socketPath: string): Promise<FakeHerdrServe
       case "pane.report_metadata":
       case "agent.prompt":
       case "agent.send_keys":
+      // pane.send_keys: verified against herdr 0.9.1's `herdr api schema --json`
+      // (params pane_id + keys, both required) and `herdr pane send-keys --help`;
+      // real herdr answers the generic ok result, same as agent.send_keys above.
+      case "pane.send_keys":
         respond(socket, id, {});
         return;
       case "agent.get":

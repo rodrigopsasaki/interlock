@@ -267,6 +267,34 @@ describe("herdr adapter", () => {
     expect(promptCall?.params["wait"]).toBeUndefined();
   });
 
+  it("surfaces an agent.prompt error verbatim, the shape observed live on a prompt herdr had actually taken", async () => {
+    const fake = await fixture();
+    const created = await createHerdrRuntime(fake.socketPath);
+    if (isErr(created)) throw new Error("expected a runtime");
+    const runtime = created.value;
+
+    const pane = await runtime.openPane("/repo/worktree");
+    if (isErr(pane)) throw new Error("expected a pane");
+    const agent = await runtime.startAgent(pane.value, "claude", []);
+    if (isErr(agent)) throw new Error("expected an agent");
+
+    fake.failNextCall("agent_pane_busy", "pane is mid-render", 1, "agent.prompt");
+    fake.agentStatus = "working";
+
+    const prompted = await runtime.prompt(agent.value, "read your brief first");
+    expect(prompted).toEqual({
+      _tag: "Err",
+      error: {
+        kind: "remote",
+        code: "agent_pane_busy",
+        message: "pane is mid-render",
+      },
+    });
+
+    const waited = await runtime.waitUntil(agent.value, ["working"], 5_000);
+    expect(waited).toEqual({ _tag: "Ok", value: "working" });
+  });
+
   it("sends keys to the named agent via agent.send_keys", async () => {
     const fake = await fixture();
     const created = await createHerdrRuntime(fake.socketPath);
@@ -284,6 +312,23 @@ describe("herdr adapter", () => {
     const sendKeysCall = fake.calls.find((call) => call.method === "agent.send_keys");
     expect(sendKeysCall?.params["target"]).toBe(agent.value.id);
     expect(sendKeysCall?.params["keys"]).toEqual(["Down", "Enter"]);
+  });
+
+  it("sends keys to the pane itself via pane.send_keys, verified against herdr 0.9.1's own api schema", async () => {
+    const fake = await fixture();
+    const created = await createHerdrRuntime(fake.socketPath);
+    if (isErr(created)) throw new Error("expected a runtime");
+    const runtime = created.value;
+
+    const pane = await runtime.openPane("/repo/worktree");
+    if (isErr(pane)) throw new Error("expected a pane");
+
+    const sent = await runtime.sendPaneKeys(pane.value, ["Enter"]);
+    expect(isErr(sent)).toBe(false);
+
+    const sendPaneKeysCall = fake.calls.find((call) => call.method === "pane.send_keys");
+    expect(sendPaneKeysCall?.params["pane_id"]).toBe(pane.value.id);
+    expect(sendPaneKeysCall?.params["keys"]).toEqual(["Enter"]);
   });
 
   it("times out when the agent never reaches a requested state", async () => {

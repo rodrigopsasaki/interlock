@@ -79,6 +79,7 @@ export interface Runtime {
   ): Promise<Result<AgentStatus, RuntimeRefusal>>;
   read(agent: Agent): Promise<Result<string, RuntimeRefusal>>;
   sendKeys(agent: Agent, keys: readonly string[]): Promise<Result<void, RuntimeRefusal>>;
+  sendPaneKeys(pane: Pane, keys: readonly string[]): Promise<Result<void, RuntimeRefusal>>;
   closePane(pane: Pane): Promise<Result<void, RuntimeRefusal>>;
   reportedAgentStatus?(
     query: AgentIdentityQuery,

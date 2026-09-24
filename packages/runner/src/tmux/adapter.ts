@@ -65,6 +65,11 @@ export function createTmuxRuntime(run: TmuxCommandRunner = defaultTmuxRunner): R
       return isErr(sent) ? sent : ok(undefined);
     },
 
+    async sendPaneKeys(pane: Pane, keys: readonly string[]) {
+      const sent = await run(["send-keys", "-t", pane.id, ...keys]);
+      return isErr(sent) ? sent : ok(undefined);
+    },
+
     async closePane(pane: Pane) {
       const killed = await run(["kill-session", "-t", pane.id]);
       return isErr(killed) ? killed : ok(undefined);

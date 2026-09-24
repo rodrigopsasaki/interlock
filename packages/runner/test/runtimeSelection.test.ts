@@ -11,6 +11,9 @@ function runtimeNamed(name: string, source: ResolvedRuntime["source"]): Resolved
     model: undefined,
     startupAnswers: [],
     startupTimeoutMs: 60_000,
+    promptTakenTimeoutMs: 20_000,
+    readySettleMs: 0,
+    promptRetries: 2,
     source,
   };
 }

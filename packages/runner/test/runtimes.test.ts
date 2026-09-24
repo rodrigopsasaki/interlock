@@ -36,6 +36,8 @@ function localConfigWith(overrides: Partial<LocalConfig> = {}): LocalConfig {
       startupAnswers: [],
       startupTimeoutMs: 60_000,
       promptTakenTimeoutMs: 20_000,
+      readySettleMs: 0,
+      promptRetries: 2,
     },
     worktreeRoot: ".worktrees",
     worktreeSetup: [],
@@ -111,6 +113,9 @@ describe("loadRuntimeCatalogue: a valid catalogue", () => {
         model: "fast-model-label",
         startupAnswers: [],
         startupTimeoutMs: 60_000,
+        promptTakenTimeoutMs: 20_000,
+        readySettleMs: 0,
+        promptRetries: 2,
       });
       expect(result.value.get("careful")).toEqual({
         kind: "codex",
@@ -118,6 +123,9 @@ describe("loadRuntimeCatalogue: a valid catalogue", () => {
         model: "careful-model-label",
         startupAnswers: [],
         startupTimeoutMs: 15_000,
+        promptTakenTimeoutMs: 20_000,
+        readySettleMs: 0,
+        promptRetries: 2,
       });
     }
   });
@@ -129,6 +137,54 @@ describe("loadRuntimeCatalogue: a valid catalogue", () => {
 
     expect(isOk(result)).toBe(true);
     if (isOk(result)) expect(result.value.size).toBe(0);
+  });
+
+  it("parses prompt_taken_timeout_ms, additive over the required fields", async () => {
+    const path = fixtureFile(
+      [
+        "interlock: runtimes@v0",
+        "runtimes:",
+        "  fast:",
+        "    kind: claude",
+        "    model: fast-model-label",
+        "    prompt_taken_timeout_ms: 5000",
+        "",
+      ].join("\n"),
+    );
+
+    const result = await loadRuntimeCatalogue(path);
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) {
+      expect(result.value.get("fast")).toMatchObject({
+        promptTakenTimeoutMs: 5_000,
+      });
+    }
+  });
+
+  it("parses ready_settle_ms and prompt_retries, both additive over the required fields", async () => {
+    const path = fixtureFile(
+      [
+        "interlock: runtimes@v0",
+        "runtimes:",
+        "  fast:",
+        "    kind: claude",
+        "    model: fast-model-label",
+        "    ready_settle_ms: 4000",
+        "    prompt_retries: 5",
+        "",
+      ].join("\n"),
+    );
+
+    const result = await loadRuntimeCatalogue(path);
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) {
+      expect(result.value.get("fast")).toMatchObject({
+        readySettleMs: 4_000,
+        promptRetries: 5,
+      });
+    }
   });
 
   it("parses startup_answers reusing the shared validation", async () => {
@@ -206,6 +262,45 @@ describe("loadRuntimeCatalogue: a malformed catalogue refuses with a sentence", 
       '"runtimes.fast.startup_timeout_ms" must be a positive integer',
     ],
     [
+      "a non-positive prompt_taken_timeout_ms",
+      [
+        "interlock: runtimes@v0",
+        "runtimes:",
+        "  fast:",
+        "    kind: claude",
+        "    model: m",
+        "    prompt_taken_timeout_ms: 0",
+        "",
+      ].join("\n"),
+      '"runtimes.fast.prompt_taken_timeout_ms" must be a positive integer',
+    ],
+    [
+      "a negative ready_settle_ms",
+      [
+        "interlock: runtimes@v0",
+        "runtimes:",
+        "  fast:",
+        "    kind: claude",
+        "    model: m",
+        "    ready_settle_ms: -1",
+        "",
+      ].join("\n"),
+      '"runtimes.fast.ready_settle_ms" must be a non-negative integer',
+    ],
+    [
+      "a non-integer prompt_retries",
+      [
+        "interlock: runtimes@v0",
+        "runtimes:",
+        "  fast:",
+        "    kind: claude",
+        "    model: m",
+        "    prompt_retries: 1.5",
+        "",
+      ].join("\n"),
+      '"runtimes.fast.prompt_retries" must be a non-negative integer',
+    ],
+    [
       "a name that is not a compliant agent name",
       [
         "interlock: runtimes@v0",
@@ -278,11 +373,20 @@ describe("mergeRuntimes", () => {
           model: "fast-model-label",
           startupAnswers: [],
           startupTimeoutMs: 60_000,
+          promptTakenTimeoutMs: 9_000,
+          readySettleMs: 2_000,
+          promptRetries: 4,
         },
       ],
     ]);
     const local = localConfigWith({
-      runtime: { ...localConfigWith().runtime, kind: "codex" },
+      runtime: {
+        ...localConfigWith().runtime,
+        kind: "codex",
+        promptTakenTimeoutMs: 20_000,
+        readySettleMs: 1_000,
+        promptRetries: 3,
+      },
     });
 
     const merged = mergeRuntimes(catalogue, local);
@@ -293,9 +397,15 @@ describe("mergeRuntimes", () => {
       expect(merged.value.runtimes.get("default")).toMatchObject({
         kind: "codex",
         model: undefined,
+        promptTakenTimeoutMs: 20_000,
+        readySettleMs: 1_000,
+        promptRetries: 3,
         source: "local.yaml",
       });
       expect(merged.value.runtimes.get("fast")).toMatchObject({
+        promptTakenTimeoutMs: 9_000,
+        readySettleMs: 2_000,
+        promptRetries: 4,
         source: "catalogue",
       });
     }
@@ -321,6 +431,9 @@ describe("mergeRuntimes", () => {
           model: "m",
           startupAnswers: [],
           startupTimeoutMs: 60_000,
+          promptTakenTimeoutMs: 20_000,
+          readySettleMs: 0,
+          promptRetries: 2,
         },
       ],
     ]);
@@ -360,6 +473,9 @@ describe("mergeRuntimes", () => {
           model: "m",
           startupAnswers: [],
           startupTimeoutMs: 60_000,
+          promptTakenTimeoutMs: 20_000,
+          readySettleMs: 0,
+          promptRetries: 2,
         },
       ],
     ]);
