@@ -68,3 +68,10 @@ notes:
       The failure is environmental and outside this node's files; the focused schema gate and all
       non-network package tests that ran before it remained green, so the debrief reports the
       standing test gate honestly instead of claiming pass.
+  - kind: choice
+    what: >-
+      Repeated the session-start hooks-review observation in comments on each Codex catalogue
+      entry as well as retaining it in these notes.
+    because: >-
+      The discovery is operational context for every Codex example and the brief explicitly asks
+      for it in the Codex entries' comments and in the session record.

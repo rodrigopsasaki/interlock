@@ -1175,6 +1175,8 @@ runtimes:
   # common git directory; workspace-write must be allowed to write there for commits to land.
   astra:
     kind: codex
+    # Session observation: a hooks-review modal needed SessionStart trust before the opening prompt
+    # could be delivered; a person dismissed it with Esc and the runner resent the prompt.
     args:
       - --model
       - gpt-6-astra
@@ -1201,6 +1203,8 @@ runtimes:
 
   terra:
     kind: codex
+    # Session observation: a hooks-review modal needed SessionStart trust before the opening prompt
+    # could be delivered; a person dismissed it with Esc and the runner resent the prompt.
     args:
       - --model
       - gpt-5.6-terra
@@ -1227,6 +1231,8 @@ runtimes:
 
   luna:
     kind: codex
+    # Session observation: a hooks-review modal needed SessionStart trust before the opening prompt
+    # could be delivered; a person dismissed it with Esc and the runner resent the prompt.
     args:
       - --model
       - gpt-5.6-luna
