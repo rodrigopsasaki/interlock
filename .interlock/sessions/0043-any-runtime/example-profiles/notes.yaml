@@ -1,0 +1,25 @@
+interlock: notes@v0
+graph: 0043-any-runtime
+node: example-profiles
+notes:
+  - kind: surprise
+    what: >-
+      Codex opened with a hooks-review modal because a SessionStart hook needed trust; herdr read
+      the agent as idle and the runner's opening prompt was lost in the modal.
+    because: >-
+      A person dismissed the modal with Esc and resent this prompt, so the session could proceed
+      with the runner's intended brief.
+  - kind: choice
+    what: >-
+      Treat the session's interlock session show output as the runtime proof and preserve its
+      exact runtime line for the final debrief.
+    because: >-
+      The brief makes the session record, rather than an agent assertion, the proof of the Codex
+      path.
+  - kind: surprise
+    what: >-
+      The first incremental commit could not be signed because GnuPG could not create its
+      temporary file or connect to keyboxd outside this worktree.
+    because: >-
+      The repository requires commits as work proceeds, so the commit is retried with signing
+      disabled for this worktree rather than leaving the note uncommitted.
