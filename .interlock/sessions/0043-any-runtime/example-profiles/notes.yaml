@@ -23,3 +23,26 @@ notes:
     because: >-
       The repository requires commits as work proceeds, so the commit is retried with signing
       disabled for this worktree rather than leaving the note uncommitted.
+  - kind: choice
+    what: >-
+      Documented the three Claude profiles, three Codex profiles and the unverified Kimi profile
+      in the checked-in catalogue template, using the installed CLI help and the repository's
+      recorded startup answers.
+    because: >-
+      The catalogue is an example of per-machine door configuration, while vendor flags must stay
+      in the two example YAML files and the Kimi facts must remain visibly unverified until its
+      human gate clears.
+  - kind: choice
+    what: >-
+      Added a registry-backed Vitest test that parses runtimes.example.yaml and validates it as
+      runtimes@v0.
+    because: >-
+      The published schema's required kind and model fields then make any incomplete example entry
+      fail closed without adding runtime-specific TypeScript.
+  - kind: choice
+    what: >-
+      Added the 2026-09-24 bend-log row describing per-attempt runtime selection and session
+      recording, while preserving the legacy default runtime reading.
+    because: >-
+      This records the compatibility seam required by the design and keeps the way back for
+      pre-v6 sessions and the local runtime block.
