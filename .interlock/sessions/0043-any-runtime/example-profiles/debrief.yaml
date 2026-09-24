@@ -1,0 +1,172 @@
+interlock: debrief@v2
+graph: 0043-any-runtime
+node: example-profiles
+role: worker
+graph_base_sha: acd3099f709f12721449855e2c9e7a07be07c1cd
+session_start_sha: 531bcce862539e1f6229ca10fd574fe3db5f6f16
+head_sha: 0dfbed358be1ce8f4556e9ca8269282e6e4de8e6
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-luna
+discoveries:
+  - id: d1
+    what: >-
+      Codex opened with a hooks-review modal because a SessionStart hook needed trust; herdr read
+      the agent as idle and the runner's opening prompt was lost in the modal. A person dismissed
+      it with Esc and the runner resent this prompt.
+    found_at: '.interlock/sessions/0043-any-runtime/example-profiles/notes.yaml:7 "Codex opened with a hooks-review modal because a SessionStart hook needed trust; herdr read the agent as idle and the runner''s opening prompt was lost in the modal."'
+    mattered_because: >-
+      The opening prompt was not proof of work until the person recovered the session, so the
+      recovery is part of the Codex path's operational record and is repeated in each Codex
+      catalogue entry's comment.
+  - id: d2
+    what: >-
+      The generated reference reports runtimes as a missing vocabulary term because the shape tag
+      is plural while the closed vocabulary names runtime in the singular.
+    found_at: '.interlock/sessions/0043-any-runtime/example-profiles/notes.yaml:33 "including the required runtimes shape''s plural term."'
+    mattered_because: >-
+      The generator's warning is informational and the vocabulary table is outside this node's
+      scope, so the gap is retained for a later decision rather than silently normalized.
+  - id: d3
+    what: >-
+      The full workspace test gate could not start its substrate HTTP fixtures because this
+      sandbox denied listen on 127.0.0.1 with EPERM, and those tests then timed out.
+    found_at: '.interlock/sessions/0043-any-runtime/example-profiles/notes.yaml:43 "The sandbox denied listen on 127.0.0.1 with EPERM, which then caused their 5-second test timeouts."'
+    mattered_because: >-
+      The node's files do not change the substrate server setup; this is reported as a failed
+      environmental gate rather than presented as a passing full suite.
+decisions:
+  - id: c1
+    what: >-
+      Replaced the placeholder catalogue entries with the three Claude runtimes sonnet, opus and
+      fable, the three Codex runtimes astra, terra and luna, and the unverified Kimi runtime k3;
+      each entry carries kind, model, startup answers and the documented startup timeout where
+      applicable, while the Codex comments retain the session-start recovery context.
+    because: >-
+      The acceptance asks for one named runtime per paid model on this machine, and keeping vendor
+      flags and startup answers in the example catalogue makes the door's per-machine seam
+      explicit without leaking vendor knowledge into runtime-neutral code.
+    rests_on:
+      - .interlock/sessions/0043-any-runtime/example-profiles/brief.md
+      - .interlock/sessions/0043-any-runtime/runtime-catalogue/debrief.yaml
+      - .interlock/sessions/0043-any-runtime/run-with-runtime/debrief.yaml
+      - runtimes.example.yaml
+    hunks:
+      - runtimes.example.yaml:7-130
+    produces:
+      - runtimes.example.yaml
+  - id: c2
+    what: >-
+      Set local.example.yaml's default_runtime to sonnet and documented that the catalogue is per
+      machine and lives outside the repository, while retaining the legacy runtime block as the
+      implicit default entry.
+    because: >-
+      Resolution now chooses a catalogue runtime by name, but the existing local runtime shape
+      must remain readable forever as the compatibility way back.
+    rests_on:
+      - .interlock/sessions/0043-any-runtime/example-profiles/brief.md
+      - .interlock/sessions/0043-any-runtime/runtime-catalogue/debrief.yaml
+      - .interlock/local.example.yaml
+    hunks:
+      - .interlock/local.example.yaml:22-24
+    produces:
+      - .interlock/local.example.yaml
+  - id: c3
+    what: >-
+      Added a schemas-package Vitest test that reads runtimes.example.yaml, resolves the
+      runtimes@v0 validator through the schemas registry, and requires the parsed catalogue to
+      validate.
+    because: >-
+      The published schema requires kind and model for every runtime entry, so the focused gate
+      proves the example without adding vendor-specific TypeScript or assertions.
+    rests_on:
+      - .interlock/sessions/0043-any-runtime/example-profiles/brief.md
+      - schemas/runtimes@v0.json
+      - packages/schemas/src/registry.ts
+    hunks:
+      - packages/schemas/test/runtimesExample.test.ts:1-19
+    produces:
+      - packages/schemas/test/runtimesExample.test.ts
+  - id: c4
+    what: >-
+      Added the 2026-09-24 bend-log row describing the move from a repository-local model name to
+      a per-machine runtime catalogue and per-attempt --runtime choice recorded on the session.
+    because: >-
+      The door needs to say which model runs which node, while the design's compatibility seam
+      keeps the legacy default runtime and reads pre-v6 session choices as unknown.
+    rests_on:
+      - .interlock/sessions/0043-any-runtime/example-profiles/brief.md
+      - docs/design/0001-interlock.md:463-469
+      - docs/design/0001-interlock.md:501-517
+    hunks:
+      - docs/design/0001-interlock.md:628
+    produces:
+      - docs/design/0001-interlock.md
+  - id: c5
+    what: >-
+      Regenerated docs/shapes.md from the checked-in runtimes.example.yaml reference after adding
+      the concrete runtime entries.
+    because: >-
+      The shape-reference command is the repository's established producer for published artifact
+      examples, and its warning about the plural runtimes term remains visible in the session gap
+      record.
+    rests_on:
+      - runtimes.example.yaml
+      - packages/schemas/src/reference/corpus.ts:70-72
+    hunks:
+      - docs/shapes.md:1131-1271
+    produces:
+      - docs/shapes.md
+  - id: c6
+    what: >-
+      Appended typed notes for the opening-modal recovery, catalogue and compatibility choices,
+      generator warning, lint repair, and sandbox test failure throughout the session.
+    because: >-
+      Notes keep the way back from the final compressed debrief and make the operational surprises
+      inspectable without inventing a successful full-suite receipt.
+    rests_on:
+      - .interlock/sessions/0043-any-runtime/example-profiles/brief.md
+      - docs/design/0001-interlock.md:503-517
+    hunks:
+      - .interlock/sessions/0043-any-runtime/example-profiles/notes.yaml:1-52
+    produces:
+      - .interlock/sessions/0043-any-runtime/example-profiles/notes.yaml
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: All 8 workspace packages typecheck clean.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: biome check . reports no findings after the new test import order was corrected.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+    note: "packages/*/src: no comments found."
+  - id: test
+    result: fail
+    invocation: mise exec -- pnpm test
+    note: >-
+      Substrate HTTP fixture tests failed with listen EPERM on 127.0.0.1 in this sandbox and then
+      timed out; the failure is environmental and is retained as failed.
+  - id: example-valid
+    result: pass
+    invocation: mise exec -- pnpm --filter schemas exec vitest run test/runtimesExample.test.ts
+    note: 1 test passed.
+  - id: debrief-valid
+    result: pass
+    invocation: mise exec -- pnpm interlock debrief validate 0043-any-runtime example-profiles
+    note: debrief.yaml is valid as debrief@v2 and notes.yaml is valid as notes@v0.
+open:
+  - 'runtime: luna (codex, gpt-5.6-luna)'
+  - >-
+    gap: the generated reference reports the plural artifact term "runtimes" as missing from the
+    closed vocabulary table, whose nearest term is "runtime"; the vocabulary table is out of scope.
+  - >-
+    kimi-ready remains a human gate: k3 is intentionally marked unverified until the k3-first-run
+    node observes its own startup and the person clears the gate.
+  - >-
+    The standing test gate remains failed in this session because the sandbox denied local HTTP
+    server binds with EPERM; no node file was changed to work around that environment limitation.
