@@ -1,0 +1,281 @@
+interlock: debrief@v2
+graph: 0043-any-runtime
+node: runtime-catalogue
+role: worker
+graph_base_sha: bec3539cda0a858bc9b9764cc9bb5c38aed84bce
+session_start_sha: 0b7d1838bf61c8cd34b200a7ffb2b5c5540d02e9
+head_sha: 3d3d11722ad69cd3ed17e8c6aa54c0d81ca68f4b
+derivation:
+  kind: agent
+  runtime: claude
+  model: claude-sonnet-5
+discoveries:
+  - id: d1
+    what: >-
+      The schema-reference generator extracts an artifact's vocabulary term from its shape tag
+      by a bare lowercase-word regex, with no singular/plural normalization against the
+      AGENTS.md vocabulary table.
+    found_at: 'packages/schemas/src/reference/artifacts.ts:18 "const TAG = /^([a-z]+)@v(\d+)$/;"'
+    mattered_because: >-
+      This node's shape tag is "runtimes@v0" (plural, as the acceptance text and design note
+      require), so the generator extracts the term "runtimes", which has no row in the
+      vocabulary table (only the singular "runtime" does). `interlock schema reference` reports
+      this as a missing-vocabulary-term note on every run from now on; recorded in `open`
+      rather than fixed, since AGENTS.md is out of scope for this node.
+  - id: d2
+    what: >-
+      face's findRepoRoot walks up parent directories looking for a .interlock directory, so
+      every directory under a package's own test/.runs/ scratch resolves to this repository's
+      real root instead of failing to find one.
+    found_at: 'packages/face/src/root.ts:5 "export function findRepoRoot(startDirectory: string): string | undefined {"'
+    mattered_because: >-
+      The "no .interlock directory found" refusal that interlock runtime list shares with
+      graph show and session show cannot be exercised from a fixture rooted in this
+      repository's own test tree, and this session's scratch constraints rule out testing it
+      from outside the repository (e.g. under /tmp). packages/cli/test/runtime.test.ts relies
+      on that refusal path being copied verbatim from already-established precedent instead of
+      giving it its own coverage.
+decisions:
+  - id: c1
+    what: >-
+      Extracted the herdr agent-name compliance pattern (the regex behind isCompliantAgentName)
+      out of packages/runner/src/herdr/adapter.ts into a new packages/runner/src/agentName.ts,
+      re-exported from the herdr adapter so every existing import site is unchanged.
+    because: >-
+      The brief requires a runtime catalogue name to match "the same shape herdr accepts for an
+      agent name". That predicate was private to the herdr adapter file. Importing
+      herdr/adapter.ts directly into a runtime-agnostic catalogue reader would pull in herdr
+      socket and agent-kind knowledge alongside it, which reads like the cross-adapter leak I6
+      exists to prevent; the name-shape regex itself is not herdr-specific, so it belongs in a
+      module both the herdr adapter and the catalogue reader can depend on without either
+      depending on the other.
+    rests_on:
+      - .interlock/sessions/0043-any-runtime/runtime-catalogue/brief.md
+      - packages/runner/src/herdr/adapter.ts
+    hunks:
+      - packages/runner/src/agentName.ts:1-8
+      - packages/runner/src/herdr/adapter.ts:7-19
+    produces:
+      - packages/runner/src/agentName.ts
+      - packages/runner/src/herdr/adapter.ts
+    rejected: >-
+      Duplicating the regex verbatim in runtimeCatalogue.ts: the brief states the two name
+      shapes are "the same", so composing one predicate keeps that guarantee true by
+      construction instead of by two files staying in sync by convention.
+  - id: c2
+    what: >-
+      Generalized localConfig.ts's private startup-answer parser into an exported
+      parseStartupAnswers(value, fieldPath) in startupAnswers.ts, returning
+      Result<StartupAnswer[], string> (a bare reason, not a LocalConfigRefusal); localConfig.ts
+      now wraps that reason into its own {kind:"malformed", path, reason}. isStringArray moved
+      from a private helper in localConfig.ts to an exported helper in validate.ts so both
+      readers share it too.
+    because: >-
+      The brief says the catalogue reader "reuses its startup-answer validation from
+      packages/runner/src/startupAnswers.ts", but the parser lived in localConfig.ts typed to
+      return a LocalConfigRefusal, the wrong error type for a catalogue entry
+      (RuntimeCatalogueRefusal). Parameterizing on the field path (e.g.
+      "runtime.startup_answers" vs. "runtimes.fast.startup_answers") lets both readers reuse one
+      validator and still produce entry-appropriate sentences.
+    rests_on:
+      - .interlock/sessions/0043-any-runtime/runtime-catalogue/brief.md
+      - packages/runner/src/localConfig.ts
+    hunks:
+      - packages/runner/src/startupAnswers.ts:1-64
+      - packages/runner/src/validate.ts:1-10
+      - packages/runner/src/localConfig.ts:6-11
+      - packages/runner/src/localConfig.ts:108-117
+      - packages/runner/src/index.ts:55-61
+    produces:
+      - packages/runner/src/startupAnswers.ts
+      - packages/runner/src/validate.ts
+      - packages/runner/src/localConfig.ts
+      - packages/runner/src/index.ts
+  - id: c3
+    what: >-
+      Built packages/runner/src/runtimeCatalogue.ts's reading half: RUNTIME_CATALOGUE_SHAPE
+      ("runtimes@v0"), CatalogueRuntime (kind, args, model, startupAnswers, startupTimeoutMs),
+      runtimeCataloguePath() (INTERLOCK_RUNTIMES, else $XDG_CONFIG_HOME/interlock/runtimes.yaml,
+      else ~/.config/interlock/runtimes.yaml), and loadRuntimeCatalogue(path), which treats an
+      absent file as an empty catalogue and refuses a present-but-malformed one with a sentence
+      naming the path, the entry and the field. Entry names are validated against
+      isCompliantAgentName; unknown entry keys, a missing kind/model, and a non-positive
+      startup_timeout_ms all refuse.
+    because: >-
+      "An absent catalogue is an empty catalogue, never an error" (I3-style readable refusal
+      otherwise) is pinned acceptance. loadRuntimeCatalogue(path) takes an explicit path with a
+      default computed by runtimeCataloguePath(), mirroring loadLocalConfig(repoRoot)'s own
+      internal path derivation; most unit tests can then pass an explicit temp path and skip
+      environment-variable stubbing entirely, and only INTERLOCK_RUNTIMES/XDG_CONFIG_HOME so
+      tests never touch the real file.
+    rests_on:
+      - .interlock/sessions/0043-any-runtime/runtime-catalogue/brief.md
+      - packages/runner/src/localConfig.ts
+      - packages/runner/src/herdr/adapter.ts
+    hunks:
+      - packages/runner/src/runtimeCatalogue.ts:1-201
+      - packages/runner/test/runtimes.test.ts:1-245
+      - packages/runner/src/index.ts:76-91
+    produces:
+      - packages/runner/src/runtimeCatalogue.ts
+      - packages/runner/test/runtimes.test.ts
+      - packages/runner/src/index.ts
+  - id: c4
+    what: >-
+      Named the merged catalogue-or-local runtime entry ResolvedRuntime, not Runtime, and built
+      mergeRuntimes(catalogue, local): local.yaml's runtime: block becomes the entry named
+      "default" (source "local.yaml"), refusing with {kind:"duplicate-default"} if the catalogue
+      also declares "default"; local.yaml gained an optional default_runtime field, checked
+      against the merged set and refusing with {kind:"unknown-default-runtime", name, known} by
+      name, never picked silently. mergeRuntimes takes local as LocalConfig | undefined; the CLI
+      caller collapses a "missing" local.yaml refusal to undefined while still propagating a
+      "malformed" one as a hard refusal.
+    because: >-
+      packages/runner/src/runtime.ts already exports an interface named Runtime for the
+      pane-driving adapter contract, an unrelated concept; ResolvedRuntime says what the value
+      is (the entry resolved from either source) without claiming a vocabulary word that
+      already names a different type in the same package. Treating a missing local.yaml as "no
+      legacy runtime block" (rather than an error) keeps "interlock runtime list" usable in a
+      repository that has a catalogue and no local.yaml yet, while a present-but-broken
+      local.yaml still surfaces as a readable refusal instead of being silently swallowed.
+    rests_on:
+      - .interlock/sessions/0043-any-runtime/runtime-catalogue/brief.md
+      - packages/runner/src/runtime.ts
+      - packages/runner/src/localConfig.ts
+    hunks:
+      - packages/runner/src/runtimeCatalogue.ts:203-279
+      - packages/runner/src/localConfig.ts:23
+      - packages/runner/src/localConfig.ts:49-50
+      - packages/runner/src/localConfig.ts:138-145
+      - packages/runner/src/localConfig.ts:239
+      - packages/runner/test/runtimes.test.ts:247-350
+      - schemas/local@v0.json:41-43
+      - .interlock/local.example.yaml:19-23
+    produces:
+      - packages/runner/src/runtimeCatalogue.ts
+      - packages/runner/src/localConfig.ts
+      - packages/runner/test/runtimes.test.ts
+      - schemas/local@v0.json
+      - .interlock/local.example.yaml
+  - id: c5
+    what: >-
+      Added the "runtime" command group with a "list" action (packages/cli/src/runtime/list.ts,
+      wired into main.ts) that resolves the repository root exactly as graph show and session
+      show do, loads the catalogue and local.yaml, merges them, and prints one line per runtime
+      as "<name> — kind <kind>, model <model|(none)>, source <catalogue|local.yaml>"; an empty
+      merged view prints one sentence instead. Every refusal (catalogue, local.yaml, merge)
+      renders through its own explain function and exits non-zero.
+    because: >-
+      The acceptance names exactly these four fields (name, kind, declared model, source) and
+      "the list renders" as pinned behavior. The read-first brief says to resolve the repository
+      root and render plain text the way graph show and session show already do; reusing that
+      exact pattern (findRepoRoot, then a plain-text CommandResult) keeps this command
+      unsurprising next to its siblings rather than inventing a second rendering convention.
+    rests_on:
+      - .interlock/sessions/0043-any-runtime/runtime-catalogue/brief.md
+      - packages/cli/src/graph/show.ts
+      - packages/cli/src/session/show.ts
+    hunks:
+      - packages/cli/src/runtime/list.ts:1-68
+      - packages/cli/src/main.ts:19-20
+      - packages/cli/src/main.ts:89-92
+      - packages/cli/test/runtime.test.ts:1-176
+    produces:
+      - packages/cli/src/runtime/list.ts
+      - packages/cli/src/main.ts
+      - packages/cli/test/runtime.test.ts
+  - id: c6
+    what: >-
+      Added schemas/runtimes@v0.json (permissive additionalProperties, matching local@v0.json's
+      own leniency: the schema documents shape for `interlock schema validate`, while
+      runtimeCatalogue.ts's reader is the strict source of truth), registered automatically by
+      the existing directory-scanning registry with no registry code changes. Added
+      runtimes.example.yaml at the repository root with placeholder names ("fast", "careful")
+      and a placeholder kind ("<agent-cli>"), wired into
+      packages/schemas/src/reference/corpus.ts's referenceSources so docs/shapes.md carries a
+      validated example, then regenerated docs/shapes.md via `interlock schema reference`.
+    because: >-
+      The brief requires the shape covered by both `interlock schema validate` and `schema
+      reference`, and the registry already auto-discovers every schemas/*.json file by title, so
+      no registry or CLI schema-command code needed to change. Matching local@v0.json's
+      permissive-schema-strict-reader split keeps the two enforcement layers consistent across
+      every artifact in this repository rather than inventing a stricter convention for just
+      this one shape.
+    rests_on:
+      - .interlock/sessions/0043-any-runtime/runtime-catalogue/brief.md
+      - schemas/local@v0.json
+      - packages/schemas/src/registry.ts
+      - packages/schemas/test/brief.test.ts
+    hunks:
+      - schemas/runtimes@v0.json:1-54
+      - runtimes.example.yaml:1-26
+      - packages/schemas/src/reference/corpus.ts:70
+      - packages/schemas/test/runtimes.test.ts:1-78
+      - packages/schemas/test/reference.test.ts:27-33
+      - docs/shapes.md:1103-1156
+    produces:
+      - schemas/runtimes@v0.json
+      - runtimes.example.yaml
+      - packages/schemas/src/reference/corpus.ts
+      - packages/schemas/test/runtimes.test.ts
+      - packages/schemas/test/reference.test.ts
+      - docs/shapes.md
+  - id: c7
+    what: >-
+      Kept notes.yaml appended at every choice and surprise while building this node, closed by
+      this debrief as the final commit.
+    because: >-
+      The brief requires typed notes for every choice and surprise as the way back from this
+      compression (I8), committed alongside the code that motivated each entry.
+    rests_on:
+      - .interlock/sessions/0043-any-runtime/runtime-catalogue/brief.md
+    hunks:
+      - .interlock/sessions/0043-any-runtime/runtime-catalogue/notes.yaml:1-98
+    produces:
+      - .interlock/sessions/0043-any-runtime/runtime-catalogue/notes.yaml
+      - .interlock/sessions/0043-any-runtime/runtime-catalogue/debrief.yaml
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: All 8 workspace packages typecheck clean.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: biome check . reports no findings after `biome check --write` fixed formatting.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+    note: "packages/*/src: no comments found."
+  - id: test
+    result: pass
+    invocation: mise exec -- pnpm test
+    note: 1774 tests passed across all 8 workspace packages; 0 failures.
+  - id: catalogue-runner-proof
+    result: pass
+    invocation: mise exec -- pnpm --filter runner exec vitest run test/runtimes.test.ts
+    note: 19 tests passed.
+  - id: catalogue-cli-proof
+    result: pass
+    invocation: mise exec -- pnpm --filter cli exec vitest run test/runtime.test.ts
+    note: 8 tests passed.
+  - id: catalogue-schema-proof
+    result: pass
+    invocation: mise exec -- pnpm --filter schemas exec vitest run test/runtimes.test.ts
+    note: 13 tests passed.
+open:
+  - >-
+    gap: the graph's acceptance text says "profile" for a named catalogue entry; the closed
+    vocabulary has no such noun. Nearest term: "runtime" (I6, local.yaml's runtime: block, the
+    runner's Runtime interface). Difference: "profile" would have named the concept by its
+    configuration-file role; "runtime" names it by what it starts. Every artifact, CLI surface
+    and test in this diff says "runtime"/"runtimes catalogue" and never "profile", per the
+    brief's explicit instruction.
+  - >-
+    gap: AGENTS.md's vocabulary table lists "runtime" (singular); this node's shape tag is
+    "runtimes@v0" (plural, dictated by the acceptance text). packages/schemas/src/reference's
+    term extraction takes the shape tag's bare word literally, so `interlock schema reference`
+    now reports "runtimes" as a term with no vocabulary row (informational only; exit code is
+    unaffected). Nearest term: "runtime"; difference: pluralization of the artifact tag versus
+    the vocabulary noun. AGENTS.md is out of scope for this node, so this is recorded rather
+    than fixed.
