@@ -1,0 +1,31 @@
+interlock: notes@v0
+node: k3-first-run
+entries:
+  - kind: surprise
+    at: "2026-09-24T22:24:00Z"
+    expected: The runner's opening prompt, sent at 22:13:39.636Z per the narration, would reach this session.
+    observed: "The narration ends with \"prompt taken refused: prompt not taken after 20000ms; agent still idle\" and the lease abandoned at 22:13:59Z, while kimi's own session record (kimi session list --json) shows this session created at 22:17:11.618Z in pane w1:pG, not the runner's pane w1:pF."
+    mattered_because: This session works on a pane the runner closed out and abandoned; the recovery between refusal and session creation was a person's, and the narration cannot see it.
+  - kind: surprise
+    at: "2026-09-24T22:25:00Z"
+    expected: The catalogue's startup answer for "Trust this folder" would fire, or no trust dialog would appear under --auto.
+    observed: "No \"startup answer sent\" line exists in the narration, and ~/.kimi-code/workspace-trust recorded this worktree's root as trusted at 22:13:39.649Z, 13ms after herdr completed the runner's agent.prompt call."
+    mattered_because: The runner only sends startup answers on a blocked reading and herdr read kimi as idle under the dialog, so the opening prompt's own Enter selected the preselected "Trust this folder" option and the prompt text was lost, which is what the 20-second prompt-taken refusal measured.
+  - kind: choice
+    at: "2026-09-24T22:26:00Z"
+    chose: Read the model label from this session's own kimi-code.log, which prints model=k3 modelAlias=kimi-code/k3 thinkingEffort=high at turn start.
+    because: The session record's runtime line is declared by the catalogue, while the brief asks for what the CLI itself reports; the session log is that observation.
+  - kind: surprise
+    at: "2026-09-24T22:26:30Z"
+    expected: The catalogue entry's args [--auto] would reproduce this session's model.
+    observed: "~/.kimi-code/config.toml sets default_model = \"kimi-code/kimi-for-coding\", yet this session runs kimi-code/k3, so a model flag outside the catalogue's args selected k3."
+    mattered_because: An entry without --model kimi-code/k3 starts this machine's default model, not k3; the entry's args must carry the model flag the way the Claude and Codex entries do.
+  - kind: choice
+    at: "2026-09-24T22:27:00Z"
+    chose: Verify the trust dialog wording from the installed Kimi Code CLI 2.1.1 bundle's trust-prompt component rather than from memory.
+    because: The bundle ships title "Trust this folder?" with "Trust this folder" preselected and Enter selecting it, so the catalogue's matches text and [Enter] keys are confirmed against what a fresh root actually shows.
+  - kind: surprise
+    at: "2026-09-24T22:28:00Z"
+    expected: The person's recovery prompt through the herdr CLI would report success once delivered.
+    observed: herdr's server log shows cli agent.prompt at 22:17:11.292Z completing with outcome error at 22:17:16.682Z, although this kimi session was created from that prompt at 22:17:11.618Z and made its first model request at 22:17:11.726Z.
+    mattered_because: Delivery succeeded while the prompt call reported an error, a second detection gap on the same path, visible only in herdr's own log.
