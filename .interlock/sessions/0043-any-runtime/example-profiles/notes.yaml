@@ -54,3 +54,8 @@ notes:
       The reference generator derives the term directly from each shape tag; the existing
       repository convention records this vocabulary gap rather than changing the out-of-scope
       vocabulary table.
+  - kind: surprise
+    what: >-
+      The first standing lint run rejected only the new test's import ordering.
+    because: >-
+      The import order was corrected to Biome's established grouping before rerunning the gates.
