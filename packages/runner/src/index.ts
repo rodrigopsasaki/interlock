@@ -89,6 +89,11 @@ export {
   RUNTIME_CATALOGUE_SHAPE,
   runtimeCataloguePath,
 } from "./runtimeCatalogue.ts";
+export type { RuntimeSelectionRefusal } from "./runtimeSelection.ts";
+export {
+  explainRuntimeSelectionRefusal,
+  selectRuntime,
+} from "./runtimeSelection.ts";
 export { gitTrackedFiles } from "./scope.ts";
 export type { BriefWriteOutcome, SessionBriefRefusal } from "./sessionBrief.ts";
 export {

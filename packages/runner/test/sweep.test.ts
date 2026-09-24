@@ -1,4 +1,4 @@
-import { outcome } from "ledger";
+import { outcome, sessionRuntime } from "ledger";
 import { describe, expect, it } from "vitest";
 import { ABANDONED_AUTHORITY, sweepExpiredLeases } from "../src/sweep.ts";
 import { memoryLedger } from "./support/memoryLedger.ts";
@@ -11,7 +11,7 @@ describe("sweeper", () => {
 
     ledger.append({
       kind: "session-started",
-      session: { id: "session-expired", node: node("a") },
+      session: { id: "session-expired", node: node("a"), runtime: sessionRuntime.unknown() },
       brief: {
         graph: "0001-bootstrap",
         node: "a",
@@ -30,7 +30,7 @@ describe("sweeper", () => {
 
     ledger.append({
       kind: "session-started",
-      session: { id: "session-live", node: node("b") },
+      session: { id: "session-live", node: node("b"), runtime: sessionRuntime.unknown() },
       brief: {
         graph: "0001-bootstrap",
         node: "b",
@@ -49,7 +49,7 @@ describe("sweeper", () => {
 
     ledger.append({
       kind: "session-started",
-      session: { id: "session-resolved", node: node("c") },
+      session: { id: "session-resolved", node: node("c"), runtime: sessionRuntime.unknown() },
       brief: {
         graph: "0001-bootstrap",
         node: "c",
@@ -89,7 +89,7 @@ describe("sweeper", () => {
     const ledger = memoryLedger();
     ledger.append({
       kind: "session-started",
-      session: { id: "session-expired", node: node("a") },
+      session: { id: "session-expired", node: node("a"), runtime: sessionRuntime.unknown() },
       brief: {
         graph: "0001-bootstrap",
         node: "a",
@@ -116,7 +116,7 @@ describe("sweeper", () => {
     const ledger = memoryLedger();
     ledger.append({
       kind: "session-started",
-      session: { id: "session-1", node: node("a") },
+      session: { id: "session-1", node: node("a"), runtime: sessionRuntime.unknown() },
       brief: {
         graph: "0001-bootstrap",
         node: "a",
@@ -138,7 +138,7 @@ describe("sweeper", () => {
 
     ledger.append({
       kind: "session-started",
-      session: { id: "session-2", node: node("a") },
+      session: { id: "session-2", node: node("a"), runtime: sessionRuntime.unknown() },
       brief: {
         graph: "0001-bootstrap",
         node: "a",

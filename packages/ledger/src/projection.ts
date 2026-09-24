@@ -8,6 +8,7 @@ import type { Note } from "./note.ts";
 import type { OutboxDelivery, OutboxIntent } from "./outbox.ts";
 import type { Outcome } from "./outcome.ts";
 import type { Receipt } from "./receipt.ts";
+import type { SessionRuntime } from "./session.ts";
 
 export interface NodeView {
   readonly node: Node;
@@ -28,6 +29,7 @@ export interface SessionView {
   readonly node: Node;
   readonly brief: Brief;
   readonly graphBaseSha: string | undefined;
+  readonly runtime: SessionRuntime;
   readonly notes: readonly Note[];
   readonly debrief: Debrief | undefined;
   readonly lease: Lease | undefined;
@@ -57,7 +59,11 @@ export function isInterrupted(view: SessionView): boolean {
 }
 
 export function leaseIsLive(session: SessionView, nowWallMs: number): boolean {
-  return session.lease !== undefined && !session.leaseExpired && session.lease.expiry > nowWallMs;
+  return (
+    session.lease !== undefined &&
+    !session.leaseExpired &&
+    session.lease.expiry > nowWallMs
+  );
 }
 
 function emptyNodeView(node: Node): NodeView {
@@ -95,12 +101,16 @@ function withSession(
   return { ...projection, sessions };
 }
 
-export function applyEvent(projection: LedgerProjection, event: LedgerEvent): LedgerProjection {
+export function applyEvent(
+  projection: LedgerProjection,
+  event: LedgerEvent,
+): LedgerProjection {
   switch (event.kind) {
     case "node-created":
       return withNode(projection, event.node, (view) => view);
     case "lease-taken": {
-      const current = projection.nodes.get(nodeKey(event.node)) ?? emptyNodeView(event.node);
+      const current =
+        projection.nodes.get(nodeKey(event.node)) ?? emptyNodeView(event.node);
       const generation = current.leaseGeneration + 1;
       const withGeneration = withNode(projection, event.node, (view) => ({
         ...view,
@@ -132,13 +142,18 @@ export function applyEvent(projection: LedgerProjection, event: LedgerEvent): Le
         leaseExpired: true,
       }));
     case "session-started": {
-      const withNodeCreated = withNode(projection, event.session.node, (view) => view);
+      const withNodeCreated = withNode(
+        projection,
+        event.session.node,
+        (view) => view,
+      );
       const sessions = new Map(withNodeCreated.sessions);
       sessions.set(event.session.id, {
         session: event.session.id,
         node: event.session.node,
         brief: event.brief,
         graphBaseSha: event.graphBaseSha,
+        runtime: event.session.runtime,
         notes: [],
         debrief: undefined,
         lease: undefined,
@@ -181,12 +196,16 @@ export function applyEvent(projection: LedgerProjection, event: LedgerEvent): Le
         outcomeSetAtGeneration: view.leaseGeneration,
       }));
     case "outbox-intent-recorded":
-      if (!("effect" in event)) return withNode(projection, event.node, (view) => view);
+      if (!("effect" in event))
+        return withNode(projection, event.node, (view) => view);
       return {
         ...withNode(projection, event.node, (view) => view),
         outbox: new Map([
           ...projection.outbox,
-          [event.effect.id, { intent: event.effect, delivery: undefined, state: "uncertain" }],
+          [
+            event.effect.id,
+            { intent: event.effect, delivery: undefined, state: "uncertain" },
+          ],
         ]),
       };
     case "outbox-delivery-recorded": {

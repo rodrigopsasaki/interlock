@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
 import { isErr } from "@phyxiusjs/fp";
 import { sharedJournalDirectory } from "face";
-import { type Brief, type LedgerEvent, nodeKey, type Receipt } from "ledger";
+import { type Brief, type LedgerEvent, nodeKey, type Receipt, sessionRuntime } from "ledger";
 import type { AbsorbOutcome, EvidenceForAbsorb, SubstrateClient } from "substrate";
 import { noneClient } from "substrate";
 import { afterAll, afterEach, describe, expect, it } from "vitest";
@@ -815,7 +815,7 @@ describe("debrief ingestion", () => {
     const { ledger, events } = memoryLedgerWithLog();
     ledger.append({
       kind: "session-started",
-      session: { id: "s1", node },
+      session: { id: "s1", node, runtime: sessionRuntime.unknown() },
       brief: {
         graph: node.graph,
         node: node.id,
@@ -891,7 +891,7 @@ describe("debrief ingestion", () => {
     const { ledger, events } = memoryLedgerWithLog();
     ledger.append({
       kind: "session-started",
-      session: { id: "s1", node },
+      session: { id: "s1", node, runtime: sessionRuntime.unknown() },
       brief: {
         graph: node.graph,
         node: node.id,
@@ -941,8 +941,8 @@ describe("debrief ingestion", () => {
       gates: ["always-pass"],
       scope: [],
     };
-    ledger.append({ kind: "session-started", session: { id: "s1", node }, brief });
-    ledger.append({ kind: "session-started", session: { id: "s2", node }, brief });
+    ledger.append({ kind: "session-started", session: { id: "s1", node, runtime: sessionRuntime.unknown() }, brief });
+    ledger.append({ kind: "session-started", session: { id: "s2", node, runtime: sessionRuntime.unknown() }, brief });
 
     const options = {
       ledger,

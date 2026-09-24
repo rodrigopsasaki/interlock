@@ -3,7 +3,10 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import { parse as parseYaml, YAMLParseError } from "yaml";
-import { AGENT_NAME_SHAPE_DESCRIPTION, isCompliantAgentName } from "./agentName.ts";
+import {
+  AGENT_NAME_SHAPE_DESCRIPTION,
+  isCompliantAgentName,
+} from "./agentName.ts";
 import { DEFAULT_STARTUP_TIMEOUT_MS, type LocalConfig } from "./localConfig.ts";
 import { parseStartupAnswers, type StartupAnswer } from "./startupAnswers.ts";
 import { isRecord, isString, isStringArray, prop } from "./validate.ts";
@@ -20,14 +23,27 @@ export interface CatalogueRuntime {
   readonly startupTimeoutMs: number;
 }
 
-export type RuntimeCatalogueRefusal = {
-  readonly kind: "malformed";
-  readonly path: string;
-  readonly reason: string;
-};
+export type RuntimeCatalogueRefusal =
+  | {
+      readonly kind: "malformed";
+      readonly path: string;
+      readonly reason: string;
+    }
+  | {
+      readonly kind: "unreadable";
+      readonly path: string;
+      readonly code: string;
+    };
 
-export function explainRuntimeCatalogueRefusal(refusal: RuntimeCatalogueRefusal): string {
-  return `${refusal.path}: ${refusal.reason}`;
+export function explainRuntimeCatalogueRefusal(
+  refusal: RuntimeCatalogueRefusal,
+): string {
+  switch (refusal.kind) {
+    case "malformed":
+      return `${refusal.path}: ${refusal.reason}`;
+    case "unreadable":
+      return `${refusal.path}: cannot be read (${refusal.code}).`;
+  }
 }
 
 export function runtimeCataloguePath(): string {
@@ -111,7 +127,10 @@ function parseEntry(
   }
 
   const startupTimeoutMsField = prop(value, "startup_timeout_ms");
-  if (startupTimeoutMsField !== undefined && !isPositiveInteger(startupTimeoutMsField)) {
+  if (
+    startupTimeoutMsField !== undefined &&
+    !isPositiveInteger(startupTimeoutMsField)
+  ) {
     return err({
       kind: "malformed",
       path,
@@ -176,20 +195,27 @@ function parseDocument(
 
 export async function loadRuntimeCatalogue(
   path: string = runtimeCataloguePath(),
-): Promise<Result<ReadonlyMap<string, CatalogueRuntime>, RuntimeCatalogueRefusal>> {
+): Promise<
+  Result<ReadonlyMap<string, CatalogueRuntime>, RuntimeCatalogueRefusal>
+> {
   let raw: string;
   try {
     raw = await readFile(path, "utf-8");
   } catch (error) {
     if (isNodeError(error) && error.code === "ENOENT") return ok(new Map());
-    throw error;
+    const code =
+      isNodeError(error) && error.code !== undefined
+        ? error.code
+        : "unknown error";
+    return err({ kind: "unreadable", path, code });
   }
 
   let parsed: unknown;
   try {
     parsed = parseYaml(raw);
   } catch (error) {
-    const reason = error instanceof YAMLParseError ? error.message : "invalid YAML";
+    const reason =
+      error instanceof YAMLParseError ? error.message : "invalid YAML";
     return err({ kind: "malformed", path, reason });
   }
 
@@ -218,12 +244,15 @@ export type MergeRuntimesRefusal =
       readonly known: readonly string[];
     };
 
-export function explainMergeRuntimesRefusal(refusal: MergeRuntimesRefusal): string {
+export function explainMergeRuntimesRefusal(
+  refusal: MergeRuntimesRefusal,
+): string {
   switch (refusal.kind) {
     case "duplicate-default":
       return `"${DEFAULT_RUNTIME_NAME}" is declared both in the runtime catalogue and as local.yaml's runtime block; remove one.`;
     case "unknown-default-runtime": {
-      const known = refusal.known.length === 0 ? "(none)" : refusal.known.join(", ");
+      const known =
+        refusal.known.length === 0 ? "(none)" : refusal.known.join(", ");
       return `local.yaml's default_runtime names "${refusal.name}", which is not a known runtime; known runtimes are ${known}.`;
     }
   }

@@ -1,0 +1,76 @@
+interlock: notes@v0
+node: run-with-runtime
+entries:
+  - kind: choice
+    at: "2026-09-24T00:00:00Z"
+    chose: >-
+      Modeled Session.runtime (packages/ledger/src/session.ts) as a required field typed
+      SessionRuntime = { name; kind; model: string|undefined } | "unknown", not as an
+      optional field (SessionRuntime | undefined) that would have let every prior upcast
+      level keep passing session-started through unchanged.
+    because: >-
+      The brief is explicit that Session "gains an additive field, typed as a union with two
+      arms: declared... and unknown, the reading of every session recorded before this
+      shape" and that "the upcast seam gains the step that reads a pre-v6 session as
+      unknown". Compatibility (docs/design/0001-interlock.md) says a new field is normally
+      optional, but here the acceptance asks for the honest-absence reading to be produced by
+      the upcast seam itself rather than left as bare `undefined` for every consumer to
+      re-interpret. A required union makes "we don't know" a first-class, unrepresentable-any-
+      other-way value instead of an implicit convention every reader must remember.
+    rejected:
+      - >-
+        session.runtime?: { name; kind; model } (optional, declared-only shape, absence reads
+        as unknown by convention): rejected because it pushes the "absence means unknown"
+        interpretation onto every future reader instead of making it structurally true once,
+        at the upcast seam, and the brief names the upcast seam explicitly as where this
+        happens.
+  - kind: surprise
+    at: "2026-09-24T00:10:00Z"
+    expected: >-
+      Adding Session.runtime as a required field would only require a new upcast step at the
+      event@v5 -> event@v6 boundary (one new upcast/v5.ts), mirroring how event@v4 ->
+      event@v5 only needed new allOf branches for the two new-at-v5 event kinds.
+    observed: >-
+      packages/ledger/src/upcast/v1.ts's session-started handling, and event@v2/v3/v4's
+      shared isLedgerEventV4-based pass-through, both reused the CURRENT (strict) isSession
+      validator to gate an identity pass-through of raw session-started data. Making
+      Session.runtime required meant that reuse would reject every historical
+      session-started line (v1 through v5) the instant isSession started requiring runtime,
+      breaking replay of both real fixture journals
+      (journal-v1-v2-2026-09-10.jsonl, journal-v3-v4-2026-09-11.jsonl), which do contain
+      session-started events (11 and 17 respectively). Fixed by extracting one shared,
+      version-agnostic transform, upcastSessionStarted (packages/ledger/src/event.ts),
+      that any pre-v6 upcast level calls for the "session-started" kind specifically
+      (reconstructing the event with runtime defaulted to "unknown" rather than doing an
+      unsafe identity cast), and retired the now-inaccurate isLedgerEventV4 predicate in
+      favor of a genuine transform, upcastPreV5Event, shared by event@v2/v3/v4 (which are
+      structurally identical to each other, as they always have been).
+  - kind: choice
+    at: "2026-09-24T00:20:00Z"
+    chose: >-
+      Deleted the exported isLedgerEventV4 (packages/ledger/src/event.ts) rather than keep
+      it alongside the new upcastPreV5Event.
+    because: >-
+      isLedgerEventV4 was a boolean predicate whose only callers were the event@v2/v3/v4
+      upcast entries, all of which now need a genuine transform (to inject runtime: "unknown"
+      on session-started) rather than a boolean-gated identity pass-through; a predicate that
+      returns true for a raw object missing a required field, trusted by callers doing
+      `raw as LedgerEvent`, would be a silent lie at runtime. Confirmed via repository-wide
+      grep that nothing outside packages/ledger/src/envelope.ts and upcast/v2.ts, v3.ts
+      imported it (no `as` cast was introduced anywhere to route around this).
+  - kind: choice
+    at: "2026-09-24T00:30:00Z"
+    chose: >-
+      Built the new packages/ledger/test/fixtures/journal-v5-run-with-runtime-2026-09-24.jsonl
+      fixture from real event@v5 lines (the runtime-catalogue node's full session: started,
+      leased, renewed, gated, cleared) copied verbatim from this repository's own shared
+      journal at the git-common-dir-relative .interlock/ledger/journal.jsonl, rather than
+      from my own node's session-started line.
+    because: >-
+      The brief requires copying real event@v5 session-started lines from the repository's
+      own journal (read-only) rather than hand-authoring one, and this node's own
+      session-started brief text is the full text of this node's own multi-thousand-character
+      brief -- using it would bloat the fixture for no test value. The runtime-catalogue
+      session is a complete, self-contained, real v5 flow ending in a cleared outcome, and
+      because it was written before this feature existed it is also exactly the right shape
+      to prove "the v5 fixture upcasts to unknown" (pinned by the graph's acceptance text).

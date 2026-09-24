@@ -3,8 +3,19 @@ import { join, relative } from "node:path";
 import { type Clock, deadlineFrom, ms } from "@phyxiusjs/clock";
 import { isErr, isOk, ok, type Result } from "@phyxiusjs/fp";
 import { debriefFilePath } from "debrief";
-import { currentCommitSha, type GateDeclaration, sharedJournalDirectory } from "face";
-import { type HeldOn, type Ledger, type Outcome, outcome, readRawEvents } from "ledger";
+import {
+  currentCommitSha,
+  type GateDeclaration,
+  sharedJournalDirectory,
+} from "face";
+import {
+  type HeldOn,
+  type Ledger,
+  type Outcome,
+  outcome,
+  readRawEvents,
+  sessionRuntime,
+} from "ledger";
 import type { SubstrateClient } from "substrate";
 import { declaredGateIds, gateCommandTable } from "./gateCommand.ts";
 import { explainGateJudgeRefusal } from "./gateJudge.ts";
@@ -14,7 +25,13 @@ import { takeLease } from "./lease.ts";
 import type { LocalConfig } from "./localConfig.ts";
 import { recordingNarrate } from "./narration.ts";
 import { buildOpeningPrompt, type PriorWork } from "./openingPrompt.ts";
-import { type Agent, explainRuntimeRefusal, type Pane, type Runtime } from "./runtime.ts";
+import {
+  type Agent,
+  explainRuntimeRefusal,
+  type Pane,
+  type Runtime,
+} from "./runtime.ts";
+import type { ResolvedRuntime } from "./runtimeCatalogue.ts";
 import { gitTrackedFiles } from "./scope.ts";
 import { type BriefWriteOutcome, buildBrief } from "./sessionBrief.ts";
 import { lastNonEmptyLine, writeScreenSnapshot } from "./sessionScreen.ts";
@@ -29,7 +46,10 @@ import {
   uncommittedPaths,
   type WorktreeOutcome,
 } from "./worktree.ts";
-import { explainWorktreeSetupRefusal, runWorktreeSetup } from "./worktreeSetup.ts";
+import {
+  explainWorktreeSetupRefusal,
+  runWorktreeSetup,
+} from "./worktreeSetup.ts";
 
 function isoOf(wallMs: number): string {
   return new Date(wallMs).toISOString();
@@ -64,6 +84,7 @@ export interface DriveSessionRequest {
   readonly acceptance: string;
   readonly nodeGates: readonly GateDeclaration[];
   readonly localConfig: LocalConfig;
+  readonly agentRuntime: ResolvedRuntime;
   readonly standingGates: readonly StandingGate[];
   readonly substrate: SubstrateClient;
   readonly ledger: Ledger;
@@ -71,14 +92,21 @@ export interface DriveSessionRequest {
   readonly narrate: (line: string) => void;
   readonly runtime?: Runtime;
   readonly runnerIdPrefix: string;
-  readonly afterWorktree?: (worktreePath: string) => Promise<Result<void, string>>;
+  readonly afterWorktree?: (
+    worktreePath: string,
+  ) => Promise<Result<void, string>>;
   readonly composeBrief: (
     worktreePath: string,
     graphBaseSha: string,
     session: string,
   ) => Promise<Result<BriefWriteOutcome, string>>;
-  readonly beforeJudge?: (worktreePath: string) => Promise<Result<void, BeforeJudgeRefusal>>;
-  readonly describeDone?: (kind: Outcome["kind"], narrate: (line: string) => void) => string;
+  readonly beforeJudge?: (
+    worktreePath: string,
+  ) => Promise<Result<void, BeforeJudgeRefusal>>;
+  readonly describeDone?: (
+    kind: Outcome["kind"],
+    narrate: (line: string) => void,
+  ) => string;
 }
 
 export async function driveInteractiveSession(
@@ -92,6 +120,7 @@ export async function driveInteractiveSession(
     acceptance,
     nodeGates,
     localConfig,
+    agentRuntime,
     standingGates,
     substrate,
     ledger,
@@ -116,7 +145,12 @@ export async function driveInteractiveSession(
 
     const worktreePath = join(repoRoot, localConfig.worktreeRoot, node);
     const branch = `graph/${graph}/${node}`;
-    const worktree = ensureNodeWorktree(repoRoot, worktreePath, requestedGraphBaseSha, branch);
+    const worktree = ensureNodeWorktree(
+      repoRoot,
+      worktreePath,
+      requestedGraphBaseSha,
+      branch,
+    );
     if (isErr(worktree)) {
       return {
         exitCode: 1,
@@ -134,17 +168,40 @@ export async function driveInteractiveSession(
 
     const gateIds = declaredGateIds(standingGates, nodeGates);
     const sessionId = randomUUID();
-    const brief = buildBrief(graph, node, acceptance, gateIds, gitTrackedFiles(repoRoot), role);
+    const brief = buildBrief(
+      graph,
+      node,
+      acceptance,
+      gateIds,
+      gitTrackedFiles(repoRoot),
+      role,
+    );
     ledger.append({
       kind: "session-started",
-      session: { id: sessionId, node: targetNode },
+      session: {
+        id: sessionId,
+        node: targetNode,
+        runtime: sessionRuntime.declared(
+          agentRuntime.name,
+          agentRuntime.kind,
+          agentRuntime.model,
+        ),
+      },
       brief,
       graphBaseSha,
     });
     narrate = recordingNarrate(ledger, clock, sessionId, narrate);
 
-    const lease = takeLease(ledger, clock, targetNode, sessionId, localConfig.leaseMs);
-    narrate(`leased ${node} (session ${sessionId}, expires ${isoOf(lease.expiry)})`);
+    const lease = takeLease(
+      ledger,
+      clock,
+      targetNode,
+      sessionId,
+      localConfig.leaseMs,
+    );
+    narrate(
+      `leased ${node} (session ${sessionId}, expires ${isoOf(lease.expiry)})`,
+    );
 
     const refuse = (step: string, explanation: string): DriveSessionOutcome => {
       const line = `${step} refused: ${explanation}`;
@@ -152,8 +209,12 @@ export async function driveInteractiveSession(
       return { exitCode: 1, message: line };
     };
     const abandonLease = (): void => {
-      const expiry = ledger.projection().sessions.get(sessionId)?.lease?.expiry ?? lease.expiry;
-      narrate(`lease not renewed; the sweeper will collect it at ${isoOf(expiry)}`);
+      const expiry =
+        ledger.projection().sessions.get(sessionId)?.lease?.expiry ??
+        lease.expiry;
+      narrate(
+        `lease not renewed; the sweeper will collect it at ${isoOf(expiry)}`,
+      );
     };
 
     narrate(`worktree at ${worktreePath} on ${graphBaseSha}`);
@@ -170,7 +231,11 @@ export async function driveInteractiveSession(
       );
     }
 
-    const briefWritten = await composeBrief(worktreePath, graphBaseSha, sessionId);
+    const briefWritten = await composeBrief(
+      worktreePath,
+      graphBaseSha,
+      sessionId,
+    );
     if (isErr(briefWritten)) {
       const result = refuse("brief", briefWritten.error);
       lease.stop();
@@ -181,9 +246,17 @@ export async function driveInteractiveSession(
     for (const line of briefWritten.value.narration) narrate(line);
 
     const briefRelativePath = relative(worktreePath, briefWritten.value.path);
-    const briefCommitted = commitBriefIfChanged(worktreePath, briefRelativePath, node, sessionId);
+    const briefCommitted = commitBriefIfChanged(
+      worktreePath,
+      briefRelativePath,
+      node,
+      sessionId,
+    );
     if (isErr(briefCommitted)) {
-      const result = refuse("brief commit", explainWorktreeRefusal(briefCommitted.error));
+      const result = refuse(
+        "brief commit",
+        explainWorktreeRefusal(briefCommitted.error),
+      );
       lease.stop();
       abandonLease();
       return result;
@@ -192,18 +265,30 @@ export async function driveInteractiveSession(
       narrate(`brief committed ${briefCommitted.value}`);
     }
 
-    const setUp = await runWorktreeSetup(localConfig.worktreeSetup, worktreePath, narrate);
+    const setUp = await runWorktreeSetup(
+      localConfig.worktreeSetup,
+      worktreePath,
+      narrate,
+    );
     if (isErr(setUp)) {
-      const result = refuse("worktree setup", explainWorktreeSetupRefusal(setUp.error));
+      const result = refuse(
+        "worktree setup",
+        explainWorktreeSetupRefusal(setUp.error),
+      );
       lease.stop();
       abandonLease();
       return result;
     }
 
     const createdRuntime =
-      injectedRuntime === undefined ? await createHerdrRuntime() : ok(injectedRuntime);
+      injectedRuntime === undefined
+        ? await createHerdrRuntime()
+        : ok(injectedRuntime);
     if (isErr(createdRuntime)) {
-      const result = refuse("runtime", explainRuntimeRefusal(createdRuntime.error));
+      const result = refuse(
+        "runtime",
+        explainRuntimeRefusal(createdRuntime.error),
+      );
       lease.stop();
       abandonLease();
       return result;
@@ -212,43 +297,61 @@ export async function driveInteractiveSession(
 
     const openedPane = await runtime.openPane(worktreePath);
     if (isErr(openedPane)) {
-      const result = refuse("pane open", explainRuntimeRefusal(openedPane.error));
+      const result = refuse(
+        "pane open",
+        explainRuntimeRefusal(openedPane.error),
+      );
       lease.stop();
       abandonLease();
       return result;
     }
     pane = openedPane.value;
     narrate(`pane ${pane.id} opened`);
+    narrate(
+      `runtime ${agentRuntime.name} (${agentRuntime.kind}, ${agentRuntime.model ?? "model undeclared"})`,
+    );
 
     const startedAgent = await runtime.startAgent(
       pane,
-      localConfig.runtime.kind,
-      localConfig.runtime.args,
+      agentRuntime.kind,
+      agentRuntime.args,
       () => narrate("waiting for the pane's shell"),
       node,
     );
     if (isErr(startedAgent)) {
-      const result = refuse("agent start", explainRuntimeRefusal(startedAgent.error));
+      const result = refuse(
+        "agent start",
+        explainRuntimeRefusal(startedAgent.error),
+      );
       lease.stop();
       abandonLease();
       return result;
     }
     agent = startedAgent.value;
-    narrate(`agent ${agent.id} started (${localConfig.runtime.kind})`);
+    narrate(`agent ${agent.id} started (${agentRuntime.kind})`);
 
-    const reported = await runtime.reportIdentity(agent, graph, node, { sessionId });
+    const reported = await runtime.reportIdentity(agent, graph, node, {
+      sessionId,
+    });
     if (isErr(reported)) {
-      const result = refuse("identity report", explainRuntimeRefusal(reported.error));
+      const result = refuse(
+        "identity report",
+        explainRuntimeRefusal(reported.error),
+      );
       lease.stop();
       abandonLease();
       return result;
     }
     narrate("identity reported");
 
-    const startupTimeoutMs = localConfig.runtime.startupTimeoutMs;
-    const startupAnswers = localConfig.runtime.startupAnswers;
+    const startupTimeoutMs = agentRuntime.startupTimeoutMs;
+    const startupAnswers = agentRuntime.startupAnswers;
     const answered = new Set<number>();
-    let startupStatus = await runtime.waitUntil(agent, ["idle", "blocked"], startupTimeoutMs);
+    let startupStatus = await runtime.waitUntil(
+      agent,
+      ["idle", "blocked"],
+      startupTimeoutMs,
+    );
     let startupScreen = "";
     while (isOk(startupStatus) && startupStatus.value !== "idle") {
       if (startupStatus.value === "blocked") {
@@ -264,7 +367,8 @@ export async function driveInteractiveSession(
           .map((answer, index) => ({ answer, index }))
           .find(
             ({ answer, index }) =>
-              !answered.has(index) && matchesScreen(answer.matches, startupScreen),
+              !answered.has(index) &&
+              matchesScreen(answer.matches, startupScreen),
           );
         if (candidate === undefined) break;
         answered.add(candidate.index);
@@ -277,7 +381,11 @@ export async function driveInteractiveSession(
         }
         narrate(`startup answer sent (${candidate.answer.matches})`);
       }
-      startupStatus = await runtime.waitUntil(agent, ["idle", "blocked"], startupTimeoutMs);
+      startupStatus = await runtime.waitUntil(
+        agent,
+        ["idle", "blocked"],
+        startupTimeoutMs,
+      );
     }
     if (isErr(startupStatus)) {
       const explanation =
@@ -300,7 +408,13 @@ export async function driveInteractiveSession(
 
     const prompted = await runtime.prompt(
       agent,
-      buildOpeningPrompt(graph, node, priorWork, role, briefWritten.value.openingView),
+      buildOpeningPrompt(
+        graph,
+        node,
+        priorWork,
+        role,
+        briefWritten.value.openingView,
+      ),
     );
     if (isErr(prompted)) {
       const result = refuse("prompt", explainRuntimeRefusal(prompted.error));
@@ -318,7 +432,8 @@ export async function driveInteractiveSession(
     );
     if (isErr(tookPrompt)) {
       const explanation =
-        tookPrompt.error.kind === "timeout" && tookPrompt.error.status === "idle"
+        tookPrompt.error.kind === "timeout" &&
+        tookPrompt.error.status === "idle"
           ? `prompt not taken after ${promptTakenTimeoutMs}ms; agent still idle`
           : explainRuntimeRefusal(tookPrompt.error);
       const result = refuse("prompt taken", explanation);
@@ -332,15 +447,23 @@ export async function driveInteractiveSession(
     const readUnfinishedWork = (): UnfinishedWork | undefined => {
       const dirty = uncommittedPaths(worktreePath);
       const dirtyCount = isOk(dirty) ? dirty.value.length : 0;
-      const debriefRelative = relative(worktreePath, debriefFilePath(worktreePath, graph, node));
+      const debriefRelative = relative(
+        worktreePath,
+        debriefFilePath(worktreePath, graph, node),
+      );
       const debriefMissing = !isCommittedAtHead(worktreePath, debriefRelative);
       return dirtyCount === 0 && !debriefMissing
         ? undefined
         : { uncommittedPaths: dirtyCount, debriefMissing };
     };
 
-    narrate(`waiting for idle, blocked or done (timeout ${localConfig.runTimeoutMs}ms)`);
-    const deadline = deadlineFrom(clock.now().monoMs, ms(localConfig.runTimeoutMs));
+    narrate(
+      `waiting for idle, blocked or done (timeout ${localConfig.runTimeoutMs}ms)`,
+    );
+    const deadline = deadlineFrom(
+      clock.now().monoMs,
+      ms(localConfig.runTimeoutMs),
+    );
     const waited = await waitForSession(
       runtime,
       agent,
@@ -360,16 +483,22 @@ export async function driveInteractiveSession(
 
     const screenRead = await runtime.read(agent);
     if (isErr(screenRead)) {
-      narrate(`agent screen read refused: ${explainRuntimeRefusal(screenRead.error)}`);
+      narrate(
+        `agent screen read refused: ${explainRuntimeRefusal(screenRead.error)}`,
+      );
     }
 
     const onWorktreeRead = async (): Promise<void> => {
       if (!isOk(screenRead)) return;
       await writeScreenSnapshot(worktreePath, graph, node, screenRead.value);
-      narrate(`agent screen: ${lastNonEmptyLine(screenRead.value) ?? "(no output)"}`);
+      narrate(
+        `agent screen: ${lastNonEmptyLine(screenRead.value) ?? "(no output)"}`,
+      );
     };
 
-    const personEventsRead = await readRawEvents(sharedJournalDirectory(repoRoot));
+    const personEventsRead = await readRawEvents(
+      sharedJournalDirectory(repoRoot),
+    );
 
     if (beforeJudge !== undefined) {
       const preCheck = await beforeJudge(worktreePath);
@@ -406,7 +535,10 @@ export async function driveInteractiveSession(
     if (isErr(judged)) {
       const result =
         judged.error.kind === "worktree-status"
-          ? refuse("worktree status", explainWorktreeRefusal(judged.error.refusal))
+          ? refuse(
+              "worktree status",
+              explainWorktreeRefusal(judged.error.refusal),
+            )
           : refuse("gates", explainGateJudgeRefusal(judged.error.refusal));
       abandonLease();
       return result;

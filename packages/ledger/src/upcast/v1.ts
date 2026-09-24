@@ -1,6 +1,10 @@
 import { type Derivation, isDerivation } from "../derivation.ts";
 import { type Disposition, isDisposition } from "../disposition.ts";
-import { isLedgerEvent, type LedgerEvent } from "../event.ts";
+import {
+  isLedgerEvent,
+  type LedgerEvent,
+  upcastSessionStarted,
+} from "../event.ts";
 import { type Gate, gate } from "../gate.ts";
 import { isNode } from "../graph.ts";
 import { heldOn, type Outcome, outcome } from "../outcome.ts";
@@ -63,7 +67,9 @@ function isV1Gate(value: unknown): value is V1Gate {
     case "satisfied":
       return isV1Receipt(prop(value, "receipt"));
     case "blocked":
-      return isString(prop(value, "evidence")) && isString(prop(value, "because"));
+      return (
+        isString(prop(value, "evidence")) && isString(prop(value, "because"))
+      );
     case "waived":
       return (
         isString(prop(value, "authority")) &&
@@ -71,7 +77,9 @@ function isV1Gate(value: unknown): value is V1Gate {
         isV1Receipt(prop(value, "receipt"))
       );
     case "superseded":
-      return isString(prop(value, "authority")) && isString(prop(value, "because"));
+      return (
+        isString(prop(value, "authority")) && isString(prop(value, "because"))
+      );
     default:
       return false;
   }
@@ -147,7 +155,9 @@ function isV1Outcome(value: unknown): value is V1Outcome {
       );
     case "cancelled":
     case "superseded":
-      return isString(prop(value, "authority")) && isString(prop(value, "because"));
+      return (
+        isString(prop(value, "authority")) && isString(prop(value, "because"))
+      );
     default:
       return false;
   }
@@ -181,7 +191,6 @@ const PASS_THROUGH_KINDS: ReadonlySet<string> = new Set([
   "lease-taken",
   "lease-renewed",
   "lease-expired",
-  "session-started",
   "note-appended",
   "outbox-intent-recorded",
 ]);
@@ -191,6 +200,7 @@ export function upcastV1(raw: unknown): LedgerEvent | undefined {
   const kind = prop(raw, "kind");
   if (typeof kind !== "string") return undefined;
 
+  if (kind === "session-started") return upcastSessionStarted(raw);
   if (PASS_THROUGH_KINDS.has(kind)) return isLedgerEvent(raw) ? raw : undefined;
   if (kind === "debrief-filed") return undefined;
 
@@ -214,7 +224,9 @@ export function upcastV1(raw: unknown): LedgerEvent | undefined {
     const rawOutcome = prop(raw, "outcome");
     if (!isV1Outcome(rawOutcome)) return undefined;
     const upcast = upcastOutcome(rawOutcome);
-    return upcast === undefined ? undefined : { kind: "outcome-set", node, outcome: upcast };
+    return upcast === undefined
+      ? undefined
+      : { kind: "outcome-set", node, outcome: upcast };
   }
 
   return undefined;

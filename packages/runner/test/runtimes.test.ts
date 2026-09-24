@@ -17,7 +17,8 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined)
+    rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -143,17 +144,31 @@ describe("loadRuntimeCatalogue: a malformed catalogue refuses with a sentence", 
     ],
     [
       "an entry that is not a mapping",
-      ["interlock: runtimes@v0", "runtimes:", "  fast: not-a-mapping", ""].join("\n"),
+      ["interlock: runtimes@v0", "runtimes:", "  fast: not-a-mapping", ""].join(
+        "\n",
+      ),
       '"runtimes.fast" is not a mapping',
     ],
     [
       "an entry missing kind",
-      ["interlock: runtimes@v0", "runtimes:", "  fast:", "    model: m", ""].join("\n"),
+      [
+        "interlock: runtimes@v0",
+        "runtimes:",
+        "  fast:",
+        "    model: m",
+        "",
+      ].join("\n"),
       '"runtimes.fast.kind" is missing or not a string',
     ],
     [
       "an entry missing model",
-      ["interlock: runtimes@v0", "runtimes:", "  fast:", "    kind: claude", ""].join("\n"),
+      [
+        "interlock: runtimes@v0",
+        "runtimes:",
+        "  fast:",
+        "    kind: claude",
+        "",
+      ].join("\n"),
       '"runtimes.fast.model" is missing or not a string',
     ],
     [
@@ -200,7 +215,7 @@ describe("loadRuntimeCatalogue: a malformed catalogue refuses with a sentence", 
     const result = await loadRuntimeCatalogue(path);
 
     expect(isErr(result)).toBe(true);
-    if (isErr(result)) {
+    if (isErr(result) && result.error.kind === "malformed") {
       expect(result.error.reason).toContain(reasonFragment);
       expect(explainRuntimeCatalogueRefusal(result.error)).toContain(path);
     }
@@ -212,7 +227,8 @@ describe("loadRuntimeCatalogue: a malformed catalogue refuses with a sentence", 
     const result = await loadRuntimeCatalogue(path);
 
     expect(isErr(result)).toBe(true);
-    if (isErr(result)) expect(explainRuntimeCatalogueRefusal(result.error)).toContain(path);
+    if (isErr(result))
+      expect(explainRuntimeCatalogueRefusal(result.error)).toContain(path);
   });
 });
 
@@ -240,7 +256,9 @@ describe("runtimeCataloguePath", () => {
     delete process.env["INTERLOCK_RUNTIMES"];
     process.env["XDG_CONFIG_HOME"] = "/tmp/xdg";
 
-    expect(runtimeCataloguePath()).toBe(join("/tmp/xdg", "interlock", "runtimes.yaml"));
+    expect(runtimeCataloguePath()).toBe(
+      join("/tmp/xdg", "interlock", "runtimes.yaml"),
+    );
   });
 });
 

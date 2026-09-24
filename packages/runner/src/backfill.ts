@@ -5,11 +5,19 @@ import { join } from "node:path";
 import type { Clock } from "@phyxiusjs/clock";
 import { err, isErr, isOk, ok, type Result } from "@phyxiusjs/fp";
 import { debriefFilePath, readDebriefFile } from "debrief";
-import { type GraphDocument, type NodeDeclaration, topologicalOrder } from "face";
-import type { Ledger, Node, Outcome } from "ledger";
+import {
+  type GraphDocument,
+  type NodeDeclaration,
+  topologicalOrder,
+} from "face";
+import { type Ledger, type Node, type Outcome, sessionRuntime } from "ledger";
 import { noneClient } from "substrate";
 import { declaredGateIds, gateCommandTable } from "./gateCommand.ts";
-import { explainGateJudgeRefusal, type GateJudgeRefusal, judgeGates } from "./gateJudge.ts";
+import {
+  explainGateJudgeRefusal,
+  type GateJudgeRefusal,
+  judgeGates,
+} from "./gateJudge.ts";
 import { gitTrackedFiles } from "./scope.ts";
 import { buildBrief } from "./sessionBrief.ts";
 import type { StandingGate } from "./standingGates.ts";
@@ -53,7 +61,9 @@ export function explainBackfillRefusal(refusal: BackfillRefusal): string {
 }
 
 function hasDebrief(repoRoot: string, graph: string, nodeId: string): boolean {
-  return existsSync(join(repoRoot, ".interlock", "sessions", graph, nodeId, "debrief.yaml"));
+  return existsSync(
+    join(repoRoot, ".interlock", "sessions", graph, nodeId, "debrief.yaml"),
+  );
 }
 
 export function backfillSessionId(graph: string, nodeId: string): string {
@@ -109,7 +119,9 @@ export async function backfillGraph(
   const runnerId = `backfill-${randomUUID()}`;
   const scopePaths = gitTrackedFiles(worktreePath);
   const ordered = topologicalOrder(document.nodes);
-  const candidates: readonly NodeDeclaration[] = isOk(ordered) ? ordered.value : document.nodes;
+  const candidates: readonly NodeDeclaration[] = isOk(ordered)
+    ? ordered.value
+    : document.nodes;
 
   const results: BackfillNodeResult[] = [];
   for (const declaration of candidates) {
@@ -126,7 +138,7 @@ export async function backfillGraph(
     if (!ledger.projection().sessions.has(session)) {
       ledger.append({
         kind: "session-started",
-        session: { id: session, node },
+        session: { id: session, node, runtime: sessionRuntime.unknown() },
         brief: buildBrief(
           document.id,
           declaration.id,

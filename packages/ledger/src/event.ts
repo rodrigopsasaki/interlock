@@ -11,7 +11,12 @@ import {
 } from "./outbox.ts";
 import { isOutcome, type Outcome } from "./outcome.ts";
 import { isReceipt, type Receipt } from "./receipt.ts";
-import { isSession, type Session } from "./session.ts";
+import {
+  isSession,
+  isSessionRuntime,
+  sessionRuntime,
+  type Session,
+} from "./session.ts";
 import { isRecord, isString, prop } from "./validate.ts";
 
 export type LedgerEvent =
@@ -114,10 +119,14 @@ export function isLedgerEvent(value: unknown): value is LedgerEvent {
     case "note-appended":
       return isString(prop(value, "session")) && isNote(prop(value, "note"));
     case "debrief-filed":
-      return isString(prop(value, "session")) && isDebrief(prop(value, "debrief"));
+      return (
+        isString(prop(value, "session")) && isDebrief(prop(value, "debrief"))
+      );
     case "gate-moved":
       return (
-        isNode(prop(value, "node")) && isString(prop(value, "gate")) && isGate(prop(value, "to"))
+        isNode(prop(value, "node")) &&
+        isString(prop(value, "gate")) &&
+        isGate(prop(value, "to"))
       );
     case "receipt-written":
       return isNode(prop(value, "node")) && isReceipt(prop(value, "receipt"));
@@ -142,7 +151,50 @@ export function isLedgerEvent(value: unknown): value is LedgerEvent {
   }
 }
 
-export function isLedgerEventV4(value: unknown): value is LedgerEvent {
-  if (!isLedgerEvent(value) || value.kind === "outbox-delivery-recorded") return false;
-  return value.kind !== "outbox-intent-recorded" || !("effect" in value);
+function isLegacySessionRecord(
+  value: unknown,
+): value is Record<string, unknown> & {
+  readonly id: string;
+  readonly node: Node;
+} {
+  return (
+    isRecord(value) &&
+    isString(prop(value, "id")) &&
+    isNode(prop(value, "node"))
+  );
+}
+
+// Every event version before event@v6 persisted a session-started event whose session carried
+// no runtime; this is the one seam that turns that absence into the honest "unknown" reading,
+// reused by every pre-v6 upcast level rather than duplicated per version.
+export function upcastSessionStarted(raw: unknown): LedgerEvent | undefined {
+  if (!isRecord(raw)) return undefined;
+  const session = prop(raw, "session");
+  const brief = prop(raw, "brief");
+  const graphBaseSha = prop(raw, "graphBaseSha");
+  if (!isLegacySessionRecord(session) || !isBrief(brief)) return undefined;
+  if (graphBaseSha !== undefined && !isString(graphBaseSha)) return undefined;
+  const runtimeField = prop(session, "runtime");
+  const runtime = isSessionRuntime(runtimeField)
+    ? runtimeField
+    : sessionRuntime.unknown();
+  return {
+    kind: "session-started",
+    session: { id: session.id, node: session.node, runtime },
+    brief,
+    ...(graphBaseSha === undefined ? {} : { graphBaseSha }),
+  };
+}
+
+// event@v2, event@v3 and event@v4 share one JS shape (no outbox-delivery-recorded, no effect
+// field on outbox-intent-recorded, and session-started's session predates runtime).
+export function upcastPreV5Event(raw: unknown): LedgerEvent | undefined {
+  if (!isRecord(raw)) return undefined;
+  const kind = prop(raw, "kind");
+  if (kind === "session-started") return upcastSessionStarted(raw);
+  if (kind === "outbox-delivery-recorded") return undefined;
+  if (!isLedgerEvent(raw)) return undefined;
+  if (raw.kind === "outbox-intent-recorded" && "effect" in raw)
+    return undefined;
+  return raw;
 }
