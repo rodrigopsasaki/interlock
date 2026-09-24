@@ -19,6 +19,11 @@ runtime:
   # move off idle before the long wait judges it. Defaults to 20000.
   # prompt_taken_timeout_ms: 20000
 
+# Optional. The name of the runtime this repository starts by default: an entry from the
+# runtime catalogue (runtimes.example.yaml documents that file's shape), or "default" for the
+# runtime: block above. Absent, this file's own runtime: block above is what starts.
+# default_runtime: default
+
 # Where the runner creates a node's git worktree, relative to the repository root.
 worktree_root: .worktrees
 

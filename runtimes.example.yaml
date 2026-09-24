@@ -1,0 +1,26 @@
+# The per-machine runtime catalogue. Copy this file to $XDG_CONFIG_HOME/interlock/runtimes.yaml
+# (default ~/.config/interlock/runtimes.yaml; INTERLOCK_RUNTIMES overrides the path) and fill it
+# in; the real file is never committed, so these values never leave this machine.
+
+interlock: runtimes@v0
+
+runtimes:
+  # A name matches ^[a-z][a-z0-9_-]{0,31}$, the same shape herdr accepts for an agent name.
+  fast:
+    kind: <agent-cli>
+    args: []
+    # A declared label kept for the record; the code never parses it.
+    model: <model-label>
+
+  careful:
+    kind: <agent-cli>
+    args: []
+    model: <model-label>
+    # Optional. Each entry names the text the runtime shows when it needs an answer before it
+    # is ready, and the keys to send it. Entries are tried in order, at most once each.
+    # startup_answers:
+    #   - matches: "the text the runtime shows when it needs an answer before it is ready"
+    #     keys: [Down, Enter]
+    # Optional. How long the runner waits for the runtime to become ready before sending the
+    # opening prompt. Defaults to 60000.
+    # startup_timeout_ms: 60000

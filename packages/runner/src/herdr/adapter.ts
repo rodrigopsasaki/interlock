@@ -4,6 +4,7 @@ import { connect } from "node:net";
 import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
+import { isCompliantAgentName } from "../agentName.ts";
 import type {
   Agent,
   AgentIdentity,
@@ -14,6 +15,8 @@ import type {
   RuntimeRefusal,
 } from "../runtime.ts";
 import { isRecord, isString, numberAt, prop, stringAt } from "../validate.ts";
+
+export { isCompliantAgentName } from "../agentName.ts";
 
 export function defaultHerdrSocketPath(): string {
   return join(homedir(), ".config", "herdr", "herdr.sock");
@@ -55,12 +58,6 @@ function isPaneBusyRefusal(
 
 function isWaitSliceTimeout(refusal: RuntimeRefusal): boolean {
   return refusal.kind === "remote" && refusal.code === AGENT_WAIT_SLICE_TIMEOUT_CODE;
-}
-
-const AGENT_NAME_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/;
-
-export function isCompliantAgentName(name: string): boolean {
-  return AGENT_NAME_PATTERN.test(name);
 }
 
 export function generateAgentName(): string {

@@ -1,0 +1,98 @@
+interlock: notes@v0
+node: runtime-catalogue
+entries:
+  - kind: choice
+    at: "2026-09-24T00:00:00Z"
+    chose: >-
+      Extracted the agent-name compliance pattern (isCompliantAgentName) out of
+      packages/runner/src/herdr/adapter.ts into a new packages/runner/src/agentName.ts,
+      re-exported from the herdr adapter so its existing import site is unchanged.
+    because: >-
+      The brief requires runtime-catalogue names to match "the same shape herdr accepts
+      for an agent name". That predicate was previously private to the herdr adapter file.
+      Importing herdr/adapter.ts directly into a runtime-agnostic catalogue reader would
+      pull in herdr socket/agent-kind knowledge alongside it, which reads like the kind of
+      cross-adapter leak I6 is meant to prevent. The regex itself is not herdr-specific
+      (it is a pane-name shape convention), so it belongs in its own module both the herdr
+      adapter and the catalogue reader can depend on without either depending on the other.
+    rejected:
+      - >-
+        Duplicating the regex verbatim in runtimeCatalogue.ts (rejected: the brief itself says
+        the two shapes are "the same", so composing one predicate keeps that guarantee true by
+        construction instead of by two files staying in sync).
+  - kind: choice
+    at: "2026-09-24T00:05:00Z"
+    chose: >-
+      Generalized packages/runner/src/localConfig.ts's private parseStartupAnswers into an
+      exported parseStartupAnswers(value, fieldPath) in packages/runner/src/startupAnswers.ts,
+      returning Result<StartupAnswer[], string> (a bare reason, not a LocalConfigRefusal).
+      localConfig.ts now wraps that reason into its own {kind:"malformed", path, reason}.
+    because: >-
+      The brief explicitly says the catalogue reader "reuses its startup-answer validation
+      from packages/runner/src/startupAnswers.ts", but the parser itself lived in
+      localConfig.ts and was typed to return a LocalConfigRefusal, which is the wrong error
+      type for a catalogue entry's refusal (RuntimeCatalogueRefusal). Parameterizing on the
+      field path (e.g. "runtime.startup_answers" vs "runtimes.fast.startup_answers") lets
+      both readers reuse the same validation and produce entry-appropriate sentences.
+  - kind: choice
+    at: "2026-09-24T00:10:00Z"
+    chose: >-
+      Named the merged catalogue-or-local runtime entry type ResolvedRuntime, not Runtime.
+    because: >-
+      packages/runner/src/runtime.ts already exports an interface named Runtime for the
+      pane-driving adapter contract (openPane/startAgent/prompt/...), a completely different
+      concept than a named catalogue entry. The graph vocabulary calls a catalogue entry "a
+      runtime" in prose, but reusing the bare word as a second, unrelated TypeScript type name
+      in the same package would collide with and shadow the existing adapter interface.
+      ResolvedRuntime says what the value is (the entry resolved from either source) without
+      claiming the vocabulary word as a type name that already means something else.
+  - kind: choice
+    at: "2026-09-24T00:15:00Z"
+    chose: >-
+      loadRuntimeCatalogue(path) takes an explicit path with a default computed by
+      runtimeCataloguePath() (INTERLOCK_RUNTIMES, else $XDG_CONFIG_HOME/interlock/runtimes.yaml,
+      else ~/.config/interlock/runtimes.yaml). Unit tests pass an explicit temp path and never
+      touch HOME/XDG_CONFIG_HOME.
+    because: >-
+      The brief requires INTERLOCK_RUNTIMES so tests never touch the real file. Accepting an
+      explicit path parameter (mirroring loadLocalConfig(repoRoot) which derives a path
+      internally) lets most tests skip environment-variable stubbing entirely; only the test
+      of runtimeCataloguePath() itself needs to set/restore env vars.
+  - kind: choice
+    at: "2026-09-24T00:20:00Z"
+    chose: >-
+      mergeRuntimes(catalogue, local) takes local as LocalConfig | undefined rather than the
+      raw LocalConfigRefusal-carrying Result, and the CLI caller collapses a "missing" local
+      config refusal to undefined while propagating a "malformed" one as a hard refusal.
+    because: >-
+      "An absent catalogue is an empty catalogue, never an error" is about the catalogue file;
+      the brief does not say a missing local.yaml should block "interlock runtime list" (a
+      repository may have a catalogue and no local.yaml yet, or vice versa). Treating "missing"
+      local.yaml the same as "no legacy runtime block" keeps runtime list usable before a
+      machine's local.yaml exists, while a present-but-broken local.yaml still surfaces as a
+      readable refusal rather than being silently swallowed.
+  - kind: surprise
+    at: "2026-09-24T00:25:00Z"
+    expected: >-
+      The schema-reference generator (packages/schemas/src/reference/artifacts.ts) would match
+      the new schema's tag term against the AGENTS.md vocabulary table without complaint.
+    observed: >-
+      The generator extracts the term "runtimes" (plural) from the "runtimes@v0" tag and
+      compares it against the vocabulary table, which only lists the singular "runtime". This
+      produces a "missing vocabulary terms" note from `interlock schema reference`/`--check`
+      (informational only; exit code is unaffected). AGENTS.md is out of scope for this node,
+      so this is recorded as a gap rather than fixed.
+  - kind: surprise
+    at: "2026-09-24T00:30:00Z"
+    expected: >-
+      A CLI test could exercise "interlock runtime list" outside any interlock repository by
+      pointing cwd at a fresh temp directory under packages/cli/test/.runs/, matching the
+      "no .interlock directory found" refusal path shared with graph show and session show.
+    observed: >-
+      face's findRepoRoot walks up parent directories looking for .interlock, and every
+      directory under packages/cli/test/.runs/ is itself nested inside this repository's own
+      .interlock-bearing root, so the walk always finds the real root instead of failing. The
+      only way to hit that refusal in a test is to run outside the repository tree entirely
+      (e.g. under /tmp), which this session's constraints rule out. Since the refusal path is
+      copied verbatim from graph show and session show's already-established handling (same
+      findRepoRoot call, same message), it is not given its own test in this node.

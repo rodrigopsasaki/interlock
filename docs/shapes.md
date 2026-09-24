@@ -965,6 +965,7 @@ No vocabulary entry for `local`.
 | --- | --- | --- | --- |
 | `interlock` | the literal `"local@v0"` | yes |  |
 | `runtime` | object | yes | fields: kind (string, required); args (array of string, optional); startup_answers (array of startup-answer, optional); startup_timeout_ms (number, optional); prompt_taken_timeout_ms (number, optional) |
+| `default_runtime` | string | no |  |
 | `worktree_root` | string | yes |  |
 | `worktree_setup` | array of string | no |  |
 | `lease_ms` | number | yes |  |
@@ -999,6 +1000,11 @@ runtime:
   # Optional. How long the runner waits, after sending the opening prompt, for the agent to
   # move off idle before the long wait judges it. Defaults to 20000.
   # prompt_taken_timeout_ms: 20000
+
+# Optional. The name of the runtime this repository starts by default: an entry from the
+# runtime catalogue (runtimes.example.yaml documents that file's shape), or "default" for the
+# runtime: block above. Absent, this file's own runtime: block above is what starts.
+# default_runtime: default
 
 # Where the runner creates a node's git worktree, relative to the repository root.
 worktree_root: .worktrees
@@ -1098,3 +1104,53 @@ The current read of a graph, composed above the stream.
 #### `position@v1`
 
 _No example of `position@v1` was found in the corpus._
+
+## runtimes
+
+No vocabulary entry for `runtimes`.
+
+### Versions
+
+- `runtimes@v0`: the first version.
+
+### Fields (`runtimes@v0`)
+
+| field | type | required | description |
+| --- | --- | --- | --- |
+| `interlock` | the literal `"runtimes@v0"` | yes |  |
+| `runtimes` | object | no |  |
+
+### Examples
+
+#### `runtimes@v0`
+
+Source: `runtimes.example.yaml`
+
+```yaml
+# The per-machine runtime catalogue. Copy this file to $XDG_CONFIG_HOME/interlock/runtimes.yaml
+# (default ~/.config/interlock/runtimes.yaml; INTERLOCK_RUNTIMES overrides the path) and fill it
+# in; the real file is never committed, so these values never leave this machine.
+
+interlock: runtimes@v0
+
+runtimes:
+  # A name matches ^[a-z][a-z0-9_-]{0,31}$, the same shape herdr accepts for an agent name.
+  fast:
+    kind: <agent-cli>
+    args: []
+    # A declared label kept for the record; the code never parses it.
+    model: <model-label>
+
+  careful:
+    kind: <agent-cli>
+    args: []
+    model: <model-label>
+    # Optional. Each entry names the text the runtime shows when it needs an answer before it
+    # is ready, and the keys to send it. Entries are tried in order, at most once each.
+    # startup_answers:
+    #   - matches: "the text the runtime shows when it needs an answer before it is ready"
+    #     keys: [Down, Enter]
+    # Optional. How long the runner waits for the runtime to become ready before sending the
+    # opening prompt. Defaults to 60000.
+    # startup_timeout_ms: 60000
+```

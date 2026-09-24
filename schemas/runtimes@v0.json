@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/runtimes@v0.json",
+  "title": "runtimes@v0",
+  "description": "The per-machine runtime catalogue: $XDG_CONFIG_HOME/interlock/runtimes.yaml, default ~/.config/interlock/runtimes.yaml, path overridable by INTERLOCK_RUNTIMES. Gitignored and never committed; runtimes.example.yaml at the repository root is the checked-in template with placeholder entries. local.yaml's runtime: block remains the implicit entry named default and is not itself shaped by this file.",
+  "type": "object",
+  "properties": {
+    "interlock": {
+      "const": "runtimes@v0"
+    },
+    "runtimes": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_-]{0,31}$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "args": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "model": {
+            "type": "string"
+          },
+          "startup_answers": {
+            "type": "array",
+            "items": {
+              "$ref": "parts/startup-answer.json"
+            }
+          },
+          "startup_timeout_ms": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "kind",
+          "model"
+        ],
+        "additionalProperties": true
+      }
+    }
+  },
+  "required": [
+    "interlock"
+  ],
+  "additionalProperties": true
+}

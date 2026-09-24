@@ -3,12 +3,12 @@ import { join } from "node:path";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import { isValidSubstrateAddress } from "substrate";
 import { parse as parseYaml, YAMLParseError } from "yaml";
-import { isValidStartupAnswerMatcher, type StartupAnswer } from "./startupAnswers.ts";
-import { isRecord, isString, prop } from "./validate.ts";
+import { parseStartupAnswers, type StartupAnswer } from "./startupAnswers.ts";
+import { isRecord, isString, isStringArray, prop } from "./validate.ts";
 
 export const LOCAL_CONFIG_SHAPE = "local@v0";
 
-const DEFAULT_STARTUP_TIMEOUT_MS = 60_000;
+export const DEFAULT_STARTUP_TIMEOUT_MS = 60_000;
 const DEFAULT_PROMPT_TAKEN_TIMEOUT_MS = 20_000;
 const DEFAULT_ANSWER_GRACE_MS = 300_000;
 
@@ -20,6 +20,7 @@ export interface LocalConfig {
     readonly startupTimeoutMs: number;
     readonly promptTakenTimeoutMs: number;
   };
+  readonly defaultRuntime?: string;
   readonly worktreeRoot: string;
   readonly worktreeSetup: readonly string[];
   readonly leaseMs: number;
@@ -45,6 +46,8 @@ const FIELD_GUIDE =
   "before sending the opening prompt), " +
   "runtime.prompt_taken_timeout_ms (optional; how long to wait after the opening prompt for " +
   "the agent to move off idle before the long wait judges it), " +
+  "default_runtime (optional; the name of the runtime this repository starts by default, from " +
+  "the runtime catalogue or this file's own runtime block), " +
   "worktree_root (where node worktrees are created, relative to the repository root), " +
   "worktree_setup (optional; commands run in a node's worktree before its pane opens), " +
   "lease_ms (how long a lease lasts before a sweep may call it abandoned), " +
@@ -66,53 +69,6 @@ export function explainLocalConfigRefusal(refusal: LocalConfigRefusal): string {
 
 export function localConfigPath(repoRoot: string): string {
   return join(repoRoot, ".interlock", "local.yaml");
-}
-
-function isStringArray(value: unknown): value is readonly string[] {
-  return Array.isArray(value) && value.every(isString);
-}
-
-function parseStartupAnswers(
-  value: unknown,
-  path: string,
-): Result<readonly StartupAnswer[], LocalConfigRefusal> {
-  if (value === undefined) return ok([]);
-  if (!Array.isArray(value)) {
-    return err({
-      kind: "malformed",
-      path,
-      reason: '"runtime.startup_answers" must be a list',
-    });
-  }
-
-  const answers: StartupAnswer[] = [];
-  for (const [index, entry] of value.entries()) {
-    if (!isRecord(entry)) {
-      return err({
-        kind: "malformed",
-        path,
-        reason: `"runtime.startup_answers[${index}]" is not a mapping`,
-      });
-    }
-    const matches = prop(entry, "matches");
-    if (!isString(matches) || !isValidStartupAnswerMatcher(matches)) {
-      return err({
-        kind: "malformed",
-        path,
-        reason: `"runtime.startup_answers[${index}].matches" must be a string or a valid /regex/`,
-      });
-    }
-    const keys = prop(entry, "keys");
-    if (!isStringArray(keys) || keys.length === 0) {
-      return err({
-        kind: "malformed",
-        path,
-        reason: `"runtime.startup_answers[${index}].keys" must be a non-empty list of strings`,
-      });
-    }
-    answers.push({ matches, keys });
-  }
-  return ok(answers);
 }
 
 function parseShape(parsed: unknown, path: string): Result<LocalConfig, LocalConfigRefusal> {
@@ -151,9 +107,11 @@ function parseShape(parsed: unknown, path: string): Result<LocalConfig, LocalCon
   }
   const startupAnswers = parseStartupAnswers(
     isRecord(runtime) ? prop(runtime, "startup_answers") : undefined,
-    path,
+    "runtime.startup_answers",
   );
-  if (isErr(startupAnswers)) return startupAnswers;
+  if (isErr(startupAnswers)) {
+    return err({ kind: "malformed", path, reason: startupAnswers.error });
+  }
 
   const startupTimeoutMsField = isRecord(runtime) ? prop(runtime, "startup_timeout_ms") : undefined;
   if (startupTimeoutMsField !== undefined && typeof startupTimeoutMsField !== "number") {
@@ -176,6 +134,15 @@ function parseShape(parsed: unknown, path: string): Result<LocalConfig, LocalCon
     });
   }
   const promptTakenTimeoutMs = promptTakenTimeoutMsField ?? DEFAULT_PROMPT_TAKEN_TIMEOUT_MS;
+
+  const defaultRuntimeField = prop(parsed, "default_runtime");
+  if (defaultRuntimeField !== undefined && !isString(defaultRuntimeField)) {
+    return err({
+      kind: "malformed",
+      path,
+      reason: '"default_runtime" must be a string',
+    });
+  }
 
   const worktreeRoot = prop(parsed, "worktree_root");
   if (!isString(worktreeRoot)) {
@@ -269,6 +236,7 @@ function parseShape(parsed: unknown, path: string): Result<LocalConfig, LocalCon
       startupTimeoutMs,
       promptTakenTimeoutMs,
     },
+    ...(defaultRuntimeField === undefined ? {} : { defaultRuntime: defaultRuntimeField }),
     worktreeRoot,
     worktreeSetup,
     leaseMs,
