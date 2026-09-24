@@ -59,3 +59,12 @@ notes:
       The first standing lint run rejected only the new test's import ordering.
     because: >-
       The import order was corrected to Biome's established grouping before rerunning the gates.
+  - kind: surprise
+    what: >-
+      The full workspace test gate failed only in substrate tests that start local HTTP servers:
+      the sandbox denied listen on 127.0.0.1 with EPERM, which then caused their 5-second test
+      timeouts.
+    because: >-
+      The failure is environmental and outside this node's files; the focused schema gate and all
+      non-network package tests that ran before it remained green, so the debrief reports the
+      standing test gate honestly instead of claiming pass.
