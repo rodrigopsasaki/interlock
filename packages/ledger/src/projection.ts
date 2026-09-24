@@ -8,6 +8,7 @@ import type { Note } from "./note.ts";
 import type { OutboxDelivery, OutboxIntent } from "./outbox.ts";
 import type { Outcome } from "./outcome.ts";
 import type { Receipt } from "./receipt.ts";
+import type { SessionRuntime } from "./session.ts";
 
 export interface NodeView {
   readonly node: Node;
@@ -28,6 +29,7 @@ export interface SessionView {
   readonly node: Node;
   readonly brief: Brief;
   readonly graphBaseSha: string | undefined;
+  readonly runtime: SessionRuntime;
   readonly notes: readonly Note[];
   readonly debrief: Debrief | undefined;
   readonly lease: Lease | undefined;
@@ -139,6 +141,7 @@ export function applyEvent(projection: LedgerProjection, event: LedgerEvent): Le
         node: event.session.node,
         brief: event.brief,
         graphBaseSha: event.graphBaseSha,
+        runtime: event.session.runtime,
         notes: [],
         debrief: undefined,
         lease: undefined,

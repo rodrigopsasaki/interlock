@@ -1,6 +1,6 @@
 export type { AgentStatus } from "./agentStatus.ts";
 export type { PositionAttempt } from "./attempts.ts";
-export { attemptsFor } from "./attempts.ts";
+export { attemptsFor, liveOrLatestAttempt } from "./attempts.ts";
 export { criticalPath } from "./criticalPath.ts";
 export type {
   GateDeclaration,
@@ -61,6 +61,9 @@ export {
   graphFilePath,
   sharedJournalDirectory,
 } from "./root.ts";
+export type { RuntimeAttempt } from "./runtimeAttempts.ts";
+export { lastAttemptByRuntimeName } from "./runtimeAttempts.ts";
+export { renderSessionRuntime } from "./runtimeLine.ts";
 export type { SessionColumnsInput } from "./sessionColumns.ts";
 export {
   renderBrief,

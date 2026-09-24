@@ -11,6 +11,7 @@ import type {
   Receipt,
   SessionView,
 } from "ledger";
+import { renderSessionRuntime } from "./runtimeLine.ts";
 
 function isoOf(wallMs: number): string {
   return new Date(wallMs).toISOString();
@@ -115,6 +116,7 @@ export function renderContext(
   return [
     "Context",
     `  graph base sha: ${view.graphBaseSha ?? "unknown"}`,
+    `  runtime: ${renderSessionRuntime(view.runtime)}`,
     renderDerivation(view.debrief),
     "  gates:",
     gateLines,

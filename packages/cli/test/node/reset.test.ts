@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
 import { unwrap } from "@phyxiusjs/fp";
 import { sharedJournalDirectory } from "face";
-import { createLedger, type Ledger, outcome } from "ledger";
+import { createLedger, type Ledger, outcome, sessionRuntime } from "ledger";
 import { afterEach, describe, expect, it } from "vitest";
 import { runNodeReset } from "../../src/node/reset.ts";
 import { gitInitFixture } from "../graph/gitFixture.ts";
@@ -119,7 +119,11 @@ describe("node reset", () => {
     const ledger = await openLedger(cwd);
     ledger.append({
       kind: "session-started",
-      session: { id: "session-1", node: { graph: "demo", id: "a" } },
+      session: {
+        id: "session-1",
+        node: { graph: "demo", id: "a" },
+        runtime: sessionRuntime.unknown(),
+      },
       brief: {
         graph: "demo",
         node: "a",

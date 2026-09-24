@@ -8,6 +8,7 @@ import { note } from "../src/note.js";
 import { outcome } from "../src/outcome.js";
 import { fold, isInterrupted } from "../src/projection.js";
 import { duration, type Receipt } from "../src/receipt.js";
+import { sessionRuntime } from "../src/session.js";
 import { spend } from "../src/spend.js";
 
 const node: Node = { graph: "0001-bootstrap", id: "ledger" };
@@ -55,7 +56,11 @@ describe("fold", () => {
 
   it("projects a session's notes and lease from its events", () => {
     const events: readonly LedgerEvent[] = [
-      { kind: "session-started", session: { id: "session-1", node }, brief },
+      {
+        kind: "session-started",
+        session: { id: "session-1", node, runtime: sessionRuntime.unknown() },
+        brief,
+      },
       { kind: "lease-taken", node, session: "session-1", expiry: 30_000 },
       {
         kind: "note-appended",
@@ -72,7 +77,11 @@ describe("fold", () => {
 
   it("marks a session interrupted only when its lease expired with no debrief", () => {
     const started: readonly LedgerEvent[] = [
-      { kind: "session-started", session: { id: "session-1", node }, brief },
+      {
+        kind: "session-started",
+        session: { id: "session-1", node, runtime: sessionRuntime.unknown() },
+        brief,
+      },
       { kind: "lease-taken", node, session: "session-1", expiry: 30_000 },
     ];
     const stillWorking = fold(started).sessions.get("session-1");
@@ -114,7 +123,11 @@ describe("fold", () => {
 
   it("tracks each lease's own generation against the node's, so a stale outcome is tellable from a current one", () => {
     const firstLease: readonly LedgerEvent[] = [
-      { kind: "session-started", session: { id: "session-1", node }, brief },
+      {
+        kind: "session-started",
+        session: { id: "session-1", node, runtime: sessionRuntime.unknown() },
+        brief,
+      },
       { kind: "lease-taken", node, session: "session-1", expiry: 1_000 },
     ];
     const afterFirstLease = fold(firstLease);
@@ -132,7 +145,11 @@ describe("fold", () => {
     expect(afterFirstOutcome.nodes.get(nodeKey(node))?.outcomeSetAtGeneration).toBe(1);
 
     const secondLease: readonly LedgerEvent[] = [
-      { kind: "session-started", session: { id: "session-2", node }, brief },
+      {
+        kind: "session-started",
+        session: { id: "session-2", node, runtime: sessionRuntime.unknown() },
+        brief,
+      },
       { kind: "lease-taken", node, session: "session-2", expiry: 2_000 },
     ];
     const afterSecondLease = fold([
@@ -154,7 +171,11 @@ describe("fold", () => {
 describe("session-narrated events", () => {
   it("appends each narrated line to the session's narration, in order", () => {
     const events: readonly LedgerEvent[] = [
-      { kind: "session-started", session: { id: "session-1", node }, brief },
+      {
+        kind: "session-started",
+        session: { id: "session-1", node, runtime: sessionRuntime.unknown() },
+        brief,
+      },
       { kind: "session-narrated", session: "session-1", at: 10, line: "a" },
       { kind: "session-narrated", session: "session-1", at: 20, line: "b" },
     ];

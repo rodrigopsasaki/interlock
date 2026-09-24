@@ -6,7 +6,7 @@ import type { Clock } from "@phyxiusjs/clock";
 import { err, isErr, isOk, ok, type Result } from "@phyxiusjs/fp";
 import { debriefFilePath, readDebriefFile } from "debrief";
 import { type GraphDocument, type NodeDeclaration, topologicalOrder } from "face";
-import type { Ledger, Node, Outcome } from "ledger";
+import { type Ledger, type Node, type Outcome, sessionRuntime } from "ledger";
 import { noneClient } from "substrate";
 import { declaredGateIds, gateCommandTable } from "./gateCommand.ts";
 import { explainGateJudgeRefusal, type GateJudgeRefusal, judgeGates } from "./gateJudge.ts";
@@ -126,7 +126,7 @@ export async function backfillGraph(
     if (!ledger.projection().sessions.has(session)) {
       ledger.append({
         kind: "session-started",
-        session: { id: session, node },
+        session: { id: session, node, runtime: sessionRuntime.unknown() },
         brief: buildBrief(
           document.id,
           declaration.id,

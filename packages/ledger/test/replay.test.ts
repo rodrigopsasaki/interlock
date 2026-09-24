@@ -23,6 +23,7 @@ import { heldOn, outcome } from "../src/outcome.js";
 import { fold, type LedgerProjection } from "../src/projection.js";
 import { duration, type Receipt } from "../src/receipt.js";
 import { parseLine, readRawEvents, replayFromRaw } from "../src/replay.js";
+import { sessionRuntime } from "../src/session.js";
 import { createLedgerSink, type LedgerFileOperations } from "../src/sink.js";
 import { spend } from "../src/spend.js";
 import { upcastV1 } from "../src/upcast/v1.js";
@@ -88,7 +89,7 @@ describe("crash-only replay", () => {
       { kind: "node-created", node },
       {
         kind: "session-started",
-        session: { id: "session-1", node },
+        session: { id: "session-1", node, runtime: sessionRuntime.unknown() },
         brief: {
           graph: "0001-bootstrap",
           node: "ledger",
@@ -144,7 +145,7 @@ describe("crash-only replay", () => {
       { kind: "node-created", node },
       {
         kind: "session-started",
-        session: { id: "session-1", node },
+        session: { id: "session-1", node, runtime: sessionRuntime.unknown() },
         brief: {
           graph: "0001-bootstrap",
           node: "ledger",
@@ -474,7 +475,11 @@ describe("replay's versioned upcast seam", () => {
 
   it("reads an actual event@v4 line and refuses a v5-only outbox event under that old tag", () => {
     const node: Node = { graph: "0001-bootstrap", id: "ledger" };
-    const v4 = JSON.stringify({ interlock: "event@v4", kind: "node-created", node });
+    const v4 = JSON.stringify({
+      interlock: "event@v4",
+      kind: "node-created",
+      node,
+    });
     const replayed = replayFromRaw(v4);
     expect(replayed._tag).toBe("Ok");
     if (replayed._tag === "Ok") expect(replayed.value.nodes.get(nodeKey(node))).toBeDefined();
@@ -488,7 +493,10 @@ describe("replay's versioned upcast seam", () => {
         derivation: derivation.gate("outbox", "runner@0", "runner"),
       },
     });
-    expect(replayFromRaw(v5Only)).toEqual({ _tag: "Err", error: { tag: "event@v4", line: 1 } });
+    expect(replayFromRaw(v5Only)).toEqual({
+      _tag: "Err",
+      error: { tag: "event@v4", line: 1 },
+    });
   });
 });
 

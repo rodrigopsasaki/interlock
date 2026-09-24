@@ -25,7 +25,7 @@ export { isDisposition } from "./disposition.ts";
 export type { EventEnvelope, Upcaster } from "./envelope.ts";
 export { EVENT_SHAPE, envelopeFor, shapeTag, upcastTable } from "./envelope.ts";
 export type { LedgerEvent } from "./event.ts";
-export { isLedgerEvent, isLedgerEventV4 } from "./event.ts";
+export { isLedgerEvent } from "./event.ts";
 export { parseExpectOutput } from "./expectOutput.ts";
 export type { Gate, GateRefusal } from "./gate.ts";
 export { gate, isGate, proposeGateMove } from "./gate.ts";
@@ -103,9 +103,14 @@ export {
   readReplay,
   replayFromRaw,
 } from "./replay.ts";
-export type { Session } from "./session.ts";
-export { isSession } from "./session.ts";
+export type { Session, SessionRuntime } from "./session.ts";
+export { isSession, isSessionRuntime, sessionRuntime } from "./session.ts";
 export type { LedgerFileOperations, LedgerSink } from "./sink.ts";
-export { attachLedgerSink, createLedgerSink, JOURNAL_FILE_NAME, journalPath } from "./sink.ts";
+export {
+  attachLedgerSink,
+  createLedgerSink,
+  JOURNAL_FILE_NAME,
+  journalPath,
+} from "./sink.ts";
 export type { Spend } from "./spend.ts";
 export { isSpend, spend } from "./spend.ts";

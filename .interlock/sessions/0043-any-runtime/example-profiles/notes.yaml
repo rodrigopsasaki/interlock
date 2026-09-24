@@ -1,0 +1,53 @@
+interlock: notes@v0
+node: example-profiles
+entries:
+  - kind: surprise
+    at: "2026-09-24T21:32:56Z"
+    expected: The runner's opening prompt would arrive after the Codex pane opened.
+    observed: "Codex opened with a hooks-review modal because a SessionStart hook needed trust; herdr read the agent as idle and the runner's opening prompt was lost in the modal."
+    mattered_because: A person dismissed it with Esc and the runner resent this prompt, so the session could proceed with the runner's intended brief.
+  - kind: choice
+    at: "2026-09-24T21:35:00Z"
+    chose: Treat the interlock session show output as the runtime proof and preserve its exact runtime line for the final debrief.
+    because: The brief makes the session record, rather than an agent assertion, the proof of the Codex path.
+  - kind: surprise
+    at: "2026-09-24T21:36:00Z"
+    expected: The first incremental commit would be signed by the configured Git signer.
+    observed: GnuPG could not create its temporary file or connect to keyboxd outside this worktree.
+    mattered_because: The repository requires commits as work proceeds, so the commit was retried with signing disabled for this worktree rather than leaving the note uncommitted.
+  - kind: choice
+    at: "2026-09-24T21:37:00Z"
+    chose: Document the three Claude runtimes, three Codex runtimes and the unverified Kimi runtime in the checked-in catalogue template, using the installed CLI help and the repository's recorded startup answers.
+    because: The catalogue is an example of per-machine door configuration, while vendor flags must stay in the two example YAML files and the Kimi facts must remain visibly unverified until its human gate clears.
+  - kind: choice
+    at: "2026-09-24T21:38:00Z"
+    chose: Add a registry-backed Vitest test that parses runtimes.example.yaml and validates it as runtimes@v0.
+    because: The published schema's required kind and model fields then make any incomplete example entry fail closed without adding runtime-specific TypeScript.
+  - kind: choice
+    at: "2026-09-24T21:38:30Z"
+    chose: Add the 2026-09-24 bend-log row describing per-attempt runtime selection and session recording, while preserving the legacy default runtime reading.
+    because: This records the compatibility seam required by the design and keeps the way back for pre-v6 sessions and the local runtime block.
+  - kind: surprise
+    at: "2026-09-24T21:39:00Z"
+    expected: The generated reference would find every artifact term in the vocabulary table.
+    observed: Regenerating docs/shapes.md reported six artifact terms missing from the vocabulary table, including the required runtimes shape's plural term.
+    mattered_because: The reference generator derives the term directly from each shape tag; the existing repository convention records this vocabulary gap rather than changing the out-of-scope vocabulary table.
+  - kind: surprise
+    at: "2026-09-24T21:39:30Z"
+    expected: The first standing lint run would accept the new test.
+    observed: Biome rejected only the new test's import ordering.
+    mattered_because: The import order was corrected to Biome's established grouping before rerunning the gates.
+  - kind: surprise
+    at: "2026-09-24T21:40:00Z"
+    expected: The full workspace test gate would run its substrate HTTP fixtures.
+    observed: The sandbox denied listen on 127.0.0.1 with EPERM, which then caused their 5-second test timeouts.
+    mattered_because: The failure is environmental and outside this node's files; the focused schema gate and all non-network package tests that ran before it remained green, so the debrief reports the standing test gate honestly instead of claiming pass.
+  - kind: choice
+    at: "2026-09-24T21:41:00Z"
+    chose: Repeat the session-start hooks-review observation in comments on each Codex catalogue entry as well as retaining it in these notes.
+    because: The discovery is operational context for every Codex example and the brief explicitly asks for it in the Codex entries' comments and in the session record.
+  - kind: surprise
+    at: "2026-09-24T21:42:00Z"
+    expected: The first debrief validation would accept the notes artifact.
+    observed: The notes used an informal notes/what shape, while notes@v0 requires entries with typed at/chose or expected/observed fields.
+    mattered_because: The fail-closed validator exposed the shape mismatch before filing; the notes were rewritten to the published notes@v0 contract.

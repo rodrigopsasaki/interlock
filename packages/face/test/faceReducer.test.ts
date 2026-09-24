@@ -27,9 +27,10 @@ const position: Position = {
         },
       ],
       attempts: [
-        { session: "s-done", leaseState: { kind: "none" } },
+        { session: "s-done", runtime: "unknown", leaseState: { kind: "none" } },
         {
           session: "s-live",
+          runtime: "unknown",
           leaseState: { kind: "live" },
           agentStatus: "working",
         },

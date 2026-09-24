@@ -6,6 +6,10 @@ export function isString(value: unknown): value is string {
   return typeof value === "string";
 }
 
+export function isStringArray(value: unknown): value is readonly string[] {
+  return Array.isArray(value) && value.every(isString);
+}
+
 export function prop(value: Record<string, unknown>, key: string): unknown {
   return value[key];
 }

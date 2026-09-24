@@ -19,6 +19,10 @@ runtime:
   # move off idle before the long wait judges it. Defaults to 20000.
   # prompt_taken_timeout_ms: 20000
 
+# The catalogue is per machine and lives outside the repository. This repository starts sonnet
+# by default; "default" remains available for the legacy runtime: block above.
+default_runtime: sonnet
+
 # Where the runner creates a node's git worktree, relative to the repository root.
 worktree_root: .worktrees
 

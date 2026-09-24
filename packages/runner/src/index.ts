@@ -53,6 +53,7 @@ export type { AppendsEvents, LeaseHandle } from "./lease.ts";
 export { takeLease } from "./lease.ts";
 export type { LocalConfig, LocalConfigRefusal } from "./localConfig.ts";
 export {
+  DEFAULT_STARTUP_TIMEOUT_MS,
   explainLocalConfigRefusal,
   LOCAL_CONFIG_SHAPE,
   loadLocalConfig,
@@ -72,6 +73,27 @@ export type {
   RuntimeRefusal,
 } from "./runtime.ts";
 export { explainRuntimeRefusal } from "./runtime.ts";
+export type {
+  CatalogueRuntime,
+  MergedRuntimes,
+  MergeRuntimesRefusal,
+  ResolvedRuntime,
+  RuntimeCatalogueRefusal,
+} from "./runtimeCatalogue.ts";
+export {
+  DEFAULT_RUNTIME_NAME,
+  explainMergeRuntimesRefusal,
+  explainRuntimeCatalogueRefusal,
+  loadRuntimeCatalogue,
+  mergeRuntimes,
+  RUNTIME_CATALOGUE_SHAPE,
+  runtimeCataloguePath,
+} from "./runtimeCatalogue.ts";
+export type { RuntimeSelectionRefusal } from "./runtimeSelection.ts";
+export {
+  explainRuntimeSelectionRefusal,
+  selectRuntime,
+} from "./runtimeSelection.ts";
 export { gitTrackedFiles } from "./scope.ts";
 export type { BriefWriteOutcome, SessionBriefRefusal } from "./sessionBrief.ts";
 export {
@@ -102,7 +124,11 @@ export {
 } from "./standingGates.ts";
 export type { StartupAnswer } from "./startupAnswers.ts";
 export { matchesScreen } from "./startupAnswers.ts";
-export { ABANDONED_AUTHORITY, HARNESS_AUTHORITIES, sweepExpiredLeases } from "./sweep.ts";
+export {
+  ABANDONED_AUTHORITY,
+  HARNESS_AUTHORITIES,
+  sweepExpiredLeases,
+} from "./sweep.ts";
 export {
   createTmuxRuntime,
   defaultTmuxRunner,

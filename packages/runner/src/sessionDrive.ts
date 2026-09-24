@@ -4,7 +4,14 @@ import { type Clock, deadlineFrom, ms } from "@phyxiusjs/clock";
 import { isErr, isOk, ok, type Result } from "@phyxiusjs/fp";
 import { debriefFilePath } from "debrief";
 import { currentCommitSha, type GateDeclaration, sharedJournalDirectory } from "face";
-import { type HeldOn, type Ledger, type Outcome, outcome, readRawEvents } from "ledger";
+import {
+  type HeldOn,
+  type Ledger,
+  type Outcome,
+  outcome,
+  readRawEvents,
+  sessionRuntime,
+} from "ledger";
 import type { SubstrateClient } from "substrate";
 import { declaredGateIds, gateCommandTable } from "./gateCommand.ts";
 import { explainGateJudgeRefusal } from "./gateJudge.ts";
@@ -15,6 +22,7 @@ import type { LocalConfig } from "./localConfig.ts";
 import { recordingNarrate } from "./narration.ts";
 import { buildOpeningPrompt, type PriorWork } from "./openingPrompt.ts";
 import { type Agent, explainRuntimeRefusal, type Pane, type Runtime } from "./runtime.ts";
+import type { ResolvedRuntime } from "./runtimeCatalogue.ts";
 import { gitTrackedFiles } from "./scope.ts";
 import { type BriefWriteOutcome, buildBrief } from "./sessionBrief.ts";
 import { lastNonEmptyLine, writeScreenSnapshot } from "./sessionScreen.ts";
@@ -64,6 +72,7 @@ export interface DriveSessionRequest {
   readonly acceptance: string;
   readonly nodeGates: readonly GateDeclaration[];
   readonly localConfig: LocalConfig;
+  readonly agentRuntime: ResolvedRuntime;
   readonly standingGates: readonly StandingGate[];
   readonly substrate: SubstrateClient;
   readonly ledger: Ledger;
@@ -92,6 +101,7 @@ export async function driveInteractiveSession(
     acceptance,
     nodeGates,
     localConfig,
+    agentRuntime,
     standingGates,
     substrate,
     ledger,
@@ -137,7 +147,11 @@ export async function driveInteractiveSession(
     const brief = buildBrief(graph, node, acceptance, gateIds, gitTrackedFiles(repoRoot), role);
     ledger.append({
       kind: "session-started",
-      session: { id: sessionId, node: targetNode },
+      session: {
+        id: sessionId,
+        node: targetNode,
+        runtime: sessionRuntime.declared(agentRuntime.name, agentRuntime.kind, agentRuntime.model),
+      },
       brief,
       graphBaseSha,
     });
@@ -219,11 +233,14 @@ export async function driveInteractiveSession(
     }
     pane = openedPane.value;
     narrate(`pane ${pane.id} opened`);
+    narrate(
+      `runtime ${agentRuntime.name} (${agentRuntime.kind}, ${agentRuntime.model ?? "model undeclared"})`,
+    );
 
     const startedAgent = await runtime.startAgent(
       pane,
-      localConfig.runtime.kind,
-      localConfig.runtime.args,
+      agentRuntime.kind,
+      agentRuntime.args,
       () => narrate("waiting for the pane's shell"),
       node,
     );
@@ -234,9 +251,11 @@ export async function driveInteractiveSession(
       return result;
     }
     agent = startedAgent.value;
-    narrate(`agent ${agent.id} started (${localConfig.runtime.kind})`);
+    narrate(`agent ${agent.id} started (${agentRuntime.kind})`);
 
-    const reported = await runtime.reportIdentity(agent, graph, node, { sessionId });
+    const reported = await runtime.reportIdentity(agent, graph, node, {
+      sessionId,
+    });
     if (isErr(reported)) {
       const result = refuse("identity report", explainRuntimeRefusal(reported.error));
       lease.stop();
@@ -245,8 +264,8 @@ export async function driveInteractiveSession(
     }
     narrate("identity reported");
 
-    const startupTimeoutMs = localConfig.runtime.startupTimeoutMs;
-    const startupAnswers = localConfig.runtime.startupAnswers;
+    const startupTimeoutMs = agentRuntime.startupTimeoutMs;
+    const startupAnswers = agentRuntime.startupAnswers;
     const answered = new Set<number>();
     let startupStatus = await runtime.waitUntil(agent, ["idle", "blocked"], startupTimeoutMs);
     let startupScreen = "";

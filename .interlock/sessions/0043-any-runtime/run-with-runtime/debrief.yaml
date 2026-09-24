@@ -1,0 +1,487 @@
+interlock: debrief@v2
+graph: 0043-any-runtime
+node: run-with-runtime
+role: worker
+graph_base_sha: 6f6d49e8e82df6e3af8193c0d52e2c4404fb4c9a
+session_start_sha: 633d12e2e2fadba8906892aee2bdc96e1deb3ab6
+head_sha: e07877b036ab9cdba1fe1fc6dee4f46d449a84f2
+derivation:
+  kind: agent
+  runtime: claude
+  model: claude-sonnet-5
+discoveries:
+  - id: d1
+    what: >-
+      packages/ledger/src/event.ts's isLedgerEventV4 delegated the session-started kind's deep
+      shape wholesale to the CURRENT (strict) isLedgerEvent/isSession, and every pre-v5 upcast
+      level (v1's PASS_THROUGH_KINDS, v2 and v3 via v4's shared shape) reused it as a
+      boolean-gated identity pass-through, never reconstructing the event.
+    found_at: >-
+      Read at session_start_sha 633d12e2e2fadba8906892aee2bdc96e1deb3ab6, before decision c2
+      replaced it: packages/ledger/src/event.ts, the now-deleted isLedgerEventV4 function.
+    mattered_because: >-
+      Making Session.runtime a required field (per this node's acceptance) would have made
+      isLedgerEvent silently reject every historical session-started line the instant the field
+      went missing, and identity pass-through cannot inject a missing field without lying about
+      the type it claims to return (a real invalid state slipping through, not a caught one).
+      This broke both real fixture journals on first pass (journal-v1-v2-2026-09-10.jsonl has 11
+      session-started events, journal-v3-v4-2026-09-11.jsonl has 17), caught only by running the
+      existing replay.test.ts suite, not by anything the brief named. Fixed by extracting one
+      shared, version-agnostic upcastSessionStarted (packages/ledger/src/event.ts) that every
+      pre-v6 level calls for that one kind, reconstructing runtime: "unknown" rather than
+      identity-passing raw data, and retiring isLedgerEventV4 in favor of a genuine transform,
+      upcastPreV5Event.
+  - id: d2
+    what: >-
+      packages/cli/test/run.test.ts, plan.test.ts and judge.test.ts had no
+      $INTERLOCK_RUNTIMES isolation at all: their fixture()-equivalent helpers never touched
+      the env var, unlike packages/cli/test/runtime.test.ts, which already saved and restored
+      it per test.
+    found_at: >-
+      Read at session_start_sha 633d12e2e2fadba8906892aee2bdc96e1deb3ab6: the afterEach block
+      in packages/cli/test/run.test.ts, plan.test.ts and judge.test.ts, none of which set or
+      restored $INTERLOCK_RUNTIMES.
+    mattered_because: >-
+      Once interlock run and interlock plan started calling loadRuntimeCatalogue() on every
+      invocation (this node's own change), every test in those three files began reading
+      whatever real $INTERLOCK_RUNTIMES or ~/.config/interlock/runtimes.yaml exists on the
+      machine running the suite -- a hermeticity gap this node's change exposed, not a pre-
+      existing bug it needed to fix on its own account, but one it could not leave behind
+      either. Fixed by adding the same save/restore-in-afterEach pattern already used in
+      runtime.test.ts to all three files, and setting INTERLOCK_RUNTIMES to a non-existent path
+      inside each fixture-building helper (and the two run.test.ts call sites that build a
+      directory without going through fixture()).
+decisions:
+  - id: c1
+    what: >-
+      Modeled Session.runtime (packages/ledger/src/session.ts) as a required field typed
+      SessionRuntime = { name: string; kind: string; model: string | undefined } | "unknown",
+      with constructors sessionRuntime.declared(...)/sessionRuntime.unknown() and a validator
+      isSessionRuntime, rather than an optional field whose absence a reader would interpret as
+      unknown by convention.
+    because: >-
+      The brief is explicit that Session "gains an additive field, typed as a union with two
+      arms: declared... and unknown, the reading of every session recorded before this shape"
+      and that "the upcast seam gains the step that reads a pre-v6 session as unknown" -- the
+      upcast seam, not a bare-undefined convention every future reader must remember, is named
+      as the mechanism. A required union with an explicit "unknown" value makes "we don't know"
+      a real, unrepresentable-any-other-way value once in memory, matching how this codebase
+      already treats other honest-absence readings (e.g. receipt.duration: Duration, never a
+      bare-optional number).
+    rests_on:
+      - .interlock/sessions/0043-any-runtime/run-with-runtime/brief.md
+      - docs/design/0001-interlock.md
+    hunks:
+      - packages/ledger/src/session.ts:1-44
+    produces:
+      - packages/ledger/src/session.ts
+  - id: c2
+    what: >-
+      Built one shared, version-agnostic transform, upcastSessionStarted (session, brief,
+      optional graphBaseSha; runtime defaulted to sessionRuntime.unknown() when absent or
+      invalid), and a second, upcastPreV5Event, for the shape event@v2/v3/v4 share
+      (packages/ledger/src/event.ts). event@v1's upcastV1 calls upcastSessionStarted directly
+      for the session-started kind (removed from its PASS_THROUGH_KINDS); event@v2's and
+      event@v3's upcast files, and envelope.ts's "event@v4" table entry, now all call
+      upcastPreV5Event; a new upcastV5 (packages/ledger/src/upcast/v5.ts) does the same for
+      event@v5, the only version raw session-started data legitimately still lacks runtime on
+      when replayed under this node's own new code. The previously-exported isLedgerEventV4 is
+      deleted (see discovery d1).
+    because: >-
+      A single reused constructive function, applied at every pre-v6 level, keeps "a pre-v6
+      session reads as unknown" true by construction rather than by four separate
+      implementations staying in sync, and avoids the identity-pass-through-with-a-lying-
+      predicate bug found as d1. upcastV1 keeps its existing per-kind dispatch style (it already
+      special-cases gate-moved, receipt-written, outcome-set locally) rather than being folded
+      into upcastPreV5Event, since v1's shape differs from v2/v3/v4 in other ways already.
+    rests_on:
+      - .interlock/sessions/0043-any-runtime/run-with-runtime/brief.md
+      - packages/ledger/src/upcast/v1.ts
+    hunks:
+      - packages/ledger/src/event.ts:145-177
+      - packages/ledger/src/upcast/v1.ts:189-206
+      - packages/ledger/src/upcast/v2.ts:1-5
+      - packages/ledger/src/upcast/v3.ts:1-5
+      - packages/ledger/src/upcast/v5.ts:1-8
+      - packages/ledger/src/envelope.ts:1-33
+    produces:
+      - packages/ledger/src/event.ts
+      - packages/ledger/src/upcast/v1.ts
+      - packages/ledger/src/upcast/v2.ts
+      - packages/ledger/src/upcast/v3.ts
+      - packages/ledger/src/upcast/v5.ts
+      - packages/ledger/src/envelope.ts
+    rejected: >-
+      Keeping isLedgerEventV4 as a boolean predicate and reconstructing separately at each call
+      site: rejected because the reconstruction logic (inject runtime: "unknown" for
+      session-started) is identical at every level, and a predicate that returns true for data
+      it hasn't actually verified conforms to the current Session shape is a lying type
+      predicate, not a defensible narrowing.
+  - id: c3
+    what: >-
+      EVENT_SHAPE advances to "event@v6" (packages/ledger/src/envelope.ts); projection.ts's
+      session-started handler copies event.session.runtime onto SessionView (a new required
+      field); schemas/event@v6.json adds an allOf branch requiring session.runtime via the new
+      schemas/parts/session-runtime.json; schemas/position@v1.json's positionAttempt gains a
+      required runtime field, $ref'd to the same part schema.
+    because: >-
+      The acceptance pins the version bump and upcaster explicitly. SessionView needed the same
+      field as Session so every downstream reader (session show, graph show, runtime list) could
+      read it without re-deriving it from raw events. position@v1.json needed the update because
+      `interlock graph show --json` serializes PositionAttempt (which now carries runtime)
+      through this exact schema, and its additionalProperties: false would otherwise reject the
+      real producer's own output.
+    rests_on:
+      - .interlock/sessions/0043-any-runtime/run-with-runtime/brief.md
+      - schemas/event@v5.json
+    hunks:
+      - packages/ledger/src/envelope.ts:8
+      - packages/ledger/src/projection.ts:32
+      - packages/ledger/src/projection.ts:144
+      - schemas/event@v6.json:1-73
+      - schemas/parts/session-runtime.json:1-19
+      - schemas/position@v1.json:182-193
+    produces:
+      - packages/ledger/src/envelope.ts
+      - packages/ledger/src/projection.ts
+      - schemas/event@v6.json
+      - schemas/parts/session-runtime.json
+      - schemas/position@v1.json
+  - id: c4
+    what: >-
+      Built the new fixture packages/ledger/test/fixtures/journal-v5-run-with-runtime-2026-09-24.jsonl
+      (49 lines) from real event@v5 lines copied verbatim from this repository's own shared
+      journal (the runtime-catalogue node's complete session: started, leased, renewed, gated,
+      cleared), rather than from this node's own session-started line or a hand-authored one.
+      packages/ledger/test/runtime.test.ts (the session-runtime-proof gate file) asserts that
+      fixture's session reads back with runtime "unknown", alongside unit coverage of
+      sessionRuntime/isSessionRuntime, a fresh declared-runtime round-trip through
+      append+replay, and two hand-authored pre-v6 (v1, v4) session-started lines.
+    because: >-
+      The brief requires a real event@v5 session-started fixture read only from
+      .interlock/ledger/journal.jsonl (never written to), and the acceptance's "Tests pin...
+      the v5 fixture upcasts to unknown" names exactly this proof. This node's own
+      session-started line carries its own multi-thousand-character brief acceptance text as
+      the "brief" field, which would bloat the fixture for no test value; the runtime-catalogue
+      node's session is self-contained, real, and (having been written before this feature
+      existed) is exactly the right shape to prove the upcast honestly reads "unknown" rather
+      than inventing a value.
+    rests_on:
+      - .interlock/sessions/0043-any-runtime/run-with-runtime/brief.md
+      - .interlock/ledger/journal.jsonl
+    hunks:
+      - packages/ledger/test/fixtures/journal-v5-run-with-runtime-2026-09-24.jsonl:1-49
+      - packages/ledger/test/runtime.test.ts:1-156
+    produces:
+      - packages/ledger/test/fixtures/journal-v5-run-with-runtime-2026-09-24.jsonl
+      - packages/ledger/test/runtime.test.ts
+  - id: c5
+    what: >-
+      Built packages/runner/src/runtimeSelection.ts's selectRuntime(merged, requested), the one
+      resolution function: the requested name if given (refusing "unknown-runtime" with the
+      known list if absent), else MergedRuntimes.defaultRuntime if set, else the entry named
+      "default" (mergeRuntimes's own name for the legacy runtime: block), else
+      "no-runtime-resolvable" naming the known list (possibly empty). Threaded a new required
+      agentRuntime: ResolvedRuntime field through DriveSessionRequest
+      (packages/runner/src/sessionDrive.ts), replacing every read of
+      localConfig.runtime.{kind,args,startupAnswers,startupTimeoutMs} with agentRuntime's own
+      fields; localConfig.runtime.promptTakenTimeoutMs is untouched, since ResolvedRuntime
+      carries no such field and the brief names only the other four as what moves.
+    because: >-
+      The brief requires "run and plan both call this one function; neither grows its own
+      copy" and that sessionDrive take a ResolvedRuntime rather than read localConfig.runtime
+      directly. The field is named agentRuntime, not runtime, because DriveSessionRequest
+      already has a runtime?: Runtime field -- the pane-driving test-injection adapter
+      (packages/runner/src/runtime.ts) -- an unrelated concept that already owned that name;
+      reusing it would have collided two different senses of "runtime" in one request object.
+    rests_on:
+      - .interlock/sessions/0043-any-runtime/run-with-runtime/brief.md
+      - .interlock/sessions/0043-any-runtime/runtime-catalogue/debrief.yaml
+      - packages/runner/src/runtimeCatalogue.ts
+      - packages/runner/src/runtime.ts
+    hunks:
+      - packages/runner/src/runtimeSelection.ts:1-52
+      - packages/runner/src/sessionDrive.ts
+      - packages/cli/src/run.ts
+      - packages/cli/src/plan.ts
+      - packages/runner/test/runtimeSelection.test.ts:1-102
+    produces:
+      - packages/runner/src/runtimeSelection.ts
+      - packages/runner/src/sessionDrive.ts
+      - packages/cli/src/run.ts
+      - packages/cli/src/plan.ts
+      - packages/runner/test/runtimeSelection.test.ts
+  - id: c6
+    what: >-
+      Wired --runtime <name> into interlock run and interlock plan (packages/cli/src/run.ts,
+      plan.ts): both load the catalogue, merge it with local.yaml, and call selectRuntime before
+      the graph is even loaded (run.ts) or the ledger opened for leasing (both), refusing as a
+      sentence, exit 1, with nothing appended to the journal, on any catalogue, merge or
+      selection refusal. The resolved ResolvedRuntime is passed to driveInteractiveSession as
+      agentRuntime.
+    because: >-
+      The acceptance requires "Refusals print as sentences and exit non-zero before anything is
+      leased: a bad runtime name must not cost a lease." Placing the resolution before graph
+      loading (run.ts) or the interpreter node's ledger open (plan.ts) means a bad name never
+      even reaches the point where any event could be appended, not merely before the lease call
+      specifically.
+    rests_on:
+      - .interlock/sessions/0043-any-runtime/run-with-runtime/brief.md
+      - packages/cli/src/runtime/list.ts
+    hunks:
+      - packages/cli/src/run.ts:1-40
+      - packages/cli/src/plan.ts
+      - packages/cli/test/run.test.ts:1440-1567
+    produces:
+      - packages/cli/src/run.ts
+      - packages/cli/src/plan.ts
+      - packages/cli/test/run.test.ts
+  - id: c7
+    what: >-
+      Narrated the runtime by name, kind and declared model (or "model undeclared") in
+      packages/runner/src/sessionDrive.ts, immediately after "pane ... opened" and before
+      "agent ... started", and recorded the same declared runtime on the session-started
+      event's session.runtime via sessionRuntime.declared(agentRuntime.name, agentRuntime.kind,
+      agentRuntime.model).
+    because: >-
+      The acceptance pins "the runner's narration names the runtime when the pane opens" with
+      the exact fields "name, kind, model or 'model undeclared'". Placing it right after the
+      pane-opened line, before agent start, matches "when the pane opens" literally and keeps
+      the narration ordering a reader can trust (runtime known before the agent that will run on
+      it is started).
+    rests_on:
+      - .interlock/sessions/0043-any-runtime/run-with-runtime/brief.md
+    hunks:
+      - packages/runner/src/sessionDrive.ts
+      - packages/cli/test/run.test.ts:800
+      - packages/cli/test/run.test.ts:845
+      - packages/cli/test/run.test.ts:908
+    produces:
+      - packages/runner/src/sessionDrive.ts
+  - id: c8
+    what: >-
+      packages/face/src/sessionColumns.ts's renderContext prints "runtime: <rendering>" right
+      after graph base sha and before derivation, under Context, using a new shared
+      packages/face/src/runtimeLine.ts (renderSessionRuntime). packages/face/src/render.ts's
+      renderPosition prints one "runtime: <rendering>" line per node (graph show, plain text),
+      sourced from a new packages/face/src/attempts.ts helper, liveOrLatestAttempt(attempts,
+      isLiveAttempt), reusing nodeRow.ts's existing isLiveAttempt rather than duplicating live-
+      lease detection; the line is omitted entirely when a node has no attempts. frameRender.ts's
+      TUI attempt row also gains the same rendering (cheap, reusing the shared renderer, no new
+      frame built).
+
+      Verified against a scratch fixture (git repo under packages/cli/test/.runs, never the
+      real journal, removed with plain rm after use), a declared runtime "luna" (claude,
+      claude-opus-5-5): `interlock session show demo a` prints under Context exactly
+      "  runtime: luna (claude, claude-opus-5-5)" (between "graph base sha: ..." and
+      "derivation: ..."). `interlock graph show demo` prints, for node a, exactly
+      "  runtime: luna (claude, claude-opus-5-5)" between its gates line and its float line.
+    because: >-
+      The acceptance requires "interlock session show prints it under Context beside
+      derivation", "interlock graph show shows... the runtime of the live or latest attempt...,
+      or nothing when there is none, or unknown for a pre-v6 attempt", and permits but does not
+      require the TUI to show it "where its shared view-model already carries the attempt...; do
+      not build a new frame for it" -- PositionAttempt already needed a runtime field for graph
+      show, so the TUI addition was one line, not a new frame, and adding it keeps the two
+      attempt-row renderers (plain and TUI) from silently disagreeing about what an attempt
+      carries. liveOrLatestAttempt takes isLiveAttempt as a parameter rather than importing it
+      from nodeRow.ts, since nodeRow.ts already imports PositionAttempt from attempts.ts and a
+      reverse import would be circular.
+    rests_on:
+      - .interlock/sessions/0043-any-runtime/run-with-runtime/brief.md
+      - packages/face/src/nodeRow.ts
+    hunks:
+      - packages/face/src/attempts.ts:1-55
+      - packages/face/src/runtimeLine.ts:1-6
+      - packages/face/src/sessionColumns.ts
+      - packages/face/src/render.ts:1-80
+      - packages/face/src/frameRender.ts
+      - packages/face/src/index.ts
+      - packages/cli/test/session/show.test.ts
+      - packages/face/test/position.test.ts
+      - packages/face/test/frameRender.test.ts
+    produces:
+      - packages/face/src/attempts.ts
+      - packages/face/src/runtimeLine.ts
+      - packages/face/src/sessionColumns.ts
+      - packages/face/src/render.ts
+      - packages/face/src/frameRender.ts
+      - packages/face/src/index.ts
+  - id: c9
+    what: >-
+      Built packages/face/src/runtimeAttempts.ts's lastAttemptByRuntimeName(projection),
+      returning the last-recorded {session, outcome, startedAtWallMs} per declared runtime name
+      across every graph and node (not scoped to one graph), by iterating
+      projection.sessions.values() once and letting a later Map.set overwrite an earlier one for
+      the same name. Wired into packages/cli/src/runtime/list.ts, which now also reads the
+      shared journal (readReplay) and renders "last attempt <session> — <outcome>, <when>" or
+      "last attempt never run" per runtime line.
+
+      Verified against the same scratch fixture as c8 (a catalogue runtime "luna" with one
+      cleared session, never the real journal): `interlock runtime list` prints exactly
+      "luna — kind claude, model claude-opus-5-5, source catalogue, last attempt
+      demo-session-1 — cleared, 2025-09-24T00:00:00.000Z" for the runtime with an attempt, and
+      "default — kind claude, model (none), source local.yaml, last attempt never run" for the
+      legacy runtime with none.
+    because: >-
+      The acceptance requires "interlock runtime list gains the last attempt per profile,
+      outcome and when, from the projection, so 'can this profile start on this machine' is
+      answered by the record." projection.sessions is a Map built by folding journal events in
+      file order (see packages/ledger/src/projection.ts), so insertion order already is
+      chronological order; the last session recorded for a given runtime name during that fold
+      is genuinely the most recent one, the same convention packages/face/src/attempts.ts and
+      frameRender.ts already rely on for "latest" (attempts[attempts.length - 1]). "When" is
+      read from the session's own first narration entry's timestamp (the "leased ..." line
+      narrated immediately after the lease is taken), since no session carries an explicit
+      "started at" field of its own.
+    rests_on:
+      - .interlock/sessions/0043-any-runtime/run-with-runtime/brief.md
+      - packages/face/src/attempts.ts
+      - packages/ledger/src/projection.ts
+    hunks:
+      - packages/face/src/runtimeAttempts.ts:1-27
+      - packages/cli/src/runtime/list.ts:1-108
+      - packages/face/src/index.ts
+      - packages/cli/test/runtime.test.ts:1-254
+    produces:
+      - packages/face/src/runtimeAttempts.ts
+      - packages/cli/src/runtime/list.ts
+      - packages/cli/test/runtime.test.ts
+  - id: c10
+    what: >-
+      Two repairs named by the brief as in-scope because they touch the same files: (a)
+      loadRuntimeCatalogue (packages/runner/src/runtimeCatalogue.ts) now catches a non-ENOENT
+      readFile error and returns a new RuntimeCatalogueRefusal arm, {kind: "unreadable", path,
+      code}, instead of rethrowing as an uncaught stack trace; (b) interlock runtime list's
+      empty-catalogue-and-no-local-yaml message (packages/cli/src/runtime/list.ts) now says
+      "local.yaml is absent" when that is why the list is empty, rather than always claiming
+      "local.yaml has no runtime block" (a claim only true when local.yaml exists but somehow
+      lacks the block, which LocalConfig's own required runtime.kind field makes structurally
+      impossible today).
+    because: >-
+      Both are named verbatim in the brief's "Two small repairs from the previous node, in
+      scope because you touch the same files" section. (a) matches the existing
+      readable-refusal convention every other loader in this codebase follows (e.g.
+      loadLocalConfig's own ENOENT-vs-other-error handling). (b) is honest about which of the
+      two possible reasons actually produced the empty list, even though only one is reachable
+      given LocalConfig's current required fields; the conditional stays truthful to what
+      actually happened at that call site rather than hard-coding the currently-only-reachable
+      branch.
+    rests_on:
+      - .interlock/sessions/0043-any-runtime/run-with-runtime/brief.md
+      - packages/runner/src/localConfig.ts
+    hunks:
+      - packages/runner/src/runtimeCatalogue.ts:23-40
+      - packages/runner/src/runtimeCatalogue.ts:190-198
+      - packages/cli/src/runtime/list.ts:60-90
+      - packages/runner/test/runtimes.test.ts
+      - packages/cli/test/runtime.test.ts
+    produces:
+      - packages/runner/src/runtimeCatalogue.ts
+      - packages/cli/src/runtime/list.ts
+  - id: c11
+    what: >-
+      Recorded packages/runner/src/backfill.ts's synthesized session-started events with
+      runtime: sessionRuntime.unknown(), never invented from local.yaml or the catalogue.
+    because: >-
+      A backfilled session represents work that predates the harness recording it at all (see
+      docs/design/0001-interlock.md's debrief-schema bend-log row: "a backfilled session has
+      receipts but no session view"); there is no real attempt with a resolved runtime behind
+      it to report, so "unknown" is the honest reading (I8: never invent), not a brief
+      deficiency to backfill in kind.
+    rests_on:
+      - docs/design/0001-interlock.md
+    hunks:
+      - packages/runner/src/backfill.ts
+    produces:
+      - packages/runner/src/backfill.ts
+  - id: c12
+    what: >-
+      Fixed a hermeticity gap this node's own change exposed (discovery d2) by adding
+      $INTERLOCK_RUNTIMES save/restore-in-afterEach and an explicit non-existent path inside
+      each fixture-building helper of packages/cli/test/run.test.ts, plan.test.ts and
+      judge.test.ts, matching the pattern packages/cli/test/runtime.test.ts already used.
+    because: >-
+      Once interlock run and interlock plan call loadRuntimeCatalogue() unconditionally, every
+      test in those files that did not isolate the env var would silently read the real
+      machine's catalogue path. Left unfixed, this node's own change would have made the whole
+      cli test suite non-hermetic without a single new test failing on this particular machine,
+      which is a worse outcome than a visible failure.
+    rests_on:
+      - packages/cli/test/runtime.test.ts
+    hunks:
+      - packages/cli/test/run.test.ts
+      - packages/cli/test/plan.test.ts
+      - packages/cli/test/judge.test.ts
+    produces:
+      - packages/cli/test/run.test.ts
+      - packages/cli/test/plan.test.ts
+      - packages/cli/test/judge.test.ts
+  - id: c13
+    what: >-
+      Kept notes.yaml appended at every choice and surprise while building this node, closed by
+      this debrief as the final commit. Regenerated docs/shapes.md via
+      "interlock schema reference" after the schema changes.
+    because: >-
+      The brief requires typed notes for every choice and surprise as the way back from this
+      compression (I8), committed alongside the code that motivated each entry, and requires
+      docs/shapes.md kept fresh "as the previous node did".
+    rests_on:
+      - .interlock/sessions/0043-any-runtime/run-with-runtime/brief.md
+    hunks:
+      - .interlock/sessions/0043-any-runtime/run-with-runtime/notes.yaml
+      - docs/shapes.md
+    produces:
+      - .interlock/sessions/0043-any-runtime/run-with-runtime/notes.yaml
+      - docs/shapes.md
+      - .interlock/sessions/0043-any-runtime/run-with-runtime/debrief.yaml
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: All 8 workspace packages typecheck clean.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: biome check . reports no findings after biome check --write fixed formatting.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+    note: "packages/*/src: no comments found."
+  - id: test
+    result: pass
+    invocation: mise exec -- pnpm test
+    note: 1798 tests passed across all 8 workspace packages; 0 failures.
+  - id: debrief-valid
+    result: pass
+    invocation: mise exec -- pnpm interlock debrief validate 0043-any-runtime run-with-runtime
+  - id: selection-proof
+    result: pass
+    invocation: mise exec -- pnpm --filter runner exec vitest run test/runtimeSelection.test.ts
+    note: 6 tests passed.
+  - id: session-runtime-proof
+    result: pass
+    invocation: mise exec -- pnpm --filter ledger exec vitest run test/runtime.test.ts
+    note: 8 tests passed.
+  - id: run-flag-proof
+    result: pass
+    invocation: mise exec -- pnpm --filter cli exec vitest run test/run.test.ts
+    note: 40 tests passed.
+open:
+  - >-
+    gap: the graph's acceptance text and this node's own brief say "profile" nowhere (unlike the
+    previous node's brief); this node consistently used "runtime" throughout, per the previous
+    debrief's own recorded gap and I6.
+  - >-
+    gap: `interlock schema reference` still reports the same 6 pre-existing missing-vocabulary-
+    term notes on every run after this node's changes (config, event, item, local, notes,
+    runtimes) -- unchanged by this node's schema additions (event@v6, parts/session-runtime);
+    informational only, exit code unaffected, out of scope (AGENTS.md is not touched by this
+    node).
+  - >-
+    gap: `interlock runtime list`'s "last attempt" lookup (lastAttemptByRuntimeName) scans every
+    session in the shared journal across every graph and node on each invocation; the acceptance
+    names no scale bound and this node's own fixtures never exercised more than a handful of
+    sessions, so whether this stays cheap on a journal with years of history is unverified. Not a
+    defect against the acceptance as written, but worth a future node's attention if `runtime
+    list` is ever felt to be slow.

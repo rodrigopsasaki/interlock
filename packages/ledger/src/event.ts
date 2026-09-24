@@ -11,7 +11,7 @@ import {
 } from "./outbox.ts";
 import { isOutcome, type Outcome } from "./outcome.ts";
 import { isReceipt, type Receipt } from "./receipt.ts";
-import { isSession, type Session } from "./session.ts";
+import { isSession, isSessionRuntime, type Session, sessionRuntime } from "./session.ts";
 import { isRecord, isString, prop } from "./validate.ts";
 
 export type LedgerEvent =
@@ -142,7 +142,36 @@ export function isLedgerEvent(value: unknown): value is LedgerEvent {
   }
 }
 
-export function isLedgerEventV4(value: unknown): value is LedgerEvent {
-  if (!isLedgerEvent(value) || value.kind === "outbox-delivery-recorded") return false;
-  return value.kind !== "outbox-intent-recorded" || !("effect" in value);
+function isLegacySessionRecord(value: unknown): value is Record<string, unknown> & {
+  readonly id: string;
+  readonly node: Node;
+} {
+  return isRecord(value) && isString(prop(value, "id")) && isNode(prop(value, "node"));
+}
+
+export function upcastSessionStarted(raw: unknown): LedgerEvent | undefined {
+  if (!isRecord(raw)) return undefined;
+  const session = prop(raw, "session");
+  const brief = prop(raw, "brief");
+  const graphBaseSha = prop(raw, "graphBaseSha");
+  if (!isLegacySessionRecord(session) || !isBrief(brief)) return undefined;
+  if (graphBaseSha !== undefined && !isString(graphBaseSha)) return undefined;
+  const runtimeField = prop(session, "runtime");
+  const runtime = isSessionRuntime(runtimeField) ? runtimeField : sessionRuntime.unknown();
+  return {
+    kind: "session-started",
+    session: { id: session.id, node: session.node, runtime },
+    brief,
+    ...(graphBaseSha === undefined ? {} : { graphBaseSha }),
+  };
+}
+
+export function upcastPreV5Event(raw: unknown): LedgerEvent | undefined {
+  if (!isRecord(raw)) return undefined;
+  const kind = prop(raw, "kind");
+  if (kind === "session-started") return upcastSessionStarted(raw);
+  if (kind === "outbox-delivery-recorded") return undefined;
+  if (!isLedgerEvent(raw)) return undefined;
+  if (raw.kind === "outbox-intent-recorded" && "effect" in raw) return undefined;
+  return raw;
 }

@@ -821,12 +821,13 @@ No vocabulary entry for `event`.
 - `event@v3`: no field changes from the previous version.
 - `event@v4`: no field changes from the previous version.
 - `event@v5`: removed kind `node-created`; removed kind `lease-taken|lease-renewed`; removed kind `lease-expired`; removed kind `session-started`; removed kind `note-appended`; removed kind `debrief-filed`; removed kind `gate-moved`; removed kind `receipt-written`; removed kind `outcome-set`; removed kind `outbox-intent-recorded`; removed kind `session-narrated`.
+- `event@v6`: no field changes from the previous version.
 
-### Fields (`event@v5`)
+### Fields (`event@v6`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `interlock` | the literal `"event@v5"` | yes |  |
+| `interlock` | the literal `"event@v6"` | yes |  |
 | `kind` | one of `"node-created"`, `"lease-taken"`, `"lease-renewed"`, `"lease-expired"`, `"session-started"`, `"note-appended"`, `"debrief-filed"`, `"gate-moved"`, `"receipt-written"`, `"outcome-set"`, `"outbox-intent-recorded"`, `"outbox-delivery-recorded"`, `"session-narrated"` | yes |  |
 
 ### Examples
@@ -862,6 +863,10 @@ _No example of `event@v4` was found in the corpus._
 #### `event@v5`
 
 _No example of `event@v5` was found in the corpus._
+
+#### `event@v6`
+
+_No example of `event@v6` was found in the corpus._
 
 ## graph
 
@@ -965,6 +970,7 @@ No vocabulary entry for `local`.
 | --- | --- | --- | --- |
 | `interlock` | the literal `"local@v0"` | yes |  |
 | `runtime` | object | yes | fields: kind (string, required); args (array of string, optional); startup_answers (array of startup-answer, optional); startup_timeout_ms (number, optional); prompt_taken_timeout_ms (number, optional) |
+| `default_runtime` | string | no |  |
 | `worktree_root` | string | yes |  |
 | `worktree_setup` | array of string | no |  |
 | `lease_ms` | number | yes |  |
@@ -999,6 +1005,10 @@ runtime:
   # Optional. How long the runner waits, after sending the opening prompt, for the agent to
   # move off idle before the long wait judges it. Defaults to 20000.
   # prompt_taken_timeout_ms: 20000
+
+# The catalogue is per machine and lives outside the repository. This repository starts sonnet
+# by default; "default" remains available for the legacy runtime: block above.
+default_runtime: sonnet
 
 # Where the runner creates a node's git worktree, relative to the repository root.
 worktree_root: .worktrees
@@ -1098,3 +1108,171 @@ The current read of a graph, composed above the stream.
 #### `position@v1`
 
 _No example of `position@v1` was found in the corpus._
+
+## runtimes
+
+No vocabulary entry for `runtimes`.
+
+### Versions
+
+- `runtimes@v0`: the first version.
+
+### Fields (`runtimes@v0`)
+
+| field | type | required | description |
+| --- | --- | --- | --- |
+| `interlock` | the literal `"runtimes@v0"` | yes |  |
+| `runtimes` | object | no |  |
+
+### Examples
+
+#### `runtimes@v0`
+
+Source: `runtimes.example.yaml`
+
+```yaml
+# The per-machine runtime catalogue. Copy this file to $XDG_CONFIG_HOME/interlock/runtimes.yaml
+# (default ~/.config/interlock/runtimes.yaml; INTERLOCK_RUNTIMES overrides the path) and fill it
+# in; the real file is never committed, so these values never leave this machine.
+
+interlock: runtimes@v0
+
+runtimes:
+  # A name matches ^[a-z][a-z0-9_-]{0,31}$, the same shape herdr accepts for an agent name.
+  # Claude Code 2.1.282: these are the repository's recorded unattended flags, with each model
+  # label swapped into --model. The startup answer is the trust choice from local.example.yaml.
+  sonnet:
+    kind: claude
+    args: [--dangerously-skip-permissions, --model, claude-sonnet-5, --strict-mcp-config]
+    model: claude-sonnet-5
+    startup_answers:
+      - matches: "one you trust"
+        keys: [Down, Enter]
+    startup_timeout_ms: 90000
+
+  opus:
+    kind: claude
+    args: [--dangerously-skip-permissions, --model, claude-opus-5-5, --strict-mcp-config]
+    model: claude-opus-5-5
+    startup_answers:
+      - matches: "one you trust"
+        keys: [Down, Enter]
+    startup_timeout_ms: 90000
+
+  fable:
+    kind: claude
+    args: [--dangerously-skip-permissions, --model, claude-fable-5-1, --strict-mcp-config]
+    model: claude-fable-5-1
+    startup_answers:
+      - matches: "one you trust"
+        keys: [Down, Enter]
+    startup_timeout_ms: 90000
+
+  # Codex CLI 0.155.0-alpha.9.2: --model, -c, --disable/--enable, --sandbox,
+  # --ask-for-approval and --add-dir are documented by `codex --help`. The high reasoning
+  # effort is the level used by this repository's earlier Codex sessions.
+  # --add-dir is needed because a node worktree's .git is a file pointing at the repository's
+  # common git directory; workspace-write must be allowed to write there for commits to land.
+  astra:
+    kind: codex
+    # Session observation: a hooks-review modal needed SessionStart trust before the opening prompt
+    # could be delivered; a person dismissed it with Esc and the runner resent the prompt.
+    args:
+      - --model
+      - gpt-6-astra
+      - -c
+      - model_reasoning_effort="high"
+      - --disable
+      - multi_agent
+      - --enable
+      - code_mode_host
+      - --disable
+      - apps
+      - --disable
+      - computer_use
+      - --disable
+      - browser_use
+      - --sandbox
+      - workspace-write
+      - --ask-for-approval
+      - never
+      - --add-dir
+      - "<git-common-dir>"
+    model: gpt-6-astra
+    startup_timeout_ms: 90000
+
+  terra:
+    kind: codex
+    # Session observation: a hooks-review modal needed SessionStart trust before the opening prompt
+    # could be delivered; a person dismissed it with Esc and the runner resent the prompt.
+    args:
+      - --model
+      - gpt-5.6-terra
+      - -c
+      - model_reasoning_effort="high"
+      - --disable
+      - multi_agent
+      - --enable
+      - code_mode_host
+      - --disable
+      - apps
+      - --disable
+      - computer_use
+      - --disable
+      - browser_use
+      - --sandbox
+      - workspace-write
+      - --ask-for-approval
+      - never
+      - --add-dir
+      - "<git-common-dir>"
+    model: gpt-5.6-terra
+    startup_timeout_ms: 90000
+
+  luna:
+    kind: codex
+    # Session observation: a hooks-review modal needed SessionStart trust before the opening prompt
+    # could be delivered; a person dismissed it with Esc and the runner resent the prompt.
+    args:
+      - --model
+      - gpt-5.6-luna
+      - -c
+      - model_reasoning_effort="high"
+      - --disable
+      - multi_agent
+      - --enable
+      - code_mode_host
+      - --disable
+      - apps
+      - --disable
+      - computer_use
+      - --disable
+      - browser_use
+      - --sandbox
+      - workspace-write
+      - --ask-for-approval
+      - never
+      - --add-dir
+      - "<git-common-dir>"
+    model: gpt-5.6-luna
+    startup_timeout_ms: 90000
+
+  # Kimi Code CLI 2.1.1, verified by the k3-first-run session on 2026-09-24. --auto is the
+  # unattended flag (Never Ask mode); --model is needed because this machine's config.toml
+  # default_model is kimi-code/kimi-for-coding, not k3. The session's own log reports
+  # model=k3 modelAlias=kimi-code/k3 thinkingEffort=high; `kimi provider list --json` gives
+  # displayName "K3" and efforts low/high/max (default high).
+  # Session observation: on an untrusted root the "Trust this folder?" prompt ("Trust this
+  # folder" preselected, Enter selects it) reads as idle to herdr, so this startup answer
+  # never fired; the opening prompt's own Enter trusted the folder and the prompt was lost.
+  # A person restarted the agent in a new pane and re-sent the prompt; --auto does not skip
+  # the trust prompt, so the startup answer stays for genuinely fresh roots.
+  k3:
+    kind: kimi
+    args: [--auto, --model, kimi-code/k3]
+    model: kimi-code/k3
+    startup_answers:
+      - matches: "Trust this folder"
+        keys: [Enter]
+    startup_timeout_ms: 90000
+```

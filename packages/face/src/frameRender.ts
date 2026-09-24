@@ -5,6 +5,7 @@ import { isLiveAttempt, type NodeRow, nodeRowsOf } from "./nodeRow.ts";
 import type { PlansEntry } from "./plansEntry.ts";
 import type { Position, PositionNode } from "./position.ts";
 import type { PositionGate, PositionGateState } from "./positionGate.ts";
+import { renderSessionRuntime } from "./runtimeLine.ts";
 
 function cursor(rowIndex: number, index: number): string {
   return rowIndex === index ? "> " : "  ";
@@ -115,7 +116,7 @@ function renderLeaseState(attempt: PositionAttempt): string {
 function renderAttemptRow(attempt: PositionAttempt): string {
   const outcome = attempt.outcome === undefined ? "no outcome yet" : attempt.outcome.kind;
   const status = attempt.agentStatus ?? "unknown";
-  return `${attempt.session} — outcome ${outcome}, ${renderLeaseState(attempt)}, agent ${status}`;
+  return `${attempt.session} — runtime ${renderSessionRuntime(attempt.runtime)}, outcome ${outcome}, ${renderLeaseState(attempt)}, agent ${status}`;
 }
 
 function indexed(

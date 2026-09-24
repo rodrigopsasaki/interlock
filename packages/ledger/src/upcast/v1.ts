@@ -1,6 +1,6 @@
 import { type Derivation, isDerivation } from "../derivation.ts";
 import { type Disposition, isDisposition } from "../disposition.ts";
-import { isLedgerEvent, type LedgerEvent } from "../event.ts";
+import { isLedgerEvent, type LedgerEvent, upcastSessionStarted } from "../event.ts";
 import { type Gate, gate } from "../gate.ts";
 import { isNode } from "../graph.ts";
 import { heldOn, type Outcome, outcome } from "../outcome.ts";
@@ -181,7 +181,6 @@ const PASS_THROUGH_KINDS: ReadonlySet<string> = new Set([
   "lease-taken",
   "lease-renewed",
   "lease-expired",
-  "session-started",
   "note-appended",
   "outbox-intent-recorded",
 ]);
@@ -191,6 +190,7 @@ export function upcastV1(raw: unknown): LedgerEvent | undefined {
   const kind = prop(raw, "kind");
   if (typeof kind !== "string") return undefined;
 
+  if (kind === "session-started") return upcastSessionStarted(raw);
   if (PASS_THROUGH_KINDS.has(kind)) return isLedgerEvent(raw) ? raw : undefined;
   if (kind === "debrief-filed") return undefined;
 

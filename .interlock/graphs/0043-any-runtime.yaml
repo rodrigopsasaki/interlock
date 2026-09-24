@@ -1,0 +1,173 @@
+interlock: graph@v0
+id: 0043-any-runtime
+ask: Run any node on any model the person pays for, chosen per attempt from the door and recorded on the session.
+derivation:
+  kind: model
+  model: claude-fable-5-1
+  prompt: rodrigo-conversation-2026-09-24-any-runtime
+read: >
+  The person pays for several models: Anthropic through Claude Code, OpenAI
+  through Codex (astra, terra, luna), Kimi K3 through Kimi Code CLI, plus a
+  typed judge and a local model. Today the runner starts whichever agent CLI
+  one repository's local.yaml names, so choosing a model means editing a file
+  per repository, and the design note already calls that the interim. The
+  design's own rule is that strategy is declared and model is measured: model
+  assignment is a variable at each node's attempt, never a table someone
+  writes and never a field of the graph. This graph makes that literal. A
+  per-machine catalogue names the runtime profiles this machine can start;
+  the caller picks one per attempt; the session records which one ran; the
+  position shows it; whether a profile can start here is answered by the
+  record of attempts, never by a probe. Proof is by dogfood: the graph's own
+  nodes run on three vendors, and its position shows it. Out of scope,
+  deliberately: quota-aware failover between profiles, a direct-call client
+  for boards, node-level allowed sets, and the watcher that lets the door
+  stop attending. Each is its own graph.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: runtime-catalogue
+    depends_on: []
+    acceptance: |
+      Add a per-machine runtime catalogue. Shape `runtimes@v0`, a YAML file
+      at `$XDG_CONFIG_HOME/interlock/runtimes.yaml` (default
+      `~/.config/interlock/runtimes.yaml`), path overridable by the
+      environment variable `INTERLOCK_RUNTIMES` so tests never touch the real
+      file. Each entry is a named profile: `kind` (the agent CLI herdr
+      starts, with today's `runtime.kind` semantics), `args` (opaque to
+      interlock), `model` (a declared label kept for the record, never
+      parsed), and optional `startup_answers` and `startup_timeout_ms` with
+      today's semantics. The file is machine truth and is never committed.
+      `runtimes.example.yaml` in the repository documents the shape with
+      placeholder entries only and names no vendor.
+
+      The existing `runtime:` block in local.yaml keeps working unchanged as
+      the implicit profile named `default`. local.yaml gains an optional
+      `default_runtime: <name>`, additive within local@v0; readers accept its
+      absence forever. An absent catalogue is an empty catalogue, never an
+      error. A malformed entry refuses with a sentence through the
+      established readable-refusal surface, naming the nearest vocabulary
+      term (I3). No PATH probing and no vendor knowledge in code: whether a
+      profile can start is learned from attempts, never guessed (I6).
+
+      Add `interlock runtime list`: name, kind, declared model, and where
+      the profile came from (catalogue or local.yaml). A JSON Schema
+      `schemas/runtimes@v0.json` and `interlock schema validate` cover the
+      new shape. Strict TypeScript, no assertions, no non-null operators.
+      Tests pin: a valid catalogue parses; a malformed one refuses with a
+      sentence; an absent one is empty; the legacy `runtime:` block still
+      resolves as `default`; the list renders. Preserve every historical
+      brief, debrief, note and receipt. Append typed notes for choices and
+      surprises. Run the focused test files and lint before handoff. No
+      push, no merge, no deployment; the human merges.
+    gates:
+      - id: catalogue-runner-proof
+        kind: command
+        run: pnpm --filter runner exec vitest run test/runtimes.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: catalogue-cli-proof
+        kind: command
+        run: pnpm --filter cli exec vitest run test/runtime.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: catalogue-schema-proof
+        kind: command
+        run: pnpm --filter schemas exec vitest run test/runtimes.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+  - id: run-with-runtime
+    depends_on: [runtime-catalogue]
+    acceptance: |
+      Choose the runtime per attempt. `interlock run <graph> <node>
+      --runtime <name>` and `interlock plan ... --runtime <name>` select a
+      profile from the catalogue. Resolution order: the flag, then
+      local.yaml `default_runtime`, then the legacy `runtime:` block as
+      `default`. An unknown name refuses with a sentence that lists the
+      known names. Nothing in a graph names a runtime; the choice is the
+      caller's at each attempt (strategy declared, model measured).
+
+      Record the choice where the session is recorded. The event that opens
+      a session carries `runtime: { name, kind, model }` as typed additive
+      fields; the persisted event shape advances to event@v6 with an
+      upcaster from every prior version, and a replayed pre-v6 session reads
+      its runtime as `unknown`, never invented. Every fixture journal under
+      packages/ledger/test/fixtures must still replay. The runner's
+      narration names the runtime when the pane opens. `interlock session
+      show` prints it. `interlock graph show` shows the runtime of each
+      node's live or latest attempt. `interlock runtime list` gains the last
+      attempt per profile, outcome and when, from the projection, so "can
+      this profile start on this machine" is answered by the record.
+
+      Strict TypeScript, no assertions, no non-null operators. Tests pin:
+      flag beats default beats legacy; an unknown name refuses with the
+      list; the v5 fixture upcasts to `unknown`; the narration line; the
+      list column. Preserve every historical artifact. Append typed notes.
+      Run the focused test files and lint before handoff. No push, no merge;
+      the human merges.
+    gates:
+      - id: selection-proof
+        kind: command
+        run: pnpm --filter runner exec vitest run test/runtimeSelection.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: session-runtime-proof
+        kind: command
+        run: pnpm --filter ledger exec vitest run test/runtime.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: run-flag-proof
+        kind: command
+        run: pnpm --filter cli exec vitest run test/run.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+  - id: example-profiles
+    depends_on: [run-with-runtime]
+    acceptance: |
+      Document the profiles this machine's door will use, as examples only,
+      and prove the Codex path by running this node on it. This node is run
+      with `--runtime luna`; its own session record, read back with
+      `interlock session show`, is the proof of the Codex path.
+
+      `runtimes.example.yaml` gains one entry per model the person pays for
+      on this machine, written from facts verified in this session, never
+      from memory: the Claude Code profiles (sonnet, opus, fable: kind
+      claude, the flags today's local.example.yaml carries, the trust dialog
+      answer); the Codex profiles (astra, terra, luna: kind codex, the model
+      and reasoning-effort flags and the unattended approval and sandbox
+      flags as the installed CLI documents them, with the CLI version they
+      were read from); and a kimi entry (kind kimi, model kimi-code/k3,
+      `--auto`, the "Trust this folder" answer) marked unverified until
+      k3-first-run clears it. local.example.yaml points `default_runtime`
+      at sonnet and says the catalogue is per machine. Vendor flags appear
+      in these two example files only (I6). A bend-log row in
+      docs/design/0001-interlock.md records this graph's bend: the model is
+      chosen per attempt at the caller and recorded on the session, and
+      local.yaml stops being the place a model is named.
+
+      A test validates `runtimes.example.yaml` against `runtimes@v0`.
+      Strict TypeScript where code is touched; no assertions. Preserve every
+      historical artifact. Append typed notes. Run the focused test and lint
+      before handoff. No push, no merge; the human merges.
+    gates:
+      - id: example-valid
+        kind: command
+        run: pnpm --filter schemas exec vitest run test/runtimesExample.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: kimi-ready
+        kind: human
+  - id: k3-first-run
+    depends_on: [example-profiles]
+    acceptance: |
+      Run this node with `--runtime k3`. Complete the kimi entry in
+      `runtimes.example.yaml` from what this session can observe about its
+      own runtime: the flags that made it unattended, the trust dialog
+      wording, the model label. Remove the unverified mark. Add one bend-log
+      row per startup or detection quirk the runner met on the way in; the
+      runner's narration and screen capture are the evidence. Nothing else
+      changes. The session record of this node, read with `interlock session
+      show`, is the proof of the Kimi path, and the graph's position then
+      shows three runtimes across four nodes. Preserve every historical
+      artifact. Append typed notes. Run the focused test and lint before
+      handoff. No push, no merge; the human merges.
+    gates:
+      - id: example-valid
+        kind: command
+        run: pnpm --filter schemas exec vitest run test/runtimesExample.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: witnessed
+        kind: human

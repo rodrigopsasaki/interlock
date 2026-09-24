@@ -38,6 +38,9 @@
       ],
       "additionalProperties": true
     },
+    "default_runtime": {
+      "type": "string"
+    },
     "worktree_root": {
       "type": "string"
     },

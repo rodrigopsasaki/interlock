@@ -183,11 +183,12 @@
       "type": "object",
       "properties": {
         "session": { "type": "string" },
+        "runtime": { "$ref": "parts/session-runtime.json" },
         "outcome": { "$ref": "parts/outcome.json" },
         "leaseState": { "$ref": "#/$defs/leaseState" },
         "agentStatus": { "enum": ["idle", "working", "blocked", "done", "unknown"] }
       },
-      "required": ["session", "leaseState"],
+      "required": ["session", "runtime", "leaseState"],
       "additionalProperties": false
     }
   }
