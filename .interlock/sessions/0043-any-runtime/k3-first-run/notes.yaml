@@ -29,3 +29,11 @@ entries:
     expected: The person's recovery prompt through the herdr CLI would report success once delivered.
     observed: herdr's server log shows cli agent.prompt at 22:17:11.292Z completing with outcome error at 22:17:16.682Z, although this kimi session was created from that prompt at 22:17:11.618Z and made its first model request at 22:17:11.726Z.
     mattered_because: Delivery succeeded while the prompt call reported an error, a second detection gap on the same path, visible only in herdr's own log.
+  - kind: choice
+    at: "2026-09-24T22:29:00Z"
+    chose: Add --model kimi-code/k3 to the k3 entry's args, state the observed version and session-log model line in the comment, keep the "Trust this folder" startup answer, and remove both unverified marks.
+    because: The observed session runs kimi-code/k3 while this machine's default model is kimi-code/kimi-for-coding, so the model flag is part of the unattended invocation; the trust wording is confirmed against the installed bundle and --auto does not skip it.
+  - kind: choice
+    at: "2026-09-24T22:29:30Z"
+    chose: Write one bend-log row for the startup chain — idle reading under the trust prompt, the startup answer that never fired, the prompt's Enter trusting the folder and losing the prompt, the refusal that closed the pane, and the human recovery in a new pane.
+    because: The narration, the workspace-trust timestamp and herdr's server log are one causal chain, and the row records both directions of the prompt-taken detection error the path showed.

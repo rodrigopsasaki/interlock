@@ -124,13 +124,21 @@ runtimes:
     model: gpt-5.6-luna
     startup_timeout_ms: 90000
 
-  # Kimi Code CLI 2.1.1 documented behaviour, read on 2026-09-24; not run in this node.
+  # Kimi Code CLI 2.1.1, verified by the k3-first-run session on 2026-09-24. --auto is the
+  # unattended flag (Never Ask mode); --model is needed because this machine's config.toml
+  # default_model is kimi-code/kimi-for-coding, not k3. The session's own log reports
+  # model=k3 modelAlias=kimi-code/k3 thinkingEffort=high; `kimi provider list --json` gives
+  # displayName "K3" and efforts low/high/max (default high).
+  # Session observation: on an untrusted root the "Trust this folder?" prompt ("Trust this
+  # folder" preselected, Enter selects it) reads as idle to herdr, so this startup answer
+  # never fired; the opening prompt's own Enter trusted the folder and the prompt was lost.
+  # A person restarted the agent in a new pane and re-sent the prompt; --auto does not skip
+  # the trust prompt, so the startup answer stays for genuinely fresh roots.
   k3:
     kind: kimi
-    args: [--auto]
+    args: [--auto, --model, kimi-code/k3]
     model: kimi-code/k3
     startup_answers:
       - matches: "Trust this folder"
         keys: [Enter]
     startup_timeout_ms: 90000
-    # Unverified until the k3-first-run node clears its human gate.
