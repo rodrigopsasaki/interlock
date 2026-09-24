@@ -3,9 +3,7 @@ graph: 0043-any-runtime
 node: example-profiles
 notes:
   - kind: surprise
-    what: >-
-      Codex opened with a hooks-review modal because a SessionStart hook needed trust; herdr read
-      the agent as idle and the runner's opening prompt was lost in the modal.
+    what: "Codex opened with a hooks-review modal because a SessionStart hook needed trust; herdr read the agent as idle and the runner's opening prompt was lost in the modal."
     because: >-
       A person dismissed the modal with Esc and resent this prompt, so the session could proceed
       with the runner's intended brief.
