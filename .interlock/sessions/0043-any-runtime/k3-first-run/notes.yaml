@@ -37,3 +37,12 @@ entries:
     at: "2026-09-24T22:29:30Z"
     chose: Write one bend-log row for the startup chain — idle reading under the trust prompt, the startup answer that never fired, the prompt's Enter trusting the folder and losing the prompt, the refusal that closed the pane, and the human recovery in a new pane.
     because: The narration, the workspace-trust timestamp and herdr's server log are one causal chain, and the row records both directions of the prompt-taken detection error the path showed.
+  - kind: choice
+    at: "2026-09-24T22:33:00Z"
+    chose: File the debrief from an authored candidate whose discoveries cite exact notes lines, after a read-only preview showed every claim rooted.
+    because: The brief makes the session record the proof of the Kimi path, and the candidate flow keeps the authored draft beside the filed debrief for drilldown.
+  - kind: surprise
+    at: "2026-09-24T22:33:30Z"
+    expected: The full workspace test gate would fail on sandbox port binds as the previous session recorded.
+    observed: pnpm test exited 0 with every package's suite green.
+    mattered_because: This sandbox allowed local ports, so the standing test gate is reported as a real pass rather than an environmental failure.
