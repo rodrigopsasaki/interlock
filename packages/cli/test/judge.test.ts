@@ -20,12 +20,15 @@ mkdirSync(runsRoot, { recursive: true });
 
 let directory: string | undefined;
 let server: FakeSubstrateServer | undefined;
+const savedRuntimesEnv = process.env["INTERLOCK_RUNTIMES"];
 
 afterEach(async () => {
   if (server !== undefined) await server.close();
   server = undefined;
   if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
+  if (savedRuntimesEnv === undefined) delete process.env["INTERLOCK_RUNTIMES"];
+  else process.env["INTERLOCK_RUNTIMES"] = savedRuntimesEnv;
 });
 
 const graphYaml = [
@@ -95,6 +98,7 @@ const demoBriefV1 = [
 
 function fixture(local = localYaml): string {
   directory = mkdtempSync(join(runsRoot, "judge-"));
+  process.env["INTERLOCK_RUNTIMES"] = join(directory, "does-not-exist.yaml");
   mkdirSync(join(directory, ".interlock", "graphs"), { recursive: true });
   writeFileSync(join(directory, ".interlock", "graphs", "demo.yaml"), graphYaml);
   writeFileSync(join(directory, ".interlock", "config.yaml"), configYaml);
@@ -176,7 +180,11 @@ describe("interlock judge", () => {
   it("binds an enabled origin through judge's actual absorb client", async () => {
     server = await startFakeSubstrateServer();
     server.responseFor("context", { items: [], vocabulary: "reference@v1" });
-    server.responseFor("absorb", { decisions_absorbed: [], discoveries: [], gaps: [] });
+    server.responseFor("absorb", {
+      decisions_absorbed: [],
+      discoveries: [],
+      gaps: [],
+    });
     const cwd = fixture(localYamlFor(server.url));
     execFileSync("git", ["remote", "add", "origin", "git@forge.example:owner/name.git"], { cwd });
     await approve(cwd);
@@ -187,7 +195,9 @@ describe("interlock judge", () => {
     });
     const sessionId = sessionIdFrom(ran.message);
     const worktreePath = join(cwd, ".worktrees", "a");
-    mkdirSync(join(worktreePath, ".interlock", "sessions", "demo", "a"), { recursive: true });
+    mkdirSync(join(worktreePath, ".interlock", "sessions", "demo", "a"), {
+      recursive: true,
+    });
     writeFileSync(
       join(worktreePath, ".interlock", "sessions", "demo", "a", "debrief.yaml"),
       debriefYaml,

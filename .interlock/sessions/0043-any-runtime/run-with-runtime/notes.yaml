@@ -74,3 +74,86 @@ entries:
       session is a complete, self-contained, real v5 flow ending in a cleared outcome, and
       because it was written before this feature existed it is also exactly the right shape
       to prove "the v5 fixture upcasts to unknown" (pinned by the graph's acceptance text).
+  - kind: choice
+    at: "2026-09-24T00:40:00Z"
+    chose: >-
+      Added packages/runner/src/runtimeSelection.ts's selectRuntime as the one resolution
+      function (flag, then local.yaml's default_runtime, then the entry named "default"),
+      and threaded a new required agentRuntime: ResolvedRuntime field through
+      DriveSessionRequest (packages/runner/src/sessionDrive.ts), replacing every read of
+      localConfig.runtime.{kind,args,startupAnswers,startupTimeoutMs} with agentRuntime's own
+      fields. localConfig.runtime.promptTakenTimeoutMs is untouched: ResolvedRuntime carries no
+      such field, and the brief only named kind/args/startupAnswers/startupTimeoutMs as what
+      moves.
+    because: >-
+      The brief requires "run and plan both call this one function; neither grows its own
+      copy" and requires sessionDrive to take a ResolvedRuntime rather than read
+      localConfig.runtime directly. Naming the new field agentRuntime, not runtime, avoids
+      colliding with DriveSessionRequest's existing runtime?: Runtime field, which is the
+      pane-driving test-injection adapter (packages/runner/src/runtime.ts) -- an unrelated
+      concept that already owned that name.
+    rests_on:
+      - .interlock/sessions/0043-any-runtime/run-with-runtime/brief.md
+      - .interlock/sessions/0043-any-runtime/runtime-catalogue/debrief.yaml
+      - packages/runner/src/runtimeCatalogue.ts
+    hunks:
+      - packages/runner/src/runtimeSelection.ts:1-49
+      - packages/runner/src/sessionDrive.ts
+      - packages/cli/src/run.ts
+      - packages/cli/src/plan.ts
+  - kind: surprise
+    at: "2026-09-24T00:50:00Z"
+    expected: >-
+      Wiring --runtime into interlock run and interlock plan (loading the catalogue,
+      merging, selecting) would only need source changes; the existing cli test fixtures
+      for run.ts and plan.ts would keep passing unchanged.
+    observed: >-
+      Both runInterlockRun and runInterlockPlan now call loadRuntimeCatalogue() on every
+      invocation, which reads $INTERLOCK_RUNTIMES or ~/.config/interlock/runtimes.yaml from
+      the real environment by default. packages/cli/test/run.test.ts, plan.test.ts and
+      judge.test.ts had no INTERLOCK_RUNTIMES isolation at all (unlike
+      packages/cli/test/runtime.test.ts, which already saved/restored it per test), so every
+      test in those three files was silently reading whatever real catalogue file exists on
+      the machine running the suite -- a hermeticity gap this node's own change exposed
+      rather than introduced. Fixed by adding the same save/restore-in-afterEach and an
+      explicit non-existent INTERLOCK_RUNTIMES path in each file's fixture()-equivalent
+      helper (and at the two call sites in run.test.ts that build a directory without going
+      through fixture()).
+    rests_on:
+      - packages/cli/test/runtime.test.ts
+    hunks:
+      - packages/cli/test/run.test.ts
+      - packages/cli/test/plan.test.ts
+      - packages/cli/test/judge.test.ts
+  - kind: choice
+    at: "2026-09-24T01:00:00Z"
+    chose: >-
+      Built the per-runtime "last attempt" column (packages/face/src/runtimeAttempts.ts's
+      lastAttemptByRuntimeName) by iterating projection.sessions.values() once and letting a
+      later Map.set overwrite an earlier one for the same runtime name, rather than sorting by
+      an explicit timestamp.
+    because: >-
+      projection.sessions is built by folding journal events in file order (see
+      packages/ledger/src/projection.ts's session-started handling), so insertion order into
+      that Map already is chronological order; the last session recorded for a given runtime
+      name during that fold is genuinely the most recent one. This is the same convention
+      packages/face/src/attempts.ts and frameRender.ts already rely on (attempts[attempts.length
+      - 1] as "latest"), so runtimeAttempts.ts stays consistent with the rest of face's model
+      instead of inventing a second way to find "latest".
+    rests_on:
+      - packages/face/src/attempts.ts
+      - packages/ledger/src/projection.ts
+  - kind: choice
+    at: "2026-09-24T01:10:00Z"
+    chose: >-
+      Recorded the runtime on packages/runner/src/backfill.ts's synthesized session-started
+      events as sessionRuntime.unknown(), not invented from local.yaml.
+    because: >-
+      A backfilled session represents work that predates the harness recording it at all (see
+      docs/design/0001-interlock.md's debrief-schema bend-log row: "a backfilled session has
+      receipts but no session view"); there is no real attempt with a resolved runtime behind
+      it, so "unknown" is the honest reading, not a brief deficiency to fill in.
+    rests_on:
+      - docs/design/0001-interlock.md
+    hunks:
+      - packages/runner/src/backfill.ts

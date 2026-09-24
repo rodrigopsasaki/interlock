@@ -7,11 +7,7 @@ import { EVENT_SHAPE } from "../src/envelope.ts";
 import { nodeKey } from "../src/graph.ts";
 import { createLedger } from "../src/ledger.ts";
 import { replayFromRaw } from "../src/replay.ts";
-import {
-  isSessionRuntime,
-  sessionRuntime,
-  type SessionRuntime,
-} from "../src/session.ts";
+import { isSessionRuntime, type SessionRuntime, sessionRuntime } from "../src/session.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -19,18 +15,13 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
 describe("SessionRuntime: declared and unknown", () => {
   it("constructs a declared runtime carrying name, kind and an optional model", () => {
-    const declared = sessionRuntime.declared(
-      "luna",
-      "claude",
-      "claude-opus-5-5",
-    );
+    const declared = sessionRuntime.declared("luna", "claude", "claude-opus-5-5");
     expect(declared).toEqual({
       name: "luna",
       kind: "claude",
@@ -41,7 +32,11 @@ describe("SessionRuntime: declared and unknown", () => {
 
   it("keeps a declared model undeclared rather than inventing one, for the legacy local.yaml block", () => {
     const declared = sessionRuntime.declared("default", "claude", undefined);
-    expect(declared.model).toBeUndefined();
+    expect(declared).toEqual({
+      name: "default",
+      kind: "claude",
+      model: undefined,
+    });
     expect(isSessionRuntime(declared)).toBe(true);
   });
 
@@ -63,11 +58,7 @@ describe("session-started: runtime round-trips through append and replay", () =>
     const clock = createControlledClock({ initialTime: 0 });
     const ledger = unwrap(await createLedger({ clock, directory }));
     const node = { graph: "0043-any-runtime", id: "run-with-runtime" };
-    const runtime: SessionRuntime = sessionRuntime.declared(
-      "luna",
-      "claude",
-      "claude-opus-5-5",
-    );
+    const runtime: SessionRuntime = sessionRuntime.declared("luna", "claude", "claude-opus-5-5");
 
     ledger.append({
       kind: "session-started",
@@ -143,11 +134,7 @@ describe("session-started: pre-v6 lines upcast their runtime as unknown, never i
 
   it("the real event@v5 fixture (this node's own dependency, before this shape existed) upcasts its runtime as unknown", () => {
     const raw = readFileSync(
-      join(
-        import.meta.dirname,
-        "fixtures",
-        "journal-v5-run-with-runtime-2026-09-24.jsonl",
-      ),
+      join(import.meta.dirname, "fixtures", "journal-v5-run-with-runtime-2026-09-24.jsonl"),
       "utf-8",
     );
 

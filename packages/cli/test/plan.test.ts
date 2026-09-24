@@ -21,12 +21,15 @@ mkdirSync(runsRoot, { recursive: true });
 
 let directory: string | undefined;
 let server: FakeSubstrateServer | undefined;
+const savedRuntimesEnv = process.env["INTERLOCK_RUNTIMES"];
 
 afterEach(async () => {
   if (server !== undefined) await server.close();
   server = undefined;
   if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
+  if (savedRuntimesEnv === undefined) delete process.env["INTERLOCK_RUNTIMES"];
+  else process.env["INTERLOCK_RUNTIMES"] = savedRuntimesEnv;
 });
 
 const configYaml = [
@@ -53,11 +56,14 @@ const localYaml = [
 
 function fixture(local = localYaml): string {
   directory = mkdtempSync(join(runsRoot, "plan-"));
+  process.env["INTERLOCK_RUNTIMES"] = join(directory, "does-not-exist.yaml");
   mkdirSync(join(directory, ".interlock", "graphs"), { recursive: true });
   writeFileSync(join(directory, ".interlock", "config.yaml"), configYaml);
   writeFileSync(join(directory, ".interlock", "local.yaml"), local);
   gitInitFixture(directory);
-  execFileSync("git", ["config", "commit.gpgsign", "false"], { cwd: directory });
+  execFileSync("git", ["config", "commit.gpgsign", "false"], {
+    cwd: directory,
+  });
   commitAll(directory, "fixture content");
   return directory;
 }
@@ -186,7 +192,10 @@ describe("interlock plan", () => {
     const cwd = fixtureWithOrigin(localYamlFor(server.url));
     const worktreePath = join(cwd, ".worktrees", "plan", "demo");
     const selected = [".interlock/config.yaml"];
-    const authoritativeScope = execFileSync("git", ["ls-files"], { cwd, encoding: "utf-8" })
+    const authoritativeScope = execFileSync("git", ["ls-files"], {
+      cwd,
+      encoding: "utf-8",
+    })
       .split("\n")
       .filter((path) => path.length > 0);
 
@@ -246,7 +255,10 @@ describe("interlock plan", () => {
     server.responseFor("context", { items: [], vocabulary: "reference@v1" });
     const cwd = fixtureWithOrigin(localYamlFor(server.url));
     const worktreePath = join(cwd, ".worktrees", "plan", "demo");
-    const authoritativeScope = execFileSync("git", ["ls-files"], { cwd, encoding: "utf-8" })
+    const authoritativeScope = execFileSync("git", ["ls-files"], {
+      cwd,
+      encoding: "utf-8",
+    })
       .split("\n")
       .filter((path) => path.length > 0);
 
@@ -583,7 +595,10 @@ describe("interlock plan", () => {
       );
 
       expect(result.exitCode).toBe(0);
-      const authoritativeScope = execFileSync("git", ["ls-files"], { cwd, encoding: "utf-8" })
+      const authoritativeScope = execFileSync("git", ["ls-files"], {
+        cwd,
+        encoding: "utf-8",
+      })
         .trim()
         .split("\n");
       expect(server.calls.find((call) => call.verb === "context")?.body).toMatchObject({

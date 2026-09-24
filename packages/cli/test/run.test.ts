@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
 import { err, isOk, ok } from "@phyxiusjs/fp";
 import { debriefFilePath, readBriefFile } from "debrief";
-import { isLedgerEvent } from "ledger";
+import { isLedgerEvent, type LedgerEvent } from "ledger";
 import type { Runtime } from "runner";
 import { afterEach, describe, expect, it } from "vitest";
 import {
@@ -21,12 +21,15 @@ mkdirSync(runsRoot, { recursive: true });
 
 let directory: string | undefined;
 let server: FakeSubstrateServer | undefined;
+const savedRuntimesEnv = process.env["INTERLOCK_RUNTIMES"];
 
 afterEach(async () => {
   if (server !== undefined) await server.close();
   server = undefined;
   if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
+  if (savedRuntimesEnv === undefined) delete process.env["INTERLOCK_RUNTIMES"];
+  else process.env["INTERLOCK_RUNTIMES"] = savedRuntimesEnv;
 });
 
 function localYamlFor(address: string, sendRepository: boolean): string {
@@ -192,6 +195,7 @@ function fixture(
   } = {},
 ): string {
   directory = mkdtempSync(join(runsRoot, "run-"));
+  process.env["INTERLOCK_RUNTIMES"] = join(directory, "does-not-exist.yaml");
   mkdirSync(join(directory, ".interlock", "graphs"), { recursive: true });
   writeFileSync(
     join(directory, ".interlock", "graphs", "demo.yaml"),
@@ -328,6 +332,7 @@ describe("interlock run", () => {
 
   it("refuses a graph that has no file on disk", async () => {
     directory = mkdtempSync(join(runsRoot, "run-"));
+    process.env["INTERLOCK_RUNTIMES"] = join(directory, "does-not-exist.yaml");
     mkdirSync(join(directory, ".interlock", "graphs"), { recursive: true });
     writeFileSync(join(directory, ".interlock", "config.yaml"), configYaml);
     writeFileSync(join(directory, ".interlock", "local.yaml"), localYaml);
@@ -719,6 +724,7 @@ describe("interlock run", () => {
 
   it("writes the brief into the worktree even though it is not yet committed in the repository", async () => {
     directory = mkdtempSync(join(runsRoot, "run-"));
+    process.env["INTERLOCK_RUNTIMES"] = join(directory, "does-not-exist.yaml");
     const cwd = directory;
     mkdirSync(join(cwd, ".interlock", "graphs"), { recursive: true });
     writeFileSync(join(cwd, ".interlock", "graphs", "demo.yaml"), graphYaml);
@@ -791,6 +797,7 @@ describe("interlock run", () => {
       "brief written",
       "context none: no substrate addressed",
       "pane pane-1 opened",
+      "runtime default (claude, model undeclared)",
       "agent agent-1 started (claude)",
       "identity reported",
       "agent ready (idle)",
@@ -835,6 +842,7 @@ describe("interlock run", () => {
       "brief written",
       "context none: no substrate addressed",
       "pane pane-1 opened",
+      "runtime default (claude, model undeclared)",
       "agent agent-1 started (claude)",
       "identity reported",
       "agent ready (idle)",
@@ -890,13 +898,14 @@ describe("interlock run", () => {
     expect(result.message).toBe("agent start refused: agent CLI crashed");
     const { rest, briefCommitLine } = extractBriefCommitLine(lines);
     expect(briefCommitLine).toMatch(/^brief committed [0-9a-f]+$/);
-    expect(rest).toHaveLength(7);
+    expect(rest).toHaveLength(8);
     expect(rest[0]).toMatch(/^leased a \(session .+, expires 1970-01-01T00:01:00\.000Z\)$/);
     expect(rest.slice(1)).toEqual([
       `worktree at ${join(cwd, ".worktrees", "a")} on ${headSha(cwd)}`,
       "brief written",
       "context none: no substrate addressed",
       "pane pane-1 opened",
+      "runtime default (claude, model undeclared)",
       "agent start refused: agent CLI crashed",
       "lease not renewed; the sweeper will collect it at 1970-01-01T00:01:00.000Z",
     ]);
@@ -1405,5 +1414,154 @@ describe("interlock run", () => {
     }
     expect(started.graphBaseSha).toBe(branchBaseSha);
     expect(started.graphBaseSha).not.toBe(mainHeadSha);
+  }, 30_000);
+});
+
+function setCatalogue(cwd: string, contents: string): void {
+  const path = join(cwd, "runtimes.yaml");
+  writeFileSync(path, contents);
+  process.env["INTERLOCK_RUNTIMES"] = path;
+}
+
+function sessionStartedFrom(cwd: string): Extract<LedgerEvent, { kind: "session-started" }> {
+  const journal = readFileSync(join(cwd, ".interlock", "ledger", "journal.jsonl"), "utf-8");
+  const started = journal
+    .trim()
+    .split("\n")
+    .map((line): unknown => JSON.parse(line))
+    .filter(isLedgerEvent)
+    .find((event) => event.kind === "session-started");
+  if (started === undefined || started.kind !== "session-started") {
+    throw new Error("expected a session-started event in the journal");
+  }
+  return started;
+}
+
+describe("interlock run: --runtime selection", () => {
+  it("the --runtime flag beats local.yaml's legacy runtime: block, recorded on the session and narrated", async () => {
+    const cwd = fixture();
+    setCatalogue(
+      cwd,
+      [
+        "interlock: runtimes@v0",
+        "runtimes:",
+        "  luna:",
+        "    kind: codex",
+        "    model: luna-model",
+        "",
+      ].join("\n"),
+    );
+    await approve(cwd);
+    const lines: string[] = [];
+
+    const result = await runInterlockRun(["demo", "a", "--runtime", "luna"], {
+      cwd,
+      clock: createControlledClock({ initialTime: 0 }),
+      runtime: {
+        ...stubRuntime(),
+        waitUntil: finishedWaitUntil(join(cwd, ".worktrees", "a")),
+      },
+      narrate: (line) => lines.push(line),
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(lines).toContain("runtime luna (codex, luna-model)");
+    const started = sessionStartedFrom(cwd);
+    expect(started.session.runtime).toEqual({
+      name: "luna",
+      kind: "codex",
+      model: "luna-model",
+    });
+  }, 30_000);
+
+  it("refuses an unknown --runtime name with a sentence listing the known runtimes, before any lease is taken", async () => {
+    const cwd = fixture();
+    setCatalogue(
+      cwd,
+      [
+        "interlock: runtimes@v0",
+        "runtimes:",
+        "  luna:",
+        "    kind: codex",
+        "    model: luna-model",
+        "",
+      ].join("\n"),
+    );
+    await approve(cwd);
+    const journalBefore = readFileSync(join(cwd, ".interlock", "ledger", "journal.jsonl"), "utf-8");
+
+    const result = await runInterlockRun(["demo", "a", "--runtime", "nope"], {
+      cwd,
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.message).toContain('"nope"');
+    expect(result.message).toContain("luna");
+    expect(result.message).toContain("default");
+    const journalAfter = readFileSync(join(cwd, ".interlock", "ledger", "journal.jsonl"), "utf-8");
+    expect(journalAfter).toBe(journalBefore);
+  });
+
+  it("with no flag, local.yaml's default_runtime wins over the legacy runtime: block", async () => {
+    const cwd = fixture({
+      localYaml: `${localYaml}default_runtime: luna\n`,
+    });
+    setCatalogue(
+      cwd,
+      [
+        "interlock: runtimes@v0",
+        "runtimes:",
+        "  luna:",
+        "    kind: codex",
+        "    model: luna-model",
+        "",
+      ].join("\n"),
+    );
+    await approve(cwd);
+    const lines: string[] = [];
+
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock({ initialTime: 0 }),
+      runtime: {
+        ...stubRuntime(),
+        waitUntil: finishedWaitUntil(join(cwd, ".worktrees", "a")),
+      },
+      narrate: (line) => lines.push(line),
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(lines).toContain("runtime luna (codex, luna-model)");
+    const started = sessionStartedFrom(cwd);
+    expect(started.session.runtime).toEqual({
+      name: "luna",
+      kind: "codex",
+      model: "luna-model",
+    });
+  }, 30_000);
+
+  it("with no flag and no default_runtime, falls back to the legacy runtime: block named default", async () => {
+    const cwd = fixture();
+    await approve(cwd);
+    const lines: string[] = [];
+
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock({ initialTime: 0 }),
+      runtime: {
+        ...stubRuntime(),
+        waitUntil: finishedWaitUntil(join(cwd, ".worktrees", "a")),
+      },
+      narrate: (line) => lines.push(line),
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(lines).toContain("runtime default (claude, model undeclared)");
+    const started = sessionStartedFrom(cwd);
+    expect(started.session.runtime).toEqual({
+      name: "default",
+      kind: "claude",
+      model: undefined,
+    });
   }, 30_000);
 });

@@ -1,9 +1,16 @@
-import { type LedgerProjection, leaseIsLive, nodeKey, type Outcome } from "ledger";
+import {
+  type LedgerProjection,
+  leaseIsLive,
+  nodeKey,
+  type Outcome,
+  type SessionRuntime,
+} from "ledger";
 import type { AgentStatus } from "./agentStatus.ts";
 import { type LeaseState, leaseStateOf } from "./leaseState.ts";
 
 export interface PositionAttempt {
   readonly session: string;
+  readonly runtime: SessionRuntime;
   readonly outcome?: Outcome;
   readonly leaseState: LeaseState;
   readonly agentStatus?: AgentStatus;
@@ -30,10 +37,19 @@ export function attemptsFor(
 
     attempts.push({
       session: session.session,
+      runtime: session.runtime,
       ...(ownOutcome === undefined ? {} : { outcome: ownOutcome }),
       leaseState: leaseStateOf(session, nowWallMs),
       ...(agentStatus === undefined ? {} : { agentStatus }),
     });
   }
   return attempts;
+}
+
+export function liveOrLatestAttempt(
+  attempts: readonly PositionAttempt[],
+  isLiveAttempt: (attempt: PositionAttempt) => boolean,
+): PositionAttempt | undefined {
+  const live = attempts.find(isLiveAttempt);
+  return live ?? attempts[attempts.length - 1];
 }

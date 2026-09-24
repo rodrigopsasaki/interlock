@@ -16,6 +16,7 @@ import {
   OUTBOX_INTENT_SHAPE,
   readRawEvents,
   retainOutboxArtifact,
+  sessionRuntime,
   spend,
 } from "ledger";
 import { ABANDONED_AUTHORITY, judgeGates } from "runner";
@@ -293,7 +294,7 @@ describe("interlock evidence", () => {
     const ledger = await openLedger(dir);
     ledger.append({
       kind: "session-started",
-      session: { id: "s1", node },
+      session: { id: "s1", node, runtime: sessionRuntime.unknown() },
       brief,
     });
     ledger.append({ kind: "debrief-filed", session: "s1", debrief });
@@ -333,7 +334,7 @@ describe("interlock evidence", () => {
     const ledger = await openLedger(dir);
     ledger.append({
       kind: "session-started",
-      session: { id: "s1", node },
+      session: { id: "s1", node, runtime: sessionRuntime.unknown() },
       brief,
     });
     ledger.append({ kind: "debrief-filed", session: "s1", debrief });
@@ -375,7 +376,7 @@ describe("interlock evidence", () => {
     const ledger = await openLedger(dir);
     ledger.append({
       kind: "session-started",
-      session: { id: "s1", node },
+      session: { id: "s1", node, runtime: sessionRuntime.unknown() },
       brief: { ...brief, gates: ["always-pass"] },
     });
     const judge = () =>
@@ -433,7 +434,7 @@ describe("interlock evidence", () => {
     const ledger = await openLedger(dir);
     ledger.append({
       kind: "session-started",
-      session: { id: "s1", node },
+      session: { id: "s1", node, runtime: sessionRuntime.unknown() },
       brief,
     });
     ledger.append({ kind: "debrief-filed", session: "s1", debrief });
@@ -466,7 +467,7 @@ describe("interlock evidence", () => {
     const ledger = await openLedger(dir);
     ledger.append({
       kind: "session-started",
-      session: { id: "s1", node },
+      session: { id: "s1", node, runtime: sessionRuntime.unknown() },
       brief,
     });
     ledger.append({ kind: "debrief-filed", session: "s1", debrief });
@@ -494,7 +495,11 @@ describe("interlock evidence", () => {
     const { dir } = fixtureRepo();
     const ledger = await openLedger(dir);
     const id = "b".repeat(64);
-    ledger.append({ kind: "session-started", session: { id: "crash", node }, brief });
+    ledger.append({
+      kind: "session-started",
+      session: { id: "crash", node, runtime: sessionRuntime.unknown() },
+      brief,
+    });
     const request = recordIntent(ledger, node, "crash", id, "SECRET-REQUEST");
     const acknowledgment = recordAcknowledgment(ledger, id, "SECRET-ACKNOWLEDGMENT");
     await ledger.close();
@@ -524,10 +529,18 @@ describe("interlock evidence", () => {
     const acknowledged = "c".repeat(64);
     const intentOnly = "d".repeat(64);
     const explicitlyUncertain = "e".repeat(64);
-    ledger.append({ kind: "session-started", session: { id: "first", node }, brief });
+    ledger.append({
+      kind: "session-started",
+      session: { id: "first", node, runtime: sessionRuntime.unknown() },
+      brief,
+    });
     recordIntent(ledger, node, "first", acknowledged, "first request");
     recordAcknowledgment(ledger, acknowledged, "first acknowledgment");
-    ledger.append({ kind: "session-started", session: { id: "latest", node }, brief });
+    ledger.append({
+      kind: "session-started",
+      session: { id: "latest", node, runtime: sessionRuntime.unknown() },
+      brief,
+    });
     recordIntent(ledger, node, "latest", intentOnly, "latest request");
     recordIntent(ledger, node, "latest", explicitlyUncertain, "uncertain request");
     recordIntent(
@@ -581,7 +594,11 @@ describe("interlock evidence", () => {
     const corruptRequest = "1".repeat(64);
     const missingAcknowledgment = "2".repeat(64);
     const corruptAcknowledgment = "3".repeat(64);
-    ledger.append({ kind: "session-started", session: { id: "artifacts", node }, brief });
+    ledger.append({
+      kind: "session-started",
+      session: { id: "artifacts", node, runtime: sessionRuntime.unknown() },
+      brief,
+    });
     const missingRequestRef = recordIntent(
       ledger,
       node,
@@ -652,7 +669,11 @@ describe("interlock evidence", () => {
       message: `${node.graph}/${node.id}: no session recorded for this node.`,
     });
     const ledger = await openLedger(dir);
-    ledger.append({ kind: "session-started", session: { id: "empty", node }, brief });
+    ledger.append({
+      kind: "session-started",
+      session: { id: "empty", node, runtime: sessionRuntime.unknown() },
+      brief,
+    });
     await ledger.close();
 
     const empty = await runInterlockEvidence(

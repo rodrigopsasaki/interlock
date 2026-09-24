@@ -941,8 +941,16 @@ describe("debrief ingestion", () => {
       gates: ["always-pass"],
       scope: [],
     };
-    ledger.append({ kind: "session-started", session: { id: "s1", node, runtime: sessionRuntime.unknown() }, brief });
-    ledger.append({ kind: "session-started", session: { id: "s2", node, runtime: sessionRuntime.unknown() }, brief });
+    ledger.append({
+      kind: "session-started",
+      session: { id: "s1", node, runtime: sessionRuntime.unknown() },
+      brief,
+    });
+    ledger.append({
+      kind: "session-started",
+      session: { id: "s2", node, runtime: sessionRuntime.unknown() },
+      brief,
+    });
 
     const options = {
       ledger,

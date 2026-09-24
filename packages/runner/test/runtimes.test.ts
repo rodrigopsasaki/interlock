@@ -17,8 +17,7 @@ mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined)
-    rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
   directory = undefined;
 });
 
@@ -58,6 +57,29 @@ describe("loadRuntimeCatalogue: absent file", () => {
 
     expect(isOk(result)).toBe(true);
     if (isOk(result)) expect(result.value.size).toBe(0);
+  });
+});
+
+describe("loadRuntimeCatalogue: a present but unreadable file", () => {
+  it("refuses with a sentence naming the path and the error code, rather than an uncaught stack trace", async () => {
+    directory = mkdtempSync(join(runsRoot, "runtimes-"));
+    // A directory where a file is expected reads as EISDIR on readFile, never ENOENT.
+    const path = join(directory, "runtimes.yaml");
+    mkdirSync(path);
+
+    const result = await loadRuntimeCatalogue(path);
+
+    expect(isErr(result)).toBe(true);
+    if (isErr(result)) {
+      expect(result.error).toEqual({
+        kind: "unreadable",
+        path,
+        code: "EISDIR",
+      });
+      const message = explainRuntimeCatalogueRefusal(result.error);
+      expect(message).toContain(path);
+      expect(message).toContain("EISDIR");
+    }
   });
 });
 
@@ -144,31 +166,17 @@ describe("loadRuntimeCatalogue: a malformed catalogue refuses with a sentence", 
     ],
     [
       "an entry that is not a mapping",
-      ["interlock: runtimes@v0", "runtimes:", "  fast: not-a-mapping", ""].join(
-        "\n",
-      ),
+      ["interlock: runtimes@v0", "runtimes:", "  fast: not-a-mapping", ""].join("\n"),
       '"runtimes.fast" is not a mapping',
     ],
     [
       "an entry missing kind",
-      [
-        "interlock: runtimes@v0",
-        "runtimes:",
-        "  fast:",
-        "    model: m",
-        "",
-      ].join("\n"),
+      ["interlock: runtimes@v0", "runtimes:", "  fast:", "    model: m", ""].join("\n"),
       '"runtimes.fast.kind" is missing or not a string',
     ],
     [
       "an entry missing model",
-      [
-        "interlock: runtimes@v0",
-        "runtimes:",
-        "  fast:",
-        "    kind: claude",
-        "",
-      ].join("\n"),
+      ["interlock: runtimes@v0", "runtimes:", "  fast:", "    kind: claude", ""].join("\n"),
       '"runtimes.fast.model" is missing or not a string',
     ],
     [
@@ -227,8 +235,7 @@ describe("loadRuntimeCatalogue: a malformed catalogue refuses with a sentence", 
     const result = await loadRuntimeCatalogue(path);
 
     expect(isErr(result)).toBe(true);
-    if (isErr(result))
-      expect(explainRuntimeCatalogueRefusal(result.error)).toContain(path);
+    if (isErr(result)) expect(explainRuntimeCatalogueRefusal(result.error)).toContain(path);
   });
 });
 
@@ -256,9 +263,7 @@ describe("runtimeCataloguePath", () => {
     delete process.env["INTERLOCK_RUNTIMES"];
     process.env["XDG_CONFIG_HOME"] = "/tmp/xdg";
 
-    expect(runtimeCataloguePath()).toBe(
-      join("/tmp/xdg", "interlock", "runtimes.yaml"),
-    );
+    expect(runtimeCataloguePath()).toBe(join("/tmp/xdg", "interlock", "runtimes.yaml"));
   });
 });
 

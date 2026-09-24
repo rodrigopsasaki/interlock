@@ -1,11 +1,11 @@
-import { fold, type LedgerEvent } from "ledger";
+import { fold, type LedgerEvent, sessionRuntime } from "ledger";
 import { describe, expect, it } from "vitest";
 import { liveSessionsOf } from "../src/herdrStatus.ts";
 
 function sessionStarted(session: string, node: string): LedgerEvent {
   return {
     kind: "session-started",
-    session: { id: session, node: { graph: "demo", id: node } },
+    session: { id: session, node: { graph: "demo", id: node }, runtime: sessionRuntime.unknown() },
     brief: {
       graph: "demo",
       node,

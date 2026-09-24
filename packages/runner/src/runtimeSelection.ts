@@ -16,11 +16,8 @@ export type RuntimeSelectionRefusal =
       readonly known: readonly string[];
     };
 
-export function explainRuntimeSelectionRefusal(
-  refusal: RuntimeSelectionRefusal,
-): string {
-  const known =
-    refusal.known.length === 0 ? "(none)" : refusal.known.join(", ");
+export function explainRuntimeSelectionRefusal(refusal: RuntimeSelectionRefusal): string {
+  const known = refusal.known.length === 0 ? "(none)" : refusal.known.join(", ");
   switch (refusal.kind) {
     case "unknown-runtime":
       return `"${refusal.requested}" is not a known runtime; known runtimes are ${known}.`;
@@ -32,8 +29,6 @@ export function explainRuntimeSelectionRefusal(
   }
 }
 
-// Resolution order, pinned by the graph's acceptance: the --runtime flag, then local.yaml's
-// default_runtime, then the legacy runtime: block (which mergeRuntimes already names "default").
 export function selectRuntime(
   merged: MergedRuntimes,
   requested: string | undefined,
@@ -42,9 +37,7 @@ export function selectRuntime(
 
   if (requested !== undefined) {
     const found = merged.runtimes.get(requested);
-    return found === undefined
-      ? err({ kind: "unknown-runtime", requested, known })
-      : ok(found);
+    return found === undefined ? err({ kind: "unknown-runtime", requested, known }) : ok(found);
   }
 
   if (merged.defaultRuntime !== undefined) {

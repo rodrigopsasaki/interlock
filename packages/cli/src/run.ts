@@ -16,14 +16,21 @@ import {
   briefPath,
   driveInteractiveSession,
   explainLocalConfigRefusal,
+  explainMergeRuntimesRefusal,
+  explainRuntimeCatalogueRefusal,
+  explainRuntimeSelectionRefusal,
   explainSessionBriefRefusal,
   explainStandingGatesRefusal,
   loadLocalConfig,
+  loadRuntimeCatalogue,
   loadStandingGates,
+  mergeRuntimes,
   type Runtime,
+  selectRuntime,
   unmetDependencies,
   writeBriefIntoWorktree,
 } from "runner";
+import { parseFlag } from "./flags.ts";
 import type { CommandResult } from "./main.ts";
 import { substrateClientForRepository } from "./repositoryOrigin.ts";
 
@@ -73,6 +80,29 @@ export async function runInterlockRun(
     localConfig.value.substrateKeyFile,
     localConfig.value.substrateSendRepository,
   );
+
+  const catalogue = await loadRuntimeCatalogue();
+  if (isErr(catalogue)) {
+    return {
+      exitCode: 1,
+      message: explainRuntimeCatalogueRefusal(catalogue.error),
+    };
+  }
+  const mergedRuntimes = mergeRuntimes(catalogue.value, localConfig.value);
+  if (isErr(mergedRuntimes)) {
+    return {
+      exitCode: 1,
+      message: explainMergeRuntimesRefusal(mergedRuntimes.error),
+    };
+  }
+  const requestedRuntime = parseFlag(args, "--runtime");
+  const agentRuntime = selectRuntime(mergedRuntimes.value, requestedRuntime);
+  if (isErr(agentRuntime)) {
+    return {
+      exitCode: 1,
+      message: explainRuntimeSelectionRefusal(agentRuntime.error),
+    };
+  }
 
   const graphPath = graphFilePath(repoRoot, graph);
   const document = await loadGraphDocument(graphPath);
@@ -164,6 +194,7 @@ export async function runInterlockRun(
       acceptance: declaration.acceptance ?? "",
       nodeGates: declaration.gates,
       localConfig: localConfig.value,
+      agentRuntime: agentRuntime.value,
       standingGates: standingGates.value,
       substrate,
       ledger,

@@ -27,16 +27,22 @@ import {
   type BriefWriteOutcome,
   driveInteractiveSession,
   explainLocalConfigRefusal,
+  explainMergeRuntimesRefusal,
+  explainRuntimeCatalogueRefusal,
+  explainRuntimeSelectionRefusal,
   explainStandingGatesRefusal,
   extractAsk,
   gitTrackedFiles,
   type InterpreterCorrection,
   interpreterBriefBody,
   loadLocalConfig,
+  loadRuntimeCatalogue,
   loadStandingGates,
+  mergeRuntimes,
   type Runtime,
   renderBriefFile,
   renderOpeningView,
+  selectRuntime,
 } from "runner";
 import { narrateContext } from "substrate";
 import { parseFlag } from "./flags.ts";
@@ -188,6 +194,29 @@ export async function runInterlockPlan(
     };
   }
 
+  const catalogue = await loadRuntimeCatalogue();
+  if (isErr(catalogue)) {
+    return {
+      exitCode: 1,
+      message: explainRuntimeCatalogueRefusal(catalogue.error),
+    };
+  }
+  const mergedRuntimes = mergeRuntimes(catalogue.value, localConfig.value);
+  if (isErr(mergedRuntimes)) {
+    return {
+      exitCode: 1,
+      message: explainMergeRuntimesRefusal(mergedRuntimes.error),
+    };
+  }
+  const requestedRuntime = parseFlag(args, "--runtime");
+  const agentRuntime = selectRuntime(mergedRuntimes.value, requestedRuntime);
+  if (isErr(agentRuntime)) {
+    return {
+      exitCode: 1,
+      message: explainRuntimeSelectionRefusal(agentRuntime.error),
+    };
+  }
+
   const node = `plan/${graph}`;
   const targetNode = { graph, id: node };
 
@@ -214,7 +243,10 @@ export async function runInterlockPlan(
         gitTrackedFiles(repoRoot),
       );
       if (missingSelectedPath !== undefined) {
-        return { exitCode: 1, message: explainUntrackedContextScope(missingSelectedPath) };
+        return {
+          exitCode: 1,
+          message: explainUntrackedContextScope(missingSelectedPath),
+        };
       }
     }
 
@@ -238,7 +270,10 @@ export async function runInterlockPlan(
         );
       }
       if (correctionReason !== undefined && previousGraphYaml.value !== undefined) {
-        correction = { reason: correctionReason, previousGraphYaml: previousGraphYaml.value };
+        correction = {
+          reason: correctionReason,
+          previousGraphYaml: previousGraphYaml.value,
+        };
       }
 
       if (resolvedAsk === undefined) {
@@ -379,6 +414,7 @@ export async function runInterlockPlan(
       acceptance,
       nodeGates: [],
       localConfig: localConfig.value,
+      agentRuntime: agentRuntime.value,
       standingGates: standingGates.value,
       substrate,
       ledger,

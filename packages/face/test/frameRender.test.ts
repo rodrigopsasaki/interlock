@@ -1,5 +1,14 @@
 import { isErr } from "@phyxiusjs/fp";
-import { derivation, duration, fold, gate, type LedgerEvent, type Receipt, spend } from "ledger";
+import {
+  derivation,
+  duration,
+  fold,
+  gate,
+  type LedgerEvent,
+  type Receipt,
+  sessionRuntime,
+  spend,
+} from "ledger";
 import { describe, expect, it } from "vitest";
 import { loadGraphDocument } from "../src/document.ts";
 import { renderGraphFrame, renderNodeFrame, renderPlansFrame } from "../src/frameRender.ts";
@@ -76,6 +85,7 @@ const fixtureEvents: readonly LedgerEvent[] = [
     session: {
       id: LIVE_SESSION,
       node: { graph: GRAPH_ID, id: "runner-command-gate" },
+      runtime: sessionRuntime.unknown(),
     },
     brief: {
       graph: GRAPH_ID,
@@ -161,7 +171,7 @@ describe("frames over the real bootstrap graph", () => {
       "  receipt-idempotent — pending",
       "",
       "attempts:",
-      `  ${LIVE_SESSION} — outcome no outcome yet, live lease, agent working`,
+      `  ${LIVE_SESSION} — runtime unknown, outcome no outcome yet, live lease, agent working`,
     ]);
 
     const onAttempt = renderNodeFrame(runner, 2);
@@ -218,6 +228,7 @@ describe("plansEntryOf", () => {
         session: {
           id: unsweptSession,
           node: { graph: GRAPH_ID, id: "runner-command-gate" },
+          runtime: sessionRuntime.unknown(),
         },
         brief: {
           graph: GRAPH_ID,

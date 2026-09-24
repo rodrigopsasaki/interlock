@@ -1,8 +1,4 @@
-import {
-  isLedgerEvent,
-  type LedgerEvent,
-  upcastSessionStarted,
-} from "../event.ts";
+import { isLedgerEvent, type LedgerEvent, upcastSessionStarted } from "../event.ts";
 import { isRecord, prop } from "../validate.ts";
 
 export function upcastV5(raw: unknown): LedgerEvent | undefined {

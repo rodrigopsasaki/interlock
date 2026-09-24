@@ -10,11 +10,7 @@ export type SessionRuntime =
   | "unknown";
 
 export const sessionRuntime = {
-  declared: (
-    name: string,
-    kind: string,
-    model: string | undefined,
-  ): SessionRuntime => ({
+  declared: (name: string, kind: string, model: string | undefined): SessionRuntime => ({
     name,
     kind,
     model,

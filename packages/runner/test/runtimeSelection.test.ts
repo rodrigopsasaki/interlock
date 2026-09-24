@@ -1,18 +1,9 @@
 import { isErr, isOk } from "@phyxiusjs/fp";
 import { describe, expect, it } from "vitest";
-import type {
-  MergedRuntimes,
-  ResolvedRuntime,
-} from "../src/runtimeCatalogue.ts";
-import {
-  explainRuntimeSelectionRefusal,
-  selectRuntime,
-} from "../src/runtimeSelection.ts";
+import type { MergedRuntimes, ResolvedRuntime } from "../src/runtimeCatalogue.ts";
+import { explainRuntimeSelectionRefusal, selectRuntime } from "../src/runtimeSelection.ts";
 
-function runtimeNamed(
-  name: string,
-  source: ResolvedRuntime["source"],
-): ResolvedRuntime {
+function runtimeNamed(name: string, source: ResolvedRuntime["source"]): ResolvedRuntime {
   return {
     name,
     kind: "claude",
@@ -26,11 +17,11 @@ function runtimeNamed(
 
 function merged(
   entries: readonly ResolvedRuntime[],
-  defaultRuntime?: string,
+  defaultRuntime: string | undefined = undefined,
 ): MergedRuntimes {
   return {
     runtimes: new Map(entries.map((entry) => [entry.name, entry])),
-    ...(defaultRuntime === undefined ? {} : { defaultRuntime }),
+    defaultRuntime,
   };
 }
 
@@ -71,10 +62,7 @@ describe("selectRuntime: resolution order is flag, then default_runtime, then le
 
 describe("selectRuntime: refusals", () => {
   it("an unknown requested name refuses with a sentence listing the known names", () => {
-    const view = merged([
-      runtimeNamed("fast", "catalogue"),
-      runtimeNamed("default", "local.yaml"),
-    ]);
+    const view = merged([runtimeNamed("fast", "catalogue"), runtimeNamed("default", "local.yaml")]);
 
     const result = selectRuntime(view, "nope");
 

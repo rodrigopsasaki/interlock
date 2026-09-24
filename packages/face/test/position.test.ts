@@ -7,6 +7,7 @@ import {
   type LedgerEvent,
   outcome,
   type Receipt,
+  sessionRuntime,
   spend,
 } from "ledger";
 import { describe, expect, it } from "vitest";
@@ -196,7 +197,11 @@ describe("positionOf", () => {
       { kind: "node-created", node: { graph: "demo", id: "a" } },
       {
         kind: "session-started",
-        session: { id: "session-1", node: { graph: "demo", id: "a" } },
+        session: {
+          id: "session-1",
+          node: { graph: "demo", id: "a" },
+          runtime: sessionRuntime.declared("luna", "claude", undefined),
+        },
         brief: brief("a"),
         graphBaseSha: "deadbeef",
       },
@@ -218,13 +223,21 @@ describe("positionOf", () => {
       },
       {
         kind: "session-started",
-        session: { id: "session-2", node: { graph: "demo", id: "a" } },
+        session: {
+          id: "session-2",
+          node: { graph: "demo", id: "a" },
+          runtime: sessionRuntime.unknown(),
+        },
         brief: brief("a"),
         graphBaseSha: "deadbeef",
       },
     ]);
     const position = positionOf(document, projection, "some-hash", Date.now());
     const attempts = nodeIn(position, "a").attempts;
+    expect(attempts.map((attempt) => attempt.runtime)).toEqual([
+      sessionRuntime.declared("luna", "claude", undefined),
+      "unknown",
+    ]);
     expect(attempts.map((attempt) => attempt.session)).toEqual(["session-1", "session-2"]);
     expect(attempts[0]?.outcome).toEqual({
       kind: "cleared",
@@ -239,7 +252,11 @@ describe("positionOf", () => {
       { kind: "node-created", node: { graph: "demo", id: "a" } },
       {
         kind: "session-started",
-        session: { id: "session-1", node: { graph: "demo", id: "a" } },
+        session: {
+          id: "session-1",
+          node: { graph: "demo", id: "a" },
+          runtime: sessionRuntime.unknown(),
+        },
         brief: brief("a"),
         graphBaseSha: "deadbeef",
       },
