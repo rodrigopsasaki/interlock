@@ -1,0 +1,159 @@
+interlock: debrief@v2
+graph: 0043-any-runtime
+node: k3-first-run
+role: worker
+graph_base_sha: 13c9ad2533ce48d3dd7f6abaab808217f7a69bed
+session_start_sha: a96c1c9c3acbe62192103d18f318662a8cb916f0
+head_sha: 2c425c46c6f345f6e5ee28e00db82bf9240bdd29
+derivation:
+  kind: agent
+  runtime: kimi
+  model: kimi-code/k3
+discoveries:
+  - id: d1
+    what: >-
+      The runner's opening prompt never reached this session: the narration ends in "prompt taken
+      refused: prompt not taken after 20000ms; agent still idle" with the lease abandoned, and
+      kimi's own session record shows this session created over three minutes later in a
+      different herdr pane than the one the runner opened.
+    found_at: '.interlock/sessions/0043-any-runtime/k3-first-run/notes.yaml:7 "this session created at 22:17:11.618Z in pane w1:pG, not the runner''s pane w1:pF."'
+    mattered_because: >-
+      The recovery between the refusal and the session start was a person's, invisible to the
+      narration; the session record is still the proof of the Kimi path, but its first prompt
+      arrived by hand.
+  - id: d2
+    what: >-
+      Kimi's workspace-trust prompt reads as idle to herdr, so the configured startup answer was
+      never sent; the opening prompt's own Enter selected the preselected "Trust this folder" —
+      the trust record was written 13ms after the prompt send completed — and the prompt text
+      was lost, which is what the twenty-second prompt-taken refusal measured.
+    found_at: '.interlock/sessions/0043-any-runtime/k3-first-run/notes.yaml:12 "recorded this worktree''s root as trusted at 22:13:39.649Z, 13ms after herdr completed the runner''s agent.prompt call."'
+    mattered_because: >-
+      Startup answers only fire on a blocked reading, so a dialog that reads as idle defeats them;
+      this is the mechanism behind d1 and the substance of the bend-log row.
+    applies_to: { kind: path, path: packages/runner/src/sessionDrive.ts }
+  - id: d3
+    what: >-
+      This session runs model kimi-code/k3 although this machine's config.toml default_model is
+      kimi-code/kimi-for-coding, so the catalogue entry's original args [--auto] could not have
+      reproduced it; a model flag outside the entry selected k3.
+    found_at: '.interlock/sessions/0043-any-runtime/k3-first-run/notes.yaml:21 "yet this session runs kimi-code/k3, so a model flag outside the catalogue''s args selected k3."'
+    mattered_because: >-
+      The k3 entry's args gain --model kimi-code/k3, the same shape the Claude and Codex entries
+      already use, so `--runtime k3` names the model it declares.
+  - id: d4
+    what: >-
+      herdr's CLI reported the person's recovery prompt as an error although the agent took it
+      within half a second: the prompt call completed with outcome error while the kimi session
+      was created from that prompt and made its first model request immediately.
+    found_at: '.interlock/sessions/0043-any-runtime/k3-first-run/notes.yaml:30 "completing with outcome error at 22:17:16.682Z, although this kimi session was created from that prompt at 22:17:11.618Z"'
+    mattered_because: >-
+      Prompt-taken evidence on this runtime errs in both directions — refusal while genuinely
+      idle at startup, error reported on a prompt actually taken — so a caller cannot trust the
+      prompt call's outcome alone.
+decisions:
+  - id: c1
+    what: >-
+      Completed the k3 entry in runtimes.example.yaml from this session's own observations:
+      args now carry --auto and --model kimi-code/k3, the comment states the verified CLI
+      version 2.1.1, the session-log model line and the trust-prompt behaviour, the "Trust this
+      folder" startup answer and the 90-second startup timeout stand, and both unverified marks
+      are removed. No other entry was touched.
+    because: >-
+      The acceptance asks for the flags, trust wording and model label as this session observed
+      them: --auto is the unattended flag, the model flag is required because the machine's
+      default is a different model, and the bundle's trust-prompt component confirms the wording
+      and the Enter key.
+    rests_on:
+      - .interlock/sessions/0043-any-runtime/k3-first-run/brief.md
+      - .interlock/sessions/0043-any-runtime/k3-first-run/notes.yaml
+      - runtimes.example.yaml
+    hunks:
+      - runtimes.example.yaml:127-144
+    produces:
+      - runtimes.example.yaml
+  - id: c2
+    what: >-
+      Added one 2026-09-24 bend-log row recording the first Kimi runtime start: the idle reading
+      under the trust prompt, the startup answer that never fired, the prompt's Enter trusting
+      the folder and losing the prompt, the refusal that closed the pane and abandoned the lease,
+      and the person's manual recovery in a new pane.
+    because: >-
+      The acceptance asks for one row per startup or detection quirk, and the narration,
+      workspace-trust timestamp and herdr server log form one causal chain the design did not
+      predict; the row keeps the abandoned run's records as the way back.
+    rests_on:
+      - .interlock/sessions/0043-any-runtime/k3-first-run/brief.md
+      - .interlock/sessions/0043-any-runtime/k3-first-run/notes.yaml
+    hunks:
+      - docs/design/0001-interlock.md:629
+    produces:
+      - docs/design/0001-interlock.md
+  - id: c3
+    what: >-
+      Regenerated docs/shapes.md with interlock schema reference after the catalogue change; the
+      diff is confined to the rendered k3 entry, and the generator's standing vocabulary warning
+      about the plural runtimes term is unchanged.
+    because: >-
+      The example file is a published artifact example, and the reference command is the
+      repository's established producer for it; the vocabulary gap is already on record from the
+      example-profiles session.
+    rests_on:
+      - runtimes.example.yaml
+      - .interlock/sessions/0043-any-runtime/example-profiles/debrief.yaml
+    hunks:
+      - docs/shapes.md:1260-1273
+    produces:
+      - docs/shapes.md
+  - id: c4
+    what: >-
+      Appended typed notes@v0 entries through the session: the refused prompt and human recovery,
+      the trust-timestamp evidence, the model-label and default-model observations, the wording
+      verification, the herdr prompt-call error, and the two change choices.
+    because: >-
+      Notes are the way back from this compressed debrief and carry the timestamps the debrief's
+      discoveries cite.
+    rests_on:
+      - .interlock/sessions/0043-any-runtime/k3-first-run/brief.md
+    hunks:
+      - .interlock/sessions/0043-any-runtime/k3-first-run/notes.yaml:1-39
+    produces:
+      - .interlock/sessions/0043-any-runtime/k3-first-run/notes.yaml
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: All 8 workspace packages typecheck clean.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: biome check . reports no findings across 349 files.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+    note: "packages/*/src: no comments found."
+  - id: test
+    result: pass
+    invocation: mise exec -- pnpm test
+    note: Full workspace suite green, exit 0; this sandbox allowed the local ports the previous session was denied.
+  - id: example-valid
+    result: pass
+    invocation: mise exec -- pnpm --filter schemas exec vitest run test/runtimesExample.test.ts
+    note: 1 test passed.
+  - id: debrief-valid
+    result: pass
+    invocation: mise exec -- pnpm interlock debrief validate 0043-any-runtime k3-first-run
+    note: Run after filing; debrief.yaml validates as debrief@v2 and notes.yaml as notes@v0.
+open:
+  - 'runtime: k3 (kimi, kimi-code/k3)'
+  - >-
+    witnessed remains a human gate: a person clears it after reading this session record; this
+    debrief does not touch it.
+  - >-
+    This session worked without a live lease: the runner abandoned it at 2026-09-24T22:13:59Z
+    after the prompt-taken refusal, and the session continued on a pane a person opened and
+    prompted by hand; judgement of this node needs a fresh runner action against this worktree.
+  - >-
+    gap: the schema reference generator still reports the plural artifact term "runtimes" as
+    missing from the closed vocabulary, nearest term "runtime"; already recorded by the
+    example-profiles session and unchanged here.
