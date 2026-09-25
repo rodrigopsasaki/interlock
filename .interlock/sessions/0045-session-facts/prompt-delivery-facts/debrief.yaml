@@ -1,0 +1,154 @@
+interlock: debrief@v2
+graph: 0045-session-facts
+node: prompt-delivery-facts
+role: worker
+graph_base_sha: 53074d7a24543f6a52612495c08ca48980eda70c
+session_start_sha: 30d5ddc86dcab43af707536a5f67bffb8ea4b740
+head_sha: 43aad1c62e61dd9f79b0bbbde821c2def10658bf
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries:
+  - id: reader-identity-can-be-late
+    what: >-
+      The runner's pre-delivery identity is only its interlock session id, so
+      adapter identity lookup must be repeatable while herdr's vendor session
+      record appears.
+    found_at: >-
+      .interlock/sessions/0045-session-facts/prompt-delivery-facts/notes.yaml:14
+      "acceptance requires Codex and Claude paths to be resolved from observed"
+    mattered_because: >-
+      A one-time identity lookup would leave an initially absent vendor record
+      permanently unknown and would miss the accepted late-record grace case.
+  - id: fixture-path-boundary
+    what: >-
+      The two vendor path conventions are exercised against fixture roots: a
+      dated Codex sessions tree and a Claude projects directory whose cwd is
+      escaped by replacing slash and dot with hyphen.
+    found_at: >-
+      packages/runner/test/sessionFacts/paths.test.ts:18 "finds Codex ids below
+      the configured sessions tree"
+    mattered_because: >-
+      The adapter can prove id-derived paths without reading a developer's
+      real home, and the path transformation remains an explicit test seam.
+  - id: claude-path-fixture
+    what: >-
+      The Claude fixture proves that the configured projects boundary uses the
+      escaped cwd and session id.
+    found_at: >-
+      packages/runner/test/sessionFacts/paths.test.ts:27 "escapes the Claude
+      cwd exactly at the configured projects boundary"
+    mattered_because: >-
+      A later adapter change can preserve the machine-confirmed escaping rule
+      without consulting a real Claude home.
+decisions:
+  - id: adapter-selects-and-resolves-reader
+    what: >-
+      The herdr runtime selects Codex and Claude readers by agent kind, returns
+      no reader for other kinds, prefers a reported path, and derives an id's
+      vendor record path only inside the runtime adapter.
+    because: >-
+      This keeps vendor knowledge behind the adapter boundary while allowing a
+      herdr id to become a reader AgentIdentity and preserving an absent id as
+      the fallback identity.
+    rests_on:
+      - packages/runner/src/herdr/adapter.ts
+      - packages/runner/src/herdr/codex.ts
+      - packages/runner/src/claude/adapter.ts
+    hunks:
+      - packages/runner/src/herdr/adapter.ts:321-332
+      - packages/runner/src/herdr/adapter.ts:402-434
+      - packages/runner/src/herdr/codex.ts:12-42
+      - packages/runner/src/claude/adapter.ts:16-26
+    produces:
+      - packages/runner/src/herdr/adapter.ts
+      - packages/runner/src/herdr/codex.ts
+      - packages/runner/src/claude/adapter.ts
+    applies_to: { kind: path, path: packages/runner/src/herdr/adapter.ts }
+  - id: record-gates-prompt-taken
+    what: >-
+      Prompt delivery consults session facts after each existing attempt and in
+      grace; a reader-basis record with a known opening prompt is required for
+      a reader runtime, while no-reader runtimes retain the status rule.
+    because: >-
+      Working, blocked, done, a successful prompt RPC, and screen text are not
+      proof of the opening prompt for a runtime whose own record reader exists.
+      The existing retry count, alternating submit, startup answers, and grace
+      branches remain in the delivery loop.
+    rests_on:
+      - packages/runner/src/promptDelivery.ts
+      - packages/runner/test/promptDelivery.test.ts
+    hunks:
+      - packages/runner/src/promptDelivery.ts:102-159
+      - packages/runner/test/promptDelivery.test.ts:523-596
+    produces:
+      - packages/runner/src/promptDelivery.ts
+      - packages/runner/test/promptDelivery.test.ts
+    applies_to: { kind: path, path: packages/runner/src/promptDelivery.ts }
+  - id: observed-facts-are-recorded
+    what: >-
+      Session drive selects the reader through the runtime adapter, resolves
+      identity afresh for each observation, and appends session-facts-observed
+      events after delivery and after the session wait; no-reader observations
+      use the ledger's status-basis unknown value.
+    because: >-
+      The ledger needs the facts that governed delivery and the latest facts
+      seen before judging, while unknown runtime facts must remain honest.
+    rests_on:
+      - packages/runner/src/sessionDrive.ts
+      - packages/runner/test/sessionDrive.test.ts
+      - packages/ledger/src/event.ts
+    hunks:
+      - packages/runner/src/sessionDrive.ts:80-93
+      - packages/runner/src/sessionDrive.ts:306-322
+      - packages/runner/src/sessionDrive.ts:399-411
+      - packages/runner/test/sessionDrive.test.ts:32-71
+    produces:
+      - packages/runner/src/sessionDrive.ts
+      - packages/runner/test/sessionDrive.test.ts
+    applies_to: { kind: path, path: packages/runner/src/sessionDrive.ts }
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: All workspace packages typechecked successfully.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Biome checked 362 files with no findings.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+  - id: prompt-delivery-proof
+    result: pass
+    invocation: >-
+      mise exec -- pnpm --filter runner exec vitest run
+      test/promptDelivery.test.ts test/sessionDrive.test.ts
+    note: 22 tests passed.
+  - id: reader-and-path-proof
+    result: pass
+    invocation: >-
+      mise exec -- pnpm --filter runner exec vitest run
+      test/promptDelivery.test.ts test/sessionDrive.test.ts
+      test/sessionFacts/claude.test.ts test/sessionFacts/codex.test.ts
+      test/sessionFacts/paths.test.ts
+    note: 35 tests passed.
+  - id: test
+    result: fail
+    invocation: mise exec -- pnpm test
+    note: >-
+      The full run reached substrate capabilities tests that timed out because
+      the sandbox denied localhost listener creation; the existing herdr socket
+      fixtures also reported listen EPERM. Focused runner proofs passed.
+  - id: debrief-valid
+    result: pass
+    invocation: >-
+      mise exec -- pnpm interlock debrief validate --file
+      .interlock/sessions/0045-session-facts/prompt-delivery-facts/debrief-candidate.yaml
+open:
+  - >-
+    The full workspace test gate remains environment-bound: substrate HTTP and
+    herdr Unix-socket fixtures cannot create listeners in this sandbox. The
+    focused prompt, session-drive, reader, and fixture-home proofs pass; live
+    herdr dogfood remains for the graph's later dogfood nodes.

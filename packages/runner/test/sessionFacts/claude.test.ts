@@ -10,7 +10,7 @@ describe("claude session facts reader", () => {
 
   it("stays unknown when the identity carries no session path", async () => {
     const facts = await reader.read({ sessionId: "no-path-session" });
-    expect(facts).toEqual(sessionFacts.unknown());
+    expect(facts).toEqual({ ...sessionFacts.unknown(), deliveryBasis: "record" });
   });
 
   it("stays unknown when the session path does not resolve to a readable record", async () => {
@@ -18,7 +18,7 @@ describe("claude session facts reader", () => {
       sessionId: "missing-session",
       sessionPath: join(FIXTURES, "does-not-exist.jsonl"),
     });
-    expect(facts).toEqual(sessionFacts.unknown());
+    expect(facts).toEqual({ ...sessionFacts.unknown(), deliveryBasis: "record" });
   });
 
   it("stays unknown when the record is empty", async () => {
@@ -26,7 +26,7 @@ describe("claude session facts reader", () => {
       sessionId: "empty-session",
       sessionPath: join(FIXTURES, "empty.jsonl"),
     });
-    expect(facts).toEqual(sessionFacts.unknown());
+    expect(facts).toEqual({ ...sessionFacts.unknown(), deliveryBasis: "record" });
   });
 
   it("extracts opening prompt receipt, last activity and aggregated usage from a confirmed record", async () => {
@@ -69,7 +69,7 @@ describe("claude session facts reader", () => {
 
     expect(isSessionFacts(facts)).toBe(true);
     expect(facts.promptReceived).toEqual({ state: "unknown" });
-    expect(facts.deliveryBasis).toBe("status");
+    expect(facts.deliveryBasis).toBe("record");
     expect(facts.lastActivity).toEqual({
       state: "known",
       value: "2026-01-02T00:00:05.000Z",

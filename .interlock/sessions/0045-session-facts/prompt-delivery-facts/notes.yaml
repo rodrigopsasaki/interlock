@@ -1,0 +1,58 @@
+interlock: notes@v0
+node: prompt-delivery-facts
+entries:
+  - kind: choice
+    at: "2026-09-25T12:00:00-03:00"
+    chose: >-
+      Keep vendor record-path derivation and observed identity lookup inside the
+      runtime adapter, and make prompt delivery poll the adapter's reader only
+      when one exists; retain the existing status rule only for runtimes with no
+      reader.
+    because: >-
+      The current runner reports only a session id before delivery, while the
+      accepted reader seam deliberately trusts AgentIdentity.sessionPath. The
+      acceptance requires Codex and Claude paths to be resolved from observed
+      herdr identity, with no runtime knowledge in the core and no status
+      fallback for a runtime that has a reader.
+  - kind: choice
+    at: "2026-09-25T12:35:00-03:00"
+    chose: >-
+      Resolve a reported path first, search Codex's configured sessions tree
+      for an id, and derive Claude's configured projects path only inside the
+      herdr vendor adapter; exercise both derivations with fixture homes under
+      packages/runner/test/.runs.
+    because: >-
+      herdr currently reports ids on this machine, while the acceptance
+      requires a reported path to win and both id-derived paths to honor their
+      vendor configuration roots without reading the real home in tests.
+  - kind: surprise
+    at: "2026-09-25T12:45:00-03:00"
+    expected: >-
+      The incremental implementation commit would use the repository's normal
+      commit path.
+    observed: >-
+      The configured GPG signer could not create its temporary lock under
+      ~/.gnupg in this sandbox, so the commit required the local
+      commit.gpgsign=false override; the source and staged artifact set were
+      unchanged.
+  - kind: surprise
+    at: "2026-09-25T13:05:00-03:00"
+    expected: >-
+      The required full workspace test command would finish with a recursive
+      Vitest summary after the focused runner proofs passed.
+    observed: >-
+      The full run reached substrate capabilities tests that timed out because
+      this sandbox denies localhost listener creation; the existing herdr
+      socket fixtures likewise fail with listen EPERM. The focused runner
+      tests remain green, but the full command has an environment-bound
+      failure unrelated to these changes.
+  - kind: surprise
+    at: "2026-09-25T12:20:00-03:00"
+    expected: >-
+      The inherited Claude reader tests would remain valid after making reader
+      presence authoritative for delivery.
+    observed: >-
+      The empty-record and no-opening-prompt tests expected deliveryBasis
+      status, which is the old fallback rule and contradicts this node's
+      acceptance. They must assert record-basis unknown instead, while the
+      no-reader path continues to use status-basis unknown.

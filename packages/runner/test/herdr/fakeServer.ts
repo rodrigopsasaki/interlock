@@ -22,6 +22,7 @@ export interface FakeHerdrServer {
   readonly socketPath: string;
   readonly calls: readonly RecordedCall[];
   agentStatus: string;
+  agentSession: Record<string, unknown> | undefined;
   delayAgentWaitToRequestedTimeout: boolean;
   panes: readonly Record<string, unknown>[];
   workspaces: readonly FakeWorkspaceState[];
@@ -114,6 +115,7 @@ export function startFakeHerdrServer(socketPath: string): Promise<FakeHerdrServe
     delayAgentWaitToRequestedTimeout: false,
     panes: [] as readonly Record<string, unknown>[],
   };
+  let agentSession: Record<string, unknown> | undefined;
   const workspaces = new Map<string, Workspace>();
   const paneTabs = new Map<string, { workspaceId: string; tabId: string }>();
   let nextSeq = { workspace: 0, tab: 0, pane: 0 };
@@ -283,7 +285,12 @@ export function startFakeHerdrServer(socketPath: string): Promise<FakeHerdrServe
         respond(socket, id, {});
         return;
       case "agent.get":
-        respond(socket, id, { agent: { agent_status: state.agentStatus } });
+        respond(socket, id, {
+          agent: {
+            agent_status: state.agentStatus,
+            ...(agentSession === undefined ? {} : { agent_session: agentSession }),
+          },
+        });
         return;
       case "agent.wait": {
         if (!state.delayAgentWaitToRequestedTimeout) {
@@ -326,6 +333,12 @@ export function startFakeHerdrServer(socketPath: string): Promise<FakeHerdrServe
         },
         set agentStatus(value: string) {
           state.agentStatus = value;
+        },
+        get agentSession() {
+          return agentSession;
+        },
+        set agentSession(value: Record<string, unknown> | undefined) {
+          agentSession = value;
         },
         get delayAgentWaitToRequestedTimeout() {
           return state.delayAgentWaitToRequestedTimeout;

@@ -177,6 +177,9 @@ describe("herdr adapter", () => {
     if (isErr(created)) throw new Error("expected a runtime");
     const runtime = created.value;
     expect(runtime.sessionFactsReader).toBeDefined();
+    expect(runtime.sessionFactsReaderFor?.("codex")).toBeDefined();
+    expect(runtime.sessionFactsReaderFor?.("claude")).toBeDefined();
+    expect(runtime.sessionFactsReaderFor?.("kimi")).toBeUndefined();
 
     const pane = await runtime.openPane("/repo/worktree");
     if (isErr(pane)) throw new Error("expected a pane");
@@ -213,6 +216,32 @@ describe("herdr adapter", () => {
       "tab.get",
       "tab.close",
     ]);
+  });
+
+  it("prefers a path herdr reports for a known reader", async () => {
+    const fake = await fixture();
+    fake.agentSession = { kind: "path", value: "/fixture/record.jsonl" };
+    const created = await createHerdrRuntime(fake.socketPath);
+    if (isErr(created)) throw new Error("expected a runtime");
+    const pane = await created.value.openPane("/repo/worktree");
+    if (isErr(pane)) throw new Error("expected a pane");
+    const agent = await created.value.startAgent(pane.value, "codex", []);
+    if (isErr(agent)) throw new Error("expected an agent");
+    if (created.value.resolveAgentIdentity === undefined) {
+      throw new Error("expected identity resolution at the adapter boundary");
+    }
+
+    const resolved = await created.value.resolveAgentIdentity(
+      agent.value,
+      { sessionId: "interlock-session" },
+      "codex",
+      "/repo/worktree",
+    );
+
+    expect(resolved).toEqual({
+      _tag: "Ok",
+      value: { sessionId: "interlock-session", sessionPath: "/fixture/record.jsonl" },
+    });
   });
 
   it("reports identity as pane metadata, never as pane.report_agent", async () => {
