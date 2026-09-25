@@ -18,6 +18,7 @@ import {
   isNote,
   isOutboxArtifact,
   isOutcome,
+  isSessionFacts,
   type Lease,
   type LedgerEvent,
   type Mark,
@@ -27,6 +28,7 @@ import {
   type Outcome,
   outcome,
   type Receipt,
+  sessionFacts,
   sessionRuntime,
   spend,
 } from "ledger";
@@ -356,6 +358,22 @@ describe("corpus: the ledger's guards and this node's schemas agree", () => {
       );
       expect(validate?.(envelope)).toBe(true);
     });
+    it("agrees on a session-facts observation envelope", () => {
+      const envelope = envelopeFor({
+        kind: "session-facts-observed",
+        session: "session-1",
+        facts: {
+          ...sessionFacts.unknown(),
+          promptReceived: "yes",
+          lastActivity: "2026-09-25T00:00:00Z",
+        },
+      });
+      const validate = registry.ajv.getSchema(
+        "https://github.com/rodrigopsasaki/interlock/schemas/event@v7.json",
+      );
+      expect(isLedgerEvent(envelope)).toBe(true);
+      expect(validate?.(envelope)).toBe(true);
+    });
     it("agree that a session-started envelope with no graphBaseSha is still valid", () => {
       const envelope = envelopeFor({
         kind: "session-started",
@@ -444,6 +462,14 @@ describe("corpus: the ledger's guards and this node's schemas agree", () => {
       expect(validate?.(acknowledged)).toBe(true);
       expect(isLedgerEvent(missingArtifact)).toBe(false);
       expect(validate?.(missingArtifact)).toBe(false);
+    });
+  });
+
+  describe("isSessionFacts / parts/session-facts.json", () => {
+    it("agrees on the explicit unknown reading", () => {
+      const facts = sessionFacts.unknown();
+      expect(isSessionFacts(facts)).toBe(true);
+      expect(validatesAgainstPart("session-facts", facts)).toBe(true);
     });
   });
 

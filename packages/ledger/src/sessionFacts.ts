@@ -43,9 +43,7 @@ function isSessionUsage(value: unknown): value is SessionUsage {
   return (
     isRecord(value) &&
     Object.keys(value).every((key) => key.length > 0) &&
-    Object.values(value).every(
-      (counter) => typeof counter === "number" && Number.isFinite(counter),
-    )
+    Object.values(value).every((counter) => typeof counter === "number" && Number.isFinite(counter))
   );
 }
 

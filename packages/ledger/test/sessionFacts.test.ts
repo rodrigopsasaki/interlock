@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { EVENT_SHAPE } from "../src/envelope.ts";
 import { createLedger } from "../src/ledger.ts";
 import { replayFromRaw } from "../src/replay.ts";
-import { isSessionFacts, sessionFacts, type SessionFacts } from "../src/sessionFacts.ts";
+import { isSessionFacts, type SessionFacts, sessionFacts } from "../src/sessionFacts.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -43,10 +43,12 @@ describe("session-facts@v0", () => {
   it("persists and replays the additive observation without replacing the journal", async () => {
     directory = mkdtempSync(join(runsRoot, "facts-"));
     const node = { graph: "0045-session-facts", id: "session-facts-seam" };
-    const ledger = unwrap(await createLedger({
-      clock: createControlledClock({ initialTime: 0 }),
-      directory,
-    }));
+    const ledger = unwrap(
+      await createLedger({
+        clock: createControlledClock({ initialTime: 0 }),
+        directory,
+      }),
+    );
     ledger.append({
       kind: "session-started",
       session: { id: "session-1", node, runtime: "unknown" },
@@ -114,8 +116,18 @@ describe("session-facts@v0", () => {
           scope: [],
         },
       },
-      { interlock: EVENT_SHAPE, kind: "session-facts-observed", session: "session-1", facts: first },
-      { interlock: EVENT_SHAPE, kind: "session-facts-observed", session: "session-1", facts: second },
+      {
+        interlock: EVENT_SHAPE,
+        kind: "session-facts-observed",
+        session: "session-1",
+        facts: first,
+      },
+      {
+        interlock: EVENT_SHAPE,
+        kind: "session-facts-observed",
+        session: "session-1",
+        facts: second,
+      },
     ]
       .map((event) => JSON.stringify(event))
       .join("\n");

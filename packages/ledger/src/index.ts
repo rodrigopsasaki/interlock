@@ -107,12 +107,12 @@ export type { Session, SessionRuntime } from "./session.ts";
 export { isSession, isSessionRuntime, sessionRuntime } from "./session.ts";
 export type {
   DeliveryBasis,
-  SessionFacts,
   SessionFact,
+  SessionFacts,
   SessionQuota,
   SessionUsage,
 } from "./sessionFacts.ts";
-export { isSessionFacts, sessionFacts, SESSION_FACTS_SHAPE } from "./sessionFacts.ts";
+export { isSessionFacts, SESSION_FACTS_SHAPE, sessionFacts } from "./sessionFacts.ts";
 export type { LedgerFileOperations, LedgerSink } from "./sink.ts";
 export {
   attachLedgerSink,
