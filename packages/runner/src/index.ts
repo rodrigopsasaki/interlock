@@ -10,6 +10,7 @@ export {
   diffScope,
   renderBriefFile,
 } from "./briefRewrite.ts";
+export { createClaudeSessionFactsReader } from "./claude/adapter.ts";
 export { withRenderedContextSlice } from "./contextSlice.ts";
 export { unmetDependencies } from "./dependencies.ts";
 export type { GateCommand, PlaceholderRefusal } from "./gateCommand.ts";
