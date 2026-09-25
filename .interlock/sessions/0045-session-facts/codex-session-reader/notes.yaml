@@ -58,3 +58,7 @@ entries:
     expected: "The required full workspace test gate would reach and pass the runner package after the affected focused tests were green."
     observed: "The exact full command stopped in substrate after 24 HTTP-fixture failures and unhandled listen EPERM errors on 127.0.0.1; recursive package execution did not reach runner."
     mattered_because: "The failure is an existing sandbox network boundary outside this adapter change, so the debrief will report the full gate as blocked while retaining the independent Codex reader proof."
+  - kind: choice
+    at: "2026-09-25T07:19:00Z"
+    chose: "Author the debrief with one machine-evidence discovery, three narrow implementation decisions, exact source and fixture hunks, and separate pass/fail gate receipts."
+    because: "The debrief should hand on the verified record-ordering lesson and the adapter implementation without promoting the sandbox-blocked herdr or workspace gates into a false pass."
