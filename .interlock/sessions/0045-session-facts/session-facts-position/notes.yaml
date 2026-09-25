@@ -9,3 +9,11 @@ entries:
     at: "2026-09-25T07:22:23Z"
     chose: "Treat the inherited session-facts contract, Codex reader, and Claude reader artifacts as checked context and trace the remaining projection seams before editing."
     because: "The acceptance is additive and requires replay, latest-observation selection, position, session inspection, and substrate-none behavior while preserving the existing reader boundaries and historical artifacts."
+  - kind: choice
+    at: "2026-09-25T07:24:28Z"
+    chose: "Carry SessionFacts into each PositionAttempt and render one shared five-line facts block from the face for both graph position and session inspection."
+    because: "The ledger projection already retains the latest observation, while the current position model and session renderer were the remaining public seams; one renderer keeps labels, ordering, raw counters, empty usage, and unknown degradation consistent."
+  - kind: surprise
+    at: "2026-09-25T07:24:28Z"
+    expected: "The existing position@v1 output schema would already describe the newly required session facts."
+    observed: "position@v1 currently permits no facts field on attempts, so the additive output contract must be updated alongside the producer and its corpus tests."
