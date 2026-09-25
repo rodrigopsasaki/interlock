@@ -77,3 +77,12 @@ entries:
       A runtime with no confirmed reader must remain usable and yield unknown;
       optional composition keeps that fallback in runtime-neutral core code while
       each adapter owns its record path and parser.
+  - kind: surprise
+    at: "2026-09-25T03:26:00-03:00"
+    expected: The standing full test gate would complete in the current sandbox.
+    observed: >-
+      Ledger, debrief, face, verifier, and the non-network substrate suites passed,
+      but 24 existing substrate capability, context, and absorb tests timed out
+      after their local test servers failed with listen EPERM on 127.0.0.1. The
+      focused ledger and schema suites for this node passed; the failure is the
+      environment's network boundary and not a session-facts assertion.
