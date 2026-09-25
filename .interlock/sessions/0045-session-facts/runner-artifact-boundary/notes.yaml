@@ -57,3 +57,7 @@ entries:
     at: "2026-09-25T06:29:00Z"
     chose: "Retain the first authored candidate and prepare a fresh candidate after recording the preview choice."
     because: "The derived filing proof binds the candidate to the current committed head, so preserving the first preview and preparing from the notes commit keeps both the way back and the final identity proof."
+  - kind: choice
+    at: "2026-09-25T06:31:00Z"
+    chose: "File the validated derived debrief and stop after committing the canonical debrief with both authored candidates retained."
+    because: "The canonical artifact is accepted as debrief@v2, its decision is rooted in the committed source head and focused proof, and the retained candidates preserve the authored way back without another source change."
