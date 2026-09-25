@@ -1,0 +1,137 @@
+interlock: debrief@v2
+graph: 0044-runtime-coverage
+node: face-runtime-coverage
+role: worker
+graph_base_sha: cbf20521793787655c75ef90715ca04aad93c50b
+session_start_sha: eb95624eedf435d0e73f05ca74bc4f0d3beb2012
+head_sha: 09dabb3678260dc9e3f1780e3bc4120637d3964b
+derivation:
+  kind: agent
+  runtime: k3
+  model: kimi-code/k3
+discoveries:
+  - id: d1
+    what: >-
+      This session itself ran unattended under the k3 runtime: interlock graph show
+      0044-runtime-coverage renders this node's line as
+      '  runtime: k3 (kimi, kimi-code/k3)'.
+    found_at: >-
+      Output of `interlock graph show 0044-runtime-coverage`, run in this worktree during the
+      session; the face-runtime-coverage node line read exactly
+      '  runtime: k3 (kimi, kimi-code/k3)'.
+    mattered_because: >-
+      The brief asks for this line to be quoted: the session carrying it is half of the proof
+      that the runner delivers an opening prompt to a configured runtime with nobody at the
+      keyboard. The other half is this debrief existing at all with derivation
+      agent/k3/kimi-code/k3.
+  - id: d2
+    what: >-
+      renderNodeRuntime (packages/face/src/render.ts) and lastAttemptByRuntimeName
+      (packages/face/src/runtimeAttempts.ts) behaved exactly as their callers assume once
+      tested: no defect surfaced. The acceptance's allowance for a defect fix went unused;
+      the diff is tests and notes only.
+    found_at: >-
+      First run of the focused suite (`vitest run test/render.test.ts
+      test/runtimeAttempts.test.ts` via the face package) after authoring: "Tests  12 passed
+      (12)", with no change to any source file under the face package.
+    mattered_because: >-
+      A green first run of a test written against never-covered code is evidence the code was
+      already honest, and it closes the acceptance's open branch ("tests only unless a test
+      exposes a defect") with the defect branch affirmatively ruled out rather than silently
+      untaken.
+decisions:
+  - id: c1
+    what: >-
+      Extended packages/face/test/render.test.ts with a shared brief() helper and three tests
+      that each fold a single session-started event through positionOf and pin the indented
+      runtime line renderPosition emits: a declared runtime with a model renders
+      "  runtime: luna (codex, gpt-5.6-luna)", an unknown runtime renders
+      "  runtime: unknown", and a declared runtime with model undefined renders
+      "  runtime: luna (codex, model undeclared)".
+    because: >-
+      The acceptance names this exact gap: renderNodeRuntime is used by renderPosition but no
+      test built a position with an attempt, so the branch never ran. The tests extend the
+      file's existing style (toContain on rendered lines) rather than pinning the whole frame,
+      which would couple them to unrelated lines like the critical path and gates.
+    rests_on:
+      - .interlock/sessions/0044-runtime-coverage/face-runtime-coverage/brief.md
+      - packages/face/src/render.ts
+      - packages/face/src/runtimeLine.ts
+    hunks:
+      - packages/face/test/render.test.ts:1
+      - packages/face/test/render.test.ts:16-25
+      - packages/face/test/render.test.ts:106-157
+    produces:
+      - packages/face/test/render.test.ts
+  - id: c2
+    what: >-
+      Added packages/face/test/runtimeAttempts.test.ts pinning lastAttemptByRuntimeName:
+      sessions whose runtime is unknown are skipped; when two sessions share a runtime name,
+      the one whose session-started lands later in the journal wins (pinned by distinct
+      narration timestamps on startedAtWallMs); one entry per runtime name is kept when
+      several runtimes have attempts; a runtime with no attempt is absent from the map; and
+      an attempt whose session was never narrated reports startedAtWallMs undefined.
+    because: >-
+      The acceptance asks for the first three pins against a function that had no test under
+      packages/face/test. The last two pins are the same acceptance made precise:
+      lastAttemptByRuntimeName carries no clock, so "latest" can only mean journal order
+      (projection.sessions is a Map in insertion order, overwritten per runtime name), and
+      the undefined-start pin keeps the "time unknown" degradation interlock runtime list
+      renders (packages/cli/src/runtime/list.ts) honest.
+    rests_on:
+      - .interlock/sessions/0044-runtime-coverage/face-runtime-coverage/brief.md
+      - packages/face/src/runtimeAttempts.ts
+      - packages/cli/src/runtime/list.ts
+    hunks:
+      - packages/face/test/runtimeAttempts.test.ts:1-70
+    produces:
+      - packages/face/test/runtimeAttempts.test.ts
+    rejected: >-
+      Replaying real fixture journals instead of folding synthetic events: rejected because
+      the sibling face tests (position.test.ts, frameRender.test.ts) build projections with
+      fold over hand-written session-started events, and a synthetic journal pins the exact
+      skip/overwrite/absent cases without depending on fixture contents the test does not
+      own.
+  - id: c3
+    what: >-
+      Recorded the session's choices and the no-defect surprise in
+      .interlock/sessions/0044-runtime-coverage/face-runtime-coverage/notes.yaml (notes@v0),
+      committed together with the tests.
+    because: >-
+      The brief requires typed notes appended at every choice and surprise, committed with
+      the code; the no-defect outcome is a genuine surprise (a test written against
+      never-covered code is expected to be the moment a defect shows) and belongs in the
+      record, per the acceptance's own anticipation of a defect.
+    rests_on:
+      - .interlock/sessions/0044-runtime-coverage/face-runtime-coverage/brief.md
+    hunks:
+      - .interlock/sessions/0044-runtime-coverage/face-runtime-coverage/notes.yaml:1-45
+    produces:
+      - .interlock/sessions/0044-runtime-coverage/face-runtime-coverage/notes.yaml
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: All workspace packages typecheck clean under strict TypeScript.
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: biome check over 350 files, no fixes applied.
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+    note: packages/*/src carries no comments.
+  - id: test
+    result: pass
+    invocation: pnpm test
+    note: Full workspace suite green, including the two focused files (12 tests).
+  - id: face-proof
+    result: pass
+    invocation: pnpm --filter face exec vitest run test/render.test.ts test/runtimeAttempts.test.ts
+    note: 12 passed across the two files, matching expect_output 'Tests +[1-9][0-9]* passed'.
+open:
+  - >-
+    renderNodeRuntime's live-versus-latest selection (liveOrLatestAttempt preferring a live
+    attempt over the journal-latest one) is still unpinned: every render test here folds
+    exactly one attempt, so which attempt the line names when a node has both a live and a
+    finished attempt remains unproven.

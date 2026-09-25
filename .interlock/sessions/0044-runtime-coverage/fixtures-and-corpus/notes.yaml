@@ -1,0 +1,90 @@
+interlock: notes@v0
+node: fixtures-and-corpus
+entries:
+  - kind: surprise
+    at: "2026-09-24T00:00:00Z"
+    expected: The session notes artifact would already exist when the worker began.
+    observed: notes.yaml was absent, so it is being created before implementation work.
+  - kind: choice
+    at: "2026-09-24T00:00:00Z"
+    chose: >-
+      Rename journal-v3-v4-2026-09-11.jsonl to journal-v1-v3-2026-09-11.jsonl and update
+      every repository reference to the fixture.
+    because: >-
+      The fixture contains only event@v1, event@v2 and event@v3 lines. Renaming preserves
+      every historical line and makes the artifact name honest without importing a large
+      session-started record solely to exercise event@v4; the acceptance explicitly allows
+      this alternative.
+  - kind: surprise
+    at: "2026-09-24T00:00:00Z"
+    expected: The shared journal would be directly beneath the git common directory named by
+      git rev-parse --git-common-dir.
+    observed: The common directory is the repository's .git directory, while the shared journal
+      is at the repository root's .interlock/ledger/journal.jsonl; no journal exists beneath .git.
+  - kind: choice
+    at: "2026-09-24T00:05:00Z"
+    chose: Regenerate docs/shapes.md after changing the reference corpus source path.
+    because: docs/shapes.md is a generated artifact in this node's scope, and regenerating it keeps
+      the public event@v3 example's provenance aligned with the renamed fixture.
+  - kind: surprise
+    at: "2026-09-24T00:05:00Z"
+    expected: The schema reference regeneration would report no new vocabulary issue from this
+      fixture rename.
+    observed: The command completed successfully but reported six existing artifact terms missing
+      from the vocabulary table, including the renamed fixture's runtimes term; this is
+      informational and does not block generation.
+  - kind: surprise
+    at: "2026-09-24T00:10:00Z"
+    expected: The first code commit would use the repository's configured signing path.
+    observed: GPG signing could not create its temporary lock file in the sandbox, so the commit
+      is being created with signing disabled while retaining the required co-author trailer.
+  - kind: surprise
+    at: "2026-09-24T00:15:00Z"
+    expected: The focused replay proof would use only the fixture references found before the
+      rename.
+    observed: packages/ledger/test/replay.test.ts still opened the old filename and described a
+      v4 replay, so the proof failed with ENOENT until that test reference was updated.
+  - kind: choice
+    at: "2026-09-24T00:16:00Z"
+    chose: Update replay.test.ts to use journal-v1-v3-2026-09-11.jsonl and describe the proof as
+      a v1-v3 replay while retaining its existing assertions.
+    because: The renamed fixture has no event@v4 lines; changing only the stale path and wording
+      keeps the replay proof honest without changing what it verifies.
+  - kind: surprise
+    at: "2026-09-24T00:20:00Z"
+    expected: The first standing lint run would accept the new import block.
+    observed: Biome required a one-line import layout and ordering of the type-only Receipt name;
+      no semantic lint finding was reported.
+  - kind: choice
+    at: "2026-09-24T00:20:00Z"
+    chose: Apply Biome's suggested import formatting exactly.
+    because: The repository's lint gate defines the established formatting convention, and the
+      change does not alter the test's runtime behavior.
+  - kind: surprise
+    at: "2026-09-24T00:21:00Z"
+    expected: The first Biome layout correction would satisfy the import organizer.
+    observed: Biome also requires the type-only Receipt name to precede sessionRuntime in the
+      one-line import; the second lint run reported only that ordering.
+  - kind: surprise
+    at: "2026-09-24T00:25:00Z"
+    expected: The full workspace test gate would pass after the focused ledger and schemas proofs
+      were green.
+    observed: 10 of 13 substrate test files could not bind their local HTTP listeners under the
+      sandbox; 24 tests timed out or raised listen EPERM on 127.0.0.1. Ledger, face, debrief and
+      verifier completed before that environmental failure.
+  - kind: choice
+    at: "2026-09-24T00:30:00Z"
+    chose: Prepare the debrief as an agent session using runtime codex and model gpt-5.6-luna,
+      matching the current graph show runtime line.
+    because: The brief requires the debrief to record the runtime that received this opening
+      prompt, and graph show reports that exact runtime and model for this node.
+  - kind: choice
+    at: "2026-09-24T00:35:00Z"
+    chose: Revise the filed debrief candidate to include the passing debrief-valid gate receipt.
+    because: The declared gate was run after filing so it could validate the canonical debrief and
+      notes together; recording that result in the authored artifact keeps the final proof complete.
+  - kind: surprise
+    at: "2026-09-24T00:36:00Z"
+    expected: The authored revision patch would address the candidate path directly.
+    observed: The first patch omitted the session directory and matched no file; no repository
+      artifact changed, and the corrected path is being used now.
