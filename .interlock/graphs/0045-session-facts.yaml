@@ -128,9 +128,17 @@ nodes:
       event and position fixtures valid and update generated schema reference if the persisted
       shape changes.
     gates:
-      - id: facts-position-proof
+      - id: facts-position-ledger-proof
         kind: command
-        run: pnpm --filter ledger exec vitest run test/sessionFacts.test.ts test/replay.test.ts && pnpm --filter face exec vitest run test/render.test.ts test/position.test.ts && pnpm --filter cli exec vitest run test/session/show.test.ts test/graph/show.test.ts
+        run: pnpm --filter ledger exec vitest run test/sessionFacts.test.ts test/replay.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: facts-position-face-proof
+        kind: command
+        run: pnpm --filter face exec vitest run test/render.test.ts test/position.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: facts-position-cli-proof
+        kind: command
+        run: pnpm --filter cli exec vitest run test/session/show.test.ts test/graph/show.test.ts
         expect_output: 'Tests +[1-9][0-9]* passed'
 
   - id: runner-artifact-boundary
