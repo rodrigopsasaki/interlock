@@ -76,6 +76,7 @@ export type {
   Pane,
   Runtime,
   RuntimeRefusal,
+  SessionFactsReader,
 } from "./runtime.ts";
 export { explainRuntimeRefusal } from "./runtime.ts";
 export type {

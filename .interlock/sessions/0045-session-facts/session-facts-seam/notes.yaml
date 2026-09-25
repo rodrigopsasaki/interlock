@@ -57,3 +57,23 @@ entries:
       source slice is otherwise staged unchanged and will be committed locally
       with signing disabled; this is an environment boundary, not a source or
       validation result.
+  - kind: choice
+    at: "2026-09-25T03:19:00-03:00"
+    chose: >-
+      Extended the schema-reference artifact tag reader to accept hyphenated
+      terms so session-facts@v0 is represented in the generated shape reference.
+    because: >-
+      The new contract's required shape name contains the closed-term separator
+      hyphen; leaving the existing reader's alphabetic-only pattern unchanged
+      would silently omit the contract from docs/shapes.md even though the schema
+      registry could validate it.
+  - kind: choice
+    at: "2026-09-25T03:20:00-03:00"
+    chose: >-
+      Made the adapter seam an optional SessionFactsReader on Runtime, whose
+      read method receives the existing AgentIdentity including its optional
+      runtime-owned session path and returns the vendor-neutral contract.
+    because: >-
+      A runtime with no confirmed reader must remain usable and yield unknown;
+      optional composition keeps that fallback in runtime-neutral core code while
+      each adapter owns its record path and parser.
