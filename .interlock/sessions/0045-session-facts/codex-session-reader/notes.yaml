@@ -53,3 +53,8 @@ entries:
     at: "2026-09-25T07:10:00Z"
     chose: "Read usage and quota from one latest token_count record rather than independently retaining older valid fields."
     because: "Codex reports cumulative usage and the brief says quota is on that same record; reusing an older quota after a later record omits it would turn an absent optional field into an invented current observation."
+  - kind: surprise
+    at: "2026-09-25T07:15:00Z"
+    expected: "The required full workspace test gate would reach and pass the runner package after the affected focused tests were green."
+    observed: "The exact full command stopped in substrate after 24 HTTP-fixture failures and unhandled listen EPERM errors on 127.0.0.1; recursive package execution did not reach runner."
+    mattered_because: "The failure is an existing sandbox network boundary outside this adapter change, so the debrief will report the full gate as blocked while retaining the independent Codex reader proof."
