@@ -1,0 +1,99 @@
+interlock: notes@v0
+node: runner-artifact-boundary
+entries:
+  - kind: surprise
+    at: "2026-09-25T06:12:54Z"
+    expected: "The session directory would already contain notes.yaml."
+    observed: "The canonical brief was present but notes.yaml was absent, so this file is being created before implementation choices."
+  - kind: choice
+    at: "2026-09-25T06:12:54Z"
+    chose: "Retain screen snapshots below the runner's shared ledger directory, under a session-screen path keyed by graph and node."
+    because: "sharedJournalDirectory resolves runner-owned state outside the node worktree, keeps captures available for later drilldown, and lets judgeWorktree continue judging only the target worktree's paths without relying on its .gitignore."
+  - kind: choice
+    at: "2026-09-25T06:12:54Z"
+    chose: "Keep the existing onWorktreeRead callback and best-effort snapshot write, changing only the destination passed by sessionDrive."
+    because: "The callback already captures after worktree status is read and before gates execute; preserving that seam retains narration and gate scope while moving the artifact boundary."
+  - kind: surprise
+    at: "2026-09-25T06:15:00Z"
+    expected: "The declared artifact-boundary gate would already have its focused judge regression."
+    observed: "The graph named test/judgeWorktree.test.ts, but that file was absent from the worktree, so the node needed to add the regression rather than only update the existing screen unit test."
+  - kind: choice
+    at: "2026-09-25T06:15:00Z"
+    chose: "Use a linked Git worktree with no .gitignore entry for the boundary regression and write its capture through sharedJournalDirectory."
+    because: "The linked worktree models the runner's target worktree while the Git-common ledger directory models runner-owned state; a satisfied command gate then proves judging proceeds after capture."
+  - kind: surprise
+    at: "2026-09-25T06:16:00Z"
+    expected: "The configured Git signature would be available for the first implementation commit."
+    observed: "GPG could not create its keybox lock or reach keyboxd under the managed filesystem, so the first signed commit was refused."
+  - kind: choice
+    at: "2026-09-25T06:16:00Z"
+    chose: "Use the brief-authorized unsigned commit fallback without changing Git configuration."
+    because: "The signer failure is environmental rather than source-related, and the session instructions permit unsigned commits when the configured signature cannot be produced."
+  - kind: surprise
+    at: "2026-09-25T06:19:00Z"
+    expected: "The first full typecheck would accept the new judge regression imports."
+    observed: "Strict unused-local checking rejected two unused test imports; removing them leaves the implementation and test seam unchanged."
+  - kind: surprise
+    at: "2026-09-25T06:22:00Z"
+    expected: "The full workspace test gate would run all package tests to completion."
+    observed: "The substrate HTTP-server tests failed in this sandbox because listening on 127.0.0.1 is denied with EPERM; 24 failures were server-bind timeouts/errors, not failures in the runner boundary tests."
+  - kind: choice
+    at: "2026-09-25T06:22:00Z"
+    chose: "Retain the full-test result as an environment-blocked receipt and continue with runner-scoped and exact artifact-boundary proof."
+    because: "The failure occurs before the affected runner behavior and cannot be repaired within this node without changing sandbox authority or unrelated substrate tests; the focused runner gates remain executable."
+  - kind: surprise
+    at: "2026-09-25T06:27:00Z"
+    expected: "The runner package test gate would complete after the focused boundary test passed."
+    observed: "The package suite reached the new boundary test successfully but also hit existing live-herdr, GPG-signing, and unrelated long-running failures; the process was stopped after those failures were established."
+  - kind: choice
+    at: "2026-09-25T06:27:00Z"
+    chose: "Use the exact declared artifact-boundary command as the node's executable test receipt and leave unrelated package failures attributed to their environment seams."
+    because: "The node's acceptance gate is the focused sessionScreen and judgeWorktree command, which passed; broad package failures do not exercise the changed path and cannot be repaired within this acceptance."
+  - kind: choice
+    at: "2026-09-25T06:29:00Z"
+    chose: "Root one narrow debrief decision in the moved snapshot path, sessionDrive handoff, linked-worktree regression, and typed session notes."
+    because: "Those artifacts establish the boundary change and its proof without promoting the failed broad test gate or the received graph narrative into source support."
+  - kind: choice
+    at: "2026-09-25T06:29:00Z"
+    chose: "Retain the first authored candidate and prepare a fresh candidate after recording the preview choice."
+    because: "The derived filing proof binds the candidate to the current committed head, so preserving the first preview and preparing from the notes commit keeps both the way back and the final identity proof."
+  - kind: choice
+    at: "2026-09-25T06:31:00Z"
+    chose: "File the validated derived debrief and stop after committing the canonical debrief with both authored candidates retained."
+    because: "The canonical artifact is accepted as debrief@v2, its decision is rooted in the committed source head and focused proof, and the retained candidates preserve the authored way back without another source change."
+  - kind: surprise
+    at: "2026-09-25T06:25:05Z"
+    expected: "The CLI judge and run tests would already model the runner-owned snapshot boundary."
+    observed: "Four named CLI tests still committed or inspected .worktrees/a/.interlock/sessions/demo/a/screen.txt; after the boundary change that path is absent, so the standing test gate failed before the node could clear."
+  - kind: choice
+    at: "2026-09-25T06:25:05Z"
+    chose: "Update the CLI regressions to resolve the retained snapshot through sharedJournalDirectory and screenPath, while asserting the old worktree path is absent and Git status is clean."
+    because: "The tests must prove the new runner-owned intent rather than recreate the old collision; the judge tests still retain their dirty-worktree and session-override claims, and the run tests still retain capture, narration, refusal, and gate-reaching claims."
+  - kind: surprise
+    at: "2026-09-25T06:27:01Z"
+    expected: "The focused CLI regression command would run directly under the repository's configured Git environment."
+    observed: "The unmodified CLI suite was blocked by the managed GPG signer and local HTTP-server EPERM; with a process-only signing override and origin tests excluded, all four changed tests passed."
+  - kind: choice
+    at: "2026-09-25T06:27:01Z"
+    chose: "Use the process-only Git signing override only for the four-test focused proof, while preserving the required unmodified full-test invocation for the final receipt."
+    because: "The override lets fixture commits reach the changed assertions without changing repository or user Git configuration, and the exact full command still records the environment's real gate result."
+  - kind: surprise
+    at: "2026-09-25T06:27:01Z"
+    expected: "The first lint run after the CLI test edits would pass."
+    observed: "Biome required import-member ordering in both tests and line wrapping in the new run assertion; the fixes are formatting-only."
+  - kind: surprise
+    at: "2026-09-25T06:27:52Z"
+    expected: "The required unmodified full workspace test gate would pass after the four CLI regressions were repaired."
+    observed: "Ledger, face, debrief, and verifier passed, but substrate's 24 HTTP-server tests timed out or errored because the sandbox denied listening on 127.0.0.1 with EPERM; the exact workspace command exited 1."
+  - kind: choice
+    at: "2026-09-25T06:27:52Z"
+    chose: "Report the exact full-test failure as an environment-blocked gate result and retain the four-test focused pass as the behavioral proof for this repair."
+    because: "The changed CLI assertions pass when fixture commits can run, while the remaining failure is the same sandbox server-bind boundary observed before and is outside this test-only change."
+  - kind: choice
+    at: "2026-09-25T06:30:10Z"
+    chose: "Revise the canonical debrief from the fresh candidate and retain the prior canonical bytes in the session revisions directory."
+    because: "The prior filing was not the current handoff for this compatibility repair; revise preserves its way back while the new debrief records the CLI proof and exact full-test outcome."
+  - kind: choice
+    at: "2026-09-25T06:30:10Z"
+    chose: "Treat debrief@v2 and notes@v0 validation as the final pre-commit receipt."
+    because: "Both current session artifacts validate after revision, and no further source or authored-claim change is required before the final debrief commit."
