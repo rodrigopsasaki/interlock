@@ -385,13 +385,14 @@ export async function driveInteractiveSession(
       narrate(`agent screen read refused: ${explainRuntimeRefusal(screenRead.error)}`);
     }
 
+    const runnerStateDirectory = sharedJournalDirectory(worktreePath);
     const onWorktreeRead = async (): Promise<void> => {
       if (!isOk(screenRead)) return;
-      await writeScreenSnapshot(worktreePath, graph, node, screenRead.value);
+      await writeScreenSnapshot(runnerStateDirectory, graph, node, screenRead.value);
       narrate(`agent screen: ${lastNonEmptyLine(screenRead.value) ?? "(no output)"}`);
     };
 
-    const personEventsRead = await readRawEvents(sharedJournalDirectory(repoRoot));
+    const personEventsRead = await readRawEvents(runnerStateDirectory);
 
     if (beforeJudge !== undefined) {
       const preCheck = await beforeJudge(worktreePath);

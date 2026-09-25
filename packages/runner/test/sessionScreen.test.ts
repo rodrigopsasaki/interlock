@@ -1,15 +1,16 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { lastNonEmptyLine, screenPath, writeScreenSnapshot } from "../src/sessionScreen.ts";
 
-const runsRoot = join(import.meta.dirname, ".session-screen-runs");
+const runsRoot = join(import.meta.dirname, ".runs", "session-screen");
 mkdirSync(runsRoot, { recursive: true });
 
 let directory: string | undefined;
 
 afterEach(() => {
-  if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
+  if (directory !== undefined) execFileSync("rm", ["-r", directory]);
   directory = undefined;
 });
 
@@ -19,9 +20,9 @@ function fixtureDir(): string {
 }
 
 describe("screenPath", () => {
-  it("nests under .interlock/sessions/<graph>/<node> inside the worktree", () => {
-    expect(screenPath("/worktree", "demo", "a")).toBe(
-      "/worktree/.interlock/sessions/demo/a/screen.txt",
+  it("nests under the runner's session-screen state outside the worktree", () => {
+    expect(screenPath("/runner-state", "demo", "a")).toBe(
+      "/runner-state/session-screen/demo/a/screen.txt",
     );
   });
 });
@@ -39,22 +40,24 @@ describe("lastNonEmptyLine", () => {
 
 describe("writeScreenSnapshot", () => {
   it("creates the session directory and writes the screen text", async () => {
-    const worktreePath = fixtureDir();
+    const runnerStateDirectory = fixtureDir();
 
-    await writeScreenSnapshot(worktreePath, "demo", "a", "the screen text\n");
+    await writeScreenSnapshot(runnerStateDirectory, "demo", "a", "the screen text\n");
 
-    const written = screenPath(worktreePath, "demo", "a");
+    const written = screenPath(runnerStateDirectory, "demo", "a");
     expect(existsSync(written)).toBe(true);
     expect(readFileSync(written, "utf-8")).toBe("the screen text\n");
   });
 
   it("is best-effort: a destination blocked by a file never throws", async () => {
-    const worktreePath = fixtureDir();
-    mkdirSync(join(worktreePath, ".interlock", "sessions", "demo"), {
+    const runnerStateDirectory = fixtureDir();
+    mkdirSync(join(runnerStateDirectory, "session-screen", "demo"), {
       recursive: true,
     });
-    writeFileSync(join(worktreePath, ".interlock", "sessions", "demo", "a"), "not a directory");
+    writeFileSync(join(runnerStateDirectory, "session-screen", "demo", "a"), "not a directory");
 
-    await expect(writeScreenSnapshot(worktreePath, "demo", "a", "text")).resolves.toBeUndefined();
+    await expect(
+      writeScreenSnapshot(runnerStateDirectory, "demo", "a", "text"),
+    ).resolves.toBeUndefined();
   });
 });

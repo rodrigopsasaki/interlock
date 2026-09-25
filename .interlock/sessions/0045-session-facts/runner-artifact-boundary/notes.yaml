@@ -1,0 +1,31 @@
+interlock: notes@v0
+node: runner-artifact-boundary
+entries:
+  - kind: surprise
+    at: "2026-09-25T06:12:54Z"
+    expected: "The session directory would already contain notes.yaml."
+    observed: "The canonical brief was present but notes.yaml was absent, so this file is being created before implementation choices."
+  - kind: choice
+    at: "2026-09-25T06:12:54Z"
+    chose: "Retain screen snapshots below the runner's shared ledger directory, under a session-screen path keyed by graph and node."
+    because: "sharedJournalDirectory resolves runner-owned state outside the node worktree, keeps captures available for later drilldown, and lets judgeWorktree continue judging only the target worktree's paths without relying on its .gitignore."
+  - kind: choice
+    at: "2026-09-25T06:12:54Z"
+    chose: "Keep the existing onWorktreeRead callback and best-effort snapshot write, changing only the destination passed by sessionDrive."
+    because: "The callback already captures after worktree status is read and before gates execute; preserving that seam retains narration and gate scope while moving the artifact boundary."
+  - kind: surprise
+    at: "2026-09-25T06:15:00Z"
+    expected: "The declared artifact-boundary gate would already have its focused judge regression."
+    observed: "The graph named test/judgeWorktree.test.ts, but that file was absent from the worktree, so the node needed to add the regression rather than only update the existing screen unit test."
+  - kind: choice
+    at: "2026-09-25T06:15:00Z"
+    chose: "Use a linked Git worktree with no .gitignore entry for the boundary regression and write its capture through sharedJournalDirectory."
+    because: "The linked worktree models the runner's target worktree while the Git-common ledger directory models runner-owned state; a satisfied command gate then proves judging proceeds after capture."
+  - kind: surprise
+    at: "2026-09-25T06:16:00Z"
+    expected: "The configured Git signature would be available for the first implementation commit."
+    observed: "GPG could not create its keybox lock or reach keyboxd under the managed filesystem, so the first signed commit was refused."
+  - kind: choice
+    at: "2026-09-25T06:16:00Z"
+    chose: "Use the brief-authorized unsigned commit fallback without changing Git configuration."
+    because: "The signer failure is environmental rather than source-related, and the session instructions permit unsigned commits when the configured signature cannot be produced."
