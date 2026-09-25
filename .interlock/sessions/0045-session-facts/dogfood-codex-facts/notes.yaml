@@ -1,0 +1,23 @@
+interlock: notes@v0
+node: dogfood-codex-facts
+entries:
+  - kind: choice
+    at: "2026-09-25T13:34:14Z"
+    chose: Recorded receipt of the canonical brief and the known runtime/model, codex (luna).
+    because: The acceptance requires this unattended session to record how it was started before observing its session position.
+  - kind: surprise
+    at: "2026-09-25T13:34:14Z"
+    expected: "The session position would show Prompt received: yes, an RFC3339 Last activity, observed Usage, a reported Quota or explicit unknown, and Delivery basis: record."
+    observed: "The position showed Prompt received: yes; Last activity: 2026-09-25T13:33:44.184Z; Usage: unknown; Quota: unknown; Delivery basis: record. Usage was still unknown while this turn was in progress, so no value was inferred."
+  - kind: surprise
+    at: "2026-09-25T13:35:05Z"
+    expected: The notes commit would be created with the repository's configured signing.
+    observed: "The commit was rejected because GPG could not create /Users/rodrigosasaki/.gnupg temporary state and could not connect to keyboxd."
+  - kind: choice
+    at: "2026-09-25T13:35:05Z"
+    chose: Commit the session notes with signing disabled for this local commit.
+    because: The required evidence must be committed in this worktree, while the configured signer is unavailable; this does not alter source, gates, or the recorded facts.
+  - kind: surprise
+    at: "2026-09-25T13:39:19Z"
+    expected: "The previously filed notes and debrief would parse as valid YAML and pass their standing validation gates."
+    observed: 'The runner found the first surprise expected: scalar unquoted despite containing ": ", so notes@v0 parsing and debrief validation failed; I am quoting that unchanged value and regenerating the debrief.'
