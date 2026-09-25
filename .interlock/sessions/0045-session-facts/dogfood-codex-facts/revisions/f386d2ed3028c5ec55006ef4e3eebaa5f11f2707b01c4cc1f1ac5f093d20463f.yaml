@@ -4,7 +4,7 @@ node: dogfood-codex-facts
 role: worker
 graph_base_sha: fe03cfe04204dd279d321affc7fe7710c94b99c1
 session_start_sha: 36369de9908105ee35e5799835feae5a17dab725
-head_sha: 13e3e32bf81ab52a18123fe4254e2f8d91f02c6b
+head_sha: 68efedbcf582435f388f0a23482448a7e8754636
 derivation:
   kind: agent
   runtime: codex
@@ -35,15 +35,6 @@ decisions:
       - .interlock/sessions/0045-session-facts/dogfood-codex-facts/notes.yaml:12-19
     hunks:
       - .interlock/sessions/0045-session-facts/dogfood-codex-facts/notes.yaml:12-19
-    produces:
-      - .interlock/sessions/0045-session-facts/dogfood-codex-facts/notes.yaml
-  - id: quote-notes-yaml-value
-    what: "Quoted the first surprise's expected value in notes.yaml without changing its words, then regenerated this debrief."
-    because: "The value contains YAML's mapping delimiter followed by a space, so its literal text must be quoted for notes@v0 to parse and for debrief validation to consume the receipt."
-    rests_on:
-      - .interlock/sessions/0045-session-facts/dogfood-codex-facts/notes.yaml:8-11
-    hunks:
-      - .interlock/sessions/0045-session-facts/dogfood-codex-facts/notes.yaml:8-11
     produces:
       - .interlock/sessions/0045-session-facts/dogfood-codex-facts/notes.yaml
 gates_run_by_agent: []
