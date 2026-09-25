@@ -36,6 +36,17 @@ entries:
       commit.gpgsign=false override; the source and staged artifact set were
       unchanged.
   - kind: surprise
+    at: "2026-09-25T13:05:00-03:00"
+    expected: >-
+      The required full workspace test command would finish with a recursive
+      Vitest summary after the focused runner proofs passed.
+    observed: >-
+      The full run reached substrate capabilities tests that timed out because
+      this sandbox denies localhost listener creation; the existing herdr
+      socket fixtures likewise fail with listen EPERM. The focused runner
+      tests remain green, but the full command has an environment-bound
+      failure unrelated to these changes.
+  - kind: surprise
     at: "2026-09-25T12:20:00-03:00"
     expected: >-
       The inherited Claude reader tests would remain valid after making reader
