@@ -1,6 +1,14 @@
 import type { GraphDocument } from "face";
 import { positionOf } from "face";
-import { derivation, duration, fold, gate, type Receipt, spend } from "ledger";
+import {
+  derivation,
+  duration,
+  fold,
+  gate,
+  sessionRuntime,
+  type Receipt,
+  spend,
+} from "ledger";
 import { describe, expect, it } from "vitest";
 import { buildRegistry } from "../src/registry.ts";
 
@@ -50,5 +58,44 @@ describe("corpus: position@v1, produced by the real positionOf", () => {
     const valid = validate?.(position);
     expect(valid, JSON.stringify(validate?.errors)).toBe(true);
     expect(position.nodes.map((n) => n.state.kind)).toEqual(["outcome", "ready"]);
+  });
+
+  it("validates attempts produced from a session-started event", () => {
+    const projection = fold([
+      { kind: "node-created", node: { graph: "g", id: "g" } },
+      { kind: "node-created", node: { graph: "g", id: "a" } },
+      { kind: "node-created", node: { graph: "g", id: "b" } },
+      {
+        kind: "session-started",
+        session: {
+          id: "session-1",
+          node: { graph: "g", id: "a" },
+          runtime: sessionRuntime.declared("test-runtime", "test-kind", "test-model"),
+        },
+        brief: {
+          graph: "g",
+          node: "a",
+          role: "worker",
+          acceptance: "exercise attempts",
+          gates: [],
+          scope: [],
+        },
+      },
+    ]);
+
+    const position = positionOf(document, projection, "content-hash", Date.now());
+    const registry = buildRegistry();
+    const validate = registry.ajv.getSchema(
+      "https://github.com/rodrigopsasaki/interlock/schemas/position@v1.json",
+    );
+    const valid = validate?.(position);
+    expect(valid, JSON.stringify(validate?.errors)).toBe(true);
+    expect(position.nodes[0]?.attempts).toEqual([
+      {
+        session: "session-1",
+        runtime: { name: "test-runtime", kind: "test-kind", model: "test-model" },
+        leaseState: { kind: "none" },
+      },
+    ]);
   });
 });
