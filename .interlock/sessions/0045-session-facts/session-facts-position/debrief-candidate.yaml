@@ -1,0 +1,117 @@
+interlock: debrief@v2
+graph: 0045-session-facts
+node: session-facts-position
+role: worker
+graph_base_sha: 53074d7a24543f6a52612495c08ca48980eda70c
+session_start_sha: 5e36e95f83a271be6677bb9689d404244cdfc2d5
+head_sha: 2de36f4d2c33215e55a595a037d2205d20cfb774
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-luna
+discoveries: []
+decisions:
+  - id: facts-flow-through-position
+    what: >-
+      Position attempts now carry the ledger projection's latest SessionFacts
+      observation, so graph position and its JSON output expose the same
+      per-session facts while historical sessions retain the explicit unknown
+      observation.
+    because: >-
+      The ledger already initializes and replaces only the latest facts field
+      during replay; passing that field through attempts completes the current
+      position seam without changing the journal or the receipt trail. The
+      position@v1 producer schema and corpus fixture describe the additive
+      field so the emitted artifact remains verifiable.
+    rests_on:
+      - packages/ledger/src/projection.ts:30-40
+      - packages/ledger/src/projection.ts:141-172
+      - packages/face/src/attempts.ts:12-47
+      - .interlock/graphs/0045-session-facts.yaml:112-129
+    hunks:
+      - packages/face/src/attempts.ts:12-47
+      - schemas/position@v1.json:182-193
+      - packages/face/test/position.test.ts:252-275
+      - packages/schemas/test/corpus.position.test.ts:84-100
+    produces:
+      - packages/face/src/attempts.ts
+      - schemas/position@v1.json
+      - packages/face/test/position.test.ts
+      - packages/schemas/test/corpus.position.test.ts
+    applies_to: { kind: path, path: packages/face/src/attempts.ts }
+  - id: exact-facts-read
+    what: >-
+      Added one face renderer for the committed five-line facts vocabulary and
+      used it in both graph position and session show, preserving raw usage
+      counters, known empty usage, explicit unknown values, quota percentage,
+      and delivery basis without pricing or status inference.
+    because: >-
+      A shared renderer makes the required labels and order identical at both
+      read surfaces. The tests prove a known Codex-shaped observation, the
+      historical or empty degradation, and the session-show ordering that the
+      dogfood gate reads.
+    rests_on:
+      - .interlock/graphs/0045-session-facts.yaml:121-129
+      - packages/face/src/sessionFacts.ts:3-27
+      - packages/face/src/sessionColumns.ts:127-160
+      - packages/face/src/render.ts:56-69
+    hunks:
+      - packages/face/src/sessionFacts.ts:1-27
+      - packages/face/src/sessionColumns.ts:127-160
+      - packages/face/src/render.ts:56-69
+      - packages/face/test/render.test.ts:167-228
+      - packages/cli/test/session/show.test.ts:167-186
+    produces:
+      - packages/face/src/sessionFacts.ts
+      - packages/face/src/sessionColumns.ts
+      - packages/face/src/render.ts
+      - packages/face/test/render.test.ts
+      - packages/cli/test/session/show.test.ts
+    applies_to: { kind: path, path: packages/face/src/sessionFacts.ts }
+gates_run_by_agent:
+  - id: facts-position-proof
+    result: pass
+    invocation: >-
+      mise exec -- pnpm --filter ledger exec vitest run
+      test/sessionFacts.test.ts test/replay.test.ts && mise exec -- pnpm
+      --filter face exec vitest run test/render.test.ts test/position.test.ts
+      && mise exec -- pnpm --filter cli exec vitest run
+      test/session/show.test.ts test/graph/show.test.ts
+    note: >-
+      25 ledger/replay tests, 26 face position/render tests, and 15 CLI
+      session/graph tests passed; the schema position corpus added 2 passing
+      tests separately.
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: All 8 workspace packages typechecked successfully.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Biome checked 361 repository files with no findings.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+    note: packages/*/src contains no comments.
+  - id: test
+    result: fail
+    invocation: mise exec -- pnpm test
+    note: >-
+      Ledger (125), face (93), debrief (70), and verifier (58) passed before
+      substrate stopped the recursive run with 24 existing HTTP-fixture
+      failures and listen EPERM on 127.0.0.1. Independent runner and CLI
+      workspace runs showed the same managed socket/GPG boundary; their focused
+      session-facts and CLI proof tests passed.
+  - id: debrief-valid
+    result: pass
+    invocation: >-
+      mise exec -- pnpm interlock debrief validate --file
+      .interlock/sessions/0045-session-facts/session-facts-position/debrief-candidate.yaml
+    note: The authored candidate validated structurally before filing.
+open:
+  - >-
+    The full workspace test gate remains environment-limited: substrate's local
+    HTTP fixtures cannot bind 127.0.0.1, runner herdr fixtures cannot bind Unix
+    sockets, and configured GPG signing cannot create its keybox lock. Rerun
+    the full standing gates in a network- and signer-capable environment before
+    clearing this node.
