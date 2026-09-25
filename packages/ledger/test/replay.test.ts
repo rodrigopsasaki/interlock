@@ -456,9 +456,9 @@ describe("replay's versioned upcast seam", () => {
     });
   });
 
-  it("replays the real journal fixture under v4 without loss, narration events included", () => {
+  it("replays the real v1-v3 journal fixture without loss, narration events included", () => {
     const raw = readFileSync(
-      join(import.meta.dirname, "fixtures", "journal-v3-v4-2026-09-11.jsonl"),
+      join(import.meta.dirname, "fixtures", "journal-v1-v3-2026-09-11.jsonl"),
       "utf-8",
     );
     const lines = raw.split("\n").filter((line) => line.trim().length > 0);

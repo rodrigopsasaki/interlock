@@ -38,3 +38,15 @@ entries:
     expected: The first code commit would use the repository's configured signing path.
     observed: GPG signing could not create its temporary lock file in the sandbox, so the commit
       is being created with signing disabled while retaining the required co-author trailer.
+  - kind: surprise
+    at: "2026-09-24T00:15:00Z"
+    expected: The focused replay proof would use only the fixture references found before the
+      rename.
+    observed: packages/ledger/test/replay.test.ts still opened the old filename and described a
+      v4 replay, so the proof failed with ENOENT until that test reference was updated.
+  - kind: choice
+    at: "2026-09-24T00:16:00Z"
+    chose: Update replay.test.ts to use journal-v1-v3-2026-09-11.jsonl and describe the proof as
+      a v1-v3 replay while retaining its existing assertions.
+    because: The renamed fixture has no event@v4 lines; changing only the stale path and wording
+      keeps the replay proof honest without changing what it verifies.
