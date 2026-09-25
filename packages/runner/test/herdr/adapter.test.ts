@@ -176,6 +176,7 @@ describe("herdr adapter", () => {
     const created = await createHerdrRuntime(fake.socketPath);
     if (isErr(created)) throw new Error("expected a runtime");
     const runtime = created.value;
+    expect(runtime.sessionFactsReader).toBeDefined();
 
     const pane = await runtime.openPane("/repo/worktree");
     if (isErr(pane)) throw new Error("expected a pane");
