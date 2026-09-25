@@ -9,7 +9,7 @@ import type { OutboxDelivery, OutboxIntent } from "./outbox.ts";
 import type { Outcome } from "./outcome.ts";
 import type { Receipt } from "./receipt.ts";
 import type { SessionRuntime } from "./session.ts";
-import { sessionFacts, type SessionFacts } from "./sessionFacts.ts";
+import { type SessionFacts, sessionFacts } from "./sessionFacts.ts";
 
 export interface NodeView {
   readonly node: Node;
