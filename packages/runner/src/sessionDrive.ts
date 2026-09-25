@@ -21,7 +21,15 @@ import { takeLease } from "./lease.ts";
 import type { LocalConfig } from "./localConfig.ts";
 import { recordingNarrate } from "./narration.ts";
 import { buildOpeningPrompt, type PriorWork } from "./openingPrompt.ts";
-import { type Agent, explainRuntimeRefusal, type Pane, type Runtime } from "./runtime.ts";
+import { deliverOpeningPrompt } from "./promptDelivery.ts";
+import {
+  type Agent,
+  type AgentStatus,
+  explainRuntimeRefusal,
+  type Pane,
+  type Runtime,
+  type RuntimeRefusal,
+} from "./runtime.ts";
 import type { ResolvedRuntime } from "./runtimeCatalogue.ts";
 import { gitTrackedFiles } from "./scope.ts";
 import { type BriefWriteOutcome, buildBrief } from "./sessionBrief.ts";
@@ -317,36 +325,26 @@ export async function driveInteractiveSession(
     }
     narrate("agent ready (idle)");
 
-    const prompted = await runtime.prompt(
+    const delivered = await deliverOpeningPrompt({
+      runtime,
       agent,
-      buildOpeningPrompt(graph, node, priorWork, role, briefWritten.value.openingView),
-    );
-    if (isErr(prompted)) {
-      const result = refuse("prompt", explainRuntimeRefusal(prompted.error));
-      lease.stop();
-      abandonLease();
-      return result;
-    }
-    narrate("prompt sent");
-
-    const promptTakenTimeoutMs = localConfig.runtime.promptTakenTimeoutMs;
-    const tookPrompt = await runtime.waitUntil(
-      agent,
-      ["working", "blocked", "done"],
-      promptTakenTimeoutMs,
-    );
-    if (isErr(tookPrompt)) {
-      const explanation =
-        tookPrompt.error.kind === "timeout" && tookPrompt.error.status === "idle"
-          ? `prompt not taken after ${promptTakenTimeoutMs}ms; agent still idle`
-          : explainRuntimeRefusal(tookPrompt.error);
-      const result = refuse("prompt taken", explanation);
+      clock,
+      narrate,
+      prompt: buildOpeningPrompt(graph, node, priorWork, role, briefWritten.value.openingView),
+      readySettleMs: agentRuntime.readySettleMs,
+      promptRetries: agentRuntime.promptRetries,
+      promptTakenTimeoutMs: agentRuntime.promptTakenTimeoutMs,
+      answerGraceMs: localConfig.answerGraceMs,
+      startupAnswers: agentRuntime.startupAnswers,
+    });
+    if (isErr(delivered)) {
+      const result = refuse("prompt", explainRuntimeRefusal(delivered.error));
       lease.stop();
       abandonLease();
       return result;
     }
     paneCustody = "person";
-    if (tookPrompt.value === "working") narrate("agent working");
+    const delivery = delivered.value;
 
     const readUnfinishedWork = (): UnfinishedWork | undefined => {
       const dirty = uncommittedPaths(worktreePath);
@@ -358,18 +356,23 @@ export async function driveInteractiveSession(
         : { uncommittedPaths: dirtyCount, debriefMissing };
     };
 
-    narrate(`waiting for idle, blocked or done (timeout ${localConfig.runTimeoutMs}ms)`);
-    const deadline = deadlineFrom(clock.now().monoMs, ms(localConfig.runTimeoutMs));
-    const waited = await waitForSession(
-      runtime,
-      agent,
-      clock,
-      deadline,
-      localConfig.runTimeoutMs,
-      localConfig.answerGraceMs,
-      narrate,
-      readUnfinishedWork,
-    );
+    let waited: Result<AgentStatus, RuntimeRefusal>;
+    if (delivery.kind === "abandoned") {
+      waited = ok("idle");
+    } else {
+      narrate(`waiting for idle, blocked or done (timeout ${localConfig.runTimeoutMs}ms)`);
+      const deadline = deadlineFrom(clock.now().monoMs, ms(localConfig.runTimeoutMs));
+      waited = await waitForSession(
+        runtime,
+        agent,
+        clock,
+        deadline,
+        localConfig.runTimeoutMs,
+        localConfig.answerGraceMs,
+        narrate,
+        readUnfinishedWork,
+      );
+    }
     lease.stop();
     if (isErr(waited)) {
       const result = refuse("wait", explainRuntimeRefusal(waited.error));

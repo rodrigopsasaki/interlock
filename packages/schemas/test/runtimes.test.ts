@@ -48,6 +48,24 @@ describe("runtimes@v0 schema", () => {
             model: "careful-model-label",
             startup_answers: [{ matches: "ready?", keys: ["Enter"] }],
             startup_timeout_ms: 15000,
+            prompt_taken_timeout_ms: 5000,
+            ready_settle_ms: 3000,
+            prompt_retries: 4,
+          },
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it("accepts ready_settle_ms and prompt_retries at 0", () => {
+    expect(
+      schemaValid(
+        catalogueWith({
+          fast: {
+            kind: "claude",
+            model: "m",
+            ready_settle_ms: 0,
+            prompt_retries: 0,
           },
         }),
       ),
@@ -67,6 +85,21 @@ describe("runtimes@v0 schema", () => {
       "a non-positive startup_timeout_ms",
       { fast: { kind: "claude", model: "m", startup_timeout_ms: 0 } },
     ],
+    [
+      "a non-integer prompt_taken_timeout_ms",
+      { fast: { kind: "claude", model: "m", prompt_taken_timeout_ms: 1.5 } },
+    ],
+    [
+      "a non-positive prompt_taken_timeout_ms",
+      { fast: { kind: "claude", model: "m", prompt_taken_timeout_ms: 0 } },
+    ],
+    ["a negative ready_settle_ms", { fast: { kind: "claude", model: "m", ready_settle_ms: -1 } }],
+    [
+      "a non-integer ready_settle_ms",
+      { fast: { kind: "claude", model: "m", ready_settle_ms: 1.5 } },
+    ],
+    ["a negative prompt_retries", { fast: { kind: "claude", model: "m", prompt_retries: -1 } }],
+    ["a non-integer prompt_retries", { fast: { kind: "claude", model: "m", prompt_retries: 1.5 } }],
     ["args that are not strings", { fast: { kind: "claude", model: "m", args: [1] } }],
   ])("refuses %s", (_name, runtimes) => {
     expect(schemaValid(catalogueWith(runtimes))).toBe(false);

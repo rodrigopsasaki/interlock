@@ -64,6 +64,11 @@ export type { PriorWork } from "./openingPrompt.ts";
 export { buildOpeningPrompt } from "./openingPrompt.ts";
 export { renderOpeningView } from "./openingView.ts";
 export type {
+  PromptDeliveryOutcome,
+  PromptDeliveryRequest,
+} from "./promptDelivery.ts";
+export { deliverOpeningPrompt } from "./promptDelivery.ts";
+export type {
   Agent,
   AgentIdentity,
   AgentIdentityQuery,

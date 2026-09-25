@@ -1,6 +1,10 @@
 # The per-machine runtime catalogue. Copy this file to $XDG_CONFIG_HOME/interlock/runtimes.yaml
 # (default ~/.config/interlock/runtimes.yaml; INTERLOCK_RUNTIMES overrides the path) and fill it
 # in; the real file is never committed, so these values never leave this machine.
+#
+# Optional per entry: prompt_taken_timeout_ms, ms to wait after the opening prompt for the agent to move off idle; default 20000.
+# Optional per entry: ready_settle_ms, ms to wait once the agent looks ready before the opening prompt; default 0.
+# Optional per entry: prompt_retries, delivery attempts beyond the first when the opening prompt is never taken; default 2.
 
 interlock: runtimes@v0
 

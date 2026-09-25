@@ -4,13 +4,15 @@ import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import { isValidSubstrateAddress } from "substrate";
 import { parse as parseYaml, YAMLParseError } from "yaml";
 import { parseStartupAnswers, type StartupAnswer } from "./startupAnswers.ts";
-import { isRecord, isString, isStringArray, prop } from "./validate.ts";
+import { isNonNegativeInteger, isRecord, isString, isStringArray, prop } from "./validate.ts";
 
 export const LOCAL_CONFIG_SHAPE = "local@v0";
 
 export const DEFAULT_STARTUP_TIMEOUT_MS = 60_000;
-const DEFAULT_PROMPT_TAKEN_TIMEOUT_MS = 20_000;
+export const DEFAULT_PROMPT_TAKEN_TIMEOUT_MS = 20_000;
 const DEFAULT_ANSWER_GRACE_MS = 300_000;
+export const DEFAULT_READY_SETTLE_MS = 0;
+export const DEFAULT_PROMPT_RETRIES = 2;
 
 export interface LocalConfig {
   readonly runtime: {
@@ -19,6 +21,8 @@ export interface LocalConfig {
     readonly startupAnswers: readonly StartupAnswer[];
     readonly startupTimeoutMs: number;
     readonly promptTakenTimeoutMs: number;
+    readonly readySettleMs: number;
+    readonly promptRetries: number;
   };
   readonly defaultRuntime?: string;
   readonly worktreeRoot: string;
@@ -46,6 +50,10 @@ const FIELD_GUIDE =
   "before sending the opening prompt), " +
   "runtime.prompt_taken_timeout_ms (optional; how long to wait after the opening prompt for " +
   "the agent to move off idle before the long wait judges it), " +
+  "runtime.ready_settle_ms (optional; how long to wait after the agent looks ready before " +
+  "sending the opening prompt), " +
+  "runtime.prompt_retries (optional; delivery attempts beyond the first when the opening " +
+  "prompt is never taken), " +
   "default_runtime (optional; the name of the runtime this repository starts by default, from " +
   "the runtime catalogue or this file's own runtime block), " +
   "worktree_root (where node worktrees are created, relative to the repository root), " +
@@ -134,6 +142,26 @@ function parseShape(parsed: unknown, path: string): Result<LocalConfig, LocalCon
     });
   }
   const promptTakenTimeoutMs = promptTakenTimeoutMsField ?? DEFAULT_PROMPT_TAKEN_TIMEOUT_MS;
+
+  const readySettleMsField = isRecord(runtime) ? prop(runtime, "ready_settle_ms") : undefined;
+  if (readySettleMsField !== undefined && !isNonNegativeInteger(readySettleMsField)) {
+    return err({
+      kind: "malformed",
+      path,
+      reason: '"runtime.ready_settle_ms" must be a non-negative integer',
+    });
+  }
+  const readySettleMs = readySettleMsField ?? DEFAULT_READY_SETTLE_MS;
+
+  const promptRetriesField = isRecord(runtime) ? prop(runtime, "prompt_retries") : undefined;
+  if (promptRetriesField !== undefined && !isNonNegativeInteger(promptRetriesField)) {
+    return err({
+      kind: "malformed",
+      path,
+      reason: '"runtime.prompt_retries" must be a non-negative integer',
+    });
+  }
+  const promptRetries = promptRetriesField ?? DEFAULT_PROMPT_RETRIES;
 
   const defaultRuntimeField = prop(parsed, "default_runtime");
   if (defaultRuntimeField !== undefined && !isString(defaultRuntimeField)) {
@@ -235,6 +263,8 @@ function parseShape(parsed: unknown, path: string): Result<LocalConfig, LocalCon
       startupAnswers: startupAnswers.value,
       startupTimeoutMs,
       promptTakenTimeoutMs,
+      readySettleMs,
+      promptRetries,
     },
     ...(defaultRuntimeField === undefined ? {} : { defaultRuntime: defaultRuntimeField }),
     worktreeRoot,
