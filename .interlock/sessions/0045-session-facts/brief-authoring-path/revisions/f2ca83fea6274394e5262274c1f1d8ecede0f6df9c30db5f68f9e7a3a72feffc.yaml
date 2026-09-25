@@ -1,0 +1,137 @@
+interlock: debrief@v2
+graph: 0045-session-facts
+node: brief-authoring-path
+role: worker
+graph_base_sha: 028156b25dac7df5fc6969489c30d1e8365211a8
+session_start_sha: 60a74dbbee58b68b50c589dbbfb4c0a2d8af97cb
+head_sha: c25d48f9ca48a4de37c5dcb37d7459d81d916a33
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-luna
+discoveries:
+  - id: d1
+    what: >-
+      The runner refuses to lease a node when its canonical brief is absent; brief authoring is
+      outside the runner.
+    found_at: >-
+      packages/cli/src/run.ts:132 "message: `${briefPath(repoRoot, graph, node)}: no brief; brief
+      authoring is not the runner's, so this node cannot be leased yet.`,"
+    mattered_because: >-
+      A person can find the refusal and the authoring boundary in code before attempting to run a
+      node, instead of reverse-engineering a sibling session.
+  - id: d2
+    what: >-
+      The runner derives authoritative gates from standing and node declarations before writing the
+      derived brief.
+    found_at: >-
+      packages/runner/src/sessionBrief.ts:76 "const authoritativeGates = authoritativeBriefGates(standing, nodeGates);"
+    mattered_because: >-
+      The documentation can describe the current derived-copy behavior rather than suggesting that
+      a worker-authored gate or scope remains authoritative.
+  - id: d3
+    what: >-
+      The generated shape reference points to a committed source file for its brief@v1 worked
+      example.
+    found_at: >-
+      docs/shapes.md:148 "Source: `.interlock/sessions/0010-learning-transfer/source-diagnosis/brief.md`"
+    mattered_because: >-
+      The node needed a guard for the existing example, not a new brief version or a duplicate
+      schema artifact.
+decisions:
+  - id: c1
+    what: >-
+      Added a README brief-authoring section naming the graph-to-brief boundary, canonical path,
+      brief@v1 reference, immutability, missing-brief refusal, supplied role, and runner-derived
+      gates, scope, context, substrate, and opening-view behavior.
+    because: >-
+      The acceptance asks for a findable current contract and explicitly says the runner does not
+      author the brief; README.md is the repository's public documentation seam.
+    rests_on:
+      - .interlock/sessions/0045-session-facts/brief-authoring-path/brief.md
+      - packages/cli/src/run.ts
+      - packages/runner/src/sessionBrief.ts
+      - packages/runner/src/briefRewrite.ts
+    hunks:
+      - README.md:68-87
+    produces:
+      - README.md
+  - id: c2
+    what: >-
+      Added --brief-authoring to the read-only schema-reference check; it verifies the README
+      contract and the generated brief@v1 example while preserving the existing docs/shapes.md
+      freshness result and refusing the flag without --check.
+    because: >-
+      The acceptance requires the check to fail if the authoring path or worked example disappears,
+      and the existing schema-reference command already owns that read-only reference boundary.
+    rests_on:
+      - .interlock/sessions/0045-session-facts/brief-authoring-path/brief.md
+      - packages/schemas/src/reference/corpus.ts
+      - packages/cli/src/schema/reference.ts
+    hunks:
+      - packages/cli/src/schema/reference.ts:6-131
+    produces:
+      - packages/cli/src/schema/reference.ts
+  - id: c3
+    what: >-
+      Added CLI tests for the successful authoring/reference proof and for the read-only flag
+      requirement.
+    because: >-
+      The new command mode needs an executable regression without changing runtime, schema,
+      authority, or gate judgment behavior.
+    rests_on:
+      - .interlock/sessions/0045-session-facts/brief-authoring-path/brief.md
+      - packages/cli/src/schema/reference.ts
+    hunks:
+      - packages/cli/test/schema/reference.test.ts:19-29
+    produces:
+      - packages/cli/test/schema/reference.test.ts
+  - id: c4
+    what: >-
+      Appended typed notes for the documentation/check choices, line-wrapping surprises, lint
+      repair, environment-limited full test gate, and debrief derivation choice.
+    because: >-
+      The session contract requires every choice and surprise to retain its reason in notes, and
+      the failed full test proof must not be compressed into a passing claim.
+    rests_on:
+      - .interlock/sessions/0045-session-facts/brief-authoring-path/brief.md
+    hunks:
+      - .interlock/sessions/0045-session-facts/brief-authoring-path/notes.yaml:1-54
+    produces:
+      - .interlock/sessions/0045-session-facts/brief-authoring-path/notes.yaml
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: All workspace packages typecheck clean under strict TypeScript.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Biome check passed with no findings.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+    note: packages/*/src has no comments.
+  - id: test
+    result: fail
+    invocation: mise exec -- pnpm test
+    note: >-
+      24 substrate HTTP fixture tests failed or timed out because the environment denied binding
+      127.0.0.1 with EPERM; the other workspace packages completed.
+  - id: brief-reference-proof
+    result: pass
+    invocation: mise exec -- pnpm interlock schema reference --check --brief-authoring
+    note: >-
+      docs/shapes.md was fresh and the command emitted brief-authoring: fresh; its existing six
+      artifact-term vocabulary warning remained informational.
+  - id: debrief-valid
+    result: fail
+    invocation: mise exec -- pnpm interlock debrief validate 0045-session-facts brief-authoring-path
+    note: The canonical debrief is not filed yet; validate will be run after filing.
+open:
+  - >-
+    The full test gate remains failed in this environment because local substrate HTTP fixtures
+    cannot bind 127.0.0.1; no source change was made to work around that restriction.
+  - >-
+    The reference command continues to report config, event, item, local, notes, and runtimes as
+    artifact terms absent from the closed vocabulary table; that existing gap is outside this node.

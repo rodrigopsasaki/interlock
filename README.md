@@ -65,6 +65,27 @@ to do or erase the evidence it produced.
 *Today, graphs are authored directly. An assisted planner is part of the design, not a finished
 capability or a guarantee of good plans.*
 
+## Brief authoring
+
+The graph interpreter produces `.interlock/graphs/<graph>.yaml`; it does not author a worker's
+session brief. A person authors the canonical brief for each node at
+`.interlock/sessions/<graph>/<node>/brief.md` before the node is run. Derive it from the graph
+node's acceptance and gates, the repository's standing gates, the tracked scope, the substrate
+slice selection, and the supplied role. The `brief@v1` fields and a complete worked example are in
+[`docs/shapes.md`](docs/shapes.md).
+
+The canonical brief is immutable once the session starts. `interlock run` refuses to lease a node
+when that file is absent with `no brief; brief authoring is not the runner's`. A worker does not
+self-declare its role or lower its gates.
+
+When a brief is present, the runner reads it and writes a derived copy into the session worktree.
+That copy retains the authored body, then replaces `gates` with the standing gates plus the node's
+gates and replaces `scope` with the runner's current tracked files. An optional `context_scope`
+narrows only the substrate query. The runner supplies the worktree's graph base SHA and session
+identity, appends the addressed substrate slice when one is available, and adds debrief-authoring
+guidance. With `substrate.address: none`, the session still runs and no substrate slice is added.
+The derived opening view omits scope entries; the canonical brief remains the binding file.
+
 ## Different questions need different proof
 
 A test can establish a behavior. A review can examine a tradeoff. A person can authorize a
