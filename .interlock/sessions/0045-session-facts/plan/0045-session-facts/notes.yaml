@@ -47,3 +47,27 @@ entries:
       pnpm reported the existing engine warning that Node 26.9.0 is active while the repository
       requests Node 24.14.0; graph loading, schema validation, schema-reference freshness, and
       focused lint still completed successfully.
+  - kind: surprise
+    at: "2026-09-25T01:20:00Z"
+    expected: The read-only debrief preview would accept the authored head provenance.
+    observed: >-
+      The first candidate used a mistyped graph commit SHA, so preview rejected the range before
+      inspecting the debrief. git rev-parse supplied the exact 40-character SHA; the candidate was
+      corrected and no graph or implementation artifact changed.
+  - kind: choice
+    at: "2026-09-25T01:22:00Z"
+    chose: >-
+      Narrowed the screen-capture discovery citation to the exact function-signature line rather
+      than quoting the path construction line with nested string literals.
+    because: >-
+      Candidate preview requires one separate exact quotation for a rooted discovery, and the
+      signature establishes the screen-path seam without ambiguous nested quotation marks.
+  - kind: choice
+    at: "2026-09-25T01:24:00Z"
+    chose: >-
+      Kept the final debrief itself out of the source-range hunk manifest and rooted the retained
+      planning-artifact decision in notes.yaml.
+    because: >-
+      The candidate's source range ends at the graph commit before the debrief is filed, so the
+      debrief cannot truthfully root its own future hunk; the debrief remains the final artifact
+      and its existence is covered by the validation gate.
