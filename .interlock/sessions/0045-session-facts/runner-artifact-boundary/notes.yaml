@@ -33,3 +33,11 @@ entries:
     at: "2026-09-25T06:19:00Z"
     expected: "The first full typecheck would accept the new judge regression imports."
     observed: "Strict unused-local checking rejected two unused test imports; removing them leaves the implementation and test seam unchanged."
+  - kind: surprise
+    at: "2026-09-25T06:22:00Z"
+    expected: "The full workspace test gate would run all package tests to completion."
+    observed: "The substrate HTTP-server tests failed in this sandbox because listening on 127.0.0.1 is denied with EPERM; 24 failures were server-bind timeouts/errors, not failures in the runner boundary tests."
+  - kind: choice
+    at: "2026-09-25T06:22:00Z"
+    chose: "Retain the full-test result as an environment-blocked receipt and continue with runner-scoped and exact artifact-boundary proof."
+    because: "The failure occurs before the affected runner behavior and cannot be repaired within this node without changing sandbox authority or unrelated substrate tests; the focused runner gates remain executable."
