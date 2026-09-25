@@ -1,0 +1,125 @@
+interlock: notes@v0
+node: claude-session-reader
+entries:
+  - kind: choice
+    at: "2026-09-25T07:05:00-03:00"
+    chose: >-
+      Confirmed the Claude Code session record on this machine before writing any
+      parser, using two independent sources: `herdr agent list`/`herdr pane get`
+      against this session's own live pane, and a direct read of the transcript
+      file that pane's session id names.
+    because: >-
+      The acceptance refuses a guessed parser; it requires the record confirmed
+      on this machine first, with the confirmation itself part of the node's
+      proof.
+  - kind: surprise
+    at: "2026-09-25T07:06:00-03:00"
+    expected: >-
+      herdr's reported agent_session for a Claude pane would carry a record path
+      (kind "path"), matching the graph's own field evidence sentence about
+      Codex ("herdr already hands the runner each pane's agent_session id and
+      session path").
+    observed: >-
+      For this session's own pane (pane_id w1:pT, agent claude), both
+      `herdr agent list` and `herdr pane get w1:pT` report
+      agent_session: {"agent":"claude","kind":"id","source":"herdr:claude",
+      "value":"df307852-b139-4a42-b9a3-643ccb5e28a0"} — kind "id" only, no path
+      surfaces through the socket API today, even though
+      ~/.claude/hooks/herdr-agent-state.sh (integration v10) conditionally sends
+      agent_session_path in the same pane.report_agent_session call whenever
+      Claude Code's SessionStart hook payload carries a non-empty transcript_path.
+      AgentIdentity (packages/runner/src/runtime.ts:15-18) only has an optional
+      sessionPath, so on this machine a Claude reader driven purely by what
+      herdr exposes today would always see sessionPath undefined. Resolving that
+      gap (getting herdr to expose the path, or wiring the runner to derive it)
+      is not in this node's acceptance — it names only session-facts-seam as a
+      dependency and does not mention extending the herdr adapter boundary the
+      way codex-session-reader's acceptance does. Recorded as an evidence gap for
+      whichever node wires AgentIdentity.sessionPath for the runner (candidates:
+      prompt-delivery-facts, session-facts-position); this node's reader itself
+      is defined purely in terms of AgentIdentity.sessionPath, so it will work
+      once that gap is closed.
+  - kind: choice
+    at: "2026-09-25T07:07:30-03:00"
+    chose: >-
+      Independently verified the record the same pane's session id names,
+      directly on disk, rather than treating the missing herdr path as a dead
+      end.
+    because: >-
+      "Confirm before you parse" names two acceptable paths: start a fresh
+      unattended session, or read herdr's own record of an existing Claude pane
+      and resolve its agent_session to a file. This session's own pane is an
+      existing, currently-live Claude pane herdr already reports; resolving its
+      session id to a file confirms the same thing a fresh unattended run would,
+      without spending a second session.
+  - kind: surprise
+    at: "2026-09-25T07:08:00-03:00"
+    expected: >-
+      Claude Code transcripts live at
+      ~/.claude/projects/<escaped cwd>/<session id>.jsonl, per the brief's
+      candidate.
+    observed: >-
+      Confirmed exactly: `ls ~/.claude/projects/` contains a directory named
+      -Users-rodrigosasaki-dev-private-interlock--worktrees-plan-0045-session-facts--worktrees-claude-session-reader
+      (this worktree's absolute cwd with "/" replaced by "-"), holding exactly
+      one file, df307852-b139-4a42-b9a3-643ccb5e28a0.jsonl, named for this pane's
+      own session id. This confirms the record resolves, but the reader itself
+      never derives this path — it only ever reads identity.sessionPath, which
+      is the honest boundary given the herdr gap above; deriving a path from cwd
+      inside the adapter would be exactly the guess the acceptance forbids.
+  - kind: surprise
+    at: "2026-09-25T07:09:30-03:00"
+    expected: >-
+      Per-line shape close to the brief's candidate: JSONL, assistant turns
+      carrying usage with input_tokens, cache_read_input_tokens,
+      cache_creation_input_tokens, output_tokens, and no rate-limit/quota field.
+    observed: >-
+      Confirmed against the live transcript (193 lines, this session). Every
+      "assistant" record's message.usage carries input_tokens,
+      cache_creation_input_tokens, cache_read_input_tokens, output_tokens
+      exactly as named, plus fields the brief did not mention:
+      output_tokens_details.thinking_tokens, a nested "iterations" array
+      duplicating the per-call counters, cache_creation as a sub-object of
+      ephemeral_1h/5m breakdowns, service_tier, inference_geo, speed and
+      server_tool_use counts. Grepped the full file for rate_limit|quota|
+      remaining|reset_at: every hit is this node's own pasted brief text or tool
+      output being echoed back into the transcript, not a genuine Claude Code
+      field — confirming the brief's "no rate-limit or quota field" for real.
+      The reader keeps only the four named counters plus thinking_tokens (the
+      nearest concept to Codex's reasoning tokens) in raw and the typed
+      convenience fields; the extra nested/duplicate fields it does not
+      recognize are left unread rather than guessed at, and quota is always
+      unknown for this vendor as observed.
+  - kind: surprise
+    at: "2026-09-25T07:10:30-03:00"
+    expected: >-
+      Distinguishing the genuine opening prompt from a later user turn would
+      need a heuristic (first line, or first non-empty content).
+    observed: >-
+      The live transcript's first "type":"user" record has parentUuid: null and
+      isSidechain: false, with message.content as a plain string; every later
+      "type":"user" record (tool-result continuations) has a non-null parentUuid
+      and message.content as an array of tool_result blocks. parentUuid === null
+      && isSidechain === false && message.role === "user" is an exact,
+      non-heuristic discriminator confirmed against the real record, not a
+      guess.
+  - kind: choice
+    at: "2026-09-25T07:12:00-03:00"
+    chose: >-
+      Did not leave this node held. Implemented the reader behind the seam,
+      gated strictly on identity.sessionPath: unknown facts when sessionPath is
+      absent, unreadable, or the file parses to no usable records; known facts
+      built only from records recognized in the confirmed shape.
+    because: >-
+      The acceptance's hold applies "if the herdr agent_session identity does
+      not resolve to a readable record" — but a readable, current-format record
+      was directly confirmed on this machine (the live transcript above), which
+      is the thing the acceptance asks to confirm before writing a parser. The
+      separate fact that herdr does not yet hand this reader a sessionPath is a
+      wiring gap in a sibling/later node, not a reason this node's own reader
+      cannot be implemented and proven against a confirmed record; the reader
+      only ever trusts identity.sessionPath and degrades to unknown otherwise,
+      so it does not guess when that gap is unresolved. Fixtures are
+      synthetic reconstructions of the confirmed shape with none of this
+      session's real prompt or repository content, per the brief's fixture
+      rule.
