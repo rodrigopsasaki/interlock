@@ -10,6 +10,7 @@ import {
   gate,
   type Ledger,
   note,
+  type SessionFacts,
   sessionRuntime,
 } from "ledger";
 import { afterEach, describe, expect, it } from "vitest";
@@ -83,6 +84,17 @@ const v2Debrief: Debrief = {
   open: [],
 };
 
+const knownFacts: SessionFacts = {
+  promptReceived: { state: "known", value: "yes" },
+  lastActivity: { state: "known", value: "2026-09-25T00:00:00Z" },
+  usage: {
+    state: "known",
+    value: { raw: { input: 10, cachedInput: 8, output: 2, reasoning: 1 } },
+  },
+  quota: { state: "known", value: { window: "10080 minutes", usedPercentage: 97.7 } },
+  deliveryBasis: "record",
+};
+
 describe("interlock session show", () => {
   it("prints a sentence, exit 0, when no session is recorded for the node", async () => {
     const cwd = fixture();
@@ -140,6 +152,7 @@ describe("interlock session show", () => {
       at: 10,
       line: "leased a",
     });
+    ledger.append({ kind: "session-facts-observed", session: "s1", facts: knownFacts });
     ledger.append({
       kind: "debrief-filed",
       session: "s1",
@@ -158,6 +171,19 @@ describe("interlock session show", () => {
     expect(result.message).toContain("acceptance: the thing this node must do");
     expect(result.message).toContain("typecheck: satisfied (receipt r1)");
     expect(result.message).toContain("runtime: luna (claude, claude-opus-5-5)");
+    expect(result.message).toContain("Prompt received: yes");
+    expect(result.message).toContain("Last activity: 2026-09-25T00:00:00Z");
+    expect(result.message).toContain("Usage: input=10, cachedInput=8, output=2, reasoning=1");
+    expect(result.message).toContain("Quota: window=10080 minutes, used=97.7%");
+    expect(result.message).toContain("Delivery basis: record");
+    expect(result.message.indexOf("Prompt received: yes")).toBeLessThan(
+      result.message.indexOf("Last activity:"),
+    );
+    expect(result.message.indexOf("Last activity:")).toBeLessThan(result.message.indexOf("Usage:"));
+    expect(result.message.indexOf("Usage:")).toBeLessThan(result.message.indexOf("Quota:"));
+    expect(result.message.indexOf("Quota:")).toBeLessThan(
+      result.message.indexOf("Delivery basis:"),
+    );
     expect(result.message).toContain("derivation: runtime claude-code, model claude-sonnet-5");
     expect(result.message).toContain("d1: found a thing");
     expect(result.message).toContain("c1: some/path.ts:1-2");

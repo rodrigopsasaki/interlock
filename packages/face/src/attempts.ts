@@ -3,6 +3,7 @@ import {
   leaseIsLive,
   nodeKey,
   type Outcome,
+  type SessionFacts,
   type SessionRuntime,
 } from "ledger";
 import type { AgentStatus } from "./agentStatus.ts";
@@ -11,6 +12,7 @@ import { type LeaseState, leaseStateOf } from "./leaseState.ts";
 export interface PositionAttempt {
   readonly session: string;
   readonly runtime: SessionRuntime;
+  readonly facts: SessionFacts;
   readonly outcome?: Outcome;
   readonly leaseState: LeaseState;
   readonly agentStatus?: AgentStatus;
@@ -38,6 +40,7 @@ export function attemptsFor(
     attempts.push({
       session: session.session,
       runtime: session.runtime,
+      facts: session.facts,
       ...(ownOutcome === undefined ? {} : { outcome: ownOutcome }),
       leaseState: leaseStateOf(session, nowWallMs),
       ...(agentStatus === undefined ? {} : { agentStatus }),

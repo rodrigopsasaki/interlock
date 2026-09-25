@@ -17,3 +17,11 @@ entries:
     at: "2026-09-25T07:24:28Z"
     expected: "The existing position@v1 output schema would already describe the newly required session facts."
     observed: "position@v1 currently permits no facts field on attempts, so the additive output contract must be updated alongside the producer and its corpus tests."
+  - kind: surprise
+    at: "2026-09-25T07:28:34Z"
+    expected: "The focused source and fixture edits would pass the repository formatter immediately."
+    observed: "Biome required import/export ordering and two line-wrap fixes in the touched face and CLI tests; the command also warned that the machine is running Node 26.9.0 while .node-version requests 24.14.0."
+  - kind: choice
+    at: "2026-09-25T07:28:34Z"
+    chose: "Apply only Biome's safe formatting and import-order fixes, while retaining the repository's pinned Node requirement as a reported environment warning."
+    because: "The lint findings are mechanical and local to touched files; changing runtime configuration would exceed the node's acceptance and could hide the distinction between source proof and environment setup."

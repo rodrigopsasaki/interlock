@@ -1,4 +1,13 @@
-import { duration, fold, heldOn, type LedgerEvent, outcome, sessionRuntime } from "ledger";
+import {
+  duration,
+  fold,
+  heldOn,
+  type LedgerEvent,
+  outcome,
+  type SessionFacts,
+  sessionFacts,
+  sessionRuntime,
+} from "ledger";
 import { describe, expect, it } from "vitest";
 import type { GraphDocument } from "../src/document.ts";
 import { positionOf } from "../src/position.ts";
@@ -153,5 +162,68 @@ describe("renderPosition", () => {
     ];
     const text = renderPosition(positionOf(document, fold(events), "hash", Date.now()));
     expect(text).toContain("  runtime: luna (codex, model undeclared)");
+  });
+
+  it("renders the latest observed facts with exact labels and raw counters", () => {
+    const facts: SessionFacts = {
+      ...sessionFacts.unknown(),
+      promptReceived: { state: "known", value: "yes" },
+      lastActivity: { state: "known", value: "2026-09-25T00:00:00Z" },
+      usage: {
+        state: "known",
+        value: { raw: { input: 10, cachedInput: 8, output: 2, reasoning: 1 } },
+      },
+      quota: { state: "known", value: { window: "10080 minutes", usedPercentage: 97.7 } },
+      deliveryBasis: "record",
+    };
+    const events: readonly LedgerEvent[] = [
+      {
+        kind: "session-started",
+        session: {
+          id: "session-1",
+          node: { graph: "demo", id: "a" },
+          runtime: sessionRuntime.declared("luna", "codex", "gpt-5.6-luna"),
+        },
+        brief: brief("a"),
+      },
+      { kind: "session-facts-observed", session: "session-1", facts },
+    ];
+    const text = renderPosition(positionOf(document, fold(events), "hash", Date.now()));
+
+    expect(text).toContain("  Prompt received: yes");
+    expect(text).toContain("  Last activity: 2026-09-25T00:00:00Z");
+    expect(text).toContain("  Usage: input=10, cachedInput=8, output=2, reasoning=1");
+    expect(text).toContain("  Quota: window=10080 minutes, used=97.7%");
+    expect(text).toContain("  Delivery basis: record");
+    expect(text.indexOf("Prompt received: yes")).toBeLessThan(text.indexOf("Last activity:"));
+    expect(text.indexOf("Last activity:")).toBeLessThan(text.indexOf("Usage:"));
+    expect(text.indexOf("Usage:")).toBeLessThan(text.indexOf("Quota:"));
+    expect(text.indexOf("Quota:")).toBeLessThan(text.indexOf("Delivery basis:"));
+  });
+
+  it("renders historical sessions and empty usage without inventing facts", () => {
+    const facts: SessionFacts = {
+      ...sessionFacts.unknown(),
+      usage: { state: "known", value: { raw: {} } },
+    };
+    const events: readonly LedgerEvent[] = [
+      {
+        kind: "session-started",
+        session: {
+          id: "session-1",
+          node: { graph: "demo", id: "a" },
+          runtime: sessionRuntime.unknown(),
+        },
+        brief: brief("a"),
+      },
+      { kind: "session-facts-observed", session: "session-1", facts },
+    ];
+    const text = renderPosition(positionOf(document, fold(events), "hash", Date.now()));
+
+    expect(text).toContain("  Prompt received: unknown");
+    expect(text).toContain("  Last activity: unknown");
+    expect(text).toContain("  Usage: (empty)");
+    expect(text).toContain("  Quota: unknown");
+    expect(text).toContain("  Delivery basis: status");
   });
 });
