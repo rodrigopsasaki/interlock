@@ -1,0 +1,11 @@
+interlock: notes@v0
+node: session-facts-position
+entries:
+  - kind: surprise
+    at: "2026-09-25T07:22:23Z"
+    expected: "The session directory would already contain notes.yaml."
+    observed: "The canonical brief was present but notes.yaml was absent, so this entry establishes the first session receipt."
+  - kind: choice
+    at: "2026-09-25T07:22:23Z"
+    chose: "Treat the inherited session-facts contract, Codex reader, and Claude reader artifacts as checked context and trace the remaining projection seams before editing."
+    because: "The acceptance is additive and requires replay, latest-observation selection, position, session inspection, and substrate-none behavior while preserving the existing reader boundaries and historical artifacts."
