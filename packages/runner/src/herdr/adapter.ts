@@ -452,6 +452,14 @@ export async function createHerdrRuntime(
       return isErr(sent) ? sent : ok(undefined);
     },
 
+    async sendPaneKeys(pane: Pane, keys: readonly string[]) {
+      const sent = await call("pane.send_keys", {
+        pane_id: pane.id,
+        keys,
+      });
+      return isErr(sent) ? sent : ok(undefined);
+    },
+
     async closePane(pane: Pane) {
       const closed = await call("pane.close", { pane_id: pane.id });
       if (isErr(closed)) return closed;

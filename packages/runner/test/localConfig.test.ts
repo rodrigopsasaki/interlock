@@ -269,6 +269,198 @@ describe("loadLocalConfig runtime.prompt_taken_timeout_ms", () => {
   });
 });
 
+describe("loadLocalConfig runtime.ready_settle_ms", () => {
+  it("defaults to 0 when the field is absent", async () => {
+    const repoRoot = fixtureRepo(baseFields.join("\n"));
+
+    const result = await loadLocalConfig(repoRoot);
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) expect(result.value.runtime.readySettleMs).toBe(0);
+  });
+
+  it("parses an explicit value", async () => {
+    const yaml = [
+      "interlock: local@v0",
+      "runtime:",
+      "  kind: claude",
+      "  args: []",
+      "  ready_settle_ms: 3000",
+      "worktree_root: .worktrees",
+      "lease_ms: 900000",
+      "run_timeout_ms: 3600000",
+      "substrate:",
+      "  address: none",
+      "",
+    ].join("\n");
+    const repoRoot = fixtureRepo(yaml);
+
+    const result = await loadLocalConfig(repoRoot);
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) expect(result.value.runtime.readySettleMs).toBe(3_000);
+  });
+
+  it("refuses with a sentence error naming the field when it is not a non-negative integer", async () => {
+    const yaml = [
+      "interlock: local@v0",
+      "runtime:",
+      "  kind: claude",
+      "  args: []",
+      "  ready_settle_ms: soon",
+      "worktree_root: .worktrees",
+      "lease_ms: 900000",
+      "run_timeout_ms: 3600000",
+      "substrate:",
+      "  address: none",
+      "",
+    ].join("\n");
+    const repoRoot = fixtureRepo(yaml);
+
+    const result = await loadLocalConfig(repoRoot);
+
+    expect(isErr(result)).toBe(true);
+    if (isErr(result) && result.error.kind === "malformed") {
+      expect(result.error.reason).toContain('"runtime.ready_settle_ms"');
+    }
+  });
+
+  it("refuses a negative value", async () => {
+    const yaml = [
+      "interlock: local@v0",
+      "runtime:",
+      "  kind: claude",
+      "  args: []",
+      "  ready_settle_ms: -1",
+      "worktree_root: .worktrees",
+      "lease_ms: 900000",
+      "run_timeout_ms: 3600000",
+      "substrate:",
+      "  address: none",
+      "",
+    ].join("\n");
+    const repoRoot = fixtureRepo(yaml);
+
+    const result = await loadLocalConfig(repoRoot);
+
+    expect(isErr(result)).toBe(true);
+    if (isErr(result) && result.error.kind === "malformed") {
+      expect(result.error.reason).toContain(
+        '"runtime.ready_settle_ms" must be a non-negative integer',
+      );
+    }
+  });
+
+  it("refuses a non-integer value", async () => {
+    const yaml = [
+      "interlock: local@v0",
+      "runtime:",
+      "  kind: claude",
+      "  args: []",
+      "  ready_settle_ms: 1.5",
+      "worktree_root: .worktrees",
+      "lease_ms: 900000",
+      "run_timeout_ms: 3600000",
+      "substrate:",
+      "  address: none",
+      "",
+    ].join("\n");
+    const repoRoot = fixtureRepo(yaml);
+
+    const result = await loadLocalConfig(repoRoot);
+
+    expect(isErr(result)).toBe(true);
+    if (isErr(result) && result.error.kind === "malformed") {
+      expect(result.error.reason).toContain(
+        '"runtime.ready_settle_ms" must be a non-negative integer',
+      );
+    }
+  });
+});
+
+describe("loadLocalConfig runtime.prompt_retries", () => {
+  it("defaults to 2 when the field is absent", async () => {
+    const repoRoot = fixtureRepo(baseFields.join("\n"));
+
+    const result = await loadLocalConfig(repoRoot);
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) expect(result.value.runtime.promptRetries).toBe(2);
+  });
+
+  it("parses an explicit value, including 0", async () => {
+    const yaml = [
+      "interlock: local@v0",
+      "runtime:",
+      "  kind: claude",
+      "  args: []",
+      "  prompt_retries: 0",
+      "worktree_root: .worktrees",
+      "lease_ms: 900000",
+      "run_timeout_ms: 3600000",
+      "substrate:",
+      "  address: none",
+      "",
+    ].join("\n");
+    const repoRoot = fixtureRepo(yaml);
+
+    const result = await loadLocalConfig(repoRoot);
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) expect(result.value.runtime.promptRetries).toBe(0);
+  });
+
+  it("refuses with a sentence error naming the field when it is not a non-negative integer", async () => {
+    const yaml = [
+      "interlock: local@v0",
+      "runtime:",
+      "  kind: claude",
+      "  args: []",
+      "  prompt_retries: soon",
+      "worktree_root: .worktrees",
+      "lease_ms: 900000",
+      "run_timeout_ms: 3600000",
+      "substrate:",
+      "  address: none",
+      "",
+    ].join("\n");
+    const repoRoot = fixtureRepo(yaml);
+
+    const result = await loadLocalConfig(repoRoot);
+
+    expect(isErr(result)).toBe(true);
+    if (isErr(result) && result.error.kind === "malformed") {
+      expect(result.error.reason).toContain('"runtime.prompt_retries"');
+    }
+  });
+
+  it("refuses a negative value", async () => {
+    const yaml = [
+      "interlock: local@v0",
+      "runtime:",
+      "  kind: claude",
+      "  args: []",
+      "  prompt_retries: -1",
+      "worktree_root: .worktrees",
+      "lease_ms: 900000",
+      "run_timeout_ms: 3600000",
+      "substrate:",
+      "  address: none",
+      "",
+    ].join("\n");
+    const repoRoot = fixtureRepo(yaml);
+
+    const result = await loadLocalConfig(repoRoot);
+
+    expect(isErr(result)).toBe(true);
+    if (isErr(result) && result.error.kind === "malformed") {
+      expect(result.error.reason).toContain(
+        '"runtime.prompt_retries" must be a non-negative integer',
+      );
+    }
+  });
+});
+
 describe("loadLocalConfig answer_grace_ms", () => {
   it("defaults to 300000 when the field is absent", async () => {
     const repoRoot = fixtureRepo(baseFields.join("\n"));

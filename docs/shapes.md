@@ -969,7 +969,7 @@ No vocabulary entry for `local`.
 | field | type | required | description |
 | --- | --- | --- | --- |
 | `interlock` | the literal `"local@v0"` | yes |  |
-| `runtime` | object | yes | fields: kind (string, required); args (array of string, optional); startup_answers (array of startup-answer, optional); startup_timeout_ms (number, optional); prompt_taken_timeout_ms (number, optional) |
+| `runtime` | object | yes | fields: kind (string, required); args (array of string, optional); startup_answers (array of startup-answer, optional); startup_timeout_ms (number, optional); prompt_taken_timeout_ms (number, optional); ready_settle_ms (number, optional); prompt_retries (number, optional) |
 | `default_runtime` | string | no |  |
 | `worktree_root` | string | yes |  |
 | `worktree_setup` | array of string | no |  |
@@ -1005,6 +1005,10 @@ runtime:
   # Optional. How long the runner waits, after sending the opening prompt, for the agent to
   # move off idle before the long wait judges it. Defaults to 20000.
   # prompt_taken_timeout_ms: 20000
+  # Optional. How long the runner waits after the agent looks ready before sending the opening prompt. Defaults to 0.
+  # ready_settle_ms: 0
+  # Optional. How many extra delivery attempts the runner makes when the opening prompt is never taken. Defaults to 2.
+  # prompt_retries: 2
 
 # The catalogue is per machine and lives outside the repository. This repository starts sonnet
 # by default; "default" remains available for the legacy runtime: block above.
@@ -1134,6 +1138,10 @@ Source: `runtimes.example.yaml`
 # The per-machine runtime catalogue. Copy this file to $XDG_CONFIG_HOME/interlock/runtimes.yaml
 # (default ~/.config/interlock/runtimes.yaml; INTERLOCK_RUNTIMES overrides the path) and fill it
 # in; the real file is never committed, so these values never leave this machine.
+#
+# Optional per entry: prompt_taken_timeout_ms, ms to wait after the opening prompt for the agent to move off idle; default 20000.
+# Optional per entry: ready_settle_ms, ms to wait once the agent looks ready before the opening prompt; default 0.
+# Optional per entry: prompt_retries, delivery attempts beyond the first when the opening prompt is never taken; default 2.
 
 interlock: runtimes@v0
 

@@ -37,6 +37,18 @@
           "startup_timeout_ms": {
             "type": "integer",
             "minimum": 1
+          },
+          "prompt_taken_timeout_ms": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "ready_settle_ms": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "prompt_retries": {
+            "type": "integer",
+            "minimum": 0
           }
         },
         "required": [

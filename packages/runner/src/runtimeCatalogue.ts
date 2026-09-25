@@ -4,9 +4,15 @@ import { join } from "node:path";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import { parse as parseYaml, YAMLParseError } from "yaml";
 import { AGENT_NAME_SHAPE_DESCRIPTION, isCompliantAgentName } from "./agentName.ts";
-import { DEFAULT_STARTUP_TIMEOUT_MS, type LocalConfig } from "./localConfig.ts";
+import {
+  DEFAULT_PROMPT_RETRIES,
+  DEFAULT_PROMPT_TAKEN_TIMEOUT_MS,
+  DEFAULT_READY_SETTLE_MS,
+  DEFAULT_STARTUP_TIMEOUT_MS,
+  type LocalConfig,
+} from "./localConfig.ts";
 import { parseStartupAnswers, type StartupAnswer } from "./startupAnswers.ts";
-import { isRecord, isString, isStringArray, prop } from "./validate.ts";
+import { isNonNegativeInteger, isRecord, isString, isStringArray, prop } from "./validate.ts";
 
 export const RUNTIME_CATALOGUE_SHAPE = "runtimes@v0";
 
@@ -18,6 +24,9 @@ export interface CatalogueRuntime {
   readonly model: string;
   readonly startupAnswers: readonly StartupAnswer[];
   readonly startupTimeoutMs: number;
+  readonly promptTakenTimeoutMs: number | undefined;
+  readonly readySettleMs: number;
+  readonly promptRetries: number;
 }
 
 export type RuntimeCatalogueRefusal =
@@ -58,6 +67,9 @@ const KNOWN_ENTRY_KEYS: ReadonlySet<string> = new Set([
   "model",
   "startup_answers",
   "startup_timeout_ms",
+  "prompt_taken_timeout_ms",
+  "ready_settle_ms",
+  "prompt_retries",
 ]);
 
 function isPositiveInteger(value: unknown): value is number {
@@ -130,12 +142,42 @@ function parseEntry(
     });
   }
 
+  const promptTakenTimeoutMsField = prop(value, "prompt_taken_timeout_ms");
+  if (promptTakenTimeoutMsField !== undefined && !isPositiveInteger(promptTakenTimeoutMsField)) {
+    return err({
+      kind: "malformed",
+      path,
+      reason: `"runtimes.${name}.prompt_taken_timeout_ms" must be a positive integer`,
+    });
+  }
+
+  const readySettleMsField = prop(value, "ready_settle_ms");
+  if (readySettleMsField !== undefined && !isNonNegativeInteger(readySettleMsField)) {
+    return err({
+      kind: "malformed",
+      path,
+      reason: `"runtimes.${name}.ready_settle_ms" must be a non-negative integer`,
+    });
+  }
+
+  const promptRetriesField = prop(value, "prompt_retries");
+  if (promptRetriesField !== undefined && !isNonNegativeInteger(promptRetriesField)) {
+    return err({
+      kind: "malformed",
+      path,
+      reason: `"runtimes.${name}.prompt_retries" must be a non-negative integer`,
+    });
+  }
+
   return ok({
     kind,
     args: args ?? [],
     model,
     startupAnswers: startupAnswers.value,
     startupTimeoutMs: startupTimeoutMsField ?? DEFAULT_STARTUP_TIMEOUT_MS,
+    promptTakenTimeoutMs: promptTakenTimeoutMsField,
+    readySettleMs: readySettleMsField ?? DEFAULT_READY_SETTLE_MS,
+    promptRetries: promptRetriesField ?? DEFAULT_PROMPT_RETRIES,
   });
 }
 
@@ -219,6 +261,9 @@ export interface ResolvedRuntime {
   readonly model: string | undefined;
   readonly startupAnswers: readonly StartupAnswer[];
   readonly startupTimeoutMs: number;
+  readonly promptTakenTimeoutMs: number;
+  readonly readySettleMs: number;
+  readonly promptRetries: number;
   readonly source: "catalogue" | "local.yaml";
 }
 
@@ -259,6 +304,12 @@ export function mergeRuntimes(
       model: entry.model,
       startupAnswers: entry.startupAnswers,
       startupTimeoutMs: entry.startupTimeoutMs,
+      promptTakenTimeoutMs:
+        entry.promptTakenTimeoutMs ??
+        local?.runtime.promptTakenTimeoutMs ??
+        DEFAULT_PROMPT_TAKEN_TIMEOUT_MS,
+      readySettleMs: entry.readySettleMs,
+      promptRetries: entry.promptRetries,
       source: "catalogue",
     });
   }
@@ -274,6 +325,9 @@ export function mergeRuntimes(
       model: undefined,
       startupAnswers: local.runtime.startupAnswers,
       startupTimeoutMs: local.runtime.startupTimeoutMs,
+      promptTakenTimeoutMs: local.runtime.promptTakenTimeoutMs,
+      readySettleMs: local.runtime.readySettleMs,
+      promptRetries: local.runtime.promptRetries,
       source: "local.yaml",
     });
   }
