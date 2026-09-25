@@ -1,0 +1,36 @@
+interlock: notes@v0
+node: dogfood-claude-facts
+entries:
+  - kind: choice
+    at: "2026-09-25T10:34:15-03:00"
+    chose: >-
+      Recording receipt of this node's brief: runtime claude, model sonnet (as
+      identified by the harness's own runtime dispatch and this session's
+      system context, which names the model "Sonnet 5" / model id
+      "claude-sonnet-5"), as instructed by the brief's opening line ("You are
+      running as claude (sonnet), started unattended by the runner").
+    because: >-
+      The brief's first instruction is to append a note recording that the
+      brief was received and this session's runtime and model as known to it,
+      before doing anything else.
+  - kind: surprise
+    at: "2026-09-25T10:34:26-03:00"
+    expected: >-
+      Per the brief, `pnpm interlock session show 0045-session-facts
+      dogfood-claude-facts` may still read Usage and Quota as unknown while
+      this turn is in progress, since no assistant record with a usage block
+      exists yet in this session's own transcript at the moment it is checked
+      partway through the turn.
+    observed: >-
+      Ran `pnpm interlock session show 0045-session-facts dogfood-claude-facts`
+      at 2026-09-25T10:34:26-03:00 (turn still in progress). Facts block read:
+      "Prompt received: yes", "Last activity: 2026-09-25T13:33:46.532Z",
+      "Usage: unknown", "Quota: unknown", "Delivery basis: record". Prompt
+      received and last activity are populated as the acceptance requires;
+      Usage and Quota read unknown, which is the brief's flagged possibility
+      for a turn still in progress, not a contradiction — recorded as observed
+      rather than guessed at. Delivery basis reads "record", matching the
+      acceptance's own claim that the session record (not the pane or a status
+      heuristic) is the proof of prompt delivery; this is the acceptance
+      holding, not the "Delivery basis: status" contradiction the brief named
+      as the surprise to watch for.
