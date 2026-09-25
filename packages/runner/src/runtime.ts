@@ -1,4 +1,5 @@
 import type { Result } from "@phyxiusjs/fp";
+import type { SessionFacts } from "ledger";
 
 export type AgentStatus = "idle" | "working" | "blocked" | "done" | "unknown";
 
@@ -14,6 +15,10 @@ export interface Agent {
 export interface AgentIdentity {
   readonly sessionId: string;
   readonly sessionPath?: string;
+}
+
+export interface SessionFactsReader {
+  read(identity: AgentIdentity): Promise<SessionFacts>;
 }
 
 export interface AgentIdentityQuery {
@@ -57,6 +62,7 @@ export function explainRuntimeRefusal(refusal: RuntimeRefusal): string {
 }
 
 export interface Runtime {
+  readonly sessionFactsReader?: SessionFactsReader;
   openPane(cwd: string): Promise<Result<Pane, RuntimeRefusal>>;
   startAgent(
     pane: Pane,

@@ -1,0 +1,110 @@
+interlock: debrief@v2
+graph: 0045-session-facts
+node: session-facts-seam
+role: worker
+graph_base_sha: 028156b25dac7df5fc6969489c30d1e8365211a8
+session_start_sha: 145de112b8cf3a8bf8baddc4ca42b81806a05fd6
+head_sha: f98a7afbfd390c7f3e1e7dcbb02a4d90e309c357
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-luna
+discoveries: []
+decisions:
+  - id: stateful-session-facts
+    what: >-
+      Revised session-facts@v0 so every observation is an explicit known-or-unknown
+      state object, with named optional input, output, cachedInput, and reasoning
+      counters beside a required raw counter map.
+    because: >-
+      SessionFact<string> previously collapsed to string, making unknown
+      indistinguishable from a value; stable counters give later consumers a
+      vendor-neutral view while raw preserves counters not shared by every vendor.
+    rests_on:
+      - .interlock/graphs/0045-session-facts.yaml
+      - packages/ledger/src/sessionFacts.ts
+      - schemas/session-facts@v0.json
+    hunks:
+      - 'packages/ledger/src/sessionFacts.ts:5-42'
+      - 'packages/ledger/src/sessionFacts.ts:67-158'
+      - 'schemas/session-facts@v0.json:1-132'
+      - 'schemas/parts/session-facts.json:1-132'
+    produces:
+      - packages/ledger/src/sessionFacts.ts
+      - packages/ledger/src/index.ts
+      - schemas/session-facts@v0.json
+      - schemas/parts/session-facts.json
+      - docs/shapes.md
+    applies_to: { kind: path, path: packages/ledger/src/sessionFacts.ts }
+  - id: delivery-basis-is-a-type-discriminant
+    what: >-
+      Made SessionFacts a delivery-basis union: record permits known yes or
+      unknown prompt evidence, while status permits only unknown; runtime guards,
+      JSON Schema conditionals, and negative type tests enforce the same rule.
+    because: >-
+      A status transition or successful prompt RPC cannot establish receipt of the
+      opening prompt for a runtime with a reader; only the runtime record can do so.
+      The union prevents both the type layer and event@v7 from representing that
+      inferred state.
+    rests_on:
+      - .interlock/graphs/0045-session-facts.yaml
+      - packages/ledger/src/sessionFacts.ts
+      - packages/ledger/test/sessionFacts.test.ts
+      - schemas/parts/session-facts.json
+    hunks:
+      - 'packages/ledger/src/sessionFacts.ts:28-42'
+      - 'packages/ledger/src/sessionFacts.ts:146-158'
+      - 'packages/ledger/test/sessionFacts.test.ts:43-63'
+      - 'packages/schemas/test/corpus.guards.test.ts:379-394'
+    produces:
+      - packages/ledger/src/sessionFacts.ts
+      - packages/ledger/test/sessionFacts.test.ts
+      - packages/schemas/test/corpus.guards.test.ts
+      - schemas/parts/session-facts.json
+      - schemas/event@v7.json
+    applies_to: { kind: path, path: packages/ledger/src/sessionFacts.ts }
+gates_run_by_agent:
+  - id: facts-ledger-contract
+    result: pass
+    invocation: mise exec -- pnpm --filter ledger exec vitest run test/sessionFacts.test.ts test/replay.test.ts
+    note: 25 focused ledger and replay tests passed.
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: All 8 workspace packages typechecked successfully.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Biome checked all 355 repository files with no findings.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+    note: packages/*/src contains no comments.
+  - id: schema-contract
+    result: pass
+    invocation: mise exec -- pnpm --filter schemas exec vitest run test/corpus.guards.test.ts
+    note: 46 schema guard and event-contract tests passed.
+  - id: schema-reference
+    result: pass
+    invocation: mise exec -- pnpm interlock schema reference --check
+    note: docs/shapes.md was fresh; the repository reports its existing vocabulary gaps.
+  - id: test
+    result: fail
+    invocation: mise exec -- pnpm test
+    note: >-
+      Ledger, face, debrief, verifier, and non-network substrate tests passed;
+      24 substrate capability, context, and absorb tests failed because the
+      sandbox refused local TCP listeners with listen EPERM on 127.0.0.1.
+  - id: debrief-valid
+    result: pass
+    invocation: mise exec -- pnpm interlock debrief validate 0045-session-facts session-facts-seam
+    note: The filed debrief passed the declared debrief-valid gate.
+open:
+  - >-
+    gap: schema reference reports session-facts as an artifact term with no
+    AGENTS.md vocabulary row; the required shape name is retained and the
+    unmatched term remains telemetry rather than a new face word.
+  - >-
+    The full test gate remains environment-limited by the sandbox's refusal to
+    bind 127.0.0.1; rerun it in a network-capable environment before clearing
+    the node's test receipt.

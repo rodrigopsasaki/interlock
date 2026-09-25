@@ -1,0 +1,139 @@
+interlock: notes@v0
+node: session-facts-seam
+entries:
+  - kind: choice
+    at: "2026-09-25T00:00:00Z"
+    chose: >-
+      Represented every session fact as an explicit value-or-unknown field in one
+      vendor-neutral session-facts@v0 contract, including delivery basis for the
+      later prompt-delivery consumer.
+    because: >-
+      The acceptance requires each observation to remain individually honest and
+      names the exact later position labels; one typed contract keeps unknown
+      distinct from an absent field and avoids a vendor-shaped persistence path.
+  - kind: choice
+    at: "2026-09-25T00:01:00Z"
+    chose: >-
+      Planned an additive session-facts-observed journal event and a latest-facts
+      field on SessionView, with historical sessions initialized to unknown facts.
+    because: >-
+      The ledger is the Phyxius journal from day one and replay must retain every
+      prior event while giving pre-facts sessions a truthful unknown reading.
+  - kind: choice
+    at: "2026-09-25T00:02:00Z"
+    chose: >-
+      Advanced the persisted event envelope to event@v7 and added an event@v6
+      upcaster rather than widening event@v6 in place.
+    because: >-
+      event@v6's schema closes the event-kind vocabulary; a new observation kind
+      needs a new persisted shape while all older lines remain readable through
+      the existing versioned upcast table.
+  - kind: surprise
+    at: "2026-09-25T03:16:35-03:00"
+    expected: >-
+      The event@v6 upcaster could validate a historical session-started line
+      directly with the current event guard.
+    observed: >-
+      A historical session-started line without the later runtime field was
+      refused before its existing upcast could supply the explicit unknown
+      runtime. The v6 bridge now delegates session-started lines to the tolerant
+      upcastSessionStarted precedent, preserving unknown facts for that history.
+  - kind: surprise
+    at: "2026-09-25T03:17:36-03:00"
+    expected: >-
+      The new session-facts JSON Schema could use the standard date-time format
+      keyword like a normal JSON Schema artifact.
+    observed: >-
+      This repository's strict Ajv registry does not register format vocabularies,
+      so the new schema was refused during registry construction. The RFC3339
+      contract is now represented by the same explicit pattern the TypeScript
+      guard enforces, keeping schema and guard usable by the existing registry.
+  - kind: surprise
+    at: "2026-09-25T03:18:10-03:00"
+    expected: The first source commit would use the repository's configured signing key.
+    observed: >-
+      Git could not create GPG's temporary keybox file in the protected home
+      directory, so the signing attempt failed before writing a commit. The
+      source slice is otherwise staged unchanged and will be committed locally
+      with signing disabled; this is an environment boundary, not a source or
+      validation result.
+  - kind: choice
+    at: "2026-09-25T03:19:00-03:00"
+    chose: >-
+      Extended the schema-reference artifact tag reader to accept hyphenated
+      terms so session-facts@v0 is represented in the generated shape reference.
+    because: >-
+      The new contract's required shape name contains the closed-term separator
+      hyphen; leaving the existing reader's alphabetic-only pattern unchanged
+      would silently omit the contract from docs/shapes.md even though the schema
+      registry could validate it.
+  - kind: choice
+    at: "2026-09-25T03:20:00-03:00"
+    chose: >-
+      Made the adapter seam an optional SessionFactsReader on Runtime, whose
+      read method receives the existing AgentIdentity including its optional
+      runtime-owned session path and returns the vendor-neutral contract.
+    because: >-
+      A runtime with no confirmed reader must remain usable and yield unknown;
+      optional composition keeps that fallback in runtime-neutral core code while
+      each adapter owns its record path and parser.
+  - kind: surprise
+    at: "2026-09-25T03:26:00-03:00"
+    expected: The standing full test gate would complete in the current sandbox.
+    observed: >-
+      Ledger, debrief, face, verifier, and the non-network substrate suites passed,
+      but 24 existing substrate capability, context, and absorb tests timed out
+      after their local test servers failed with listen EPERM on 127.0.0.1. The
+      focused ledger and schema suites for this node passed; the failure is the
+      environment's network boundary and not a session-facts assertion.
+  - kind: choice
+    at: "2026-09-25T03:30:00-03:00"
+    chose: >-
+      Revised every persisted fact to an explicit state-tagged known-or-unknown
+      object, constrained prompt evidence so status delivery can only be unknown,
+      and represented usage with named optional counters plus a raw counter map.
+    because: >-
+      A literal string union collapses SessionFact<string> and cannot distinguish
+      unknown from a value at the type level; the delivery rule requires record
+      evidence for yes; and stable counters give later consumers a vendor-neutral
+      shape while raw preserves observations not yet shared by every vendor.
+  - kind: surprise
+    at: "2026-09-25T03:49:00-03:00"
+    expected: >-
+      The first delivery-basis guard would preserve both allowed record readings
+      while rejecting only known prompt evidence under status.
+    observed: >-
+      Its initial condition accidentally rejected record plus unknown as well as
+      the forbidden status plus known combination. The guard and positive test now
+      preserve record unknown, record yes, and status unknown exactly.
+  - kind: surprise
+    at: "2026-09-25T03:53:00-03:00"
+    expected: The mandated full workspace test would finish with every package green.
+    observed: >-
+      Ledger, face, debrief, verifier, and non-network substrate tests passed, but
+      24 substrate capability, context, and absorb tests failed because the sandbox
+      refused local TCP listeners with listen EPERM on 127.0.0.1. The session-facts
+      focused suites remained green; this is the same environment boundary recorded
+      earlier, confirmed after the contract revision.
+  - kind: choice
+    at: "2026-09-25T03:55:00-03:00"
+    chose: >-
+      Selected the debrief revise path for the fresh authored candidate because
+      this node already has a canonical debrief from its earlier implementation.
+    because: >-
+      Filing must never overwrite a debrief; revision preserves the prior authored
+      artifact while making the corrected contract and its new proof the current
+      debrief.
+  - kind: surprise
+    at: "2026-09-25T03:55:30-03:00"
+    expected: The first-filing command would accept the fresh candidate after source changes.
+    observed: >-
+      The existing canonical debrief caused the expected overwrite refusal with
+      EEXIST, confirming that this handoff must use the additive revise workflow.
+  - kind: surprise
+    at: "2026-09-25T03:56:00-03:00"
+    expected: The freshly prepared candidate would carry the current canonical session start.
+    observed: >-
+      Preparation used the amended brief commit, while the existing debrief is
+      rooted at the earlier session start. The candidate was aligned to the
+      canonical session start before revision so the prior provenance remains intact.
