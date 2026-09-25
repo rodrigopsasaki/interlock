@@ -25,3 +25,11 @@ entries:
     at: "2026-09-25T07:28:34Z"
     chose: "Apply only Biome's safe formatting and import-order fixes, while retaining the repository's pinned Node requirement as a reported environment warning."
     because: "The lint findings are mechanical and local to touched files; changing runtime configuration would exceed the node's acceptance and could hide the distinction between source proof and environment setup."
+  - kind: surprise
+    at: "2026-09-25T07:30:36Z"
+    expected: "The mandated full workspace test would complete with every package green after the focused facts-position proof passed."
+    observed: "Ledger, face, debrief, and verifier passed, but the recursive test stopped in substrate with 24 existing HTTP-fixture failures and unhandled listen EPERM errors on 127.0.0.1; the facts-position suites remained green."
+  - kind: choice
+    at: "2026-09-25T07:30:36Z"
+    chose: "Keep the source slice unchanged, attribute the full-test failure to the sandbox network boundary, and run the remaining non-substrate package suites independently."
+    because: "The failure occurs before the runner and CLI packages are reached and is identical to the inherited session-facts seam limitation; independent package receipts still distinguish source proof from the unavailable local TCP fixture capability."
