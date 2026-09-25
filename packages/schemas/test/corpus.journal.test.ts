@@ -9,7 +9,8 @@ const ledgerFixtures = join(import.meta.dirname, "..", "..", "ledger", "test", "
 const journals = [
   "journal-v1-approved.jsonl",
   "journal-v1-v2-2026-09-10.jsonl",
-  "journal-v3-v4-2026-09-11.jsonl",
+  "journal-v1-v3-2026-09-11.jsonl",
+  "journal-v5-run-with-runtime-2026-09-24.jsonl",
 ];
 
 describe("corpus: every line of the fixture journals validates against its event schema", () => {
@@ -39,8 +40,8 @@ describe("corpus: every line of the fixture journals validates against its event
     }
   }
 
-  it("counted at least one line for event@v1, event@v2 and event@v3", () => {
-    for (const tag of ["event@v1", "event@v2", "event@v3"]) {
+  it("counted at least one line for event@v1, event@v2, event@v3 and event@v5", () => {
+    for (const tag of ["event@v1", "event@v2", "event@v3", "event@v5"]) {
       expect(perTag.get(tag) ?? 0, `${tag} count`).toBeGreaterThan(0);
     }
   });

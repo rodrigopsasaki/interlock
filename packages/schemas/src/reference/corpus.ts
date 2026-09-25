@@ -55,7 +55,7 @@ export const referenceSources: readonly ReferenceSource[] = [
     tag: "event@v2",
   },
   {
-    sourcePath: "packages/ledger/test/fixtures/journal-v3-v4-2026-09-11.jsonl",
+    sourcePath: "packages/ledger/test/fixtures/journal-v1-v3-2026-09-11.jsonl",
     tag: "event@v3",
   },
   {
