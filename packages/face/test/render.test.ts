@@ -1,4 +1,4 @@
-import { duration, fold, heldOn, type LedgerEvent, outcome } from "ledger";
+import { duration, fold, heldOn, type LedgerEvent, outcome, sessionRuntime } from "ledger";
 import { describe, expect, it } from "vitest";
 import type { GraphDocument } from "../src/document.ts";
 import { positionOf } from "../src/position.ts";
@@ -12,6 +12,17 @@ const document: GraphDocument = {
     { id: "b", dependsOn: ["a"], gates: [] },
   ],
 };
+
+function brief(node: string) {
+  return {
+    graph: "demo",
+    node,
+    role: "worker",
+    acceptance: "x",
+    gates: [],
+    scope: [],
+  };
+}
 
 describe("renderPosition", () => {
   it("is a pure function of the position value: same input, same text", () => {
@@ -91,5 +102,56 @@ describe("renderPosition", () => {
     ];
     const measuredText = renderPosition(positionOf(solo, fold(events), "hash", Date.now()));
     expect(measuredText).toContain("float: 0ms");
+  });
+
+  it("renders a node's runtime line from its latest attempt, naming runtime, kind and model", () => {
+    const events: readonly LedgerEvent[] = [
+      {
+        kind: "session-started",
+        session: {
+          id: "session-1",
+          node: { graph: "demo", id: "a" },
+          runtime: sessionRuntime.declared("luna", "codex", "gpt-5.6-luna"),
+        },
+        brief: brief("a"),
+        graphBaseSha: "deadbeef",
+      },
+    ];
+    const text = renderPosition(positionOf(document, fold(events), "hash", Date.now()));
+    expect(text).toContain("  runtime: luna (codex, gpt-5.6-luna)");
+  });
+
+  it("degrades an unknown runtime on the runtime line to the bare word unknown", () => {
+    const events: readonly LedgerEvent[] = [
+      {
+        kind: "session-started",
+        session: {
+          id: "session-1",
+          node: { graph: "demo", id: "a" },
+          runtime: sessionRuntime.unknown(),
+        },
+        brief: brief("a"),
+        graphBaseSha: "deadbeef",
+      },
+    ];
+    const text = renderPosition(positionOf(document, fold(events), "hash", Date.now()));
+    expect(text).toContain("  runtime: unknown");
+  });
+
+  it("says model undeclared on the runtime line when the runtime declares no model", () => {
+    const events: readonly LedgerEvent[] = [
+      {
+        kind: "session-started",
+        session: {
+          id: "session-1",
+          node: { graph: "demo", id: "a" },
+          runtime: sessionRuntime.declared("luna", "codex", undefined),
+        },
+        brief: brief("a"),
+        graphBaseSha: "deadbeef",
+      },
+    ];
+    const text = renderPosition(positionOf(document, fold(events), "hash", Date.now()));
+    expect(text).toContain("  runtime: luna (codex, model undeclared)");
   });
 });

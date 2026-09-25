@@ -1,0 +1,45 @@
+interlock: notes@v0
+node: face-runtime-coverage
+entries:
+  - kind: choice
+    at: "2026-09-25T00:20:00Z"
+    chose: >-
+      Extended packages/face/test/render.test.ts with three tests that each fold a single
+      session-started event into a projection, run positionOf over the existing demo
+      document, and pin the indented runtime line with toContain: a declared runtime with a
+      model ("  runtime: luna (codex, gpt-5.6-luna)"), an unknown runtime
+      ("  runtime: unknown"), and a declared runtime with model undefined
+      ("  runtime: luna (codex, model undeclared)").
+    because: >-
+      The acceptance asks for the renderNodeRuntime branch of renderPosition to be pinned
+      per runtime case, and the existing render tests already assert with toContain on
+      rendered lines rather than whole-text equality, so the new tests extend that style
+      instead of pinning the entire frame, which would couple them to unrelated lines
+      (critical path, gates, floats).
+  - kind: choice
+    at: "2026-09-25T00:21:00Z"
+    chose: >-
+      Wrote packages/face/test/runtimeAttempts.test.ts against lastAttemptByRuntimeName
+      with projections built by fold over session-started and session-narrated events,
+      pinning the three acceptance points plus two clarifying pins: journal order decides
+      "latest" (the second session-started for a runtime name wins, shown by distinct
+      narration timestamps), and an attempt whose session was never narrated reports
+      startedAtWallMs undefined.
+    because: >-
+      lastAttemptByRuntimeName carries no clock; "the latest attempt per runtime wins" can
+      only mean the session-started that lands last in the journal, since projection.sessions
+      is a Map in insertion order and the function overwrites per runtime name. The
+      narration pin makes that reading observable, and the undefined-start pin keeps the
+      "time unknown" degradation the runtime list renders honest.
+  - kind: surprise
+    at: "2026-09-25T00:23:00Z"
+    expected: >-
+      Writing tests against renderNodeRuntime and lastAttemptByRuntimeName might expose a
+      defect in either, since neither branch had any direct coverage; the acceptance
+      anticipates this ("a test that exposes a defect is a discovery").
+    observed: >-
+      No defect surfaced. Both functions behaved exactly as their callers assume:
+      renderPosition emits the runtime line from the latest attempt for known, unknown and
+      model-less runtimes, and lastAttemptByRuntimeName skips unknown sessions, keeps one
+      entry per runtime name and degrades a missing narration to undefined. All twelve
+      focused tests passed on the first run without touching src.
