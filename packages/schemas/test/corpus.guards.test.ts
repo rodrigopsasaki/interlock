@@ -364,8 +364,9 @@ describe("corpus: the ledger's guards and this node's schemas agree", () => {
         session: "session-1",
         facts: {
           ...sessionFacts.unknown(),
-          promptReceived: "yes",
-          lastActivity: "2026-09-25T00:00:00Z",
+          promptReceived: { state: "known", value: "yes" },
+          lastActivity: { state: "known", value: "2026-09-25T00:00:00Z" },
+          deliveryBasis: "record",
         },
       });
       const validate = registry.ajv.getSchema(
@@ -373,6 +374,23 @@ describe("corpus: the ledger's guards and this node's schemas agree", () => {
       );
       expect(isLedgerEvent(envelope)).toBe(true);
       expect(validate?.(envelope)).toBe(true);
+    });
+    it("refuses a status observation that claims a known prompt", () => {
+      const envelope = {
+        interlock: "event@v7",
+        kind: "session-facts-observed",
+        session: "session-1",
+        facts: {
+          ...sessionFacts.unknown(),
+          promptReceived: { state: "known", value: "yes" },
+          deliveryBasis: "status",
+        },
+      };
+      const validate = registry.ajv.getSchema(
+        "https://github.com/rodrigopsasaki/interlock/schemas/event@v7.json",
+      );
+      expect(isLedgerEvent(envelope)).toBe(false);
+      expect(validate?.(envelope)).toBe(false);
     });
     it("agree that a session-started envelope with no graphBaseSha is still valid", () => {
       const envelope = envelopeFor({

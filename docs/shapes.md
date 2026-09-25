@@ -1302,10 +1302,10 @@ No vocabulary entry for `session-facts`.
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `promptReceived` | one of `"yes"`, `"unknown"` | yes |  |
-| `lastActivity` | unknown | yes |  |
-| `usage` | unknown | yes |  |
-| `quota` | unknown | yes |  |
+| `promptReceived` | promptFact | yes | `?`: no fields beyond `kind`; `?`: state, value |
+| `lastActivity` | lastActivity | yes | `?`: no fields beyond `kind`; `?`: state, value |
+| `usage` | usageFact | yes | `?`: no fields beyond `kind`; `?`: state, value |
+| `quota` | quotaFact | yes | `?`: no fields beyond `kind`; `?`: state, value |
 | `deliveryBasis` | one of `"record"`, `"status"` | yes |  |
 
 ### Examples

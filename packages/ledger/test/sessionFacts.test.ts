@@ -6,7 +6,12 @@ import { afterEach, describe, expect, it } from "vitest";
 import { EVENT_SHAPE } from "../src/envelope.ts";
 import { createLedger } from "../src/ledger.ts";
 import { replayFromRaw } from "../src/replay.ts";
-import { isSessionFacts, type SessionFacts, sessionFacts } from "../src/sessionFacts.ts";
+import {
+  isSessionFacts,
+  type SessionFact,
+  type SessionFacts,
+  sessionFacts,
+} from "../src/sessionFacts.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -19,25 +24,70 @@ afterEach(() => {
 });
 
 const known: SessionFacts = {
-  promptReceived: "yes",
-  lastActivity: "2026-09-25T00:00:00Z",
-  usage: { input: 10, cachedInput: 8, output: 2, reasoning: 1 },
-  quota: { window: "10080 minutes", usedPercentage: 97.7 },
+  promptReceived: { state: "known", value: "yes" },
+  lastActivity: { state: "known", value: "2026-09-25T00:00:00Z" },
+  usage: {
+    state: "known",
+    value: {
+      input: 10,
+      cachedInput: 8,
+      output: 2,
+      reasoning: 1,
+      raw: { input: 10, cachedInput: 8, output: 2, reasoning: 1 },
+    },
+  },
+  quota: { state: "known", value: { window: "10080 minutes", usedPercentage: 97.7 } },
   deliveryBasis: "record",
 };
+
+// @ts-expect-error A known prompt cannot be paired with status delivery.
+const _illegalKnownStatusFacts = {
+  ...known,
+  deliveryBasis: "status",
+  // @ts-expect-error The known prompt and status basis cannot form SessionFacts.
+} satisfies SessionFacts;
+
+// @ts-expect-error The persisted prompt fact must be state-tagged.
+const _illegalLiteralStatusFacts = {
+  ...known,
+  // @ts-expect-error A literal prompt is not a state-tagged fact.
+  promptReceived: "yes",
+  deliveryBasis: "status",
+} satisfies SessionFacts;
+
+function readLastActivity(fact: SessionFact<string>): string {
+  if (fact.state === "unknown") return "unknown";
+  return fact.value;
+}
 
 describe("session-facts@v0", () => {
   it("guards known raw observations and the explicit unknown reading", () => {
     expect(isSessionFacts(known)).toBe(true);
     expect(isSessionFacts(sessionFacts.unknown())).toBe(true);
+    expect(isSessionFacts({ ...sessionFacts.unknown(), deliveryBasis: "record" })).toBe(true);
+    expect(readLastActivity(known.lastActivity)).toBe("2026-09-25T00:00:00Z");
+    expect(readLastActivity(sessionFacts.unknown().lastActivity)).toBe("unknown");
   });
 
   it("refuses malformed or inferred observations", () => {
     expect(isSessionFacts({ ...known, promptReceived: false })).toBe(false);
-    expect(isSessionFacts({ ...known, lastActivity: "yesterday" })).toBe(false);
-    expect(isSessionFacts({ ...known, usage: { input: "10" } })).toBe(false);
-    expect(isSessionFacts({ ...known, quota: { window: "10080 minutes" } })).toBe(false);
+    expect(isSessionFacts({ ...known, lastActivity: { state: "known", value: "yesterday" } })).toBe(
+      false,
+    );
+    expect(
+      isSessionFacts({ ...known, usage: { state: "known", value: { input: "10", raw: {} } } }),
+    ).toBe(false);
+    expect(
+      isSessionFacts({ ...known, quota: { state: "known", value: { window: "10080 minutes" } } }),
+    ).toBe(false);
     expect(isSessionFacts({ ...known, extra: "vendor field" })).toBe(false);
+    expect(
+      isSessionFacts({
+        ...known,
+        promptReceived: { state: "known", value: "yes" },
+        deliveryBasis: "status",
+      }),
+    ).toBe(false);
   });
 
   it("persists and replays the additive observation without replacing the journal", async () => {
@@ -96,8 +146,14 @@ describe("session-facts@v0", () => {
   });
 
   it("keeps only the latest observation in the projection while both remain replayable", () => {
-    const first: SessionFacts = { ...sessionFacts.unknown(), lastActivity: "2026-09-25T00:00:00Z" };
-    const second: SessionFacts = { ...known, lastActivity: "2026-09-25T00:01:00Z" };
+    const first: SessionFacts = {
+      ...sessionFacts.unknown(),
+      lastActivity: { state: "known", value: "2026-09-25T00:00:00Z" },
+    };
+    const second: SessionFacts = {
+      ...known,
+      lastActivity: { state: "known", value: "2026-09-25T00:01:00Z" },
+    };
     const raw = [
       {
         interlock: EVENT_SHAPE,

@@ -86,3 +86,23 @@ entries:
       after their local test servers failed with listen EPERM on 127.0.0.1. The
       focused ledger and schema suites for this node passed; the failure is the
       environment's network boundary and not a session-facts assertion.
+  - kind: choice
+    at: "2026-09-25T03:30:00-03:00"
+    chose: >-
+      Revised every persisted fact to an explicit state-tagged known-or-unknown
+      object, constrained prompt evidence so status delivery can only be unknown,
+      and represented usage with named optional counters plus a raw counter map.
+    because: >-
+      A literal string union collapses SessionFact<string> and cannot distinguish
+      unknown from a value at the type level; the delivery rule requires record
+      evidence for yes; and stable counters give later consumers a vendor-neutral
+      shape while raw preserves observations not yet shared by every vendor.
+  - kind: surprise
+    at: "2026-09-25T03:49:00-03:00"
+    expected: >-
+      The first delivery-basis guard would preserve both allowed record readings
+      while rejecting only known prompt evidence under status.
+    observed: >-
+      Its initial condition accidentally rejected record plus unknown as well as
+      the forbidden status plus known combination. The guard and positive test now
+      preserve record unknown, record yes, and status unknown exactly.
