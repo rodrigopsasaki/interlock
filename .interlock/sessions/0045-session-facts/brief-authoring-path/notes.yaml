@@ -39,3 +39,16 @@ entries:
     expected: The first full standing lint run would pass after the focused command and test passed.
     observed: Biome requested its normal one-line function signature and double-quoted string
       formatting in packages/cli/src/schema/reference.ts; the typecheck and comments gate passed.
+  - kind: surprise
+    at: "2026-09-25T12:20:00Z"
+    expected: The full workspace test gate would pass after the focused CLI proof.
+    observed: 24 unrelated substrate tests failed or timed out because their local HTTP fixtures
+      could not bind 127.0.0.1 in this environment; the other workspace packages completed.
+  - kind: choice
+    at: "2026-09-25T12:22:00Z"
+    chose: >-
+      Prepare the debrief as an agent session using runtime codex and model gpt-5.6-luna, then
+      file it only after the fresh candidate describes the committed documentation and check.
+    because: >-
+      The brief requires the debrief to preserve derivation and the final commit must be the
+      filed artifact; the current session identity and graph record identify this runtime/model.
