@@ -24,7 +24,7 @@ export interface CatalogueRuntime {
   readonly model: string;
   readonly startupAnswers: readonly StartupAnswer[];
   readonly startupTimeoutMs: number;
-  readonly promptTakenTimeoutMs: number;
+  readonly promptTakenTimeoutMs: number | undefined;
   readonly readySettleMs: number;
   readonly promptRetries: number;
 }
@@ -175,7 +175,7 @@ function parseEntry(
     model,
     startupAnswers: startupAnswers.value,
     startupTimeoutMs: startupTimeoutMsField ?? DEFAULT_STARTUP_TIMEOUT_MS,
-    promptTakenTimeoutMs: promptTakenTimeoutMsField ?? DEFAULT_PROMPT_TAKEN_TIMEOUT_MS,
+    promptTakenTimeoutMs: promptTakenTimeoutMsField,
     readySettleMs: readySettleMsField ?? DEFAULT_READY_SETTLE_MS,
     promptRetries: promptRetriesField ?? DEFAULT_PROMPT_RETRIES,
   });
@@ -304,7 +304,10 @@ export function mergeRuntimes(
       model: entry.model,
       startupAnswers: entry.startupAnswers,
       startupTimeoutMs: entry.startupTimeoutMs,
-      promptTakenTimeoutMs: entry.promptTakenTimeoutMs,
+      promptTakenTimeoutMs:
+        entry.promptTakenTimeoutMs ??
+        local?.runtime.promptTakenTimeoutMs ??
+        DEFAULT_PROMPT_TAKEN_TIMEOUT_MS,
       readySettleMs: entry.readySettleMs,
       promptRetries: entry.promptRetries,
       source: "catalogue",

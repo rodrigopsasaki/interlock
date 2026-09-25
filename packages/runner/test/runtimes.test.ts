@@ -113,7 +113,7 @@ describe("loadRuntimeCatalogue: a valid catalogue", () => {
         model: "fast-model-label",
         startupAnswers: [],
         startupTimeoutMs: 60_000,
-        promptTakenTimeoutMs: 20_000,
+        promptTakenTimeoutMs: undefined,
         readySettleMs: 0,
         promptRetries: 2,
       });
@@ -123,7 +123,7 @@ describe("loadRuntimeCatalogue: a valid catalogue", () => {
         model: "careful-model-label",
         startupAnswers: [],
         startupTimeoutMs: 15_000,
-        promptTakenTimeoutMs: 20_000,
+        promptTakenTimeoutMs: undefined,
         readySettleMs: 0,
         promptRetries: 2,
       });
@@ -407,6 +407,99 @@ describe("mergeRuntimes", () => {
         readySettleMs: 2_000,
         promptRetries: 4,
         source: "catalogue",
+      });
+    }
+  });
+
+  it("inherits local.yaml's legacy prompt_taken_timeout_ms for a catalogue entry that omits its own", () => {
+    const catalogue = new Map([
+      [
+        "fast",
+        {
+          kind: "claude",
+          args: [],
+          model: "fast-model-label",
+          startupAnswers: [],
+          startupTimeoutMs: 60_000,
+          promptTakenTimeoutMs: undefined,
+          readySettleMs: 0,
+          promptRetries: 2,
+        },
+      ],
+    ]);
+    const local = localConfigWith({
+      runtime: {
+        ...localConfigWith().runtime,
+        promptTakenTimeoutMs: 9_000,
+      },
+    });
+
+    const merged = mergeRuntimes(catalogue, local);
+
+    expect(isOk(merged)).toBe(true);
+    if (isOk(merged)) {
+      expect(merged.value.runtimes.get("fast")).toMatchObject({
+        promptTakenTimeoutMs: 9_000,
+      });
+    }
+  });
+
+  it("falls back to the 20000ms default when neither a catalogue entry nor local.yaml declare prompt_taken_timeout_ms", () => {
+    const catalogue = new Map([
+      [
+        "fast",
+        {
+          kind: "claude",
+          args: [],
+          model: "fast-model-label",
+          startupAnswers: [],
+          startupTimeoutMs: 60_000,
+          promptTakenTimeoutMs: undefined,
+          readySettleMs: 0,
+          promptRetries: 2,
+        },
+      ],
+    ]);
+
+    const merged = mergeRuntimes(catalogue, undefined);
+
+    expect(isOk(merged)).toBe(true);
+    if (isOk(merged)) {
+      expect(merged.value.runtimes.get("fast")).toMatchObject({
+        promptTakenTimeoutMs: 20_000,
+      });
+    }
+  });
+
+  it("keeps a catalogue entry's own prompt_taken_timeout_ms over local.yaml's legacy value", () => {
+    const catalogue = new Map([
+      [
+        "fast",
+        {
+          kind: "claude",
+          args: [],
+          model: "fast-model-label",
+          startupAnswers: [],
+          startupTimeoutMs: 60_000,
+          promptTakenTimeoutMs: 9_000,
+          readySettleMs: 0,
+          promptRetries: 2,
+        },
+      ],
+    ]);
+    const local = localConfigWith({
+      runtime: {
+        ...localConfigWith().runtime,
+        promptTakenTimeoutMs: 12_000,
+      },
+    });
+
+    const merged = mergeRuntimes(catalogue, local);
+
+    expect(isOk(merged)).toBe(true);
+    if (isOk(merged)) {
+      expect(merged.value.runtimes.get("fast")).toMatchObject({
+        promptTakenTimeoutMs: 9_000,
       });
     }
   });
