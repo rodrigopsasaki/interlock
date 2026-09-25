@@ -1,0 +1,32 @@
+interlock: notes@v0
+node: plan/0045-session-facts
+entries:
+  - kind: choice
+    at: "2026-09-25T01:00:00Z"
+    chose: >-
+      Decompose the graph into a vendor-neutral session-facts contract and adapter seam, a
+      Codex record reader, runner and ledger/position integration, runner-artifact isolation,
+      brief-authoring guidance, and two independent unattended dogfood nodes.
+    because: >-
+      The ask spans a retrofit seam, one verified runtime implementation, consumers of the
+      facts, an observed judging collision, a missing authoring path, and a proof across vendors;
+      separate nodes keep recovery bounded while dependencies preserve the order in which each
+      proof becomes meaningful.
+  - kind: choice
+    at: "2026-09-25T01:02:00Z"
+    chose: >-
+      Keep promptDelivery retry and grace behavior unchanged and change only the definition of
+      prompt taken to use the runtime's own session record through the adapter.
+    because: >-
+      The field evidence identifies herdr's status transition as the false positive, while the
+      brief explicitly directs retaining retry and grace behavior; the session record is the
+      vendor-owned evidence boundary required by the ask and invariant I6.
+  - kind: surprise
+    at: "2026-09-25T01:04:00Z"
+    expected: >-
+      The existing session model would have no runtime identity from which a record reader could
+      start.
+    observed: >-
+      Session already carries a vendor-neutral runtime identity, and the herdr adapter's
+      AgentIdentity already includes sessionId and optional sessionPath. The graph therefore
+      extends the existing adapter seam instead of introducing a second runtime-selection shape.
