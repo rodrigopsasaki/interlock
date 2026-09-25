@@ -1,0 +1,13 @@
+interlock: notes@v0
+node: brief-authoring-path
+entries:
+  - kind: choice
+    at: "2026-09-25T12:00:00Z"
+    chose: >-
+      Use README.md for the human-facing brief-authoring contract and extend the existing
+      read-only schema reference check with an explicit --brief-authoring mode; leave schemas
+      and docs/shapes.md unchanged because brief@v1 already has a complete generated example.
+    because: >-
+      The acceptance asks for a findable authoring path, a generated-shape example guard, and no
+      runtime or schema behavior change. README.md is the owning public documentation seam, while
+      the existing schema reference command already owns freshness checks for docs/shapes.md.
