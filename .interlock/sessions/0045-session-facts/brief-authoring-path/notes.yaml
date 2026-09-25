@@ -11,3 +11,31 @@ entries:
       The acceptance asks for a findable authoring path, a generated-shape example guard, and no
       runtime or schema behavior change. README.md is the owning public documentation seam, while
       the existing schema reference command already owns freshness checks for docs/shapes.md.
+  - kind: surprise
+    at: "2026-09-25T12:05:00Z"
+    expected: The first brief-authoring reference check would match the new README contract.
+    observed: The check required the wrapped phrase "graph node's acceptance and gates" as one
+      substring, but README.md correctly wraps "graph" and "node's" on separate lines; the
+      documentation was present and only the check's requirement was too brittle.
+  - kind: surprise
+    at: "2026-09-25T12:06:00Z"
+    expected: The next stable phrase in the brief-authoring check would also be present verbatim.
+    observed: README.md wraps "substrate" and "slice selection" across a line boundary, so the
+      validator must check the stable phrase "slice selection" instead of a prose line layout.
+  - kind: surprise
+    at: "2026-09-25T12:07:00Z"
+    expected: The role and gate authority sentence would match as one reference-check phrase.
+    observed: README.md wraps "does not" and "self-declare" across a line boundary, so the check
+      needs the stable authority phrase without the line-wrapped lead-in.
+  - kind: choice
+    at: "2026-09-25T12:08:00Z"
+    chose: Normalize whitespace only for README contract checks while keeping exact generated-shape
+      checks for the brief@v1 worked example.
+    because: >-
+      Markdown prose may wrap at arbitrary line boundaries, but the generated YAML example's
+      shape and field layout are the reference that the command must protect.
+  - kind: surprise
+    at: "2026-09-25T12:12:00Z"
+    expected: The first full standing lint run would pass after the focused command and test passed.
+    observed: Biome requested its normal one-line function signature and double-quoted string
+      formatting in packages/cli/src/schema/reference.ts; the typecheck and comments gate passed.
