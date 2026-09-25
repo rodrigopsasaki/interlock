@@ -10,8 +10,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { declaredGateIds } from "../src/gateCommand.ts";
 import { judgeWorktree } from "../src/judgeWorktree.ts";
 import { screenPath, writeScreenSnapshot } from "../src/sessionScreen.ts";
-import { gitTrackedFiles } from "../src/scope.ts";
-import { commitAll, gitInitFixtureWithContent } from "./support/gitFixture.ts";
+import { gitInitFixtureWithContent } from "./support/gitFixture.ts";
 import { memoryLedger } from "./support/memoryLedger.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs", "judge-worktree");

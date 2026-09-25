@@ -29,3 +29,7 @@ entries:
     at: "2026-09-25T06:16:00Z"
     chose: "Use the brief-authorized unsigned commit fallback without changing Git configuration."
     because: "The signer failure is environmental rather than source-related, and the session instructions permit unsigned commits when the configured signature cannot be produced."
+  - kind: surprise
+    at: "2026-09-25T06:19:00Z"
+    expected: "The first full typecheck would accept the new judge regression imports."
+    observed: "Strict unused-local checking rejected two unused test imports; removing them leaves the implementation and test seam unchanged."
