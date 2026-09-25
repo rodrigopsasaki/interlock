@@ -27,3 +27,25 @@ entries:
     rests_on:
       - packages/runner/src/openingPrompt.ts
       - .interlock/sessions/0045-session-facts/codex-session-reader/brief.md
+  - kind: choice
+    at: "2026-09-25T07:04:00Z"
+    chose: "Implement a dedicated Codex SessionFactsReader that consumes only AgentIdentity.sessionPath and returns record-basis unknowns when the rollout cannot prove a fact."
+    because: "The runtime seam already supplies the adapter-owned path without exposing vendor wire records to core, and record-basis unknown prevents prompt delivery from falling back to herdr status for a known reader."
+    rests_on:
+      - packages/runner/src/runtime.ts
+      - packages/ledger/src/sessionFacts.ts
+  - kind: surprise
+    at: "2026-09-25T07:06:00Z"
+    expected: "The first full typecheck would accept the reader's literal prompt fact."
+    observed: "Generic inference widened sessionFacts.known(\"yes\") to Known<string>, which did not satisfy the contract's Known<\"yes\"> arm."
+    mattered_because: "The reader now supplies the explicit literal type parameter, preserving the stateful contract without a cast."
+  - kind: surprise
+    at: "2026-09-25T07:06:00Z"
+    expected: "The declared Codex reader proof would complete after the new reader tests passed."
+    observed: "The Codex tests passed, but the combined Codex/herdr Vitest invocation stalled after the existing herdr worktree fixture setup and was stopped; no herdr assertion completed in that invocation."
+    mattered_because: "The exact reader proof is retained separately, while the adapter boundary is covered by an assertion in the existing herdr test and the stalled broad result is not claimed as a pass."
+  - kind: surprise
+    at: "2026-09-25T07:07:00Z"
+    expected: "A focused existing herdr adapter test would be able to start its Unix-socket fixture."
+    observed: "The test fixture failed with listen EPERM in the sandbox, causing the five-second test timeout before any adapter assertion ran."
+    mattered_because: "The environment blocks the herdr socket receipt; the Codex reader proof and typecheck remain independently executable, and no network behavior is changed to work around it."

@@ -1,0 +1,2 @@
+{"timestamp":"2026-09-25T06:00:00Z","type":"response_item","payload":{"role":"user","content":[{"type":"input_text","text":"AGENTS.md preamble for fixture only."}]}}
+{"timestamp":"2026-09-25T06:00:01Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":12,"cached_input_tokens":0,"output_tokens":0,"reasoning_output_tokens":0,"total_tokens":12}},"rate_limits":{"primary":{"used_percent":1.5,"window_minutes":10080,"resets_at":1790768913},"secondary":null}}}

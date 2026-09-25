@@ -15,6 +15,7 @@ import type {
   RuntimeRefusal,
 } from "../runtime.ts";
 import { isRecord, isString, numberAt, prop, stringAt } from "../validate.ts";
+import { createCodexSessionFactsReader } from "./codex.ts";
 
 export { isCompliantAgentName } from "../agentName.ts";
 
@@ -308,6 +309,7 @@ export async function createHerdrRuntime(
   };
 
   return ok({
+    sessionFactsReader: createCodexSessionFactsReader(),
     async openPane(cwd) {
       const label = repositoryLabel(cwd);
       const listed = await call("workspace.list", {});

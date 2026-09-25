@@ -38,6 +38,10 @@ export {
   storeGateOutput,
 } from "./gateOutput.ts";
 export { createHerdrRuntime, defaultHerdrSocketPath } from "./herdr/adapter.ts";
+export {
+  createCodexSessionFactsReader,
+  readCodexSessionFacts,
+} from "./herdr/codex.ts";
 export type { InterpreterCorrection } from "./interpreterBrief.ts";
 export { extractAsk, interpreterBriefBody } from "./interpreterBrief.ts";
 export type {
