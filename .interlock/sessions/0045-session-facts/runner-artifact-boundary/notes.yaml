@@ -89,3 +89,11 @@ entries:
     at: "2026-09-25T06:27:52Z"
     chose: "Report the exact full-test failure as an environment-blocked gate result and retain the four-test focused pass as the behavioral proof for this repair."
     because: "The changed CLI assertions pass when fixture commits can run, while the remaining failure is the same sandbox server-bind boundary observed before and is outside this test-only change."
+  - kind: choice
+    at: "2026-09-25T06:30:10Z"
+    chose: "Revise the canonical debrief from the fresh candidate and retain the prior canonical bytes in the session revisions directory."
+    because: "The prior filing was not the current handoff for this compatibility repair; revise preserves its way back while the new debrief records the CLI proof and exact full-test outcome."
+  - kind: choice
+    at: "2026-09-25T06:30:10Z"
+    chose: "Treat debrief@v2 and notes@v0 validation as the final pre-commit receipt."
+    because: "Both current session artifacts validate after revision, and no further source or authored-claim change is required before the final debrief commit."
