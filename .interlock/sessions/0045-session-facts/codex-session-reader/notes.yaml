@@ -15,3 +15,15 @@ entries:
     expected: "The first notes commit would use the configured Git signer."
     observed: "GnuPG could not create its temporary keybox lock or connect to keyboxd under the managed filesystem, so the signed commit was refused."
     mattered_because: "The session requires incremental commits; the source and note will be committed with signing disabled for this worktree, without changing Git configuration."
+  - kind: surprise
+    at: "2026-09-25T07:01:53Z"
+    expected: "herdr agent list would be available for the machine-specific identity confirmation."
+    observed: "The installed herdr command returned Operation not permitted, but the current session UUID resolves to a real Codex rollout record whose user contents include an AGENTS/environment item followed by the opening prompt marker."
+    mattered_because: "The adapter can be verified against the readable record shape, while the herdr wire identity itself remains an environment evidence gap rather than a guessed value."
+  - kind: choice
+    at: "2026-09-25T07:01:53Z"
+    chose: "Match the opening prompt by its stable interlock opening-text marker across all user input contents, not by user-item position."
+    because: "The real rollout has a separate preamble/environment user item before the opening prompt, and the brief explicitly requires text matching so that dropped or prepended user items cannot be mistaken for delivery."
+    rests_on:
+      - packages/runner/src/openingPrompt.ts
+      - .interlock/sessions/0045-session-facts/codex-session-reader/brief.md
