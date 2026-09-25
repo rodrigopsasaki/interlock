@@ -1,0 +1,57 @@
+interlock: debrief@v2
+graph: 0045-session-facts
+node: dogfood-claude-facts
+role: worker
+graph_base_sha: fe03cfe04204dd279d321affc7fe7710c94b99c1
+session_start_sha: 4944f4d4c0897394eddf818daac2fc5b0074b295
+head_sha: 4f9d4d9700263e7085cbecd65275ec37f736b6ad
+derivation:
+  kind: agent
+  runtime: claude
+  model: sonnet
+discoveries: []
+decisions:
+  - id: observe-only-no-source-change
+    what: >-
+      Made no change outside this node's own session directory
+      (.interlock/sessions/0045-session-facts/dogfood-claude-facts/): appended
+      two notes to notes.yaml and this debrief, nothing else.
+    because: >-
+      The brief states this node's work "is to be observed, not to change
+      source" and instructs "Make no changes outside this node's session
+      directory." `git status --porcelain` before committing showed exactly
+      one untracked path, the node's own notes.yaml.
+    rests_on:
+      - .interlock/sessions/0045-session-facts/dogfood-claude-facts/brief.md
+      - .interlock/graphs/0045-session-facts.yaml
+    hunks: []
+    applies_to: { kind: path, path: .interlock/sessions/0045-session-facts/dogfood-claude-facts }
+  - id: session-show-run-once-as-instructed-not-as-gate
+    what: >-
+      Ran `pnpm interlock session show 0045-session-facts dogfood-claude-facts`
+      exactly once, mid-turn, to observe and record its Facts block in
+      notes.yaml, and did not treat that run as satisfying or re-running the
+      claude-facts-position gate.
+    because: >-
+      The brief instructs recording what the command shows "at that moment"
+      and separately instructs "Do not re-run or edit gates." The command
+      happens to share its invocation with the declared claude-facts-position
+      gate, but this node's role is to observe its own session record, not to
+      self-report a gate result; the harness runs that gate on its own later.
+    rests_on:
+      - .interlock/sessions/0045-session-facts/dogfood-claude-facts/brief.md
+      - .interlock/sessions/0045-session-facts/dogfood-claude-facts/notes.yaml
+    hunks: []
+    applies_to: { kind: path, path: .interlock/sessions/0045-session-facts/dogfood-claude-facts }
+gates_run_by_agent: []
+open:
+  - >-
+    At the moment this session observed its own record (mid-turn), Usage and
+    Quota read unknown while Prompt received and Last activity were populated
+    — the possibility the brief itself named rather than a gap. Delivery
+    basis read "record", not "status", so the specific contradiction the
+    brief named to watch for was not observed. Whether Usage/Quota populate
+    from this same transcript by the time the harness runs the
+    claude-facts-position gate depends on later activity in this session, not
+    on anything this node changed; that gate's actual result is the harness's
+    to run and read, not this debrief's to predict.
