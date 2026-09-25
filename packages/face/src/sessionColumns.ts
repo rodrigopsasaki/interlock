@@ -12,6 +12,7 @@ import type {
   SessionView,
 } from "ledger";
 import { renderSessionRuntime } from "./runtimeLine.ts";
+import { renderSessionFacts } from "./sessionFacts.ts";
 
 function isoOf(wallMs: number): string {
   return new Date(wallMs).toISOString();
@@ -123,6 +124,10 @@ export function renderContext(
   ].join("\n");
 }
 
+function renderFacts(facts: SessionView["facts"]): string {
+  return ["Facts", ...renderSessionFacts(facts).map((line) => `  ${line}`)].join("\n");
+}
+
 export function renderDebriefBackedSection(
   title: string,
   view: SessionView,
@@ -152,6 +157,7 @@ export function renderSessionColumns(input: SessionColumnsInput): string {
     `${graph}/${node} · session ${view.session}`,
     renderBrief(view.brief),
     renderContext(view, nodeView, printBecause),
+    renderFacts(view.facts),
     renderDebriefBackedSection("Discoveries", view, legacyLine, (debrief) =>
       debrief.discoveries.map(renderDiscovery),
     ),

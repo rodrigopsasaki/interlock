@@ -7,6 +7,8 @@ import {
   type LedgerEvent,
   outcome,
   type Receipt,
+  type SessionFacts,
+  sessionFacts,
   sessionRuntime,
   spend,
 } from "ledger";
@@ -244,6 +246,34 @@ describe("positionOf", () => {
       receipts: [clearedReceipt],
     });
     expect(attempts[1]?.outcome).toBeUndefined();
+    expect(attempts[0]?.facts).toEqual(sessionFacts.unknown());
+    expect(attempts[1]?.facts).toEqual(sessionFacts.unknown());
+  });
+
+  it("carries the latest observed session facts into the position attempt", () => {
+    const facts: SessionFacts = {
+      ...sessionFacts.unknown(),
+      promptReceived: { state: "known", value: "yes" },
+      lastActivity: { state: "known", value: "2026-09-25T00:00:00Z" },
+      usage: { state: "known", value: { raw: { input: 12 } } },
+      quota: { state: "known", value: { window: "10080 minutes", usedPercentage: 3.5 } },
+      deliveryBasis: "record",
+    };
+    const projection = fold([
+      {
+        kind: "session-started",
+        session: {
+          id: "session-1",
+          node: { graph: "demo", id: "a" },
+          runtime: sessionRuntime.unknown(),
+        },
+        brief: brief("a"),
+      },
+      { kind: "session-facts-observed", session: "session-1", facts },
+    ]);
+
+    const position = positionOf(document, projection, "some-hash", Date.now());
+    expect(nodeIn(position, "a").attempts[0]?.facts).toEqual(facts);
   });
 
   it("resolves a live session's agent status through the supplied lookup, never guessing when it returns nothing", () => {
