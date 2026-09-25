@@ -123,3 +123,15 @@ entries:
       synthetic reconstructions of the confirmed shape with none of this
       session's real prompt or repository content, per the brief's fixture
       rule.
+
+  - kind: surprise
+    at: "2026-09-25T07:20:00-03:00"
+    expected: >-
+      Redirecting `pnpm test`'s full-suite output to a shell-visible file for
+      inspection would not need a second thought.
+    observed: >-
+      Redirected it to /tmp/full-test-run.log, which violates this node's own
+      brief ("Keep scratch under this package's test/.runs/ directory, never
+      /tmp"). Removed the file immediately with plain rm once noticed; the
+      brief's scratch rule turned out to bind ad hoc shell redirects too, not
+      only artifacts a parser writes at runtime.

@@ -1,0 +1,3 @@
+{"type":"mode","mode":"normal","sessionId":"22222222-2222-4222-8222-222222222222"}
+{"parentUuid":"bbbbbbbb-0000-4000-8000-000000000001","isSidechain":false,"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_synthetic_2","content":"synthetic resumed tool output","is_error":false}]},"timestamp":"2026-01-02T00:00:00.000Z","sessionId":"22222222-2222-4222-8222-222222222222"}
+{"parentUuid":"bbbbbbbb-0000-4000-8000-000000000002","isSidechain":false,"type":"assistant","timestamp":"2026-01-02T00:00:05.000Z","message":{"model":"claude-sonnet-5","role":"assistant","content":[{"type":"text","text":"synthetic reply"}],"usage":{"input_tokens":6,"cache_read_input_tokens":1,"output_tokens":3}}}
