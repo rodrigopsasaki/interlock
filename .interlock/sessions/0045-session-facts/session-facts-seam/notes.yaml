@@ -106,3 +106,12 @@ entries:
       Its initial condition accidentally rejected record plus unknown as well as
       the forbidden status plus known combination. The guard and positive test now
       preserve record unknown, record yes, and status unknown exactly.
+  - kind: surprise
+    at: "2026-09-25T03:53:00-03:00"
+    expected: The mandated full workspace test would finish with every package green.
+    observed: >-
+      Ledger, face, debrief, verifier, and non-network substrate tests passed, but
+      24 substrate capability, context, and absorb tests failed because the sandbox
+      refused local TCP listeners with listen EPERM on 127.0.0.1. The session-facts
+      focused suites remained green; this is the same environment boundary recorded
+      earlier, confirmed after the contract revision.
