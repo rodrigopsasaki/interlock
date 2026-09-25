@@ -30,3 +30,20 @@ entries:
       Session already carries a vendor-neutral runtime identity, and the herdr adapter's
       AgentIdentity already includes sessionId and optional sessionPath. The graph therefore
       extends the existing adapter seam instead of introducing a second runtime-selection shape.
+  - kind: choice
+    at: "2026-09-25T01:12:00Z"
+    chose: >-
+      Planned nine nodes: a facts seam, Codex reader, prompt-delivery integration, ledger and
+      position integration, runner-artifact boundary, brief-authoring documentation, a guarded
+      Claude reader, and two final unattended dogfood nodes on luna and sonnet.
+    because: >-
+      The graph keeps the two implementation seams independent where recovery is cheap, makes
+      the unverified second-vendor record an explicit prerequisite rather than a guessed parser,
+      and turns the brief's cross-vendor proof into two runnable node acceptances.
+  - kind: surprise
+    at: "2026-09-25T01:13:00Z"
+    expected: The validation commands would run under the repository's pinned Node version.
+    observed: >-
+      pnpm reported the existing engine warning that Node 26.9.0 is active while the repository
+      requests Node 24.14.0; graph loading, schema validation, schema-reference freshness, and
+      focused lint still completed successfully.

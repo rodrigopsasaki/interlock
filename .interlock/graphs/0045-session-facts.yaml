@@ -1,0 +1,223 @@
+interlock: graph@v0
+id: 0045-session-facts
+ask: |
+  Make the right facts about any session reachable at the right time regardless of vendor: read them from each runtime's own session record, never infer them from a screen or a status heuristic. The person's principle: interlock should make it easy to get the right type of information from any session at the right time, whichever model or vendor runs it.
+
+  Field evidence (graph measure-thresholds in the jev-patterns repository, runtime luna = Codex gpt-5.6-luna, run 2026-09-24 21:49 -0300 on a checkout that already contained e6a1745 and 92f9d5e):
+  1. The opening prompt was dropped although delivery counted it taken. The runner logged "prompt sent", "agent working", then "agent settled with no debrief"; the Codex pane showed an empty input box under a "2 startup issues (1 MCP)" banner. Codex's own rollout (~/.codex/sessions/.../rollout-*.jsonl) did not exist until 00:54:43Z, the moment a person re-sent the identical prompt with `herdr agent prompt`; its first user message is that prompt. herdr's status transition fooled promptDelivery's taken check; the session record would not have.
+  2. Spend never reached a receipt or the position. The same rollout carries token_count records (total_token_usage input/cached/output/reasoning; rate_limits used_percent over a 10080-minute window): 10.6M input tokens, 97.7% cached, 37k output. Spend exists only on gate receipts today, never on a session.
+  3. The runner's screen capture blocked its own judgement in a repository other than interlock: .interlock/sessions/<graph>/<node>/screen.txt was untracked in the jev-patterns worktree and `interlock judge` held the node on "1 uncommitted path". 92f9d5e only added the path to interlock's own .gitignore; any other repository still collides. The runner must keep its own artifacts out of what it judges without relying on the target repository's ignore file.
+  4. A person had to reverse-engineer brief@v1 from another repository: `interlock run` refused with "no brief; brief authoring is not the runner's" and nothing said who writes a brief, from what, or where the shape and an example live.
+
+  Direction, not a decision: herdr already hands the runner each pane's agent_session id and session path (herdr agent list shows "agent_session": {"source":"herdr:codex","value":...}), which locates the vendor's own record. A per-runtime reader behind the adapter (I6) turns that record into a small set of vendor-neutral facts the runner, ledger and position consume: the opening prompt received, the time of last activity, and spend (usage and, where the vendor reports it, quota). A runtime whose record is unknown degrades to "unknown", never invented (I5 in spirit). Codex is the first reader because it is verified; Claude Code and Kimi Code CLI follow only once their record is confirmed on this machine, each its own node. Keep promptDelivery's retry and grace behaviour; change what counts as taken. Measure the proof by dogfood: run at least one node of this graph on luna and one on another vendor, unattended, and show the facts in the position.
+
+  Out of scope: pricing or converting tokens to money, quota-aware failover between profiles, a watcher daemon, and any change to how gates judge.
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+  session: 183bc2d2-53d0-40ba-a122-889b2b712e86
+  graph_base_sha: 69d2b149819000d26fa2c164524a5315eacf83d5
+read: >
+  The current runtime identity already has a vendor-neutral session id and an optional record
+  path, but the runner still treats herdr's state transition as proof that the opening prompt was
+  received and stores no session usage. This graph first defines the additive facts and reader
+  seam, then implements Codex because its record is verified, wires the facts into prompt delivery,
+  the journal and position, and repairs the runner-owned screen boundary independently. Brief
+  authoring is documented as a separate gap. Claude Code has its own guarded reader node: it must
+  confirm the record on this machine before any parser is written, while unknown remains an honest
+  result. Two final nodes run unattended on luna and the confirmed second vendor, and require the
+  resulting session record and position to expose the facts. No node changes gate judgment, pricing,
+  failover, or a watcher.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: session-facts-seam
+    depends_on: []
+    acceptance: |
+      Establish the vendor-neutral session-facts@v0 contract and the runtime-reader seam without
+      naming a vendor outside its adapter. Facts are individually explicit rather than inferred:
+      opening prompt received, last activity wall time, usage counters, and an optional
+      vendor-reported quota window; each can be unknown. Preserve raw usage and quota observations
+      without pricing or converting tokens to money. A missing, malformed, unavailable, or
+      unsupported record returns unknown and does not fail the session; substrate address none
+      remains usable.
+
+      Carry the contract through strict TypeScript guards and the persisted journal/upcast seam.
+      Add the smallest additive event representation needed for a session's latest facts, retain
+      every prior event fixture, and make pre-facts sessions replay with unknown facts. The reader
+      receives the adapter's session identity and record path; core code has no vendor file names,
+      flags, status heuristics, or screen parsing. Add focused contract, guard, unknown-fallback,
+      and replay tests, update the relevant event/position schema reference, and keep all existing
+      artifacts readable. No gate-judgment behavior changes.
+    gates:
+      - id: facts-ledger-contract
+        kind: command
+        run: pnpm --filter ledger exec vitest run test/sessionFacts.test.ts test/replay.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: codex-session-reader
+    depends_on: [session-facts-seam]
+    acceptance: |
+      Implement the first runtime reader in the Codex adapter only. Use the agent_session identity
+      and session path supplied by herdr to read Codex's own rollout record, never pane text or
+      herdr status. Recognize the exact opening prompt message, the latest activity timestamp,
+      total usage fields including cached input and reasoning where present, and the reported rate
+      limit window and used percentage where present. A missing rollout, incomplete line, unknown
+      record shape, or absent optional field yields the corresponding unknown fact and never an
+      invented value; no pricing is calculated.
+
+      Extend the herdr adapter boundary so the path is retained without leaking herdr's wire shape
+      into core. Keep the Codex parser under its runtime adapter and add committed rollout fixtures
+      for both the dropped-opening-prompt evidence and the later identical resend, plus usage and
+      quota observations. Tests must distinguish record evidence from an idle/working screen and
+      prove the reader returns unknown rather than guessing. Preserve all other runtime adapters,
+      strict TypeScript, and historical journal behavior.
+    gates:
+      - id: codex-reader-proof
+        kind: command
+        run: pnpm --filter runner exec vitest run test/sessionFacts/codex.test.ts test/herdr/adapter.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: prompt-delivery-facts
+    depends_on: [codex-session-reader]
+    acceptance: |
+      Change prompt delivery so a prompt is taken only when the runtime reader observes the
+      opening prompt in the runtime's own session record. A herdr working, blocked, or done status,
+      a successful prompt RPC, or a screen line alone never counts as taken. Preserve the existing
+      retry count, alternating submit behavior, startup answers, ready settle, and post-abandon
+      grace interval; an unknown fact consumes neither false success nor a new retry policy and
+      remains subject to those existing retry and grace outcomes.
+
+      Wire the session identity and reader through the runner adapter boundary, record the observed
+      facts for the session, and test: a working pane with no record retries; the exact record
+      message succeeds; a late record succeeds during existing grace; and a missing/unknown
+      record remains honest. Keep runtime-neutral core code and do not change gate execution.
+    gates:
+      - id: prompt-delivery-proof
+        kind: command
+        run: pnpm --filter runner exec vitest run test/promptDelivery.test.ts test/sessionDrive.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: session-facts-position
+    depends_on: [codex-session-reader]
+    acceptance: |
+      Make the runner, ledger projection, session inspection, and position consume the latest
+      observed session facts. Persist a session-facts observation with its event version and
+      upcast it from every historical journal version; retain the latest observation per session
+      without overwriting the receipt trail. Render in the current position and session drilldown
+      whether the opening prompt was received, the last activity time, raw usage, and a reported
+      quota or unknown when unavailable. An old session and an unknown runtime must visibly degrade
+      to unknown, while a known Codex record exposes its observed values. Do not convert spend to
+      money, use quota for failover, poll in a new watcher, or alter gate judgment.
+
+      Add direct ledger, face, and CLI tests for replay, latest-observation selection, known and
+      unknown rendering, empty-versus-unknown usage, and substrate address none. Keep all prior
+      event and position fixtures valid and update generated schema reference if the persisted
+      shape changes.
+    gates:
+      - id: facts-position-proof
+        kind: command
+        run: pnpm --filter ledger exec vitest run test/sessionFacts.test.ts test/replay.test.ts && pnpm --filter face exec vitest run test/render.test.ts test/position.test.ts && pnpm --filter cli exec vitest run test/session/show.test.ts test/graph/show.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: runner-artifact-boundary
+    depends_on: []
+    acceptance: |
+      Keep runner-owned screen snapshots and any other diagnostic capture outside the target
+      repository worktree that judgeWorktree checks. The runner may retain the capture for
+      drilldown, but its path must be derived from runner-owned state and must not rely on the
+      target repository's .gitignore. A fixture target repository with no interlock ignore rule
+      must remain clean after capture, so `interlock judge` proceeds to the declared gates rather
+      than holding on the snapshot. Preserve the existing best-effort write and last-line
+      narration, and do not change what gate commands judge or their scope.
+
+      Add a focused regression using a target repository with no .gitignore entry, assert the
+      snapshot is retained at the runner-owned location, assert `git status` has no snapshot path,
+      and assert the judge reaches gate execution. Keep test scratch under the package's
+      `test/.runs/` directory and clean it with the repository's established plain-rm convention.
+    gates:
+      - id: artifact-boundary-proof
+        kind: command
+        run: pnpm --filter runner exec vitest run test/sessionScreen.test.ts test/judgeWorktree.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: brief-authoring-path
+    depends_on: []
+    acceptance: |
+      Document the current brief-authoring contract where a person can find it without
+      reverse-engineering another repository: who authors a brief, that it is derived from the
+      graph node acceptance and gates plus standing gates, tracked scope, substrate slice and
+      supplied role; the canonical path `.interlock/sessions/<graph>/<node>/brief.md`; its
+      immutability after session start; and the runner's refusal when the canonical brief is
+      absent. Point to the brief@v1 fields and a complete worked example in `docs/shapes.md`, and
+      explain that the graph interpreter produces the graph while the session brief is written at
+      the canonical path before a node is run. Keep the explanation compatible with address none,
+      preserve old briefs, and do not imply that a worker self-declares its role or lowers gates.
+
+      Update the owning design/readme or brief documentation seam and the generated shape reference
+      only as needed. Add or extend a read-only documentation/reference check that fails when the
+      example or authoring path disappears; no runtime, schema, authority, or gate behavior changes.
+    gates:
+      - id: brief-reference-proof
+        kind: command
+        run: pnpm interlock schema reference --check
+        expect_output: 'docs/shapes\.md: fresh'
+
+  - id: claude-session-reader
+    depends_on: [session-facts-seam]
+    acceptance: |
+      Confirm the Claude Code session record on this machine with one unattended startup through
+      the existing runtime catalogue before writing a parser. If the herdr agent_session identity
+      does not resolve to a readable record, do not guess a path or infer from the pane: retain the
+      common reader's unknown result, record the exact evidence gap in notes and debrief, and leave
+      this node held for a corrected machine-specific plan. If the record is confirmed, implement
+      only that observed Claude format behind the same reader seam, extracting opening-prompt
+      receipt, latest activity, usage and optional quota, with unknown on missing or malformed data.
+
+      Keep Claude-specific names and file parsing inside its adapter, add a committed fixture from
+      the confirmed record, and test positive extraction plus unknown degradation. Do not change
+      Codex behavior, pricing, failover, watcher behavior, or gate judgment. The node is not clear
+      on a guessed parser; the confirmation and its recorded result are part of its proof.
+    gates:
+      - id: claude-reader-proof
+        kind: command
+        run: pnpm --filter runner exec vitest run test/sessionFacts/claude.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: dogfood-codex-facts
+    depends_on: [prompt-delivery-facts, session-facts-position, runner-artifact-boundary]
+    acceptance: |
+      Run this node unattended with `interlock run 0045-session-facts dogfood-codex-facts
+      --runtime luna`. The node must reach the runtime without a person re-sending the prompt.
+      Its own Codex session record, read through the adapter, must show the opening prompt was
+      received, a last activity time, and observed usage; the position must render those facts and
+      an explicit unknown for any quota the record does not provide. The session record, not the
+      pane or a status heuristic, is the proof of prompt delivery. The runner-owned screen capture
+      must not appear as an uncommitted path in the target worktree, and the ordinary standing
+      gates plus debrief validation must still be run by the harness. Preserve the record and
+      position as receipts; do not add a human gate or alter gate judgment.
+    gates:
+      - id: codex-facts-position
+        kind: command
+        run: pnpm --filter cli exec vitest run test/session/show.test.ts test/graph/show.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: dogfood-claude-facts
+    depends_on: [prompt-delivery-facts, session-facts-position, runner-artifact-boundary, claude-session-reader]
+    acceptance: |
+      Run this node unattended with `interlock run 0045-session-facts dogfood-claude-facts
+      --runtime sonnet` after the Claude reader has confirmed its record. The node must reach that
+      runtime without a person re-sending the prompt. Its own Claude session record, read through
+      the adapter, must show the opening prompt was received and a last activity time; the
+      position must render those facts, observed usage, and quota when the record reports it or
+      explicit unknown otherwise. The session record, not the pane or a status heuristic, is the
+      proof of prompt delivery. The runner-owned screen capture must not appear as an uncommitted
+      target-worktree path. The ordinary standing gates and debrief validation remain harness
+      work, and no human gate or gate-judgment change is added.
+    gates:
+      - id: claude-facts-position
+        kind: command
+        run: pnpm --filter cli exec vitest run test/session/show.test.ts test/graph/show.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
