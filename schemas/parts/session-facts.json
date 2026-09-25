@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/parts/session-facts.json",
+  "title": "session-facts",
+  "description": "Vendor-neutral facts observed from a session record; unavailable facts use the literal unknown reading.",
+  "type": "object",
+  "properties": {
+    "promptReceived": { "enum": ["yes", "unknown"] },
+    "lastActivity": {
+      "anyOf": [
+        { "const": "unknown" },
+        {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
+        }
+      ]
+    },
+    "usage": {
+      "anyOf": [
+        { "const": "unknown" },
+        {
+          "type": "object",
+          "additionalProperties": { "type": "number" }
+        }
+      ]
+    },
+    "quota": {
+      "anyOf": [
+        { "const": "unknown" },
+        {
+          "type": "object",
+          "properties": {
+            "window": { "type": "string" },
+            "usedPercentage": { "type": "number" }
+          },
+          "required": ["window", "usedPercentage"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "deliveryBasis": { "enum": ["record", "status"] }
+  },
+  "required": ["promptReceived", "lastActivity", "usage", "quota", "deliveryBasis"],
+  "additionalProperties": false
+}

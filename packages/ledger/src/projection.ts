@@ -9,6 +9,7 @@ import type { OutboxDelivery, OutboxIntent } from "./outbox.ts";
 import type { Outcome } from "./outcome.ts";
 import type { Receipt } from "./receipt.ts";
 import type { SessionRuntime } from "./session.ts";
+import { sessionFacts, type SessionFacts } from "./sessionFacts.ts";
 
 export interface NodeView {
   readonly node: Node;
@@ -30,6 +31,7 @@ export interface SessionView {
   readonly brief: Brief;
   readonly graphBaseSha: string | undefined;
   readonly runtime: SessionRuntime;
+  readonly facts: SessionFacts;
   readonly notes: readonly Note[];
   readonly debrief: Debrief | undefined;
   readonly lease: Lease | undefined;
@@ -142,6 +144,7 @@ export function applyEvent(projection: LedgerProjection, event: LedgerEvent): Le
         brief: event.brief,
         graphBaseSha: event.graphBaseSha,
         runtime: event.session.runtime,
+        facts: sessionFacts.unknown(),
         notes: [],
         debrief: undefined,
         lease: undefined,
@@ -160,6 +163,11 @@ export function applyEvent(projection: LedgerProjection, event: LedgerEvent): Le
       return withSession(projection, event.session, (view) => ({
         ...view,
         narration: [...view.narration, { at: event.at, line: event.line }],
+      }));
+    case "session-facts-observed":
+      return withSession(projection, event.session, (view) => ({
+        ...view,
+        facts: event.facts,
       }));
     case "debrief-filed":
       return withSession(projection, event.session, (view) => ({
