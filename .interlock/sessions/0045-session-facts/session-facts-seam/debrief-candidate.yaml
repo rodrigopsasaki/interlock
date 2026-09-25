@@ -1,0 +1,142 @@
+interlock: debrief@v2
+graph: 0045-session-facts
+node: session-facts-seam
+role: worker
+graph_base_sha: 028156b25dac7df5fc6969489c30d1e8365211a8
+session_start_sha: 145de112b8cf3a8bf8baddc4ca42b81806a05fd6
+head_sha: 56637d60e9b0763e5fe4c841697ea685d629629c
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-luna
+discoveries: []
+decisions:
+  - id: explicit-session-facts-contract
+    what: >-
+      Added session-facts@v0 as a vendor-neutral typed contract with explicit
+      yes-or-unknown prompt evidence, RFC3339-or-unknown activity, raw numeric
+      usage counters, quota window and used percentage, and delivery basis.
+    because: >-
+      Later prompt delivery and position nodes need to distinguish an observed
+      value from an unavailable record without pricing, inference, or vendor
+      fields entering the ledger contract.
+    rests_on:
+      - .interlock/graphs/0045-session-facts.yaml
+      - packages/ledger/src/sessionFacts.ts
+    hunks:
+      - 'packages/ledger/src/sessionFacts.ts:3-21'
+      - 'packages/ledger/src/sessionFacts.ts:60-85'
+    produces:
+      - packages/ledger/src/sessionFacts.ts
+      - schemas/session-facts@v0.json
+      - schemas/parts/session-facts.json
+    applies_to: { kind: path, path: packages/ledger/src/sessionFacts.ts }
+  - id: replayable-facts-observation
+    what: >-
+      Added session-facts-observed to event@v7, routed event@v6 through an
+      upcaster, initialized historical sessions to unknown facts, and retained
+      only the latest observation in the projection while every observation
+      remains in the journal.
+    because: >-
+      The persisted journal is the recovery boundary: a new fact must be
+      additive and replayable, while pre-facts sessions must remain readable
+      without an invented observation.
+    rests_on:
+      - docs/design/0001-interlock.md
+      - packages/ledger/src/envelope.ts
+      - packages/ledger/src/projection.ts
+    hunks:
+      - 'packages/ledger/src/event.ts:90-147'
+      - 'packages/ledger/src/envelope.ts:9-34'
+      - 'packages/ledger/src/upcast/v6.ts:4-7'
+      - 'packages/ledger/src/projection.ts:138-171'
+      - 'packages/ledger/test/sessionFacts.test.ts:43-137'
+    produces:
+      - packages/ledger/src/event.ts
+      - packages/ledger/src/envelope.ts
+      - packages/ledger/src/upcast/v6.ts
+      - packages/ledger/src/projection.ts
+      - schemas/event@v7.json
+    applies_to: { kind: path, path: packages/ledger/src/envelope.ts }
+  - id: runtime-reader-boundary
+    what: >-
+      Added an optional SessionFactsReader to the runtime adapter boundary; it
+      receives the existing AgentIdentity and returns the shared SessionFacts
+      contract, leaving runtimes without a confirmed reader usable.
+    because: >-
+      Vendor record paths and parsers belong behind their runtime adapter, while
+      the core must degrade to unknown when no reader is available.
+    rests_on:
+      - .interlock/graphs/0045-session-facts.yaml
+      - packages/runner/src/runtime.ts
+    hunks:
+      - 'packages/runner/src/runtime.ts:15-22'
+      - 'packages/runner/src/runtime.ts:64-66'
+    produces:
+      - packages/runner/src/runtime.ts
+      - packages/runner/src/index.ts
+    applies_to: { kind: path, path: packages/runner/src/runtime.ts }
+  - id: schema-reference-hyphen-support
+    what: >-
+      Extended schema-reference artifact discovery to retain hyphenated shape
+      terms and regenerated docs/shapes.md for event@v7 and session-facts@v0.
+    because: >-
+      The required session-facts@v0 artifact name contains a hyphen; without this
+      additive reader change the schema registry could validate it while the
+      generated public shape reference silently omitted it.
+    rests_on:
+      - schemas/session-facts@v0.json
+      - packages/schemas/src/reference/artifacts.ts
+    hunks:
+      - 'packages/schemas/src/reference/artifacts.ts:18-18'
+      - 'docs/shapes.md:825-832'
+      - 'docs/shapes.md:1293-1315'
+    produces:
+      - docs/shapes.md
+    applies_to: { kind: path, path: packages/schemas/src/reference/artifacts.ts }
+gates_run_by_agent:
+  - id: facts-ledger-contract
+    result: pass
+    invocation: mise exec -- pnpm --filter ledger exec vitest run test/sessionFacts.test.ts test/replay.test.ts
+    note: 25 focused ledger and replay tests passed.
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: All workspace packages typechecked successfully.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Biome checked the repository with no findings.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+    note: packages/*/src contains no comments.
+  - id: schema-contract
+    result: pass
+    invocation: mise exec -- pnpm --filter schemas exec vitest run test/corpus.guards.test.ts test/reference.test.ts
+    note: 49 schema guard and reference tests passed.
+  - id: schema-reference
+    result: pass
+    invocation: mise exec -- pnpm interlock schema reference --check
+    note: docs/shapes.md was fresh; the repository reports its existing vocabulary gaps.
+  - id: test
+    result: fail
+    invocation: mise exec -- pnpm test
+    note: >-
+      Ledger, debrief, face, verifier, and non-network substrate tests passed;
+      24 existing substrate capability, context, and absorb tests timed out
+      after their local servers failed with listen EPERM on 127.0.0.1 in this
+      sandbox.
+  - id: notes-valid
+    result: pass
+    invocation: mise exec -- pnpm interlock debrief validate --file .interlock/sessions/0045-session-facts/session-facts-seam/notes.yaml
+    note: The session notes validated as notes@v0.
+open:
+  - >-
+    gap: schema reference reports session-facts as an artifact term with no
+    AGENTS.md vocabulary row; the contract is retained as the required shape
+    name and the unmatched term remains telemetry rather than a new face word.
+  - >-
+    The full test gate remains environment-limited by the sandbox's refusal to
+    bind 127.0.0.1; rerun it in a network-capable environment before clearing
+    the node's test receipt.

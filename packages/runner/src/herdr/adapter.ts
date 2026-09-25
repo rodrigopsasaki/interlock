@@ -5,6 +5,7 @@ import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import { isCompliantAgentName } from "../agentName.ts";
+import { createClaudeSessionFactsReader, resolveClaudeSessionPath } from "../claude/adapter.ts";
 import type {
   Agent,
   AgentIdentity,
@@ -15,6 +16,7 @@ import type {
   RuntimeRefusal,
 } from "../runtime.ts";
 import { isRecord, isString, numberAt, prop, stringAt } from "../validate.ts";
+import { createCodexSessionFactsReader, findCodexSessionPath } from "./codex.ts";
 
 export { isCompliantAgentName } from "../agentName.ts";
 
@@ -58,6 +60,15 @@ function isPaneBusyRefusal(
 
 function isWaitSliceTimeout(refusal: RuntimeRefusal): boolean {
   return refusal.kind === "remote" && refusal.code === AGENT_WAIT_SLICE_TIMEOUT_CODE;
+}
+
+function sessionDescriptor(
+  value: unknown,
+): { readonly kind: string; readonly value: string } | undefined {
+  if (!isRecord(value)) return undefined;
+  const kind = prop(value, "kind");
+  const sessionValue = prop(value, "value");
+  return isString(kind) && isString(sessionValue) ? { kind, value: sessionValue } : undefined;
 }
 
 export function generateAgentName(): string {
@@ -308,6 +319,17 @@ export async function createHerdrRuntime(
   };
 
   return ok({
+    sessionFactsReader: createCodexSessionFactsReader(),
+    sessionFactsReaderFor(agentKind) {
+      switch (agentKind) {
+        case "codex":
+          return createCodexSessionFactsReader();
+        case "claude":
+          return createClaudeSessionFactsReader();
+        default:
+          return undefined;
+      }
+    },
     async openPane(cwd) {
       const label = repositoryLabel(cwd);
       const listed = await call("workspace.list", {});
@@ -330,7 +352,8 @@ export async function createHerdrRuntime(
           cwd,
           focus: false,
         });
-        return isErr(opened) ? opened : paneFromCreated(opened.value, "tab.create");
+        if (isErr(opened)) return opened;
+        return paneFromCreated(opened.value, "tab.create");
       }
 
       const created = await call("workspace.create", {
@@ -338,7 +361,8 @@ export async function createHerdrRuntime(
         focus: false,
         label,
       });
-      return isErr(created) ? created : paneFromCreated(created.value, "workspace.create");
+      if (isErr(created)) return created;
+      return paneFromCreated(created.value, "workspace.create");
     },
 
     async startAgent(
@@ -373,6 +397,40 @@ export async function createHerdrRuntime(
         title: `${graph}/${node}`,
       });
       return isErr(reported) ? reported : ok(undefined);
+    },
+
+    async resolveAgentIdentity(
+      agent: Agent,
+      fallback: AgentIdentity,
+      agentKind: string,
+      cwd: string,
+    ) {
+      const observed = await call("agent.get", { target: agent.id });
+      if (isErr(observed)) return observed;
+      const agentRecord = prop(observed.value, "agent");
+      const descriptor = isRecord(agentRecord)
+        ? sessionDescriptor(prop(agentRecord, "agent_session"))
+        : undefined;
+      if (descriptor === undefined) return ok(fallback);
+      if (descriptor.kind === "path") {
+        return ok({ ...fallback, sessionPath: descriptor.value });
+      }
+      if (descriptor.kind !== "id") return ok(fallback);
+      if (agentKind === "codex") {
+        const path = await findCodexSessionPath(descriptor.value);
+        return ok(
+          path === undefined
+            ? { ...fallback, sessionId: descriptor.value }
+            : { sessionId: descriptor.value, sessionPath: path },
+        );
+      }
+      if (agentKind === "claude") {
+        return ok({
+          sessionId: descriptor.value,
+          sessionPath: resolveClaudeSessionPath(descriptor.value, cwd),
+        });
+      }
+      return ok({ ...fallback, sessionId: descriptor.value });
     },
 
     async prompt(agent: Agent, text: string) {

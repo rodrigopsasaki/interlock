@@ -1,0 +1,43 @@
+interlock: notes@v0
+node: session-facts-position
+entries:
+  - kind: surprise
+    at: "2026-09-25T07:22:23Z"
+    expected: "The session directory would already contain notes.yaml."
+    observed: "The canonical brief was present but notes.yaml was absent, so this entry establishes the first session receipt."
+  - kind: choice
+    at: "2026-09-25T07:22:23Z"
+    chose: "Treat the inherited session-facts contract, Codex reader, and Claude reader artifacts as checked context and trace the remaining projection seams before editing."
+    because: "The acceptance is additive and requires replay, latest-observation selection, position, session inspection, and substrate-none behavior while preserving the existing reader boundaries and historical artifacts."
+  - kind: choice
+    at: "2026-09-25T07:24:28Z"
+    chose: "Carry SessionFacts into each PositionAttempt and render one shared five-line facts block from the face for both graph position and session inspection."
+    because: "The ledger projection already retains the latest observation, while the current position model and session renderer were the remaining public seams; one renderer keeps labels, ordering, raw counters, empty usage, and unknown degradation consistent."
+  - kind: surprise
+    at: "2026-09-25T07:24:28Z"
+    expected: "The existing position@v1 output schema would already describe the newly required session facts."
+    observed: "position@v1 currently permits no facts field on attempts, so the additive output contract must be updated alongside the producer and its corpus tests."
+  - kind: surprise
+    at: "2026-09-25T07:28:34Z"
+    expected: "The focused source and fixture edits would pass the repository formatter immediately."
+    observed: "Biome required import/export ordering and two line-wrap fixes in the touched face and CLI tests; the command also warned that the machine is running Node 26.9.0 while .node-version requests 24.14.0."
+  - kind: choice
+    at: "2026-09-25T07:28:34Z"
+    chose: "Apply only Biome's safe formatting and import-order fixes, while retaining the repository's pinned Node requirement as a reported environment warning."
+    because: "The lint findings are mechanical and local to touched files; changing runtime configuration would exceed the node's acceptance and could hide the distinction between source proof and environment setup."
+  - kind: surprise
+    at: "2026-09-25T07:30:36Z"
+    expected: "The mandated full workspace test would complete with every package green after the focused facts-position proof passed."
+    observed: "Ledger, face, debrief, and verifier passed, but the recursive test stopped in substrate with 24 existing HTTP-fixture failures and unhandled listen EPERM errors on 127.0.0.1; the facts-position suites remained green."
+  - kind: choice
+    at: "2026-09-25T07:30:36Z"
+    chose: "Keep the source slice unchanged, attribute the full-test failure to the sandbox network boundary, and run the remaining non-substrate package suites independently."
+    because: "The failure occurs before the runner and CLI packages are reached and is identical to the inherited session-facts seam limitation; independent package receipts still distinguish source proof from the unavailable local TCP fixture capability."
+  - kind: surprise
+    at: "2026-09-25T07:34:42Z"
+    expected: "The independent runner and CLI workspace suites would reach their final summaries after the targeted facts tests passed."
+    observed: "Runner finished with 38 failures from herdr Unix-socket EPERM and configured GPG signing; CLI showed the same GPG and local-fixture failures and was stopped after the environment boundary was established. No source assertion in the facts-position proof failed."
+  - kind: choice
+    at: "2026-09-25T07:34:42Z"
+    chose: "Use the focused ledger, face, CLI, and schema receipts as the node-specific proof and report the broader environment-limited runs separately."
+    because: "The acceptance's direct proof commands completed green, while broader failures are outside this node's source seam and cannot be repaired without changing the managed environment or unrelated test infrastructure."

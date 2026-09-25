@@ -4,6 +4,7 @@ import { isLiveAttempt } from "./nodeRow.ts";
 import type { ApprovalState, NodeState, Position, PositionNode } from "./position.ts";
 import type { PositionGate, PositionGateState } from "./positionGate.ts";
 import { renderSessionRuntime } from "./runtimeLine.ts";
+import { renderSessionFacts } from "./sessionFacts.ts";
 
 function renderApproval(approval: ApprovalState): string {
   switch (approval) {
@@ -52,6 +53,11 @@ function renderNodeRuntime(node: PositionNode): string | undefined {
   return attempt === undefined ? undefined : `runtime: ${renderSessionRuntime(attempt.runtime)}`;
 }
 
+function renderNodeFacts(node: PositionNode): readonly string[] {
+  const attempt = liveOrLatestAttempt(node.attempts, isLiveAttempt);
+  return attempt === undefined ? [] : renderSessionFacts(attempt.facts).map((line) => `  ${line}`);
+}
+
 export function renderPosition(position: Position): string {
   const lines: string[] = [`graph ${position.graph} — ${renderApproval(position.approval)}`, ""];
 
@@ -60,6 +66,7 @@ export function renderPosition(position: Position): string {
     lines.push(`  ${renderGates(node.gates)}`);
     const runtimeLine = renderNodeRuntime(node);
     if (runtimeLine !== undefined) lines.push(`  ${runtimeLine}`);
+    lines.push(...renderNodeFacts(node));
     if (node.float.kind === "measured") {
       lines.push(`  ${renderFloat(node.float)}`);
     }

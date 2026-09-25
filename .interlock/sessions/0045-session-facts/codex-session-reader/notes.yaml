@@ -1,0 +1,64 @@
+interlock: notes@v0
+node: codex-session-reader
+entries:
+  - kind: surprise
+    at: "2026-09-25T06:59:58Z"
+    expected: "The session directory would already contain notes.yaml."
+    observed: "The canonical brief was present but notes.yaml was absent, so this file is being created before implementation choices."
+    mattered_because: "The session record must exist before source work so each later choice and surprise remains recoverable."
+  - kind: choice
+    at: "2026-09-25T06:59:58Z"
+    chose: "Use the existing session-facts@v0 contract and SessionFactsReader seam as the adapter boundary."
+    because: "The node acceptance explicitly says the preceding contract stands and requires vendor knowledge to remain inside the runtime adapter."
+  - kind: surprise
+    at: "2026-09-25T07:00:10Z"
+    expected: "The first notes commit would use the configured Git signer."
+    observed: "GnuPG could not create its temporary keybox lock or connect to keyboxd under the managed filesystem, so the signed commit was refused."
+    mattered_because: "The session requires incremental commits; the source and note will be committed with signing disabled for this worktree, without changing Git configuration."
+  - kind: surprise
+    at: "2026-09-25T07:01:53Z"
+    expected: "herdr agent list would be available for the machine-specific identity confirmation."
+    observed: "The installed herdr command returned Operation not permitted, but the current session UUID resolves to a real Codex rollout record whose user contents include an AGENTS/environment item followed by the opening prompt marker."
+    mattered_because: "The adapter can be verified against the readable record shape, while the herdr wire identity itself remains an environment evidence gap rather than a guessed value."
+  - kind: choice
+    at: "2026-09-25T07:01:53Z"
+    chose: "Match the opening prompt by its stable interlock opening-text marker across all user input contents, not by user-item position."
+    because: "The real rollout has a separate preamble/environment user item before the opening prompt, and the brief explicitly requires text matching so that dropped or prepended user items cannot be mistaken for delivery."
+    rests_on:
+      - packages/runner/src/openingPrompt.ts
+      - .interlock/sessions/0045-session-facts/codex-session-reader/brief.md
+  - kind: choice
+    at: "2026-09-25T07:04:00Z"
+    chose: "Implement a dedicated Codex SessionFactsReader that consumes only AgentIdentity.sessionPath and returns record-basis unknowns when the rollout cannot prove a fact."
+    because: "The runtime seam already supplies the adapter-owned path without exposing vendor wire records to core, and record-basis unknown prevents prompt delivery from falling back to herdr status for a known reader."
+    rests_on:
+      - packages/runner/src/runtime.ts
+      - packages/ledger/src/sessionFacts.ts
+  - kind: surprise
+    at: "2026-09-25T07:06:00Z"
+    expected: "The first full typecheck would accept the reader's literal prompt fact."
+    observed: "Generic inference widened sessionFacts.known(\"yes\") to Known<string>, which did not satisfy the contract's Known<\"yes\"> arm."
+    mattered_because: "The reader now supplies the explicit literal type parameter, preserving the stateful contract without a cast."
+  - kind: surprise
+    at: "2026-09-25T07:06:00Z"
+    expected: "The declared Codex reader proof would complete after the new reader tests passed."
+    observed: "The Codex tests passed, but the combined Codex/herdr Vitest invocation stalled after the existing herdr worktree fixture setup and was stopped; no herdr assertion completed in that invocation."
+    mattered_because: "The exact reader proof is retained separately, while the adapter boundary is covered by an assertion in the existing herdr test and the stalled broad result is not claimed as a pass."
+  - kind: surprise
+    at: "2026-09-25T07:07:00Z"
+    expected: "A focused existing herdr adapter test would be able to start its Unix-socket fixture."
+    observed: "The test fixture failed with listen EPERM in the sandbox, causing the five-second test timeout before any adapter assertion ran."
+    mattered_because: "The environment blocks the herdr socket receipt; the Codex reader proof and typecheck remain independently executable, and no network behavior is changed to work around it."
+  - kind: choice
+    at: "2026-09-25T07:10:00Z"
+    chose: "Read usage and quota from one latest token_count record rather than independently retaining older valid fields."
+    because: "Codex reports cumulative usage and the brief says quota is on that same record; reusing an older quota after a later record omits it would turn an absent optional field into an invented current observation."
+  - kind: surprise
+    at: "2026-09-25T07:15:00Z"
+    expected: "The required full workspace test gate would reach and pass the runner package after the affected focused tests were green."
+    observed: "The exact full command stopped in substrate after 24 HTTP-fixture failures and unhandled listen EPERM errors on 127.0.0.1; recursive package execution did not reach runner."
+    mattered_because: "The failure is an existing sandbox network boundary outside this adapter change, so the debrief will report the full gate as blocked while retaining the independent Codex reader proof."
+  - kind: choice
+    at: "2026-09-25T07:19:00Z"
+    chose: "Author the debrief with one machine-evidence discovery, three narrow implementation decisions, exact source and fixture hunks, and separate pass/fail gate receipts."
+    because: "The debrief should hand on the verified record-ordering lesson and the adapter implementation without promoting the sandbox-blocked herdr or workspace gates into a false pass."

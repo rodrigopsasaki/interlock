@@ -15,4 +15,16 @@ describe("runSchemaReference", () => {
     const result = await runSchemaReference(["--check"], { cwd: repoRoot });
     expect(result.message).toContain("config, event, item, local, notes");
   });
+
+  it("--check --brief-authoring proves the authoring contract and worked example", async () => {
+    const result = await runSchemaReference(["--check", "--brief-authoring"], { cwd: repoRoot });
+    expect(result.exitCode).toBe(0);
+    expect(result.message).toContain("brief-authoring: fresh");
+  });
+
+  it("keeps brief-authoring checking read-only", async () => {
+    const result = await runSchemaReference(["--brief-authoring"], { cwd: repoRoot });
+    expect(result.exitCode).toBe(1);
+    expect(result.message).toContain("requires --check");
+  });
 });

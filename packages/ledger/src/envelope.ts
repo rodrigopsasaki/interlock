@@ -3,9 +3,10 @@ import { upcastV1 } from "./upcast/v1.ts";
 import { upcastV2 } from "./upcast/v2.ts";
 import { upcastV3 } from "./upcast/v3.ts";
 import { upcastV5 } from "./upcast/v5.ts";
+import { upcastV6 } from "./upcast/v6.ts";
 import { isRecord, isString, prop } from "./validate.ts";
 
-export const EVENT_SHAPE = "event@v6";
+export const EVENT_SHAPE = "event@v7";
 
 export type EventEnvelope = {
   readonly interlock: typeof EVENT_SHAPE;
@@ -25,6 +26,7 @@ export type Upcaster = (raw: unknown) => LedgerEvent | undefined;
 
 export const upcastTable: ReadonlyMap<string, Upcaster> = new Map([
   [EVENT_SHAPE, (raw: unknown) => (isLedgerEvent(raw) ? raw : undefined)],
+  ["event@v6", upcastV6],
   ["event@v5", upcastV5],
   ["event@v4", upcastPreV5Event],
   ["event@v3", upcastV3],

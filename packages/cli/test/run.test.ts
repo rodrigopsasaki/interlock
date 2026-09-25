@@ -5,8 +5,9 @@ import { dirname, join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
 import { err, isOk, ok } from "@phyxiusjs/fp";
 import { debriefFilePath, readBriefFile } from "debrief";
+import { sharedJournalDirectory } from "face";
 import { isLedgerEvent, type LedgerEvent } from "ledger";
-import type { Runtime } from "runner";
+import { type Runtime, screenPath } from "runner";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   type FakeSubstrateServer,
@@ -1193,18 +1194,18 @@ describe("interlock run", () => {
     expect(result.exitCode).toBe(0);
     expect(result.message).toContain("cleared");
     expect(lines).toContain("agent screen: > summarised the diff");
-    const screenPath = join(
-      cwd,
-      ".worktrees",
-      "a",
-      ".interlock",
-      "sessions",
-      "demo",
-      "a",
-      "screen.txt",
+    const worktreePath = join(cwd, ".worktrees", "a");
+    const retainedScreenPath = screenPath(sharedJournalDirectory(worktreePath), "demo", "a");
+    expect(existsSync(retainedScreenPath)).toBe(true);
+    expect(readFileSync(retainedScreenPath, "utf-8")).toBe(
+      "> ran the gates\n> summarised the diff\n\n",
     );
-    expect(existsSync(screenPath)).toBe(true);
-    expect(readFileSync(screenPath, "utf-8")).toBe("> ran the gates\n> summarised the diff\n\n");
+    expect(
+      existsSync(join(worktreePath, ".interlock", "sessions", "demo", "a", "screen.txt")),
+    ).toBe(false);
+    expect(
+      execFileSync("git", ["status", "--porcelain"], { cwd: worktreePath, encoding: "utf-8" }),
+    ).toBe("");
   }, 30_000);
 
   it("narrates a failed screen read and still reaches judgement", async () => {
@@ -1227,17 +1228,8 @@ describe("interlock run", () => {
     expect(result.exitCode).toBe(0);
     expect(result.message).toContain("cleared");
     expect(lines).toContain("agent screen read refused: the pane vanished");
-    const screenPath = join(
-      cwd,
-      ".worktrees",
-      "a",
-      ".interlock",
-      "sessions",
-      "demo",
-      "a",
-      "screen.txt",
-    );
-    expect(existsSync(screenPath)).toBe(false);
+    const worktreePath = join(cwd, ".worktrees", "a");
+    expect(existsSync(screenPath(sharedJournalDirectory(worktreePath), "demo", "a"))).toBe(false);
   }, 30_000);
 
   it("waits through a mid-run blocked agent, narrating the pane and the screen, before it settles", async () => {
@@ -1360,9 +1352,11 @@ describe("interlock run", () => {
     expect(result.exitCode).toBe(1);
     expect(result.message).toContain("gates refused");
     expect(lines).toContain("agent screen: > summarised the diff");
+    const worktreePath = join(cwd, ".worktrees", "a");
+    expect(existsSync(screenPath(sharedJournalDirectory(worktreePath), "demo", "a"))).toBe(true);
     expect(
-      existsSync(join(cwd, ".worktrees", "a", ".interlock", "sessions", "demo", "a", "screen.txt")),
-    ).toBe(true);
+      existsSync(join(worktreePath, ".interlock", "sessions", "demo", "a", "screen.txt")),
+    ).toBe(false);
   }, 30_000);
 
   it("narrates only the first five of a larger uncommitted-paths list", async () => {

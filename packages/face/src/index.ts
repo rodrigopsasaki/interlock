@@ -78,6 +78,7 @@ export {
   renderOutcome,
   renderSessionColumns,
 } from "./sessionColumns.ts";
+export { renderSessionFacts } from "./sessionFacts.ts";
 export type { CycleRefusal } from "./topology.ts";
 export { topologicalOrder } from "./topology.ts";
 export type { Accountable, Verb } from "./verb.ts";

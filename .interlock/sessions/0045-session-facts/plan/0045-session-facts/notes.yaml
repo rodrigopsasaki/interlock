@@ -1,0 +1,104 @@
+interlock: notes@v0
+node: plan/0045-session-facts
+entries:
+  - kind: choice
+    at: "2026-09-25T01:00:00Z"
+    chose: >-
+      Decompose the graph into a vendor-neutral session-facts contract and adapter seam, a
+      Codex record reader, runner and ledger/position integration, runner-artifact isolation,
+      brief-authoring guidance, and two independent unattended dogfood nodes.
+    because: >-
+      The ask spans a retrofit seam, one verified runtime implementation, consumers of the
+      facts, an observed judging collision, a missing authoring path, and a proof across vendors;
+      separate nodes keep recovery bounded while dependencies preserve the order in which each
+      proof becomes meaningful.
+  - kind: choice
+    at: "2026-09-25T01:02:00Z"
+    chose: >-
+      Keep promptDelivery retry and grace behavior unchanged and change only the definition of
+      prompt taken to use the runtime's own session record through the adapter.
+    because: >-
+      The field evidence identifies herdr's status transition as the false positive, while the
+      brief explicitly directs retaining retry and grace behavior; the session record is the
+      vendor-owned evidence boundary required by the ask and invariant I6.
+  - kind: surprise
+    at: "2026-09-25T01:04:00Z"
+    expected: >-
+      The existing session model would have no runtime identity from which a record reader could
+      start.
+    observed: >-
+      Session already carries a vendor-neutral runtime identity, and the herdr adapter's
+      AgentIdentity already includes sessionId and optional sessionPath. The graph therefore
+      extends the existing adapter seam instead of introducing a second runtime-selection shape.
+  - kind: choice
+    at: "2026-09-25T01:12:00Z"
+    chose: >-
+      Planned nine nodes: a facts seam, Codex reader, prompt-delivery integration, ledger and
+      position integration, runner-artifact boundary, brief-authoring documentation, a guarded
+      Claude reader, and two final unattended dogfood nodes on luna and sonnet.
+    because: >-
+      The graph keeps the two implementation seams independent where recovery is cheap, makes
+      the unverified second-vendor record an explicit prerequisite rather than a guessed parser,
+      and turns the brief's cross-vendor proof into two runnable node acceptances.
+  - kind: surprise
+    at: "2026-09-25T01:13:00Z"
+    expected: The validation commands would run under the repository's pinned Node version.
+    observed: >-
+      pnpm reported the existing engine warning that Node 26.9.0 is active while the repository
+      requests Node 24.14.0; graph loading, schema validation, schema-reference freshness, and
+      focused lint still completed successfully.
+  - kind: surprise
+    at: "2026-09-25T01:20:00Z"
+    expected: The read-only debrief preview would accept the authored head provenance.
+    observed: >-
+      The first candidate used a mistyped graph commit SHA, so preview rejected the range before
+      inspecting the debrief. git rev-parse supplied the exact 40-character SHA; the candidate was
+      corrected and no graph or implementation artifact changed.
+  - kind: choice
+    at: "2026-09-25T01:22:00Z"
+    chose: >-
+      Narrowed the screen-capture discovery citation to the exact function-signature line rather
+      than quoting the path construction line with nested string literals.
+    because: >-
+      Candidate preview requires one separate exact quotation for a rooted discovery, and the
+      signature establishes the screen-path seam without ambiguous nested quotation marks.
+  - kind: choice
+    at: "2026-09-25T01:24:00Z"
+    chose: >-
+      Kept the final debrief itself out of the source-range hunk manifest and rooted the retained
+      planning-artifact decision in notes.yaml.
+    because: >-
+      The candidate's source range ends at the graph commit before the debrief is filed, so the
+      debrief cannot truthfully root its own future hunk; the debrief remains the final artifact
+      and its existence is covered by the validation gate.
+  - kind: choice
+    at: "2026-09-25T01:30:00Z"
+    chose: >-
+      Corrected the candidate graph in place: recorded the exact luna model, stated the Kimi Code
+      CLI reader deferral, made unknown-runtime delivery explicitly status-based with a weaker
+      `Delivery basis: status` record, required the new brief-authoring reference check, and made
+      both dogfood gates read their own session show output using the committed labels `Prompt
+      received`, `Last activity`, `Usage`, and `Quota`.
+    because: >-
+      Review found that the prior graph still allowed dogfood gates to pass on unrelated unit
+      tests, left pre-reader Claude/Kimi delivery undefined, used the existing schema-reference
+      check without requiring the new documentation, and recorded only the generic gpt-5 label.
+      These edits keep the plan vendor-neutral in core while making the harness-observed proof and
+      the deferred reader boundary exact.
+  - kind: surprise
+    at: "2026-09-25T01:32:00Z"
+    expected: The correction commit would use the repository's configured signing key.
+    observed: >-
+      Git could not create GPG's temporary keybox file under the protected home directory, so the
+      signing attempt failed before writing a commit. The correction is otherwise staged unchanged
+      and will be committed locally with signing disabled; the failure is an environment boundary,
+      not a graph or validation result.
+  - kind: surprise
+    at: "2026-09-25T01:36:00Z"
+    expected: The standing full test gate would complete after the graph-only correction.
+    observed: >-
+      `pnpm test` passed all non-network package suites but the existing substrate capability,
+      context, and absorb tests could not bind their local listeners in this sandbox; 24 tests
+      failed or timed out with `listen EPERM: operation not permitted 127.0.0.1`. Typecheck, lint,
+      comments, graph loading, schema validation, notes validation, and schema-reference freshness
+      all passed.

@@ -1,0 +1,187 @@
+interlock: debrief@v2
+graph: 0045-session-facts
+node: claude-session-reader
+role: worker
+graph_base_sha: 005490053bc1f0673e3146802b02d2194fc667aa
+session_start_sha: e0e7d8c72e7390995951e75cc19a546aee489839
+head_sha: 9be23954ce8a5f4023c6f23f5a12390cda20fe11
+derivation:
+  kind: agent
+  runtime: claude
+  model: claude-sonnet-5
+discoveries:
+  - id: herdr-claude-session-id-only
+    what: >-
+      herdr's socket API reports only a session id (agent_session kind "id"),
+      never a record path, for this session's own live Claude pane on this
+      machine, even though its Claude hook conditionally sends an
+      agent_session_path in the same call whenever Claude Code's own
+      SessionStart payload carries one.
+    found_at: >-
+      .interlock/sessions/0045-session-facts/claude-session-reader/notes.yaml:33
+      "herdr exposes today would always see sessionPath undefined. Resolving that"
+    mattered_because: >-
+      AgentIdentity.sessionPath is what this node's reader (and any reader
+      behind the same seam) needs to find a record; whichever node wires
+      AgentIdentity for the runner has this gap to close for Claude before
+      dogfood-claude-facts can run unattended.
+  - id: claude-record-carries-no-quota-field
+    what: >-
+      A full grep of a real, live 193-line Claude Code transcript for
+      rate_limit, quota, remaining, and reset_at found no genuine field of that
+      kind; every hit was this session's own pasted brief text or a tool
+      result being echoed back into the transcript.
+    found_at: >-
+      .interlock/sessions/0045-session-facts/claude-session-reader/notes.yaml:84
+      "server_tool_use counts. Grepped the full file for rate_limit|quota|"
+    mattered_because: >-
+      Confirms the brief's candidate rather than assuming it; the reader
+      reports quota as unknown for every Claude record rather than a defect
+      it might otherwise be tempted to "fix" by inventing a field.
+  - id: opening-prompt-exact-discriminator
+    what: >-
+      The genuine opening turn in a Claude Code transcript is the one
+      "type":"user" record with parentUuid null and isSidechain false; every
+      later "type":"user" record (a tool-result continuation) carries a
+      non-null parentUuid.
+    found_at: >-
+      .interlock/sessions/0045-session-facts/claude-session-reader/notes.yaml:103
+      && isSidechain === false && message.role === "user" is an exact,
+    mattered_because: >-
+      Gives the reader an exact structural test for opening-prompt receipt
+      instead of a positional heuristic like "the first line", which a
+      resumed or compacted transcript could break.
+decisions:
+  - id: reader-trusts-only-session-path
+    what: >-
+      The Claude reader returns unknown facts whenever identity.sessionPath is
+      absent, unreadable, or parses to no usable records, and never derives a
+      path itself from a session id or cwd.
+    because: >-
+      The acceptance forbids a guessed path; herdr does not hand this reader a
+      sessionPath for Claude today (see discovery herdr-claude-session-id-only),
+      so degrading to unknown rather than deriving one keeps the reader honest
+      and lets it work unchanged once a later node closes that gap.
+    rests_on:
+      - .interlock/graphs/0045-session-facts.yaml
+      - packages/runner/src/runtime.ts
+      - .interlock/sessions/0045-session-facts/claude-session-reader/notes.yaml
+    hunks:
+      - "packages/runner/src/claude/adapter.ts:115-128"
+    produces:
+      - packages/runner/src/claude/adapter.ts
+      - packages/runner/src/index.ts
+    applies_to: { kind: path, path: packages/runner/src/claude/adapter.ts }
+  - id: opening-prompt-uses-confirmed-discriminator
+    what: >-
+      isOpeningPromptRecord checks type "user", parentUuid null, isSidechain
+      false, and message.role "user" together, rather than "the first user
+      line" or any content-based match.
+    because: >-
+      Confirmed against a real transcript (discovery
+      opening-prompt-exact-discriminator) that every later user record is a
+      tool-result continuation with a non-null parentUuid; matching structure
+      instead of position stays correct across resumed sessions and does not
+      depend on prompt text this node's fixtures must not carry.
+    rests_on:
+      - .interlock/sessions/0045-session-facts/claude-session-reader/notes.yaml
+      - packages/runner/test/fixtures/claude/session-with-usage.jsonl
+    hunks:
+      - "packages/runner/src/claude/adapter.ts:37-43"
+      - "packages/runner/test/fixtures/claude/session-with-usage.jsonl:1-6"
+    produces:
+      - packages/runner/src/claude/adapter.ts
+      - packages/runner/test/sessionFacts/claude.test.ts
+      - packages/runner/test/fixtures/claude/session-with-usage.jsonl
+      - packages/runner/test/fixtures/claude/no-opening-prompt.jsonl
+    applies_to: { kind: path, path: packages/runner/src/claude/adapter.ts }
+  - id: usage-summed-across-assistant-turns
+    what: >-
+      Usage totals sum input_tokens, output_tokens, cache_creation_input_tokens,
+      cache_read_input_tokens, and output_tokens_details.thinking_tokens across
+      every "assistant" record in the transcript into SessionUsage's typed
+      fields and its raw counter map, keyed by the vendor's own field names.
+    because: >-
+      Unlike the Codex record the graph's field evidence describes, Claude's
+      own record carries usage per assistant turn with no running session
+      total; summing is the only way to produce a session-level usage fact
+      from what the confirmed record actually contains, and raw keeps the
+      vendor's own counter names rather than renaming them.
+    rests_on:
+      - .interlock/sessions/0045-session-facts/claude-session-reader/notes.yaml
+      - packages/ledger/src/sessionFacts.ts
+    hunks:
+      - "packages/runner/src/claude/adapter.ts:60-95"
+    produces:
+      - packages/runner/src/claude/adapter.ts
+      - packages/runner/test/sessionFacts/claude.test.ts
+    applies_to: { kind: path, path: packages/runner/src/claude/adapter.ts }
+  - id: quota-hardcoded-unknown-for-claude
+    what: >-
+      The reader never attempts to read a quota fact from a Claude record; it
+      always reports quota as unknown for this vendor.
+    because: >-
+      Confirmed (discovery claude-record-carries-no-quota-field) that no
+      rate-limit or quota field exists anywhere in a real Claude Code
+      transcript; reporting unknown by construction is honest rather than
+      leaving a code path that would silently stay unknown by omission.
+    rests_on:
+      - .interlock/sessions/0045-session-facts/claude-session-reader/notes.yaml
+    hunks:
+      - "packages/runner/src/claude/adapter.ts:100-104"
+    produces:
+      - packages/runner/src/claude/adapter.ts
+    applies_to: { kind: path, path: packages/runner/src/claude/adapter.ts }
+gates_run_by_agent:
+  - id: claude-reader-proof
+    result: pass
+    invocation: >-
+      mise exec -- pnpm --filter runner exec vitest run
+      test/sessionFacts/claude.test.ts
+    note: >-
+      7 tests passed: no-session-path, missing-file, empty-record, the
+      confirmed known-facts extraction with aggregated usage, prompt-received
+      degradation with no genuine opening turn, an unparseable line skipped
+      without failing the record, and quota always unknown.
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: All 8 workspace packages typechecked successfully.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: >-
+      Biome checked all repository files with no findings, after
+      lint:fix reformatted the new adapter file to the repository's style.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+    note: packages/*/src contains no comments.
+  - id: test
+    result: pass
+    invocation: mise exec -- pnpm test
+    note: >-
+      All 8 workspace test suites passed (1,967 tests total: ledger 125, face
+      90, debrief 70, verifier 58, substrate 91, runner 295 including the new
+      claude session-facts reader tests, schemas 949, cli 289); no sandbox
+      failures observed this run.
+  - id: debrief-valid
+    result: pass
+    invocation: >-
+      mise exec -- pnpm interlock debrief validate --file
+      .interlock/sessions/0045-session-facts/claude-session-reader/debrief-candidate.yaml
+    note: The authored candidate validated structurally before filing.
+open:
+  - >-
+    gap: herdr does not hand this runner a sessionPath for a Claude pane on
+    this machine today (see discovery herdr-claude-session-id-only); this
+    node's reader is proven against a confirmed record via
+    identity.sessionPath directly, but dogfood-claude-facts cannot show
+    "Prompt received: yes" from a live Claude session until whichever node
+    wires AgentIdentity for the runner resolves that path for this vendor.
+  - >-
+    The confirmed transcript carries usage fields beyond the four counters and
+    thinking_tokens this reader keeps (a duplicate "iterations" array, a
+    cache_creation sub-object, service_tier, inference_geo, speed,
+    server_tool_use); left unread rather than guessed at, in case a later
+    node wants them surfaced too.

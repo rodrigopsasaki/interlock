@@ -1,3 +1,4 @@
+import { sessionFacts } from "ledger";
 import { describe, expect, it } from "vitest";
 import { reduce } from "../src/faceReducer.ts";
 import { type FaceKey, type FaceWorld, initialFaceState } from "../src/faceState.ts";
@@ -27,10 +28,16 @@ const position: Position = {
         },
       ],
       attempts: [
-        { session: "s-done", runtime: "unknown", leaseState: { kind: "none" } },
+        {
+          session: "s-done",
+          runtime: "unknown",
+          facts: sessionFacts.unknown(),
+          leaseState: { kind: "none" },
+        },
         {
           session: "s-live",
           runtime: "unknown",
+          facts: sessionFacts.unknown(),
           leaseState: { kind: "live" },
           agentStatus: "working",
         },

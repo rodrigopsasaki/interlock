@@ -10,6 +10,7 @@ export {
   diffScope,
   renderBriefFile,
 } from "./briefRewrite.ts";
+export { createClaudeSessionFactsReader } from "./claude/adapter.ts";
 export { withRenderedContextSlice } from "./contextSlice.ts";
 export { unmetDependencies } from "./dependencies.ts";
 export type { GateCommand, PlaceholderRefusal } from "./gateCommand.ts";
@@ -38,6 +39,10 @@ export {
   storeGateOutput,
 } from "./gateOutput.ts";
 export { createHerdrRuntime, defaultHerdrSocketPath } from "./herdr/adapter.ts";
+export {
+  createCodexSessionFactsReader,
+  readCodexSessionFacts,
+} from "./herdr/codex.ts";
 export type { InterpreterCorrection } from "./interpreterBrief.ts";
 export { extractAsk, interpreterBriefBody } from "./interpreterBrief.ts";
 export type {
@@ -76,6 +81,7 @@ export type {
   Pane,
   Runtime,
   RuntimeRefusal,
+  SessionFactsReader,
 } from "./runtime.ts";
 export { explainRuntimeRefusal } from "./runtime.ts";
 export type {
@@ -112,8 +118,9 @@ export type {
   BeforeJudgeRefusal,
   DriveSessionOutcome,
   DriveSessionRequest,
+  ObserveSessionFactsRequest,
 } from "./sessionDrive.ts";
-export { driveInteractiveSession } from "./sessionDrive.ts";
+export { driveInteractiveSession, observeSessionFacts } from "./sessionDrive.ts";
 export {
   lastNonEmptyLine,
   screenPath,

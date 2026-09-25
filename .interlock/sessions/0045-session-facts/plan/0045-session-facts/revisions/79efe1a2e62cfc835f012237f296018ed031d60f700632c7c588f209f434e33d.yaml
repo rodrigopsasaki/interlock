@@ -1,0 +1,120 @@
+interlock: debrief@v2
+graph: 0045-session-facts
+node: plan/0045-session-facts
+role: interpreter
+graph_base_sha: 69d2b149819000d26fa2c164524a5315eacf83d5
+session_start_sha: 73d5cfeda05d9d2efe2b81c324910bdaab797640
+head_sha: 04bf2756c975ff00e354db8a1576c6b311b7a428
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries:
+  - id: runtime-identity-already-has-record-pointer
+    what: >-
+      The existing runner identity already carries a session id and an optional runtime-owned
+      session path.
+    found_at: 'packages/runner/src/runtime.ts:14-17 "export interface AgentIdentity {"'
+    mattered_because: >-
+      The proposed reader can extend the existing runtime adapter membrane instead of introducing
+      a second identity or placing vendor record paths in ledger or position code.
+  - id: screen-capture-is-inside-judged-worktree
+    what: >-
+      The current screen snapshot path is constructed below the target worktree's .interlock
+      directory.
+    found_at: 'packages/runner/src/sessionScreen.ts:4 "export function screenPath(worktreePath: string, graph: string, node: string): string {"'
+    mattered_because: >-
+      A target repository can report the runner's diagnostic file as uncommitted, so the graph
+      needs an artifact-boundary node rather than a repository-specific ignore-file change.
+  - id: brief-authoring-is-under-described
+    what: >-
+      The public README says graphs are authored directly and that an assisted planner is not a
+      finished capability, but does not explain the canonical brief authoring path.
+    found_at: 'README.md:65-66 "Today, graphs are authored directly. An assisted planner is part of the design, not a finished"'
+    mattered_because: >-
+      The graph needs a separate documentation acceptance for who writes brief@v1, what it is
+      derived from, and where the immutable canonical file lives.
+decisions:
+  - id: decompose-by-recovery-boundary
+    what: >-
+      Planned nine nodes covering the facts seam, Codex reader, prompt-delivery proof, ledger and
+      position consumers, runner-artifact boundary, brief-authoring path, guarded Claude reader,
+      and two final unattended dogfood nodes.
+    because: >-
+      The ask combines a retrofit seam, a verified runtime, multiple consumers, an independent
+      judging collision, a missing authoring explanation, and cross-vendor proof; these boundaries
+      keep lost work close to one node while dependencies preserve the proof order.
+    rests_on:
+      - .interlock/sessions/0045-session-facts/plan/0045-session-facts/brief.md
+      - packages/runner/src/runtime.ts:14-17
+      - packages/runner/src/sessionScreen.ts:4-5
+    hunks:
+      - .interlock/graphs/0045-session-facts.yaml:1-223
+    applies_to: { kind: repository }
+  - id: preserve-prompt-grace
+    what: >-
+      Required prompt delivery to count a prompt only from the runtime record while preserving
+      retries, startup answers, ready settling, and post-abandon grace.
+    because: >-
+      The brief identifies herdr status as the false positive and explicitly directs retaining
+      retry and grace behavior; changing only the taken evidence keeps the recovery policy stable.
+    rests_on:
+      - .interlock/sessions/0045-session-facts/plan/0045-session-facts/brief.md
+      - packages/runner/src/promptDelivery.ts:11-16
+    hunks:
+      - .interlock/graphs/0045-session-facts.yaml:96-118
+    applies_to: { kind: path, path: packages/runner/src/promptDelivery.ts }
+  - id: guard-unverified-runtime
+    what: >-
+      Made the second-vendor reader a guarded Claude node that confirms the machine's own record
+      before parsing and remains held with unknown facts when that record cannot be confirmed.
+    because: >-
+      The brief names Codex as the first verified reader and requires Claude or Kimi only after
+      its record is confirmed; a guessed parser would violate the vendor boundary and make the
+      cross-vendor proof dishonest.
+    rests_on:
+      - .interlock/sessions/0045-session-facts/plan/0045-session-facts/brief.md
+      - .interlock/graphs/0043-any-runtime.yaml:94-143
+    hunks:
+      - .interlock/graphs/0045-session-facts.yaml:166-188
+      - .interlock/graphs/0045-session-facts.yaml:207-223
+  - id: retain-session-receipts
+    what: >-
+      Kept the graph and typed notes as the session's retained planning artifacts; the graph
+      remains unapproved and no planned node is leased or run by this interpreter.
+    because: >-
+      The canonical brief makes approval and node execution a later person's action, while this
+      session's deliverable is only a graph for correction or approval.
+    rests_on:
+      - .interlock/sessions/0045-session-facts/plan/0045-session-facts/brief.md
+    hunks:
+      - .interlock/sessions/0045-session-facts/plan/0045-session-facts/notes.yaml:1-59
+gates_run_by_agent:
+  - id: graph-load
+    result: pass
+    invocation: pnpm interlock graph show 0045-session-facts
+    note: The graph loaded as graph@v0, remained not approved, and showed the intended ready and blocked dependencies.
+  - id: graph-schema
+    result: pass
+    invocation: pnpm interlock schema validate .interlock/graphs/0045-session-facts.yaml
+    note: The authored graph validated as graph@v0.
+  - id: schema-reference
+    result: pass
+    invocation: pnpm interlock schema reference --check
+    note: docs/shapes.md was fresh; the command reported six existing vocabulary-table gaps and did not change the file.
+  - id: lint
+    result: pass
+    invocation: pnpm lint -- .interlock/graphs/0045-session-facts.yaml .interlock/sessions/0045-session-facts/plan/0045-session-facts/notes.yaml
+    note: Biome completed with no fixes applied.
+  - id: notes-valid
+    result: pass
+    invocation: pnpm interlock debrief validate --file .interlock/sessions/0045-session-facts/plan/0045-session-facts/notes.yaml
+    note: The session notes validated as notes@v0.
+  - id: debrief-valid
+    result: pass
+    invocation: pnpm interlock debrief validate 0045-session-facts plan/0045-session-facts
+    note: The canonical interpreter debrief and notes validate as their current supported shapes.
+open:
+  - The graph is not approved and no node of it was leased or run; a person must review or correct it before execution.
+  - The Claude record is unverified in this session; its node deliberately requires confirmation on this machine and must not be replaced with an inferred path.
+  - Validation emitted the existing Node engine warning because Node 26.9.0 is active while .node-version requests 24.14.0; no validation failed.

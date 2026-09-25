@@ -15,7 +15,7 @@ export interface Artifact {
   readonly versions: readonly ArtifactVersion[];
 }
 
-const TAG = /^([a-z]+)@v(\d+)$/;
+const TAG = /^([a-z][a-z-]*)@v(\d+)$/;
 
 export function loadArtifacts(schemasDirectory: string): {
   readonly artifacts: readonly Artifact[];

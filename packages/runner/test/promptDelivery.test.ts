@@ -1,5 +1,6 @@
 import { createControlledClock, ms } from "@phyxiusjs/clock";
 import { err, ok } from "@phyxiusjs/fp";
+import { sessionFacts } from "ledger";
 import { describe, expect, it } from "vitest";
 import { deliverOpeningPrompt, type PromptDeliveryRequest } from "../src/promptDelivery.ts";
 import type { Agent, Runtime } from "../src/runtime.ts";
@@ -516,5 +517,81 @@ describe("deliverOpeningPrompt: every attempt fails", () => {
     expect(lines).toContain(
       "opening prompt not taken after 1 attempts; pane pane-1 stays open; a person may deliver it by hand",
     );
+  });
+});
+
+describe("deliverOpeningPrompt record delivery", () => {
+  it("keeps retrying when a reader has no record even if herdr says working", async () => {
+    const clock = createControlledClock({ initialTime: 0 });
+    const lines: string[] = [];
+    let promptCalls = 0;
+    const runtime = stubRuntime({
+      prompt: () => {
+        promptCalls += 1;
+        return Promise.resolve(ok(undefined));
+      },
+      waitUntil: (_agent, until, timeoutMs) =>
+        until.length === 1 && until[0] === "working"
+          ? Promise.resolve(err({ kind: "timeout", until, timeoutMs, status: "idle" }))
+          : Promise.resolve(ok("working")),
+    });
+
+    const result = await deliverOpeningPrompt(
+      requestFor(runtime, clock, lines, {
+        promptRetries: 1,
+        readSessionFacts: async () => ({ ...sessionFacts.unknown(), deliveryBasis: "record" }),
+      }),
+    );
+
+    expect(promptCalls).toBe(1);
+    expect(result).toEqual({ _tag: "Ok", value: { kind: "abandoned", attempts: 2 } });
+  });
+
+  it("takes the prompt only after the reader observes the exact opening message", async () => {
+    const clock = createControlledClock({ initialTime: 0 });
+    const lines: string[] = [];
+    const runtime = stubRuntime();
+
+    const result = await deliverOpeningPrompt(
+      requestFor(runtime, clock, lines, {
+        readSessionFacts: async () => ({
+          ...sessionFacts.unknown(),
+          promptReceived: sessionFacts.known("yes"),
+          deliveryBasis: "record",
+        }),
+      }),
+    );
+
+    expect(result).toEqual({ _tag: "Ok", value: { kind: "taken", status: "working" } });
+  });
+
+  it("accepts a record that appears during the existing grace window", async () => {
+    const clock = createControlledClock({ initialTime: 0 });
+    const lines: string[] = [];
+    let reads = 0;
+    const runtime = stubRuntime({
+      waitUntil: (_agent, until, timeoutMs) =>
+        until.length === 1 && until[0] === "working"
+          ? Promise.resolve(ok("working"))
+          : Promise.resolve(err({ kind: "timeout", until, timeoutMs, status: "idle" })),
+    });
+
+    const result = await deliverOpeningPrompt(
+      requestFor(runtime, clock, lines, {
+        promptRetries: 0,
+        readSessionFacts: async () => {
+          reads += 1;
+          return reads === 1
+            ? { ...sessionFacts.unknown(), deliveryBasis: "record" }
+            : {
+                ...sessionFacts.unknown(),
+                promptReceived: sessionFacts.known("yes"),
+                deliveryBasis: "record",
+              };
+        },
+      }),
+    );
+
+    expect(result).toEqual({ _tag: "Ok", value: { kind: "resumed-in-grace" } });
   });
 });

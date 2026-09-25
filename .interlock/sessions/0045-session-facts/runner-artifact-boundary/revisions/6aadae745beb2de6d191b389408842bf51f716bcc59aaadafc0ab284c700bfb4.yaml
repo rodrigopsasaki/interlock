@@ -1,0 +1,47 @@
+interlock: debrief@v2
+graph: 0045-session-facts
+node: runner-artifact-boundary
+role: worker
+graph_base_sha: 028156b25dac7df5fc6969489c30d1e8365211a8
+session_start_sha: 9516b87974deabea35a9b47bfa88d1de3dee9a6b
+head_sha: 4e5653bc21067d9a13550e243009040c1445a4cb
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-luna
+discoveries: []
+decisions:
+  - id: runner-owned-screen-capture
+    what: "Keep screen snapshots under runner-owned shared ledger state at session-screen/<graph>/<node>/screen.txt, while leaving worktree status checks and gate scope unchanged."
+    because: "The prior capture destination was inside the target worktree, so an adopter repository without an interlock ignore rule could be held on the runner's own diagnostic file; the linked-worktree regression proves the moved capture remains readable and the declared command gate still executes."
+    rests_on:
+      - .interlock/graphs/0045-session-facts.yaml
+      - .interlock/sessions/0045-session-facts/runner-artifact-boundary/notes.yaml
+      - packages/runner/src/sessionScreen.ts
+      - packages/runner/src/sessionDrive.ts
+      - packages/runner/test/judgeWorktree.test.ts
+    hunks:
+      - packages/runner/src/sessionScreen.ts:4-24
+      - packages/runner/src/sessionDrive.ts:388-395
+      - packages/runner/test/judgeWorktree.test.ts:46-78
+    applies_to: { kind: path, path: packages/runner/src/sessionScreen.ts }
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Biome checked 353 files with no fixes applied.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+  - id: artifact-boundary-proof
+    result: pass
+    invocation: mise exec -- pnpm --filter runner exec vitest run test/sessionScreen.test.ts test/judgeWorktree.test.ts
+    note: 6 tests passed.
+  - id: test
+    result: fail
+    invocation: mise exec -- pnpm test
+    note: Substrate HTTP-server tests failed because the sandbox denied listening on 127.0.0.1 with EPERM; the workspace test gate did not complete.
+open: []

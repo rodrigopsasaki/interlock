@@ -1,8 +1,8 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
-export function screenPath(worktreePath: string, graph: string, node: string): string {
-  return join(worktreePath, ".interlock", "sessions", graph, node, "screen.txt");
+export function screenPath(runnerStateDirectory: string, graph: string, node: string): string {
+  return join(runnerStateDirectory, "session-screen", graph, node, "screen.txt");
 }
 
 export function lastNonEmptyLine(text: string): string | undefined {
@@ -11,12 +11,12 @@ export function lastNonEmptyLine(text: string): string | undefined {
 }
 
 export async function writeScreenSnapshot(
-  worktreePath: string,
+  runnerStateDirectory: string,
   graph: string,
   node: string,
   text: string,
 ): Promise<void> {
-  const destination = screenPath(worktreePath, graph, node);
+  const destination = screenPath(runnerStateDirectory, graph, node);
   try {
     await mkdir(dirname(destination), { recursive: true });
     await writeFile(destination, text, "utf-8");

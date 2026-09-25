@@ -1,0 +1,48 @@
+interlock: debrief@v2
+graph: 0045-session-facts
+node: runner-artifact-boundary
+role: worker
+graph_base_sha: 028156b25dac7df5fc6969489c30d1e8365211a8
+session_start_sha: 9516b87974deabea35a9b47bfa88d1de3dee9a6b
+head_sha: d41d681eb66df1e6957929f1cf68ad6bb3a4ec34
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-luna
+discoveries: []
+decisions:
+  - id: cli-runner-screen-boundary
+    what: "Update CLI judge and run regressions to read retained screen snapshots from runner-owned shared ledger state, remove the obsolete snapshot commit, and assert the target worktree remains clean."
+    because: "The runner boundary moved the diagnostic file out of the target worktree, so the old tests failed by trying to commit or inspect a path that must no longer exist; the repaired tests preserve dirty-worktree holding, session override, narration, refusal, capture, and gate-reaching behavior while proving the new location."
+    rests_on:
+      - .interlock/sessions/0045-session-facts/runner-artifact-boundary/notes.yaml
+      - packages/runner/src/sessionScreen.ts
+      - packages/runner/src/sessionDrive.ts
+      - packages/cli/test/judge.test.ts
+      - packages/cli/test/run.test.ts
+    hunks:
+      - packages/cli/test/judge.test.ts:284-323
+      - packages/cli/test/judge.test.ts:388-418
+      - packages/cli/test/run.test.ts:1177-1209
+      - packages/cli/test/run.test.ts:1211-1233
+      - packages/cli/test/run.test.ts:1335-1360
+      - packages/runner/src/sessionScreen.ts:4-24
+      - packages/runner/src/sessionDrive.ts:388-395
+    applies_to: { kind: path, path: packages/cli/test/run.test.ts }
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Biome checked 353 files with no fixes applied.
+  - id: cli-boundary-compatibility
+    result: pass
+    invocation: GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=commit.gpgsign GIT_CONFIG_VALUE_0=false mise exec -- pnpm --filter cli exec vitest run test/judge.test.ts test/run.test.ts -t "holds a dirty worktree|lets --session override|writes the agent's screen|still narrates the agent screen"
+    note: 4 tests passed and 49 were skipped.
+  - id: test
+    result: fail
+    invocation: mise exec -- pnpm test
+    note: Ledger, face, debrief, and verifier passed; substrate reported 24 HTTP-server bind timeouts/errors because the sandbox denied listening on 127.0.0.1 with EPERM.
+open: []

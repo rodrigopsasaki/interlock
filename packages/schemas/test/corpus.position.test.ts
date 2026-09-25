@@ -86,6 +86,13 @@ describe("corpus: position@v1, produced by the real positionOf", () => {
       {
         session: "session-1",
         runtime: { name: "test-runtime", kind: "test-kind", model: "test-model" },
+        facts: {
+          promptReceived: { state: "unknown" },
+          lastActivity: { state: "unknown" },
+          usage: { state: "unknown" },
+          quota: { state: "unknown" },
+          deliveryBasis: "status",
+        },
         leaseState: { kind: "none" },
       },
     ]);

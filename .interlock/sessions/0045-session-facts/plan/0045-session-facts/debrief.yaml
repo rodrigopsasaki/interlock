@@ -1,0 +1,177 @@
+interlock: debrief@v2
+graph: 0045-session-facts
+node: plan/0045-session-facts
+role: interpreter
+graph_base_sha: 69d2b149819000d26fa2c164524a5315eacf83d5
+session_start_sha: 73d5cfeda05d9d2efe2b81c324910bdaab797640
+head_sha: 2087db416843acb87decb9f7e1d325a6388f5977
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-luna
+discoveries:
+  - id: runtime-identity-already-has-record-pointer
+    what: >-
+      The existing runner identity already carries a session id and an optional runtime-owned
+      session path.
+    found_at: 'packages/runner/src/runtime.ts:14-17 "export interface AgentIdentity {"'
+    mattered_because: >-
+      The proposed reader can extend the existing runtime adapter membrane instead of introducing
+      a second identity or placing vendor record paths in ledger or position code.
+  - id: screen-capture-is-inside-judged-worktree
+    what: >-
+      The current screen snapshot path is constructed below the target worktree's .interlock
+      directory.
+    found_at: 'packages/runner/src/sessionScreen.ts:4 "export function screenPath(worktreePath: string, graph: string, node: string): string {"'
+    mattered_because: >-
+      A target repository can report the runner's diagnostic file as uncommitted, so the graph
+      needs an artifact-boundary node rather than a repository-specific ignore-file change.
+  - id: brief-authoring-is-under-described
+    what: >-
+      The public README says graphs are authored directly and that an assisted planner is not a
+      finished capability, but does not explain the canonical brief authoring path.
+    found_at: 'README.md:65-66 "Today, graphs are authored directly. An assisted planner is part of the design, not a finished"'
+    mattered_because: >-
+      The graph needs a separate documentation acceptance for who writes brief@v1, what it is
+      derived from, and where the immutable canonical file lives.
+decisions:
+  - id: decompose-by-recovery-boundary
+    what: >-
+      Planned nine nodes covering the facts seam, Codex reader, prompt-delivery proof, ledger and
+      position consumers, runner-artifact boundary, brief-authoring path, guarded Claude reader,
+      and two final unattended dogfood nodes.
+    because: >-
+      The ask combines a retrofit seam, a verified runtime, multiple consumers, an independent
+      judging collision, a missing authoring explanation, and cross-vendor proof; these boundaries
+      keep lost work close to one node while dependencies preserve the proof order.
+    rests_on:
+      - .interlock/sessions/0045-session-facts/plan/0045-session-facts/brief.md
+      - packages/runner/src/runtime.ts:14-17
+      - packages/runner/src/sessionScreen.ts:4-5
+    hunks:
+      - .interlock/graphs/0045-session-facts.yaml:1-242
+    applies_to: { kind: repository }
+  - id: preserve-prompt-grace
+    what: >-
+      Required prompt delivery to count a prompt from the runtime record when a reader exists,
+      while keeping the existing retries, startup answers, ready settling, and post-abandon grace;
+      an unknown runtime keeps the status-based rule and records that weaker basis.
+    because: >-
+      The brief identifies herdr status as the false positive for runtimes with readers but also
+      requires pre-reader Claude and Kimi runs to remain operable through the existing status rule.
+    rests_on:
+      - .interlock/sessions/0045-session-facts/plan/0045-session-facts/brief.md
+      - packages/runner/src/promptDelivery.ts:11-16
+    hunks:
+      - .interlock/graphs/0045-session-facts.yaml:86-101
+      - .interlock/graphs/0045-session-facts.yaml:106-128
+    applies_to: { kind: path, path: packages/runner/src/promptDelivery.ts }
+  - id: guard-unverified-runtime
+    what: >-
+      Made the second-vendor reader a guarded Claude node that confirms the machine's own record
+      before parsing, explicitly deferred Kimi Code CLI until its record is confirmed, and leaves
+      unknown facts honest when a reader is unavailable.
+    because: >-
+      The brief requires Claude or Kimi only after a machine-specific record is confirmed; a
+      guessed parser or a silently dropped Kimi path would violate the vendor boundary.
+    rests_on:
+      - .interlock/sessions/0045-session-facts/plan/0045-session-facts/brief.md
+      - .interlock/graphs/0043-any-runtime.yaml:94-143
+    hunks:
+      - .interlock/graphs/0045-session-facts.yaml:28-31
+      - .interlock/graphs/0045-session-facts.yaml:168-188
+      - .interlock/graphs/0045-session-facts.yaml:227-242
+  - id: exact-session-fact-proof
+    what: >-
+      Committed exact `Prompt received`, `Last activity`, `Usage`, `Quota`, and delivery-basis
+      labels in the facts position acceptance, and changed each dogfood gate to run its own
+      `interlock session show` command with output matching those facts.
+    because: >-
+      Unit tests for session and graph rendering do not prove that the dogfood session delivered
+      its own prompt; the node's own recorded facts must be the gate evidence, including explicit
+      unknown quota where the record has none.
+    rests_on:
+      - .interlock/sessions/0045-session-facts/plan/0045-session-facts/brief.md
+      - .interlock/sessions/0045-session-facts/plan/0045-session-facts/notes.yaml:73-86
+    hunks:
+      - .interlock/graphs/0045-session-facts.yaml:118-128
+      - .interlock/graphs/0045-session-facts.yaml:206-242
+      - .interlock/sessions/0045-session-facts/plan/0045-session-facts/notes.yaml:73-86
+  - id: require-brief-authoring-proof
+    what: >-
+      Changed the brief-authoring gate to the new read-only `schema reference --check
+      --brief-authoring` check and required its `brief-authoring: fresh` output.
+    because: >-
+      The prior schema-reference freshness check could pass without the new authoring path or
+      worked example, so it did not prove the node's acceptance.
+    rests_on:
+      - .interlock/sessions/0045-session-facts/plan/0045-session-facts/brief.md
+    hunks:
+      - .interlock/graphs/0045-session-facts.yaml:159-174
+  - id: retain-session-receipts
+    what: >-
+      Kept the graph and typed notes as the session's retained planning artifacts; the graph
+      remains unapproved and no planned node is leased or run by this interpreter.
+    because: >-
+      The canonical brief makes approval and node execution a later person's action, while this
+      session's deliverable is only a graph for correction or approval.
+    rests_on:
+      - .interlock/sessions/0045-session-facts/plan/0045-session-facts/brief.md
+    hunks:
+      - .interlock/sessions/0045-session-facts/plan/0045-session-facts/notes.yaml:1-104
+  - id: exact-luna-derivation
+    what: Recorded the runtime model as `gpt-5.6-luna` in the graph and this debrief.
+    because: The interpreter session ran on luna, whose exact runtime identity is codex with model gpt-5.6-luna.
+    rests_on:
+      - .interlock/sessions/0045-session-facts/plan/0045-session-facts/brief.md
+    hunks:
+      - .interlock/graphs/0045-session-facts.yaml:15-20
+gates_run_by_agent:
+  - id: graph-load
+    result: pass
+    invocation: pnpm interlock graph show 0045-session-facts
+    note: The corrected graph loaded as graph@v0, remained not approved, and showed the intended ready and blocked dependencies.
+  - id: graph-schema
+    result: pass
+    invocation: pnpm interlock schema validate .interlock/graphs/0045-session-facts.yaml
+    note: The corrected graph validated as graph@v0.
+  - id: schema-reference
+    result: pass
+    invocation: pnpm interlock schema reference --check
+    note: docs/shapes.md was fresh; the existing command reported its pre-existing vocabulary gaps and did not change the file. The new brief-authoring flag is planned by the graph and was not claimed as run before its node lands.
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: All workspace packages typechecked successfully.
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: Biome checked 352 files with no findings.
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+    note: packages/*/src contains no comments.
+  - id: test
+    result: fail
+    invocation: pnpm test
+    note: >-
+      The existing substrate capability, context, and absorb tests could not bind local listeners
+      in this sandbox; 24 tests failed or timed out with listen EPERM on 127.0.0.1. Other package
+      suites passed.
+  - id: notes-valid
+    result: pass
+    invocation: pnpm interlock debrief validate --file .interlock/sessions/0045-session-facts/plan/0045-session-facts/notes.yaml
+    note: The session notes validated as notes@v0.
+  - id: debrief-preview
+    result: pass
+    invocation: pnpm interlock debrief preview --file .interlock/sessions/0045-session-facts/plan/0045-session-facts/debrief-candidate.yaml
+    note: The revised candidate previewed with its current head provenance before selection.
+  - id: debrief-valid
+    result: pass
+    invocation: pnpm interlock debrief validate 0045-session-facts plan/0045-session-facts
+    note: The existing canonical interpreter debrief and notes validated before this revision; the selected candidate was previewed and will be validated again after selection.
+open:
+  - The graph is not approved and no node of it was leased or run; a person must review or correct it before execution.
+  - The Claude record is unverified in this session, and Kimi Code CLI is explicitly deferred because its record is not yet confirmed on this machine; neither reader may be guessed.
+  - Validation emitted the existing Node engine warning because Node 26.9.0 is active while .node-version requests 24.14.0; no validation failed.
+  - The correction commit is unsigned because the configured GPG keybox could not create a temporary file in the protected home directory; the commit was written with signing disabled.
