@@ -1,0 +1,17 @@
+interlock: notes@v0
+node: codex-session-reader
+entries:
+  - kind: surprise
+    at: "2026-09-25T06:59:58Z"
+    expected: "The session directory would already contain notes.yaml."
+    observed: "The canonical brief was present but notes.yaml was absent, so this file is being created before implementation choices."
+    mattered_because: "The session record must exist before source work so each later choice and surprise remains recoverable."
+  - kind: choice
+    at: "2026-09-25T06:59:58Z"
+    chose: "Use the existing session-facts@v0 contract and SessionFactsReader seam as the adapter boundary."
+    because: "The node acceptance explicitly says the preceding contract stands and requires vendor knowledge to remain inside the runtime adapter."
+  - kind: surprise
+    at: "2026-09-25T07:00:10Z"
+    expected: "The first notes commit would use the configured Git signer."
+    observed: "GnuPG could not create its temporary keybox lock or connect to keyboxd under the managed filesystem, so the signed commit was refused."
+    mattered_because: "The session requires incremental commits; the source and note will be committed with signing disabled for this worktree, without changing Git configuration."
