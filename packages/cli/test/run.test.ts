@@ -890,6 +890,88 @@ describe("interlock run", () => {
     expect(lines).toContain("pane pane-1 left open for drilldown");
   }, 30_000);
 
+  it("does not close the pane when a keystroke attempt's submit call errors but the agent then goes working", async () => {
+    const cwd = fixture({ graphYaml: graphYamlWithExpectOutput });
+    await runGraphApprove(["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"], { cwd });
+
+    let closed = false;
+    let deliveryWaitCalls = 0;
+    const runtime: Runtime = {
+      ...stubRuntime(),
+      waitUntil: (agent, until, timeoutMs) => {
+        if (until.includes("working")) {
+          deliveryWaitCalls += 1;
+          return deliveryWaitCalls === 1
+            ? Promise.resolve(err({ kind: "timeout", until, timeoutMs, status: "idle" }))
+            : Promise.resolve(ok("working"));
+        }
+        return finishedWaitUntil(join(cwd, ".worktrees", "a"))(agent, until, timeoutMs);
+      },
+      sendPaneKeys: () =>
+        Promise.resolve(err({ kind: "remote", code: "agent_pane_busy", message: "busy" })),
+      closePane: () => {
+        closed = true;
+        return Promise.resolve(ok(undefined));
+      },
+    };
+    const lines: string[] = [];
+
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime,
+      narrate: (line) => lines.push(line),
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.message).toContain("held");
+    expect(closed).toBe(false);
+    expect(lines).toContain("prompt not taken after 20000ms; retrying (1 of 2): submit keystroke");
+    expect(lines).toContain("submit keystroke returned agent_pane_busy; waiting for working");
+    expect(lines).toContain("agent working");
+    expect(lines).toContain("pane pane-1 left open for drilldown");
+  }, 30_000);
+
+  it("proceeds as a normal run when the agent resumes inside the grace window after every delivery attempt fails", async () => {
+    const cwd = fixture();
+    await runGraphApprove(["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"], { cwd });
+
+    let closed = false;
+    const runtime: Runtime = {
+      ...stubRuntime(),
+      waitUntil: (agent, until, timeoutMs) => {
+        if (until.length === 1 && until[0] === "working") {
+          return Promise.resolve(ok("working"));
+        }
+        if (until.includes("working")) {
+          return Promise.resolve(err({ kind: "timeout", until, timeoutMs, status: "idle" }));
+        }
+        return finishedWaitUntil(join(cwd, ".worktrees", "a"))(agent, until, timeoutMs);
+      },
+      closePane: () => {
+        closed = true;
+        return Promise.resolve(ok(undefined));
+      },
+    };
+    const lines: string[] = [];
+
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime,
+      narrate: (line) => lines.push(line),
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.message).toContain("cleared");
+    expect(closed).toBe(true);
+    expect(lines).toContain(
+      "opening prompt not taken after 3 attempts; pane pane-1 stays open; a person may deliver it by hand",
+    );
+    expect(lines).toContain("agent working");
+    expect(lines).toContain("waiting for idle, blocked or done (timeout 5000ms)");
+  }, 30_000);
+
   it("narrates a runtime refusal at the moment it happens and does not leave the lease dangling silently", async () => {
     const cwd = fixture();
     await runGraphApprove(["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"], { cwd });

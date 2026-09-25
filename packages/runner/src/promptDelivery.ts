@@ -25,11 +25,13 @@ export type PromptDeliveryOutcome =
   | { readonly kind: "resumed-in-grace" }
   | { readonly kind: "abandoned"; readonly attempts: number };
 
+type StartupAnswerOutcome = "matched" | "not-matched" | "inconclusive";
+
 function isIdleTimeout(refusal: RuntimeRefusal): boolean {
   return refusal.kind === "timeout" && refusal.status === "idle";
 }
 
-function promptCallCode(refusal: RuntimeRefusal): string {
+function refusalCode(refusal: RuntimeRefusal): string {
   return refusal.kind === "remote" ? refusal.code : refusal.kind;
 }
 
@@ -38,17 +40,23 @@ async function matchStartupAnswer(
   agent: Agent,
   narrate: (line: string) => void,
   startupAnswers: readonly StartupAnswer[],
-): Promise<Result<boolean, RuntimeRefusal>> {
+): Promise<StartupAnswerOutcome> {
   const screen = await runtime.read(agent);
-  if (isErr(screen)) return screen;
+  if (isErr(screen)) {
+    narrate(`screen read returned ${refusalCode(screen.error)}; waiting for working`);
+    return "inconclusive";
+  }
 
   const matched = startupAnswers.find((answer) => matchesScreen(answer.matches, screen.value));
-  if (matched === undefined) return ok(false);
+  if (matched === undefined) return "not-matched";
 
   const sent = await runtime.sendKeys(agent, matched.keys);
-  if (isErr(sent)) return sent;
+  if (isErr(sent)) {
+    narrate(`startup answer returned ${refusalCode(sent.error)}; waiting for working`);
+    return "inconclusive";
+  }
   narrate(`startup answer matched "${matched.matches}"; sent ${matched.keys.join(" ")}`);
-  return ok(true);
+  return "matched";
 }
 
 export async function deliverOpeningPrompt(
@@ -73,8 +81,7 @@ export async function deliverOpeningPrompt(
   }
 
   if (startupAnswers.length > 0) {
-    const preAnswered = await matchStartupAnswer(runtime, agent, narrate, startupAnswers);
-    if (isErr(preAnswered)) return preAnswered;
+    await matchStartupAnswer(runtime, agent, narrate, startupAnswers);
   }
 
   const totalAttempts = promptRetries + 1;
@@ -83,15 +90,16 @@ export async function deliverOpeningPrompt(
 
     if (isKeystrokeAttempt) {
       const matched = await matchStartupAnswer(runtime, agent, narrate, startupAnswers);
-      if (isErr(matched)) return matched;
-      if (!matched.value) {
+      if (matched === "not-matched") {
         const sent = await runtime.sendPaneKeys(agent.pane, SUBMIT_KEYSTROKE);
-        if (isErr(sent)) return sent;
+        if (isErr(sent)) {
+          narrate(`submit keystroke returned ${refusalCode(sent.error)}; waiting for working`);
+        }
       }
     } else {
       const sent = await runtime.prompt(agent, prompt);
       if (isErr(sent)) {
-        narrate(`prompt call returned ${promptCallCode(sent.error)}; waiting for working`);
+        narrate(`prompt call returned ${refusalCode(sent.error)}; waiting for working`);
       } else if (attempt === 1) {
         narrate("prompt sent");
       }

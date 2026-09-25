@@ -304,10 +304,11 @@ describe("deliverOpeningPrompt retries", () => {
     });
   });
 
-  it("returns immediately when the screen read fails during a keystroke retry", async () => {
+  it("an inconclusive screen read during a keystroke retry narrates and lets the wait decide, rather than refusing", async () => {
     const clock = createControlledClock({ initialTime: 0 });
     const lines: string[] = [];
     let readCalls = 0;
+    let waitCalls = 0;
     const runtime = stubRuntime({
       read: () => {
         readCalls += 1;
@@ -315,8 +316,13 @@ describe("deliverOpeningPrompt retries", () => {
           ? Promise.resolve(ok(""))
           : Promise.resolve(err({ kind: "transport", because: "the pane vanished" }));
       },
-      waitUntil: (_agent, until, timeoutMs) =>
-        Promise.resolve(err({ kind: "timeout", until, timeoutMs, status: "idle" })),
+      waitUntil: (_agent, until, timeoutMs) => {
+        waitCalls += 1;
+        if (waitCalls === 1) {
+          return Promise.resolve(err({ kind: "timeout", until, timeoutMs, status: "idle" }));
+        }
+        return Promise.resolve(ok("working"));
+      },
     });
 
     const result = await deliverOpeningPrompt(
@@ -327,9 +333,114 @@ describe("deliverOpeningPrompt retries", () => {
 
     expect(readCalls).toBe(2);
     expect(result).toEqual({
-      _tag: "Err",
-      error: { kind: "transport", because: "the pane vanished" },
+      _tag: "Ok",
+      value: { kind: "taken", status: "working" },
     });
+    expect(lines).toEqual([
+      "prompt sent",
+      "prompt not taken after 20000ms; retrying (1 of 2): submit keystroke",
+      "screen read returned transport; waiting for working",
+      "agent working",
+    ]);
+  });
+});
+
+describe("deliverOpeningPrompt: the other delivery-side calls are inconclusive too", () => {
+  it("proceeds to the wait when the submit keystroke call errors, and a working observation after it counts as taken", async () => {
+    const clock = createControlledClock({ initialTime: 0 });
+    const lines: string[] = [];
+    let waitCalls = 0;
+    const runtime = stubRuntime({
+      sendPaneKeys: () =>
+        Promise.resolve(err({ kind: "remote", code: "agent_pane_busy", message: "busy" })),
+      waitUntil: (_agent, until, timeoutMs) => {
+        waitCalls += 1;
+        if (waitCalls === 1) {
+          return Promise.resolve(err({ kind: "timeout", until, timeoutMs, status: "idle" }));
+        }
+        return Promise.resolve(ok("working"));
+      },
+    });
+
+    const result = await deliverOpeningPrompt(requestFor(runtime, clock, lines));
+
+    expect(result).toEqual({
+      _tag: "Ok",
+      value: { kind: "taken", status: "working" },
+    });
+    expect(lines).toEqual([
+      "prompt sent",
+      "prompt not taken after 20000ms; retrying (1 of 2): submit keystroke",
+      "submit keystroke returned agent_pane_busy; waiting for working",
+      "agent working",
+    ]);
+  });
+
+  it("an inconclusive screen read on the pre-loop check still lets the opening prompt go out", async () => {
+    const clock = createControlledClock({ initialTime: 0 });
+    const lines: string[] = [];
+    let promptCalls = 0;
+    const runtime = stubRuntime({
+      read: () => Promise.resolve(err({ kind: "transport", because: "the pane vanished" })),
+      prompt: () => {
+        promptCalls += 1;
+        return Promise.resolve(ok(undefined));
+      },
+    });
+
+    const result = await deliverOpeningPrompt(
+      requestFor(runtime, clock, lines, {
+        startupAnswers: [{ matches: "anything", keys: ["Enter"] }],
+      }),
+    );
+
+    expect(promptCalls).toBe(1);
+    expect(result).toEqual({
+      _tag: "Ok",
+      value: { kind: "taken", status: "working" },
+    });
+    expect(lines).toEqual([
+      "screen read returned transport; waiting for working",
+      "prompt sent",
+      "agent working",
+    ]);
+  });
+
+  it("an inconclusive startup-answer keys send lets the wait decide instead of refusing", async () => {
+    const clock = createControlledClock({ initialTime: 0 });
+    const lines: string[] = [];
+    let waitCalls = 0;
+    let screenText = "";
+    const runtime = stubRuntime({
+      read: () => Promise.resolve(ok(screenText)),
+      sendKeys: () =>
+        Promise.resolve(err({ kind: "remote", code: "agent_pane_busy", message: "busy" })),
+      waitUntil: (_agent, until, timeoutMs) => {
+        waitCalls += 1;
+        if (waitCalls === 1) {
+          screenText = "Is this a project you trust?";
+          return Promise.resolve(err({ kind: "timeout", until, timeoutMs, status: "idle" }));
+        }
+        return Promise.resolve(ok("working"));
+      },
+    });
+
+    const result = await deliverOpeningPrompt(
+      requestFor(runtime, clock, lines, {
+        startupAnswers: [{ matches: "project you trust", keys: ["Down", "Enter"] }],
+      }),
+    );
+
+    expect(result).toEqual({
+      _tag: "Ok",
+      value: { kind: "taken", status: "working" },
+    });
+    expect(lines).toEqual([
+      "prompt sent",
+      "prompt not taken after 20000ms; retrying (1 of 2): submit keystroke",
+      "startup answer returned agent_pane_busy; waiting for working",
+      "agent working",
+    ]);
   });
 });
 
