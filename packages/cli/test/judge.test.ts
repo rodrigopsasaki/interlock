@@ -1,10 +1,11 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
 import { err, ok } from "@phyxiusjs/fp";
+import { sharedJournalDirectory } from "face";
 import { isLedgerEvent } from "ledger";
-import type { Runtime } from "runner";
+import { type Runtime, screenPath } from "runner";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   type FakeSubstrateServer,
@@ -149,13 +150,6 @@ async function approve(cwd: string): Promise<void> {
   await runGraphApprove(["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"], { cwd });
 }
 
-// The stub runtime's screen read succeeds, so run.ts's own screen-snapshot write leaves the
-// worktree carrying one uncommitted file after every run; settle it so a judge test's own
-// dirty/clean setup starts from a genuinely clean worktree, not run's own leftovers.
-function settle(worktreePath: string): void {
-  commitAll(worktreePath, "settle the run's own screen snapshot");
-}
-
 const SHA = "c".repeat(40);
 
 const debriefYaml = [
@@ -295,7 +289,11 @@ describe("interlock judge", () => {
     const sessionId = sessionIdFrom(ran.message);
 
     const worktreePath = join(cwd, ".worktrees", "a");
-    settle(worktreePath);
+    const retainedScreenPath = screenPath(sharedJournalDirectory(worktreePath), "demo", "a");
+    expect(existsSync(retainedScreenPath)).toBe(true);
+    expect(
+      existsSync(join(worktreePath, ".interlock", "sessions", "demo", "a", "screen.txt")),
+    ).toBe(false);
     writeFileSync(join(worktreePath, "uncommitted.txt"), "staged, never committed\n");
 
     const lines: string[] = [];
@@ -399,7 +397,7 @@ describe("interlock judge", () => {
     expect(first.exitCode).toBe(0);
     const firstSessionId = sessionIdFrom(first.message);
     const worktreePath = join(cwd, ".worktrees", "a");
-    settle(worktreePath);
+    expect(existsSync(screenPath(sharedJournalDirectory(worktreePath), "demo", "a"))).toBe(true);
 
     const second = await runInterlockRun(["demo", "a"], {
       cwd,
