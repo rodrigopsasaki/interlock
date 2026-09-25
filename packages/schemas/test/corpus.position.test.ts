@@ -1,14 +1,6 @@
 import type { GraphDocument } from "face";
 import { positionOf } from "face";
-import {
-  derivation,
-  duration,
-  fold,
-  gate,
-  sessionRuntime,
-  type Receipt,
-  spend,
-} from "ledger";
+import { derivation, duration, fold, gate, type Receipt, sessionRuntime, spend } from "ledger";
 import { describe, expect, it } from "vitest";
 import { buildRegistry } from "../src/registry.ts";
 

@@ -50,3 +50,25 @@ entries:
       a v1-v3 replay while retaining its existing assertions.
     because: The renamed fixture has no event@v4 lines; changing only the stale path and wording
       keeps the replay proof honest without changing what it verifies.
+  - kind: surprise
+    at: "2026-09-24T00:20:00Z"
+    expected: The first standing lint run would accept the new import block.
+    observed: Biome required a one-line import layout and ordering of the type-only Receipt name;
+      no semantic lint finding was reported.
+  - kind: choice
+    at: "2026-09-24T00:20:00Z"
+    chose: Apply Biome's suggested import formatting exactly.
+    because: The repository's lint gate defines the established formatting convention, and the
+      change does not alter the test's runtime behavior.
+  - kind: surprise
+    at: "2026-09-24T00:21:00Z"
+    expected: The first Biome layout correction would satisfy the import organizer.
+    observed: Biome also requires the type-only Receipt name to precede sessionRuntime in the
+      one-line import; the second lint run reported only that ordering.
+  - kind: surprise
+    at: "2026-09-24T00:25:00Z"
+    expected: The full workspace test gate would pass after the focused ledger and schemas proofs
+      were green.
+    observed: 10 of 13 substrate test files could not bind their local HTTP listeners under the
+      sandbox; 24 tests timed out or raised listen EPERM on 127.0.0.1. Ledger, face, debrief and
+      verifier completed before that environmental failure.
