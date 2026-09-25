@@ -72,3 +72,19 @@ entries:
     observed: 10 of 13 substrate test files could not bind their local HTTP listeners under the
       sandbox; 24 tests timed out or raised listen EPERM on 127.0.0.1. Ledger, face, debrief and
       verifier completed before that environmental failure.
+  - kind: choice
+    at: "2026-09-24T00:30:00Z"
+    chose: Prepare the debrief as an agent session using runtime codex and model gpt-5.6-luna,
+      matching the current graph show runtime line.
+    because: The brief requires the debrief to record the runtime that received this opening
+      prompt, and graph show reports that exact runtime and model for this node.
+  - kind: choice
+    at: "2026-09-24T00:35:00Z"
+    chose: Revise the filed debrief candidate to include the passing debrief-valid gate receipt.
+    because: The declared gate was run after filing so it could validate the canonical debrief and
+      notes together; recording that result in the authored artifact keeps the final proof complete.
+  - kind: surprise
+    at: "2026-09-24T00:36:00Z"
+    expected: The authored revision patch would address the candidate path directly.
+    observed: The first patch omitted the session directory and matched no file; no repository
+      artifact changed, and the corrected path is being used now.

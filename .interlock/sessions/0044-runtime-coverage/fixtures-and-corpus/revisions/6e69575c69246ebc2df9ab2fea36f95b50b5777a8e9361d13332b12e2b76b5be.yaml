@@ -1,0 +1,137 @@
+interlock: debrief@v2
+graph: 0044-runtime-coverage
+node: fixtures-and-corpus
+role: worker
+graph_base_sha: cbf20521793787655c75ef90715ca04aad93c50b
+session_start_sha: c8394b3fc9fd5a14700f977a28cd54de242b7e95
+head_sha: 0073427f80536591d1fe89d25e85ee691ca57b10
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-luna
+discoveries:
+  - id: runtime-delivery
+    what: >-
+      The graph view records the runtime that delivered this opening session as
+      "runtime: luna (codex, gpt-5.6-luna)".
+    found_at: >-
+      interlock graph show 0044-runtime-coverage: "runtime: luna (codex, gpt-5.6-luna)"
+    mattered_because: >-
+      The graph's runtime line is the evidence that this node was opened through the declared
+      runtime without a person at the keyboard, completing the graph's runtime-delivery proof
+      alongside the tests made here.
+  - id: full-suite-sandbox
+    what: >-
+      The full workspace test gate cannot complete in this sandbox because substrate tests need
+      local HTTP listeners.
+    found_at: >-
+      mise exec -- pnpm test: "Error: listen EPERM: operation not permitted 127.0.0.1"
+    mattered_because: >-
+      The node's focused corpus and replay proofs are green, but the human must rerun the full
+      workspace gate in an environment that permits the existing substrate listener tests before
+      treating the graph's test gate as satisfied.
+decisions:
+  - id: fixture-name
+    what: >-
+      Renamed packages/ledger/test/fixtures/journal-v3-v4-2026-09-11.jsonl to
+      journal-v1-v3-2026-09-11.jsonl, updated the replay test and schema-reference source, and
+      kept the fixture bytes unchanged.
+    because: >-
+      The historical fixture contains event@v1, event@v2 and event@v3 lines only. The acceptance
+      permits renaming when a fixture's name overclaims its shapes; this preserves the historical
+      artifact while making its promise honest instead of adding a large unrelated event@v4
+      session record.
+    rests_on:
+      - .interlock/sessions/0044-runtime-coverage/fixtures-and-corpus/brief.md
+      - packages/ledger/test/fixtures/journal-v1-v3-2026-09-11.jsonl
+    hunks:
+      - packages/ledger/test/replay.test.ts:459-463
+      - packages/schemas/src/reference/corpus.ts:58-59
+      - docs/shapes.md:851-853
+    produces:
+      - packages/ledger/test/fixtures/journal-v1-v3-2026-09-11.jsonl
+      - packages/ledger/test/replay.test.ts
+      - packages/schemas/src/reference/corpus.ts
+      - docs/shapes.md
+  - id: journal-corpus
+    what: >-
+      Added the renamed v1-v3 fixture and journal-v5-run-with-runtime-2026-09-24.jsonl to the
+      line-by-line schema corpus, and made the corpus assertion require event@v1, event@v2,
+      event@v3 and event@v5 coverage.
+    because: >-
+      Every ledger fixture on disk must be validated by the corpus check, and the v5 runtime
+      fixture must be covered explicitly rather than only by the ledger replay test.
+    rests_on:
+      - .interlock/sessions/0044-runtime-coverage/fixtures-and-corpus/brief.md
+      - packages/ledger/test/fixtures/journal-v5-run-with-runtime-2026-09-24.jsonl
+    hunks:
+      - packages/schemas/test/corpus.journal.test.ts:9-14
+      - packages/schemas/test/corpus.journal.test.ts:43-45
+    produces:
+      - packages/schemas/test/corpus.journal.test.ts
+  - id: position-attempt
+    what: >-
+      Kept the existing position@v1 example and added a schema validation example whose fold
+      includes a session-started event with a declared runtime, then asserts the produced attempt
+      carries session, runtime and leaseState.
+    because: >-
+      The prior example had no session-started event, so positionOf produced an empty attempts
+      array and never exercised the required positionAttempt fields. The new example uses the
+      real fold and positionOf path while preserving the original outcome-state example.
+    rests_on:
+      - .interlock/sessions/0044-runtime-coverage/fixtures-and-corpus/brief.md
+      - schemas/position@v1.json
+    hunks:
+      - packages/schemas/test/corpus.position.test.ts:55-92
+    produces:
+      - packages/schemas/test/corpus.position.test.ts
+  - id: session-receipts
+    what: >-
+      Created notes@v0 before implementation and appended typed choices and surprises throughout
+      the session, including the focused proofs, standing gates and the sandbox signing/listener
+      limitations.
+    because: >-
+      The brief requires every choice and surprise to retain a typed way back, and the final
+      debrief must leave those receipts beside the code.
+    rests_on:
+      - .interlock/sessions/0044-runtime-coverage/fixtures-and-corpus/brief.md
+    hunks:
+      - .interlock/sessions/0044-runtime-coverage/fixtures-and-corpus/notes.yaml:1-80
+    produces:
+      - .interlock/sessions/0044-runtime-coverage/fixtures-and-corpus/notes.yaml
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: All workspace packages typechecked successfully.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Biome checked all 349 files with no findings.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+    note: packages/*/src contains no comments.
+  - id: test
+    result: fail
+    invocation: mise exec -- pnpm test
+    note: >-
+      Existing substrate listener tests failed in the sandbox with 24 timeouts/errors from
+      listen EPERM on 127.0.0.1; the focused node proofs and other packages completed.
+  - id: corpus-proof
+    result: pass
+    invocation: mise exec -- pnpm --filter schemas exec vitest run test/corpus.journal.test.ts test/corpus.position.test.ts
+    note: 511 tests passed in the two focused schema corpus files.
+  - id: replay-proof
+    result: pass
+    invocation: mise exec -- pnpm --filter ledger exec vitest run test/replay.test.ts test/runtime.test.ts
+    note: 28 tests passed in the focused ledger replay/runtime files.
+open:
+  - >-
+    gap: the full workspace test gate remains unsatisfied in this sandbox because existing
+    substrate tests cannot listen on 127.0.0.1; rerun `mise exec -- pnpm test` in an environment
+    that permits local listeners before clearing the graph gate.
+  - >-
+    gap: commits d866eda, f8baf07 and 0073427 were created with signing disabled because the
+    sandbox could not create the configured GPG temporary lock file; no source or fixture bytes
+    were altered by that workaround.
