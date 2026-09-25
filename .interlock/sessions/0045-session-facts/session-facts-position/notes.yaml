@@ -33,3 +33,11 @@ entries:
     at: "2026-09-25T07:30:36Z"
     chose: "Keep the source slice unchanged, attribute the full-test failure to the sandbox network boundary, and run the remaining non-substrate package suites independently."
     because: "The failure occurs before the runner and CLI packages are reached and is identical to the inherited session-facts seam limitation; independent package receipts still distinguish source proof from the unavailable local TCP fixture capability."
+  - kind: surprise
+    at: "2026-09-25T07:34:42Z"
+    expected: "The independent runner and CLI workspace suites would reach their final summaries after the targeted facts tests passed."
+    observed: "Runner finished with 38 failures from herdr Unix-socket EPERM and configured GPG signing; CLI showed the same GPG and local-fixture failures and was stopped after the environment boundary was established. No source assertion in the facts-position proof failed."
+  - kind: choice
+    at: "2026-09-25T07:34:42Z"
+    chose: "Use the focused ledger, face, CLI, and schema receipts as the node-specific proof and report the broader environment-limited runs separately."
+    because: "The acceptance's direct proof commands completed green, while broader failures are outside this node's source seam and cannot be repaired without changing the managed environment or unrelated test infrastructure."
