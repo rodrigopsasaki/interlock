@@ -118,8 +118,9 @@ export type {
   BeforeJudgeRefusal,
   DriveSessionOutcome,
   DriveSessionRequest,
+  ObserveSessionFactsRequest,
 } from "./sessionDrive.ts";
-export { driveInteractiveSession } from "./sessionDrive.ts";
+export { driveInteractiveSession, observeSessionFacts } from "./sessionDrive.ts";
 export {
   lastNonEmptyLine,
   screenPath,

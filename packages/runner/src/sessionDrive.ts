@@ -10,6 +10,8 @@ import {
   type Outcome,
   outcome,
   readRawEvents,
+  type SessionFacts,
+  sessionFacts,
   sessionRuntime,
 } from "ledger";
 import type { SubstrateClient } from "substrate";
@@ -24,11 +26,13 @@ import { buildOpeningPrompt, type PriorWork } from "./openingPrompt.ts";
 import { deliverOpeningPrompt } from "./promptDelivery.ts";
 import {
   type Agent,
+  type AgentIdentity,
   type AgentStatus,
   explainRuntimeRefusal,
   type Pane,
   type Runtime,
   type RuntimeRefusal,
+  type SessionFactsReader,
 } from "./runtime.ts";
 import type { ResolvedRuntime } from "./runtimeCatalogue.ts";
 import { gitTrackedFiles } from "./scope.ts";
@@ -60,6 +64,33 @@ function priorWorkOf(worktree: WorktreeOutcome): PriorWork | undefined {
     uncommittedPaths: worktree.uncommittedPaths,
     commitsBeyondBase: worktree.commitsBeyondBase,
   };
+}
+
+export interface ObserveSessionFactsRequest {
+  readonly runtime: Runtime;
+  readonly agent: Agent;
+  readonly fallback: AgentIdentity;
+  readonly agentKind: string;
+  readonly cwd: string;
+}
+
+export async function observeSessionFacts(
+  request: ObserveSessionFactsRequest,
+): Promise<SessionFacts> {
+  const reader: SessionFactsReader | undefined =
+    request.runtime.sessionFactsReaderFor?.(request.agentKind) ??
+    (request.agentKind === "codex" ? request.runtime.sessionFactsReader : undefined);
+  if (reader === undefined) return sessionFacts.unknown();
+  const resolved =
+    request.runtime.resolveAgentIdentity === undefined
+      ? ok(request.fallback)
+      : await request.runtime.resolveAgentIdentity(
+          request.agent,
+          request.fallback,
+          request.agentKind,
+          request.cwd,
+        );
+  return reader.read(isOk(resolved) ? resolved.value : request.fallback);
 }
 
 export interface BeforeJudgeRefusal {
@@ -272,6 +303,24 @@ export async function driveInteractiveSession(
     }
     narrate("identity reported");
 
+    const activeRuntime = runtime;
+    const activeAgent = agent;
+    const sessionIdentity = { sessionId };
+    const sessionFactsReader =
+      activeRuntime.sessionFactsReaderFor?.(agentRuntime.kind) ??
+      (agentRuntime.kind === "codex" ? activeRuntime.sessionFactsReader : undefined);
+    const readSessionFacts =
+      sessionFactsReader === undefined
+        ? undefined
+        : () =>
+            observeSessionFacts({
+              runtime: activeRuntime,
+              agent: activeAgent,
+              fallback: sessionIdentity,
+              agentKind: agentRuntime.kind,
+              cwd: worktreePath,
+            });
+
     const startupTimeoutMs = agentRuntime.startupTimeoutMs;
     const startupAnswers = agentRuntime.startupAnswers;
     const answered = new Set<number>();
@@ -326,8 +375,8 @@ export async function driveInteractiveSession(
     narrate("agent ready (idle)");
 
     const delivered = await deliverOpeningPrompt({
-      runtime,
-      agent,
+      runtime: activeRuntime,
+      agent: activeAgent,
       clock,
       narrate,
       prompt: buildOpeningPrompt(graph, node, priorWork, role, briefWritten.value.openingView),
@@ -336,6 +385,7 @@ export async function driveInteractiveSession(
       promptTakenTimeoutMs: agentRuntime.promptTakenTimeoutMs,
       answerGraceMs: localConfig.answerGraceMs,
       startupAnswers: agentRuntime.startupAnswers,
+      ...(readSessionFacts === undefined ? {} : { readSessionFacts }),
     });
     if (isErr(delivered)) {
       const result = refuse("prompt", explainRuntimeRefusal(delivered.error));
@@ -345,6 +395,12 @@ export async function driveInteractiveSession(
     }
     paneCustody = "person";
     const delivery = delivered.value;
+
+    ledger.append({
+      kind: "session-facts-observed",
+      session: sessionId,
+      facts: readSessionFacts === undefined ? sessionFacts.unknown() : await readSessionFacts(),
+    });
 
     const readUnfinishedWork = (): UnfinishedWork | undefined => {
       const dirty = uncommittedPaths(worktreePath);
@@ -378,6 +434,14 @@ export async function driveInteractiveSession(
       const result = refuse("wait", explainRuntimeRefusal(waited.error));
       abandonLease();
       return result;
+    }
+
+    if (readSessionFacts !== undefined) {
+      ledger.append({
+        kind: "session-facts-observed",
+        session: sessionId,
+        facts: await readSessionFacts(),
+      });
     }
 
     const screenRead = await runtime.read(agent);

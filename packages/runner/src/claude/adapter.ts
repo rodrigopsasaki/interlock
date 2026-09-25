@@ -1,11 +1,30 @@
 import { readFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { type SessionFacts, type SessionUsage, sessionFacts, type Unknown } from "ledger";
 import type { AgentIdentity, SessionFactsReader } from "../runtime.ts";
 import { isRecord, isString, numberAt, prop } from "../validate.ts";
 
 const UNKNOWN_FACT: Unknown = { state: "unknown" };
 
+function recordFacts(): SessionFacts {
+  return { ...sessionFacts.unknown(), deliveryBasis: "record" };
+}
+
 const RFC3339_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+
+export function claudeConfigDir(): string {
+  return process.env["CLAUDE_CONFIG_DIR"] ?? join(homedir(), ".claude");
+}
+
+export function resolveClaudeSessionPath(
+  sessionId: string,
+  cwd: string,
+  configDir: string = claudeConfigDir(),
+): string {
+  const escapedCwd = cwd.replace(/[/.]/g, "-");
+  return join(configDir, "projects", escapedCwd, `${sessionId}.jsonl`);
+}
 
 function isRfc3339(value: unknown): value is string {
   return isString(value) && RFC3339_PATTERN.test(value) && Number.isFinite(Date.parse(value));
@@ -106,21 +125,21 @@ function factsFromRecords(records: readonly Record<string, unknown>[]): SessionF
   return records.some(isOpeningPromptRecord)
     ? {
         ...base,
-        promptReceived: sessionFacts.known("yes" as const),
+        promptReceived: sessionFacts.known("yes"),
         deliveryBasis: "record",
       }
-    : { ...base, promptReceived: UNKNOWN_FACT, deliveryBasis: "status" };
+    : { ...base, promptReceived: UNKNOWN_FACT, deliveryBasis: "record" };
 }
 
 export function createClaudeSessionFactsReader(): SessionFactsReader {
   return {
     async read(identity: AgentIdentity): Promise<SessionFacts> {
-      if (identity.sessionPath === undefined) return sessionFacts.unknown();
+      if (identity.sessionPath === undefined) return recordFacts();
       let text: string;
       try {
         text = await readFile(identity.sessionPath, "utf-8");
       } catch {
-        return sessionFacts.unknown();
+        return recordFacts();
       }
       return factsFromRecords(parseTranscriptLines(text));
     },

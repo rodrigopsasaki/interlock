@@ -1,10 +1,46 @@
-import { readFile } from "node:fs/promises";
+import type { Dirent } from "node:fs";
+import { readdir, readFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import type { SessionFacts, SessionQuota, SessionUsage } from "ledger";
 import { sessionFacts } from "ledger";
 import type { AgentIdentity, SessionFactsReader } from "../runtime.ts";
 import { isRecord, isString, prop } from "../validate.ts";
 
 const OPENING_PROMPT_PREFIX = "This is an interlock session for node ";
+
+export function codexHome(): string {
+  return process.env["CODEX_HOME"] ?? join(homedir(), ".codex");
+}
+
+export async function findCodexSessionPath(
+  sessionId: string,
+  home: string = codexHome(),
+): Promise<string | undefined> {
+  const sessions = join(home, "sessions");
+  const visit = async (directory: string): Promise<string | undefined> => {
+    let entries: readonly Dirent[];
+    try {
+      entries = await readdir(directory, { withFileTypes: true });
+    } catch {
+      return undefined;
+    }
+    for (const entry of [...entries].sort((left, right) => left.name.localeCompare(right.name))) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) {
+        const found = await visit(path);
+        if (found !== undefined) return found;
+      } else if (
+        entry.isFile() &&
+        (entry.name === `${sessionId}.jsonl` || entry.name.endsWith(`-${sessionId}.jsonl`))
+      ) {
+        return path;
+      }
+    }
+    return undefined;
+  };
+  return visit(sessions);
+}
 
 function recordFacts(): SessionFacts {
   return { ...sessionFacts.unknown(), deliveryBasis: "record" };

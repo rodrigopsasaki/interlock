@@ -1,6 +1,7 @@
 import type { Clock } from "@phyxiusjs/clock";
 import { ms } from "@phyxiusjs/clock";
 import { isErr, isOk, ok, type Result } from "@phyxiusjs/fp";
+import type { SessionFacts } from "ledger";
 import type { Agent, AgentStatus, Runtime, RuntimeRefusal } from "./runtime.ts";
 import { matchesScreen, type StartupAnswer } from "./startupAnswers.ts";
 
@@ -18,6 +19,7 @@ export interface PromptDeliveryRequest {
   readonly promptTakenTimeoutMs: number;
   readonly answerGraceMs: number;
   readonly startupAnswers: readonly StartupAnswer[];
+  readonly readSessionFacts?: () => Promise<SessionFacts>;
 }
 
 export type PromptDeliveryOutcome =
@@ -33,6 +35,18 @@ function isIdleTimeout(refusal: RuntimeRefusal): boolean {
 
 function refusalCode(refusal: RuntimeRefusal): string {
   return refusal.kind === "remote" ? refusal.code : refusal.kind;
+}
+
+async function promptReceived(
+  readSessionFacts: (() => Promise<SessionFacts>) | undefined,
+): Promise<boolean> {
+  if (readSessionFacts === undefined) return false;
+  try {
+    const facts = await readSessionFacts();
+    return facts.deliveryBasis === "record" && facts.promptReceived.state === "known";
+  } catch {
+    return false;
+  }
 }
 
 async function matchStartupAnswer(
@@ -73,6 +87,7 @@ export async function deliverOpeningPrompt(
     promptTakenTimeoutMs,
     answerGraceMs,
     startupAnswers,
+    readSessionFacts,
   } = request;
 
   if (readySettleMs > 0) {
@@ -106,6 +121,11 @@ export async function deliverOpeningPrompt(
     }
 
     const waited = await runtime.waitUntil(agent, TAKEN_STATUSES, promptTakenTimeoutMs);
+    if (await promptReceived(readSessionFacts)) {
+      if (isOk(waited) && waited.value === "working") narrate("agent working");
+      return ok({ kind: "taken", status: isOk(waited) ? waited.value : "working" });
+    }
+    if (readSessionFacts !== undefined && isOk(waited)) continue;
     if (isOk(waited)) {
       if (waited.value === "working") narrate("agent working");
       return ok({ kind: "taken", status: waited.value });
@@ -125,6 +145,13 @@ export async function deliverOpeningPrompt(
     `opening prompt not taken after ${totalAttempts} attempts; pane ${agent.pane.id} stays open; a person may deliver it by hand`,
   );
   const resumed = await runtime.waitUntil(agent, ["working"], answerGraceMs);
+  if (readSessionFacts !== undefined) {
+    if (await promptReceived(readSessionFacts)) {
+      if (isOk(resumed)) narrate("agent working");
+      return ok({ kind: "resumed-in-grace" });
+    }
+    return ok({ kind: "abandoned", attempts: totalAttempts });
+  }
   if (isOk(resumed)) {
     narrate("agent working");
     return ok({ kind: "resumed-in-grace" });
