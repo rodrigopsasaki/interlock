@@ -81,3 +81,11 @@ entries:
     at: "2026-09-25T06:27:01Z"
     expected: "The first lint run after the CLI test edits would pass."
     observed: "Biome required import-member ordering in both tests and line wrapping in the new run assertion; the fixes are formatting-only."
+  - kind: surprise
+    at: "2026-09-25T06:27:52Z"
+    expected: "The required unmodified full workspace test gate would pass after the four CLI regressions were repaired."
+    observed: "Ledger, face, debrief, and verifier passed, but substrate's 24 HTTP-server tests timed out or errored because the sandbox denied listening on 127.0.0.1 with EPERM; the exact workspace command exited 1."
+  - kind: choice
+    at: "2026-09-25T06:27:52Z"
+    chose: "Report the exact full-test failure as an environment-blocked gate result and retain the four-test focused pass as the behavioral proof for this repair."
+    because: "The changed CLI assertions pass when fixture commits can run, while the remaining failure is the same sandbox server-bind boundary observed before and is outside this test-only change."
