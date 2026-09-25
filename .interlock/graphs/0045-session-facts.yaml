@@ -206,7 +206,7 @@ nodes:
       --runtime luna`. The node must reach the runtime without a person re-sending the prompt.
       Its own Codex session record, read through the adapter, must show the opening prompt was
       received, a last activity time, and observed usage; the position must render those facts and
-      an explicit `Quota: unknown` for any quota the record does not provide. The session show
+      its reported quota, or an explicit `Quota: unknown` when the record does not provide one. The session show
       output must contain `Prompt received: yes`, `Last activity: <RFC3339>`, and `Usage: <raw
       counters>`. The session record, not the
       pane or a status heuristic, is the proof of prompt delivery. The runner-owned screen capture
@@ -217,7 +217,7 @@ nodes:
       - id: codex-facts-position
         kind: command
         run: pnpm interlock session show 0045-session-facts dogfood-codex-facts
-        expect_output: 'Prompt received: yes[\s\S]*Last activity: [^\n]+[\s\S]*Usage: [^\n]+[\s\S]*Quota: unknown'
+        expect_output: 'Prompt received: yes[\s\S]*Last activity: \d{4}-\d{2}-\d{2}T[^\n]+[\s\S]*Usage: (?!unknown)[^\n]+[\s\S]*Quota: [^\n]+'
 
   - id: dogfood-claude-facts
     depends_on: [prompt-delivery-facts, session-facts-position, runner-artifact-boundary, claude-session-reader]
@@ -237,4 +237,4 @@ nodes:
       - id: claude-facts-position
         kind: command
         run: pnpm interlock session show 0045-session-facts dogfood-claude-facts
-        expect_output: 'Prompt received: yes[\s\S]*Last activity: [^\n]+[\s\S]*Usage: [^\n]+[\s\S]*Quota: [^\n]+'
+        expect_output: 'Prompt received: yes[\s\S]*Last activity: \d{4}-\d{2}-\d{2}T[^\n]+[\s\S]*Usage: (?!unknown)[^\n]+[\s\S]*Quota: [^\n]+'
