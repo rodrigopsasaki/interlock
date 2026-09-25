@@ -83,4 +83,19 @@ describe("Codex session facts reader", () => {
       });
     }
   });
+
+  it("does not reuse an older optional observation after the latest token count omits it", async () => {
+    const reader = createCodexSessionFactsReader();
+    const facts = await reader.read(identity(join(fixtures, "latest-optional-missing.jsonl")));
+
+    expect(facts.usage).toEqual({
+      state: "known",
+      value: {
+        input: 20,
+        output: 4,
+        raw: { input_tokens: 20, output_tokens: 4 },
+      },
+    });
+    expect(facts.quota).toEqual({ state: "unknown" });
+  });
 });

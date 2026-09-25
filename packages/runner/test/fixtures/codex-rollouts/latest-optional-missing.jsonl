@@ -1,0 +1,2 @@
+{"timestamp":"2026-09-25T06:00:00Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":10,"output_tokens":2}},"rate_limits":{"primary":{"used_percent":10,"window_minutes":10080}}}}
+{"timestamp":"2026-09-25T06:01:00Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":20,"output_tokens":4}}}}

@@ -49,3 +49,7 @@ entries:
     expected: "A focused existing herdr adapter test would be able to start its Unix-socket fixture."
     observed: "The test fixture failed with listen EPERM in the sandbox, causing the five-second test timeout before any adapter assertion ran."
     mattered_because: "The environment blocks the herdr socket receipt; the Codex reader proof and typecheck remain independently executable, and no network behavior is changed to work around it."
+  - kind: choice
+    at: "2026-09-25T07:10:00Z"
+    chose: "Read usage and quota from one latest token_count record rather than independently retaining older valid fields."
+    because: "Codex reports cumulative usage and the brief says quota is on that same record; reusing an older quota after a later record omits it would turn an absent optional field into an invented current observation."

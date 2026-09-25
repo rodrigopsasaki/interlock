@@ -104,15 +104,14 @@ function quotaFrom(record: Record<string, unknown>): SessionQuota | undefined {
   };
 }
 
-function latest<T>(
+function latestTokenCount(
   records: readonly Record<string, unknown>[],
-  read: (record: Record<string, unknown>) => T | undefined,
-): T | undefined {
+): Record<string, unknown> | undefined {
   for (let index = records.length - 1; index >= 0; index -= 1) {
     const record = records[index];
     if (record === undefined) continue;
-    const value = read(record);
-    if (value !== undefined) return value;
+    const payload = prop(record, "payload");
+    if (isRecord(payload) && prop(payload, "type") === "token_count") return record;
   }
   return undefined;
 }
@@ -123,8 +122,9 @@ function factsFromRecords(records: readonly Record<string, unknown>[]): SessionF
   const lastActivity = isRfc3339(timestamp)
     ? sessionFacts.known(timestamp)
     : sessionFacts.unknown().lastActivity;
-  const usage = latest(records, usageFrom);
-  const quota = latest(records, quotaFrom);
+  const tokenCount = latestTokenCount(records);
+  const usage = tokenCount === undefined ? undefined : usageFrom(tokenCount);
+  const quota = tokenCount === undefined ? undefined : quotaFrom(tokenCount);
   const promptReceived = records.some(isOpeningPrompt)
     ? sessionFacts.known<"yes">("yes")
     : sessionFacts.unknown().promptReceived;
