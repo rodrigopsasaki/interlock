@@ -818,7 +818,7 @@ scope:
 substrate:
   address: none
 graph_base_sha: 028156b25dac7df5fc6969489c30d1e8365211a8
-session: 686b596a-4962-4bc5-80e7-5b89226cfe07
+session: c07b10ed-cc85-494c-8e23-9f81e2166967
 ---
 
 Implement the acceptance of node `session-facts-seam` in `.interlock/graphs/0045-session-facts.yaml` exactly as
