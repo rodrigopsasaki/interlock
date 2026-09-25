@@ -1,0 +1,80 @@
+interlock: debrief@v2
+graph: 0045-session-facts
+node: codex-session-reader
+role: worker
+graph_base_sha: 005490053bc1f0673e3146802b02d2194fc667aa
+session_start_sha: e73d2d9237e1069b0af606305c999d55c6c0b074
+head_sha: 0e4e025672021c7712d1fbff04faf1e9c39c65d3
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-luna
+discoveries:
+  - id: rollout-preamble-before-opening
+    what: "The verified rollout record contains a separate preamble/environment user item before the interlock opening prompt, so prompt evidence must be matched by text."
+    found_at: '.interlock/sessions/0045-session-facts/codex-session-reader/notes.yaml:21 "The installed herdr command returned Operation not permitted, but the current session UUID resolves to a real Codex rollout record whose user contents include an AGENTS/environment item followed by the opening prompt marker."'
+    mattered_because: "A position-based first-user-item rule would treat the preamble as the opening prompt and could clear delivery without record evidence."
+decisions:
+  - id: codex-rollout-reader
+    what: "Added a Codex-only SessionFactsReader that reads the supplied rollout path, matches the opening prompt marker across user input contents, extracts the latest activity timestamp, latest cumulative usage, and same-record quota, and returns record-basis unknowns for unavailable or malformed evidence."
+    because: "The acceptance requires the runtime-owned record to establish facts without pane or status inference, preserve raw counters, retain optional quota as unknown when absent, and keep vendor parsing behind the herdr adapter."
+    rests_on:
+      - packages/runner/src/herdr/codex.ts
+      - packages/runner/src/runtime.ts
+      - packages/ledger/src/sessionFacts.ts
+      - .interlock/sessions/0045-session-facts/codex-session-reader/notes.yaml
+    hunks:
+      - packages/runner/src/herdr/codex.ts:1-154
+      - .interlock/sessions/0045-session-facts/codex-session-reader/notes.yaml:1-60
+  - id: herdr-reader-boundary
+    what: "Exposed the Codex reader through the herdr Runtime implementation and runner package exports while retaining the existing runtime-neutral identity seam."
+    because: "The existing AgentIdentity already carries the optional session path, so the adapter can retain vendor record access without adding Codex fields to core contracts."
+    rests_on:
+      - packages/runner/src/herdr/adapter.ts
+      - packages/runner/src/index.ts
+      - packages/runner/src/runtime.ts
+    hunks:
+      - packages/runner/src/herdr/adapter.ts:7-18
+      - packages/runner/src/herdr/adapter.ts:311-313
+      - packages/runner/src/index.ts:40-44
+  - id: rollout-fixture-proof
+    what: "Added synthetic rollout fixtures and focused tests covering a dropped opening prompt, a later identical resend, cumulative usage and quota, missing optional quota, malformed or unavailable records, and the herdr reader boundary."
+    because: "The fixtures preserve the vendor record shape without real prompts or credentials and prove unknown facts instead of guessing from idle or working state."
+    rests_on:
+      - packages/runner/test/sessionFacts/codex.test.ts
+      - packages/runner/test/herdr/adapter.test.ts
+      - packages/runner/test/fixtures/codex-rollouts/dropped-opening-prompt.jsonl
+      - packages/runner/test/fixtures/codex-rollouts/opening-prompt-resend.jsonl
+      - packages/runner/test/fixtures/codex-rollouts/latest-optional-missing.jsonl
+      - packages/runner/test/fixtures/codex-rollouts/malformed.jsonl
+    hunks:
+      - packages/runner/test/sessionFacts/codex.test.ts:1-101
+      - packages/runner/test/herdr/adapter.test.ts:173-180
+      - packages/runner/test/fixtures/codex-rollouts/dropped-opening-prompt.jsonl:1-2
+      - packages/runner/test/fixtures/codex-rollouts/opening-prompt-resend.jsonl:1-4
+      - packages/runner/test/fixtures/codex-rollouts/latest-optional-missing.jsonl:1-2
+      - packages/runner/test/fixtures/codex-rollouts/malformed.jsonl:1
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Biome checked 358 files with no findings.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+  - id: codex-reader-proof
+    result: pass
+    invocation: mise exec -- pnpm --filter runner exec vitest run test/sessionFacts/codex.test.ts
+    note: 4 Codex reader tests passed, including latest-record optional-field behavior.
+  - id: herdr-adapter-boundary
+    result: fail
+    invocation: mise exec -- pnpm --filter runner exec vitest run test/sessionFacts/codex.test.ts test/herdr/adapter.test.ts
+    note: The 4 Codex tests passed, but the existing herdr Unix-socket fixture stalled after worktree setup; the focused herdr test separately failed before assertions because listen on the fixture socket was denied with EPERM.
+  - id: test
+    result: fail
+    invocation: mise exec -- pnpm test
+    note: Ledger, face, debrief, verifier, and 67 substrate tests passed; 24 existing substrate HTTP-fixture tests failed or timed out because the sandbox denied listen on 127.0.0.1 with EPERM, so recursive execution did not reach runner.
+open: []
