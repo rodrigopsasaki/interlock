@@ -93,3 +93,12 @@ entries:
       signing attempt failed before writing a commit. The correction is otherwise staged unchanged
       and will be committed locally with signing disabled; the failure is an environment boundary,
       not a graph or validation result.
+  - kind: surprise
+    at: "2026-09-25T01:36:00Z"
+    expected: The standing full test gate would complete after the graph-only correction.
+    observed: >-
+      `pnpm test` passed all non-network package suites but the existing substrate capability,
+      context, and absorb tests could not bind their local listeners in this sandbox; 24 tests
+      failed or timed out with `listen EPERM: operation not permitted 127.0.0.1`. Typecheck, lint,
+      comments, graph loading, schema validation, notes validation, and schema-reference freshness
+      all passed.
