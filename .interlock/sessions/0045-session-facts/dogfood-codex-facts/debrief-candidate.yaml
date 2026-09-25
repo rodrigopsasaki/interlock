@@ -1,0 +1,42 @@
+interlock: debrief@v2
+graph: 0045-session-facts
+node: dogfood-codex-facts
+role: worker
+graph_base_sha: fe03cfe04204dd279d321affc7fe7710c94b99c1
+session_start_sha: 36369de9908105ee35e5799835feae5a17dab725
+head_sha: 68efedbcf582435f388f0a23482448a7e8754636
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-luna
+discoveries:
+  - id: codex-position-facts
+    what: The Codex session position proved prompt delivery and last activity from the session record, while reporting usage and quota as unknown during the active turn.
+    found_at: >-
+      .interlock/sessions/0045-session-facts/dogfood-codex-facts/notes.yaml:8-11
+      "The position showed Prompt received: yes; Last activity: 2026-09-25T13:33:44.184Z;
+      Usage: unknown; Quota: unknown; Delivery basis: record. Usage was still unknown while
+      this turn was in progress, so no value was inferred."
+    mattered_because: The position distinguishes record-backed prompt delivery and activity from counters that were unavailable at the observation time; unknown values must remain unknown rather than be inferred.
+decisions:
+  - id: preserve-literal-session-facts
+    what: "Recorded the session-position facts literally in the node notes, including Usage: unknown and Quota: unknown."
+    because: The acceptance requires session-record evidence, and the command exposed unknown values while this turn remained active; guessing would erase the observed state.
+    rests_on:
+      - .interlock/sessions/0045-session-facts/dogfood-codex-facts/notes.yaml:8-11
+    hunks:
+      - .interlock/sessions/0045-session-facts/dogfood-codex-facts/notes.yaml:8-11
+    produces:
+      - .interlock/sessions/0045-session-facts/dogfood-codex-facts/notes.yaml
+  - id: local-signing-fallback
+    what: Committed the session notes with signing disabled for the local commit after the configured GPG signer was unavailable.
+    because: The required evidence needed a commit in this worktree, and the fallback changed only commit signing, not source, gates, or recorded facts.
+    rests_on:
+      - .interlock/sessions/0045-session-facts/dogfood-codex-facts/notes.yaml:12-19
+    hunks:
+      - .interlock/sessions/0045-session-facts/dogfood-codex-facts/notes.yaml:12-19
+    produces:
+      - .interlock/sessions/0045-session-facts/dogfood-codex-facts/notes.yaml
+gates_run_by_agent: []
+open:
+  - Whether this Codex session record reports observed usage and quota after the active turn finishes; both were unknown at the recorded observation.
