@@ -71,3 +71,25 @@ entries:
       The candidate's source range ends at the graph commit before the debrief is filed, so the
       debrief cannot truthfully root its own future hunk; the debrief remains the final artifact
       and its existence is covered by the validation gate.
+  - kind: choice
+    at: "2026-09-25T01:30:00Z"
+    chose: >-
+      Corrected the candidate graph in place: recorded the exact luna model, stated the Kimi Code
+      CLI reader deferral, made unknown-runtime delivery explicitly status-based with a weaker
+      `Delivery basis: status` record, required the new brief-authoring reference check, and made
+      both dogfood gates read their own session show output using the committed labels `Prompt
+      received`, `Last activity`, `Usage`, and `Quota`.
+    because: >-
+      Review found that the prior graph still allowed dogfood gates to pass on unrelated unit
+      tests, left pre-reader Claude/Kimi delivery undefined, used the existing schema-reference
+      check without requiring the new documentation, and recorded only the generic gpt-5 label.
+      These edits keep the plan vendor-neutral in core while making the harness-observed proof and
+      the deferred reader boundary exact.
+  - kind: surprise
+    at: "2026-09-25T01:32:00Z"
+    expected: The correction commit would use the repository's configured signing key.
+    observed: >-
+      Git could not create GPG's temporary keybox file under the protected home directory, so the
+      signing attempt failed before writing a commit. The correction is otherwise staged unchanged
+      and will be committed locally with signing disabled; the failure is an environment boundary,
+      not a graph or validation result.

@@ -15,7 +15,7 @@ ask: |
 derivation:
   kind: agent
   runtime: codex
-  model: gpt-5
+  model: gpt-5.6-luna
   session: 183bc2d2-53d0-40ba-a122-889b2b712e86
   graph_base_sha: 69d2b149819000d26fa2c164524a5315eacf83d5
 read: >
@@ -28,7 +28,8 @@ read: >
   confirm the record on this machine before any parser is written, while unknown remains an honest
   result. Two final nodes run unattended on luna and the confirmed second vendor, and require the
   resulting session record and position to expose the facts. No node changes gate judgment, pricing,
-  failover, or a watcher.
+  failover, or a watcher. Kimi Code CLI remains a later reader node, deferred because its session
+  record is not yet confirmed on this machine.
 gates:
   - id: approved
     kind: human
@@ -83,12 +84,17 @@ nodes:
   - id: prompt-delivery-facts
     depends_on: [codex-session-reader]
     acceptance: |
-      Change prompt delivery so a prompt is taken only when the runtime reader observes the
-      opening prompt in the runtime's own session record. A herdr working, blocked, or done status,
-      a successful prompt RPC, or a screen line alone never counts as taken. Preserve the existing
-      retry count, alternating submit behavior, startup answers, ready settle, and post-abandon
-      grace interval; an unknown fact consumes neither false success nor a new retry policy and
-      remains subject to those existing retry and grace outcomes.
+      Change prompt delivery so, when a reader exists for the runtime, a prompt is taken only when
+      that reader observes the opening prompt in the runtime's own session record. A herdr working,
+      blocked, or done status, a successful prompt RPC, or a screen line alone never counts as taken
+      for a runtime with a reader. Preserve the existing retry count, alternating submit behavior,
+      startup answers, ready settle, and post-abandon grace interval.
+
+      Read strictly when no reader exists: the runtime's facts are unknown, `taken` keeps today's
+      status-based rule, and the session records `Delivery basis: status` rather than `record` so
+      the position shows the weaker evidence. A runtime with a reader never falls back to status;
+      only its record can establish `Prompt received: yes`. Test both a known reader and an unknown
+      Kimi or Claude-style runtime, including the existing retry and grace outcomes.
 
       Wire the session identity and reader through the runner adapter boundary, record the observed
       facts for the session, and test: a working pane with no record retries; the exact record
@@ -111,6 +117,11 @@ nodes:
       quota or unknown when unavailable. An old session and an unknown runtime must visibly degrade
       to unknown, while a known Codex record exposes its observed values. Do not convert spend to
       money, use quota for failover, poll in a new watcher, or alter gate judgment.
+
+      Commit these exact session-show and position labels so later gates can read the record rather
+      than a pane: `Prompt received: yes|unknown`, `Last activity: <RFC3339>|unknown`,
+      `Usage: <raw counters>|unknown`, `Quota: <raw window and used percentage>|unknown`, and
+      `Delivery basis: record|status`.
 
       Add direct ledger, face, and CLI tests for replay, latest-observation selection, known and
       unknown rendering, empty-versus-unknown usage, and substrate address none. Keep all prior
@@ -158,12 +169,14 @@ nodes:
 
       Update the owning design/readme or brief documentation seam and the generated shape reference
       only as needed. Add or extend a read-only documentation/reference check that fails when the
-      example or authoring path disappears; no runtime, schema, authority, or gate behavior changes.
+      example or authoring path disappears. The check is invoked as
+      `interlock schema reference --check --brief-authoring`, emits `brief-authoring: fresh` on
+      success, and is read-only; no runtime, schema, authority, or gate behavior changes.
     gates:
       - id: brief-reference-proof
         kind: command
-        run: pnpm interlock schema reference --check
-        expect_output: 'docs/shapes\.md: fresh'
+        run: pnpm interlock schema reference --check --brief-authoring
+        expect_output: 'brief-authoring: fresh'
 
   - id: claude-session-reader
     depends_on: [session-facts-seam]
@@ -193,7 +206,9 @@ nodes:
       --runtime luna`. The node must reach the runtime without a person re-sending the prompt.
       Its own Codex session record, read through the adapter, must show the opening prompt was
       received, a last activity time, and observed usage; the position must render those facts and
-      an explicit unknown for any quota the record does not provide. The session record, not the
+      an explicit `Quota: unknown` for any quota the record does not provide. The session show
+      output must contain `Prompt received: yes`, `Last activity: <RFC3339>`, and `Usage: <raw
+      counters>`. The session record, not the
       pane or a status heuristic, is the proof of prompt delivery. The runner-owned screen capture
       must not appear as an uncommitted path in the target worktree, and the ordinary standing
       gates plus debrief validation must still be run by the harness. Preserve the record and
@@ -201,8 +216,8 @@ nodes:
     gates:
       - id: codex-facts-position
         kind: command
-        run: pnpm --filter cli exec vitest run test/session/show.test.ts test/graph/show.test.ts
-        expect_output: 'Tests +[1-9][0-9]* passed'
+        run: pnpm interlock session show 0045-session-facts dogfood-codex-facts
+        expect_output: 'Prompt received: yes[\s\S]*Last activity: [^\n]+[\s\S]*Usage: [^\n]+[\s\S]*Quota: unknown'
 
   - id: dogfood-claude-facts
     depends_on: [prompt-delivery-facts, session-facts-position, runner-artifact-boundary, claude-session-reader]
@@ -212,12 +227,14 @@ nodes:
       runtime without a person re-sending the prompt. Its own Claude session record, read through
       the adapter, must show the opening prompt was received and a last activity time; the
       position must render those facts, observed usage, and quota when the record reports it or
-      explicit unknown otherwise. The session record, not the pane or a status heuristic, is the
+      explicit unknown otherwise. The session show output must contain `Prompt received: yes`,
+      `Last activity: <RFC3339>`, `Usage: <raw counters>`, and `Quota: <raw window and used
+      percentage>|unknown`. The session record, not the pane or a status heuristic, is the
       proof of prompt delivery. The runner-owned screen capture must not appear as an uncommitted
       target-worktree path. The ordinary standing gates and debrief validation remain harness
       work, and no human gate or gate-judgment change is added.
     gates:
       - id: claude-facts-position
         kind: command
-        run: pnpm --filter cli exec vitest run test/session/show.test.ts test/graph/show.test.ts
-        expect_output: 'Tests +[1-9][0-9]* passed'
+        run: pnpm interlock session show 0045-session-facts dogfood-claude-facts
+        expect_output: 'Prompt received: yes[\s\S]*Last activity: [^\n]+[\s\S]*Usage: [^\n]+[\s\S]*Quota: [^\n]+'
