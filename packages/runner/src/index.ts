@@ -149,9 +149,10 @@ export {
   removeWorktree,
   uncommittedPaths,
 } from "./worktree.ts";
-export type { WorktreeSetupRefusal } from "./worktreeSetup.ts";
+export type { WorktreeSetupExit, WorktreeSetupRefusal } from "./worktreeSetup.ts";
 export {
   explainWorktreeSetupRefusal,
   runSetupCommand,
   runWorktreeSetup,
+  SETUP_LOG_TAIL_BYTES,
 } from "./worktreeSetup.ts";
