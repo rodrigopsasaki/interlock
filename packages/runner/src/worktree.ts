@@ -34,9 +34,20 @@ export type WorktreeOutcome =
       readonly commitsBeyondBase: number;
     };
 
+// Node's execFileSync default (1 MB) truncates `status --porcelain --untracked-files=all` on
+// a worktree with a real number of changed or untracked paths; this helper serves every git
+// subcommand run here, so it carries the generous limit rather than each call site guessing.
+const GIT_MAX_BUFFER_BYTES = 512 * 1024 * 1024;
+
 function git(cwd: string, args: readonly string[]): Result<string, WorktreeRefusal> {
   try {
-    return ok(execFileSync("git", [...args], { cwd, encoding: "utf-8" }));
+    return ok(
+      execFileSync("git", [...args], {
+        cwd,
+        encoding: "utf-8",
+        maxBuffer: GIT_MAX_BUFFER_BYTES,
+      }),
+    );
   } catch (error) {
     return err({
       kind: "git-failed",
