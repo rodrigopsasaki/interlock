@@ -11,7 +11,7 @@ rather than asserted in prose.
 
 | | |
 | --- | --- |
-| Status | `substrate@v1`, schemas written: one request and one response per verb under `schemas/substrate/`, plus a `capabilities` response. Nothing in interlock consumes the protocol yet; the note and the schemas precede the client so a substrate can implement it first. |
+| Status | `substrate@v1`, with one request and one response schema per verb under `schemas/substrate/`, plus a `capabilities` response. The client in `packages/substrate` uses two of them, `context` into the brief and `absorb` for debriefs through the outbox, at the address set in `.interlock/local.yaml`; it also implements `capabilities`, which nothing calls yet. The other verbs are schemas only. |
 | Owner | Rodrigo Sasaki, own repository, Apache 2.0. |
 | Reference implementation | Named once, in the mapping section below, and nowhere else in this note, in code, in a schema, or in a test. A derivation an address renders through the wire is data this fence does not reach; it is rendered exactly as the substrate returns it. |
 | How to read | Decisions are D-numbered, continuing from 0002. The verbs are the spine; the payloads point at the artifact schemas under `schemas/`, and at their own request/response schemas under `schemas/substrate/`. |
