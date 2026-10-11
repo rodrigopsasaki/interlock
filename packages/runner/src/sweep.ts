@@ -1,4 +1,5 @@
 import {
+  ABANDONED_AUTHORITY,
   type Lease,
   type Ledger,
   type LedgerProjection,
@@ -6,10 +7,6 @@ import {
   outcome,
   type SessionView,
 } from "ledger";
-
-export const ABANDONED_AUTHORITY = "sweeper";
-
-export const HARNESS_AUTHORITIES: ReadonlySet<string> = new Set([ABANDONED_AUTHORITY]);
 
 type ExpiredSession = SessionView & {
   readonly lease: Lease;
