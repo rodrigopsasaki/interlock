@@ -11,6 +11,7 @@ export {
   renderBriefFile,
 } from "./briefRewrite.ts";
 export { withRenderedContextSlice } from "./contextSlice.ts";
+export { decidedNodeRefusal } from "./decidedNode.ts";
 export { unmetDependencies } from "./dependencies.ts";
 export type { GateCommand, PlaceholderRefusal } from "./gateCommand.ts";
 export {
