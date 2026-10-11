@@ -170,6 +170,27 @@ export function ensureNodeWorktree(
 }
 
 const BRIEF_COMMIT_FOOTER = "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>";
+const BRIEF_COMMIT_HEADER = "chore: write the session brief for ";
+const COMMIT_LINE_LIMIT = 100;
+const TRUNCATION_MARK = "...";
+
+function briefCommitHeader(node: string): string {
+  const room = COMMIT_LINE_LIMIT - BRIEF_COMMIT_HEADER.length;
+  const fitting =
+    node.length <= room
+      ? node
+      : `${node.slice(0, room - TRUNCATION_MARK.length)}${TRUNCATION_MARK}`;
+  return `${BRIEF_COMMIT_HEADER}${fitting}`;
+}
+
+function labelledLines(label: string, value: string): readonly string[] {
+  const text = `${label}${value}`;
+  const lines: string[] = [];
+  for (let start = 0; start < text.length; start += COMMIT_LINE_LIMIT) {
+    lines.push(text.slice(start, start + COMMIT_LINE_LIMIT));
+  }
+  return lines;
+}
 
 export function commitBriefIfChanged(
   worktreePath: string,
@@ -185,9 +206,12 @@ export function commitBriefIfChanged(
   if (isErr(staged)) return staged;
 
   const message = [
-    `chore: write the session brief for ${node}`,
+    briefCommitHeader(node),
     "",
-    `Writes the session brief ${node} starts session ${session} from.`,
+    "Writes the session brief this node starts its session from.",
+    "",
+    ...labelledLines("Node: ", node),
+    ...labelledLines("Session: ", session),
     "",
     BRIEF_COMMIT_FOOTER,
   ].join("\n");
