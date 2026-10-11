@@ -14,6 +14,7 @@ import {
   type BriefWriteOutcome,
   briefExists,
   briefPath,
+  decidedNodeRefusal,
   driveInteractiveSession,
   explainLocalConfigRefusal,
   explainMergeRuntimesRefusal,
@@ -158,6 +159,9 @@ export async function runInterlockRun(
         message: `${graph}: graph is ${approval}, not approved for its current content; refusing to lease "${node}".`,
       };
     }
+
+    const decided = decidedNodeRefusal(graph, node, ledger.projection());
+    if (decided !== undefined) return { exitCode: 1, message: decided };
 
     const unmet = unmetDependencies(graph, declaration.dependsOn, ledger.projection());
     if (unmet.length > 0) {

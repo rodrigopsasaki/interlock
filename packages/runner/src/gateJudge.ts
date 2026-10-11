@@ -22,6 +22,7 @@ import {
   type Gap,
   type Gate,
   gate,
+  HARNESS_AUTHORITIES,
   heldOn,
   type Ledger,
   type LedgerEvent,
@@ -58,7 +59,6 @@ import {
   type GateOutputRefusal,
   retainGateOutput,
 } from "./gateOutput.ts";
-import { HARNESS_AUTHORITIES } from "./sweep.ts";
 
 export const GATE_DERIVATION_VERSION = "runner@0";
 

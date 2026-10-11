@@ -1,6 +1,13 @@
-import { outcome, sessionRuntime } from "ledger";
+import {
+  ABANDONED_AUTHORITY,
+  isDecided,
+  nodeKey,
+  outcome,
+  proposeOutcomeMove,
+  sessionRuntime,
+} from "ledger";
 import { describe, expect, it } from "vitest";
-import { ABANDONED_AUTHORITY, sweepExpiredLeases } from "../src/sweep.ts";
+import { sweepExpiredLeases } from "../src/sweep.ts";
 import { memoryLedger } from "./support/memoryLedger.ts";
 
 const node = (id: string) => ({ graph: "0001-bootstrap", id });
@@ -167,5 +174,36 @@ describe("sweeper", () => {
     expect(projection.nodes.get("0001-bootstrap::a")?.outcome).toEqual(
       outcome.cancelled([], ABANDONED_AUTHORITY, "lease session-2 expired at 3000 with no outcome"),
     );
+  });
+
+  it("abandons without deciding: the swept node is not terminal and a person can reset it", () => {
+    const ledger = memoryLedger();
+    ledger.append({
+      kind: "session-started",
+      session: { id: "session-expired", node: node("a"), runtime: sessionRuntime.unknown() },
+      brief: {
+        graph: "0001-bootstrap",
+        node: "a",
+        role: "worker",
+        acceptance: "",
+        gates: [],
+        scope: [],
+      },
+    });
+    ledger.append({
+      kind: "lease-taken",
+      node: node("a"),
+      session: "session-expired",
+      expiry: 1_000,
+    });
+
+    sweepExpiredLeases(ledger, 2_000);
+
+    const swept = ledger.projection().nodes.get(nodeKey(node("a")))?.outcome;
+    expect(swept?.kind).toBe("cancelled");
+    if (swept === undefined) return;
+    expect(isDecided(swept)).toBe(false);
+    const reset = outcome.reset([], "Rodrigo Sasaki", "the agent never started");
+    expect(proposeOutcomeMove(swept, reset)).toEqual({ _tag: "Ok", value: reset });
   });
 });

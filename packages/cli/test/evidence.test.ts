@@ -5,6 +5,7 @@ import { createControlledClock } from "@phyxiusjs/clock";
 import { isErr, unwrap } from "@phyxiusjs/fp";
 import { sharedJournalDirectory } from "face";
 import {
+  ABANDONED_AUTHORITY,
   type Brief,
   createLedger,
   type Debrief,
@@ -19,7 +20,7 @@ import {
   sessionRuntime,
   spend,
 } from "ledger";
-import { ABANDONED_AUTHORITY, judgeGates } from "runner";
+import { judgeGates } from "runner";
 import { noneClient } from "substrate";
 import { afterEach, describe, expect, it } from "vitest";
 import { parse } from "yaml";

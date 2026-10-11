@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { derivation } from "../src/derivation.js";
 import { gate } from "../src/gate.js";
-import { buildCleared, heldOn, type Outcome, outcome, proposeOutcomeMove } from "../src/outcome.js";
+import {
+  ABANDONED_AUTHORITY,
+  buildCleared,
+  HARNESS_AUTHORITIES,
+  heldOn,
+  isDecided,
+  type Outcome,
+  outcome,
+  proposeOutcomeMove,
+} from "../src/outcome.js";
 import { duration, type Receipt } from "../src/receipt.js";
 import { spend } from "../src/spend.js";
 
@@ -146,6 +155,15 @@ describe("proposeOutcomeMove", () => {
     });
   });
 
+  it("allows a move off a cancellation the harness wrote when it abandoned a lease", () => {
+    const abandoned = outcome.cancelled(
+      [],
+      ABANDONED_AUTHORITY,
+      "lease session-1 expired at 1000 with no outcome",
+    );
+    expect(proposeOutcomeMove(abandoned, reset)).toEqual({ _tag: "Ok", value: reset });
+  });
+
   const terminalOutcomes: readonly Outcome[] = [
     { kind: "cleared", receipts: [] },
     {
@@ -173,4 +191,32 @@ describe("proposeOutcomeMove", () => {
       });
     },
   );
+});
+
+describe("isDecided", () => {
+  it("names the sweeper as the one harness authority, so one source of truth decides who counts", () => {
+    expect(HARNESS_AUTHORITIES).toEqual(new Set([ABANDONED_AUTHORITY]));
+    expect(ABANDONED_AUTHORITY).toBe("sweeper");
+  });
+
+  const decided: readonly Outcome[] = [
+    { kind: "cleared", receipts: [] },
+    outcome.failed([], "typecheck failed", "terminal-failure", "budget spent"),
+    outcome.cancelled([], "Rodrigo Sasaki", "wrong approach"),
+    outcome.superseded([], "Rodrigo Sasaki", "acceptance re-versioned"),
+  ];
+
+  const undecided: readonly Outcome[] = [
+    outcome.held([], heldOn.decision("Rodrigo Sasaki"), "waiting on a call", 30_000),
+    outcome.reset([], "Rodrigo Sasaki", "flaky suite, re-running"),
+    outcome.cancelled([], ABANDONED_AUTHORITY, "lease session-1 expired at 1000 with no outcome"),
+  ];
+
+  it.each(decided)("reads a $kind outcome as someone's decision", (current) => {
+    expect(isDecided(current)).toBe(true);
+  });
+
+  it.each(undecided)("reads a $kind outcome as no one's decision about the work", (current) => {
+    expect(isDecided(current)).toBe(false);
+  });
 });

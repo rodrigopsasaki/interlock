@@ -11,6 +11,7 @@ export {
   renderBriefFile,
 } from "./briefRewrite.ts";
 export { withRenderedContextSlice } from "./contextSlice.ts";
+export { decidedNodeRefusal } from "./decidedNode.ts";
 export { unmetDependencies } from "./dependencies.ts";
 export type { GateCommand, PlaceholderRefusal } from "./gateCommand.ts";
 export {
@@ -129,11 +130,7 @@ export {
 } from "./standingGates.ts";
 export type { StartupAnswer } from "./startupAnswers.ts";
 export { matchesScreen } from "./startupAnswers.ts";
-export {
-  ABANDONED_AUTHORITY,
-  HARNESS_AUTHORITIES,
-  sweepExpiredLeases,
-} from "./sweep.ts";
+export { sweepExpiredLeases } from "./sweep.ts";
 export {
   createTmuxRuntime,
   defaultTmuxRunner,

@@ -59,18 +59,29 @@ export interface OutcomeRefusal {
   readonly to: Outcome["kind"];
 }
 
-const TERMINAL_OUTCOME_KINDS: ReadonlySet<Outcome["kind"]> = new Set([
-  "cleared",
-  "cancelled",
-  "superseded",
-  "failed",
-]);
+export const ABANDONED_AUTHORITY = "sweeper";
+
+export const HARNESS_AUTHORITIES: ReadonlySet<string> = new Set([ABANDONED_AUTHORITY]);
+
+export function isDecided(current: Outcome): boolean {
+  switch (current.kind) {
+    case "cleared":
+    case "failed":
+    case "superseded":
+      return true;
+    case "cancelled":
+      return !HARNESS_AUTHORITIES.has(current.authority);
+    case "held":
+    case "reset":
+      return false;
+  }
+}
 
 export function proposeOutcomeMove(
   current: Outcome | undefined,
   next: Outcome,
 ): Result<Outcome, OutcomeRefusal> {
-  if (current !== undefined && TERMINAL_OUTCOME_KINDS.has(current.kind)) {
+  if (current !== undefined && isDecided(current)) {
     return err({
       kind: "illegal-transition",
       from: current.kind,

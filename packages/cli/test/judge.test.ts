@@ -2,8 +2,9 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
-import { err, ok } from "@phyxiusjs/fp";
-import { isLedgerEvent } from "ledger";
+import { err, ok, unwrap } from "@phyxiusjs/fp";
+import { sharedJournalDirectory } from "face";
+import { createLedger, isLedgerEvent, sessionRuntime } from "ledger";
 import type { Runtime } from "runner";
 import { afterEach, describe, expect, it } from "vitest";
 import {
@@ -401,13 +402,30 @@ describe("interlock judge", () => {
     const worktreePath = join(cwd, ".worktrees", "a");
     settle(worktreePath);
 
-    const second = await runInterlockRun(["demo", "a"], {
-      cwd,
-      clock: createControlledClock({ initialTime: 100_000 }),
-      runtime: stubRuntime(),
+    const secondSessionId = "second-session";
+    const later = unwrap(
+      await createLedger({
+        clock: createControlledClock({ initialTime: 100_000 }),
+        directory: sharedJournalDirectory(cwd),
+      }),
+    );
+    later.append({
+      kind: "session-started",
+      session: {
+        id: secondSessionId,
+        node: { graph: "demo", id: "a" },
+        runtime: sessionRuntime.unknown(),
+      },
+      brief: {
+        graph: "demo",
+        node: "a",
+        role: "worker",
+        acceptance: "",
+        gates: [],
+        scope: [],
+      },
     });
-    expect(second.exitCode).toBe(0);
-    const secondSessionId = sessionIdFrom(second.message);
+    await later.close();
     expect(secondSessionId).not.toBe(firstSessionId);
 
     const judged = await runInterlockJudge(["demo", "a", "--session", firstSessionId], {
