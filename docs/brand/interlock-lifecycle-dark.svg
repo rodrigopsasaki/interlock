@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="220" viewBox="0 0 760 220" role="img" aria-labelledby="title desc">
+  <title id="title">Where Interlock asks for proof</title>
+  <desc id="desc">A node moves from left to right: plan, approval, work, gates, cleared. Two of those points are interlocks, drawn as the blue loop completed by its gold keystone. Before any work starts, a person approves the exact plan file. After the work, the gates the runner executes must be satisfied before the node is cleared.</desc>
+  <defs>
+    <path id="body" d="M 76.604 64.279 A 100 100 0 1 1 76.604 -64.279 L 63.198 -53.027 L 67.581 -47.319 L 53.245 -37.282 A 65 65 0 1 0 53.245 37.282 L 67.581 47.319 L 63.198 53.027 Z"/>
+    <path id="key" d="M 76.604 -64.279 A 100 100 0 0 1 76.604 64.279 L 63.198 53.027 L 67.581 47.319 L 53.245 37.282 A 65 65 0 0 0 53.245 -37.282 L 67.581 -47.319 L 63.198 -53.027 Z"/>
+    <filter id="paper"><feTurbulence type="fractalNoise" baseFrequency=".55" numOctaves="3" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="linear" slope=".028"/></feComponentTransfer><feBlend in="SourceGraphic" mode="multiply"/></filter>
+  </defs>
+  <g filter="url(#paper)">
+    <rect width="760" height="220" fill="#171d24"/>
+    <g fill="none" stroke="#536273" stroke-width="3" stroke-linecap="round"><path d="M 24 88 H 56.5 M 83.5 88 H 176 M 268 88 H 366.5 M 393.5 88 H 492 M 584 88 H 677 M 703 88 H 734"/><path d="M 726 82 L 734 88 L 726 94" stroke-linejoin="round"/></g>
+    <circle cx="70" cy="88" r="12" fill="#171d24" stroke="#94a0ae" stroke-width="3"/>
+    <g transform="translate(222 88) scale(0.46)"><use href="#body" fill="#79a9e8"/><use href="#key" fill="#e5b756"/></g>
+    <circle cx="380" cy="88" r="12" fill="#171d24" stroke="#94a0ae" stroke-width="3"/>
+    <g transform="translate(538 88) scale(0.46)"><use href="#body" fill="#79a9e8"/><use href="#key" fill="#e5b756"/></g>
+    <circle cx="690" cy="88" r="13" fill="#ede8de"/>
+  </g>
+  <g text-anchor="middle" fill="#ede8de" font-family="Georgia, serif" font-size="27">
+    <text x="70" y="186">Plan</text>
+    <text x="222" y="186">Approval</text>
+    <text x="380" y="186">Work</text>
+    <text x="538" y="186">Gates</text>
+    <text x="690" y="186">Cleared</text>
+  </g>
+</svg>

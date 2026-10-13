@@ -8,12 +8,8 @@ const assets = [
   "docs/brand/interlock-wordmark-dark.png",
   "docs/brand/interlock-concept.svg",
   "docs/brand/interlock-concept-dark.svg",
-  "docs/brand/interlock-concept-mobile.svg",
-  "docs/brand/interlock-concept-mobile-dark.svg",
-  "docs/brand/interlock-critical-path.svg",
-  "docs/brand/interlock-critical-path-dark.svg",
-  "docs/brand/interlock-critical-path-mobile.svg",
-  "docs/brand/interlock-critical-path-mobile-dark.svg",
+  "docs/brand/interlock-lifecycle.svg",
+  "docs/brand/interlock-lifecycle-dark.svg",
 ];
 
 for (const file of assets) {
@@ -70,8 +66,12 @@ for (const file of assets.filter((asset) => asset.endsWith(".svg"))) {
   }
 }
 
+const themes = [
+  { scheme: "light", media: "(prefers-color-scheme: light)", suffix: "" },
+  { scheme: "dark", media: "(prefers-color-scheme: dark)", suffix: "-dark" },
+];
 const pictures = Array.from(text.matchAll(/<picture>([\s\S]*?)<\/picture>/g), (match) => match[1]);
-const pictureStems = ["interlock-wordmark", "interlock-concept", "interlock-critical-path"];
+const pictureStems = ["interlock-wordmark", "interlock-lifecycle", "interlock-concept"];
 if (pictures.length !== pictureStems.length)
   throw new Error("Every README illustration needs a picture element");
 
@@ -82,6 +82,10 @@ for (const [index, picture] of pictures.entries()) {
   if (fallback === undefined || /\balt="[^"]+"/.test(picture) === false) {
     throw new Error(`Missing fallback image or alternative text: ${stem}`);
   }
+  const extension = stem === "interlock-wordmark" ? "png" : "svg";
+  if (fallback !== `docs/brand/${stem}.${extension}`) {
+    throw new Error(`The fallback image must be the light drawing: ${stem}`);
+  }
   const sources = Array.from(picture.matchAll(/<source\b[^>]*>/g), (match) => {
     const media = /\bmedia="([^"]+)"/.exec(match[0])?.[1];
     const srcset = /\bsrcset="([^"]+)"/.exec(match[0])?.[1];
@@ -89,24 +93,27 @@ for (const [index, picture] of pictures.entries()) {
       throw new Error(`Incomplete picture source: ${stem}`);
     return { media, srcset };
   });
-  for (const scheme of ["light", "dark"]) {
-    for (const width of [375, 700, 701, 1024]) {
-      const matched = sources.find(({ media }) => {
-        const theme = /prefers-color-scheme:\s*(light|dark)/.exec(media)?.[1];
-        const maxWidth = /max-width:\s*(\d+)px/.exec(media)?.[1];
-        return (
-          (theme === undefined || theme === scheme) &&
-          (maxWidth === undefined || width <= Number(maxWidth))
-        );
-      });
-      const mobile = stem !== "interlock-wordmark" && width <= 700 ? "-mobile" : "";
-      const dark = scheme === "dark" ? "-dark" : "";
-      const extension = stem === "interlock-wordmark" ? "png" : "svg";
-      const expected = `docs/brand/${stem}${mobile}${dark}.${extension}`;
-      if ((matched?.srcset ?? fallback) !== expected) {
-        throw new Error(`Wrong ${scheme} image at ${width}px: ${stem}`);
-      }
+  if (sources.length !== 2) throw new Error(`Expected one dark and one light source: ${stem}`);
+  for (const theme of themes) {
+    const source = sources.find(({ media }) => media === theme.media);
+    if (source?.srcset !== `docs/brand/${stem}${theme.suffix}.${extension}`) {
+      throw new Error(`Wrong or missing ${theme.scheme} source: ${stem}`);
     }
+  }
+}
+
+const narrowestColumnPx = 294;
+const smallestLegiblePx = 10;
+for (const file of assets.filter((asset) => asset.endsWith(".svg"))) {
+  const svg = readFileSync(resolve(root, file), "utf8");
+  const viewBoxWidth = Number(/viewBox="[\d.-]+ [\d.-]+ ([\d.]+) [\d.]+"/.exec(svg)?.[1]);
+  const sizes = Array.from(svg.matchAll(/font-size="([\d.]+)"/g), (match) => Number(match[1]));
+  if (Number.isFinite(viewBoxWidth) === false || sizes.length === 0) {
+    throw new Error(`SVG needs a viewBox and explicit font sizes: ${file}`);
+  }
+  const renderedPx = (Math.min(...sizes) * narrowestColumnPx) / viewBoxWidth;
+  if (renderedPx < smallestLegiblePx) {
+    throw new Error(`Text renders at ${renderedPx.toFixed(1)}px in a narrow column: ${file}`);
   }
 }
 
@@ -123,13 +130,14 @@ function luminance(hex: string): number {
 
 for (const file of assets.filter((asset) => asset.endsWith(".svg"))) {
   const svg = readFileSync(resolve(root, file), "utf8");
-  const background = file.includes("-dark") ? "#171d24" : "#faf8f2";
+  const paper = /<rect\b[^>]*\bfill="(#[\da-f]{6})"/i.exec(svg)?.[1];
+  if (paper === undefined) throw new Error(`SVG needs an opaque paper background: ${file}`);
+  const backgroundLuminance = luminance(paper);
   for (const match of svg.matchAll(/<(?:g|text)\b[^>]*>/g)) {
     if (/font-(?:family|size)=/.test(match[0]) === false) continue;
     const color = /\bfill="(#[\da-f]{6})"/i.exec(match[0])?.[1];
     if (color === undefined) continue;
     const foregroundLuminance = luminance(color);
-    const backgroundLuminance = luminance(background);
     const contrast =
       (Math.max(foregroundLuminance, backgroundLuminance) + 0.05) /
       (Math.min(foregroundLuminance, backgroundLuminance) + 0.05);
@@ -146,4 +154,6 @@ for (const file of assets.filter((asset) => asset.endsWith(".svg"))) {
 }
 
 console.log("README assets and markup checked");
-console.log("README theme selection, matching geometry, and text contrast checked");
+console.log(
+  "README theme selection, narrow-column legibility, matching geometry, and text contrast checked",
+);

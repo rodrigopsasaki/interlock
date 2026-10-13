@@ -8,7 +8,7 @@ to set. This note is the thing we weigh against when it bends.
 
 | | |
 | --- | --- |
-| Status | Decided. Two nodes of the bootstrap graph cleared; the rest not built. TypeScript on Node. |
+| Status | Decided and built: every node of the bootstrap graph has cleared, and later work is planned as the graphs under `.interlock/graphs`. TypeScript on Node; what is still design is listed under [Current state](../../README.md#current-state) in the README. |
 | Owner | Rodrigo Sasaki, own repository, Apache 2.0. The first company adopter arrives by config and an address only. |
 | Composes | herdr for processes. A substrate for beliefs about code. Interlock for the structure of work. |
 | How to read | Decisions are D-numbered, invariants I-numbered. The bend log cites them. A decision may bend with a written entry. An invariant bending means the design is wrong, not the invariant. |
