@@ -132,4 +132,22 @@ describe("diffFiles", () => {
     expect(files[0]?.hunks).toEqual([]);
     expect(files[0]?.addedLines).toEqual([]);
   });
+
+  // Node's execFileSync defaults to a 1 MB stdout buffer; a diff bigger than that used to throw
+  // "spawnSync git ENOBUFS" and crash the whole judge, well after the work it was judging was
+  // done. Deleting a ~2 MB file reproduces a diff past that default.
+  it("returns a deleted file's diff without throwing when the diff exceeds Node's 1 MB execFileSync default", () => {
+    const dir = freshRepo();
+    const bigContent = "const value = 1;\n".repeat(120_000); // ~2.06 MB, past the 1 MB default
+    writeFileSync(join(dir, "big.ts"), bigContent);
+    const from = commitAll(dir, "add big.ts");
+    rmSync(join(dir, "big.ts"));
+    const to = commitAll(dir, "delete big.ts");
+
+    const files = diffFiles(dir, from, to);
+    expect(files).toHaveLength(1);
+    expect(files[0]?.path).toBe("big.ts");
+    expect(files[0]?.hunks).toEqual([]);
+    expect(files[0]?.addedLines).toEqual([]);
+  });
 });

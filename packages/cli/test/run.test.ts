@@ -3,9 +3,17 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
-import { err, isOk, ok } from "@phyxiusjs/fp";
+import { err, isOk, ok, unwrap } from "@phyxiusjs/fp";
 import { debriefFilePath, readBriefFile } from "debrief";
-import { isLedgerEvent, type LedgerEvent } from "ledger";
+import { sharedJournalDirectory } from "face";
+import {
+  createLedger,
+  isLedgerEvent,
+  type LedgerEvent,
+  type Outcome,
+  outcome,
+  sessionRuntime,
+} from "ledger";
 import type { Runtime } from "runner";
 import { afterEach, describe, expect, it } from "vitest";
 import {
@@ -13,7 +21,9 @@ import {
   startFakeSubstrateServer,
 } from "../../substrate/test/support/fakeSubstrateServer.ts";
 import { runGraphApprove } from "../src/graph/approve.ts";
+import { runNodeReset } from "../src/node/reset.ts";
 import { runInterlockRun } from "../src/run.ts";
+import { runInterlockSweep } from "../src/sweep.ts";
 import { commitAll, commitPath, gitInitFixture } from "./graph/gitFixture.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
@@ -1658,5 +1668,146 @@ describe("interlock run: --runtime selection", () => {
       kind: "claude",
       model: undefined,
     });
+  }, 30_000);
+});
+
+describe("interlock run: a node whose outcome is already decided", () => {
+  const demoA = { graph: "demo", id: "a" };
+
+  async function openLedger(cwd: string, initialTime: number) {
+    return unwrap(
+      await createLedger({
+        clock: createControlledClock({ initialTime }),
+        directory: sharedJournalDirectory(cwd),
+      }),
+    );
+  }
+
+  async function recordOutcome(cwd: string, recorded: Outcome): Promise<void> {
+    const ledger = await openLedger(cwd, 0);
+    ledger.append({ kind: "outcome-set", node: demoA, outcome: recorded });
+    await ledger.close();
+  }
+
+  async function leaseTakenThenAbandoned(cwd: string): Promise<void> {
+    const ledger = await openLedger(cwd, 0);
+    ledger.append({
+      kind: "session-started",
+      session: { id: "session-0", node: demoA, runtime: sessionRuntime.unknown() },
+      brief: {
+        graph: "demo",
+        node: "a",
+        role: "worker",
+        acceptance: "",
+        gates: [],
+        scope: [],
+      },
+    });
+    ledger.append({ kind: "lease-taken", node: demoA, session: "session-0", expiry: 1_000 });
+    await ledger.close();
+    const swept = await runInterlockSweep([], {
+      cwd,
+      clock: createControlledClock({ initialTime: 5_000 }),
+    });
+    expect(swept.message).toBe("sweep: abandoned 1 session(s): session-0.");
+  }
+
+  const journalOf = (cwd: string): string =>
+    readFileSync(join(cwd, ".interlock", "ledger", "journal.jsonl"), "utf-8");
+
+  const refusals: readonly {
+    readonly name: string;
+    readonly decided: Outcome;
+    readonly message: string;
+  }[] = [
+    {
+      name: "cleared",
+      decided: { kind: "cleared", receipts: [] },
+      message:
+        "a: outcome is cleared, which is terminal; its proof is already held, so there is nothing to run.",
+    },
+    {
+      name: "cancelled by a person",
+      decided: outcome.cancelled([], "Rodrigo Sasaki", "acceptance dropped"),
+      message:
+        "a: outcome is cancelled by Rodrigo Sasaki (acceptance dropped), which is terminal; node reset refuses it, so run this work from a new graph version.",
+    },
+    {
+      name: "superseded",
+      decided: outcome.superseded([], "Rodrigo Sasaki", "acceptance re-versioned"),
+      message:
+        "a: outcome is superseded by Rodrigo Sasaki (acceptance re-versioned), which is terminal; node reset refuses it, so run this work from a new graph version.",
+    },
+  ];
+
+  it.each(refusals)(
+    "refuses a node that is $name in one sentence, before a worktree, a session or a pane exists",
+    async ({ decided, message }) => {
+      const cwd = fixture();
+      await approve(cwd);
+      await recordOutcome(cwd, decided);
+      const journalBefore = journalOf(cwd);
+      let paneOpened = false;
+
+      const result = await runInterlockRun(["demo", "a"], {
+        cwd,
+        clock: createControlledClock({ initialTime: 0 }),
+        runtime: {
+          ...stubRuntime(),
+          openPane: () => {
+            paneOpened = true;
+            return Promise.resolve(ok({ id: "pane-1" }));
+          },
+        },
+      });
+
+      expect(result).toEqual({ exitCode: 1, message });
+      expect(existsSync(join(cwd, ".worktrees", "a"))).toBe(false);
+      expect(paneOpened).toBe(false);
+      expect(journalOf(cwd)).toBe(journalBefore);
+    },
+    30_000,
+  );
+
+  it("runs a node whose lease the sweeper abandoned, since that cancellation decided nothing", async () => {
+    const cwd = fixture();
+    await approve(cwd);
+    await leaseTakenThenAbandoned(cwd);
+
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock({ initialTime: 5_000 }),
+      runtime: {
+        ...stubRuntime(),
+        waitUntil: finishedWaitUntil(join(cwd, ".worktrees", "a")),
+      },
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.message).toContain("cleared");
+  }, 30_000);
+
+  it("resets a node the sweeper abandoned and then runs it to cleared", async () => {
+    const cwd = fixture();
+    await approve(cwd);
+    await leaseTakenThenAbandoned(cwd);
+
+    const reset = await runNodeReset(
+      ["demo", "a", "--by", "Rodrigo Sasaki", "--because", "the agent never started"],
+      { cwd, clock: createControlledClock({ initialTime: 5_000 }) },
+    );
+    expect(reset).toEqual({ exitCode: 0, message: "a: reset by Rodrigo Sasaki." });
+
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock({ initialTime: 5_000 }),
+      runtime: {
+        ...stubRuntime(),
+        waitUntil: finishedWaitUntil(join(cwd, ".worktrees", "a")),
+      },
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.message).toContain("cleared");
   }, 30_000);
 });

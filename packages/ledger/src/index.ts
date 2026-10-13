@@ -66,8 +66,11 @@ export type {
   OutcomeRefusal,
 } from "./outcome.ts";
 export {
+  ABANDONED_AUTHORITY,
   buildCleared,
+  HARNESS_AUTHORITIES,
   heldOn,
+  isDecided,
   isHeldOn,
   isOutcome,
   outcome,

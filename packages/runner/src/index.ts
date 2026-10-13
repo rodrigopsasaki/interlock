@@ -11,6 +11,7 @@ export {
   renderBriefFile,
 } from "./briefRewrite.ts";
 export { withRenderedContextSlice } from "./contextSlice.ts";
+export { decidedNodeRefusal } from "./decidedNode.ts";
 export { unmetDependencies } from "./dependencies.ts";
 export type { GateCommand, PlaceholderRefusal } from "./gateCommand.ts";
 export {
@@ -129,11 +130,7 @@ export {
 } from "./standingGates.ts";
 export type { StartupAnswer } from "./startupAnswers.ts";
 export { matchesScreen } from "./startupAnswers.ts";
-export {
-  ABANDONED_AUTHORITY,
-  HARNESS_AUTHORITIES,
-  sweepExpiredLeases,
-} from "./sweep.ts";
+export { sweepExpiredLeases } from "./sweep.ts";
 export {
   createTmuxRuntime,
   defaultTmuxRunner,
@@ -149,9 +146,10 @@ export {
   removeWorktree,
   uncommittedPaths,
 } from "./worktree.ts";
-export type { WorktreeSetupRefusal } from "./worktreeSetup.ts";
+export type { WorktreeSetupExit, WorktreeSetupRefusal } from "./worktreeSetup.ts";
 export {
   explainWorktreeSetupRefusal,
   runSetupCommand,
   runWorktreeSetup,
+  SETUP_LOG_TAIL_BYTES,
 } from "./worktreeSetup.ts";

@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { isErr, isOk, unwrap } from "@phyxiusjs/fp";
@@ -267,6 +268,51 @@ describe("commitBriefIfChanged", () => {
       encoding: "utf-8",
     }).trim();
     expect(changed).toBe("brief.md");
+  });
+
+  it("keeps every line of the commit message within 100 characters for a long node id", () => {
+    const repoRoot = fixtureRepo();
+    const sha = headSha(repoRoot);
+    const node = "observation-writer-subject-supersession-and-retraction";
+    const session = randomUUID();
+    const path = join(repoRoot, ".worktrees", "long-node");
+    unwrap(ensureNodeWorktree(repoRoot, path, sha, "graph/demo/long-node"));
+
+    writeFileSync(join(path, "root.txt"), "brief content\n");
+    expect(isOk(commitBriefIfChanged(path, "root.txt", node, session))).toBe(true);
+
+    const message = execFileSync("git", ["log", "-1", "--format=%B"], {
+      cwd: path,
+      encoding: "utf-8",
+    });
+    expect(node.length).toBeGreaterThan(40);
+    expect(Math.max(...message.split("\n").map((line) => line.length))).toBeLessThanOrEqual(100);
+    expect(message).toContain(`Node: ${node}\n`);
+    expect(message).toContain(`Session: ${session}\n`);
+    expect(message).toContain("Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>");
+  });
+
+  it("holds the 100 character limit and keeps the whole node id even when the id has no bound", () => {
+    const repoRoot = fixtureRepo();
+    const sha = headSha(repoRoot);
+    const node = Array.from({ length: 30 }, (_, index) => `segment-${index}`).join("-");
+    const session = randomUUID();
+    const path = join(repoRoot, ".worktrees", "unbounded-node");
+    unwrap(ensureNodeWorktree(repoRoot, path, sha, "graph/demo/unbounded-node"));
+
+    writeFileSync(join(path, "root.txt"), "brief content\n");
+    expect(isOk(commitBriefIfChanged(path, "root.txt", node, session))).toBe(true);
+
+    const message = execFileSync("git", ["log", "-1", "--format=%B"], {
+      cwd: path,
+      encoding: "utf-8",
+    });
+    const lines = message.split("\n");
+    expect(node.length).toBeGreaterThan(200);
+    expect(Math.max(...lines.map((line) => line.length))).toBeLessThanOrEqual(100);
+    expect(lines[0]).toMatch(/^chore: write the session brief for segment-0-/);
+    expect(message.replaceAll("\n", "")).toContain(node);
+    expect(message).toContain(`Session: ${session}\n`);
   });
 
   it("commits nothing and reports no sha when the path already matches HEAD", () => {

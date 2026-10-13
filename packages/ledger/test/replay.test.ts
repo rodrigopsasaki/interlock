@@ -19,7 +19,7 @@ import { gate } from "../src/gate.js";
 import { isNode, type Node, nodeKey } from "../src/graph.js";
 import { createLedger } from "../src/ledger.js";
 import { note } from "../src/note.js";
-import { heldOn, outcome } from "../src/outcome.js";
+import { heldOn, isDecided, outcome, proposeOutcomeMove } from "../src/outcome.js";
 import { fold, type LedgerProjection } from "../src/projection.js";
 import { duration, type Receipt } from "../src/receipt.js";
 import { parseLine, readRawEvents, replayFromRaw } from "../src/replay.js";
@@ -471,6 +471,31 @@ describe("replay's versioned upcast seam", () => {
     if (replayed._tag !== "Ok") return;
     const approved = replayed.value.nodes.get(nodeKey(graphNode))?.gates.get("approved");
     expect(approved?.kind).toBe("satisfied");
+  });
+
+  it("projects a sweeper cancellation already in an old journal as an outcome nobody decided", () => {
+    const raw = readFileSync(
+      join(import.meta.dirname, "fixtures", "journal-v1-v3-2026-09-11.jsonl"),
+      "utf-8",
+    );
+    const lines = raw.split("\n").filter((line) => line.trim().length > 0);
+    const sweepLine = lines.findIndex(
+      (line) => line.includes('"kind":"cancelled"') && line.includes('"authority":"sweeper"'),
+    );
+    expect(sweepLine).toBeGreaterThan(-1);
+
+    const replayed = replayFromRaw(lines.slice(0, sweepLine + 1).join("\n"));
+    expect(replayed._tag).toBe("Ok");
+    if (replayed._tag !== "Ok") return;
+
+    const swept: Node = { graph: "0001-bootstrap", id: "verifier-hunks" };
+    const current = replayed.value.nodes.get(nodeKey(swept))?.outcome;
+    expect(current).toMatchObject({ kind: "cancelled", authority: "sweeper" });
+    if (current === undefined) return;
+    expect(isDecided(current)).toBe(false);
+    expect(
+      proposeOutcomeMove(current, outcome.reset([], "Rodrigo Sasaki", "launch failed"))._tag,
+    ).toBe("Ok");
   });
 
   it("reads an actual event@v4 line and refuses a v5-only outbox event under that old tag", () => {

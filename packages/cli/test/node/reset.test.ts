@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
 import { unwrap } from "@phyxiusjs/fp";
 import { sharedJournalDirectory } from "face";
-import { createLedger, type Ledger, outcome, sessionRuntime } from "ledger";
+import { ABANDONED_AUTHORITY, createLedger, type Ledger, outcome, sessionRuntime } from "ledger";
 import { afterEach, describe, expect, it } from "vitest";
 import { runNodeReset } from "../../src/node/reset.ts";
 import { gitInitFixture } from "../graph/gitFixture.ts";
@@ -195,5 +195,47 @@ describe("node reset", () => {
     );
     expect(result.exitCode).not.toBe(0);
     expect(result.message).toBe("a: outcome cannot move from cleared, which is terminal.");
+  });
+
+  it("resets a node whose lease the sweeper abandoned, since abandoning decided nothing about the work", async () => {
+    const cwd = fixture();
+    const ledger = await openLedger(cwd);
+    ledger.append({
+      kind: "outcome-set",
+      node: { graph: "demo", id: "a" },
+      outcome: outcome.cancelled(
+        [],
+        ABANDONED_AUTHORITY,
+        "lease session-1 expired at 1000 with no outcome",
+      ),
+    });
+    await ledger.close();
+
+    const result = await runNodeReset(
+      ["demo", "a", "--by", "Rodrigo Sasaki", "--because", "the agent never started"],
+      { cwd },
+    );
+    expect(result.exitCode).toBe(0);
+    expect(result.message).toBe("a: reset by Rodrigo Sasaki.");
+    expect(journalEventKinds(cwd)).toEqual(["outcome-set", "outcome-set"]);
+  });
+
+  it("still refuses to reset a node a person cancelled, naming the terminal rule", async () => {
+    const cwd = fixture();
+    const ledger = await openLedger(cwd);
+    ledger.append({
+      kind: "outcome-set",
+      node: { graph: "demo", id: "a" },
+      outcome: outcome.cancelled([], "Rodrigo Sasaki", "acceptance dropped"),
+    });
+    await ledger.close();
+
+    const result = await runNodeReset(
+      ["demo", "a", "--by", "Rodrigo Sasaki", "--because", "changed my mind"],
+      { cwd },
+    );
+    expect(result.exitCode).not.toBe(0);
+    expect(result.message).toBe("a: outcome cannot move from cancelled, which is terminal.");
+    expect(journalEventKinds(cwd)).toEqual(["outcome-set"]);
   });
 });
