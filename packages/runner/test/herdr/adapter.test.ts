@@ -346,6 +346,22 @@ describe("herdr adapter", () => {
     if (isErr(waited)) expect(waited.error.kind).toBe("timeout");
   });
 
+  it("sends herdr a whole-millisecond timeout_ms when the caller's budget is fractional", async () => {
+    const fake = await fixture();
+    fake.agentStatus = "working";
+    const created = await createHerdrRuntime(fake.socketPath, 30_000, 60_000, 100);
+    if (isErr(created)) throw new Error("expected a runtime");
+    const pane = await created.value.openPane("/repo");
+    if (isErr(pane)) throw new Error("expected a pane");
+    const agent = await created.value.startAgent(pane.value, "claude", []);
+    if (isErr(agent)) throw new Error("expected an agent");
+
+    await created.value.waitUntil(agent.value, ["idle", "done"], 250.75);
+    const waits = fake.calls.filter((call) => call.method === "agent.wait");
+    expect(waits.length).toBeGreaterThan(0);
+    for (const call of waits) expect(Number.isInteger(call.params["timeout_ms"])).toBe(true);
+  });
+
   it("returns at once, without ever calling agent.wait, when the status is already in until", async () => {
     const fake = await fixture();
     fake.agentStatus = "idle";

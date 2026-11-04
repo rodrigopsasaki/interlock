@@ -409,7 +409,8 @@ export async function createHerdrRuntime(
           return err({ kind: "timeout", until, timeoutMs, status: lastStatus });
         }
 
-        const sliceMs = Math.min(waitSliceMs, remainingMs);
+        // herdr's timeout_ms is a u64: a fractional budget (from a caller's arithmetic) is refused outright.
+        const sliceMs = Math.max(1, Math.floor(Math.min(waitSliceMs, remainingMs)));
         const waited = await call(
           "agent.wait",
           { target: agent.id, until, timeout_ms: sliceMs },
