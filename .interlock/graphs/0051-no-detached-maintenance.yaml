@@ -99,6 +99,27 @@ nodes:
       source sets fail the guard. The helper rejects arguments or environment
       settings that override its suppression.
 
+      Strict TypeScript, no type assertions, no non-null operators. Preserve every
+      historical artifact. Append typed notes for choices and discoveries. No push,
+      no merge; the human merges.
+    gates:
+      - id: fixture-guard-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/fixtureGuard.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: verifier-cleanup-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter verifier exec vitest run test/fixtureCleanup.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: parallel-suite-2
+        kind: command
+        run: pnpm test
+        expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: worktree-maintenance
+    role: implementer
+    depends_on: [fixtures-and-worktrees]
+    acceptance: |
       Spend at most 45 minutes investigating the installed Git version, recorded
       effective maintenance configuration and actual runner lifecycles. Identify the
       enabled tasks and their possible write destinations; the geometric-repack
@@ -137,18 +158,6 @@ nodes:
       historical artifact. Append typed notes for choices and discoveries. No push,
       no merge; the human merges.
     gates:
-      - id: fixture-guard-proof
-        kind: command
-        run: pnpm --fail-if-no-match --filter cli exec vitest run test/fixtureGuard.test.ts --passWithNoTests=false
-        expect_output: 'Tests +[1-9][0-9]* passed'
-      - id: verifier-cleanup-proof
-        kind: command
-        run: pnpm --fail-if-no-match --filter verifier exec vitest run test/fixtureCleanup.test.ts --passWithNoTests=false
-        expect_output: 'Tests +[1-9][0-9]* passed'
-      - id: parallel-suite-2
-        kind: command
-        run: pnpm test
-        expect_output: 'Tests +[1-9][0-9]* passed'
       - id: worktree-maintenance-proof
         kind: command
         run: pnpm --fail-if-no-match --filter runner exec vitest run test/worktreeMaintenance.test.ts --passWithNoTests=false

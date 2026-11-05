@@ -31,10 +31,6 @@ gates:
     kind: command
     run: pnpm test
     expect_output: 'Tests +[1-9][0-9]* passed'
-  - id: worktree-maintenance-proof
-    kind: command
-    run: pnpm --fail-if-no-match --filter runner exec vitest run test/worktreeMaintenance.test.ts --passWithNoTests=false
-    expect_output: 'Tests +[1-9][0-9]* passed'
 scope: []
 substrate: { address: none }
 ---
@@ -118,40 +114,6 @@ edit it.
 > exact and observation-only. Missing scan roots, enumeration failures and empty
 > source sets fail the guard. The helper rejects arguments or environment
 > settings that override its suppression.
->
-> Spend at most 45 minutes investigating the installed Git version, recorded
-> effective maintenance configuration and actual runner lifecycles. Identify the
-> enabled tasks and their possible write destinations; the geometric-repack
-> trigger alone does not establish every task's boundary. Run controlled probes
-> in a fresh disposable repository beneath this checkout. Never attach a probe
-> worktree to this checkout's common Git directory or modify global
-> configuration. Retain traces outside the directory deliberately removed. Bound
-> each probe and await or terminate only its identified descendants before final
-> scratch cleanup.
->
-> Retain the Git version, relevant configuration, resolved worktree/common/admin
-> paths, positive controls, subprocess evidence and observed writes. Classify
-> the result as demonstrated exposure, demonstrated non-overlap for the stated
-> configuration and lifecycle, or inconclusive. Successful removals, absent
-> maintenance locks and finite trials without observed writes do not establish
-> non-overlap. For demonstrated exposure, fix the narrowest runner-owned cause
-> and prove that it prevents the evidenced writer from reaching a directory
-> being removed. Containment must take effect before maintenance starts; flags
-> on `removeWorktree` cannot cancel an earlier daemon. For demonstrated
-> non-overlap, change no production code and state the supported boundary.
-> Record agent, setup and gate commands separately. If exposure requires
-> containment outside this approved scope, or the investigation remains
-> inconclusive, retain the evidence in `open` and leave the production
-> acceptance unresolved.
->
-> Always provide `packages/runner/test/worktreeMaintenance.test.ts`. Exercise
-> the actual linked-worktree/common/admin boundary and the demonstrated
-> maintenance conditions deterministically, with positive controls. When
-> production changes are required, include a regression that fails before the
-> change. A passing proof requires a conclusive supported boundary; an
-> inconclusive investigation must not be converted into a passing or skipped
-> test. Use no race-dependent sleeps, cleanup retries or maintenance-lock
-> absence assertions.
 >
 > Strict TypeScript, no type assertions, no non-null operators. Preserve every
 > historical artifact. Append typed notes for choices and discoveries. No push,
