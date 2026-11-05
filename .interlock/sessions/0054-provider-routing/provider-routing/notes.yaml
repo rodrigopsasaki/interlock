@@ -1,0 +1,72 @@
+interlock: notes@v0
+node: provider-routing
+entries:
+  - kind: surprise
+    at: "2026-11-05T14:18:36Z"
+    expected: each vendor CLI would expose its remaining allowance the same way, so one
+      headroom adapter would fit all three
+    observed: only codex keeps a local allowance record; kimi and claude expose nothing
+      read-only. codex 0.162.1 writes rollout files under
+      ~/.codex/sessions/<YYYY>/<MM>/<DD>/rollout-*.jsonl whose event_msg lines with
+      payload.type "token_count" carry payload.rate_limits: primary.used_percent (0-100 of
+      the primary window), primary.window_minutes, primary.resets_at (epoch seconds),
+      rate_limit_reached_type (null unless limited) and plan_type. kimi-code 2.5.1:
+      `kimi provider list --json` lists providers and models with no quota fields,
+      ~/.kimi-code/logs/kimi-code.log has no rate-limit lines, and session files
+      (~/.kimi-code/sessions/*/session_*/state.json, agents/main/wire.jsonl) record no
+      allowance; `kimi doctor` only validates config. claude 2.1.300:
+      ~/.claude/stats-cache.json is lifetime token/cost statistics, not allowance; usage
+      is fetched live by the TUI /usage command from GET /api/oauth/usage with the OAuth
+      credential (the binary's strings name that endpoint), and nothing is cached to
+      disk; there is no non-interactive subcommand. The harness reads the codex rollout
+      file and records kimi and claude headroom as unknown, each with its reason.
+  - kind: choice
+    at: "2026-11-05T14:18:36Z"
+    chose: dispatch headroom readers on the routable profile's kind, never the provider
+      string; unknown kinds and providers read as unknown with a reason
+    because: I6 keeps every runtime assumption inside its adapter; provider is an
+      account name the person chooses freely, while kind names the CLI whose local
+      artifacts we know how to read. Never estimating one provider's headroom from
+      another's falls out of this.
+  - kind: choice
+    at: "2026-11-05T14:18:36Z"
+    chose: version runtimes@v0 to runtimes@v1 with provider and routable as additive
+      optional entry fields, and keep the loader reading both tags
+    because: artifact evolution is additive; a catalogue without the new fields still
+      reads and its profiles are simply not routable. routable: true without provider,
+      and a second routable profile for one provider, refuse at load; the second refusal
+      names both profiles.
+  - kind: choice
+    at: "2026-11-05T14:18:36Z"
+    chose: version local@v0 to local@v1 adding optional provider_order and last_resort
+      (default anthropic), loader reading both tags
+    because: the acceptance versions every changed shape; both fields are optional so
+      every existing local.yaml still reads unchanged.
+  - kind: choice
+    at: "2026-11-05T14:18:36Z"
+    chose: record provider and chosen_by on the session-started runtime record as
+      additive optional fields, and bump the journal envelope to event@v10 with an
+      upcast that refuses v9 lines carrying them
+    because: derivation stays required and history replays; absent fields read as
+      provider unknown and chosen-by unrecorded, which is exactly what existing attempts
+      mean. The upcast follows the predates-person-said precedent so a new field never
+      masquerades as an old line.
+  - kind: choice
+    at: "2026-11-05T14:18:36Z"
+    chose: one chooser for run and plan: explicit flag wins, else the router over
+      routable profiles, else today's resolution recorded as fallback with why
+    because: every attempt must record its chosen-by, and plan sessions are attempts in
+      the same journal; sharing the chooser keeps the record honest and changes plan's
+      behavior only once a catalogue opts into routable profiles. The router needs the
+      ledger for round-robin, so selection moves after the ledger opens in both
+      commands.
+  - kind: choice
+    at: "2026-11-05T14:18:36Z"
+    chose: known headroom beats unknown headroom among available non-last-resort
+      providers; round-robin breaks ties of equal highest known fraction and orders the
+      all-unknown pool
+    because: "the highest known fraction wins" cannot hold if an unknown reading could
+      outrank a known one, and "ties, and providers whose headroom is unknown, go
+      round-robin" then reads as the two cases that fall to the ledger. With every
+      headroom unknown this round-robins every non-anthropic provider before anthropic,
+      which is the stated intent.
