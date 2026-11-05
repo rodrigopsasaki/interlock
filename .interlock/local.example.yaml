@@ -23,8 +23,10 @@ runtime:
   # Optional. How many extra delivery attempts the runner makes when the opening prompt is never taken. Defaults to 2.
   # prompt_retries: 2
   # Optional. Arguments appended after args for a node in a linked worktree, so a sandboxed runtime
-  # can commit there. Exactly one element is the literal "{path}"; the runner replaces it with the
-  # repository's absolute common git directory as one argument, never shell-split. Defaults to none.
+  # can commit there. Exactly one element is the literal "{path}". The runner appends the template
+  # twice: first with "{path}" replaced by the repository's absolute common git directory, then by
+  # the worktree's own absolute git directory, each as one argument, never shell-split. Defaults to
+  # none.
   # writable_root_args: ["--your-writable-root-flag", "{path}"]
 
 # The catalogue is per machine and lives outside the repository. This repository starts sonnet

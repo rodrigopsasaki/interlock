@@ -521,24 +521,31 @@ persisted journal events beneath them. A shape written today must still be reada
 A runtime entry's `args` are trusted operator configuration: the runner passes them to the agent
 as given and never reads them, because reading them would mean knowing a vendor's flags (I6).
 The one thing the runner does know and the operator cannot write down ahead of time is where a
-node's worktree keeps its git state. A linked worktree's index, HEAD and refs live under the
-repository's common git directory, outside the worktree and so outside a sandboxed runtime's
-writable roots; a catalogue that hard-codes that directory works for the repositories someone
-listed and fails, at the first commit, for the next one.
+node's worktree keeps its git state. A linked worktree's git state is split: its own index and
+HEAD live in its per-worktree git directory, and the objects, branch refs and their reflogs it
+shares live in the repository's common git directory. Both are outside the worktree and so outside
+a sandboxed runtime's writable roots; a catalogue that hard-codes them works for the repositories
+someone listed and fails, at the first commit, for the next one.
 
 So the entry may declare `writable_root_args`, on runtimes@v0 and on local@v0's `runtime:` block
 alike, with one shared schema part: a template in which exactly one whole element is `{path}`.
-For an attempt in a linked worktree the runner resolves the absolute common git directory and
-appends the expanded template after `args`, in a fresh list, with the path as one argument and no
-shell in between. It derives no other root and touches neither sandbox mode nor network access;
-without the field, or outside a linked worktree, the argv is exactly the entry's. The template is
+For an attempt in a linked worktree the runner resolves the absolute per-worktree git directory
+and then the absolute common git directory, once each, and appends the template expanded twice
+after `args`, in a fresh list: first for the common directory, then for the per-worktree one, each
+path as one argument and no shell in between. Two expansions, not one: the per-worktree directory
+sits inside the common one, but a sandbox that keeps git metadata beneath a writable root
+read-only still refuses the worktree's index under the common root alone, and lifts that only for
+a root that names the metadata directory itself. If either resolution fails the attempt is refused
+readably before any pane opens, and nothing is launched with half the roots. The runner derives no
+other root and touches neither sandbox mode nor network access; without the field it resolves
+nothing, and without the field or outside a linked worktree the argv is exactly the entry's. The template is
 opaque in the same way `args` is: the runner substitutes one element and knows nothing of what
 the others mean. The field is optional, so both shapes stay at v0 and every existing catalogue
 and local.yaml still reads; a reader older than the field refuses a catalogue entry that uses it,
 by name, as it refuses any unknown key.
 
-The effective argv is narrated as JSON through the recorded session narration once the agent has
-started, so what a session was actually given is a receipt rather than a recomputation, and no
+Each supplied root is narrated on its own line, common first, and the effective argv is narrated
+as JSON through the recorded session narration once the agent has started, so what a session was actually given is a receipt rather than a recomputation, and no
 session or event shape changes to carry it.
 
 ## The weekend
@@ -655,6 +662,7 @@ bend against an invariant means we redesign, and the entry says how.
 | 2026-10-10 | A run's agent died at startup (the runner's own brief commit was refused by a commit hook), its lease lapsed unrenewed, and the sweeper wrote `cancelled` over the node. `cancelled` is terminal, so `interlock node reset` answered "outcome cannot move from cancelled, which is terminal", the only way out was re-versioning and re-approving the whole graph, and `interlock run` leased the dead node again anyway and started a session whose result the ledger could not record | Figure 2's `dead --> queued: reset to checkpoint`, and `cancelled` as "authorized, with because" | `cancelled` carried two meanings, a person deciding the work should not happen and the harness noting that a lease lapsed, and terminality was read off the kind alone, so abandoning a lease decided what only a person, a superseding graph or the evidence may | Yes, sweeper cancellations already in a journal replay unchanged and read as undecided; no journal line is rewritten, and a person's cancel is still terminal | Terminal means someone decided. `isDecided` (`packages/ledger/src/outcome.ts`) answers it from the outcome's own authority, and the harness's authorities (`HARNESS_AUTHORITIES`, now owned by the ledger) never decide; `proposeOutcomeMove` asks it, so `node reset` moves a swept node as it moves a held one. `interlock run` refuses a decided node before any worktree, session or pane exists (`decidedNodeRefusal`, `packages/runner/src/decidedNode.ts`). Left standing: `interlock judge` appends its outcome without asking `isDecided`, so a hand-judge can still overwrite a decided one; that is a separate hole and not closed here |
 | 2026-11-04 | `role-shapes-the-session` records the walk a brief gave on `session-started`, the verifier's mark counts on `debrief-filed`, and a role's debrief sections inside the embedded debrief, as optional fields within `event@v7`, not as `event@v8` | Artifacts are the public API: evolution is additive, persisted journal lines carry their version | `event@v7` already left `session-started`'s brief and the whole of `debrief-filed` unconstrained, and every reader (`isBrief`, `isDebrief`) ignores keys it does not know. An optional field is one an older reader skips and a newer reader reads as not recorded when it is absent, the same evolution `graph@v0` and `position@v1` take in this graph. A new note kind is different, because older readers refuse it, and `asked-in-words` owns the next event version for that reason | Yes, every existing line reads and validates unchanged; a line without the fields reads as "not recorded", and the position says so in words | A version bump is owed when an older reader would refuse or misread a line, not for every new key. The `event@v7` schema now names the two fields so the corpus check covers them |
 | 2026-11-05 | `asked-in-words` adds a `not` rule to the already-published `schemas/event@v7.json`: a `note-appended` line at event@v7 may not carry a `question` note. | Compatibility (evolution is additive) | event@v7 never constrained `note-appended`, so a v7 line carrying a question, which its upcaster refuses, would still have validated against its own schema. The tag and its schema would have disagreed about what v7 could hold. | Yes. No v7 line ever written carries a question. All 3,156 lines of the real shared journal still validate against their schemas, and each older tag replays unchanged. | An open schema is only additive until a later version needs to say what the earlier one could not have carried. Constrain each embedded shape when its kind is introduced, not only when it is first tightened. |
+| 2026-11-05 | `worktree-gitdir-writable` appends `writable_root_args` twice for a linked worktree, for the common git directory and then the per-worktree one, where 0047 appended it once, for the common directory only | Runtime catalogue arguments ("the runner resolves the absolute common git directory"; one root per attempt) | Graph 0049's smoke run: a workspace-write sandbox granted the common git directory still refused the worktree's `index.lock`, because it keeps git metadata beneath a writable root read-only unless the root names that metadata directory itself; the per-worktree directory sits inside the common one, so 0047's containment argument held only for a sandbox without that exclusion | Yes. The template's one-`{path}` rule, `runtimes@v0` and `local@v0` are unchanged, every existing catalogue and local.yaml reads as before, the narration line keeps its shape (one line per root), and 0047's session artifacts stay as filed | A writable root that contains a path does not grant it under every sandbox. Hand the sandbox each directory git writes, by name, rather than the smallest directory that contains them. The fixture policy that reproduces the exclusion is inferred from the smoke run's observed denials, not copied from the runtime, and says so beside it |
 
 ---
 
