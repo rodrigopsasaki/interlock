@@ -1,0 +1,55 @@
+interlock: notes@v0
+node: worktree-gitdir-writable
+entries:
+  - kind: choice
+    at: "2026-11-05T05:05:00Z"
+    chose: Widen worktreeGitLayout's linked case to carry gitDir beside commonGitDir, and have agentLaunch expand the template once per root in the fixed order [commonGitDir, gitDir].
+    because: worktreeGitLayout already runs --git-dir then --git-common-dir, once each, and already compares them; the per-worktree dir was computed and discarded. Carrying it out of the existing function satisfies "resolve each directory once through worktree.ts" with no new git call and no new refusal kind, so either failure still returns the existing git-failed refusal before openPane.
+    rejected: [a second resolver for the per-worktree dir, which would resolve --git-dir twice, deriving the per-worktree dir from the common dir plus the node name, which guesses git's layout]
+  - kind: choice
+    at: "2026-11-05T05:07:00Z"
+    chose: Narrate each supplied root on its own existing-format line, "writable root <path> supplied to runtime <name>", common first.
+    because: The line's shape is what 0047 published into session narration; two lines of the same shape are additive, while one combined "writable roots" line would change a sentence a reader of older journals already matches.
+    rejected: [a single combined line naming both roots]
+  - kind: choice
+    at: "2026-11-05T05:15:00Z"
+    chose: Test each resolution failure independently with a fixture git first on PATH that refuses one named flag and execs the real git otherwise; keep 0047's broken-.git-file refusal test as well. The same fixture git, refusing both flags, proves that an entry without the field performs no root resolution.
+    because: No real repository state makes --git-dir succeed while --git-common-dir fails, since git validates the common dir while discovering the git dir, so only an injected failure tests the second resolution alone. Refusing both flags on the no-field path turns "performs no root resolution" from an absence into an observed fact.
+    rejected: [corrupting worktrees/<name>/commondir, which breaks --git-dir too]
+  - kind: surprise
+    at: "2026-11-05T05:13:00Z"
+    expected: Assert that no narrated line starts with "writable root " when resolution is refused.
+    observed: "The refusal's own narrated message is \"writable root refused: ...\", so that predicate matched it. The assertion now checks for no \"... supplied to runtime <name>\" line."
+  - kind: surprise
+    at: "2026-11-05T05:20:00Z"
+    expected: The machine's installed codex (codex-cli 0.162.1) could be probed with `codex sandbox -P :workspace -c sandbox_workspace_write.writable_roots=[...]` to check the fixture's policy against the real one, common-only versus both roots.
+    observed: That build ignored the writable_roots override on this path; even an unrelated extra directory stayed unwritable, so every root set, both roots included, refused index.lock. The probe measured nothing about the rule and was abandoned; its scratch repository under test/.runs was removed.
+  - kind: choice
+    at: "2026-11-05T05:25:00Z"
+    chose: Model the motivating policy as inferred from the graph's recorded smoke run, not copied from the runtime's source - git metadata beneath a writable root (the worktree's .git pointer and the per-worktree git dir it names) is excluded from that root with SBPL require-not, and the exclusion lifts only for a root that is the metadata directory itself. Its provenance is recorded beside the policy in writableRoot.test.ts, citing the graph file rather than naming the runtime.
+    because: The read records exactly two observations, common-only refused index.lock and adding the per-worktree dir let the index write, and this is the narrowest rule that yields both. The local probe could not confirm the real policy, so calling it a copy would be a provenance claim nothing roots. Naming the graph keeps the runtime's name inside the graph and out of a non-adapter file (I6, the wall).
+    rejected: [an explicit deny of the metadata paths, which no explicit root could lift and so could not reproduce the second observation, claiming the policy is the runtime's own]
+  - kind: choice
+    at: "2026-11-05T05:27:00Z"
+    chose: Run both attempts of the metadata fixture inside one production launch's startAgent, common-only first with roots filtered from the production argv to the common dir, then the full production roots, on the same worktree and the same freshly written file.
+    because: The production launch no longer supplies common-only, so the common-only attempt is the production argv narrowed to 0047's root rather than a hand-built path; running both on one fixture makes "the same state, a different root set" literal, and the common-only attempt leaves HEAD, index and both reflogs byte-identical, which is asserted.
+  - kind: choice
+    at: "2026-11-05T05:29:00Z"
+    chose: "Emit \"writable-root-sandbox-proof: passed\" from afterAll only when both the retained generic boundary test and the new metadata test recorded success; neither test prints it itself."
+    because: The acceptance says to emit the marker only after the new assertions pass; with the old test still printing it, a failing metadata fixture would leave the marker in the output beside the failure. Gating on both keeps the marker meaning the whole file's proof.
+  - kind: choice
+    at: "2026-11-05T05:30:00Z"
+    chose: Pass core.hooksPath=/dev/null and core.logAllRefUpdates=true on both fixture git invocations, and commit.gpgsign=false only on the commit invocation, all as -c on the command line.
+    because: The acceptance asks for hooks off and reflogs on, and for the signing override confined to the fixture's git invocation; -c touches no config file, so nothing outlives the call, and %G? of the new commit reads N.
+  - kind: surprise
+    at: "2026-11-05T05:32:00Z"
+    expected: Reverting the launch to common-only would fail the metadata fixture at the add.
+    observed: It fails earlier, at the roots-equal assertion, in both tests, and the marker is not printed. The add-level denial under common-only is still proven, by the common-only attempt inside the green run.
+  - kind: choice
+    at: "2026-11-05T05:40:00Z"
+    chose: Besides the four named surfaces, update local.yaml's readable-refusal help sentence in localConfig.ts and regenerate docs/shapes.md through `interlock schema reference`, which mirrors both examples and the schema part.
+    because: The help sentence told an operator the placeholder becomes the common git directory, the same behavior the acceptance asks the prose to stop describing; shapes.md is generated and guarded by `schema reference --check`, so editing its sources and regenerating is the only way to keep it fresh.
+  - kind: surprise
+    at: "2026-11-05T05:50:00Z"
+    expected: The standing test gate would pass once the runner tests and docs were green.
+    observed: "The debrief package reads every committed notes.yaml, and two of mine were plain YAML scalars holding \": \", which YAML reads as a nested mapping. Those two values are now quoted; nothing about them changed."
