@@ -80,6 +80,13 @@ export function renderNote(entry: Note): string {
         : "";
     return `  [${entry.at}] chose: ${entry.chose} — because: ${entry.because}${rejected}`;
   }
+  if (entry.kind === "question") {
+    const options =
+      entry.options !== undefined && entry.options.length > 0
+        ? `; answers: ${entry.options.join(", ")}`
+        : "";
+    return `  [${entry.at}] asked: ${entry.asked}${options}`;
+  }
   return `  [${entry.at}] expected ${entry.expected}, observed ${entry.observed}`;
 }
 

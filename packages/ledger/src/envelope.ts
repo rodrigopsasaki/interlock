@@ -4,9 +4,10 @@ import { upcastV2 } from "./upcast/v2.ts";
 import { upcastV3 } from "./upcast/v3.ts";
 import { upcastV5 } from "./upcast/v5.ts";
 import { upcastV6 } from "./upcast/v6.ts";
+import { carriesQuestionNote, upcastV7 } from "./upcast/v7.ts";
 import { isRecord, isString, prop } from "./validate.ts";
 
-export const EVENT_SHAPE = "event@v7";
+export const EVENT_SHAPE = "event@v8";
 
 export type EventEnvelope = {
   readonly interlock: typeof EVENT_SHAPE;
@@ -24,12 +25,17 @@ export function shapeTag(value: unknown): string | undefined {
 
 export type Upcaster = (raw: unknown) => LedgerEvent | undefined;
 
+function predatesQuestionNotes(upcast: Upcaster): Upcaster {
+  return (raw: unknown) => (carriesQuestionNote(raw) ? undefined : upcast(raw));
+}
+
 export const upcastTable: ReadonlyMap<string, Upcaster> = new Map([
   [EVENT_SHAPE, (raw: unknown) => (isLedgerEvent(raw) ? raw : undefined)],
-  ["event@v6", upcastV6],
-  ["event@v5", upcastV5],
-  ["event@v4", upcastPreV5Event],
-  ["event@v3", upcastV3],
-  ["event@v2", upcastV2],
-  ["event@v1", upcastV1],
+  ["event@v7", upcastV7],
+  ["event@v6", predatesQuestionNotes(upcastV6)],
+  ["event@v5", predatesQuestionNotes(upcastV5)],
+  ["event@v4", predatesQuestionNotes(upcastPreV5Event)],
+  ["event@v3", predatesQuestionNotes(upcastV3)],
+  ["event@v2", predatesQuestionNotes(upcastV2)],
+  ["event@v1", predatesQuestionNotes(upcastV1)],
 ]);

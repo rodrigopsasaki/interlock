@@ -191,11 +191,43 @@
         "outcome": { "$ref": "parts/outcome.json" },
         "leaseState": { "$ref": "#/$defs/leaseState" },
         "agentStatus": { "enum": ["idle", "working", "blocked", "done", "unknown"] },
+        "asking": { "$ref": "#/$defs/attemptAsking" },
         "brief": { "$ref": "#/$defs/attemptBrief" },
         "debrief": { "$ref": "#/$defs/attemptDebrief" }
       },
       "required": ["session", "runtime", "leaseState"],
+      "dependentSchemas": {
+        "asking": {
+          "properties": { "agentStatus": { "const": "blocked" } },
+          "required": ["agentStatus"]
+        }
+      },
       "additionalProperties": false
+    },
+    "attemptAsking": {
+      "description": "Additive within position@v1, present only while the attempt's agent status is blocked: what the session asked, from the latest question note it appended and that is not yet answered, in its own words and with the short answers it would accept, at the time the note names. When the session is blocked and has no unanswered question, asked is null, because says why in plain words, and at is when the blocked status was observed. The words are never invented and never read off the pane's screen. A question counts as answered once the attempt ends.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "asked": { "type": "string" },
+            "options": { "type": "array", "items": { "type": "string" } },
+            "at": { "type": "string" }
+          },
+          "required": ["asked", "at"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "asked": { "type": "null" },
+            "because": { "type": "string" },
+            "at": { "type": "string" }
+          },
+          "required": ["asked", "because", "at"],
+          "additionalProperties": false
+        }
+      ]
     },
     "attemptBrief": {
       "description": "What the session was told, from its session-started fact: the brief's path in the worktree, the role it was supplied (absent when not one of the six), the acceptance the stored session brief carried (never the graph's current text), and the walk it was given, or none with why.",

@@ -252,6 +252,49 @@ describe("corpus: the ledger's guards and this node's schemas agree", () => {
     });
   });
 
+  describe("isNote / parts/question-note.json (the event@v8 embedded question)", () => {
+    const asked = note.question("2026-11-05T01:00:00Z", "Merge the walk now?", ["yes", "no"]);
+    const bare = note.question("2026-11-05T01:00:00Z", "Which branch should I build on?");
+    it("agree on a question with and without options", () => {
+      for (const value of [asked, bare]) {
+        expect(isNote(value)).toBe(true);
+        expect(validatesAgainstPart("question-note", value)).toBe(true);
+      }
+    });
+    it("agree that options as a plain string, or a question without its words, is refused", () => {
+      for (const value of [
+        { ...asked, options: "yes or no" },
+        { kind: "question", at: "2026-11-05T01:00:00Z" },
+      ]) {
+        expect(isNote(value)).toBe(false);
+        expect(validatesAgainstPart("question-note", value)).toBe(false);
+      }
+    });
+    it("keep the pre-v8 embedded note closed to questions", () => {
+      expect(validatesAgainstPart("note", asked)).toBe(false);
+    });
+    it("validate a note-appended question at event@v8 and refuse the same line tagged event@v7", () => {
+      const line = { kind: "note-appended", session: "session-1", note: asked } as const;
+      const current = registry.ajv.getSchema(
+        "https://github.com/rodrigopsasaki/interlock/schemas/event@v8.json",
+      );
+      const older = registry.ajv.getSchema(
+        "https://github.com/rodrigopsasaki/interlock/schemas/event@v7.json",
+      );
+      expect(isLedgerEvent(envelopeFor(line))).toBe(true);
+      expect(current?.(envelopeFor(line))).toBe(true);
+      expect(older?.({ ...line, interlock: "event@v7" })).toBe(false);
+      expect(
+        older?.({
+          interlock: "event@v7",
+          kind: "note-appended",
+          session: "session-1",
+          note: note.choice("2026-11-05T00:50:00Z", "kept the walk", "it reads"),
+        }),
+      ).toBe(true);
+    });
+  });
+
   describe("isBrief / parts/session-brief.json (the ledger's own reduced Brief)", () => {
     it("agree on a real reduced brief", () => {
       const value: Brief = {
@@ -345,7 +388,7 @@ describe("corpus: the ledger's guards and this node's schemas agree", () => {
     });
   });
 
-  describe("isLedgerEvent / the current event schema (event@v7)", () => {
+  describe("isLedgerEvent / the current event schema (event@v8)", () => {
     const nodeCreated: LedgerEvent = {
       kind: "node-created",
       node: { graph: "0001-bootstrap", id: "ledger" },
@@ -354,7 +397,7 @@ describe("corpus: the ledger's guards and this node's schemas agree", () => {
       const envelope = envelopeFor(nodeCreated);
       expect(isLedgerEvent(envelope)).toBe(true);
       const validate = registry.ajv.getSchema(
-        "https://github.com/rodrigopsasaki/interlock/schemas/event@v7.json",
+        "https://github.com/rodrigopsasaki/interlock/schemas/event@v8.json",
       );
       expect(validate?.(envelope)).toBe(true);
     });
@@ -370,14 +413,14 @@ describe("corpus: the ledger's guards and this node's schemas agree", () => {
         },
       });
       const validate = registry.ajv.getSchema(
-        "https://github.com/rodrigopsasaki/interlock/schemas/event@v7.json",
+        "https://github.com/rodrigopsasaki/interlock/schemas/event@v8.json",
       );
       expect(isLedgerEvent(envelope)).toBe(true);
       expect(validate?.(envelope)).toBe(true);
     });
     it("refuses a status observation that claims a known prompt", () => {
       const envelope = {
-        interlock: "event@v7",
+        interlock: "event@v8",
         kind: "session-facts-observed",
         session: "session-1",
         facts: {
@@ -387,7 +430,7 @@ describe("corpus: the ledger's guards and this node's schemas agree", () => {
         },
       };
       const validate = registry.ajv.getSchema(
-        "https://github.com/rodrigopsasaki/interlock/schemas/event@v7.json",
+        "https://github.com/rodrigopsasaki/interlock/schemas/event@v8.json",
       );
       expect(isLedgerEvent(envelope)).toBe(false);
       expect(validate?.(envelope)).toBe(false);
@@ -411,13 +454,13 @@ describe("corpus: the ledger's guards and this node's schemas agree", () => {
       });
       expect(isLedgerEvent(envelope)).toBe(true);
       const validate = registry.ajv.getSchema(
-        "https://github.com/rodrigopsasaki/interlock/schemas/event@v7.json",
+        "https://github.com/rodrigopsasaki/interlock/schemas/event@v8.json",
       );
       expect(validate?.(envelope)).toBe(true);
     });
     it("agree that a session-started envelope missing runtime is refused", () => {
       const envelope = {
-        interlock: "event@v7",
+        interlock: "event@v8",
         kind: "session-started",
         session: {
           id: "session-1",
@@ -434,15 +477,15 @@ describe("corpus: the ledger's guards and this node's schemas agree", () => {
       };
       expect(isLedgerEvent(envelope)).toBe(false);
       const validate = registry.ajv.getSchema(
-        "https://github.com/rodrigopsasaki/interlock/schemas/event@v7.json",
+        "https://github.com/rodrigopsasaki/interlock/schemas/event@v8.json",
       );
       expect(validate?.(envelope)).toBe(false);
     });
     it("agree that an unknown kind is refused", () => {
-      const envelope = { interlock: "event@v7", kind: "unknown-thing" };
+      const envelope = { interlock: "event@v8", kind: "unknown-thing" };
       expect(isLedgerEvent(envelope)).toBe(false);
       const validate = registry.ajv.getSchema(
-        "https://github.com/rodrigopsasaki/interlock/schemas/event@v7.json",
+        "https://github.com/rodrigopsasaki/interlock/schemas/event@v8.json",
       );
       expect(validate?.(envelope)).toBe(false);
     });
@@ -454,7 +497,7 @@ describe("corpus: the ledger's guards and this node's schemas agree", () => {
         ref: `outbox/acknowledgment/${"a".repeat(64)}.json`,
       };
       const acknowledged = {
-        interlock: "event@v7",
+        interlock: "event@v8",
         kind: "outbox-delivery-recorded",
         delivery: {
           id: "b".repeat(64),
@@ -474,7 +517,7 @@ describe("corpus: the ledger's guards and this node's schemas agree", () => {
         },
       };
       const validate = registry.ajv.getSchema(
-        "https://github.com/rodrigopsasaki/interlock/schemas/event@v7.json",
+        "https://github.com/rodrigopsasaki/interlock/schemas/event@v8.json",
       );
       expect(isLedgerEvent(acknowledged)).toBe(true);
       expect(validate?.(acknowledged)).toBe(true);

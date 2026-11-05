@@ -9,6 +9,7 @@ import {
   type MarkCounts,
   NODE_ROLES,
   type NodeRole,
+  note,
   outcome,
   type Receipt,
   sessionRuntime,
@@ -281,6 +282,121 @@ describe("positionOf", () => {
 
     const withoutLookup = positionOf(document, projection, "some-hash", now);
     expect(nodeIn(withoutLookup, "a").attempts[0]?.agentStatus).toBeUndefined();
+  });
+});
+
+describe("positionOf: what a blocked session asked, in its words", () => {
+  const now = Date.parse("2026-11-05T02:00:00Z");
+  const node = { graph: "demo", id: "a" };
+
+  function liveSession(...after: LedgerEvent[]): LedgerEvent[] {
+    return [
+      { kind: "node-created", node },
+      {
+        kind: "session-started",
+        session: { id: "session-1", node, runtime: sessionRuntime.unknown() },
+        brief: brief("a"),
+        graphBaseSha: "deadbeef",
+      },
+      { kind: "lease-taken", node, session: "session-1", expiry: now + 60_000 },
+      ...after,
+    ];
+  }
+
+  function attemptOf(events: LedgerEvent[], status: "blocked" | "working") {
+    const position = positionOf(document, fold(events), "some-hash", now, () => status);
+    return nodeIn(position, "a").attempts[0];
+  }
+
+  const earlier = note.question("2026-11-05T01:00:00Z", "Which branch should I build on?");
+  const latest = note.question("2026-11-05T01:30:00Z", "Merge the walk now?", ["yes", "no"]);
+
+  it("shows the latest question's words, options and time when blocked with a question", () => {
+    const attempt = attemptOf(
+      liveSession(
+        { kind: "note-appended", session: "session-1", note: earlier },
+        {
+          kind: "note-appended",
+          session: "session-1",
+          note: note.choice("2026-11-05T01:20:00Z", "kept the walk", "it reads"),
+        },
+        { kind: "note-appended", session: "session-1", note: latest },
+      ),
+      "blocked",
+    );
+    expect(attempt?.asking).toEqual({
+      asked: "Merge the walk now?",
+      options: ["yes", "no"],
+      at: "2026-11-05T01:30:00Z",
+    });
+  });
+
+  it("carries no options when the question named none", () => {
+    const attempt = attemptOf(
+      liveSession({ kind: "note-appended", session: "session-1", note: earlier }),
+      "blocked",
+    );
+    expect(attempt?.asking).toEqual({
+      asked: "Which branch should I build on?",
+      at: "2026-11-05T01:00:00Z",
+    });
+  });
+
+  it("shows null with the because and when blocked was observed when the session wrote no question", () => {
+    const attempt = attemptOf(
+      liveSession({
+        kind: "note-appended",
+        session: "session-1",
+        note: note.choice("2026-11-05T01:20:00Z", "kept the walk", "it reads"),
+      }),
+      "blocked",
+    );
+    expect(attempt?.asking).toEqual({
+      asked: null,
+      because: "the session is blocked and wrote no question note before it stopped",
+      at: "2026-11-05T02:00:00.000Z",
+    });
+  });
+
+  it("carries no asking while the agent is working, even with a question on the record", () => {
+    const attempt = attemptOf(
+      liveSession({ kind: "note-appended", session: "session-1", note: latest }),
+      "working",
+    );
+    expect(attempt?.agentStatus).toBe("working");
+    expect(attempt).not.toHaveProperty("asking");
+  });
+
+  it("stops showing a question once the attempt ended, saying it counts as answered", () => {
+    const attempt = attemptOf(
+      liveSession(
+        { kind: "note-appended", session: "session-1", note: latest },
+        {
+          kind: "outcome-set",
+          node,
+          outcome: { kind: "cleared", receipts: [receipt("typecheck")] },
+        },
+      ),
+      "blocked",
+    );
+    expect(attempt?.outcome?.kind).toBe("cleared");
+    expect(attempt?.asking).toEqual({
+      asked: null,
+      because:
+        "the session is blocked, and its last question, at 2026-11-05T01:30:00Z, counts as answered because the attempt ended",
+      at: "2026-11-05T02:00:00.000Z",
+    });
+  });
+
+  it("carries no asking for an attempt whose lease is no longer live", () => {
+    const position = positionOf(
+      document,
+      fold(liveSession({ kind: "note-appended", session: "session-1", note: latest })),
+      "some-hash",
+      now + 120_000,
+      () => "blocked",
+    );
+    expect(nodeIn(position, "a").attempts[0]).not.toHaveProperty("asking");
   });
 });
 

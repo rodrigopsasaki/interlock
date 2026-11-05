@@ -35,6 +35,17 @@
       }
     },
     {
+      "if": { "properties": { "kind": { "const": "note-appended" } } },
+      "then": {
+        "properties": {
+          "note": {
+            "description": "A question note is event@v8's; an event@v7 line never carried one.",
+            "not": { "type": "object", "properties": { "kind": { "const": "question" } }, "required": ["kind"] }
+          }
+        }
+      }
+    },
+    {
       "if": { "properties": { "kind": { "const": "debrief-filed" } } },
       "then": {
         "properties": {
