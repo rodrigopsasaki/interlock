@@ -1,0 +1,209 @@
+interlock: debrief@v2
+graph: 0046-loom-feed
+node: position-everything
+role: implementer
+graph_base_sha: 3968ae908c8f6af194396a0342b5d6be6e890470
+session_start_sha: ac5354ff642be35629f22f1b8aef8b9507cd9c26
+head_sha: 62fbff37588e188d797dd3ef2eac57b699fe7c9c
+derivation:
+  kind: agent
+  runtime: claude
+  model: claude-opus-5-5
+discoveries:
+  - id: journal-role-still-worker
+    what: >-
+      interlock debrief prepare refused the derived filing with "session-started event does not
+      match the local brief", the refusal every earlier node of this chain met: the shared
+      journal's session-started for this session (event@v7) records brief.role worker, while
+      this brief says implementer.
+    found_at: '.interlock/sessions/0046-loom-feed/position-everything/brief.md:5 "role: implementer"'
+    mattered_because: >-
+      This debrief is authored by hand against debrief@v2 and checked with interlock debrief
+      validate, as landed-on-main's and lines-in-voice's were.
+  - id: derived-identity-compares-role
+    what: >-
+      The derived session-start check compares the journal's recorded brief role to the
+      brief's front matter role, so any session started by a runner that predates node roles
+      cannot file through prepare.
+    found_at: 'packages/cli/src/debrief/sessionIdentity.ts:151 "started.brief.role !== brief.role ||"'
+    mattered_because: >-
+      The refusal is the check working, not a bug in this node; it goes away once the runner on
+      PATH records the node's role.
+  - id: worktree-paths-always-find-a-root
+    what: >-
+      findRepoRoot walks parents until it finds a .interlock directory, so every scratch path
+      under this worktree resolves to the worktree itself.
+    found_at: 'packages/face/src/root.ts:8 "if (existsSync(join(current,"'
+    mattered_because: >-
+      The not-found test asks for / instead of a scratch directory, since the brief forbids
+      directories outside the worktree.
+decisions:
+  - id: compose-in-cli
+    what: >-
+      positions@v0 is composed in packages/cli/src/position.ts from the parts graph show and
+      the face world already use (listGraphIds, loadGraphDocument, readReplay, receiptId,
+      positionOf, resolveAgentStatuses, repositoryForOrigin), and wired as interlock position.
+      gitOrigin is exported from repositoryOrigin.ts for reuse.
+    because: >-
+      The read needs the herdr runtime, the content hash and the git origin, and cli is the
+      only package that already holds all three. graph show calls nothing that changed, so its
+      --json is unchanged; its pinned-keys test still passes.
+    rests_on:
+      - packages/cli/src/graph/show.ts
+      - packages/cli/src/face/world.ts
+      - packages/cli/src/repositoryOrigin.ts
+    hunks:
+      - packages/cli/src/position.ts:1-293
+      - packages/cli/src/main.ts:18-18
+      - packages/cli/src/main.ts:112-115
+      - packages/cli/src/repositoryOrigin.ts:61-61
+  - id: unreadable-journal-is-not-empty
+    what: >-
+      When a repository's journal does not read, it carries journal state unreadable with the
+      failing line (absent only when the file itself could not be read) and the because, every
+      graph file is listed as unreadable with that because, and there is no live list. The
+      type ties live to a journal that read.
+    because: >-
+      positionOf over an empty projection would be the "journal that cannot be read reads as an
+      empty one" the acceptance forbids, and an empty live list would say nobody is in a pane
+      when the truth is unknown.
+    rests_on:
+      - packages/ledger/src/replay.ts
+    hunks:
+      - packages/cli/src/position.ts:58-100
+      - packages/cli/src/position.ts:176-227
+  - id: unparseable-graph-stays-listed
+    what: >-
+      Each graph file id from listGraphIds reads as its position@v1, or as unreadable with
+      explainGraphRefusal (or explainScopeRefusal when its content hash fails) as the because.
+    because: >-
+      A graph file that cannot be parsed never disappears, so a face says unknown rather than a
+      wrong count.
+    rests_on:
+      - packages/face/src/document.ts
+      - packages/face/src/graphs.ts
+    hunks:
+      - packages/cli/src/position.ts:36-38
+      - packages/cli/src/position.ts:146-174
+  - id: live-from-the-journal
+    what: >-
+      Live attempts are every session in the journal whose lease is live, across all graph ids,
+      with graph, node, session, the role the session was briefed with (when one of the closed
+      set), runtime and agentStatus (unknown when the runtime reported nothing). Agent status is
+      resolved once per graph and shared with every position.
+    because: >-
+      Reading live from the positions would drop a pane whose graph file no longer parses, and
+      asking herdr twice per session would be a second read. loom@v0's Attempt.agent already
+      names unknown, so a face never tells absent from unknown.
+    rests_on:
+      - packages/cli/src/herdrStatus.ts
+      - packages/face/src/attemptRecord.ts
+    hunks:
+      - packages/cli/src/position.ts:40-47
+      - packages/cli/src/position.ts:115-144
+  - id: origin-identified-or-unidentified
+    what: >-
+      origin is absent when git names none, identified (url with credentials stripped, owner,
+      name) through repositoryForOrigin, or unidentified with its refusal as the because.
+      Repositories are found or not-found; an asked path with no .interlock reads not-found and
+      the rest still read.
+    because: >-
+      The raw origin can carry a token; repositoryForOrigin is the existing normalizer, and
+      owner/name maps onto loom's slug. A not-found path must not fail the whole read.
+    rests_on:
+      - packages/cli/src/repositoryOrigin.ts
+    hunks:
+      - packages/cli/src/position.ts:49-56
+      - packages/cli/src/position.ts:62-79
+      - packages/cli/src/position.ts:102-113
+      - packages/cli/src/position.ts:229-293
+  - id: schema-positions-v0
+    what: >-
+      schemas/positions@v0.json describes the read with oneOf per state, references position@v1
+      by its id and parts/session-runtime.json; docs/shapes.md is regenerated and positions
+      joins the reference test's list of artifact terms with no vocabulary row.
+    because: >-
+      The acceptance asks for the schema; positions is the plural read of position, listed the
+      way notes and roles are rather than a new row in the closed table.
+    rests_on:
+      - schemas/position@v1.json
+      - packages/schemas/test/reference.test.ts
+    hunks:
+      - schemas/positions@v0.json:1-148
+      - docs/shapes.md:1142-1162
+      - packages/schemas/test/reference.test.ts:33-33
+  - id: tests-pin-the-acceptance
+    what: >-
+      position.test.ts pins two repositories in one read (with an origin), the default
+      repository, an unreadable journal, an unparseable graph file beside one that loads, the
+      live-attempt list across two graphs, a not-found path, and that nothing is cached; every
+      read is validated against positions@v0. validate.test.ts adds the schema validate case;
+      corpus.positions.test.ts validates a code-produced position inside positions@v0 and
+      refuses a read journal with no live list and a bare unreadable graph.
+    because: >-
+      The acceptance names those four cases and the schema validate case, and the
+      everything-proof gates run position.test.ts and the schemas package by name.
+    rests_on:
+      - packages/cli/test/graph/show.test.ts
+    hunks:
+      - packages/cli/test/position.test.ts:1-230
+      - packages/cli/test/schema/validate.test.ts:90-116
+      - packages/schemas/test/corpus.positions.test.ts:1-60
+  - id: notes-kept
+    what: Typed notes for every choice and surprise of this session.
+    because: The brief asks for notes@v0 beside it, committed with the code.
+    rests_on:
+      - .interlock/sessions/0046-loom-feed/position-everything/brief.md
+    hunks:
+      - .interlock/sessions/0046-loom-feed/position-everything/notes.yaml:1-77
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: Every workspace package typechecks.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Biome reports no findings over 389 files.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+    note: packages/*/src contains no comments.
+  - id: test
+    result: pass
+    invocation: mise exec -- pnpm test
+    note: 2209 tests across eight packages, green at 62fbff3.
+  - id: everything-proof-1
+    result: pass
+    invocation: mise exec -- pnpm --filter cli exec vitest run test/position.test.ts
+    note: 7 tests passed.
+  - id: everything-proof-2
+    result: pass
+    invocation: mise exec -- pnpm --filter schemas exec vitest run
+    note: 984 tests passed.
+open:
+  - >-
+    Role mismatch. This session's session-started (event@v7) records brief.role worker while
+    brief.md says implementer, so interlock debrief prepare refuses and this debrief is filed by
+    hand. The interlock on PATH runs from main (cbb6bfa), which predates node roles and records
+    worker; it goes away when #71 merges. The same mismatch makes this session's own live
+    attempt read with no role in the real positions@v0 read: the live list reports the role
+    the journal recorded, and the node's declared role is in the position beside it.
+  - >-
+    loom@v0 Attempt fields this node does not fill on a live attempt: pane (the herdr pane id
+    belongs to the herdr adapter, I6, and the journal does not record it), startedAt (the
+    session-started fact carries no time; the sink drops the entry timestamp) and branch (not
+    asked for; the worktree branch is not in the session fact). A face needing them reads them
+    elsewhere until a node adds them.
+  - >-
+    Workstream.repo in loom@v0 is one string; positions@v0 gives root and an optional origin
+    (identified with url, owner, name, or unidentified). The cockpit's reader picks which one
+    names the repository. Loom's top-level unreadable list maps from repositories that are
+    not-found or whose journal is unreadable.
+  - >-
+    A journal that throws on read (permissions, a directory in its place, a missing git) reads
+    unreadable with the error's message and no line; only the shape-tag refusal is pinned by a
+    test.
+  - >-
+    The plain-text form (without --json) is a minimal rendering, the root, live attempts and
+    each graph's renderPosition; the acceptance only specifies --json.
