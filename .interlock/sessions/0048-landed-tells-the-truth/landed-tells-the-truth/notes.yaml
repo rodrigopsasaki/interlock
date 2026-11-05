@@ -52,3 +52,15 @@ entries:
     at: "2026-11-05T15:30:00Z"
     chose: The warm-position gate was run with INTERLOCK_WARM_REPO_A=~/dev/private/interlock (the main checkout) and INTERLOCK_WARM_REPO_B=~/dev/private/preston.
     because: Those are the two repositories the cockpit reads together; the variables are set per invocation and nothing outside this worktree was configured, so the owner sets them in their own environment.
+  - kind: choice
+    at: "2026-11-05T16:00:00Z"
+    chose: FaceOutput, the face's own three-member output interface (write, on resize, off resize), replaces NodeJS.WriteStream in runInterlockFace and terminal.ts.
+    because: The acceptance forbids assertions in the new tests, and the only way to hand runInterlockFace a fake terminal was `as unknown as NodeJS.WriteStream`. Typing the output by what the face uses lets a plain object stand in, and process.stdout still satisfies it.
+  - kind: choice
+    at: "2026-11-05T16:05:00Z"
+    chose: noSyncGit.test.ts proves the read path twice, statically (face/src, the cli position read path files, face root.ts, ledger/src) and dynamically (vi.mock of node:child_process recording every sync call and every child from spawn until close or error during a real two-repository read).
+    because: A whole-file static scan of runner would fail on herdr's openPane, which no position read executes; the dynamic check proves the executed callees, and a self-check that the mock saw the fixture's own execFileSync calls keeps an empty list meaningful.
+  - kind: surprise
+    at: "2026-11-05T16:10:00Z"
+    expected: The landed cache file is ignored in every repository a position read touches.
+    observed: It is ignored here by the new .gitignore line, but preston (and interlock's main checkout until this merges) list .interlock/landed-cache.json as untracked after the warm gate; this node may not edit other repositories.
