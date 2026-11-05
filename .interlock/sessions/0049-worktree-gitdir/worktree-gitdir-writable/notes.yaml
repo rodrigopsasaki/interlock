@@ -19,7 +19,7 @@ entries:
   - kind: surprise
     at: "2026-11-05T05:13:00Z"
     expected: Assert that no narrated line starts with "writable root " when resolution is refused.
-    observed: The refusal's own narrated message is "writable root refused: ...", so that predicate matched it. The assertion now checks for no "... supplied to runtime <name>" line.
+    observed: "The refusal's own narrated message is \"writable root refused: ...\", so that predicate matched it. The assertion now checks for no \"... supplied to runtime <name>\" line."
   - kind: surprise
     at: "2026-11-05T05:20:00Z"
     expected: The machine's installed codex (codex-cli 0.162.1) could be probed with `codex sandbox -P :workspace -c sandbox_workspace_write.writable_roots=[...]` to check the fixture's policy against the real one, common-only versus both roots.
@@ -35,7 +35,7 @@ entries:
     because: The production launch no longer supplies common-only, so the common-only attempt is the production argv narrowed to 0047's root rather than a hand-built path; running both on one fixture makes "the same state, a different root set" literal, and the common-only attempt leaves HEAD, index and both reflogs byte-identical, which is asserted.
   - kind: choice
     at: "2026-11-05T05:29:00Z"
-    chose: Emit "writable-root-sandbox-proof: passed" from afterAll only when both the retained generic boundary test and the new metadata test recorded success; neither test prints it itself.
+    chose: "Emit \"writable-root-sandbox-proof: passed\" from afterAll only when both the retained generic boundary test and the new metadata test recorded success; neither test prints it itself."
     because: The acceptance says to emit the marker only after the new assertions pass; with the old test still printing it, a failing metadata fixture would leave the marker in the output beside the failure. Gating on both keeps the marker meaning the whole file's proof.
   - kind: choice
     at: "2026-11-05T05:30:00Z"
@@ -49,3 +49,7 @@ entries:
     at: "2026-11-05T05:40:00Z"
     chose: Besides the four named surfaces, update local.yaml's readable-refusal help sentence in localConfig.ts and regenerate docs/shapes.md through `interlock schema reference`, which mirrors both examples and the schema part.
     because: The help sentence told an operator the placeholder becomes the common git directory, the same behavior the acceptance asks the prose to stop describing; shapes.md is generated and guarded by `schema reference --check`, so editing its sources and regenerating is the only way to keep it fresh.
+  - kind: surprise
+    at: "2026-11-05T05:50:00Z"
+    expected: The standing test gate would pass once the runner tests and docs were green.
+    observed: "The debrief package reads every committed notes.yaml, and two of mine were plain YAML scalars holding \": \", which YAML reads as a nested mapping. Those two values are now quoted; nothing about them changed."
