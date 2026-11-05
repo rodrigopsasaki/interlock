@@ -1,0 +1,209 @@
+interlock: debrief@v2
+graph: 0046-loom-feed
+node: landed-on-main
+role: implementer
+graph_base_sha: 99e528b0a2cbefabdff7e7deae64e0f3f6f99a46
+session_start_sha: 2cca3052137e1cb7c8cbc0a307b97352bb08a6a0
+head_sha: a6f878ffaf223b6ca748cc82d205ccaa30e3be06
+derivation:
+  kind: agent
+  runtime: claude
+  model: claude-opus-5-5
+discoveries:
+  - id: journal-role-still-worker
+    what: >-
+      This session's session-started event in the shared journal records role "worker", while
+      its brief says "implementer". interlock debrief prepare refused the derived filing with
+      "session-started event does not match the local brief", as it did for every earlier node
+      of this chain.
+    found_at: '.interlock/sessions/0046-loom-feed/landed-on-main/brief.md:5 "role: implementer"'
+    mattered_because: >-
+      The runner that starts 0046 sessions runs from the main checkout, which lacks node-role's
+      fix until the chain lands. This debrief is authored by hand against debrief@v2 and checked
+      with interlock debrief validate.
+  - id: human-receipts-name-the-main-checkout
+    what: >-
+      interlock gate clear records the main checkout's HEAD as a receipt's commitSha, not the
+      worktree's, so a person's receipt in a cleared outcome says nothing about the attempt's
+      head.
+    found_at: 'packages/cli/src/gate/clear.ts:130 "const commitSha = currentCommitSha(repoRoot);"'
+    mattered_because: >-
+      The cleared head is taken from gate-derived receipts only; otherwise every node with a
+      human gate would read its head as ambiguous.
+  - id: nothing-of-0046-is-on-main
+    what: >-
+      Read against the real repository, node-role, role-shapes-the-session, asked-in-words and
+      say-into-pane all read not-on-main: local main is 1049b02 and the chain merges into its
+      own graph branches. graph show --json with the reader took about one second.
+    found_at: 'packages/face/src/position.ts:170 "done: nodes.every(isNodeDone),"'
+    mattered_because: >-
+      This is the case the node exists for: four cleared nodes whose work has not landed. The
+      reading is correct, and it is what lines-in-voice will say as "cleared and not on main".
+decisions:
+  - id: cleared-head-from-runner-receipts
+    what: >-
+      clearedHeadOf takes the one commitSha shared by the gate-derived receipts of a cleared
+      outcome; none, or more than one, is unknown with a because. The base is the graphBaseSha
+      of the session whose lease generation set the outcome.
+    because: >-
+      I1: the runner judged the gates at that commit, so it is the harness's fact about what
+      cleared, not the session's debrief head_sha and not a branch tip that moves or disappears.
+    rests_on:
+      - packages/ledger/src/outcome.ts
+      - packages/ledger/src/projection.ts
+      - packages/runner/src/judgeWorktree.ts
+    hunks:
+      - packages/face/src/landed.ts:1-291
+      - packages/face/src/position.ts:77-114
+  - id: one-read-only-git-adapter
+    what: >-
+      packages/face/src/mainLine.ts is the only module that runs git for landed: symbolic-ref,
+      rev-parse, cat-file, merge-base, rev-list, cherry, diff, log and patch-id, through
+      spawnSync with GIT_OPTIONAL_LOCKS=0. Main is origin HEAD's local branch, then main, then
+      master.
+    because: >-
+      The acceptance asks for read-only git through one adapter module, with nothing fetched or
+      written. Optional locks off keeps git from refreshing the index on a read, and a test pins
+      refs, index and object count unchanged by a read.
+    rests_on:
+      - packages/verifier/src/git.ts
+    hunks:
+      - packages/face/src/mainLine.ts:1-206
+  - id: judgment-by-gits-own-equivalences
+    what: >-
+      landedOf reads on-main by ancestry, then by git cherry when no attempt commit is missing
+      from main, then by squash when the whole change's patch-id (base to cleared head) matches
+      one main commit since the base. reverted-on-main when a later main commit carries the
+      reverse of the whole patch or every landed unit is named by a "This reverts commit"
+      trailer. Partly landed, partly reverted, a reverted revert, a missing base or head, and
+      git refusing all read unknown with a because.
+    because: >-
+      Each step is an equivalence git itself defines, and unknown is reserved for exactly the
+      cases where two of them disagree, so nothing is guessed. A merge revert names only the
+      merge commit, so the reverse-patch check is what catches it.
+    rests_on:
+      - packages/face/src/mainLine.ts
+    hunks:
+      - packages/face/src/landed.ts:1-291
+  - id: main-read-restricted-to-attempt-paths
+    what: >-
+      Main's patch-ids and commit messages are read only for base..main commits touching the
+      paths the attempt changed.
+    because: >-
+      The face re-reads on every refresh and caches nothing, so scanning all of main per cleared
+      node would grow with history. A squash or revert of the change touches those same paths,
+      so no true match is lost.
+    rests_on:
+      - packages/cli/src/face/world.ts
+    hunks:
+      - packages/face/src/mainLine.ts:1-206
+  - id: landed-and-done-in-the-position
+    what: >-
+      PositionNode gains landed only when its outcome is cleared; Position gains done, true when
+      every node is cleared and on-main. positionOf takes an optional LandedReader after
+      agentStatusFor; without one a cleared node's landed is unknown, saying no repository was
+      given. graph show and both face worlds pass mainLineReader(repoRoot).
+    because: >-
+      The acceptance asks for landed on cleared nodes only and done meaning on main. An injected
+      reader matches the agentStatusFor seam and keeps positionOf pure for every existing caller;
+      production paths pass the real reader so the default read is the true one.
+    rests_on:
+      - packages/face/src/attempts.ts
+    hunks:
+      - packages/face/src/position.ts:8-8
+      - packages/face/src/position.ts:31-31
+      - packages/face/src/position.ts:40-40
+      - packages/face/src/position.ts:121-121
+      - packages/face/src/position.ts:135-143
+      - packages/face/src/position.ts:154-156
+      - packages/face/src/position.ts:170-170
+      - packages/face/src/index.ts:43-44
+      - packages/cli/src/face/world.ts:10-10
+      - packages/cli/src/face/world.ts:49-55
+      - packages/cli/src/face/world.ts:83-89
+      - packages/cli/src/graph/show.ts:9-9
+      - packages/cli/src/graph/show.ts:79-79
+  - id: schema-kind-tagged-and-additive
+    what: >-
+      schemas/position@v1.json gains a landed definition, a kind-tagged oneOf (on-main with main,
+      head and by; not-on-main with main and head; reverted-on-main with revertedBy; unknown with
+      because), on positionNode, and an optional done; docs/shapes.md is regenerated.
+    because: >-
+      position@v1 already says unknown as { kind, because } for float; one convention in one
+      shape. done is optional so the change stays additive; main, head, by and revertedBy make an
+      on-main walkable to the commit that decided it.
+    rests_on:
+      - schemas/position@v1.json
+    hunks:
+      - schemas/position@v1.json:15-19
+      - schemas/position@v1.json:42-43
+      - schemas/position@v1.json:48-93
+      - docs/shapes.md:1127-1127
+      - docs/shapes.md:1129-1129
+  - id: tests-pin-all-four-in-real-repositories
+    what: >-
+      packages/face/test/landed.test.ts builds real git repositories under test/.runs and pins
+      on-main by ancestry, by a two-commit branch squashed into one, and by cherry-pick;
+      not-on-main; reverted-on-main by trailer, by fast-forward revert and by merge revert;
+      unknown for no main, a gone head, git refusing, no base, a partial landing and a reverted
+      revert; the origin HEAD and master fallbacks; read-only; and landed and done through
+      positionOf. graph show's pinned top-level keys gain done, and the reducer fixture states
+      done.
+    because: >-
+      The acceptance asks for real temporary repositories pinning all four values including the
+      squash and the revert, and the gate runs this file by name.
+    rests_on:
+      - packages/cli/test/judge.test.ts
+    hunks:
+      - packages/face/test/landed.test.ts:1-415
+      - packages/cli/test/graph/show.test.ts:120-120
+      - packages/face/test/faceReducer.test.ts:50-50
+  - id: notes-kept
+    what: Typed notes for every choice and surprise of this session.
+    because: The brief asks for notes@v0 beside it, committed with the code.
+    rests_on:
+      - .interlock/sessions/0046-loom-feed/landed-on-main/brief.md
+    hunks:
+      - .interlock/sessions/0046-loom-feed/landed-on-main/notes.yaml:1-116
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: Every workspace package typechecks.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Biome reports no findings over 383 files.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+    note: packages/*/src contains no comments.
+  - id: test
+    result: pass
+    invocation: mise exec -- pnpm test
+    note: 2169 tests across eight packages, green at a6f878f.
+  - id: landed-proof
+    result: pass
+    invocation: mise exec -- pnpm --filter face exec vitest run test/landed.test.ts
+    note: 22 tests passed.
+open:
+  - >-
+    loom@v0 mapping. loom's Landed is a bare string ("on-main" | "not-on-main" |
+    "reverted-on-main") or { unknown: true, because }; the position says { kind, ... } with
+    evidence fields, as it does for float. The cockpit's reader maps kind to the string and
+    unknown to { unknown, because }, and drops main, head, by and revertedBy, which loom has no
+    field for. loom's Workstream.done maps exactly.
+  - >-
+    A revert without a trailer of one commit in a multi-commit attempt is not detected: the
+    reverse-patch check compares the whole change only. Such an attempt reads on-main.
+  - >-
+    A squash whose commit resolved a conflict, or whose context lines differ from the branch's,
+    has a different patch-id and reads not-on-main rather than on-main. git's patch-id is the
+    rule the acceptance names; a fuzzier match would be a guess.
+  - >-
+    Nodes cleared by backfill or by hand with no runner receipt read unknown, saying no commit
+    is known to have cleared.
+  - >-
+    The face re-runs these git reads on every refresh, one set per cleared node. It took about
+    a second for this graph on this repository; a graph with many cleared nodes over a long
+    main will cost more, and caching would break the face's read-fresh rule.
