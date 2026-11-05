@@ -69,7 +69,7 @@ function priorWorkOf(worktree: WorktreeOutcome): PriorWork | undefined {
 
 interface AgentLaunch {
   readonly args: readonly string[];
-  readonly writableRoot: string | undefined;
+  readonly writableRoots: readonly string[];
 }
 
 function agentLaunch(
@@ -77,16 +77,19 @@ function agentLaunch(
   worktreePath: string,
 ): Result<AgentLaunch, WorktreeRefusal> {
   const template = agentRuntime.writableRootArgs;
-  if (template === undefined) return ok({ args: agentRuntime.args, writableRoot: undefined });
+  if (template === undefined) return ok({ args: agentRuntime.args, writableRoots: [] });
   const layout = worktreeGitLayout(worktreePath);
   if (isErr(layout)) return layout;
   if (layout.value.kind === "not-linked") {
-    return ok({ args: agentRuntime.args, writableRoot: undefined });
+    return ok({ args: agentRuntime.args, writableRoots: [] });
   }
-  const writableRoot = layout.value.commonGitDir;
+  const writableRoots = [layout.value.commonGitDir, layout.value.gitDir];
   return ok({
-    args: [...agentRuntime.args, ...expandWritableRootArgs(template, writableRoot)],
-    writableRoot,
+    args: [
+      ...agentRuntime.args,
+      ...writableRoots.flatMap((root) => expandWritableRootArgs(template, root)),
+    ],
+    writableRoots,
   });
 }
 
@@ -283,10 +286,8 @@ export async function driveInteractiveSession(
     narrate(
       `runtime ${agentRuntime.name} (${agentRuntime.kind}, ${agentRuntime.model ?? "model undeclared"})`,
     );
-    if (launch.value.writableRoot !== undefined) {
-      narrate(
-        `writable root ${launch.value.writableRoot} supplied to runtime ${agentRuntime.name}`,
-      );
+    for (const root of launch.value.writableRoots) {
+      narrate(`writable root ${root} supplied to runtime ${agentRuntime.name}`);
     }
 
     const startedAgent = await runtime.startAgent(

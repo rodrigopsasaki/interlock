@@ -1,0 +1,22 @@
+interlock: notes@v0
+node: worktree-gitdir-writable
+entries:
+  - kind: choice
+    at: "2026-11-05T05:05:00Z"
+    chose: Widen worktreeGitLayout's linked case to carry gitDir beside commonGitDir, and have agentLaunch expand the template once per root in the fixed order [commonGitDir, gitDir].
+    because: worktreeGitLayout already runs --git-dir then --git-common-dir, once each, and already compares them; the per-worktree dir was computed and discarded. Carrying it out of the existing function satisfies "resolve each directory once through worktree.ts" with no new git call and no new refusal kind, so either failure still returns the existing git-failed refusal before openPane.
+    rejected: [a second resolver for the per-worktree dir, which would resolve --git-dir twice, deriving the per-worktree dir from the common dir plus the node name, which guesses git's layout]
+  - kind: choice
+    at: "2026-11-05T05:07:00Z"
+    chose: Narrate each supplied root on its own existing-format line, "writable root <path> supplied to runtime <name>", common first.
+    because: The line's shape is what 0047 published into session narration; two lines of the same shape are additive, while one combined "writable roots" line would change a sentence a reader of older journals already matches.
+    rejected: [a single combined line naming both roots]
+  - kind: choice
+    at: "2026-11-05T05:15:00Z"
+    chose: Test each resolution failure independently with a fixture git first on PATH that refuses one named flag and execs the real git otherwise; keep 0047's broken-.git-file refusal test as well. The same fixture git, refusing both flags, proves that an entry without the field performs no root resolution.
+    because: No real repository state makes --git-dir succeed while --git-common-dir fails, since git validates the common dir while discovering the git dir, so only an injected failure tests the second resolution alone. Refusing both flags on the no-field path turns "performs no root resolution" from an absence into an observed fact.
+    rejected: [corrupting worktrees/<name>/commondir, which breaks --git-dir too]
+  - kind: surprise
+    at: "2026-11-05T05:13:00Z"
+    expected: Assert that no narrated line starts with "writable root " when resolution is refused.
+    observed: The refusal's own narrated message is "writable root refused: ...", so that predicate matched it. The assertion now checks for no "... supplied to runtime <name>" line.

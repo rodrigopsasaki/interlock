@@ -220,7 +220,7 @@ export function commitBriefIfChanged(
 }
 
 export type WorktreeGitLayout =
-  | { readonly kind: "linked"; readonly commonGitDir: string }
+  | { readonly kind: "linked"; readonly commonGitDir: string; readonly gitDir: string }
   | { readonly kind: "not-linked" };
 
 function absoluteGitPath(worktreePath: string, flag: string): Result<string, WorktreeRefusal> {
@@ -237,7 +237,7 @@ export function worktreeGitLayout(
   if (isErr(commonGitDir)) return commonGitDir;
   return gitDir.value === commonGitDir.value
     ? ok({ kind: "not-linked" })
-    : ok({ kind: "linked", commonGitDir: commonGitDir.value });
+    : ok({ kind: "linked", commonGitDir: commonGitDir.value, gitDir: gitDir.value });
 }
 
 export function createDetachedWorktree(
