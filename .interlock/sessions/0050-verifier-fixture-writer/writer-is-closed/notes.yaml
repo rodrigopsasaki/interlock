@@ -189,3 +189,19 @@ entries:
       The brief asks for the standing gates once before the debrief; the
       runner produces the binding receipts, including the two extra parallel
       suites.
+  - kind: surprise
+    at: "2026-11-05T06:27:30Z"
+    expected: >
+      Every verifier fixture created during the session would be gone once
+      its afterEach ran.
+    observed: >
+      Cleaning scratch found packages/verifier/test/.runs/run-1eaqpQ, mtime
+      06:23:20Z, during the first, detached-maintenance version of the
+      regression run on the pre-fix commitAll. It held exactly one file,
+      .git/objects/pack/.tmp-88857-pack-fec0cf7a91ae46e220b81b9ba85a716416aac413.pack:
+      the temporary pack of the daemon's pack-objects (pid 88857), written
+      after the test's single rmSync had already removed the fixture, so the
+      writer recreated the directory tree it needed. That is the writer
+      caught inside a real vitest fixture after its teardown, not a
+      reproducer, and a second failure mode beside ENOTEMPTY: a silent
+      leaked fixture.
