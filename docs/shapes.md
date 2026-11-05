@@ -1030,6 +1030,10 @@ runtime:
   # ready_settle_ms: 0
   # Optional. How many extra delivery attempts the runner makes when the opening prompt is never taken. Defaults to 2.
   # prompt_retries: 2
+  # Optional. Arguments appended after args for a node in a linked worktree, so a sandboxed runtime
+  # can commit there. Exactly one element is the literal "{path}"; the runner replaces it with the
+  # repository's absolute common git directory as one argument, never shell-split. Defaults to none.
+  # writable_root_args: ["--your-writable-root-flag", "{path}"]
 
 # The catalogue is per machine and lives outside the repository. This repository starts sonnet
 # by default; "default" remains available for the legacy runtime: block above.
@@ -1210,6 +1214,10 @@ Source: `runtimes.example.yaml`
 # Optional per entry: prompt_taken_timeout_ms, ms to wait after the opening prompt for the agent to move off idle; default 20000.
 # Optional per entry: ready_settle_ms, ms to wait once the agent looks ready before the opening prompt; default 0.
 # Optional per entry: prompt_retries, delivery attempts beyond the first when the opening prompt is never taken; default 2.
+# Optional per entry: writable_root_args, arguments appended after args for a node in a linked worktree, so a
+# sandboxed runtime can commit there. Exactly one element is the literal "{path}"; the runner replaces it with the
+# repository's absolute common git directory as one argument, never shell-split. Absent, args are used unchanged.
+# For example: writable_root_args: ["--your-writable-root-flag", "{path}"]
 
 interlock: runtimes@v0
 
@@ -1248,7 +1256,8 @@ runtimes:
   # --ask-for-approval and --add-dir are documented by `codex --help`. The high reasoning
   # effort is the level used by this repository's earlier Codex sessions.
   # --add-dir is needed because a node worktree's .git is a file pointing at the repository's
-  # common git directory; workspace-write must be allowed to write there for commits to land.
+  # common git directory; workspace-write must be allowed to write there for commits to land, so
+  # writable_root_args hands codex that directory per attempt instead of a hard-coded path.
   astra:
     kind: codex
     # Session observation: a hooks-review modal needed SessionStart trust before the opening prompt
@@ -1272,8 +1281,7 @@ runtimes:
       - workspace-write
       - --ask-for-approval
       - never
-      - --add-dir
-      - "<git-common-dir>"
+    writable_root_args: [--add-dir, "{path}"]
     model: gpt-6-astra
     startup_timeout_ms: 90000
 
@@ -1300,8 +1308,7 @@ runtimes:
       - workspace-write
       - --ask-for-approval
       - never
-      - --add-dir
-      - "<git-common-dir>"
+    writable_root_args: [--add-dir, "{path}"]
     model: gpt-5.6-terra
     startup_timeout_ms: 90000
 
@@ -1328,8 +1335,7 @@ runtimes:
       - workspace-write
       - --ask-for-approval
       - never
-      - --add-dir
-      - "<git-common-dir>"
+    writable_root_args: [--add-dir, "{path}"]
     model: gpt-5.6-luna
     startup_timeout_ms: 90000
 
