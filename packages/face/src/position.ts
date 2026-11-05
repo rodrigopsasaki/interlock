@@ -14,7 +14,7 @@ import type { NodeRole } from "./role.ts";
 import { topologicalOrder } from "./topology.ts";
 import { nodeWeight } from "./weight.ts";
 
-export const POSITION_SHAPE = "position@v1";
+export const POSITION_SHAPE = "position@v2";
 
 export type ApprovalState = "approved" | "stale" | "not-approved";
 
@@ -111,6 +111,20 @@ function landedFor(
     return { kind: "unknown", because: "this read was given no repository to read main from" };
   }
   return landedReader(clearedHeadFor(graph, node, outcome, projection));
+}
+
+export function clearedHeadsOf(
+  document: GraphDocument,
+  projection: LedgerProjection,
+): readonly ClearedHead[] {
+  return document.nodes.flatMap((declaration) => {
+    const outcome = projection.nodes.get(
+      nodeKey({ graph: document.id, id: declaration.id }),
+    )?.outcome;
+    return outcome?.kind === "cleared"
+      ? [clearedHeadFor(document.id, declaration.id, outcome, projection)]
+      : [];
+  });
 }
 
 function latestAttemptNotes(

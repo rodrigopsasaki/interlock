@@ -1121,19 +1121,20 @@ The current read of a graph, composed above the stream.
 ### Versions
 
 - `position@v1`: the first version.
+- `position@v2`: retyped `done`.
 
-### Fields (`position@v1`)
+### Fields (`position@v2`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `interlock` | the literal `"position@v1"` | yes |  |
+| `interlock` | the literal `"position@v2"` | yes |  |
 | `graph` | string | yes |  |
 | `ask` | string | no | Additive within position@v1: the graph file's ask, verbatim, so no face reads the graph file beside the position. Absent when the graph declares none. |
 | `approval` | one of `"approved"`, `"stale"`, `"not-approved"` | yes |  |
 | `line` | line | no | `?`: voice, text; `?`: voice, who, text, at |
 | `nodes` | array of positionNode | yes | fields: id (string, required); role (one of `"scout"`, `"planner"`, `"implementer"`, `"tester"`, `"reviewer"`, `"verifier"`, optional); acceptance (string, optional); dependsOn (array of string, required); state (nodeState, required); gates (array of positionGate, required); attempts (array of positionAttempt, required); float (float, required); landed (landed, optional); notes (array of one of `?`, `?`, optional) |
 | `criticalPath` | array of string | yes |  |
-| `done` | boolean | no | True when every node is cleared and its landed reads on-main. Absent from positions produced before landed-on-main. |
+| `done` | boolean | no | True when every node is cleared and its landed reads on-main. A node whose landed reads partly-reverted-on-main, reverted-on-main, not-on-main or unknown keeps done false. Absent from positions produced before landed-on-main. |
 | `changedAt` | moment | no | `known`: at, fact; `unknown`: because |
 | `sinceAt` | moment | no | `known`: at, fact; `unknown`: because |
 
@@ -1142,6 +1143,10 @@ The current read of a graph, composed above the stream.
 #### `position@v1`
 
 _No example of `position@v1` was found in the corpus._
+
+#### `position@v2`
+
+_No example of `position@v2` was found in the corpus._
 
 ## positions
 

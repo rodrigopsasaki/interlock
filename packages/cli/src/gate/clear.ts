@@ -105,7 +105,7 @@ export async function runGateClear(
     };
   }
 
-  const journal = sharedJournalDirectory(repoRoot);
+  const journal = await sharedJournalDirectory(repoRoot);
   const clock = options.clock ?? createSystemClock();
   const opened = await createLedger({ clock, directory: journal });
   if (isErr(opened)) {
@@ -127,7 +127,7 @@ export async function runGateClear(
       };
     }
 
-    const commitSha = currentCommitSha(repoRoot);
+    const commitSha = await currentCommitSha(repoRoot);
     const receipt = await createReceipt(
       repoRoot,
       gitTrackedFiles(repoRoot),

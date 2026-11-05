@@ -159,7 +159,7 @@ export async function driveInteractiveSession(
   let paneCustody: "runner" | "person" = "runner";
 
   try {
-    const requestedGraphBaseSha = currentCommitSha(repoRoot);
+    const requestedGraphBaseSha = await currentCommitSha(repoRoot);
     const targetNode = { graph, id: node };
 
     const worktreePath = join(repoRoot, localConfig.worktreeRoot, node);
@@ -444,7 +444,7 @@ export async function driveInteractiveSession(
       narrate(`agent screen: ${lastNonEmptyLine(screenRead.value) ?? "(no output)"}`);
     };
 
-    const personEventsRead = await readRawEvents(sharedJournalDirectory(repoRoot));
+    const personEventsRead = await readRawEvents(await sharedJournalDirectory(repoRoot));
 
     if (beforeJudge !== undefined) {
       const preCheck = await beforeJudge(worktreePath);

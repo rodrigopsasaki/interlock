@@ -71,7 +71,7 @@ export async function runGraphStatus(
     return { exitCode: 1, message: explainGraphRefusal(document.error) };
   }
 
-  const journal = sharedJournalDirectory(repoRoot);
+  const journal = await sharedJournalDirectory(repoRoot);
   const replayed = await readReplay(journal);
   if (isErr(replayed)) {
     return {

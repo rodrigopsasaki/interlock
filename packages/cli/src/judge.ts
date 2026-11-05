@@ -103,7 +103,7 @@ export async function runInterlockJudge(
     };
   }
 
-  const journal = sharedJournalDirectory(repoRoot);
+  const journal = await sharedJournalDirectory(repoRoot);
   const clock = options.clock ?? createSystemClock();
   const opened = await createLedger({ clock, directory: journal });
   if (isErr(opened)) {

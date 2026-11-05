@@ -406,7 +406,7 @@ describe("interlock judge", () => {
     const later = unwrap(
       await createLedger({
         clock: createControlledClock({ initialTime: 100_000 }),
-        directory: sharedJournalDirectory(cwd),
+        directory: await sharedJournalDirectory(cwd),
       }),
     );
     later.append({

@@ -122,7 +122,7 @@ describe("interlock position --json", () => {
     expect(one.graphs.map((graph: { graph: string }) => graph.graph)).toEqual(["alpha", "beta"]);
     expect(one.graphs[0]).toMatchObject({
       state: "read",
-      position: { interlock: "position@v1", graph: "alpha" },
+      position: { interlock: "position@v2", graph: "alpha" },
     });
     expect(two).toMatchObject({
       root: second,

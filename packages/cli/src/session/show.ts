@@ -60,7 +60,7 @@ export async function runSessionShow(
     };
   }
 
-  const journal = sharedJournalDirectory(repoRoot);
+  const journal = await sharedJournalDirectory(repoRoot);
   const replayed = await readReplay(journal);
   if (isErr(replayed)) {
     return {

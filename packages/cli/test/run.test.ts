@@ -1740,7 +1740,7 @@ describe("interlock run: a node whose outcome is already decided", () => {
     return unwrap(
       await createLedger({
         clock: createControlledClock({ initialTime }),
-        directory: sharedJournalDirectory(cwd),
+        directory: await sharedJournalDirectory(cwd),
       }),
     );
   }

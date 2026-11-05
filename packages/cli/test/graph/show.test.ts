@@ -97,12 +97,12 @@ describe("graph show", () => {
 });
 
 describe("graph show --json", () => {
-  it("prints position@v1 with stable keys, verbatim data underneath", async () => {
+  it("prints position@v2 with stable keys, verbatim data underneath", async () => {
     const cwd = fixture(validGraph);
     const result = await runGraphShow(["demo", "--json"], { cwd });
     expect(result.exitCode).toBe(0);
     const parsed = JSON.parse(result.message);
-    expect(parsed.interlock).toBe("position@v1");
+    expect(parsed.interlock).toBe("position@v2");
     expect(parsed.graph).toBe("demo");
     expect(parsed.approval).toBe("not-approved");
     expect(parsed.nodes[0]).toMatchObject({

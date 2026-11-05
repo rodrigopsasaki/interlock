@@ -1,27 +1,78 @@
-import { spawnSync } from "node:child_process";
-import { err, isErr, isOk, ok, type Result } from "@phyxiusjs/fp";
+import { spawn } from "node:child_process";
+import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 
-const GIT_OUTPUT_PAST_SPAWN_SYNC_ONE_MEGABYTE_DEFAULT = 512 * 1024 * 1024;
+export const GIT_CHILDREN_BOUND = 8;
 
-interface GitRun {
+export interface GitRun {
   readonly status: number | null;
   readonly stdout: string;
   readonly stderr: string;
 }
 
-function git(repoRoot: string, args: readonly string[], input?: string): GitRun {
-  const run = spawnSync("git", args, {
-    cwd: repoRoot,
-    encoding: "utf-8",
-    input,
-    env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" },
-    maxBuffer: GIT_OUTPUT_PAST_SPAWN_SYNC_ONE_MEGABYTE_DEFAULT,
+export type GitRunner = (
+  repoRoot: string,
+  args: readonly string[],
+  input?: string,
+) => Promise<GitRun>;
+
+export const spawnedGit: GitRunner = (repoRoot, args, input) =>
+  new Promise((resolve) => {
+    const child = spawn("git", args, {
+      cwd: repoRoot,
+      env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" },
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    const stdout: Buffer[] = [];
+    const stderr: Buffer[] = [];
+    child.stdout.on("data", (chunk: Buffer) => stdout.push(chunk));
+    child.stderr.on("data", (chunk: Buffer) => stderr.push(chunk));
+    child.stdin.on("error", () => undefined);
+    child.on("error", (error) => resolve({ status: null, stdout: "", stderr: error.message }));
+    child.on("close", (status) =>
+      resolve({
+        status,
+        stdout: Buffer.concat(stdout).toString("utf-8"),
+        stderr: Buffer.concat(stderr).toString("utf-8"),
+      }),
+    );
+    child.stdin.end(input);
   });
-  return {
-    status: run.status,
-    stdout: run.stdout ?? "",
-    stderr: run.error === undefined ? (run.stderr ?? "") : run.error.message,
+
+export function boundedGit(
+  bound: number = GIT_CHILDREN_BOUND,
+  run: GitRunner = spawnedGit,
+): GitRunner {
+  let running = 0;
+  const waiting: (() => void)[] = [];
+  const acquire = (): Promise<void> => {
+    if (running < bound) {
+      running += 1;
+      return Promise.resolve();
+    }
+    return new Promise((resolve) =>
+      waiting.push(() => {
+        running += 1;
+        resolve();
+      }),
+    );
   };
+  const release = (): void => {
+    running -= 1;
+    waiting.shift()?.();
+  };
+  return async (repoRoot, args, input) => {
+    await acquire();
+    try {
+      return await run(repoRoot, args, input);
+    } finally {
+      release();
+    }
+  };
+}
+
+export interface RepoGit {
+  readonly repoRoot: string;
+  readonly run: GitRunner;
 }
 
 function refused(args: readonly string[], run: GitRun): string {
@@ -29,13 +80,17 @@ function refused(args: readonly string[], run: GitRun): string {
   return `git refused \`git ${args.join(" ")}\`${said.length > 0 ? `: ${said}` : ""}`;
 }
 
-function read(repoRoot: string, args: readonly string[], input?: string): Result<string, string> {
-  const run = git(repoRoot, args, input);
+async function read(
+  git: RepoGit,
+  args: readonly string[],
+  input?: string,
+): Promise<Result<string, string>> {
+  const run = await git.run(git.repoRoot, args, input);
   return run.status === 0 ? ok(run.stdout) : err(refused(args, run));
 }
 
-function answers(repoRoot: string, args: readonly string[]): Result<boolean, string> {
-  const run = git(repoRoot, args);
+async function answers(git: RepoGit, args: readonly string[]): Promise<Result<boolean, string>> {
+  const run = await git.run(git.repoRoot, args);
   if (run.status === 0) return ok(true);
   if (run.status === 1) return ok(false);
   return err(refused(args, run));
@@ -45,162 +100,212 @@ function lines(output: string): readonly string[] {
   return output.split("\n").filter((line) => line.length > 0);
 }
 
-function localBranchExists(repoRoot: string, branch: string): Result<boolean, string> {
-  return answers(repoRoot, ["rev-parse", "--verify", "--quiet", `refs/heads/${branch}^{commit}`]);
+export interface MainSnapshot {
+  readonly branch: string;
+  readonly sha: string;
 }
 
-function originHeadBranch(repoRoot: string): Result<string | undefined, string> {
-  const args = ["symbolic-ref", "--quiet", "refs/remotes/origin/HEAD"];
-  const run = git(repoRoot, args);
-  if (run.status === 1) return ok(undefined);
-  if (run.status !== 0) return err(refused(args, run));
-  const named = run.stdout.trim();
-  const prefix = "refs/remotes/origin/";
-  return ok(named.startsWith(prefix) ? named.slice(prefix.length) : undefined);
-}
+const ORIGIN_HEAD = "refs/remotes/origin/HEAD";
+const ORIGIN_PREFIX = "refs/remotes/origin/";
+const BRANCH_PREFIX = "refs/heads/";
 
-export function mainBranchOf(repoRoot: string): Result<string | undefined, string> {
-  const origin = originHeadBranch(repoRoot);
-  if (isErr(origin)) return origin;
-  const candidates = [origin.value, "main", "master"].filter(
-    (branch): branch is string => branch !== undefined,
-  );
-  for (const branch of candidates) {
-    const exists = localBranchExists(repoRoot, branch);
-    if (isErr(exists)) return exists;
-    if (exists.value) return ok(branch);
+export async function mainSnapshotOf(
+  git: RepoGit,
+): Promise<Result<MainSnapshot | undefined, string>> {
+  const listed = await read(git, [
+    "for-each-ref",
+    "--format=%(refname)%00%(objectname)%00%(objecttype)%00%(symref)",
+    BRANCH_PREFIX,
+    ORIGIN_HEAD,
+  ]);
+  if (isErr(listed)) return listed;
+  const branches = new Map<string, string>();
+  let originNames: string | undefined;
+  for (const line of lines(listed.value)) {
+    const [refname, objectname, objecttype, symref] = line.split("\u0000");
+    if (refname === ORIGIN_HEAD) {
+      originNames = symref?.startsWith(ORIGIN_PREFIX)
+        ? symref.slice(ORIGIN_PREFIX.length)
+        : undefined;
+    } else if (
+      refname?.startsWith(BRANCH_PREFIX) &&
+      objecttype === "commit" &&
+      objectname !== undefined
+    ) {
+      branches.set(refname.slice(BRANCH_PREFIX.length), objectname);
+    }
+  }
+  for (const branch of [originNames, "main", "master"]) {
+    const sha = branch === undefined ? undefined : branches.get(branch);
+    if (branch !== undefined && sha !== undefined) return ok({ branch, sha });
   }
   return ok(undefined);
 }
 
-export function commitExists(repoRoot: string, sha: string): Result<boolean, string> {
-  const run = git(repoRoot, ["cat-file", "-e", `${sha}^{commit}`]);
-  return ok(run.status === 0);
+export async function commitsPresent(
+  git: RepoGit,
+  shas: readonly string[],
+): Promise<Result<readonly boolean[], string>> {
+  const checked = await read(
+    git,
+    ["cat-file", "--batch-check=%(objecttype)"],
+    shas.map((sha) => `${sha}^{commit}\n`).join(""),
+  );
+  if (isErr(checked)) return checked;
+  return ok(lines(checked.value).map((line) => line === "commit"));
 }
 
 export function isAncestor(
-  repoRoot: string,
+  git: RepoGit,
   ancestor: string,
   descendant: string,
-): Result<boolean, string> {
-  return answers(repoRoot, ["merge-base", "--is-ancestor", ancestor, descendant]);
-}
-
-export function commitsBetween(
-  repoRoot: string,
-  base: string,
-  head: string,
-): Result<readonly string[], string> {
-  const listed = read(repoRoot, ["rev-list", "--reverse", `${base}..${head}`]);
-  return isOk(listed) ? ok(lines(listed.value)) : listed;
-}
-
-export interface CherryEntry {
-  readonly commit: string;
-  readonly onUpstream: boolean;
-}
-
-export function cherry(
-  repoRoot: string,
-  upstream: string,
-  head: string,
-  limit: string,
-): Result<readonly CherryEntry[], string> {
-  const listed = read(repoRoot, ["cherry", upstream, head, limit]);
-  if (isErr(listed)) return listed;
-  return ok(
-    lines(listed.value).map((line) => ({
-      commit: line.slice(2).trim(),
-      onUpstream: line.startsWith("-"),
-    })),
-  );
-}
-
-export function changedPaths(
-  repoRoot: string,
-  from: string,
-  to: string,
-): Result<readonly string[], string> {
-  const listed = read(repoRoot, ["diff", "--no-renames", "--name-only", from, to]);
-  return isOk(listed) ? ok(lines(listed.value)) : listed;
-}
-
-export interface CommitPatch {
-  readonly commit: string;
-  readonly patchId: string;
-}
-
-function patchIdsOf(repoRoot: string, patches: string): Result<readonly CommitPatch[], string> {
-  const identified = read(repoRoot, ["patch-id", "--stable"], patches);
-  if (isErr(identified)) return identified;
-  return ok(
-    lines(identified.value).flatMap((line) => {
-      const [patchId, commit] = line.split(" ");
-      return patchId === undefined || commit === undefined ? [] : [{ commit, patchId }];
-    }),
-  );
-}
-
-export function commitPatches(
-  repoRoot: string,
-  range: string,
-  paths: readonly string[],
-): Result<readonly CommitPatch[], string> {
-  const logged = read(repoRoot, [
-    "log",
-    "--reverse",
-    "--no-color",
-    "--no-ext-diff",
-    "--no-renames",
-    "-p",
-    range,
-    "--",
-    ...paths,
-  ]);
-  return isOk(logged) ? patchIdsOf(repoRoot, logged.value) : logged;
-}
-
-export function diffPatchId(
-  repoRoot: string,
-  from: string,
-  to: string,
-): Result<string | undefined, string> {
-  const diffed = read(repoRoot, ["diff", "--no-color", "--no-ext-diff", "--no-renames", from, to]);
-  if (isErr(diffed)) return diffed;
-  if (diffed.value.length === 0) return ok(undefined);
-  const identified = read(repoRoot, ["patch-id", "--stable"], diffed.value);
-  if (isErr(identified)) return identified;
-  return ok(identified.value.split(" ")[0]);
-}
-
-export interface CommitMessage {
-  readonly commit: string;
-  readonly message: string;
+): Promise<Result<boolean, string>> {
+  return answers(git, ["merge-base", "--is-ancestor", ancestor, descendant]);
 }
 
 const RECORD = "\u001e";
 const FIELD = "\u001f";
 
-export function commitMessages(
-  repoRoot: string,
-  range: string,
-  paths: readonly string[],
-): Result<readonly CommitMessage[], string> {
-  const logged = read(repoRoot, [
+export interface AttemptCommit {
+  readonly commit: string;
+  readonly paths: readonly string[];
+}
+
+export async function attemptCommits(
+  git: RepoGit,
+  base: string,
+  head: string,
+): Promise<Result<readonly AttemptCommit[], string>> {
+  const logged = await read(git, [
     "log",
     "--reverse",
-    `--format=%H${FIELD}%B${RECORD}`,
-    range,
-    "--",
-    ...paths,
+    "--no-renames",
+    `--format=${RECORD}%H${FIELD}`,
+    "--name-only",
+    `${base}..${head}`,
   ]);
   if (isErr(logged)) return logged;
   return ok(
     logged.value.split(RECORD).flatMap((record) => {
-      const [commit, message] = record.trim().split(FIELD);
-      return commit === undefined || message === undefined || commit.length === 0
+      const [commit, names] = record.split(FIELD);
+      return commit === undefined || commit.length === 0
         ? []
-        : [{ commit, message }];
+        : [{ commit, paths: lines(names ?? "") }];
     }),
   );
+}
+
+export interface MainCommit {
+  readonly commit: string;
+  readonly committedAt: number;
+  readonly message: string;
+  readonly paths: readonly string[];
+}
+
+export async function mainCommits(
+  git: RepoGit,
+  base: string,
+  main: string,
+  scope: readonly string[],
+): Promise<Result<readonly MainCommit[], string>> {
+  if (scope.length === 0) return ok([]);
+  const logged = await read(git, [
+    "log",
+    "--reverse",
+    "--no-renames",
+    `--format=${RECORD}%H${FIELD}%ct${FIELD}%B${FIELD}`,
+    "--name-only",
+    `${base}..${main}`,
+    "--",
+    ...scope,
+  ]);
+  if (isErr(logged)) return logged;
+  return ok(
+    logged.value.split(RECORD).flatMap((record) => {
+      const [commit, committedAt, message, names] = record.split(FIELD);
+      return commit === undefined || commit.length === 0 || message === undefined
+        ? []
+        : [
+            {
+              commit,
+              committedAt: Number(committedAt),
+              message,
+              paths: lines(names ?? ""),
+            },
+          ];
+    }),
+  );
+}
+
+export const STABLE_DIFF_OPTIONS: readonly string[] = [
+  "--no-color",
+  "--no-ext-diff",
+  "--no-textconv",
+  "--no-renames",
+  "--unified=3",
+];
+
+async function patchIdsOf(
+  git: RepoGit,
+  patches: string,
+): Promise<Result<ReadonlyMap<string, string>, string>> {
+  if (patches.length === 0) return ok(new Map());
+  const identified = await read(git, ["patch-id", "--stable"], patches);
+  if (isErr(identified)) return identified;
+  const ids = new Map<string, string>();
+  for (const line of lines(identified.value)) {
+    const [patchId, commit] = line.split(" ");
+    if (patchId !== undefined && commit !== undefined) ids.set(commit, patchId);
+  }
+  return ok(ids);
+}
+
+export type PatchDirection = "forward" | "inverse";
+
+export async function commitPatchIds(
+  git: RepoGit,
+  range: string,
+  scope: readonly string[],
+  direction: PatchDirection,
+): Promise<Result<ReadonlyMap<string, string>, string>> {
+  if (scope.length === 0) return ok(new Map());
+  const logged = await read(git, [
+    "log",
+    "--reverse",
+    "-p",
+    ...STABLE_DIFF_OPTIONS,
+    ...(direction === "inverse" ? ["-R"] : []),
+    range,
+    "--",
+    ...scope,
+  ]);
+  if (isErr(logged)) return logged;
+  return patchIdsOf(git, logged.value);
+}
+
+export interface WholePatchIds {
+  readonly forward: string | undefined;
+  readonly inverse: string | undefined;
+}
+
+export async function wholePatchIds(
+  git: RepoGit,
+  base: string,
+  head: string,
+  scope: readonly string[],
+): Promise<Result<WholePatchIds, string>> {
+  if (scope.length === 0) return ok({ forward: undefined, inverse: undefined });
+  const forward = await read(git, ["diff", ...STABLE_DIFF_OPTIONS, base, head, "--", ...scope]);
+  if (isErr(forward)) return forward;
+  const inverse = await read(git, ["diff", ...STABLE_DIFF_OPTIONS, head, base, "--", ...scope]);
+  if (isErr(inverse)) return inverse;
+  const ids = await patchIdsOf(
+    git,
+    [
+      ...(forward.value.length > 0 ? [`commit ${head}\n`, forward.value] : []),
+      ...(inverse.value.length > 0 ? [`commit ${base}\n`, inverse.value] : []),
+    ].join(""),
+  );
+  if (isErr(ids)) return ids;
+  return ok({ forward: ids.value.get(head), inverse: ids.value.get(base) });
 }

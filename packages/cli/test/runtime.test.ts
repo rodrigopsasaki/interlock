@@ -149,7 +149,7 @@ describe("runtime list: a valid catalogue", () => {
     const ledger = unwrap(
       await createLedger({
         clock,
-        directory: sharedJournalDirectory(repoRoot),
+        directory: await sharedJournalDirectory(repoRoot),
       }),
     );
     const node = { graph: "demo", id: "a" };

@@ -1,6 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { isErr } from "@phyxiusjs/fp";
+import { mainLineReader } from "face";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildGraphWorld, buildPlansWorld, buildSessionText } from "../../src/face/world.ts";
 import { gitInitFixture } from "../graph/gitFixture.ts";
@@ -44,7 +45,7 @@ describe("buildPlansWorld", () => {
     writeGraph("bravo", "bravo");
     writeGraph("alpha", "alpha");
 
-    const world = await buildPlansWorld(cwd, undefined);
+    const world = await buildPlansWorld(cwd, mainLineReader(cwd), undefined);
     expect(world.plans.map((entry) => entry.graph)).toEqual(["alpha", "bravo"]);
     expect(world.plans[0]).toMatchObject({
       approval: "not-approved",
@@ -64,7 +65,7 @@ describe("buildPlansWorld", () => {
       "interlock: graph@v1\nid: bad\nnodes: []\n",
     );
 
-    const world = await buildPlansWorld(cwd, undefined);
+    const world = await buildPlansWorld(cwd, mainLineReader(cwd), undefined);
     expect(world.plans.map((entry) => entry.graph)).toEqual(["good"]);
   });
 });
@@ -74,7 +75,7 @@ describe("buildGraphWorld", () => {
     const cwd = fixture();
     writeGraph("demo", "demo");
 
-    const built = await buildGraphWorld(cwd, "demo", undefined);
+    const built = await buildGraphWorld(cwd, "demo", mainLineReader(cwd), undefined);
     if (isErr(built)) throw new Error("expected a world");
     expect(built.value.position?.graph).toBe("demo");
     expect(built.value.position?.nodes[0]).toMatchObject({
@@ -86,7 +87,7 @@ describe("buildGraphWorld", () => {
 
   it("refuses with the graph's own refusal when the file is missing", async () => {
     const cwd = fixture();
-    const built = await buildGraphWorld(cwd, "missing", undefined);
+    const built = await buildGraphWorld(cwd, "missing", mainLineReader(cwd), undefined);
     expect(isErr(built)).toBe(true);
   });
 });
