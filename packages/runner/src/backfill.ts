@@ -18,6 +18,7 @@ import {
   explainWorktreeRefusal,
   removeWorktree,
   type WorktreeRefusal,
+  withAutoMaintenanceDisabled,
 } from "./worktree.ts";
 import {
   explainWorktreeSetupRefusal,
@@ -100,7 +101,8 @@ export async function backfillGraph(
     stdio: "ignore",
   });
 
-  const setUp = await runWorktreeSetup(worktreeSetup, worktreePath, narrate);
+  const env = withAutoMaintenanceDisabled(process.env);
+  const setUp = await runWorktreeSetup(worktreeSetup, worktreePath, narrate, env);
   if (isErr(setUp)) {
     removeWorktree(repoRoot, worktreePath);
     return err({ kind: "worktree-setup", refusal: setUp.error });
@@ -163,6 +165,7 @@ export async function backfillGraph(
       commitSha: mainSha,
       runnerId,
       holdMs: HOLD_MS,
+      env,
       substrate: noneClient(),
       narrate: () => {},
     });
