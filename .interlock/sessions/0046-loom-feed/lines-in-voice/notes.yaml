@@ -128,3 +128,19 @@ entries:
     because: >
       Same rule as role and acceptance. All 41 graphs in .interlock/graphs
       load with a string ask, checked before the change.
+  - kind: surprise
+    at: "2026-11-06T01:35:00Z"
+    expected: >
+      The full suite to pass once the face and schema suites did.
+    observed: >
+      packages/cli/test/graph/show.test.ts pins the position's top-level key
+      order. The pin now names line, changedAt and sinceAt in the order the
+      producer writes them; the stable-keys intent is kept.
+  - kind: surprise
+    at: "2026-11-06T01:36:00Z"
+    expected: >
+      Every scratch file inside this worktree.
+    observed: >
+      I sent one typecheck log to the directory above the worktree
+      (../lv-typecheck.log) and removed it right away with plain rm. Nothing
+      else was written outside.
