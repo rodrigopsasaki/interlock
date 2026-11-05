@@ -46,8 +46,11 @@ import {
   isCommittedAtHead,
   uncommittedPaths,
   type WorktreeOutcome,
+  type WorktreeRefusal,
+  worktreeGitLayout,
 } from "./worktree.ts";
 import { explainWorktreeSetupRefusal, runWorktreeSetup } from "./worktreeSetup.ts";
+import { expandWritableRootArgs } from "./writableRootArgs.ts";
 
 function isoOf(wallMs: number): string {
   return new Date(wallMs).toISOString();
@@ -62,6 +65,29 @@ function priorWorkOf(worktree: WorktreeOutcome): PriorWork | undefined {
     uncommittedPaths: worktree.uncommittedPaths,
     commitsBeyondBase: worktree.commitsBeyondBase,
   };
+}
+
+interface AgentLaunch {
+  readonly args: readonly string[];
+  readonly writableRoot: string | undefined;
+}
+
+function agentLaunch(
+  agentRuntime: ResolvedRuntime,
+  worktreePath: string,
+): Result<AgentLaunch, WorktreeRefusal> {
+  const template = agentRuntime.writableRootArgs;
+  if (template === undefined) return ok({ args: agentRuntime.args, writableRoot: undefined });
+  const layout = worktreeGitLayout(worktreePath);
+  if (isErr(layout)) return layout;
+  if (layout.value.kind === "not-linked") {
+    return ok({ args: agentRuntime.args, writableRoot: undefined });
+  }
+  const writableRoot = layout.value.commonGitDir;
+  return ok({
+    args: [...agentRuntime.args, ...expandWritableRootArgs(template, writableRoot)],
+    writableRoot,
+  });
 }
 
 export interface BeforeJudgeRefusal {
@@ -227,6 +253,14 @@ export async function driveInteractiveSession(
       return result;
     }
 
+    const launch = agentLaunch(agentRuntime, worktreePath);
+    if (isErr(launch)) {
+      const result = refuse("writable root", explainWorktreeRefusal(launch.error));
+      lease.stop();
+      abandonLease();
+      return result;
+    }
+
     const createdRuntime =
       injectedRuntime === undefined ? await createHerdrRuntime() : ok(injectedRuntime);
     if (isErr(createdRuntime)) {
@@ -249,11 +283,16 @@ export async function driveInteractiveSession(
     narrate(
       `runtime ${agentRuntime.name} (${agentRuntime.kind}, ${agentRuntime.model ?? "model undeclared"})`,
     );
+    if (launch.value.writableRoot !== undefined) {
+      narrate(
+        `writable root ${launch.value.writableRoot} supplied to runtime ${agentRuntime.name}`,
+      );
+    }
 
     const startedAgent = await runtime.startAgent(
       pane,
       agentRuntime.kind,
-      agentRuntime.args,
+      launch.value.args,
       () => narrate("waiting for the pane's shell"),
       node,
     );
@@ -265,6 +304,7 @@ export async function driveInteractiveSession(
     }
     agent = startedAgent.value;
     narrate(`agent ${agent.id} started (${agentRuntime.kind})`);
+    narrate(`agent argv ${JSON.stringify(launch.value.args)}`);
 
     const reported = await runtime.reportIdentity(agent, graph, node, {
       sessionId,

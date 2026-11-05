@@ -1,0 +1,12 @@
+interlock: notes@v0
+node: common-git-writable
+entries:
+  - kind: choice
+    at: "2026-11-05T12:00:00Z"
+    chose: One shared parser, writableRootArgs.ts, called by both the catalogue and the legacy local.yaml reader with the field path as its label, the way startupAnswers.ts already serves both.
+    because: The acceptance asks for identical constraints on both readers; one parser makes divergence impossible, and each reader keeps wrapping the reason in its own existing malformed refusal, so no new refusal kind or face state is coined.
+    rejected: [a template class with its own refusal union, duplicating the checks per reader]
+  - kind: surprise
+    at: "2026-11-05T12:05:00Z"
+    expected: Every runtime adapter passes args to the agent as a list.
+    observed: The herdr adapter sends args as a JSON list, but the tmux adapter joins kind and args with spaces into one send-keys string, so a path with spaces would split there. The tmux adapter is exported but not wired into run or plan, so production launches go through herdr.
