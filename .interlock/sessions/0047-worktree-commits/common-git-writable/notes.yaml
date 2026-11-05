@@ -10,3 +10,12 @@ entries:
     at: "2026-11-05T12:05:00Z"
     expected: Every runtime adapter passes args to the agent as a list.
     observed: The herdr adapter sends args as a JSON list, but the tmux adapter joins kind and args with spaces into one send-keys string, so a path with spaces would split there. The tmux adapter is exported but not wired into run or plan, so production launches go through herdr.
+  - kind: choice
+    at: "2026-11-05T12:30:00Z"
+    chose: Decide linked versus not-linked by comparing git rev-parse --path-format=absolute --git-dir with --git-common-dir, resolved only when the entry declares writable_root_args.
+    because: The acceptance names --git-common-dir for the root, and a linked worktree is exactly one whose git dir differs from the common one; a main checkout or a clone has them equal. Resolving lazily keeps runs without the field byte-for-byte unchanged, with no extra git call.
+    rejected: [testing whether <worktree>/.git is a file, which a gitdir-file submodule also satisfies]
+  - kind: choice
+    at: "2026-11-05T12:32:00Z"
+    chose: Narrate the effective argv as its own recorded line, "agent argv <JSON>", right after "agent <id> started", and the root as "writable root <path> supplied to runtime <name>" after the runtime line.
+    because: The recording narrate already appends session-narrated events, so the argv is retained with no new event or session shape; a separate line leaves the existing "agent <id> started (<kind>)" sentence that run tests match unchanged. The argv is the args list startAgent received, without the kind, since that is the exact value the acceptance asks to compare.
