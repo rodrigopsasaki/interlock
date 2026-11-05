@@ -1,0 +1,197 @@
+interlock: debrief@v2
+graph: 0051-no-detached-maintenance
+node: fixtures-and-worktrees
+role: implementer
+graph_base_sha: 6d9c6ae78a54044a3c740d293a3d2f9108e4b26d
+session_start_sha: 5cdc39c550b3f79c80dd68a642274488bee81ae7
+head_sha: 4adf4053842b095f4a0da0f2cafc287c052a3d6b
+derivation:
+  kind: agent
+  runtime: claude-code
+  model: claude-opus-5-5
+discoveries:
+  - id: no-independent-gc-path
+    what: >-
+      On the installed git 2.54.0 (Apple Git-157), with maintenance due, commit, merge, fetch and
+      pull each start one `git maintenance run --auto` child and no `gc` child; cherry-pick,
+      revert, rebase, clone and worktree add start neither here. Under -c maintenance.auto=false
+      none of them starts a gc or maintenance child.
+    found_at: '.interlock/sessions/0051-no-detached-maintenance/fixtures-and-worktrees/notes.yaml:86-94 "No independent automatic-GC path appeared, so gc.auto=0 is not"'
+    mattered_because: >-
+      The acceptance adds gc.auto=0 only on evidence of an independent automatic-GC path; the
+      trace shows maintenance.auto is the single gate for the commands fixtures run.
+  - id: fixture-default-would-mask-regression
+    what: >-
+      Once fixture repositories pin maintenance.auto=false locally, 0050's regression would pass
+      without the helper. With the regression's repository re-enabling it, removing the helper's
+      flag fails the negative control while the positive control and config check still pass.
+    found_at: '.interlock/sessions/0051-no-detached-maintenance/fixtures-and-worktrees/notes.yaml:116-121 "made the negative control"'
+    mattered_because: >-
+      It shows the regression still proves the helper's per-invocation protection rather than
+      the fixture default.
+  - id: forwarder-was-unsuppressed
+    what: >-
+      writableRootLaunch's PATH forwarder exec'd the real Git with no suppression, and
+      writableRoot's sandboxed commands reached spawnSync through a `...command` parameter no
+      static reading can resolve.
+    found_at: '.interlock/sessions/0051-no-detached-maintenance/fixtures-and-worktrees/notes.yaml:30-35 "forwarder previously exec''d the real Git unsuppressed"'
+    mattered_because: >-
+      Both are why the helper owns sandbox execution and forwarder generation instead of
+      exporting an argv builder: the guard stays fail-closed with no exception for them.
+decisions:
+  - id: shared-helper
+    what: >-
+      test/support/gitFixture.ts, Node built-ins only, owns fixture Git: every argv carries
+      -c maintenance.auto=false; argv or environment naming maintenance.auto is refused; init and
+      clone run only through initFixtureRepository and cloneFixtureRepository, which pin
+      repository-local maintenance.auto=false; sandboxedFixtureCommand and writeGitForwarder own
+      the sandbox-exec Git argv and the PATH forwarder; unsuppressedGitForMaintenanceControl is the
+      one foreground-only unsuppressed entry. biome now lints test/.
+    because: >-
+      Command-line config is read last, so the flag beats every other scope and reaches the
+      children Git spawns; routing repository creation through the initializers makes the
+      repository-local pin a runtime refusal instead of a convention, so production Git and
+      linked worktrees inherit containment.
+    rests_on:
+      - '.interlock/sessions/0051-no-detached-maintenance/fixtures-and-worktrees/notes.yaml:15-21 "Command-line configuration is read last"'
+    hunks:
+      - test/support/gitFixture.ts:1-233
+      - biome.json:6-6
+  - id: ast-guard
+    what: >-
+      packages/cli/test/fixtureGuard.test.ts reads every executable source under test/ and
+      packages/*/test with the TypeScript AST and fails on direct or nested fixture Git, on any
+      command it cannot resolve statically, on escaping child_process bindings, require, dynamic
+      import and re-export, on generated shell scripts naming git or interpolating, and on
+      missing roots, unreadable roots or an empty source set. It carries negative and positive
+      controls for each form and tests the helper's refusals.
+    because: >-
+      The acceptance asks for a fail-closed boundary; the instrumentation exception is pinned to
+      noSyncGit.test.ts and to pure forwarding, and the unsuppressed control to the cleanup
+      regression, so neither becomes a general escape.
+    rests_on:
+      - '.interlock/sessions/0051-no-detached-maintenance/fixtures-and-worktrees/notes.yaml:62-66 "Fail closed on unsupported command construction"'
+    hunks:
+      - packages/cli/test/fixtureGuard.test.ts:1-810
+  - id: migrate-cli
+    what: >-
+      Every direct fixture Git call in packages/cli/test, including reads, setup and the listed
+      judge, run, plan, repositoryOrigin and landedCache sites, goes through the helper; graph and
+      landed fixture helpers keep their names and delegate.
+    because: >-
+      The guard's repository scan listed each site, and the acceptance requires every direct
+      fixture Git call migrated with caller identity, input, cwd and error behaviour preserved.
+    rests_on:
+      - '.interlock/sessions/0051-no-detached-maintenance/fixtures-and-worktrees/notes.yaml:125-136 "disjoint file sets could be migrated concurrently"'
+    hunks:
+      - packages/cli/test/debrief/derived.test.ts:14-14
+      - packages/cli/test/debrief/derived.test.ts:33-33
+      - packages/cli/test/debrief/derived.test.ts:77-77
+      - packages/cli/test/debrief/preview.test.ts:4-33
+      - packages/cli/test/debrief/recoverSessionStart.test.ts:8-110
+      - packages/cli/test/evidence.test.ts:26-65
+      - packages/cli/test/face/landedCache.test.ts:13-199
+      - packages/cli/test/face/landedFixture.ts:4-48
+      - packages/cli/test/graph/gitFixture.ts:1-34
+      - packages/cli/test/judge.test.ts:9-201
+      - packages/cli/test/main.test.ts:4-100
+      - packages/cli/test/plan.test.ts:10-764
+      - packages/cli/test/position.test.ts:14-131
+      - packages/cli/test/repositoryOrigin.test.ts:5-65
+      - packages/cli/test/run.test.ts:18-1599
+      - packages/cli/test/verify.test.ts:4-73
+  - id: migrate-runner
+    what: >-
+      packages/runner/test's worktree, gitCeiling, gateJudge, herdr adapter, driveFixture and
+      gitFixture use the helper; writableRoot runs its sandboxed Git through
+      sandboxedFixtureCommand; writableRootLaunch's forwarder comes from writeGitForwarder and
+      now forwards with the suppression.
+    because: >-
+      The forwarder is the Git that production rev-parse calls hit in that test, so it is the
+      explicit account the acceptance asks for, and the sandbox form keeps the guard
+      fail-closed.
+    rests_on:
+      - '.interlock/sessions/0051-no-detached-maintenance/fixtures-and-worktrees/notes.yaml:30-35 "keeps the guard fail-closed without an exception"'
+    hunks:
+      - packages/runner/test/gateJudge.test.ts:12-662
+      - packages/runner/test/gitCeiling.test.ts:4-27
+      - packages/runner/test/herdr/adapter.test.ts:6-80
+      - packages/runner/test/support/driveFixture.ts:7-97
+      - packages/runner/test/support/gitFixture.ts:1-27
+      - packages/runner/test/worktree.test.ts:6-301
+      - packages/runner/test/writableRoot.test.ts:13-439
+      - packages/runner/test/writableRootLaunch.test.ts:1-57
+  - id: migrate-face-and-verifier
+    what: >-
+      packages/face/test landed and root, and packages/verifier/test git and support/gitFixture,
+      use the helper; landed's env builder is split out so the initializer gets the same isolated
+      environment.
+    because: >-
+      These are listed commit and merge producers; the verifier helper keeps 0050's exports and
+      delegates.
+    rests_on:
+      - '.interlock/sessions/0051-no-detached-maintenance/fixtures-and-worktrees/notes.yaml:15-21 "Command-line configuration is read last"'
+    hunks:
+      - packages/face/test/landed.test.ts:13-60
+      - packages/face/test/root.test.ts:4-32
+      - packages/verifier/test/git.test.ts:4-96
+      - packages/verifier/test/support/gitFixture.ts:1-25
+  - id: regression-controls
+    what: >-
+      fixtureCleanup.test.ts re-enables maintenance.auto=true with autoDetach=false in its
+      repository, asserts that config, shows the unsuppressed commit leaves a pack, and shows the
+      helper's commitAll leaves none; the control logs the Git version.
+    because: >-
+      The fixture default would otherwise make the regression pass without the helper; the
+      mutation check confirmed the negative control now depends on the per-invocation flag.
+    rests_on:
+      - '.interlock/sessions/0051-no-detached-maintenance/fixtures-and-worktrees/notes.yaml:105-109 "explicit re-enable plus the positive control"'
+      - '.interlock/sessions/0051-no-detached-maintenance/fixtures-and-worktrees/notes.yaml:116-121 "made the negative control"'
+    hunks:
+      - packages/verifier/test/fixtureCleanup.test.ts:5-101
+  - id: no-gc-auto
+    what: >-
+      gc.auto=0 is not added anywhere.
+    because: >-
+      The trace probe found no automatic-GC path independent of maintenance.auto on the installed
+      Git.
+    rests_on:
+      - '.interlock/sessions/0051-no-detached-maintenance/fixtures-and-worktrees/notes.yaml:86-94 "No independent automatic-GC path appeared, so gc.auto=0 is not"'
+    hunks: []
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+  - id: fixture-guard-proof
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter cli exec vitest run test/fixtureGuard.test.ts --passWithNoTests=false
+    note: Tests 69 passed (69)
+  - id: verifier-cleanup-proof
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter verifier exec vitest run test/fixtureCleanup.test.ts --passWithNoTests=false
+    note: Tests 3 passed (3); logged git version 2.54.0 (Apple Git-157)
+  - id: test
+    result: pass
+    invocation: mise exec -- pnpm test
+    note: Two full parallel runs, both green (2496 tests each); the runner's receipts are binding.
+open:
+  - >-
+    The guard reads direct child_process use in test sources. Git that fixtures provoke through
+    production code (face's spawnedGit, the runner's brief commit and worktree commands, gate and
+    setup commands) is contained only by the repository-local maintenance.auto=false the
+    initializers pin; whether production needs its own containment is the worktree-maintenance
+    node's question.
+  - >-
+    The helper does not follow include.path or other indirect configuration supplied with -c;
+    a fixture could in principle re-enable maintenance that way. No fixture does, and the
+    guard does not read argv contents passed to fixtureGit.
+  - >-
+    The migration commit dfecb33 still carries the old fixtureCleanup.test.ts, whose direct git
+    call the guard flags; the following commit 4adf405 completes it. Only the head is green on
+    the guard.
