@@ -155,3 +155,110 @@ nodes:
         kind: command
         run: pnpm --fail-if-no-match --filter cli exec vitest run test/face/landedCache.test.ts
         expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: live-attempt-facts
+    role: implementer
+    depends_on: []
+    acceptance: |
+      Two additions to the position that `interlock position --json` prints.
+
+      1. Every live attempt, in every repository asked about, carries a
+      `pane` and a `startedAt`. `startedAt` is the runner clock's
+      epoch-millisecond wall time captured when it appends
+      `session-started`. Record it as an optional top-level field on that
+      event, validate it, and project it into `SessionView`. New
+      runner-started sessions record it; historical and backfilled sessions
+      without it report unknown with a reason. Never infer it from lease
+      expiry, configured lease duration, narration or file timestamps. Test
+      runner recording, replay and historical absence. This placement can
+      remain event@v9: its top level is open and existing readers ignore
+      extra keys.
+
+      Publish `positions@v1` with required `pane` and `startedAt` fields on
+      every live attempt. Each field is a closed known/unknown union: known
+      requires a string pane address or numeric epoch-millisecond start
+      respectively; unknown requires a nonempty `because`. Reject bare
+      values and mixed branches. Retain the unchanged v0 schema and support
+      v0 reads forever, interpreting absent facts as unknown without
+      rewriting historical artifacts. Test both versions. The pane address is
+      opaque: no reader parses it.
+
+      Add a bulk-observation seam to `Runtime`. For a `positionsOf`
+      invocation with live attempts, obtain one observation shared across
+      every asked repository and graph. The herdr adapter performs one
+      `agent.list` and resolves pane and agent status from that result using
+      graph, node and session identity. Keep protocol calls and parsing
+      inside the adapter. Missing capability, failed observation, unknown
+      session or missing pane produces an unknown pane with a reason.
+      Runtime unavailability does not erase a recorded start time. Test one
+      observation across multiple graphs in two repositories.
+
+      2. lines-in-voice: when `attentionOf` selects the approval standing
+      with approval `not-approved`, `observedText` returns exactly "Drafted
+      and waiting for your approval." Preserve stale-approval text and
+      standing priorities. Add `drafted`, `waiting` and `approval` to
+      AGENTS.md's Vocabulary table; add only `and`, `for` and `your` beside
+      `at` in the I3 test's fixed grammar-word list. Strip sentence
+      punctuation from token boundaries for observed-line vocabulary
+      checking only. Preserve exact rendered text and said quotations.
+      Update the existing sentences table so exact-output and I3 checks
+      exercise this sentence.
+
+      Strict TypeScript, no assertions, no non-null operators. Preserve every
+      historical artifact. Append typed notes for choices and discoveries. No
+      push, no merge; the human merges.
+    gates:
+      - id: live-facts-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/position.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: voice-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter face exec vitest run test/position.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: render-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter face exec vitest run test/render.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: schema-proof-positions
+        kind: command
+        run: pnpm --fail-if-no-match --filter schemas exec vitest run test/corpus.positions.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: brief-follows-acceptance
+    role: implementer
+    depends_on: []
+    acceptance: |
+      A node's authored brief can fall behind its graph. On 2026-11-05 a
+      node's acceptance in another repository was rewritten three times after its brief
+      was authored, and the runner started a session on the old brief body
+      because it reconciles only the brief's front matter (role, gates,
+      scope) with the graph. The worker built the smaller, older spec while
+      the gates judged the newer one.
+
+      When the runner materializes a brief for a session, it also
+      reconciles the brief's "Acceptance (verbatim from the graph)" section
+      with the node's acceptance in the graph at the session's base: if the
+      two differ, it replaces that section's body with the graph's
+      acceptance, quoted the same way, and records the rewrite in the brief
+      diff it already reports (as it does for gates and scope), naming the
+      node and that the acceptance changed. Text outside that section is
+      untouched. An authored brief with no such section is refused before
+      any worktree, session or pane exists, with the reason in words, so a
+      brief that cannot be reconciled never starts a session. The authored
+      brief file in the repository is never edited by the runner.
+
+      Tests: an authored brief whose acceptance section matches starts
+      unchanged; one whose section is stale starts with the graph's
+      acceptance in the materialized brief, the rest of the body byte for
+      byte, and the rewrite reported; one with no acceptance section is
+      refused before a worktree exists; a whitespace-only difference in
+      quoting is not reported as a change. Strict TypeScript, no assertions,
+      no non-null operators. Preserve every historical artifact. Append
+      typed notes for choices and discoveries. No push, no merge; the human
+      merges.
+    gates:
+      - id: brief-follows-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/sessionBrief.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
