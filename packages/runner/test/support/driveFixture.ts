@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { createControlledClock } from "@phyxiusjs/clock";
+import { type Clock, createControlledClock } from "@phyxiusjs/clock";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import type { LedgerEvent } from "ledger";
 import { noneClient } from "substrate";
@@ -181,6 +181,7 @@ export async function driveOnce(
   localConfig: LocalConfig,
   agentRuntime: ResolvedRuntime,
   runtime: Runtime,
+  clock: Clock = createControlledClock({ initialTime: 0 }),
 ): Promise<DriveRecord> {
   const { ledger, events } = memoryLedgerWithLog();
   const outcome = await driveInteractiveSession({
@@ -195,7 +196,7 @@ export async function driveOnce(
     standingGates: [],
     substrate: noneClient(),
     ledger,
-    clock: createControlledClock({ initialTime: 0 }),
+    clock,
     narrate: () => undefined,
     runtime,
     runnerIdPrefix: "test",
