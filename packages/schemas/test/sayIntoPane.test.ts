@@ -75,7 +75,7 @@ describe("isPersonSaid / parts/person-said.json (the event@v9 person-said)", () 
   });
 });
 
-describe("position@v1: heard and an open question's because, produced by the real positionOf", () => {
+describe("position@v2: heard and an open question's because, produced by the real positionOf", () => {
   const document = unwrap(
     loadGraphDocumentText(
       ["interlock: graph@v0", "id: g", "nodes:", "  - id: a", ""].join("\n"),
@@ -122,7 +122,7 @@ describe("position@v1: heard and an open question's because, produced by the rea
     const attempt = position.nodes[0]?.attempts[0];
     expect(attempt?.heard).toEqual({ by: "Rodrigo Sasaki", text: "yes", at: now });
     expect(attempt?.asking?.asked).toBeNull();
-    expect(valid("position@v1", position)).toBe(true);
+    expect(valid("position@v2", position)).toBe(true);
   });
 
   it("validates an open question that says its answer's delivery is uncertain", () => {
@@ -131,6 +131,6 @@ describe("position@v1: heard and an open question's because, produced by the rea
     expect(attempt).not.toHaveProperty("heard");
     expect(attempt?.asking?.asked).toBe("Merge now?");
     expect(attempt?.asking?.because).toContain("is not known to have reached the pane");
-    expect(valid("position@v1", position)).toBe(true);
+    expect(valid("position@v2", position)).toBe(true);
   });
 });

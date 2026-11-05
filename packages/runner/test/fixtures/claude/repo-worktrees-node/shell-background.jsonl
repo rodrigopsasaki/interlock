@@ -1,0 +1,4 @@
+{"type": "user", "sessionId": "session", "message": {"role": "user", "content": "This is an interlock session for node n."}}
+{"type": "permission-mode", "permissionMode": "bypassPermissions", "sessionId": "session"}
+{"type": "assistant", "sessionId": "session", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "toolu_sh", "name": "Bash", "input": {"command": "pnpm test", "run_in_background": true}}]}}
+{"type": "user", "sessionId": "session", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "toolu_sh", "content": "Command running in background with ID: b7"}]}, "toolUseResult": {"stdout": "", "stderr": "", "interrupted": false, "backgroundTaskId": "b7"}}

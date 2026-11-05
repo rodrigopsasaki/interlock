@@ -27,7 +27,7 @@ function git(args: readonly string[], cwd: string): void {
 }
 
 describe("sharedJournalDirectory", () => {
-  it("resolves the same path from every worktree of one repository", () => {
+  it("resolves the same path from every worktree of one repository", async () => {
     directory = mkdtempSync(join(runsRoot, "repo-"));
     git(["-c", "init.defaultBranch=main", "init", "--quiet"], directory);
     git(
@@ -38,8 +38,8 @@ describe("sharedJournalDirectory", () => {
     const worktree = join(directory, "second-worktree");
     git(["worktree", "add", "--quiet", "-b", "second", worktree], directory);
 
-    const fromMainWorktree = sharedJournalDirectory(directory);
-    const fromSecondWorktree = sharedJournalDirectory(worktree);
+    const fromMainWorktree = await sharedJournalDirectory(directory);
+    const fromSecondWorktree = await sharedJournalDirectory(worktree);
 
     expect(fromSecondWorktree).toBe(fromMainWorktree);
     expect(fromMainWorktree).toBe(join(directory, ".interlock", "ledger"));

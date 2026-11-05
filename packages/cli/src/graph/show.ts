@@ -2,6 +2,7 @@ import { relative } from "node:path";
 import { type Clock, createSystemClock } from "@phyxiusjs/clock";
 import { isErr } from "@phyxiusjs/fp";
 import {
+  clearedHeadsOf,
   explainGraphRefusal,
   findRepoRoot,
   graphFilePath,
@@ -48,7 +49,7 @@ export async function runGraphShow(
     return { exitCode: 1, message: explainGraphRefusal(document.error) };
   }
 
-  const journal = sharedJournalDirectory(repoRoot);
+  const journal = await sharedJournalDirectory(repoRoot);
   const replayed = await readReplay(journal);
   if (isErr(replayed)) {
     return {
@@ -70,13 +71,16 @@ export async function runGraphShow(
     options.runtime,
   );
 
+  const landed = await mainLineReader(repoRoot).read(
+    clearedHeadsOf(document.value, replayed.value),
+  );
   const position = positionOf(
     document.value,
     replayed.value,
     contentHash.value,
     nowWallMs,
     (session) => statuses.get(session),
-    mainLineReader(repoRoot),
+    landed,
   );
 
   return {

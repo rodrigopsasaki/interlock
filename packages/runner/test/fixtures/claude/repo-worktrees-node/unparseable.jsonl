@@ -1,0 +1,2 @@
+{"type": "user", "sessionId": "session", "message": {"role": "user", "content": "This is an interlock session for node n."}}
+{not json

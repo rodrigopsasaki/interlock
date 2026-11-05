@@ -94,7 +94,7 @@ async function openLedger(cwd: string): Promise<Ledger> {
   return unwrap(
     await createLedger({
       clock: createControlledClock({ initialTime: 0 }),
-      directory: sharedJournalDirectory(cwd),
+      directory: await sharedJournalDirectory(cwd),
     }),
   );
 }
@@ -414,7 +414,7 @@ describe("interlock evidence", () => {
     if (isErr(unchanged)) throw new Error("expected unchanged judgment to clear");
     await ledger.close();
 
-    const raw = unwrap(await readRawEvents(sharedJournalDirectory(dir)));
+    const raw = unwrap(await readRawEvents(await sharedJournalDirectory(dir)));
     const filings = raw.filter((event) => isDebriefFiledForSession(event, "s1"));
     const notes = raw.filter((event) => event.kind === "note-appended" && event.session === "s1");
     expect(filings).toHaveLength(2);

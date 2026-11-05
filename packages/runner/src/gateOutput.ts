@@ -119,7 +119,7 @@ export async function retainGateOutput(
   stderr: Buffer,
 ): Promise<Result<GateOutputReference, GateOutputRefusal>> {
   try {
-    return await storeGateOutput(sharedJournalDirectory(worktree), stdout, stderr);
+    return await storeGateOutput(await sharedJournalDirectory(worktree), stdout, stderr);
   } catch (cause) {
     return err(storageRefusal("resolve shared journal", cause));
   }

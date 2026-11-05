@@ -40,12 +40,23 @@ export {
 } from "./frameRender.ts";
 export { listGraphIds } from "./graphs.ts";
 export { HELP_TEXT } from "./helpText.ts";
-export type { ClearedHead, Landed, LandedBy, LandedReader } from "./landed.ts";
-export { clearedHeadOf, landedOf, mainLineReader } from "./landed.ts";
+export type { ClearedHead, Judged, Landed, LandedBy, LandedReader } from "./landed.ts";
+export { clearedHeadOf, judgeLanded, landedOf } from "./landed.ts";
+export type { CachedLanded, LandedKey, RecordedBase } from "./landedCache.ts";
+export {
+  LANDED_CACHE_FILE,
+  LANDED_CACHE_VERSION,
+  landedCachePath,
+  readLandedCache,
+} from "./landedCache.ts";
 export type { LeaseState } from "./leaseState.ts";
 export { leaseStateOf, renderAgo } from "./leaseState.ts";
 export type { PositionLine } from "./line.ts";
 export { renderLine } from "./line.ts";
+export type { GitRun, GitRunner, MainSnapshot } from "./mainLine.ts";
+export { boundedGit, GIT_CHILDREN_BOUND, spawnedGit } from "./mainLine.ts";
+export type { MainLineOptions, MainLineReader } from "./mainLineReader.ts";
+export { mainLineReader } from "./mainLineReader.ts";
 export type { JournalFact, Moment } from "./moment.ts";
 export type { NodeRow } from "./nodeRow.ts";
 export { isLiveAttempt, nodeRowsOf } from "./nodeRow.ts";
@@ -57,7 +68,7 @@ export type {
   Position,
   PositionNode,
 } from "./position.ts";
-export { approvalState, POSITION_SHAPE, positionOf } from "./position.ts";
+export { approvalState, clearedHeadsOf, POSITION_SHAPE, positionOf } from "./position.ts";
 export type { PositionGate, PositionGateState } from "./positionGate.ts";
 export { positionGate } from "./positionGate.ts";
 export type { ReceiptSummary } from "./receiptSummary.ts";

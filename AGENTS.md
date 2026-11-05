@@ -97,6 +97,9 @@ a `gap`, recorded with the nearest term and the difference.
 | mandate | A pre-ratified grant to act: who granted it, which action kind, in which context, until when, why. Never blanket. |
 | gap | An ask or debrief phrase that maps to no term. Telemetry, not belief. |
 | approved | The graph-level human gate whose receipt is content-addressed to the graph file. Its state is approved, stale since the file changed, or not approved. |
+| drafted | A graph a planner wrote that no person has approved yet. |
+| waiting | Standing still until something outside the node moves: a person, an upstream node, a gate. |
+| approval | The act of a person passing the approved gate, and the receipt it leaves. |
 
 ## Seams, and the first thing through each
 

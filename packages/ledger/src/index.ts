@@ -131,8 +131,15 @@ export {
 } from "./replay.ts";
 export type { NodeRole } from "./role.ts";
 export { isNodeRole, NODE_ROLES, parseNodeRole } from "./role.ts";
-export type { Session, SessionRuntime } from "./session.ts";
-export { isSession, isSessionRuntime, sessionRuntime } from "./session.ts";
+export type { Session, SessionRuntime, SessionStartedAt } from "./session.ts";
+export {
+  isEpochMs,
+  isSession,
+  isSessionRuntime,
+  sessionRuntime,
+  sessionStartedAt,
+  UNRECORDED_START,
+} from "./session.ts";
 export type {
   DeliveryBasis,
   Known,

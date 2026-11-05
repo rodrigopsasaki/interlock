@@ -35,7 +35,7 @@ describe("graph@v0: node role", () => {
   });
 });
 
-describe("position@v1: node role, produced by the real positionOf", () => {
+describe("position@v2: node role, produced by the real positionOf", () => {
   it("validates a position whose node carries a role beside one that names none", () => {
     const document = unwrap(
       loadGraphDocumentText(
@@ -58,9 +58,9 @@ describe("position@v1: node role, produced by the real positionOf", () => {
     ]);
     const position = positionOf(document, projection, "content-hash", Date.now());
     expect(position.nodes.map((node) => node.role)).toEqual(["reviewer", undefined]);
-    expect(valid("position@v1", position)).toBe(true);
+    expect(valid("position@v2", position)).toBe(true);
     expect(
-      valid("position@v1", { ...position, nodes: [{ ...position.nodes[0], role: "worker" }] }),
+      valid("position@v2", { ...position, nodes: [{ ...position.nodes[0], role: "worker" }] }),
     ).toBe(false);
   });
 });

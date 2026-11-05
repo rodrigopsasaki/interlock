@@ -3,10 +3,15 @@ import { type Clock, createSystemClock } from "@phyxiusjs/clock";
 import { err, isErr, type Result } from "@phyxiusjs/fp";
 import {
   type AgentStatus,
+  boundedGit,
+  clearedHeadsOf,
   explainGraphRefusal,
   findRepoRoot,
+  type GitRunner,
+  type GraphDocument,
   graphFilePath,
   isNodeRole,
+  type LandedReader,
   listGraphIds,
   loadGraphDocument,
   mainLineReader,
@@ -24,14 +29,24 @@ import {
   readReplay,
   receiptId,
   type SessionRuntime,
+  type SessionStartedAt,
   type SessionView,
 } from "ledger";
-import type { Runtime } from "runner";
-import { resolveAgentStatuses } from "./herdrStatus.ts";
+import {
+  createHerdrRuntime,
+  explainRuntimeRefusal,
+  observeRuntime,
+  type PaneFact,
+  type Runtime,
+  type RuntimeObservation,
+  unobservedAttempt,
+} from "runner";
 import type { CommandResult } from "./main.ts";
 import { gitOrigin, repositoryForOrigin } from "./repositoryOrigin.ts";
 
-export const POSITIONS_SHAPE = "positions@v0";
+export const POSITIONS_SHAPE = "positions@v1";
+export const POSITIONS_V0_SHAPE = "positions@v0";
+export const UNRECORDED_IN_V0 = "a positions@v0 read does not record this fact";
 
 export type GraphRead =
   | { readonly graph: string; readonly state: "read"; readonly position: Position }
@@ -44,7 +59,11 @@ export interface LiveAttempt {
   readonly role?: NodeRole;
   readonly runtime: SessionRuntime;
   readonly agentStatus: AgentStatus;
+  readonly pane: PaneFact;
+  readonly startedAt: SessionStartedAt;
 }
+
+export type LiveAttemptV0 = Omit<LiveAttempt, "pane" | "startedAt">;
 
 export type RepositoryOrigin =
   | {
@@ -83,9 +102,42 @@ export interface Positions {
   readonly repositories: readonly RepositoryPosition[];
 }
 
+type ReadRepository = Extract<RepositoryPosition, { readonly live: readonly LiveAttempt[] }>;
+
+export type RepositoryPositionV0 =
+  | Exclude<RepositoryPosition, ReadRepository>
+  | (Omit<ReadRepository, "live"> & { readonly live: readonly LiveAttemptV0[] });
+
+export interface PositionsV0 {
+  readonly interlock: typeof POSITIONS_V0_SHAPE;
+  readonly repositories: readonly RepositoryPositionV0[];
+}
+
+export function upcastPositionsV0(read: PositionsV0): Positions {
+  const unrecorded: { readonly state: "unknown"; readonly because: string } = {
+    state: "unknown",
+    because: UNRECORDED_IN_V0,
+  };
+  return {
+    interlock: POSITIONS_SHAPE,
+    repositories: read.repositories.map((repository) =>
+      !("live" in repository)
+        ? repository
+        : {
+            ...repository,
+            live: repository.live.map((attempt) => ({
+              ...attempt,
+              pane: unrecorded,
+              startedAt: unrecorded,
+            })),
+          },
+    ),
+  };
+}
+
 async function readJournal(repoRoot: string): Promise<Result<LedgerProjection, JournalRefusal>> {
   try {
-    const journal = sharedJournalDirectory(repoRoot);
+    const journal = await sharedJournalDirectory(repoRoot);
     const replayed = await readReplay(journal);
     if (isErr(replayed)) {
       return err({
@@ -112,44 +164,51 @@ async function originOf(repoRoot: string): Promise<RepositoryOrigin | undefined>
   };
 }
 
-async function agentStatusesOf(
-  live: readonly SessionView[],
-  runtime: Runtime | undefined,
-): Promise<ReadonlyMap<string, AgentStatus>> {
-  const statuses = new Map<string, AgentStatus>();
-  const graphIds = new Set(live.map((session) => session.node.graph));
-  for (const graphId of graphIds) {
-    const resolved = await resolveAgentStatuses(
-      graphId,
-      live.filter((session) => session.node.graph === graphId),
-      runtime,
-    );
-    for (const [session, status] of resolved) statuses.set(session, status);
-  }
-  return statuses;
-}
-
-function liveAttemptOf(
-  session: SessionView,
-  statuses: ReadonlyMap<string, AgentStatus>,
-): LiveAttempt {
+function liveAttemptOf(session: SessionView, observation: RuntimeObservation): LiveAttempt {
+  const observed = observation.attempt({
+    graph: session.node.graph,
+    node: session.node.id,
+    session: session.session,
+  });
   return {
     graph: session.node.graph,
     node: session.node.id,
     session: session.session,
     ...(isNodeRole(session.brief.role) ? { role: session.brief.role } : {}),
     runtime: session.runtime,
-    agentStatus: statuses.get(session.session) ?? "unknown",
+    agentStatus: observed.agentStatus,
+    pane: observed.pane,
+    startedAt: session.startedAt,
   };
 }
 
-async function graphRead(
-  repoRoot: string,
-  graphId: string,
-  projection: LedgerProjection,
-  nowWallMs: number,
-  statuses: ReadonlyMap<string, AgentStatus>,
-): Promise<GraphRead> {
+function sharedObservation(injected: Runtime | undefined): () => Promise<RuntimeObservation> {
+  let observed: Promise<RuntimeObservation> | undefined;
+  const observe = async (): Promise<RuntimeObservation> => {
+    if (injected !== undefined) return observeRuntime(injected);
+    const created = await createHerdrRuntime();
+    if (isErr(created)) {
+      const because = `the runtime is unavailable: ${explainRuntimeRefusal(created.error)}`;
+      return { attempt: () => unobservedAttempt(because) };
+    }
+    return observeRuntime(created.value);
+  };
+  return () => {
+    observed ??= observe();
+    return observed;
+  };
+}
+
+type GraphLoad =
+  | {
+      readonly graph: string;
+      readonly state: "loaded";
+      readonly document: GraphDocument;
+      readonly contentHash: string;
+    }
+  | { readonly graph: string; readonly state: "unreadable"; readonly because: string };
+
+async function graphLoad(repoRoot: string, graphId: string): Promise<GraphLoad> {
   const path = graphFilePath(repoRoot, graphId);
   const document = await loadGraphDocument(path);
   if (isErr(document)) {
@@ -161,22 +220,39 @@ async function graphRead(
   }
   return {
     graph: graphId,
+    state: "loaded",
+    document: document.value,
+    contentHash: contentHash.value,
+  };
+}
+
+function graphRead(
+  load: GraphLoad,
+  projection: LedgerProjection,
+  nowWallMs: number,
+  live: readonly LiveAttempt[],
+  landed: LandedReader,
+): GraphRead {
+  if (load.state === "unreadable") return load;
+  return {
+    graph: load.graph,
     state: "read",
     position: positionOf(
-      document.value,
+      load.document,
       projection,
-      contentHash.value,
+      load.contentHash,
       nowWallMs,
-      (session) => statuses.get(session),
-      mainLineReader(repoRoot),
+      (session) => live.find((attempt) => attempt.session === session)?.agentStatus,
+      landed,
     ),
   };
 }
 
 async function repositoryPosition(
   asked: string,
-  runtime: Runtime | undefined,
+  observation: () => Promise<RuntimeObservation>,
   nowWallMs: number,
+  git: GitRunner,
 ): Promise<RepositoryPosition> {
   const root = findRepoRoot(asked);
   if (root === undefined) {
@@ -213,16 +289,22 @@ async function repositoryPosition(
   const live = [...projection.sessions.values()].filter((session) =>
     leaseIsLive(session, nowWallMs),
   );
-  const statuses = await agentStatusesOf(live, runtime);
-  const graphs: GraphRead[] = [];
-  for (const graphId of graphIds) {
-    graphs.push(await graphRead(root, graphId, projection, nowWallMs, statuses));
-  }
+  const observed = live.length === 0 ? undefined : await observation();
+  const attempts =
+    observed === undefined ? [] : live.map((session) => liveAttemptOf(session, observed));
+  const loads: GraphLoad[] = [];
+  for (const graphId of graphIds) loads.push(await graphLoad(root, graphId));
+  const landed = await mainLineReader(root, { git }).read(
+    loads.flatMap((load) =>
+      load.state === "loaded" ? clearedHeadsOf(load.document, projection) : [],
+    ),
+  );
+  const graphs = loads.map((load) => graphRead(load, projection, nowWallMs, attempts, landed));
   return {
     ...found,
     journal: { state: "read" },
     graphs,
-    live: live.map((session) => liveAttemptOf(session, statuses)),
+    live: attempts,
   };
 }
 
@@ -232,9 +314,11 @@ export async function positionsOf(
   clock: Clock,
 ): Promise<Positions> {
   const nowWallMs = clock.now().wallMs;
+  const git = boundedGit();
+  const observation = sharedObservation(runtime);
   const repositories: RepositoryPosition[] = [];
   for (const path of asked) {
-    repositories.push(await repositoryPosition(path, runtime, nowWallMs));
+    repositories.push(await repositoryPosition(path, observation, nowWallMs, git));
   }
   return { interlock: POSITIONS_SHAPE, repositories };
 }

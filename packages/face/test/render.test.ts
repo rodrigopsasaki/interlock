@@ -170,7 +170,7 @@ describe("renderPosition", () => {
     const observed = renderPosition(positionOf(document, fold([]), "hash", Date.now()));
     expect(observed.split("\n").slice(0, 2)).toEqual([
       "graph demo — not approved",
-      "  human gate approved pending at demo",
+      "  Drafted and waiting for your approval.",
     ]);
 
     const now = Date.parse("2026-11-05T12:00:00Z");

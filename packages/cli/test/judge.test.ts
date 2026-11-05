@@ -135,6 +135,16 @@ function stubRuntime(): Runtime {
     sendKeys: () => Promise.resolve(ok(undefined)),
     sendPaneKeys: () => Promise.resolve(ok(undefined)),
     closePane: () => Promise.resolve(ok(undefined)),
+    observe: () =>
+      Promise.resolve(
+        ok({
+          attempt: () => ({
+            agentStatus: "idle",
+            pane: { state: "known", address: "pane-1" },
+            liveWork: () => Promise.resolve({ state: "none" }),
+          }),
+        }),
+      ),
   };
 }
 
@@ -406,7 +416,7 @@ describe("interlock judge", () => {
     const later = unwrap(
       await createLedger({
         clock: createControlledClock({ initialTime: 100_000 }),
-        directory: sharedJournalDirectory(cwd),
+        directory: await sharedJournalDirectory(cwd),
       }),
     );
     later.append({

@@ -42,3 +42,20 @@ export function isSession(value: unknown): value is Session {
     isSessionRuntime(prop(value, "runtime"))
   );
 }
+
+export type SessionStartedAt =
+  | { readonly state: "known"; readonly epochMs: number }
+  | { readonly state: "unknown"; readonly because: string };
+
+export const UNRECORDED_START =
+  "its session-started event records no start time, as a historical or backfilled session's does not";
+
+export function isEpochMs(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+}
+
+export function sessionStartedAt(epochMs: number | undefined): SessionStartedAt {
+  return epochMs === undefined
+    ? { state: "unknown", because: UNRECORDED_START }
+    : { state: "known", epochMs };
+}

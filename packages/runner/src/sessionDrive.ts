@@ -26,11 +26,10 @@ import { recordQuestionNotes } from "./questionNotes.ts";
 import type { RoleShape } from "./roleShape.ts";
 import {
   type Agent,
-  type AgentStatus,
   explainRuntimeRefusal,
+  observeRuntime,
   type Pane,
   type Runtime,
-  type RuntimeRefusal,
 } from "./runtime.ts";
 import type { ResolvedRuntime } from "./runtimeCatalogue.ts";
 import { gitTrackedFiles } from "./scope.ts";
@@ -162,7 +161,7 @@ export async function driveInteractiveSession(
   let paneCustody: "runner" | "person" = "runner";
 
   try {
-    const requestedGraphBaseSha = currentCommitSha(repoRoot);
+    const requestedGraphBaseSha = await currentCommitSha(repoRoot);
     const targetNode = { graph, id: node };
 
     const worktreePath = join(repoRoot, localConfig.worktreeRoot, node);
@@ -196,6 +195,7 @@ export async function driveInteractiveSession(
       brief,
       graphBaseSha,
       ...(shape === undefined ? {} : { walk: shape.walk }),
+      startedAt: clock.now().wallMs,
     });
     narrate = recordingNarrate(ledger, clock, sessionId, narrate);
 
@@ -409,24 +409,28 @@ export async function driveInteractiveSession(
         : { uncommittedPaths: dirtyCount, debriefMissing };
     };
 
-    let waited: Result<AgentStatus, RuntimeRefusal>;
+    const observing = runtime;
+    const identity = { graph, node, session: sessionId };
+    const observe = async () => (await observeRuntime(observing)).attempt(identity);
     if (delivery.kind === "abandoned") {
-      waited = ok("idle");
+      narrate("judging the abandoned delivery once the agent's work is shown finished");
     } else {
       narrate(`waiting for idle, blocked or done (timeout ${localConfig.runTimeoutMs}ms)`);
-      const deadline = deadlineFrom(clock.now().monoMs, ms(localConfig.runTimeoutMs));
-      waited = await waitForSession(
-        runtime,
-        agent,
-        clock,
-        deadline,
-        localConfig.runTimeoutMs,
-        localConfig.answerGraceMs,
-        narrate,
-        readUnfinishedWork,
-        () => recordQuestionNotes(ledger, sessionId, worktreePath, targetNode),
-      );
     }
+    const deadline = deadlineFrom(clock.now().monoMs, ms(localConfig.runTimeoutMs));
+    const waited = await waitForSession(
+      runtime,
+      agent,
+      observe,
+      clock,
+      deadline,
+      localConfig.runTimeoutMs,
+      localConfig.answerGraceMs,
+      narrate,
+      readUnfinishedWork,
+      () => recordQuestionNotes(ledger, sessionId, worktreePath, targetNode),
+      delivery.kind === "abandoned" ? { alreadySettled: "idle" } : {},
+    );
     lease.stop();
     if (isErr(waited)) {
       const result = refuse("wait", explainRuntimeRefusal(waited.error));
@@ -445,7 +449,7 @@ export async function driveInteractiveSession(
       narrate(`agent screen: ${lastNonEmptyLine(screenRead.value) ?? "(no output)"}`);
     };
 
-    const personEventsRead = await readRawEvents(sharedJournalDirectory(repoRoot));
+    const personEventsRead = await readRawEvents(await sharedJournalDirectory(repoRoot));
 
     if (beforeJudge !== undefined) {
       const preCheck = await beforeJudge(worktreePath);

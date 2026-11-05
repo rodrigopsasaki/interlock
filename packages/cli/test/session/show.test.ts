@@ -36,7 +36,7 @@ async function openLedger(cwd: string): Promise<Ledger> {
   return unwrap(
     await createLedger({
       clock: createControlledClock({ initialTime: 0 }),
-      directory: sharedJournalDirectory(cwd),
+      directory: await sharedJournalDirectory(cwd),
     }),
   );
 }

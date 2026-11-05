@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { BRIEF_V1, type BriefFrontMatter } from "debrief";
 import { stringify } from "yaml";
+import { ACCEPTANCE_TITLE, hasAcceptanceSection } from "./acceptanceSection.ts";
 
 function gateRecord(gate: BriefFrontMatter["gates"][number]): Record<string, string> {
   return {
@@ -46,9 +47,13 @@ export function renderOpeningView(
         }),
     canonical_path: canonicalPath,
   };
+  const acceptanceAuthority = hasAcceptanceSection(body)
+    ? `The "${ACCEPTANCE_TITLE}" section is authoritative over acceptance text elsewhere in the authored prose.\n\n`
+    : "";
   return (
     `Prompt projection, not a brief file. It deliberately omits scope entries, is not a valid persisted brief, and must not replace the canonical file. ` +
     `The canonical brief remains binding; the full inventory is available on demand at ${canonicalPath}.\n\n` +
+    acceptanceAuthority +
     `---\n${stringify(fields)}---\n${body}`
   );
 }

@@ -72,7 +72,7 @@ async function seed(cwd: string, events: readonly LedgerEvent[]): Promise<void> 
   const ledger = unwrap(
     await createLedger({
       clock: createControlledClock({ initialTime: now }),
-      directory: sharedJournalDirectory(cwd),
+      directory: await sharedJournalDirectory(cwd),
     }),
   );
   for (const event of events) ledger.append(event);
@@ -117,8 +117,8 @@ function paneRuntime(
   };
 }
 
-function journalKinds(cwd: string): readonly string[] {
-  return readFileSync(join(sharedJournalDirectory(cwd), "journal.jsonl"), "utf-8")
+async function journalKinds(cwd: string): Promise<readonly string[]> {
+  return readFileSync(join(await sharedJournalDirectory(cwd), "journal.jsonl"), "utf-8")
     .trim()
     .split("\n")
     .map((line): unknown => JSON.parse(line))
@@ -128,7 +128,7 @@ function journalKinds(cwd: string): readonly string[] {
 }
 
 async function attemptAt(cwd: string, status: "blocked" | "working" = "blocked") {
-  const replayed = await readReplay(sharedJournalDirectory(cwd));
+  const replayed = await readReplay(await sharedJournalDirectory(cwd));
   if (isErr(replayed)) throw new Error("expected the journal to replay");
   return attemptsFor("demo", "a", replayed.value, now, () => status)[0];
 }
@@ -149,7 +149,10 @@ describe("session say", () => {
       message: "demo/a: Rodrigo Sasaki's words reached session session-1.",
     });
     expect(prompted).toEqual([{ agent, text: "build on main" }]);
-    expect(journalKinds(cwd).slice(-2)).toEqual(["person-said", "outbox-delivery-recorded"]);
+    expect((await journalKinds(cwd)).slice(-2)).toEqual([
+      "person-said",
+      "outbox-delivery-recorded",
+    ]);
     const attempt = await attemptAt(cwd, "working");
     expect(attempt?.heard).toEqual({ by: "Rodrigo Sasaki", text: "build on main", at: now });
   });
@@ -158,9 +161,9 @@ describe("session say", () => {
     const cwd = fixture();
     await seed(cwd, liveAttempt(now + 60_000));
     let kindsAtDelivery: readonly string[] = [];
-    const runtime = paneRuntime([], () => {
-      kindsAtDelivery = journalKinds(cwd);
-      return Promise.resolve(ok(undefined));
+    const runtime = paneRuntime([], async () => {
+      kindsAtDelivery = await journalKinds(cwd);
+      return ok(undefined);
     });
 
     await runSessionSay(["demo", "a", "go on", "--by", "Rodrigo Sasaki"], {
@@ -170,7 +173,7 @@ describe("session say", () => {
     });
 
     expect(kindsAtDelivery.at(-1)).toBe("person-said");
-    const replayed = unwrap(await readReplay(sharedJournalDirectory(cwd)));
+    const replayed = unwrap(await readReplay(await sharedJournalDirectory(cwd)));
     const said = replayed.sessions.get("session-1")?.said ?? [];
     expect(said).toHaveLength(1);
     expect(said[0]?.said.id).toMatch(/^[a-f0-9]{64}$/);
@@ -181,7 +184,7 @@ describe("session say", () => {
   it("refuses with a sentence when the node has no live attempt, recording nothing", async () => {
     const cwd = fixture();
     await seed(cwd, liveAttempt(now - 1));
-    const before = journalKinds(cwd);
+    const before = await journalKinds(cwd);
     const prompted: Prompted[] = [];
 
     const result = await runSessionSay(["demo", "a", "go on", "--by", "Rodrigo Sasaki"], {
@@ -195,13 +198,13 @@ describe("session say", () => {
       message: "demo/a: no live attempt to say it to; nothing was said or recorded.",
     });
     expect(prompted).toEqual([]);
-    expect(journalKinds(cwd)).toEqual(before);
+    expect(await journalKinds(cwd)).toEqual(before);
   });
 
   it("refuses with a sentence when the pane can't be found, recording nothing", async () => {
     const cwd = fixture();
     await seed(cwd, liveAttempt(now + 60_000));
-    const before = journalKinds(cwd);
+    const before = await journalKinds(cwd);
 
     const result = await runSessionSay(["demo", "a", "go on", "--by", "Rodrigo Sasaki"], {
       cwd,
@@ -214,7 +217,7 @@ describe("session say", () => {
       message:
         "demo/a: the pane for session session-1 can't be found (no pane reports session session-1); nothing was said or recorded.",
     });
-    expect(journalKinds(cwd)).toEqual(before);
+    expect(await journalKinds(cwd)).toEqual(before);
   });
 
   it("refuses with a sentence when --by is missing", async () => {
@@ -252,7 +255,10 @@ describe("session say", () => {
       message:
         "demo/a: Rodrigo Sasaki's words were recorded but their delivery is uncertain (agent_blocked: agent is blocked); the question stays open.",
     });
-    expect(journalKinds(cwd).slice(-2)).toEqual(["person-said", "outbox-delivery-recorded"]);
+    expect((await journalKinds(cwd)).slice(-2)).toEqual([
+      "person-said",
+      "outbox-delivery-recorded",
+    ]);
     const attempt = await attemptAt(cwd);
     expect(attempt).not.toHaveProperty("heard");
     expect(attempt?.asking).toEqual({
@@ -277,7 +283,7 @@ describe("session say", () => {
       }),
     ).rejects.toThrow("the process died here");
 
-    expect(journalKinds(cwd).at(-1)).toBe("person-said");
+    expect((await journalKinds(cwd)).at(-1)).toBe("person-said");
     const attempt = await attemptAt(cwd);
     expect(attempt).not.toHaveProperty("heard");
     expect(attempt?.asking).toEqual({
@@ -304,7 +310,7 @@ describe("session say", () => {
       message:
         "demo/a: Rodrigo Sasaki's words reached session session-1, answering its question at 2026-11-05T03:50:00Z.",
     });
-    const replayed = unwrap(await readReplay(sharedJournalDirectory(cwd)));
+    const replayed = unwrap(await readReplay(await sharedJournalDirectory(cwd)));
     expect(replayed.sessions.get("session-1")?.said[0]?.said.answers).toEqual({
       at: question.at,
       asked: question.asked,
@@ -349,7 +355,7 @@ describe("session say", () => {
     const first = await attemptAt(cwd);
 
     const reopened = unwrap(
-      await createLedger({ clock: clock(), directory: sharedJournalDirectory(cwd) }),
+      await createLedger({ clock: clock(), directory: await sharedJournalDirectory(cwd) }),
     );
     const projection = reopened.projection();
     await reopened.close();

@@ -155,6 +155,8 @@ function landedWords(landed: Landed | undefined): string {
       return "not on main";
     case "reverted-on-main":
       return "reverted on main";
+    case "partly-reverted-on-main":
+      return "partly reverted on main";
     case "unknown":
     case undefined:
       return "on main unknown";
@@ -172,7 +174,7 @@ export function observedText(standing: Standing): string {
     case "approval":
       return standing.approval === "stale"
         ? `human gate approved stale at ${standing.graph}`
-        : `human gate approved pending at ${standing.graph}`;
+        : "Drafted and waiting for your approval.";
     case "person-gate":
       return `human gate ${standing.gate} pending at ${standing.node}`;
     case "ready":

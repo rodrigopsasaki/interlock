@@ -1,8 +1,16 @@
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { isErr, isOk } from "@phyxiusjs/fp";
-import { defaultRoleTable, type Item, readBriefFile } from "debrief";
+import { defaultRoleTable, type Item, readBriefDocument, readBriefFile } from "debrief";
 import {
   explainGraphRefusal,
   type GateDeclaration,
@@ -12,12 +20,15 @@ import {
 } from "face";
 import { noneClient, type SubstrateClient } from "substrate";
 import { afterEach, describe, expect, it } from "vitest";
+import { reconcileAcceptanceSection } from "../src/acceptanceSection.ts";
+import { renderBriefFile } from "../src/briefRewrite.ts";
 import { contextSlice, contextSliceOf, withRenderedContextSlice } from "../src/contextSlice.ts";
 import { buildOpeningPrompt } from "../src/openingPrompt.ts";
 import { roleShapeFor } from "../src/roleShape.ts";
 import {
   briefPath,
   buildBrief,
+  type DeclaredNode,
   explainSessionBriefRefusal,
   writeBriefIntoWorktree,
 } from "../src/sessionBrief.ts";
@@ -60,6 +71,7 @@ const standing: readonly StandingGate[] = [
 const nodeGates: readonly GateDeclaration[] = [
   { id: "own-gate", kind: "command", run: "pnpm test" },
 ];
+const declared: DeclaredNode = { acceptance: "do the work", gates: nodeGates };
 
 const v1WithMatchingGatesAndScope = [
   "---",
@@ -83,6 +95,10 @@ const v1WithMatchingGatesAndScope = [
   "",
   "# brief",
   "",
+  "## Acceptance (verbatim from the graph)",
+  "",
+  "> do the work",
+  "",
 ].join("\n");
 
 describe("writeBriefIntoWorktree", () => {
@@ -96,7 +112,7 @@ describe("writeBriefIntoWorktree", () => {
       "a".repeat(40),
       "session-1",
       standing,
-      nodeGates,
+      declared,
       substrate,
     );
     expect(isErr(result)).toBe(true);
@@ -117,7 +133,7 @@ describe("writeBriefIntoWorktree", () => {
       sha,
       "session-1",
       standing,
-      nodeGates,
+      declared,
       substrate,
     );
     expect(isOk(result)).toBe(true);
@@ -170,7 +186,7 @@ describe("writeBriefIntoWorktree", () => {
       "b".repeat(40),
       "session-1",
       standing,
-      nodeGates,
+      declared,
       capturedSubstrate,
     );
     expect(isOk(result)).toBe(true);
@@ -211,7 +227,7 @@ describe("writeBriefIntoWorktree", () => {
       "b".repeat(40),
       "session-1",
       standing,
-      nodeGates,
+      declared,
       countedSubstrate,
     );
     expect(isErr(result)).toBe(true);
@@ -244,7 +260,7 @@ describe("writeBriefIntoWorktree", () => {
       "b".repeat(40),
       "session-1",
       standing,
-      nodeGates,
+      declared,
       countedSubstrate,
     );
     expect(isErr(result)).toBe(true);
@@ -273,7 +289,7 @@ describe("writeBriefIntoWorktree", () => {
       "b".repeat(40),
       "session-1",
       standing,
-      nodeGates,
+      declared,
       capturedSubstrate,
     );
     expect(isOk(result)).toBe(true);
@@ -294,7 +310,7 @@ describe("writeBriefIntoWorktree", () => {
       "b".repeat(40),
       "session-1",
       standing,
-      nodeGates,
+      declared,
       substrate,
     );
     expect(isOk(result)).toBe(true);
@@ -316,7 +332,7 @@ describe("writeBriefIntoWorktree", () => {
       "c".repeat(40),
       "session-1",
       standing,
-      nodeGates,
+      declared,
       substrate,
     );
     expect(isOk(result)).toBe(true);
@@ -344,7 +360,7 @@ describe("writeBriefIntoWorktree", () => {
       "d".repeat(40),
       "session-1",
       standing,
-      nodeGates,
+      declared,
       substrate,
     );
     const content = readFileSync(briefPath(worktree, "g", "n"), "utf-8");
@@ -402,6 +418,10 @@ const v1WithContextSliceSection = [
   "## Constraints",
   "",
   "Read-only fixture.",
+  "",
+  "## Acceptance (verbatim from the graph)",
+  "",
+  "> do the work",
   "",
 ].join("\n");
 
@@ -461,7 +481,7 @@ describe("writeBriefIntoWorktree with a substrate that renders a slice", () => {
       "e".repeat(40),
       "session-1",
       standing,
-      nodeGates,
+      declared,
       fakeSubstrateAt("http://fake-substrate.example", [addressedItem, hypothesis]),
     );
     expect(isOk(result)).toBe(true);
@@ -490,7 +510,7 @@ describe("writeBriefIntoWorktree with a substrate that renders a slice", () => {
       "f".repeat(40),
       "session-1",
       standing,
-      nodeGates,
+      declared,
       fakeSubstrateAt("http://fake-substrate.example", []),
     );
     expect(isOk(result)).toBe(true);
@@ -513,7 +533,7 @@ describe("writeBriefIntoWorktree with a substrate that renders a slice", () => {
       "e".repeat(40),
       "session-1",
       standing,
-      nodeGates,
+      declared,
       fakeSubstrateAt("http://fake-substrate.example"),
     );
     expect(isOk(result)).toBe(true);
@@ -546,7 +566,7 @@ describe("writeBriefIntoWorktree with a substrate that renders a slice", () => {
       "f".repeat(40),
       "session-1",
       standing,
-      nodeGates,
+      declared,
       substrate,
     );
     const content = readFileSync(briefPath(worktree, "g", "n"), "utf-8");
@@ -565,7 +585,7 @@ describe("writeBriefIntoWorktree with a substrate that renders a slice", () => {
       "f".repeat(40),
       "session-1",
       standing,
-      nodeGates,
+      declared,
       fakeRefusalAt("http://refused-substrate.example"),
     );
     expect(isOk(result)).toBe(true);
@@ -595,7 +615,7 @@ describe("writeBriefIntoWorktree with a substrate that renders a slice", () => {
       "1".repeat(40),
       "session-1",
       standing,
-      nodeGates,
+      declared,
       fakeSubstrateAt("http://fake-substrate.example", [addressedItem, hypothesis]),
     );
     expect(isOk(result)).toBe(true);
@@ -662,7 +682,7 @@ describe("role supplied by the graph", () => {
       "b".repeat(40),
       "session-1",
       standing,
-      nodeGates,
+      declared,
       client,
       node.role === undefined
         ? undefined
@@ -799,7 +819,7 @@ describe("the role shapes the session's walk", () => {
       "b".repeat(40),
       "session-1",
       standing,
-      nodeGates,
+      declared,
       client,
       shape,
     );
@@ -851,5 +871,152 @@ describe("the role shapes the session's walk", () => {
     expect(again.match(/^## Walk$/gm)).toHaveLength(1);
     expect(again).toContain("This walk is empty");
     expect(again).not.toContain("Ask the substrate at");
+  });
+});
+
+describe("the materialized acceptance follows the graph", () => {
+  const front = v1WithMatchingGatesAndScope.slice(
+    0,
+    v1WithMatchingGatesAndScope.indexOf("---\n\n") + "---\n".length,
+  );
+  const acceptance = "Build the larger spec.\n\n  Keep this indent.\nShip it.\n";
+  const quotedSection = [
+    "## Acceptance (verbatim from the graph)",
+    "",
+    "> Build the larger spec.",
+    ">",
+    ">   Keep this indent.",
+    "> Ship it.",
+    "",
+  ].join("\n");
+  const before = "\n# Brief\n\nAuthored intro that mentions an older acceptance.\n\n";
+  const after = "## Constraints\n\nKeep this paragraph exactly.\n";
+  const shape = roleShapeFor("implementer", defaultRoleTable, "none");
+
+  async function materialize(body: string, node: DeclaredNode = { ...declared, acceptance }) {
+    const { repo, worktree } = fixture(`${front}${body}`);
+    const result = await writeBriefIntoWorktree(
+      repo,
+      worktree,
+      "g",
+      "n",
+      "b".repeat(40),
+      "session-1",
+      standing,
+      node,
+      substrate,
+      shape,
+    );
+    if (!isOk(result)) throw new Error("expected the brief to be written");
+    const read = await readBriefFile(briefPath(worktree, "g", "n"));
+    if (!isOk(read) || read.value.kind !== "v1") throw new Error("expected v1");
+    return {
+      narration: result.value.narration,
+      body: read.value.body,
+      opening: result.value.openingView ?? "",
+    };
+  }
+
+  const acceptanceLines = (narration: readonly string[]) =>
+    narration.filter((line) => line.startsWith("acceptance:"));
+
+  it("retains a matching section byte for byte and narrates no acceptance change", async () => {
+    const { narration, body } = await materialize(`${before}${quotedSection}\n${after}`);
+    expect(acceptanceLines(narration)).toEqual([]);
+    expect(body.startsWith(`${before}${quotedSection}\n${after}`)).toBe(true);
+  });
+
+  it("replaces a stale section, reports it by node, and keeps every outside byte and generated block", async () => {
+    const stale = "## Acceptance (verbatim from the graph)\n\n> Build the smaller, older spec.\n\n";
+    const authored = `${before}${stale}${after}`;
+    const reconciled = reconcileAcceptanceSection(authored, acceptance);
+    expect(reconciled).toEqual({ kind: "replaced", body: `${before}${quotedSection}\n${after}` });
+
+    const { narration, body, opening } = await materialize(authored);
+    expect(acceptanceLines(narration)).toEqual([
+      "acceptance: the repository copy's acceptance for node n differs from the graph's; overwritten.",
+    ]);
+    expect(body.startsWith(`${before}${quotedSection}\n${after}`)).toBe(true);
+    expect(body).not.toContain("smaller, older spec");
+    expect(body).toContain("<!-- interlock: debrief-authoring-guidance@v1:start -->");
+    expect(body).toContain("<!-- interlock: role-walk@v0:start -->");
+    expect(body).toContain("Role: implementer.");
+    expect(opening.endsWith(body)).toBe(true);
+  });
+
+  it("bounds the section at a generated block so that block's transformation is unchanged", () => {
+    const guidance =
+      "<!-- interlock: debrief-authoring-guidance@v1:start -->\n## Debrief authoring\n";
+    const authored = `${before}## Acceptance (verbatim from the graph)\n\n> old\n\n${guidance}`;
+    expect(reconcileAcceptanceSection(authored, acceptance)).toEqual({
+      kind: "replaced",
+      body: `${before}${quotedSection}\n${guidance}`,
+    });
+  });
+
+  it("appends the authoritative section to a brief@v1 without one and reports the addition", async () => {
+    const { narration, body, opening } = await materialize(`${before}${after}`);
+    expect(acceptanceLines(narration)).toEqual([
+      "acceptance: the repository copy has no acceptance section for node n; the runner added the graph's.",
+    ]);
+    expect(body.startsWith(`${before}${after}\n${quotedSection}`)).toBe(true);
+    expect(opening).toContain(
+      'The "Acceptance (verbatim from the graph)" section is authoritative over acceptance text elsewhere in the authored prose.',
+    );
+  });
+
+  it("does not report a whitespace-only difference in quoting", async () => {
+    const loose = [
+      "## Acceptance (verbatim from the graph)\r",
+      "\r",
+      "\r",
+      ">Build the larger spec.\r",
+      "> \r",
+      ">   Keep this indent.\r",
+      "> Ship it.\r",
+      "\r",
+      "  ",
+      "",
+    ].join("\n");
+    const authored = `${before}${loose}${after}`;
+    expect(reconcileAcceptanceSection(authored, acceptance)).toEqual({
+      kind: "retained",
+      body: authored,
+    });
+    const { narration, body } = await materialize(authored);
+    expect(acceptanceLines(narration)).toEqual([]);
+    expect(body.startsWith(authored)).toBe(true);
+  });
+
+  it("treats whitespace belonging to the acceptance as a change", () => {
+    const shifted = quotedSection.replace(">   Keep this indent.", ">  Keep this indent.");
+    expect(reconcileAcceptanceSection(`${before}${shifted}`, acceptance).kind).toBe("replaced");
+  });
+
+  it("keeps every brief in this repository readable, before and after reconciliation", () => {
+    const sessions = join(import.meta.dirname, "..", "..", "..", ".interlock", "sessions");
+    const paths = readdirSync(sessions, { withFileTypes: true })
+      .filter((graph) => graph.isDirectory())
+      .flatMap((graph) =>
+        readdirSync(join(sessions, graph.name), { withFileTypes: true })
+          .filter((node) => node.isDirectory())
+          .map((node) => join(sessions, graph.name, node.name, "brief.md")),
+      )
+      .filter((path) => existsSync(path));
+    expect(paths.length).toBeGreaterThan(0);
+    for (const path of paths) {
+      const raw = readFileSync(path, "utf-8");
+      const read = readBriefDocument(raw, path);
+      expect(isOk(read), path).toBe(true);
+      if (!isOk(read) || read.value.kind !== "v1") continue;
+      const reconciled = reconcileAcceptanceSection(read.value.body, acceptance);
+      const reread = readBriefDocument(
+        renderBriefFile(read.value.frontMatter, reconciled.body),
+        path,
+      );
+      expect(isOk(reread) && reread.value.kind === "v1", path).toBe(true);
+      if (!isOk(reread) || reread.value.kind !== "v1") continue;
+      expect(reread.value.body).toContain(">   Keep this indent.");
+    }
   });
 });

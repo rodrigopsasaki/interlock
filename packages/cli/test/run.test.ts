@@ -131,10 +131,11 @@ const localYaml = [
   "",
 ].join("\n");
 
-// The gates and scope here are engineered to exactly match what the runner will compute as
-// authoritative for the "demo"/"a" fixture below (standing gate "standing" then the node's own
-// "own-gate"; scope is every file the fixture commits), so the happy-path tests below see no
-// gate or scope narration from the rewrite. Tests that add files or gates of their own will.
+// The gates, scope and acceptance here are engineered to exactly match what the runner will
+// compute as authoritative for the "demo"/"a" fixture below (standing gate "standing" then the
+// node's own "own-gate"; scope is every file the fixture commits; the node's acceptance quoted),
+// so the happy-path tests below see no gate, scope or acceptance narration from the rewrite.
+// Tests that add files or gates of their own will.
 const demoBriefV1 = [
   "---",
   "interlock: brief@v1",
@@ -158,6 +159,10 @@ const demoBriefV1 = [
   "---",
   "",
   "# brief",
+  "",
+  "## Acceptance (verbatim from the graph)",
+  "",
+  "> a trivial node",
   "",
 ].join("\n");
 
@@ -265,6 +270,16 @@ function stubRuntime(): Runtime {
     sendKeys: () => Promise.resolve(ok(undefined)),
     sendPaneKeys: () => Promise.resolve(ok(undefined)),
     closePane: () => Promise.resolve(ok(undefined)),
+    observe: () =>
+      Promise.resolve(
+        ok({
+          attempt: () => ({
+            agentStatus: "idle",
+            pane: { state: "known", address: "pane-1" },
+            liveWork: () => Promise.resolve({ state: "none" }),
+          }),
+        }),
+      ),
   };
 }
 
@@ -1582,6 +1597,82 @@ describe("interlock run", () => {
     expect(started.graphBaseSha).toBe(branchBaseSha);
     expect(started.graphBaseSha).not.toBe(mainHeadSha);
   }, 30_000);
+
+  it("materializes the acceptance, records the brief and gates the node from the same approved declaration on a reused worktree with an older base", async () => {
+    const cwd = fixture();
+    await approve(cwd);
+    const branchBaseSha = headSha(cwd);
+    const worktreePath = join(cwd, ".worktrees", "a");
+    execFileSync("git", ["worktree", "add", "-b", "graph/demo/a", worktreePath, branchBaseSha], {
+      cwd,
+    });
+    writeFileSync(join(worktreePath, "earlier-session.txt"), "partial progress\n");
+    commitAll(worktreePath, "partial progress");
+
+    const newerAcceptance = "the larger, newer spec\n\nwith a second paragraph";
+    writeFileSync(
+      join(cwd, ".interlock", "graphs", "demo.yaml"),
+      graphYaml
+        .replace(
+          "    acceptance: a trivial node",
+          "    acceptance: |\n      the larger, newer spec\n\n      with a second paragraph",
+        )
+        .replace("      - id: own-gate", "      - id: newer-gate"),
+    );
+    commitAll(cwd, "rewrite the node's acceptance and gate after its brief was authored");
+    await approve(cwd);
+    const mainHeadSha = headSha(cwd);
+    expect(mainHeadSha).not.toBe(branchBaseSha);
+
+    const lines: string[] = [];
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime: { ...stubRuntime(), waitUntil: finishedWaitUntil(worktreePath) },
+      narrate: (line) => lines.push(line),
+    });
+    expect(result.exitCode).toBe(0);
+    expect(lines).toContain(
+      "acceptance: the repository copy's acceptance for node a differs from the graph's; overwritten.",
+    );
+
+    expect(
+      readFileSync(join(worktreePath, ".interlock", "graphs", "demo.yaml"), "utf-8"),
+    ).toContain("acceptance: a trivial node");
+    expect(
+      readFileSync(join(cwd, ".interlock", "sessions", "demo", "a", "brief.md"), "utf-8"),
+    ).toBe(demoBriefV1);
+
+    const started = sessionStartedFrom(cwd);
+    expect(started.graphBaseSha).toBe(branchBaseSha);
+    expect(started.brief.acceptance).toBe(`${newerAcceptance}\n`);
+    expect(started.brief.gates).toEqual(["standing", "newer-gate"]);
+
+    const materialized = await readBriefFile(
+      join(worktreePath, ".interlock", "sessions", "demo", "a", "brief.md"),
+    );
+    if (!isOk(materialized) || materialized.value.kind !== "v1") {
+      throw new Error("expected the materialized brief@v1");
+    }
+    expect(materialized.value.frontMatter.runner).toMatchObject({ graphBaseSha: branchBaseSha });
+    expect(materialized.value.frontMatter.gates.map((gate) => gate.id)).toEqual(
+      started.brief.gates,
+    );
+    expect(materialized.value.body).toContain(
+      [
+        "## Acceptance (verbatim from the graph)",
+        "",
+        "> the larger, newer spec",
+        ">",
+        "> with a second paragraph",
+        "",
+      ].join("\n"),
+    );
+    expect(materialized.value.body).not.toContain("a trivial node");
+
+    const judged = ledgerGatesOf(cwd);
+    expect(judged).toEqual(["standing", "newer-gate"]);
+  }, 30_000);
 });
 
 function setCatalogue(cwd: string, contents: string): void {
@@ -1602,6 +1693,21 @@ function sessionStartedFrom(cwd: string): Extract<LedgerEvent, { kind: "session-
     throw new Error("expected a session-started event in the journal");
   }
   return started;
+}
+
+function ledgerGatesOf(cwd: string): readonly string[] {
+  const journal = readFileSync(join(cwd, ".interlock", "ledger", "journal.jsonl"), "utf-8");
+  const moved = journal
+    .trim()
+    .split("\n")
+    .map((line): unknown => JSON.parse(line))
+    .filter(isLedgerEvent)
+    .flatMap((event) =>
+      event.kind === "gate-moved" && event.node.graph === "demo" && event.node.id === "a"
+        ? [event.gate]
+        : [],
+    );
+  return [...new Set(moved)];
 }
 
 describe("interlock run: --runtime selection", () => {
@@ -1740,7 +1846,7 @@ describe("interlock run: a node whose outcome is already decided", () => {
     return unwrap(
       await createLedger({
         clock: createControlledClock({ initialTime }),
-        directory: sharedJournalDirectory(cwd),
+        directory: await sharedJournalDirectory(cwd),
       }),
     );
   }

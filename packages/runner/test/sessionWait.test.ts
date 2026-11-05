@@ -1,10 +1,18 @@
 import { createControlledClock, deadlineFrom, ms } from "@phyxiusjs/clock";
 import { err, isErr, ok } from "@phyxiusjs/fp";
 import { describe, expect, it } from "vitest";
-import type { Agent, AgentStatus, Runtime } from "../src/runtime.ts";
+import type { Agent, AgentObservation, AgentStatus, Runtime } from "../src/runtime.ts";
 import { waitForSession } from "../src/sessionWait.ts";
 
 const agent: Agent = { id: "agent-1", pane: { id: "pane-1" } };
+
+function observedWithNoLiveWork(): Promise<AgentObservation> {
+  return Promise.resolve({
+    agentStatus: "idle",
+    pane: { state: "known", address: "pane-1" },
+    liveWork: () => Promise.resolve({ state: "none" }),
+  });
+}
 
 function stubRuntime(overrides: Partial<Runtime> = {}): Runtime {
   return {
@@ -41,6 +49,7 @@ describe("waitForSession", () => {
     const result = await waitForSession(
       runtime,
       agent,
+      observedWithNoLiveWork,
       clock,
       deadline,
       600_000,
@@ -77,6 +86,7 @@ describe("waitForSession", () => {
     const result = await waitForSession(
       runtime,
       agent,
+      observedWithNoLiveWork,
       clock,
       deadline,
       600_000,
@@ -111,6 +121,7 @@ describe("waitForSession", () => {
     const result = await waitForSession(
       runtime,
       agent,
+      observedWithNoLiveWork,
       clock,
       deadline,
       600_000,
@@ -147,6 +158,7 @@ describe("waitForSession", () => {
     const result = await waitForSession(
       runtime,
       agent,
+      observedWithNoLiveWork,
       clock,
       deadline,
       60_000,
@@ -185,6 +197,7 @@ describe("waitForSession", () => {
     const result = await waitForSession(
       runtime,
       agent,
+      observedWithNoLiveWork,
       clock,
       deadline,
       3_600_000,
@@ -209,6 +222,7 @@ describe("waitForSession", () => {
     const result = await waitForSession(
       runtime,
       agent,
+      observedWithNoLiveWork,
       clock,
       deadline,
       60_000,
@@ -245,6 +259,7 @@ describe("waitForSession", () => {
     const result = await waitForSession(
       runtime,
       agent,
+      observedWithNoLiveWork,
       clock,
       deadline,
       runTimeoutMs,
@@ -280,6 +295,7 @@ describe("waitForSession", () => {
     const result = await waitForSession(
       runtime,
       agent,
+      observedWithNoLiveWork,
       clock,
       deadline,
       3_500,
@@ -307,6 +323,7 @@ describe("waitForSession", () => {
     const result = await waitForSession(
       runtime,
       agent,
+      observedWithNoLiveWork,
       clock,
       deadline,
       60_000,
@@ -337,6 +354,7 @@ describe("waitForSession", () => {
     const result = await waitForSession(
       runtime,
       agent,
+      observedWithNoLiveWork,
       clock,
       deadline,
       1_000,
@@ -373,6 +391,7 @@ describe("waitForSession", () => {
     const result = await waitForSession(
       runtime,
       agent,
+      observedWithNoLiveWork,
       clock,
       deadline,
       600_000,
@@ -403,6 +422,7 @@ describe("waitForSession", () => {
     const result = await waitForSession(
       runtime,
       agent,
+      observedWithNoLiveWork,
       clock,
       deadline,
       60_000,
@@ -437,6 +457,7 @@ describe("waitForSession", () => {
     const result = await waitForSession(
       runtime,
       agent,
+      observedWithNoLiveWork,
       clock,
       deadline,
       3_600_000,
@@ -473,6 +494,7 @@ describe("waitForSession", () => {
     const result = await waitForSession(
       runtime,
       agent,
+      observedWithNoLiveWork,
       clock,
       deadline,
       runTimeoutMs,
@@ -502,6 +524,7 @@ describe("waitForSession", () => {
     await waitForSession(
       runtime,
       agent,
+      observedWithNoLiveWork,
       clock,
       deadline,
       60_000,
@@ -531,6 +554,7 @@ describe("waitForSession", () => {
     await waitForSession(
       runtime,
       agent,
+      observedWithNoLiveWork,
       clock,
       deadline,
       60_000,
@@ -560,6 +584,7 @@ describe("waitForSession", () => {
     await waitForSession(
       runtime,
       agent,
+      observedWithNoLiveWork,
       clock,
       deadline,
       60_000,
@@ -587,6 +612,7 @@ describe("waitForSession", () => {
     const result = await waitForSession(
       runtime,
       agent,
+      observedWithNoLiveWork,
       clock,
       deadlineFrom(clock.now().monoMs, ms(600_000)),
       600_000,

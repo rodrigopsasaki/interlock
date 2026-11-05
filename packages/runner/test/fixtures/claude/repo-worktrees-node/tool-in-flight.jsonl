@@ -1,0 +1,3 @@
+{"type": "user", "sessionId": "session", "message": {"role": "user", "content": "This is an interlock session for node n."}}
+{"type": "permission-mode", "permissionMode": "bypassPermissions", "sessionId": "session"}
+{"type": "assistant", "sessionId": "session", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "toolu_long", "name": "Bash", "input": {"command": "pnpm test"}}]}}

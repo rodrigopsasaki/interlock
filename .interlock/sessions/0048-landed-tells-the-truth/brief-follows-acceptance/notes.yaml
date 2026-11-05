@@ -1,0 +1,73 @@
+interlock: notes@v0
+graph: 0048-landed-tells-the-truth
+node: brief-follows-acceptance
+entries:
+  - kind: choice
+    at: "2026-11-05T12:00:00Z"
+    chose: >
+      writeBriefIntoWorktree takes the node's declared acceptance and gates as one value,
+      and interlock run builds that value once and hands the same object to both the brief
+      materialization and the recorded session brief.
+    because: >
+      The acceptance asks that the materialized acceptance, the recorded brief and the node
+      gates come from the same approved declaration. Passing one value makes that structural
+      instead of two parallel reads of the declaration that could drift.
+  - kind: choice
+    at: "2026-11-05T12:00:00Z"
+    chose: >
+      The acceptance section runs from its heading to the next level-one or level-two heading,
+      or the next generated interlock marker line, or the end of the body; its whole body is
+      what is compared and replaced.
+    because: >
+      The acceptance says the runner replaces "that section's body". Stopping at a generated
+      marker keeps the debrief-guidance and walk blocks, which follow the section in every
+      materialized brief, outside it so their transformations stay unchanged.
+  - kind: surprise
+    at: "2026-11-05T12:00:00Z"
+    expected: Every authored acceptance section holds only the quoted acceptance.
+    observed: >
+      .interlock/sessions/0001-bootstrap/scaffold/brief.md carries clarifying prose under its
+      quote inside the same section. Under the literal section rule that prose would be replaced
+      if that historical brief were ever materialized again. Its session is long finished, the
+      repository file is never edited, and every other authored section is quote-only, so the
+      literal rule stands.
+  - kind: choice
+    at: "2026-11-05T12:30:00Z"
+    chose: >
+      The opening view adds its authority sentence only when the body carries the acceptance
+      section.
+    because: >
+      renderOpeningView is shared with interlock plan, whose interpreter brief has no graph
+      acceptance; a sentence naming an absent section would point the planner at nothing.
+  - kind: choice
+    at: "2026-11-05T12:30:00Z"
+    chose: >
+      A missing section is appended at the end of the authored body, before the generated
+      guidance, walk and context transformations run.
+    because: >
+      Appending keeps every authored byte in place, and running first means the generated
+      blocks land after it exactly as they do for briefs that already carry the section.
+  - kind: choice
+    at: "2026-11-05T12:30:00Z"
+    chose: >
+      A node with no declared acceptance reconciles against the empty string, the same value
+      the recorded session brief already records for it.
+    because: >
+      The acceptance asks that the materialized acceptance and the recorded brief come from the
+      same declaration; skipping reconciliation would let them disagree.
+  - kind: choice
+    at: "2026-11-05T12:30:00Z"
+    chose: >
+      The runner and run test fixture briefs gained a matching acceptance section rather than
+      their exact-narration assertions gaining an "added" line.
+    because: >
+      The fixtures are documented as engineered to produce no rewrite narration; keeping that
+      true also makes every existing exact-narration test a proof that a matching section is
+      not reported.
+  - kind: surprise
+    at: "2026-11-05T12:35:00Z"
+    expected: Gate output captured only inside this worktree.
+    observed: >
+      I first redirected typecheck, lint and comment-check logs to the worktree's parent
+      directory. I removed them with plain rm at once and moved scratch under
+      packages/runner/test/.runs, which git ignores.

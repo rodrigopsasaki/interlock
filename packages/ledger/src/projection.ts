@@ -10,7 +10,7 @@ import type { OutboxDelivery, OutboxIntent } from "./outbox.ts";
 import type { Outcome } from "./outcome.ts";
 import type { PersonSaid } from "./personSaid.ts";
 import type { Receipt } from "./receipt.ts";
-import type { SessionRuntime } from "./session.ts";
+import { type SessionRuntime, type SessionStartedAt, sessionStartedAt } from "./session.ts";
 import { type SessionFacts, sessionFacts } from "./sessionFacts.ts";
 import type { Walk } from "./walk.ts";
 
@@ -39,6 +39,7 @@ export interface SessionView {
   readonly brief: Brief;
   readonly graphBaseSha: string | undefined;
   readonly runtime: SessionRuntime;
+  readonly startedAt: SessionStartedAt;
   readonly facts: SessionFacts;
   readonly notes: readonly Note[];
   readonly walk: Walk | undefined;
@@ -172,6 +173,7 @@ export function applyEvent(projection: LedgerProjection, event: LedgerEvent): Le
         brief: event.brief,
         graphBaseSha: event.graphBaseSha,
         runtime: event.session.runtime,
+        startedAt: sessionStartedAt(event.startedAt),
         facts: sessionFacts.unknown(),
         notes: [],
         walk: event.walk,

@@ -68,7 +68,7 @@ export async function runGraphApprove(
     return { exitCode: 1, message: explainGraphRefusal(document.error) };
   }
 
-  const journal = sharedJournalDirectory(repoRoot);
+  const journal = await sharedJournalDirectory(repoRoot);
   const clock = createSystemClock();
   const opened = await createLedger({ clock, directory: journal });
   if (isErr(opened)) {
@@ -87,7 +87,7 @@ export async function runGraphApprove(
   const declaredGates = document.value.gates.map((declared) => declared.id);
   const current =
     ledger.projection().nodes.get(nodeKey(node))?.gates.get("approved") ?? gate.pending();
-  const commitSha = currentCommitSha(repoRoot);
+  const commitSha = await currentCommitSha(repoRoot);
   const receipt = await createReceipt(
     repoRoot,
     [relative(repoRoot, path)],

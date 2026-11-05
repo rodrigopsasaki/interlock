@@ -29,6 +29,11 @@
           "walk": {
             "description": "Carried from event@v7: present when the node's graph named a role, the walk its brief was given.",
             "$ref": "parts/walk.json"
+          },
+          "startedAt": {
+            "description": "Additive within event@v9: the runner clock's epoch-millisecond wall time when it appended this event. Absent on historical and backfilled sessions, whose start reads unknown; never inferred from a lease, narration or a file time.",
+            "type": "integer",
+            "minimum": 0
           }
         },
         "required": ["session"]
