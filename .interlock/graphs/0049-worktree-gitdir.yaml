@@ -1,0 +1,68 @@
+interlock: graph@v0
+id: 0049-worktree-gitdir
+ask: A sandboxed agent in a node's linked worktree can write that worktree's own git dir, because the runner hands it as a second writable root beside the common git dir.
+derivation:
+  kind: model
+  model: gilb (Claude)
+  prompt: codex-smoke-2026-11-05
+authorization:
+  granted_by: Rodrigo Sasaki
+  mandate: loom-feed-2026-11-04  # "You're free to do changes on phyxius and interlock too", 23:25 UTC
+  approver: Gilb for Rodrigo Sasaki, after a cross-vendor vet; the human merges
+read: >
+  0047 (merged as #76) hands a sandboxed agent the repository's common git dir
+  as a writable root through the catalogue's `writable_root_args`. On
+  2026-11-05 at about 04:50 UTC a codex smoke run in a scratch linked worktree
+  of this repository, with `--sandbox workspace-write` and `--add-dir
+  <repo>/.git`, could not create the worktree's index.lock ("operation not
+  permitted"): the index, HEAD and per-worktree refs live in the worktree's own
+  git dir (`git rev-parse --git-dir`, `<repo>/.git/worktrees/<name>`), and
+  codex does not treat a path under a writable root named `.git` as writable.
+  With that per-worktree git dir added as a second `--add-dir`, the index was
+  written and the commit reached signing. The machine's old catalogue listed
+  such per-worktree paths by hand for that reason.
+
+  Commit signing failed next ("gpg: signing failed: Input/output error"): the
+  sandbox cannot reach the signing agent. Signing is out of scope here; it is
+  the owner's decision about his commit identity. Until he decides, codex does
+  not route builds. Out of scope as before: any other writable root, network
+  access, sandbox modes, and the machine's catalogue.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: worktree-gitdir-writable
+    role: implementer
+    depends_on: []
+    acceptance: |
+      For a node in a linked worktree, when the runtime's profile declares
+      `writable_root_args`, the runner hands two writable roots for that
+      attempt, in this order: the absolute common git dir (as 0047 does) and
+      the absolute per-worktree git dir from `git rev-parse --git-dir` in that
+      worktree. Each root is one expansion of the profile's template, the
+      `{path}` element replaced by the root as one argv element, appended
+      after the profile's args. When the two resolve to the same path (a
+      main worktree), it is handed once. A worktree that is not linked gets
+      no writable root, as today. Resolution failure refuses the attempt
+      before the agent starts, with the reason in words, as 0047 does.
+      Nothing else is widened.
+
+      Tests: extend packages/runner/test/writableRoot.test.ts so a real
+      linked worktree built by the test yields exactly the two expanded
+      roots in order, a main worktree yields none, and a failed
+      `--git-dir` resolution refuses before launch; extend
+      packages/runner/test/writableRootLaunch.test.ts so the launched argv
+      against a real linked worktree carries both roots, each as single argv
+      elements, and the per-worktree root is the directory that holds that
+      worktree's index. Strict TypeScript, no assertions, no non-null
+      operators. Preserve every historical artifact. Append typed notes for
+      choices and discoveries. No push, no merge; the human merges.
+    gates:
+      - id: writable-root-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/writableRoot.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: writable-root-launch-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/writableRootLaunch.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
