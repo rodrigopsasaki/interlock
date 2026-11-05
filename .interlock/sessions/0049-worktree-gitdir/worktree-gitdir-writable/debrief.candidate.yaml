@@ -1,0 +1,198 @@
+interlock: debrief@v2
+graph: 0049-worktree-gitdir
+node: worktree-gitdir-writable
+role: implementer
+graph_base_sha: d8f64cdd447aecd5e3f065d53ad87607c19760df
+session_start_sha: 9cb6e8b3deac1ab82a00a22c2d09feefb349911b
+head_sha: 23ae2c258086c1db9f8fb3571dea7e91091ecf01
+derivation:
+  kind: agent
+  runtime: claude
+  model: claude-opus-5-5
+discoveries:
+  - id: containing-root-proof-could-not-fail
+    what: >-
+      0047's sandbox proof allows writes beneath cwd and each named root. The per-worktree git dir
+      sits beneath the common one, so under that policy the common root alone already covers the
+      worktree's index, and the proof passed with the root set that failed in the field.
+    found_at: 'packages/runner/test/writableRoot.test.ts:64 "const writable = [cwd, ...roots].map((path)"'
+    mattered_because: >-
+      Re-running the retained proof against the new launch could only show more roots do no harm,
+      never that the second root is needed. Proving the fix against its failure needed a separate
+      policy that excludes git metadata beneath a root, which is what the acceptance's
+      metadata-exclusion fixture is.
+    applies_to: { kind: path, path: packages/runner/test/writableRoot.test.ts }
+  - id: local-runtime-sandbox-probe-inconclusive
+    what: >-
+      The machine's installed agent CLI has a sandbox subcommand, but on the path probed it
+      ignored the writable-roots override, so even an unrelated extra directory stayed unwritable
+      and the real policy could not be compared with the fixture's.
+    found_at: '.interlock/sessions/0049-worktree-gitdir/worktree-gitdir-writable/notes.yaml:26 "That build ignored the writable_roots override on this path"'
+    mattered_because: >-
+      The fixture policy's provenance therefore rests on the graph's recorded smoke run alone and
+      says so; it is an inference that reproduces both recorded observations, not a copy.
+decisions:
+  - id: carry-gitdir-out-of-the-existing-layout
+    what: >-
+      worktreeGitLayout's linked case now carries gitDir beside commonGitDir. It still runs
+      rev-parse --path-format=absolute --git-dir then --git-common-dir, once each, and compares
+      them; nothing else in it changed.
+    because: >-
+      The per-worktree dir was already resolved and thrown away. Returning it satisfies "resolve
+      each directory once through worktree.ts" with no new git call and no new refusal kind, so a
+      failure of either still returns the existing git-failed refusal.
+    rests_on:
+      - packages/runner/src/worktree.ts
+    hunks:
+      - packages/runner/src/worktree.ts:221-241
+    rejected: a second resolver for the per-worktree dir; deriving it from the common dir and the node name
+  - id: two-expansions-common-first
+    what: >-
+      agentLaunch builds writableRoots as [commonGitDir, gitDir] for a linked worktree and appends
+      the template expanded once per root, in that order, into a fresh list after the entry's args.
+      Without the field it returns the entry's args and resolves nothing; not-linked appends
+      nothing. Each supplied root is narrated on its own existing-shape line, common first.
+    because: >-
+      This is the acceptance's order and its no-partial-launch rule: the layout either resolves both
+      dirs or refuses, so there is no state with one root. One narration line per root keeps the
+      sentence 0047 published, which older journal readers already match.
+    rests_on:
+      - packages/runner/src/writableRootArgs.ts
+    hunks:
+      - packages/runner/src/sessionDrive.ts:70-94
+      - packages/runner/src/sessionDrive.ts:289-291
+    rejected: a single combined "writable roots" narration line
+  - id: launch-tests-pin-order-quoting-and-refusals
+    what: >-
+      writableRootLaunch.test.ts asserts the exact common-then-per-worktree argv for a catalogue
+      entry and the legacy block, whole elements for a repository under a directory with spaces and
+      both quote kinds, unchanged argv for main worktrees and absent templates, independent
+      attempts on one frozen entry, and each resolution refusal separately with zero pane opens and
+      starts. A fixture git first on PATH refuses one named flag and execs the real git otherwise.
+    because: >-
+      No real repository state lets --git-dir succeed while --git-common-dir fails, so only an
+      injected failure tests the second resolution alone. Refusing both flags on the no-field path
+      makes "performs no root resolution" observed, not assumed. 0047's broken-.git-file test is
+      kept as the real-git refusal.
+    rests_on:
+      - packages/runner/test/support/driveFixture.ts
+    hunks:
+      - packages/runner/test/writableRootLaunch.test.ts:1-3
+      - packages/runner/test/writableRootLaunch.test.ts:23-37
+      - packages/runner/test/writableRootLaunch.test.ts:52-82
+      - packages/runner/test/writableRootLaunch.test.ts:94-200
+      - packages/runner/test/writableRootLaunch.test.ts:226-281
+      - packages/runner/test/writableRootLaunch.test.ts:296-303
+    rejected: corrupting worktrees/<name>/commondir, which breaks --git-dir as well
+  - id: metadata-exclusion-fixture
+    what: >-
+      writableRoot.test.ts keeps the generic boundary test (its expected roots now both dirs) and
+      adds a separate sandbox-exec policy: writes beneath cwd and each named root, except git
+      metadata beneath a root (the worktree's .git pointer and the per-worktree dir it names),
+      excluded with require-not unless the root is that metadata dir itself. Its provenance,
+      inferred from graph 0049's recorded smoke run, sits beside it. One production launch runs two
+      attempts on one worktree: common-only (production roots narrowed to the common dir) and the
+      full production roots.
+    because: >-
+      It is the narrowest rule that yields both recorded observations: common-only refuses
+      index.lock, and adding the per-worktree dir lets the index write. Common-only is asserted to
+      refuse index.lock and leave HEAD, index and both reflogs byte-identical; the production roots
+      must add and commit, with the index, a new loose object in the common dir, the shared branch
+      ref and its reflog, and the per-worktree HEAD reflog all updated, and outside and .git-pointer
+      writes denied in both attempts. Reverting the launch to common-only fails both tests and
+      prints no marker.
+    rests_on:
+      - .interlock/graphs/0049-worktree-gitdir.yaml
+    hunks:
+      - packages/runner/test/writableRoot.test.ts:2-13
+      - packages/runner/test/writableRoot.test.ts:74-106
+      - packages/runner/test/writableRoot.test.ts:184
+      - packages/runner/test/writableRoot.test.ts:240
+      - packages/runner/test/writableRoot.test.ts:256-437
+    rejected: an explicit deny of metadata paths, which no root could lift; calling the policy the runtime's own
+  - id: fixture-git-overrides-on-the-command-line
+    what: >-
+      Both fixture git invocations pass -c core.hooksPath=/dev/null and -c
+      core.logAllRefUpdates=true; only the commit adds -c commit.gpgsign=false. The new commit's %G?
+      is asserted N.
+    because: >-
+      The acceptance asks for hooks off, reflogs on, and the signing override confined to the
+      fixture's git invocation. -c writes no config file, so nothing outlives the call.
+    rests_on:
+      - .interlock/graphs/0049-worktree-gitdir.yaml
+    hunks:
+      - packages/runner/test/writableRoot.test.ts:405-437
+  - id: marker-only-when-both-proofs-pass
+    what: >-
+      "writable-root-sandbox-proof: passed" is printed from afterAll only when both the retained
+      generic proof and the metadata proof recorded success; neither test prints it itself.
+    because: >-
+      With the old test still printing it, a failing metadata fixture would leave the marker in the
+      gate's output beside the failure. The acceptance says to emit it only after these assertions
+      pass.
+    rests_on:
+      - .interlock/graphs/0049-worktree-gitdir.yaml
+    hunks:
+      - packages/runner/test/writableRoot.test.ts:28-48
+  - id: prose-describes-two-expansions
+    what: >-
+      The schema part carries the acceptance's operational sentence verbatim. The Runtime catalogue
+      arguments rationale explains the split git state, why one containing root is not enough, and
+      that a half-resolved launch never starts. Both examples and local.yaml's help sentence
+      describe the two expansions; docs/shapes.md is regenerated from them. A bend-log row records
+      the departure from common-only expansion. The one-{path} constraint and both config versions
+      are unchanged.
+    because: >-
+      The acceptance names the four surfaces. The help sentence in localConfig.ts told an operator
+      the same thing the acceptance retires, and shapes.md is generated and freshness-checked, so it
+      follows its sources.
+    rests_on:
+      - packages/schemas/src/reference.ts
+    hunks:
+      - schemas/parts/writable-root-args.json:5
+      - runtimes.example.yaml:9-13
+      - runtimes.example.yaml:51-55
+      - .interlock/local.example.yaml:26-30
+      - packages/runner/src/localConfig.ts:59-61
+      - docs/design/0001-interlock.md:524-529
+      - docs/design/0001-interlock.md:532-541
+      - docs/design/0001-interlock.md:547-548
+      - docs/design/0001-interlock.md:665
+      - docs/shapes.md:1034-1037
+      - docs/shapes.md:1220-1224
+      - docs/shapes.md:1262-1266
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+  - id: test
+    result: pass
+    invocation: pnpm test
+    note: ledger 167, debrief 98, verifier 59, substrate 91, face 165, runner 365, schemas 1023, cli 320, all passed
+  - id: writable-root-proof
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/writableRoot.test.ts --passWithNoTests=false
+    note: '2 passed; printed "writable-root-sandbox-proof: passed"'
+  - id: writable-root-launch-proof
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/writableRootLaunch.test.ts --passWithNoTests=false
+    note: 12 passed
+open:
+  - >-
+    The fixture policy is inferred from the smoke run's two observations, not taken from the
+    runtime. If the real rule differs (it also protects sibling worktrees' git dirs, or denies
+    metadata with no explicit-root exception), the proof passes while the runtime still refuses.
+    The real check is a live smoke run in a sandboxed pane once this merges, before that runtime
+    routes builds.
+  - >-
+    Signing is untouched and still blocks a sandboxed commit with signing on; the owner decides
+    his commit identity, per the graph's read.
+  - >-
+    No change is owed to this machine's real catalogue: an entry with writable_root_args:
+    [--add-dir, "{path}"] now gets two --add-dir pairs from the rebuilt runner.
