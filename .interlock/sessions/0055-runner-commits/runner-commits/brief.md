@@ -27,6 +27,10 @@ gates:
   kind: command
   run: pnpm --fail-if-no-match --filter runner exec vitest run test/runtimes.test.ts --passWithNoTests=false
   expect_output: Tests +[1-9][0-9]* passed
+- id: debrief-proof
+  kind: command
+  run: pnpm --fail-if-no-match --filter cli exec vitest run test/debrief --passWithNoTests=false
+  expect_output: Tests +[1-9][0-9]* passed
 - id: schema-proof
   kind: command
   run: pnpm --fail-if-no-match --filter schemas exec vitest run --passWithNoTests=false
@@ -81,6 +85,7 @@ scope:
 - .interlock/graphs/0051-no-detached-maintenance.yaml
 - .interlock/graphs/0052-count-tells-the-truth.yaml
 - .interlock/graphs/0054-provider-routing.yaml
+- .interlock/graphs/0055-runner-commits.yaml
 - .interlock/graphs/readme-interlock-concept.yaml
 - .interlock/local.example.yaml
 - .interlock/sessions/0001-bootstrap/attempts/brief.md
@@ -379,6 +384,7 @@ scope:
 - .interlock/sessions/0052-count-tells-the-truth/landed/brief.md
 - .interlock/sessions/0052-count-tells-the-truth/retire/brief.md
 - .interlock/sessions/0054-provider-routing/provider-routing/brief.md
+- .interlock/sessions/0055-runner-commits/runner-commits/brief.md
 - .interlock/sessions/readme-interlock-concept/readme/brief.md
 - .interlock/sessions/readme-interlock-concept/readme/debrief.yaml
 - .interlock/sessions/readme-interlock-concept/readme/notes.yaml
@@ -1007,26 +1013,40 @@ edit it.
 > (~/.config/interlock/runtimes.yaml) is the owner's, so the debrief names the one key to add per codex profile
 > and the runner never edits it.
 >
-> Declared commits. The brief for a commits: runner attempt tells the agent not to commit. It leaves its
-> changes in the worktree, and declares in its notes or debrief one or more commit messages, each with the
-> paths it covers. A path covered by no message goes in a single commit whose message is the debrief's
-> subject.
+> Prompting and settling are mode-aware. Today the opening prompt tells agents to commit
+> (packages/runner/src/openingPrompt.ts:34-62), and settlement waits for a clean worktree and a committed
+> debrief (packages/runner/src/sessionDrive.ts:402-410, sessionWait.ts:231-239). For a commits: runner attempt
+> the prompt says instead: do not commit, leave your changes in the worktree, and write commits.yaml beside the
+> brief. The attempt settles in two phases.
 >
-> Runner commit. When a commits: runner attempt settles, before judgeWorktree reads the worktree, the runner:
+> Phase 1, code. The agent leaves code changes uncommitted and writes commits.yaml, a new versioned shape,
+> commits@v0, with schema tests in packages/schemas: an ordered list of entries {message, paths}, a fallback
+> subject for changed paths no entry names, and an optional co_authored_by line. Phase 1 settles when the agent
+> is done and commits.yaml validates, with the worktree dirty. The runner then:
 > 1. lists the worktree's changed and untracked paths (git status --porcelain, gitignored files excluded);
-> 2. refuses to commit if any path lies outside the node's declared paths, or if any path looks like a secret,
->    as below;
-> 3. stages exactly those paths by name, never `git add -A` or `.`;
-> 4. commits one commit per declared message in the order declared, then any remainder under the debrief
->    subject, each signed through the owner's normal git signing outside the sandbox, as commitBriefIfChanged
->    already does;
-> 5. adds two trailers to every such commit, `Attempt: <session id>` and `Runtime: <profile name> (<model>)`,
->    beside the agent's Co-Authored-By if it gave one;
-> 6. then judges, as today.
+> 2. refuses if any path lies outside the node's declared paths, or looks like a secret, as below;
+> 3. commits each commits.yaml entry in order, then any remainder under the fallback subject. It stages
+>    exactly the named paths, never `git add -A` or `.`, through a new exact-path helper, commitPaths(worktree,
+>    paths, message, trailers), generalised from commitBriefIfChanged (packages/runner/src/worktree.ts:192-223).
+>    commitBriefIfChanged keeps its own behaviour, including its trailer;
+> 4. signs every commit through the owner's normal git signing outside the sandbox, and adds `Attempt:
+>    <session id>` and `Runtime: <profile name> (<model>)`, plus the co_authored_by line when given;
+> 5. commits commits.yaml itself with the code, in the last entry's commit.
 > A signing failure fails the attempt with git's message. The runner never retries unsigned and never passes
 > a no-sign option.
 >
-> Declared paths. A node may declare `paths`, a list of globs, in the graph. Without it, the declared paths
+> Phase 2, debrief. The runner tells the agent, in its pane, that its code is committed at <sha>, and to file
+> its debrief and notes now, without committing. The agent runs `interlock debrief prepare`, which records the
+> current HEAD, the last code commit (packages/cli/src/debrief/derived.ts:153-170), so the debrief's head_sha
+> covers the runner's commits and the verifier's sessionStartSha..headSha diff includes them
+> (packages/verifier/src/verify.ts:48-64). When the debrief files and validates, the runner commits the
+> debrief and notes as the final commit through commitPaths, signed with the same trailers. That keeps the
+> rule that head_sha is the last code commit and the debrief is the final commit (AGENTS.md). Then it judges,
+> as today.
+>
+> Declared paths. A node may declare `paths`, a list of globs, in the graph. Thread it through the graph
+> reader (NodeDeclaration, packages/face/src/document.ts:18-24 and 132-165), `interlock run`
+> (packages/cli/src/run.ts:187-230) and the session request, so the commit check receives it. Without it, the declared paths
 > are the repository's tracked tree plus new files anywhere except .git/, other nodes' session directories
 > under .interlock/sessions/, and .interlock/graphs/. A node's own session directory is always declared.
 >
@@ -1036,20 +1056,27 @@ edit it.
 > by 16 uppercase alphanumerics), or a GitHub token (ghp_, gho_, ghs_ or github_pat_ followed by 20 or more
 > word characters). The refusal names the path and which rule matched, never the content.
 >
-> Refusals. An out-of-paths or secret-looking path fails the attempt, nothing is committed, and the worktree is
-> left as it was for drilldown. The outcome's reason names each path and its rule. The position and the face
-> show that reason.
+> Refusals. An out-of-paths or secret-looking path, an invalid commits.yaml, or a signing failure fails the
+> attempt. Nothing more is committed, and the worktree is left as it was for drilldown. The runner records a
+> failed outcome in the ledger before returning, with its failure, disposition and because
+> (packages/ledger/src/outcome.ts:32-37), naming each path and its rule. Today some refusal paths return
+> without an outcome (packages/runner/src/sessionDrive.ts:486-492). The position and the face
+> (packages/face/src/sessionColumns.ts:57-72) show that reason.
 >
 > Tests in packages/runner/test/runnerCommits.test.ts with fixture repositories only through
 > test/support/gitFixture.ts, and a fixture signing program in place of gpg (gpg.program pointing at a stub
 > that writes a fixed signature), so no real key is touched:
-> - a commits: runner attempt's changes land as declared commits, with both trailers, signed through the stub,
->   and are then judged;
-> - remainder paths go under the debrief subject;
+> - a commits: runner attempt's prompt says not to commit, and phase 1 settles with a dirty worktree;
+> - its changes land as the commits.yaml entries, in order, with both trailers, signed through the stub;
+> - remainder paths go under the fallback subject;
+> - phase 2's debrief head_sha is the last code commit, the verifier covers the runner's commits, and the
+>   debrief lands as the final signed commit before judging;
+> - a node's declared paths reach the check from the graph;
 > - `git add -A` is never run, which the stub git records;
 > - a path outside declared paths fails the attempt naming it;
 > - each secret rule fails the attempt naming the rule and never the content;
 > - a signing failure fails the attempt with git's message and nothing unsigned is created;
+> - every refusal records a failed outcome that the position shows;
 > - a commits: agent profile behaves exactly as today.
 > Strict TypeScript, no type assertions, no non-null operators. Preserve every historical artifact. Append
 > typed notes for choices and discoveries. No push, no merge; the human merges.
