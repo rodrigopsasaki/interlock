@@ -12,6 +12,7 @@ import {
   WAIT_SLICE_MS,
 } from "../../src/herdr/adapter.ts";
 import type {
+  Agent,
   AgentIdentityQuery,
   AgentStatus,
   Pane,
@@ -871,6 +872,61 @@ describe("resolvePane", () => {
       session: "s1",
     });
     expect(found).toEqual({ _tag: "Ok", value: undefined });
+  });
+});
+
+function resolveAgent(
+  runtime: Runtime,
+  query: AgentIdentityQuery,
+): Promise<Result<Agent | undefined, RuntimeRefusal>> {
+  if (runtime.resolveAgent === undefined) {
+    throw new Error("expected the herdr adapter to implement resolveAgent");
+  }
+  return runtime.resolveAgent(query);
+}
+
+describe("resolveAgent", () => {
+  const query = { graph: "0046-loom-feed", node: "say-into-pane", session: "s1" };
+
+  it("finds the agent by name and pane whose reported tokens name the graph, node and session", async () => {
+    const fake = await fixture();
+    fake.panes = [
+      {
+        name: "il-other",
+        pane_id: "fake-pane-1",
+        tokens: { graph: "0046-loom-feed", node: "other-node", session: "s0" },
+        agent_status: "idle",
+      },
+      {
+        name: "il-1234abcd",
+        pane_id: "fake-pane-2",
+        tokens: { graph: "0046-loom-feed", node: "say-into-pane", session: "s1" },
+        agent_status: "blocked",
+      },
+    ];
+    const created = await createHerdrRuntime(fake.socketPath);
+    if (isErr(created)) throw new Error("expected a runtime");
+
+    const found = await resolveAgent(created.value, query);
+    expect(found).toEqual({
+      _tag: "Ok",
+      value: { id: "il-1234abcd", pane: { id: "fake-pane-2" } },
+    });
+  });
+
+  it("resolves undefined, never a guess, when the matching agent names no agent", async () => {
+    const fake = await fixture();
+    fake.panes = [
+      {
+        pane_id: "fake-pane-2",
+        tokens: { graph: "0046-loom-feed", node: "say-into-pane", session: "s1" },
+        agent_status: "blocked",
+      },
+    ];
+    const created = await createHerdrRuntime(fake.socketPath);
+    if (isErr(created)) throw new Error("expected a runtime");
+
+    expect(await resolveAgent(created.value, query)).toEqual({ _tag: "Ok", value: undefined });
   });
 });
 

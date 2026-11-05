@@ -12,12 +12,21 @@ import {
 import type { GateDeclaration } from "face";
 import type { Brief } from "ledger";
 import { narrateContext, type SubstrateClient } from "substrate";
-import { authoritativeBriefGates, diffGates, diffScope, renderBriefFile } from "./briefRewrite.ts";
+import {
+  authoritativeBriefGates,
+  diffGates,
+  diffRole,
+  diffScope,
+  renderBriefFile,
+} from "./briefRewrite.ts";
 import { withRenderedContextSlice } from "./contextSlice.ts";
 import { withDebriefAuthoringGuidance } from "./debriefAuthoringGuidance.ts";
+import type { SessionRole } from "./openingPrompt.ts";
 import { renderOpeningView } from "./openingView.ts";
+import type { RoleShape } from "./roleShape.ts";
 import { gitTrackedFiles } from "./scope.ts";
 import type { StandingGate } from "./standingGates.ts";
+import { withWalkSection } from "./walkSection.ts";
 
 export const briefPath = briefFilePath;
 
@@ -68,6 +77,7 @@ export async function writeBriefIntoWorktree(
   standing: readonly StandingGate[],
   nodeGates: readonly GateDeclaration[],
   substrate: SubstrateClient,
+  shape?: RoleShape,
 ): Promise<Result<BriefWriteOutcome, SessionBriefRefusal>> {
   const read = await readBriefFile(briefPath(repoRoot, graph, node));
   if (isErr(read)) return err({ kind: "read", refusal: read.error });
@@ -85,19 +95,18 @@ export async function writeBriefIntoWorktree(
       selectedPath: missingSelectedPath,
     });
   }
+  const role = shape?.role ?? read.value.frontMatter.role;
   const narration = [
+    ...diffRole(read.value.frontMatter.role, role),
     ...diffGates(read.value.frontMatter.gates, authoritativeGates),
     ...diffScope(read.value.frontMatter.scope, authoritativeScope),
   ];
 
-  const contextOutcome = await substrate.context(
-    { graph, id: node },
-    contextScope,
-    read.value.frontMatter.role,
-  );
+  const contextOutcome = await substrate.context({ graph, id: node }, contextScope, role);
   narration.push(narrateContext(substrate.address, contextOutcome));
   const rendered = contextOutcome.kind === "rendered";
-  const authoredBody = withDebriefAuthoringGuidance(read.value.body);
+  const guidedBody = withDebriefAuthoringGuidance(read.value.body);
+  const authoredBody = shape === undefined ? guidedBody : withWalkSection(guidedBody, shape);
   const body = rendered
     ? withRenderedContextSlice(authoredBody, renderSlice(substrate.address, contextOutcome.items))
     : authoredBody;
@@ -105,11 +114,13 @@ export async function writeBriefIntoWorktree(
   const content = renderBriefFile(
     {
       ...read.value.frontMatter,
+      role,
       gates: authoritativeGates,
       scope: authoritativeScope,
       substrate: rendered
         ? { ...read.value.frontMatter.substrate, address: substrate.address }
         : read.value.frontMatter.substrate,
+      ...(shape === undefined ? {} : { walk: shape.walk }),
       runner: { kind: "worktree", graphBaseSha, session },
     },
     body,
@@ -146,7 +157,7 @@ export function buildBrief(
   acceptance: string,
   gates: readonly string[],
   scope: readonly string[],
-  role = "worker",
+  role: SessionRole = "worker",
 ): Brief {
   return { graph, node, role, acceptance, gates, scope };
 }

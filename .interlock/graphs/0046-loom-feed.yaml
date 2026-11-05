@@ -1,0 +1,253 @@
+interlock: graph@v0
+id: 0046-loom-feed
+ask: One read of every graph on the machine carries everything a face needs to show who moves next, in whose words, and what landed.
+derivation:
+  kind: model
+  model: gilb (Claude)
+  prompt: rodrigo-conversation-2026-11-04-loom
+authorization:
+  granted_by: Rodrigo Sasaki
+  mandate: loom-feed-2026-11-04  # "you need to make interlock capable of feeding that UI ... You're free to do changes on phyxius and interlock too", 23:25 UTC
+  approver: Gilb for Rodrigo Sasaki, after a cross-vendor vet; the human merges
+read: >
+  Rodrigo designed a cockpit over Interlock (the Loom, in the preston repository at
+  cockpit/design/loom/export). It is a face: it renders the position fresh on every read,
+  caches nothing, and dispatches the same verbs a person types. Today a face over Interlock
+  has to read the graph files beside the position to learn a gate's kind, a node's
+  acceptance and the graph's ask; has to guess from git whether a cleared node is on main;
+  decides a session's brief, debrief and walk the same way for every kind of work although the role should decide them; knows a session is blocked but not what it asked; has no role per node although the
+  design note says roles are supplied per node; and has no way to put a person's words
+  into a session's pane. Each node below closes one of those in the position itself, as
+  additive fields within position@v1 and graph@v0, so every face (the terminal face, the
+  herdr tab, the Loom) reads the same thing. Nothing here calls a model (D2): lines are
+  composed from the closed vocabulary, and a guess about intent belongs to whoever sits
+  above the face, never to Interlock. Nodes run in a chain because each one touches the
+  position; the chain is the price of not colliding in position.ts. Out of scope: any
+  rendering for the Loom itself, cross-machine reads, and a push transport.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: node-role
+    role: implementer
+    depends_on: []
+    acceptance: |
+      Give every node a role, supplied by the graph, never self-declared. graph@v0 nodes
+      gain an optional `role`, one of the closed set scout, planner, implementer, tester,
+      reviewer, verifier (additive; readers accept its absence forever; an unknown word is a
+      readable refusal naming the nearest term, I3). The brief carries it: today's
+      `role: worker` in brief front matter stays readable, and a node with a role briefs
+      with that role while one without keeps today's behaviour exactly. The opening prompt
+      states the role in one sentence per role, saying what that role produces (scout:
+      reads and reports, changes nothing; planner: drafts a graph for approval;
+      implementer: the diff; tester: the proof the gates run; reviewer: a judgment through
+      a named lens; verifier: that every debrief claim is rooted). The position carries
+      `role` on each node, absent when the graph names none. `interlock plan` drafts
+      graphs whose nodes each name a role. Add the six words to the vocabulary table in
+      AGENTS.md and the design note's brief row. Update schemas/graph@v0.json,
+      schemas/position@v1.json and the brief schema. Strict TypeScript, no assertions.
+      Tests pin: a role parses and reaches brief, prompt and position; absence keeps the
+      old brief byte for byte; an unknown role refuses with a sentence. Preserve every
+      historical artifact. Append typed notes. No push, no merge; the human merges.
+    gates:
+      - id: role-proof-1
+        kind: command
+        run: pnpm --filter face exec vitest run test/position.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: role-proof-2
+        kind: command
+        run: pnpm --filter runner exec vitest run test/sessionBrief.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: role-schema-proof
+        kind: command
+        run: pnpm --filter schemas exec vitest run
+        expect_output: 'Tests +[1-9][0-9]* passed'
+  - id: role-shapes-the-session
+    role: implementer
+    depends_on: [node-role]
+    acceptance: |
+      Make the role decide the session, not just label it. Rodrigo, 2026-11-04 23:28: "the
+      type of session defines the brief/debrief it gets, what makes sense to retrieve from
+      Preston and what does not. The planner, the coder and the reviewer get different
+      prompts with different walks, but they all get to walk the same graph should they want
+      to." Add a role table `roles@v0` (repository default in the package, overridable per
+      repository at `.interlock/roles.yaml`, additive): for each of the six roles, the
+      opening prompt's role paragraph, which debrief kinds it must return (implementer:
+      decisions rooted in hunks; tester: the proof and what it pins; reviewer: findings
+      through its named lens, no diff; scout: discoveries, no diff; planner: a graph file;
+      verifier: marks), and its walk: the substrate questions its brief asks first, by the
+      substrate's three verbs and the address (I5: with the address none the walk is empty
+      and the brief says so; nothing errors). The walk is a starting point, never a fence:
+      the brief also says the whole substrate is open to the session through its address,
+      so any role may walk anywhere it wants. A node without a role keeps today's brief
+      byte for byte. The debrief validator checks the kinds its role requires and holds the
+      node with a sentence when they are missing. The position's attempt gains `brief`
+      (path, role, the walk it was given) and `debrief` (path, version, kinds present, marks
+      counted by mark) so a face can show what a session was told and what it returned
+      without opening files. Update the brief, debrief and position schemas. The substrate
+      stays named generically (the wall). Tests pin, per role: prompt paragraph, required
+      debrief kinds, the walk with an address and with none, and the position fields.
+      Strict TypeScript. No push, no merge; the human merges.
+      The attempt's `brief` also carries the `acceptance` from the stored session brief (never the graph's current
+      text), so an attempt that predates an acceptance change shows what it was given; a test pins that case.
+    gates:
+      - id: role-session-proof-1
+        kind: command
+        run: pnpm --filter runner exec vitest run test/sessionBrief.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: role-session-proof-2
+        kind: command
+        run: pnpm --filter debrief exec vitest run
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: role-session-proof-3
+        kind: command
+        run: pnpm --filter face exec vitest run test/position.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+  - id: asked-in-words
+    role: implementer
+    depends_on: [role-shapes-the-session]
+    acceptance: |
+      When a session waits on a person, the position carries what it asked, in its words.
+      notes@v0 gains a third note kind, `question`: `at`, `asked` (the question as the
+      session would say it to the person), optional `options` (short answers it would
+      accept). Additive; every existing notes file still validates. The opening prompt and
+      the brief's authoring guidance tell the session: before you stop to wait for a person
+      in your pane, append a question note, then ask in the pane as you do today.
+
+      The position's attempt gains `asking`, present only while the attempt's agent status
+      is blocked: `{ asked, options?, at }` from the latest question note not yet answered,
+      or `{ asked: null, because }` when the session is blocked and wrote no question, the
+      because saying so in plain words. The face never invents the words and never reads
+      them off the pane's screen. A question counts as answered when a person's words
+      reach the pane after it (node say-into-pane) or the attempt ends. Update
+      schemas/notes@v0.json and schemas/position@v1.json. Tests pin: blocked with a
+      question shows its words; blocked without one shows null with the because; working
+      shows no asking; an answered question stops showing. Strict TypeScript. Preserve every
+      historical artifact. Append typed notes. No push, no merge; the human merges.
+      A `question` note enters the journal through note-appended, so this node owns the event change: the next
+      event version, the embedded-note schema, an upcaster for every older version, and a replay gate. `asking`
+      with no question is `{ asked: null, because, at }`, `at` being when the blocked status was observed.
+    gates:
+      - id: asked-proof-1
+        kind: command
+        run: pnpm --filter face exec vitest run test/position.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: asked-proof-2
+        kind: command
+        run: pnpm --filter debrief exec vitest run test/notes.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: asked-proof-3
+        kind: command
+        run: pnpm --filter ledger exec vitest run test/replay.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+  - id: say-into-pane
+    role: implementer
+    depends_on: [asked-in-words]
+    acceptance: |
+      Let a person put words into a live session's pane from any face, on the record.
+      `interlock session say <graph> <node> <text> --by <name> [--because <why>]` delivers
+      the text as a prompt to the live attempt's agent through the multiplexer adapter
+      (the herdr adapter's existing prompt delivery; no herdr call outside it, I6), and
+      appends a ledger fact `person-said` carrying session, by, text, at and, when present,
+      the question it answers. The fact is persisted before delivery and its delivery is
+      recorded as delivered or uncertain, never assumed (I7). Refuses with a sentence when
+      the node has no live attempt, when the pane can't be found, or when --by is missing.
+      The position's attempt gains `heard`: the last person-said on that attempt (by, text,
+      at), and a person-said after a question closes that question's `asking`. event@ gets
+      the next version with an upcaster so every older journal replays unchanged; update
+      the event schema and the corpus check. Tests pin: delivered, refused with no live
+      attempt, uncertain when the adapter fails after the intent is written, question
+      closed, older journals replay. Strict TypeScript. No push, no merge; the human merges.
+      `heard` and the closing of `asking` follow only an acknowledged delivery, by a stable outbox identity: an
+      uncertain delivery leaves the question open and says so. Tests cover a crash between intent and delivery, and
+      replay. The gate runs test/session/say.test.ts by name.
+    gates:
+      - id: say-proof-1
+        kind: command
+        run: pnpm --filter cli exec vitest run test/session/say.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: say-proof-2
+        kind: command
+        run: pnpm --filter ledger exec vitest run test/replay.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+  - id: landed-on-main
+    role: implementer
+    depends_on: [say-into-pane]   # the chain: every node touches the position
+    acceptance: |
+      Say in the position whether a cleared node's work is on the repository's main line,
+      so done can mean done. Each node gains `landed`, one of: `on-main` (the attempt's
+      cleared head, or a patch-equivalent of it by `git cherry`, is reachable from main),
+      `not-on-main`, `reverted-on-main` (it reached main and a later commit on main reverts
+      it, by git's own revert trailer or a revert of its patch), or `unknown` with a
+      because (no main branch found, the branch is gone, git refused). Main is the local
+      branch the repository's origin HEAD names, falling back to `main` then `master`, and
+      `unknown` when none exists. Read-only git only, through one adapter module; nothing
+      fetches or writes. Nodes not cleared carry no `landed`. A graph is `done` in the
+      position when every node is cleared and on-main. Update schemas/position@v1.json.
+      Tests build real temporary git repositories and pin all four values, including a
+      squash-merged branch reading on-main and a revert reading reverted-on-main. Strict
+      TypeScript. No push, no merge; the human merges.
+      `on-main` for a squash compares the attempt's whole change (its diff from the attempt's base to its cleared
+      head) with main's history; a two-commit branch squashed into one is pinned as on-main, and anything ambiguous
+      reads `unknown` with a because, never a guess.
+    gates:
+      - id: landed-proof
+        kind: command
+        run: pnpm --filter face exec vitest run test/landed.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+  - id: lines-in-voice
+    role: implementer
+    depends_on: [say-into-pane, landed-on-main]
+    acceptance: |
+      Give each graph in the position one line, tagged with its voice, so a face can say
+      where it stands in a sentence without composing one itself. The position gains
+      `line`: `{ voice: "observed", text }` composed deterministically from the position in
+      the closed vocabulary (held at a named gate; a runtime working a node with how many
+      gates left; waiting on a person's gate; ready to start; cleared and not on main;
+      reverted on main; done), or `{ voice: "said", who, text, at }` when the node that
+      needs attention most has a session whose latest note or question is newer than its
+      latest observed change, quoting that note's words exactly. Attention order is held,
+      asking, a person's gate open, ready, working, waiting, cleared. Every word in an
+      observed line is in the vocabulary (I3); the existing vocabulary check covers the new
+      sentences. Each attempt also carries `said`: its latest note (kind, text, at). Gates
+      in the position carry their declared `kind` (command, human, and any other declared
+      kind) and nodes carry their `acceptance`; the position carries the graph's `ask`, so
+      no face reads the graph file beside it. Update schemas/position@v1.json and the terminal
+      face, which shows the line under the graph's name. Tests pin one sentence per state
+      and the said case. Strict TypeScript. No push, no merge; the human merges.
+      So a face needs nothing else: each attempt carries `runner`, the runner's own steps oldest first in the
+      observed voice; each node carries `notes`, every note of its latest attempt in its own words; and each graph
+      carries `changedAt` (latest change anywhere in it) and `sinceAt` (when it entered its present state), each
+      from a named journal fact.
+    gates:
+      - id: lines-proof
+        kind: command
+        run: pnpm --filter face exec vitest run test/position.test.ts test/render.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+  - id: position-everything
+    role: implementer
+    depends_on: [lines-in-voice]
+    acceptance: |
+      One read returns the position of every graph in every repository a face asks about.
+      `interlock position --json [--repo <path>]...` (default: the current repository)
+      prints `positions@v0`: for each repository its root, its origin when one is set,
+      whether its journal read (or `unreadable` with the line that failed), and every graph:
+      the position@v1 of each graph that loads, and for each graph file that does not load,
+      its id with `unreadable` and the loader's refusal as the because. A journal that
+      cannot be read never reads as an empty one, and a graph file that cannot be parsed
+      never disappears (the face says unknown rather than a wrong count). Also prints, per
+      repository, the live attempts across all graphs with role, runtime and agent status,
+      so a face can show who is in a pane without a second read. Nothing is cached between
+      calls. Add schemas/positions@v0.json and the schema validate case. `interlock graph
+      show --json` is unchanged. Tests pin: two repositories in one read; an unreadable
+      journal; an unparseable graph file; the live-attempt list. Strict TypeScript. No push,
+      no merge; the human merges.
+    gates:
+      - id: everything-proof-1
+        kind: command
+        run: pnpm --filter cli exec vitest run test/position.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: everything-proof-2
+        kind: command
+        run: pnpm --filter schemas exec vitest run
+        expect_output: 'Tests +[1-9][0-9]* passed'

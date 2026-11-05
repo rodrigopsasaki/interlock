@@ -1,0 +1,116 @@
+interlock: notes@v0
+node: landed-on-main
+entries:
+  - kind: choice
+    at: "2026-11-05T05:10:00Z"
+    chose: >
+      The attempt's cleared head is the one commitSha shared by the
+      gate-derived receipts in the node's cleared outcome; its base is the
+      graphBaseSha of the session whose lease generation set that outcome.
+      Receipts that disagree, or a cleared outcome with no gate-derived
+      receipt, read unknown with a because.
+    because: >
+      I1: the runner judged the gates at that commit, so it is the
+      harness's own fact about what cleared, not the agent's debrief
+      headSha. A human gate clear records the main checkout's HEAD, not the
+      worktree's, so human receipts are not evidence of the attempt's head.
+    rejected:
+      - the debrief's head_sha, which the session authors
+      - the session's branch tip, which moves after clearance and disappears when the branch is deleted
+  - kind: choice
+    at: "2026-11-05T05:14:00Z"
+    chose: >
+      landed is kind-tagged like float and state ({ kind: on-main | not-on-main
+      | reverted-on-main | unknown }), with main and head on every known
+      value, how it landed (ancestry, patch, squash) on on-main and the
+      reverting commit on reverted-on-main.
+    because: >
+      position@v1 already says unknown as { kind: unknown, because }; one
+      convention in one shape. loom@v0's Landed is a bare string or
+      { unknown, because }, which the cockpit's reader maps from this, as it
+      already does for float. The evidence fields make an on-main walkable
+      to the commit that decided it without re-running git.
+  - kind: surprise
+    at: "2026-11-05T15:20:00Z"
+    expected: >
+      @phyxiusjs/fp's Result to expose a boolean ok, as mainLine.ts was first
+      written against.
+    observed: >
+      Result is tagged by _tag; isOk and isErr are the narrowing functions.
+      mainLine.ts was rewritten to use them before it was ever compiled.
+  - kind: choice
+    at: "2026-11-05T15:25:00Z"
+    chose: >
+      One adapter, packages/face/src/mainLine.ts, is the only file that runs
+      git for landed; it uses spawnSync with GIT_OPTIONAL_LOCKS=0 and only
+      read commands (symbolic-ref, rev-parse, cat-file, merge-base, rev-list,
+      cherry, diff, log, patch-id). landed.ts composes the judgment over it,
+      and positionOf takes it as an optional LandedReader beside
+      agentStatusFor, so the position stays pure and the CLI's graph show and
+      face pass mainLineReader(repoRoot).
+    because: >
+      The acceptance asks for read-only git through one adapter module. An
+      injected reader matches the agentStatusFor seam already in positionOf,
+      and a test pins that refs, index and object count are unchanged by a
+      read.
+    rejected:
+      - reusing verifier's git.ts, which execFileSyncs with a different error contract and lives in another package's concern
+  - kind: choice
+    at: "2026-11-05T15:30:00Z"
+    chose: >
+      Order of the judgment: ancestry (head reachable from main) first; then
+      git cherry main head base, on-main by patch when no attempt commit is
+      missing from main; then the whole change's patch-id (diff base..head)
+      against each main commit since the base, on-main by squash; then
+      unknown when some but not all of the attempt's commits are on main;
+      otherwise not-on-main. Reverted-on-main when a later main commit
+      carries the reverse of the whole change's patch, or when every landed
+      unit is named by a "This reverts commit" trailer; partly reverted and
+      a reverted revert read unknown.
+    because: >
+      Each step is git's own equivalence (ancestry, cherry, patch-id, the
+      revert trailer); the unknown branches are exactly the cases where two
+      of those disagree, so nothing is guessed. A merge revert names only
+      the merge commit, so the reverse-patch check is what catches it; a
+      test pins that case.
+  - kind: choice
+    at: "2026-11-05T15:33:00Z"
+    chose: >
+      Main's patch-ids and messages are read only for commits since the base
+      that touch the paths the attempt changed (git log base..main -- paths).
+    because: >
+      The face reads this on every refresh and caches nothing; scanning all
+      of main since the base for every cleared node grows with history. A
+      squash or revert of the attempt touches exactly those paths, so the
+      restriction loses no true match. A main commit that also touches other
+      files is compared on the attempt's paths only, which still says the
+      whole change is on main in that commit.
+  - kind: choice
+    at: "2026-11-05T15:35:00Z"
+    chose: >
+      Without a reader, a cleared node's landed is unknown, "this read was
+      given no repository to read main from", and done is false. done is
+      always produced and optional in the schema.
+    because: >
+      Cleared nodes always carry landed, as the acceptance reads; a pure
+      caller is told why rather than shown nothing. No stored position exists
+      to re-validate, but optional keeps position@v1 additive.
+  - kind: surprise
+    at: "2026-11-05T15:40:00Z"
+    expected: >
+      A cherry-pick of the first of two commits onto an unchanged main to read
+      as on main by patch for that commit.
+    observed: >
+      With main at the base, the pick is reachable by ancestry, so git cherry
+      lists only the second commit (+) and the first check counted zero
+      present and read not-on-main. The partial count now is the attempt's
+      commits minus cherry's + entries, so ancestry and patch both count.
+  - kind: surprise
+    at: "2026-11-05T15:45:00Z"
+    expected: >
+      This graph's cleared nodes (node-role through say-into-pane) to read
+      on-main on the real repository.
+    observed: >
+      All four read not-on-main, correctly: local main is 1049b02 (Merge #72)
+      and the graph's chain merges into its own branches; nothing of 0046 is
+      on main yet. graph show --json took about one second.

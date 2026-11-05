@@ -1,3 +1,22 @@
+import { defaultRoleTable } from "debrief";
+import type { NodeRole } from "face";
+
+export type SessionRole = "worker" | "interpreter" | NodeRole;
+
+function roleSentenceFor(graph: string, role: SessionRole, roleParagraph?: string): string {
+  switch (role) {
+    case "worker":
+      return "";
+    case "interpreter":
+      return (
+        `This session produces .interlock/graphs/${graph}.yaml for a person to approve or ` +
+        "correct; it never leases or runs a node. "
+      );
+    default:
+      return `${roleParagraph ?? defaultRoleTable[role].prompt} `;
+  }
+}
+
 export interface PriorWork {
   readonly uncommittedPaths: number;
   readonly commitsBeyondBase: number;
@@ -7,16 +26,13 @@ export function buildOpeningPrompt(
   graph: string,
   node: string,
   priorWork?: PriorWork,
-  role = "worker",
+  role: SessionRole = "worker",
   openingView?: string,
+  roleParagraph?: string,
 ): string {
-  const roleSentence =
-    role === "interpreter"
-      ? `This session produces .interlock/graphs/${graph}.yaml for a person to approve or ` +
-        "correct; it never leases or runs a node. "
-      : "";
+  const roleSentence = roleSentenceFor(graph, role, roleParagraph);
   const derivedFilingSentence =
-    role === "worker"
+    role !== "interpreter"
       ? `For a first filing, run interlock debrief prepare ${graph} ${node} --to <candidate-path> --agent-runtime <runtime> --agent-model <model>, or replace both agent flags with --human <name>; author its claims and reports, then run ` +
         `interlock debrief preview --file <candidate-path> to inspect it read-only if useful before interlock debrief file-derived ${graph} ${node} --from <candidate-path>. After source changes, commit, prepare a fresh candidate, author it, inspect it if useful, and file it. `
       : "";
@@ -36,6 +52,9 @@ export function buildOpeningPrompt(
     roleSentence +
     `Append .interlock/sessions/${graph}/${node}/notes.yaml at every choice and surprise, ` +
     `commit as you go, and file .interlock/sessions/${graph}/${node}/debrief.yaml as your final commit. ` +
+    `Before you stop to wait for a person in your pane, append a question note to that notes.yaml ` +
+    `(kind: question, at, asked in the words you would say to the person, and optional options, ` +
+    `the short answers you would accept), then ask in the pane as you do today. ` +
     derivedFilingSentence +
     previewSentence +
     `When correcting an authored debrief, keep the correction in this session directory and run ` +

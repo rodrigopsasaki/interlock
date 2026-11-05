@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/parts/question-note.json",
+  "title": "question-note",
+  "description": "A note a session appends before it stops to wait for a person in its pane: what it asked, in the words it would say to the person, and optionally the short answers it would accept. Embedded in note-appended from event@v8; no older event version may carry one.",
+  "type": "object",
+  "properties": {
+    "kind": { "const": "question" },
+    "at": { "type": "string" },
+    "asked": { "type": "string" },
+    "options": { "type": "array", "items": { "type": "string" } }
+  },
+  "required": ["kind", "at", "asked"],
+  "additionalProperties": false
+}

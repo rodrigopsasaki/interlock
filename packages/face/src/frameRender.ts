@@ -1,6 +1,7 @@
 import type { PositionAttempt } from "./attempts.ts";
 import { HELP_TEXT } from "./helpText.ts";
 import { renderAgo } from "./leaseState.ts";
+import { renderLine } from "./line.ts";
 import { isLiveAttempt, type NodeRow, nodeRowsOf } from "./nodeRow.ts";
 import type { PlansEntry } from "./plansEntry.ts";
 import type { Position, PositionNode } from "./position.ts";
@@ -59,7 +60,11 @@ function liveMarker(node: PositionNode): string {
 }
 
 export function renderGraphFrame(position: Position, index: number): string {
-  const lines = [`graph ${position.graph} — ${renderApproval(position.approval)}`, ""];
+  const lines = [
+    `graph ${position.graph} — ${renderApproval(position.approval)}`,
+    `  ${renderLine(position.line)}`,
+    "",
+  ];
   position.nodes.forEach((node, rowIndex) => {
     lines.push(
       `${cursor(rowIndex, index)}${liveMarker(node)}${node.id} — ${renderNodeState(node)}`,

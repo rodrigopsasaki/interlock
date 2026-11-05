@@ -7,20 +7,93 @@
   "properties": {
     "interlock": { "const": "position@v1" },
     "graph": { "type": "string" },
+    "ask": {
+      "description": "Additive within position@v1: the graph file's ask, verbatim, so no face reads the graph file beside the position. Absent when the graph declares none.",
+      "type": "string"
+    },
     "approval": { "enum": ["approved", "stale", "not-approved"] },
+    "line": { "$ref": "#/$defs/line" },
     "nodes": {
       "type": "array",
       "items": { "$ref": "#/$defs/positionNode" }
     },
-    "criticalPath": { "type": "array", "items": { "type": "string" } }
+    "criticalPath": { "type": "array", "items": { "type": "string" } },
+    "done": {
+      "description": "True when every node is cleared and its landed reads on-main. Absent from positions produced before landed-on-main.",
+      "type": "boolean"
+    },
+    "changedAt": {
+      "description": "Additive within position@v1: the latest time anything in the graph changed, from the journal fact that carries it (a runner's narrated step, a session's note, or a person's delivered words). Gate moves and outcomes carry no time in the journal, so they are dated only through the runner's narration of them. Unknown with a because when no session of the graph has any of those facts.",
+      "$ref": "#/$defs/moment"
+    },
+    "sinceAt": {
+      "description": "Additive within position@v1: when the graph entered the state its line names, from the latest observed fact (a runner's narrated step or a person's delivered words) on the latest attempt of the node the line is about; for a done graph, its latest narrated step. Unknown with a because when that node has no attempt, or the line is about the graph's approval, whose gate move carries no time.",
+      "$ref": "#/$defs/moment"
+    }
   },
   "required": ["interlock", "graph", "approval", "nodes", "criticalPath"],
   "additionalProperties": false,
   "$defs": {
+    "line": {
+      "description": "Additive within position@v1: where the graph stands in one sentence, tagged with its voice, so a face never composes one. Observed: composed deterministically from the position in the closed vocabulary, about the node that needs attention most (held, then a blocked session asking, then a person's gate open, ready, working, waiting on an upstream node, ended otherwise, cleared but not on main, cleared on main), or done. Said: that node's latest attempt wrote a note or question newer than its latest observed fact, and text quotes the note's words exactly (a choice's chose, a surprise's observed, a question's asked); who is the runtime's name and at is the note's own time as written.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "voice": { "const": "observed" },
+            "text": { "type": "string" }
+          },
+          "required": ["voice", "text"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "voice": { "const": "said" },
+            "who": { "type": "string" },
+            "text": { "type": "string" },
+            "at": { "type": "string" }
+          },
+          "required": ["voice", "who", "text", "at"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "moment": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "known" },
+            "at": { "type": "number" },
+            "fact": { "enum": ["session-narrated", "note-appended", "person-said"] }
+          },
+          "required": ["kind", "at", "fact"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "unknown" },
+            "because": { "type": "string" }
+          },
+          "required": ["kind", "because"],
+          "additionalProperties": false
+        }
+      ]
+    },
     "positionNode": {
       "type": "object",
       "properties": {
         "id": { "type": "string" },
+        "role": {
+          "description": "The node's role as its graph supplies it; absent when the graph names none.",
+          "enum": ["scout", "planner", "implementer", "tester", "reviewer", "verifier"]
+        },
+        "acceptance": {
+          "description": "Additive within position@v1: the node's acceptance as the graph file declares it now, verbatim. Absent when the graph declares none. An attempt's brief carries the acceptance that session was given.",
+          "type": "string"
+        },
         "dependsOn": { "type": "array", "items": { "type": "string" } },
         "state": { "$ref": "#/$defs/nodeState" },
         "gates": {
@@ -31,10 +104,62 @@
           "type": "array",
           "items": { "$ref": "#/$defs/positionAttempt" }
         },
-        "float": { "$ref": "#/$defs/float" }
+        "float": { "$ref": "#/$defs/float" },
+        "landed": { "$ref": "#/$defs/landed" },
+        "notes": {
+          "description": "Additive within position@v1: every note of the node's live or latest attempt, oldest first, exactly as the journal holds it. Empty when the node has no attempt or its attempt wrote none.",
+          "type": "array",
+          "items": { "oneOf": [{ "$ref": "parts/note.json" }, { "$ref": "parts/question-note.json" }] }
+        }
       },
       "required": ["id", "dependsOn", "state", "gates", "attempts", "float"],
       "additionalProperties": false
+    },
+    "landed": {
+      "description": "Present only on a cleared node: whether its cleared head is on the repository's main line, by ancestry, by git cherry patch equivalence, or by its whole change squashed into one commit, and whether main later reverts it. Read from git, read-only, at every read.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "on-main" },
+            "main": { "type": "string" },
+            "head": { "type": "string" },
+            "by": { "enum": ["ancestry", "patch", "squash"] }
+          },
+          "required": ["kind", "main", "head", "by"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "not-on-main" },
+            "main": { "type": "string" },
+            "head": { "type": "string" }
+          },
+          "required": ["kind", "main", "head"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "reverted-on-main" },
+            "main": { "type": "string" },
+            "head": { "type": "string" },
+            "revertedBy": { "type": "string" }
+          },
+          "required": ["kind", "main", "head", "revertedBy"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "unknown" },
+            "because": { "type": "string" }
+          },
+          "required": ["kind", "because"],
+          "additionalProperties": false
+        }
+      ]
     },
     "nodeState": {
       "oneOf": [
@@ -148,6 +273,10 @@
       "type": "object",
       "properties": {
         "id": { "type": "string" },
+        "kind": {
+          "description": "Additive within position@v1: the gate's kind as the graph declares it (command, human, or any other declared kind).",
+          "type": "string"
+        },
         "state": { "$ref": "#/$defs/positionGateState" },
         "receipt": { "$ref": "#/$defs/receiptSummary" }
       },
@@ -186,9 +315,129 @@
         "runtime": { "$ref": "parts/session-runtime.json" },
         "outcome": { "$ref": "parts/outcome.json" },
         "leaseState": { "$ref": "#/$defs/leaseState" },
-        "agentStatus": { "enum": ["idle", "working", "blocked", "done", "unknown"] }
+        "agentStatus": { "enum": ["idle", "working", "blocked", "done", "unknown"] },
+        "asking": { "$ref": "#/$defs/attemptAsking" },
+        "heard": { "$ref": "#/$defs/attemptHeard" },
+        "brief": { "$ref": "#/$defs/attemptBrief" },
+        "debrief": { "$ref": "#/$defs/attemptDebrief" },
+        "said": { "$ref": "#/$defs/attemptSaid" },
+        "runner": {
+          "description": "Additive within position@v1: the runner's own steps for this attempt, oldest first, from its session-narrated facts: when, in milliseconds since the epoch, and the line as the runner narrated it.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "at": { "type": "number" },
+              "line": { "type": "string" }
+            },
+            "required": ["at", "line"],
+            "additionalProperties": false
+          }
+        }
       },
       "required": ["session", "runtime", "leaseState"],
+      "dependentSchemas": {
+        "asking": {
+          "properties": { "agentStatus": { "const": "blocked" } },
+          "required": ["agentStatus"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "attemptSaid": {
+      "description": "Additive within position@v1: the attempt's latest note, its kind, its words exactly (a choice's chose, a surprise's observed, a question's asked) and its time as the note wrote it. Absent when the attempt wrote no note.",
+      "type": "object",
+      "properties": {
+        "kind": { "enum": ["choice", "surprise", "question"] },
+        "text": { "type": "string" },
+        "at": { "type": "string" }
+      },
+      "required": ["kind", "text", "at"],
+      "additionalProperties": false
+    },
+    "attemptHeard": {
+      "description": "Additive within position@v1: the last person-said on this attempt whose delivery to the pane was acknowledged, with who said it, their words exactly, and when they said it in milliseconds since the epoch. Absent when no person's words are known to have reached the pane; words whose delivery is uncertain never appear here.",
+      "type": "object",
+      "properties": {
+        "by": { "type": "string" },
+        "text": { "type": "string" },
+        "at": { "type": "number" }
+      },
+      "required": ["by", "text", "at"],
+      "additionalProperties": false
+    },
+    "attemptAsking": {
+      "description": "Additive within position@v1, present only while the attempt's agent status is blocked: what the session asked, from the latest question note it appended and that is not yet answered, in its own words and with the short answers it would accept, at the time the note names. When the session is blocked and has no unanswered question, asked is null, because says why in plain words, and at is when the blocked status was observed. The words are never invented and never read off the pane's screen. A question counts as answered once the attempt ends, or once a person's words naming it (person-said) are acknowledged as delivered to the pane. While an answer's delivery is uncertain or unrecorded, the question stays open and because says so.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "asked": { "type": "string" },
+            "options": { "type": "array", "items": { "type": "string" } },
+            "because": { "type": "string" },
+            "at": { "type": "string" }
+          },
+          "required": ["asked", "at"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "asked": { "type": "null" },
+            "because": { "type": "string" },
+            "at": { "type": "string" }
+          },
+          "required": ["asked", "because", "at"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "attemptBrief": {
+      "description": "What the session was told, from its session-started fact: the brief's path in the worktree, the role it was supplied (absent when not one of the six), the acceptance the stored session brief carried (never the graph's current text), and the walk it was given, or none with why.",
+      "type": "object",
+      "properties": {
+        "path": { "type": "string" },
+        "role": { "enum": ["scout", "planner", "implementer", "tester", "reviewer", "verifier"] },
+        "acceptance": { "type": "string" },
+        "walk": { "$ref": "parts/walk.json" }
+      },
+      "required": ["path", "acceptance", "walk"],
+      "additionalProperties": false
+    },
+    "attemptDebrief": {
+      "description": "What the session returned, present once a debrief is filed: its path, how many times it was filed (version), the debrief kinds it carries, and the verifier's marks on its claims counted by mark, or unknown with why.",
+      "type": "object",
+      "properties": {
+        "path": { "type": "string" },
+        "version": { "type": "integer", "minimum": 1 },
+        "kinds": {
+          "type": "array",
+          "items": { "enum": ["discoveries", "decisions", "hunks", "proof", "findings", "graph", "marks"] }
+        },
+        "marks": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": { "const": "counted" },
+                "counts": { "$ref": "parts/mark-counts.json" }
+              },
+              "required": ["kind", "counts"],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": { "const": "unknown" },
+                "because": { "type": "string" }
+              },
+              "required": ["kind", "because"],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": ["path", "version", "kinds", "marks"],
       "additionalProperties": false
     }
   }

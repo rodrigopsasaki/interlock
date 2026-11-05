@@ -57,5 +57,16 @@ export type {
 } from "./revise.ts";
 export { explainDebriefRevisionRefusal, reviseDebrief } from "./revise.ts";
 export { isPlainWord } from "./role.ts";
+export { roleKindsPresent, roleKindsRefusal } from "./roleKinds.ts";
+export type { RoleSections } from "./roleSections.ts";
+export type { RoleDebriefKinds, RoleEntry, RoleTable, RoleTableRefusal } from "./roles.ts";
+export {
+  defaultRoleTable,
+  explainRoleTableRefusal,
+  ROLES_V0,
+  readRoleTable,
+  roleTableOver,
+  roleTablePath,
+} from "./roles.ts";
 export type { Item, ItemKind, ItemScope, ItemStanding } from "./slice.ts";
 export { renderSlice } from "./slice.ts";

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/parts/mark-counts.json",
+  "title": "mark-counts",
+  "description": "The verifier's marks on one debrief's claims, counted by mark.",
+  "type": "object",
+  "properties": {
+    "rooted": { "type": "integer", "minimum": 0 },
+    "unrooted": { "type": "integer", "minimum": 0 },
+    "unexplained": { "type": "integer", "minimum": 0 },
+    "gap": { "type": "integer", "minimum": 0 }
+  },
+  "required": ["rooted", "unrooted", "unexplained", "gap"],
+  "additionalProperties": false
+}

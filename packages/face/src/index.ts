@@ -1,4 +1,7 @@
 export type { AgentStatus } from "./agentStatus.ts";
+export type { Asking, Heard } from "./asking.ts";
+export { askingOf, heardOf, openQuestionOf } from "./asking.ts";
+export type { AttemptBrief, AttemptDebrief, AttemptMarks } from "./attemptRecord.ts";
 export type { PositionAttempt } from "./attempts.ts";
 export { attemptsFor, liveOrLatestAttempt } from "./attempts.ts";
 export { criticalPath } from "./criticalPath.ts";
@@ -37,8 +40,13 @@ export {
 } from "./frameRender.ts";
 export { listGraphIds } from "./graphs.ts";
 export { HELP_TEXT } from "./helpText.ts";
+export type { ClearedHead, Landed, LandedBy, LandedReader } from "./landed.ts";
+export { clearedHeadOf, landedOf, mainLineReader } from "./landed.ts";
 export type { LeaseState } from "./leaseState.ts";
 export { leaseStateOf, renderAgo } from "./leaseState.ts";
+export type { PositionLine } from "./line.ts";
+export { renderLine } from "./line.ts";
+export type { JournalFact, Moment } from "./moment.ts";
 export type { NodeRow } from "./nodeRow.ts";
 export { isLiveAttempt, nodeRowsOf } from "./nodeRow.ts";
 export type { PlansEntry } from "./plansEntry.ts";
@@ -55,6 +63,8 @@ export { positionGate } from "./positionGate.ts";
 export type { ReceiptSummary } from "./receiptSummary.ts";
 export { summarizeReceipt } from "./receiptSummary.ts";
 export { renderPosition } from "./render.ts";
+export type { NodeRole } from "./role.ts";
+export { isNodeRole, NODE_ROLES, parseNodeRole } from "./role.ts";
 export {
   currentCommitSha,
   findRepoRoot,
@@ -64,6 +74,7 @@ export {
 export type { RuntimeAttempt } from "./runtimeAttempts.ts";
 export { lastAttemptByRuntimeName } from "./runtimeAttempts.ts";
 export { renderSessionRuntime } from "./runtimeLine.ts";
+export type { AttemptSaid, RunnerStep } from "./said.ts";
 export type { SessionColumnsInput } from "./sessionColumns.ts";
 export {
   renderBrief,

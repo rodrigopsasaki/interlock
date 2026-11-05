@@ -15,6 +15,7 @@
       "type": "string"
     },
     "role": {
+      "description": "The session's role, supplied and never self-declared. When the node's graph names a role (scout, planner, implementer, tester, reviewer, verifier) the runner writes that word here; otherwise the repository copy's word stands, historically worker, or interpreter for interlock plan. Any plain word stays readable.",
       "type": "string",
       "pattern": "^\\S+$"
     },
@@ -51,6 +52,10 @@
         "address"
       ],
       "additionalProperties": true
+    },
+    "walk": {
+      "description": "Present only when the node's graph names a role: the walk the role table gave this brief for the substrate address it was written against.",
+      "$ref": "parts/walk.json"
     },
     "graph_base_sha": {
       "type": "string",

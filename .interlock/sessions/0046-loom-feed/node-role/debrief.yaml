@@ -1,0 +1,262 @@
+interlock: debrief@v2
+graph: 0046-loom-feed
+node: node-role
+role: implementer
+graph_base_sha: b0495304ead5ff3d5455c259a1131dcc9c3d435f
+session_start_sha: 8c19495c3ba2a4426d29ecdfc6221d16dc9741cc
+head_sha: 179edc86f6e18c7a81cc2ce28b5e5ef644d05aa6
+derivation:
+  kind: agent
+  runtime: claude
+  model: claude-opus-5-5
+discoveries:
+  - id: ledger-role-disagrees-with-brief
+    what: >-
+      This session's session-started event records role "worker" while its worktree brief
+      says "implementer", so interlock debrief prepare refuses the derived filing.
+    found_at: 'packages/cli/src/run.ts:198 "role: declaration.role ??"'
+    mattered_because: >-
+      Before this node, run.ts passed a literal "worker" to the ledger whatever the brief said,
+      and deriveSessionStart compares the two. Every 0046 brief was written with
+      "role: implementer", so every node of this graph started before this fix lands would hit
+      the same refusal. This debrief is authored by hand against debrief@v2 for that reason.
+  - id: comments-gate-red-on-base
+    what: >-
+      The standing comments gate failed on the graph base: nine comment lines in packages/*/src
+      that came in with the git-buffer and herdr-wait fixes from main.
+    found_at: 'packages/runner/src/herdr/adapter.ts:42 "function wholeMillisecondsForHerdrU64(ms: number): number {"'
+    mattered_because: >-
+      A standing gate that is red before any change makes every node of the graph unclearable.
+      It was fixed in its own commit, 7af5bc4, by naming the reason in identifiers.
+decisions:
+  - id: closed-set-in-face
+    what: >-
+      Added NodeRole, NODE_ROLES and parseNodeRole in packages/face/src/role.ts. The graph
+      loader reads an optional node role, refuses a non-string, and refuses an unknown word
+      with a sentence naming the nearest role.
+    because: >-
+      face owns graph@v0 parsing and every reader of a node already depends on it. A refusal
+      that names the nearest term is I3's readable refusal, and a missing role is left absent,
+      not defaulted, so readers accept its absence forever.
+    rests_on:
+      - .interlock/graphs/0046-loom-feed.yaml
+      - packages/face/src/document.ts
+    hunks:
+      - packages/face/src/role.ts:1-25
+      - packages/face/src/document.ts:5-5
+      - packages/face/src/document.ts:20-20
+      - packages/face/src/document.ts:135-141
+      - packages/face/src/document.ts:157-157
+      - packages/face/src/index.ts:58-59
+      - packages/face/test/document.test.ts:5-5
+      - packages/face/test/document.test.ts:288-327
+  - id: nearest-term-shared
+    what: >-
+      Moved the Levenshtein nearest-term search out of the verifier's vocabulary check into
+      packages/ledger/src/nearestTerm.ts and pointed the verifier at it.
+    because: >-
+      The graph loader needed the same search, and a second copy would be a reinvention. ledger
+      is the one package that both face and verifier already import. The verifier's behaviour is
+      unchanged and its tests still pass.
+    rests_on:
+      - packages/verifier/src/vocabulary.ts
+    hunks:
+      - packages/ledger/src/nearestTerm.ts:1-37
+      - packages/ledger/src/index.ts:42-43
+      - packages/verifier/src/vocabulary.ts:3-3
+      - packages/verifier/src/vocabulary.ts:217-217
+  - id: graph-role-authoritative-in-brief
+    what: >-
+      When the graph names a role, writeBriefIntoWorktree writes it into the worktree brief's
+      front matter and hands it to the substrate context call. diffRole narrates when the
+      repository copy declared another word. With no graph role, the front matter is left
+      exactly as the repository copy wrote it.
+    because: >-
+      "Supplied by the graph, never self-declared": the repository copy's word cannot override
+      the graph's, the same way gates and scope are already overwritten from the runner's view.
+      Leaving the no-role path untouched keeps the old brief byte for byte, and a test pins those
+      bytes.
+    rests_on:
+      - packages/runner/src/briefRewrite.ts
+      - packages/runner/src/sessionBrief.ts
+    hunks:
+      - packages/runner/src/briefRewrite.ts:60-66
+      - packages/runner/src/sessionBrief.ts:12-12
+      - packages/runner/src/sessionBrief.ts:15-21
+      - packages/runner/src/sessionBrief.ts:24-24
+      - packages/runner/src/sessionBrief.ts:78-78
+      - packages/runner/src/sessionBrief.ts:96-96
+      - packages/runner/src/sessionBrief.ts:98-98
+      - packages/runner/src/sessionBrief.ts:103-103
+      - packages/runner/src/sessionBrief.ts:114-114
+      - packages/runner/src/sessionBrief.ts:156-156
+      - packages/runner/test/sessionBrief.test.ts:6-6
+      - packages/runner/test/sessionBrief.test.ts:13-13
+      - packages/runner/test/sessionBrief.test.ts:630-751
+  - id: run-supplies-role
+    what: >-
+      interlock run passes the node's graph role to writeBriefIntoWorktree and to
+      driveInteractiveSession, so the ledger's session-started brief, the worktree brief and the
+      opening prompt all carry the same word. It stays "worker" when the graph names none.
+    because: >-
+      run.ts hardcoded "worker", which is why this session's ledger and brief disagree. With one
+      source, the graph, they cannot disagree for any session started after this lands.
+    rests_on:
+      - packages/cli/src/run.ts
+      - packages/cli/src/debrief/sessionIdentity.ts
+    hunks:
+      - packages/cli/src/run.ts:189-189
+      - packages/cli/src/run.ts:198-198
+      - packages/cli/test/run.test.ts:601-634
+  - id: session-role-union-and-sentences
+    what: >-
+      The runner's role became SessionRole (worker, interpreter or a NodeRole) instead of string.
+      The opening prompt adds one sentence per node role saying what that role produces, and
+      every role except interpreter keeps the derived filing sentence.
+    because: >-
+      With the union, a role that has no sentence cannot be represented. Worker and interpreter
+      prompts are unchanged, and existing openingPrompt tests pin them. What each role must
+      return in its debrief is role-shapes-the-session's acceptance, not this node's.
+    rests_on:
+      - packages/runner/src/openingPrompt.ts
+    hunks:
+      - packages/runner/src/openingPrompt.ts:1-27
+      - packages/runner/src/openingPrompt.ts:37-37
+      - packages/runner/src/openingPrompt.ts:40-40
+      - packages/runner/src/openingPrompt.ts:42-42
+      - packages/runner/src/index.ts:64-64
+      - packages/runner/src/sessionDrive.ts:23-23
+      - packages/runner/src/sessionDrive.ts:79-79
+  - id: position-carries-role
+    what: >-
+      PositionNode gains an optional role, copied from the declaration and absent when the graph
+      names none.
+    because: >-
+      The acceptance asks for role on each position node with no reading of the graph file
+      beside it. It is optional so that every existing position is still valid.
+    rests_on:
+      - packages/face/src/position.ts
+    hunks:
+      - packages/face/src/position.ts:9-9
+      - packages/face/src/position.ts:24-24
+      - packages/face/src/position.ts:96-96
+      - packages/face/test/position.test.ts:281-300
+  - id: plan-drafts-roled-nodes
+    what: >-
+      The interpreter brief asks for a role on every node, and plan's pre-judgement check holds a
+      produced graph with a sentence when any node names none. Plan's own session keeps the role
+      "interpreter".
+    because: >-
+      A line in the brief alone would be the interpreter's word. The check makes it a harness
+      proof (I1) before judgement, through the existing beforeJudge seam. Renaming interpreter to
+      planner would make every historical plan brief and event disagree with the new word.
+    rests_on:
+      - packages/cli/src/plan.ts
+      - packages/runner/src/interpreterBrief.ts
+    hunks:
+      - packages/cli/src/plan.ts:13-13
+      - packages/cli/src/plan.ts:397-401
+      - packages/runner/src/interpreterBrief.ts:76-78
+      - packages/cli/test/plan.test.ts:98-98
+      - packages/cli/test/plan.test.ts:107-107
+      - packages/cli/test/plan.test.ts:411-432
+  - id: schemas-and-reference
+    what: >-
+      graph@v0 nodes and position@v1 nodes gain an optional role enum of the six roles.
+      brief@v1's role keeps any plain word and gains a description. docs/shapes.md was
+      regenerated, and the schema tests pin all three.
+    because: >-
+      Additive only. The brief schema has to stay open because 159 historical briefs say worker
+      and 8 say interpreter. The graph and position schemas can be closed because no historical
+      graph names a role outside the set.
+    rests_on:
+      - schemas/brief@v1.json
+      - packages/schemas/test/reference.test.ts
+    hunks:
+      - schemas/graph@v0.json:29-39
+      - schemas/position@v1.json:24-27
+      - schemas/brief@v1.json:18-18
+      - docs/shapes.md:21-21
+      - docs/shapes.md:891-891
+      - docs/shapes.md:1112-1112
+      - packages/schemas/test/graphRole.test.ts:1-84
+  - id: vocabulary-and-design-row
+    what: >-
+      Added the six roles as rows of AGENTS.md's vocabulary table, extended its brief row, and
+      extended the design note's brief row with what each role produces.
+    because: >-
+      I3: the six words now appear in positions, so they must be in the closed vocabulary. The
+      brief row's first sentence is kept because the shapes reference quotes it.
+    rests_on:
+      - AGENTS.md
+      - docs/design/0001-interlock.md
+    hunks:
+      - AGENTS.md:69-75
+      - docs/design/0001-interlock.md:283-283
+  - id: comments-gate-fix
+    what: >-
+      Removed nine comment lines from packages/*/src. The git buffer constants were renamed to
+      GIT_BUFFER_PAST_EXEC_FILE_SYNC_ONE_MEGABYTE_DEFAULT, and the herdr wait slice goes through
+      wholeMillisecondsForHerdrU64.
+    because: >-
+      The standing comments gate was red on the graph base. Naming the reason keeps the why
+      without a comment, and the fuller reasons stay in the bodies of commits 7b4039a and ea45b37.
+      No behaviour changes.
+    rests_on:
+      - scripts/noComments.ts
+    hunks:
+      - packages/cli/src/debrief/sessionIdentity.ts:9-9
+      - packages/cli/src/debrief/sessionIdentity.ts:17-17
+      - packages/cli/src/debrief/sessionIdentity.ts:29-29
+      - packages/runner/src/scope.ts:3-3
+      - packages/runner/src/scope.ts:9-9
+      - packages/runner/src/worktree.ts:37-37
+      - packages/runner/src/worktree.ts:45-45
+      - packages/runner/src/herdr/adapter.ts:41-44
+      - packages/runner/src/herdr/adapter.ts:416-416
+      - packages/verifier/src/git.ts:14-14
+      - packages/verifier/src/git.ts:21-21
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: Every workspace package typechecks.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Biome checked 359 files with no findings.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+    note: packages/*/src contains no comments after 7af5bc4; it failed on the graph base.
+  - id: test
+    result: pass
+    invocation: mise exec -- pnpm test
+    note: 1995 tests passed across eight packages.
+  - id: role-proof
+    result: pass
+    invocation: mise exec -- pnpm --filter face exec vitest run test/position.test.ts && mise exec -- pnpm --filter runner exec vitest run test/sessionBrief.test.ts
+    note: 17 and 26 tests passed.
+  - id: role-schema-proof
+    result: pass
+    invocation: mise exec -- pnpm --filter schemas exec vitest run
+    note: 941 tests passed.
+open:
+  - >-
+    gap: interlock debrief prepare refused this session ("session-started event does not match
+    the local brief"), because the journal recorded role worker while the brief says
+    implementer. This debrief was authored by hand against debrief@v2 instead of through
+    file-derived. The other 0046 nodes' briefs also say implementer, so any of them started
+    before this fix merges will hit the same refusal. Merging this node before starting the
+    next one avoids it.
+  - >-
+    A repository brief whose node has no graph role still records ledger role worker whatever
+    the brief's own word is. This is today's behaviour, kept on purpose for the byte-for-byte
+    promise, so such a brief that says something else still cannot be filed through the
+    derived path.
+  - >-
+    loom@v0 Node.role is filled, and its Role union names exactly the same six words
+    (cockpit/loom/schema.ts:24). One shape difference: loom declares role as Role | null, while
+    the acceptance asks for position@v1 to leave it absent when the graph names none. A face
+    maps absent to null; the position does not emit null. loom's Brief.role (also Role | null)
+    belongs to role-shapes-the-session's attempt brief, not to this node.

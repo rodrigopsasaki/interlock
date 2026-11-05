@@ -5,6 +5,7 @@ import { parse as parseYaml, YAMLParseError } from "yaml";
 import { parseDecision } from "./decision.ts";
 import { parseDiscovery } from "./discovery.ts";
 import { parseGateRun } from "./gateRun.ts";
+import { parseRoleSections } from "./roleSections.ts";
 import { isShaLike } from "./sha.ts";
 import { isRecord, isString, isStringArray, prop } from "./validate.ts";
 
@@ -136,6 +137,9 @@ function parseV2(
   if (rawDrafted !== undefined && !isDrafted(rawDrafted))
     return invalid(path, '"drafted" must be a mapping with "by" and "from"');
 
+  const sections = parseRoleSections(parsed);
+  if (isErr(sections)) return invalid(path, sections.error);
+
   return ok({
     kind: "v2",
     debrief: {
@@ -151,6 +155,7 @@ function parseV2(
       gatesRunByAgent,
       open,
       ...(rawDrafted === undefined ? {} : { drafted: rawDrafted }),
+      ...sections.value,
     },
   });
 }

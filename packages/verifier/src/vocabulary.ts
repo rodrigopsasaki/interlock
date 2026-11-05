@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { type Derivation, type Mark, mark } from "ledger";
+import { type Derivation, type Mark, mark, nearestTerm } from "ledger";
 import type { FileDiff } from "./git.ts";
 
 export const PLAIN_PROGRAMMING_ENGLISH: ReadonlySet<string> = new Set(
@@ -199,42 +199,6 @@ export function extractWords(files: readonly FileDiff[]): readonly string[] {
   return words;
 }
 
-function at(row: readonly number[], index: number): number {
-  const value = row[index];
-  if (value === undefined) throw new Error(`levenshtein: index ${index} out of bounds`);
-  return value;
-}
-
-function levenshtein(a: string, b: string): number {
-  const width = b.length + 1;
-  let previousRow = Array.from({ length: width }, (_, j) => j);
-  for (let i = 1; i <= a.length; i++) {
-    const currentRow: number[] = [i];
-    for (let j = 1; j < width; j++) {
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      currentRow.push(
-        Math.min(at(previousRow, j) + 1, at(currentRow, j - 1) + 1, at(previousRow, j - 1) + cost),
-      );
-    }
-    previousRow = currentRow;
-  }
-  return at(previousRow, b.length);
-}
-
-function nearest(
-  word: string,
-  known: ReadonlySet<string>,
-): { readonly term: string; readonly distance: number } {
-  let best: { term: string; distance: number } | undefined;
-  for (const candidate of [...known].sort()) {
-    const distance = levenshtein(word.toLowerCase(), candidate);
-    if (best === undefined || distance < best.distance) {
-      best = { term: candidate, distance };
-    }
-  }
-  return best ?? { term: "", distance: word.length };
-}
-
 export function vocabularyGaps(
   files: readonly FileDiff[],
   repoRoot: string,
@@ -250,7 +214,7 @@ export function vocabularyGaps(
   const gaps: Mark[] = [];
   for (const word of extractWords(files)) {
     if (known.has(word.toLowerCase())) continue;
-    const closest = nearest(word, known);
+    const closest = nearestTerm(word, known);
     gaps.push(
       mark.gap(derivation, {
         term: word,

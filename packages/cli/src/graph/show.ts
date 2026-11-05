@@ -6,6 +6,7 @@ import {
   findRepoRoot,
   graphFilePath,
   loadGraphDocument,
+  mainLineReader,
   positionOf,
   renderPosition,
   sharedJournalDirectory,
@@ -75,6 +76,7 @@ export async function runGraphShow(
     contentHash.value,
     nowWallMs,
     (session) => statuses.get(session),
+    mainLineReader(repoRoot),
   );
 
   return {

@@ -4,12 +4,15 @@ import type { LedgerEvent } from "./event.ts";
 import type { Gate } from "./gate.ts";
 import { type Node, nodeKey } from "./graph.ts";
 import type { Lease } from "./lease.ts";
+import type { MarkCounts } from "./mark.ts";
 import type { Note } from "./note.ts";
 import type { OutboxDelivery, OutboxIntent } from "./outbox.ts";
 import type { Outcome } from "./outcome.ts";
+import type { PersonSaid } from "./personSaid.ts";
 import type { Receipt } from "./receipt.ts";
 import type { SessionRuntime } from "./session.ts";
 import { type SessionFacts, sessionFacts } from "./sessionFacts.ts";
+import type { Walk } from "./walk.ts";
 
 export interface NodeView {
   readonly node: Node;
@@ -25,6 +28,11 @@ export interface Narrated {
   readonly line: string;
 }
 
+export interface SaidView {
+  readonly said: PersonSaid;
+  readonly delivery: OutboxDelivery | undefined;
+}
+
 export interface SessionView {
   readonly session: string;
   readonly node: Node;
@@ -33,11 +41,15 @@ export interface SessionView {
   readonly runtime: SessionRuntime;
   readonly facts: SessionFacts;
   readonly notes: readonly Note[];
+  readonly walk: Walk | undefined;
   readonly debrief: Debrief | undefined;
+  readonly debriefFilings: number;
+  readonly markCounts: MarkCounts | undefined;
   readonly lease: Lease | undefined;
   readonly leaseExpired: boolean;
   readonly leaseGeneration: number | undefined;
   readonly narration: readonly Narrated[];
+  readonly said: readonly SaidView[];
 }
 
 export interface LedgerProjection {
@@ -99,6 +111,22 @@ function withSession(
   return { ...projection, sessions };
 }
 
+function withSaidDelivery(
+  projection: LedgerProjection,
+  delivery: OutboxDelivery,
+): LedgerProjection {
+  const speaker = [...projection.sessions.values()].find((view) =>
+    view.said.some((entry) => entry.said.id === delivery.id),
+  );
+  if (speaker === undefined) return projection;
+  return withSession(projection, speaker.session, (view) => ({
+    ...view,
+    said: view.said.map((entry) =>
+      entry.said.id === delivery.id ? { ...entry, delivery } : entry,
+    ),
+  }));
+}
+
 export function applyEvent(projection: LedgerProjection, event: LedgerEvent): LedgerProjection {
   switch (event.kind) {
     case "node-created":
@@ -146,11 +174,15 @@ export function applyEvent(projection: LedgerProjection, event: LedgerEvent): Le
         runtime: event.session.runtime,
         facts: sessionFacts.unknown(),
         notes: [],
+        walk: event.walk,
         debrief: undefined,
+        debriefFilings: 0,
+        markCounts: undefined,
         lease: undefined,
         leaseExpired: false,
         leaseGeneration: undefined,
         narration: [],
+        said: [],
       });
       return { ...withNodeCreated, sessions };
     }
@@ -169,10 +201,17 @@ export function applyEvent(projection: LedgerProjection, event: LedgerEvent): Le
         ...view,
         facts: event.facts,
       }));
+    case "person-said":
+      return withSession(projection, event.session, (view) => ({
+        ...view,
+        said: [...view.said, { said: event.said, delivery: undefined }],
+      }));
     case "debrief-filed":
       return withSession(projection, event.session, (view) => ({
         ...view,
         debrief: event.debrief,
+        debriefFilings: view.debriefFilings + 1,
+        markCounts: event.markCounts,
       }));
     case "gate-moved":
       return withNode(projection, event.node, (view) => {
@@ -202,7 +241,7 @@ export function applyEvent(projection: LedgerProjection, event: LedgerEvent): Le
       };
     case "outbox-delivery-recorded": {
       const current = projection.outbox.get(event.delivery.id);
-      if (current === undefined) return projection;
+      if (current === undefined) return withSaidDelivery(projection, event.delivery);
       const outbox = new Map(projection.outbox);
       outbox.set(event.delivery.id, {
         ...current,

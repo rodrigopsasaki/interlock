@@ -9,7 +9,7 @@ What a session is given: node, acceptance, gates, context slice, role.
 ### Versions
 
 - `brief@v0`: the first version.
-- `brief@v1`: added `graph` (required); added `node` (required); added `role` (required); added `gates` (required); added `scope` (required); added `context_scope` (optional); added `substrate` (required); added `graph_base_sha` (optional); added `session` (optional).
+- `brief@v1`: added `graph` (required); added `node` (required); added `role` (required); added `gates` (required); added `scope` (required); added `context_scope` (optional); added `substrate` (required); added `walk` (optional); added `graph_base_sha` (optional); added `session` (optional).
 
 ### Fields (`brief@v1`)
 
@@ -18,11 +18,12 @@ What a session is given: node, acceptance, gates, context slice, role.
 | `interlock` | the literal `"brief@v1"` | yes |  |
 | `graph` | string | yes |  |
 | `node` | string | yes |  |
-| `role` | string matching `^\S+$` | yes |  |
+| `role` | string matching `^\S+$` | yes | The session's role, supplied and never self-declared. When the node's graph names a role (scout, planner, implementer, tester, reviewer, verifier) the runner writes that word here; otherwise the repository copy's word stands, historically worker, or interpreter for interlock plan. Any plain word stays readable. |
 | `gates` | array of gate-declaration | yes | A gate as declared on a graph node, a graph, or a brief's front matter: an id, a kind, and an optional command and output check. A human gate carries no run. |
 | `scope` | array of string | yes |  |
 | `context_scope` | array of string | no |  |
 | `substrate` | object | yes | fields: address (string, required); handle (string, optional) |
+| `walk` | walk | no | The substrate questions a brief asks first, by the substrate's three verbs and its address. A starting point, never a fence: the whole substrate stays open to the session through its address. With the address none the walk is empty and says why; nothing errors (I5). |
 | `graph_base_sha` | string matching `^[0-9a-fA-F]{40}$` | no |  |
 | `session` | string | no |  |
 
@@ -228,7 +229,7 @@ What a session returns beside its diff: discoveries and decisions, typed.
 
 - `debrief@v0`: the first version.
 - `debrief@v1`: added `role` (required); added `graph_base_sha` (required); added `session_start_sha` (required); removed `base_sha`.
-- `debrief@v2`: retyped `discoveries`; retyped `decisions`; retyped `gates_run_by_agent`; added `drafted` (optional).
+- `debrief@v2`: retyped `discoveries`; retyped `decisions`; retyped `gates_run_by_agent`; added `drafted` (optional); added `proof` (optional); added `findings` (optional); added `graph_file` (optional); added `marks` (optional).
 
 ### Fields (`debrief@v2`)
 
@@ -247,6 +248,10 @@ What a session returns beside its diff: discoveries and decisions, typed.
 | `gates_run_by_agent` | array of gate-run | yes | A gate run entry as debrief@v2 requires it in full: result is exactly pass or fail. |
 | `open` | array of string | yes |  |
 | `drafted` | object | no | fields: by (string, required); from (string, required) |
+| `proof` | array of object | no | fields: test (string, required); pins (string, required); gate (string, optional) |
+| `findings` | object | no | fields: lens (string, required); items (array of object, required) |
+| `graph_file` | string | no |  |
+| `marks` | array of object | no | fields: claim (string, required); mark (one of `"rooted"`, `"unrooted"`, `"unexplained"`, `"gap"`, required); because (string, required) |
 
 ### Examples
 
@@ -823,13 +828,15 @@ No vocabulary entry for `event`.
 - `event@v5`: removed kind `node-created`; removed kind `lease-taken|lease-renewed`; removed kind `lease-expired`; removed kind `session-started`; removed kind `note-appended`; removed kind `debrief-filed`; removed kind `gate-moved`; removed kind `receipt-written`; removed kind `outcome-set`; removed kind `outbox-intent-recorded`; removed kind `session-narrated`.
 - `event@v6`: no field changes from the previous version.
 - `event@v7`: retyped `kind`.
+- `event@v8`: no field changes from the previous version.
+- `event@v9`: retyped `kind`.
 
-### Fields (`event@v7`)
+### Fields (`event@v9`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `interlock` | the literal `"event@v7"` | yes |  |
-| `kind` | one of `"node-created"`, `"lease-taken"`, `"lease-renewed"`, `"lease-expired"`, `"session-started"`, `"note-appended"`, `"debrief-filed"`, `"gate-moved"`, `"receipt-written"`, `"outcome-set"`, `"outbox-intent-recorded"`, `"outbox-delivery-recorded"`, `"session-narrated"`, `"session-facts-observed"` | yes |  |
+| `interlock` | the literal `"event@v9"` | yes |  |
+| `kind` | one of `"node-created"`, `"lease-taken"`, `"lease-renewed"`, `"lease-expired"`, `"session-started"`, `"note-appended"`, `"debrief-filed"`, `"gate-moved"`, `"receipt-written"`, `"outcome-set"`, `"outbox-intent-recorded"`, `"outbox-delivery-recorded"`, `"session-narrated"`, `"session-facts-observed"`, `"person-said"` | yes |  |
 
 ### Examples
 
@@ -873,6 +880,14 @@ _No example of `event@v6` was found in the corpus._
 
 _No example of `event@v7` was found in the corpus._
 
+#### `event@v8`
+
+_No example of `event@v8` was found in the corpus._
+
+#### `event@v9`
+
+_No example of `event@v9` was found in the corpus._
+
 ## graph
 
 The directed acyclic graph of nodes produced from one ask.
@@ -887,8 +902,9 @@ The directed acyclic graph of nodes produced from one ask.
 | --- | --- | --- | --- |
 | `interlock` | the literal `"graph@v0"` | yes |  |
 | `id` | string | yes |  |
+| `ask` | string | no | The ask the graph was produced from. Optional; when present the loader requires a string and the position carries it verbatim. |
 | `gates` | array of gate-declaration | no | A gate as declared on a graph node, a graph, or a brief's front matter: an id, a kind, and an optional command and output check. A human gate carries no run. |
-| `nodes` | array of object | yes | fields: id (string, required); acceptance (string, optional); depends_on (array of string, optional); gates (array of gate-declaration, optional) |
+| `nodes` | array of object | yes | fields: id (string, required); role (one of `"scout"`, `"planner"`, `"implementer"`, `"tester"`, `"reviewer"`, `"verifier"`, optional); acceptance (string, optional); depends_on (array of string, optional); gates (array of gate-declaration, optional) |
 
 ### Examples
 
@@ -1064,7 +1080,7 @@ No vocabulary entry for `notes`.
 | --- | --- | --- | --- |
 | `interlock` | the literal `"notes@v0"` | yes |  |
 | `node` | string | yes |  |
-| `entries` | array of one of `choice`, `surprise` | yes | `choice`: at, chose, because, rejected (optional); `surprise`: at, expected, observed |
+| `entries` | array of one of `choice`, `surprise`, `question` | yes | `choice`: at, chose, because, rejected (optional); `surprise`: at, expected, observed; `question`: at, asked, options (optional) |
 
 ### Examples
 
@@ -1108,15 +1124,62 @@ The current read of a graph, composed above the stream.
 | --- | --- | --- | --- |
 | `interlock` | the literal `"position@v1"` | yes |  |
 | `graph` | string | yes |  |
+| `ask` | string | no | Additive within position@v1: the graph file's ask, verbatim, so no face reads the graph file beside the position. Absent when the graph declares none. |
 | `approval` | one of `"approved"`, `"stale"`, `"not-approved"` | yes |  |
-| `nodes` | array of positionNode | yes | fields: id (string, required); dependsOn (array of string, required); state (nodeState, required); gates (array of positionGate, required); attempts (array of positionAttempt, required); float (float, required) |
+| `line` | line | no | `?`: voice, text; `?`: voice, who, text, at |
+| `nodes` | array of positionNode | yes | fields: id (string, required); role (one of `"scout"`, `"planner"`, `"implementer"`, `"tester"`, `"reviewer"`, `"verifier"`, optional); acceptance (string, optional); dependsOn (array of string, required); state (nodeState, required); gates (array of positionGate, required); attempts (array of positionAttempt, required); float (float, required); landed (landed, optional); notes (array of one of `?`, `?`, optional) |
 | `criticalPath` | array of string | yes |  |
+| `done` | boolean | no | True when every node is cleared and its landed reads on-main. Absent from positions produced before landed-on-main. |
+| `changedAt` | moment | no | `known`: at, fact; `unknown`: because |
+| `sinceAt` | moment | no | `known`: at, fact; `unknown`: because |
 
 ### Examples
 
 #### `position@v1`
 
 _No example of `position@v1` was found in the corpus._
+
+## positions
+
+No vocabulary entry for `positions`.
+
+### Versions
+
+- `positions@v0`: the first version.
+
+### Fields (`positions@v0`)
+
+| field | type | required | description |
+| --- | --- | --- | --- |
+| `interlock` | the literal `"positions@v0"` | yes |  |
+| `repositories` | array of repository | yes | `?`: asked, state, root, origin (optional), journal, graphs, live; `?`: asked, state, root, origin (optional), journal, graphs; `?`: asked, state, because |
+
+### Examples
+
+#### `positions@v0`
+
+_No example of `positions@v0` was found in the corpus._
+
+## roles
+
+No vocabulary entry for `roles`.
+
+### Versions
+
+- `roles@v0`: the first version.
+
+### Fields (`roles@v0`)
+
+| field | type | required | description |
+| --- | --- | --- | --- |
+| `interlock` | the literal `"roles@v0"` | yes |  |
+| `roles` | object | yes |  |
+
+### Examples
+
+#### `roles@v0`
+
+_No example of `roles@v0` was found in the corpus._
 
 ## runtimes
 

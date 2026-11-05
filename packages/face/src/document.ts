@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import { parseExpectOutput } from "ledger";
 import { parse as parseYaml, YAMLParseError } from "yaml";
+import { type NodeRole, parseNodeRole } from "./role.ts";
 import { topologicalOrder } from "./topology.ts";
 import { isRecord, isString, isStringArray, prop } from "./validate.ts";
 
@@ -16,6 +17,7 @@ export interface GateDeclaration {
 
 export interface NodeDeclaration {
   readonly id: string;
+  readonly role?: NodeRole;
   readonly acceptance?: string;
   readonly dependsOn: readonly string[];
   readonly gates: readonly GateDeclaration[];
@@ -23,6 +25,7 @@ export interface NodeDeclaration {
 
 export interface GraphDocument {
   readonly id: string;
+  readonly ask?: string;
   readonly gates: readonly GateDeclaration[];
   readonly nodes: readonly NodeDeclaration[];
 }
@@ -117,6 +120,9 @@ function parseShape(parsed: unknown): Result<GraphDocument, string> {
   const id = prop(parsed, "id");
   if (!isString(id)) return err('"id" is missing or not a string');
 
+  const ask = prop(parsed, "ask");
+  if (ask !== undefined && !isString(ask)) return err('"ask" must be a string');
+
   const parsedGates = parseGateDeclarations(prop(parsed, "gates"), "");
   if (isErr(parsedGates)) return parsedGates;
 
@@ -129,6 +135,13 @@ function parseShape(parsed: unknown): Result<GraphDocument, string> {
 
     const nodeId = prop(rawNode, "id");
     if (!isString(nodeId)) return err(`node ${index}: "id" is missing or not a string`);
+
+    const rawRole = prop(rawNode, "role");
+    if (rawRole !== undefined && !isString(rawRole)) {
+      return err(`node "${nodeId}": "role" must be a string`);
+    }
+    const role = rawRole === undefined ? undefined : parseNodeRole(rawRole);
+    if (role !== undefined && isErr(role)) return err(`node "${nodeId}": ${role.error}`);
 
     const rawAcceptance = prop(rawNode, "acceptance");
     if (rawAcceptance !== undefined && !isString(rawAcceptance)) {
@@ -145,13 +158,14 @@ function parseShape(parsed: unknown): Result<GraphDocument, string> {
 
     nodes.push({
       id: nodeId,
+      ...(role === undefined ? {} : { role: role.value }),
       ...(rawAcceptance === undefined ? {} : { acceptance: rawAcceptance }),
       dependsOn: rawDependsOn ?? [],
       gates: parsedNodeGates.value,
     });
   }
 
-  return ok({ id, gates: parsedGates.value, nodes });
+  return ok({ id, ...(ask === undefined ? {} : { ask }), gates: parsedGates.value, nodes });
 }
 
 export function loadGraphDocumentText(

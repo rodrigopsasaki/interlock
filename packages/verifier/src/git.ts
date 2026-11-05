@@ -11,16 +11,14 @@ export interface FileDiff {
   readonly addedLines: readonly string[];
 }
 
-// Node's execFileSync default (1 MB) truncates well inside a real diff or a real file's
-// content; a node that deletes tens of megabytes of text must not crash the judge.
-const GIT_MAX_BUFFER_BYTES = 512 * 1024 * 1024;
+const GIT_BUFFER_PAST_EXEC_FILE_SYNC_ONE_MEGABYTE_DEFAULT = 512 * 1024 * 1024;
 
 function git(args: readonly string[], cwd: string): string {
   return execFileSync("git", args, {
     cwd,
     encoding: "utf-8",
     stdio: ["ignore", "pipe", "pipe"],
-    maxBuffer: GIT_MAX_BUFFER_BYTES,
+    maxBuffer: GIT_BUFFER_PAST_EXEC_FILE_SYNC_ONE_MEGABYTE_DEFAULT,
   });
 }
 

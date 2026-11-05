@@ -187,6 +187,7 @@ describe("frames over the real bootstrap graph", () => {
       gates: [],
       attempts: [],
       float: { kind: "unknown", because: "no receipt carries a duration" },
+      notes: [],
     };
 
     const text = renderNodeFrame(scaffold, 0);

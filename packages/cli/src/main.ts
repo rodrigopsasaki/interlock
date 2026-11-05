@@ -15,10 +15,12 @@ import { runInterlockJudge } from "./judge.ts";
 import { runNodeCancel } from "./node/cancel.ts";
 import { runNodeReset } from "./node/reset.ts";
 import { runInterlockPlan } from "./plan.ts";
+import { runInterlockPosition } from "./position.ts";
 import { runInterlockRun } from "./run.ts";
 import { runRuntimeList } from "./runtime/list.ts";
 import { runSchemaReference } from "./schema/reference.ts";
 import { runSchemaValidate } from "./schema/validate.ts";
+import { runSessionSay } from "./session/say.ts";
 import { runSessionShow } from "./session/show.ts";
 import { runInterlockSweep } from "./sweep.ts";
 import { runInterlockVerify } from "./verify.ts";
@@ -71,6 +73,10 @@ export async function run(argv: readonly string[]): Promise<CommandResult> {
     return runSessionShow(argv.slice(2));
   }
 
+  if (group === "session" && action === "say") {
+    return runSessionSay(argv.slice(2));
+  }
+
   if (group === "node" && action === "cancel") {
     return runNodeCancel(argv.slice(2));
   }
@@ -101,6 +107,10 @@ export async function run(argv: readonly string[]): Promise<CommandResult> {
 
   if (group === "run") {
     return runInterlockRun(argv.slice(1));
+  }
+
+  if (group === "position") {
+    return runInterlockPosition(argv.slice(1));
   }
 
   if (group === "plan") {

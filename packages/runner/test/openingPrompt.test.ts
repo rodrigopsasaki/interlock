@@ -9,6 +9,9 @@ describe("buildOpeningPrompt", () => {
         "Read it first and treat it as binding. Work only in this worktree. " +
         "Append .interlock/sessions/g/n/notes.yaml at every choice and surprise, " +
         "commit as you go, and file .interlock/sessions/g/n/debrief.yaml as your final commit. " +
+        "Before you stop to wait for a person in your pane, append a question note to that notes.yaml " +
+        "(kind: question, at, asked in the words you would say to the person, and optional options, " +
+        "the short answers you would accept), then ask in the pane as you do today. " +
         "For a first filing, run interlock debrief prepare g n --to <candidate-path> --agent-runtime <runtime> --agent-model <model>, or replace both agent flags with --human <name>; author its claims and reports, then run " +
         "interlock debrief preview --file <candidate-path> to inspect it read-only if useful before interlock debrief file-derived g n --from <candidate-path>. After source changes, commit, prepare a fresh candidate, author it, inspect it if useful, and file it. " +
         "When correcting an authored debrief, keep the correction in this session directory and run " +
@@ -109,5 +112,15 @@ describe("buildOpeningPrompt", () => {
     expect(prompt).toContain("Read notes.yaml, git status and git log before you continue");
     expect(prompt).toContain("interlock debrief preview --file <candidate-path>");
     expect(prompt).not.toContain("Read it first and treat it as binding.");
+  });
+
+  it("tells every session, whatever its role, to append a question note before it waits on a person", () => {
+    const sentence =
+      "Before you stop to wait for a person in your pane, append a question note to that notes.yaml";
+    for (const role of ["worker", "interpreter", "implementer", "reviewer"] as const) {
+      const prompt = buildOpeningPrompt("g", "n", undefined, role);
+      expect(prompt, role).toContain(sentence);
+      expect(prompt, role).toContain("then ask in the pane as you do today.");
+    }
   });
 });

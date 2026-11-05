@@ -38,6 +38,10 @@ export function repositoryLabel(cwd: string): string {
 const DEFAULT_CALL_TIMEOUT_MS = 30_000;
 const AGENT_START_TIMEOUT_MS = 60_000;
 const CALL_DEADLINE_MARGIN_MS = 5_000;
+
+function wholeMillisecondsForHerdrU64(ms: number): number {
+  return Math.max(1, Math.floor(ms));
+}
 export const WAIT_SLICE_MS = 60_000;
 
 const AGENT_PANE_BUSY_CODE = "agent_pane_busy";
@@ -409,8 +413,7 @@ export async function createHerdrRuntime(
           return err({ kind: "timeout", until, timeoutMs, status: lastStatus });
         }
 
-        // herdr's timeout_ms is a u64: a fractional budget (from a caller's arithmetic) is refused outright.
-        const sliceMs = Math.max(1, Math.floor(Math.min(waitSliceMs, remainingMs)));
+        const sliceMs = wholeMillisecondsForHerdrU64(Math.min(waitSliceMs, remainingMs));
         const waited = await call(
           "agent.wait",
           { target: agent.id, until, timeout_ms: sliceMs },
@@ -491,6 +494,17 @@ export async function createHerdrRuntime(
       if (found.value === undefined) return ok(undefined);
       const paneId = prop(found.value, "pane_id");
       return ok(isString(paneId) ? { id: paneId } : undefined);
+    },
+
+    async resolveAgent(query: AgentIdentityQuery) {
+      const found = await findReportedAgent(call, query);
+      if (isErr(found)) return found;
+      if (found.value === undefined) return ok(undefined);
+      const name = prop(found.value, "name");
+      const paneId = prop(found.value, "pane_id");
+      return ok(
+        isString(name) && isString(paneId) ? { id: name, pane: { id: paneId } } : undefined,
+      );
     },
 
     async focusPane(pane: Pane) {

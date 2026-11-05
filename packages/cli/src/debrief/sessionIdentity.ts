@@ -6,9 +6,7 @@ import { type BriefFrontMatter, type BriefRead, readBriefDocument } from "debrie
 import { loadGraphDocumentText } from "face";
 import { journalPath, type LedgerEvent, parseLine } from "ledger";
 
-// Node's execFileSync default (1 MB) truncates a real commit history walk (rev-list) or a
-// real file's content (show); both are read here without a size assumption.
-const GIT_MAX_BUFFER_BYTES = 512 * 1024 * 1024;
+const GIT_BUFFER_PAST_EXEC_FILE_SYNC_ONE_MEGABYTE_DEFAULT = 512 * 1024 * 1024;
 
 function gitText(repoRoot: string, args: readonly string[]): string | undefined {
   try {
@@ -16,7 +14,7 @@ function gitText(repoRoot: string, args: readonly string[]): string | undefined 
       cwd: repoRoot,
       encoding: "utf-8",
       stdio: ["ignore", "pipe", "pipe"],
-      maxBuffer: GIT_MAX_BUFFER_BYTES,
+      maxBuffer: GIT_BUFFER_PAST_EXEC_FILE_SYNC_ONE_MEGABYTE_DEFAULT,
     }).trim();
   } catch {
     return undefined;
@@ -28,7 +26,7 @@ function gitBytes(repoRoot: string, args: readonly string[]): Buffer | undefined
     return execFileSync("git", args, {
       cwd: repoRoot,
       stdio: ["ignore", "pipe", "pipe"],
-      maxBuffer: GIT_MAX_BUFFER_BYTES,
+      maxBuffer: GIT_BUFFER_PAST_EXEC_FILE_SYNC_ONE_MEGABYTE_DEFAULT,
     });
   } catch {
     return undefined;

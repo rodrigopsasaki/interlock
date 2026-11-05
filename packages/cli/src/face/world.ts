@@ -7,6 +7,7 @@ import {
   graphFilePath,
   listGraphIds,
   loadGraphDocument,
+  mainLineReader,
   plansEntryOf,
   positionOf,
   renderSessionColumns,
@@ -45,8 +46,13 @@ export async function buildPlansWorld(
       liveSessionsOf(graphId, projection.sessions, nowWallMs),
       runtime,
     );
-    const position = positionOf(document.value, projection, contentHash, nowWallMs, (session) =>
-      statuses.get(session),
+    const position = positionOf(
+      document.value,
+      projection,
+      contentHash,
+      nowWallMs,
+      (session) => statuses.get(session),
+      mainLineReader(repoRoot),
     );
     plans.push(plansEntryOf(position));
   }
@@ -74,8 +80,13 @@ export async function buildGraphWorld(
     liveSessionsOf(graphId, projection.sessions, nowWallMs),
     runtime,
   );
-  const position = positionOf(document.value, projection, contentHash, nowWallMs, (session) =>
-    statuses.get(session),
+  const position = positionOf(
+    document.value,
+    projection,
+    contentHash,
+    nowWallMs,
+    (session) => statuses.get(session),
+    mainLineReader(repoRoot),
   );
   return ok({ plans: [], position });
 }

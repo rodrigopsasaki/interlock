@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { isErr, isOk } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
@@ -155,5 +155,90 @@ describe("readNotesFile", () => {
     expect(isErr(result)).toBe(true);
     if (!isErr(result)) return;
     expect(explainNotesRefusal(result.error)).toContain("entry 0");
+  });
+
+  it("reads a question in the session's words, with and without the answers it would accept", async () => {
+    const path = write(
+      [
+        "interlock: notes@v0",
+        "node: n",
+        "entries:",
+        "  - kind: question",
+        '    at: "2026-11-05T01:00:00Z"',
+        "    asked: Should the walk stay empty when the address is none?",
+        "    options: [yes, no]",
+        "  - kind: question",
+        '    at: "2026-11-05T01:10:00Z"',
+        "    asked: Which branch should I build on?",
+        "",
+      ].join("\n"),
+    );
+    const result = await readNotesFile(path);
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) return;
+    expect(result.value).toEqual([
+      {
+        kind: "question",
+        at: "2026-11-05T01:00:00Z",
+        asked: "Should the walk stay empty when the address is none?",
+        options: ["yes", "no"],
+      },
+      {
+        kind: "question",
+        at: "2026-11-05T01:10:00Z",
+        asked: "Which branch should I build on?",
+      },
+    ]);
+  });
+
+  it("refuses a question missing its words, naming the entry index", async () => {
+    const path = write(
+      [
+        "interlock: notes@v0",
+        "node: n",
+        "entries:",
+        "  - kind: question",
+        '    at: "2026-11-05T01:00:00Z"',
+        "    options: [yes, no]",
+        "",
+      ].join("\n"),
+    );
+    const result = await readNotesFile(path);
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) return;
+    const message = explainNotesRefusal(result.error);
+    expect(message).toContain("entry 0");
+    expect(message).toContain("asked");
+  });
+
+  it("refuses a question whose options are not a list of answers", async () => {
+    const path = write(
+      [
+        "interlock: notes@v0",
+        "node: n",
+        "entries:",
+        "  - kind: question",
+        '    at: "2026-11-05T01:00:00Z"',
+        "    asked: Merge now?",
+        "    options: yes or no",
+        "",
+      ].join("\n"),
+    );
+    const result = await readNotesFile(path);
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) return;
+    expect(explainNotesRefusal(result.error)).toContain("options");
+  });
+
+  it("still reads every notes file this repository has recorded", async () => {
+    const sessions = join(import.meta.dirname, "..", "..", "..", ".interlock", "sessions");
+    const paths = readdirSync(sessions, { recursive: true, encoding: "utf-8" })
+      .filter((entry) => entry.endsWith("notes.yaml"))
+      .map((entry) => join(sessions, entry));
+    expect(paths.length).toBeGreaterThan(0);
+    for (const path of paths) {
+      const result = await readNotesFile(path);
+      expect(isOk(result), isErr(result) ? explainNotesRefusal(result.error) : path).toBe(true);
+    }
   });
 });

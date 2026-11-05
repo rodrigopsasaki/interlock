@@ -12,6 +12,7 @@ import { join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
 import { unwrap } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
+import type { Brief } from "../src/brief.js";
 import { derivation } from "../src/derivation.js";
 import { EVENT_SHAPE, type Upcaster, upcastTable } from "../src/envelope.js";
 import type { LedgerEvent } from "../src/event.js";
@@ -20,6 +21,7 @@ import { isNode, type Node, nodeKey } from "../src/graph.js";
 import { createLedger } from "../src/ledger.js";
 import { note } from "../src/note.js";
 import { heldOn, isDecided, outcome, proposeOutcomeMove } from "../src/outcome.js";
+import { personSaid } from "../src/personSaid.js";
 import { fold, type LedgerProjection } from "../src/projection.js";
 import { duration, type Receipt } from "../src/receipt.js";
 import { parseLine, readRawEvents, replayFromRaw } from "../src/replay.js";
@@ -523,6 +525,258 @@ describe("replay's versioned upcast seam", () => {
       error: { tag: "event@v4", line: 1 },
     });
   });
+});
+
+describe("replay: a question note enters the journal at event@v8", () => {
+  const node: Node = { graph: "0046-loom-feed", id: "asked-in-words" };
+  const brief: Brief = {
+    graph: node.graph,
+    node: node.id,
+    role: "implementer",
+    acceptance: "ask in words",
+    gates: [],
+    scope: [],
+  };
+  const started = (tag: string): string =>
+    JSON.stringify({
+      interlock: tag,
+      kind: "session-started",
+      session: { id: "session-1", node, runtime: sessionRuntime.unknown() },
+      brief,
+    });
+  const appended = (tag: string, embedded: unknown): string =>
+    JSON.stringify({ interlock: tag, kind: "note-appended", session: "session-1", note: embedded });
+  const question = note.question("2026-11-05T01:00:00Z", "Merge the walk now?", ["yes", "no"]);
+  const choice = note.choice("2026-11-05T00:50:00Z", "kept the walk", "it reads");
+
+  it("round-trips a question note through append and replay, in its words", async () => {
+    directory = mkdtempSync(join(runsRoot, "run-"));
+    const clock = createControlledClock({ initialTime: 0 });
+    const ledger = unwrap(await createLedger({ clock, directory }));
+    ledger.append({
+      kind: "session-started",
+      session: { id: "session-1", node, runtime: sessionRuntime.unknown() },
+      brief,
+    });
+    ledger.append({ kind: "note-appended", session: "session-1", note: question });
+    await ledger.close();
+
+    const raw = readFileSync(join(directory, "journal.jsonl"), "utf-8");
+    expect(raw).toContain(`"interlock":"${EVENT_SHAPE}"`);
+    const replayed = replayFromRaw(raw);
+    expect(replayed._tag).toBe("Ok");
+    if (replayed._tag !== "Ok") return;
+    expect(replayed.value.sessions.get("session-1")?.notes).toEqual([question]);
+  });
+
+  for (const tag of [
+    "event@v1",
+    "event@v2",
+    "event@v3",
+    "event@v4",
+    "event@v5",
+    "event@v6",
+    "event@v7",
+  ]) {
+    it(`replays a choice note under ${tag} unchanged and refuses a question note under it`, () => {
+      const older = `${started("event@v8")}\n${appended(tag, choice)}\n`;
+      const replayed = replayFromRaw(older);
+      expect(replayed._tag).toBe("Ok");
+      if (replayed._tag === "Ok") {
+        expect(replayed.value.sessions.get("session-1")?.notes).toEqual([choice]);
+      }
+      expect(replayFromRaw(`${started("event@v8")}\n${appended(tag, question)}\n`)).toEqual({
+        _tag: "Err",
+        error: { tag, line: 2 },
+      });
+    });
+  }
+
+  it("refuses a question note with options that are not a list of answers", () => {
+    const raw = `${started("event@v8")}\n${appended("event@v8", { ...question, options: "yes or no" })}\n`;
+    expect(replayFromRaw(raw)).toEqual({ _tag: "Err", error: { tag: "event@v8", line: 2 } });
+  });
+
+  for (const file of [
+    "journal-v1-approved.jsonl",
+    "journal-v1-v2-2026-09-10.jsonl",
+    "journal-v1-v3-2026-09-11.jsonl",
+    "journal-v5-run-with-runtime-2026-09-24.jsonl",
+  ]) {
+    it(`replays ${file} to the same events under every upcaster before and after event@v8`, () => {
+      const raw = readFileSync(join(import.meta.dirname, "fixtures", file), "utf-8");
+      const withoutV8: ReadonlyMap<string, Upcaster> = new Map(
+        [...upcastTable].filter(([tag]) => tag !== "event@v8"),
+      );
+      const before = replayFromRaw(raw, withoutV8);
+      const after = replayFromRaw(raw);
+      expect(after._tag).toBe("Ok");
+      if (before._tag !== "Ok" || after._tag !== "Ok") return;
+      expect(sameProjection(before.value, after.value)).toBe(true);
+    });
+  }
+});
+
+describe("replay: a person's words enter the journal at event@v9", () => {
+  const node: Node = { graph: "0046-loom-feed", id: "say-into-pane" };
+  const brief: Brief = {
+    graph: node.graph,
+    node: node.id,
+    role: "implementer",
+    acceptance: "say into the pane",
+    gates: [],
+    scope: [],
+  };
+  const question = note.question("2026-11-05T03:50:00Z", "Build on main?", ["yes", "no"]);
+  const said = personSaid({
+    session: "session-1",
+    by: "Rodrigo Sasaki",
+    text: "yes",
+    at: Date.parse("2026-11-05T04:00:00Z"),
+    answers: question,
+    because: "main moved",
+  });
+  const line = (tag: string, event: Record<string, unknown>): string =>
+    JSON.stringify({ interlock: tag, ...event });
+  const started = line("event@v8", {
+    kind: "session-started",
+    session: { id: "session-1", node, runtime: sessionRuntime.unknown() },
+    brief,
+  });
+  const asked = line("event@v8", { kind: "note-appended", session: "session-1", note: question });
+  const uncertain = {
+    kind: "outbox-delivery-recorded",
+    delivery: {
+      id: said.id,
+      state: "uncertain",
+      because: "agent_blocked: agent is blocked",
+      derivation: derivation.gate("outbox", "runner@0", "interlock session say"),
+    },
+  };
+
+  it("names event@v9 as the current shape", () => {
+    expect(EVENT_SHAPE).toBe("event@v9");
+  });
+
+  it("derives the same outbox identity from the same words, and a new one from new words", () => {
+    const again = personSaid({
+      session: "session-1",
+      by: "Rodrigo Sasaki",
+      text: "yes",
+      at: said.at,
+      answers: question,
+      because: "main moved",
+    });
+    expect(again.id).toBe(said.id);
+    expect(
+      personSaid({ session: "session-1", by: "Rodrigo Sasaki", text: "no", at: said.at }).id,
+    ).not.toBe(said.id);
+  });
+
+  it("round-trips a person-said and its delivery through append and replay", async () => {
+    directory = mkdtempSync(join(runsRoot, "run-"));
+    const clock = createControlledClock({ initialTime: 0 });
+    const ledger = unwrap(await createLedger({ clock, directory }));
+    ledger.append({
+      kind: "session-started",
+      session: { id: "session-1", node, runtime: sessionRuntime.unknown() },
+      brief,
+    });
+    ledger.append({ kind: "note-appended", session: "session-1", note: question });
+    ledger.append({ kind: "person-said", session: "session-1", said });
+    ledger.append({
+      kind: "outbox-delivery-recorded",
+      delivery: {
+        id: said.id,
+        state: "uncertain",
+        because: "agent_blocked: agent is blocked",
+        derivation: derivation.gate("outbox", "runner@0", "interlock session say"),
+      },
+    });
+    const live = ledger.projection();
+    await ledger.close();
+
+    const raw = readFileSync(join(directory, "journal.jsonl"), "utf-8");
+    expect(raw).toContain('"interlock":"event@v9","kind":"person-said"');
+    const replayed = replayFromRaw(raw);
+    expect(replayed._tag).toBe("Ok");
+    if (replayed._tag !== "Ok") return;
+    expect(sameProjection(replayed.value, live)).toBe(true);
+    const view = replayed.value.sessions.get("session-1")?.said;
+    expect(view?.map((entry) => entry.said)).toEqual([said]);
+    expect(view?.[0]?.delivery?.state).toBe("uncertain");
+  });
+
+  it("leaves a person-said with no delivery recorded after it, as a crash between intent and delivery would", () => {
+    const raw = `${started}\n${line("event@v9", { kind: "person-said", session: "session-1", said })}\n`;
+    const replayed = replayFromRaw(raw);
+    expect(replayed._tag).toBe("Ok");
+    if (replayed._tag !== "Ok") return;
+    expect(replayed.value.sessions.get("session-1")?.said).toEqual([{ said, delivery: undefined }]);
+  });
+
+  it("ignores a delivery whose identity names neither an outbox intent nor a person-said", () => {
+    const raw = `${started}\n${line("event@v9", uncertain)}\n`;
+    const replayed = replayFromRaw(raw);
+    expect(replayed._tag).toBe("Ok");
+    if (replayed._tag !== "Ok") return;
+    expect(replayed.value.sessions.get("session-1")?.said).toEqual([]);
+    expect(replayed.value.outbox.size).toBe(0);
+  });
+
+  for (const tag of [
+    "event@v1",
+    "event@v2",
+    "event@v3",
+    "event@v4",
+    "event@v5",
+    "event@v6",
+    "event@v7",
+    "event@v8",
+  ]) {
+    it(`refuses a person-said under ${tag}, which never carried one`, () => {
+      const raw = `${started}\n${line(tag, { kind: "person-said", session: "session-1", said })}\n`;
+      expect(replayFromRaw(raw)).toEqual({ _tag: "Err", error: { tag, line: 2 } });
+    });
+  }
+
+  it("replays an event@v8 journal with a question note unchanged under event@v9", () => {
+    const raw = `${started}\n${asked}\n`;
+    const withoutV9: ReadonlyMap<string, Upcaster> = new Map(
+      [...upcastTable].filter(([tag]) => tag !== "event@v9"),
+    );
+    const before = replayFromRaw(raw, withoutV9);
+    const after = replayFromRaw(raw);
+    expect(before._tag).toBe("Ok");
+    expect(after._tag).toBe("Ok");
+    if (before._tag !== "Ok" || after._tag !== "Ok") return;
+    expect(sameProjection(before.value, after.value)).toBe(true);
+    expect(after.value.sessions.get("session-1")?.notes).toEqual([question]);
+  });
+
+  it("refuses a person-said whose identity is not an outbox identity", () => {
+    const raw = `${started}\n${line("event@v9", { kind: "person-said", session: "session-1", said: { ...said, id: "not-a-sha" } })}\n`;
+    expect(replayFromRaw(raw)).toEqual({ _tag: "Err", error: { tag: "event@v9", line: 2 } });
+  });
+
+  for (const file of [
+    "journal-v1-approved.jsonl",
+    "journal-v1-v2-2026-09-10.jsonl",
+    "journal-v1-v3-2026-09-11.jsonl",
+    "journal-v5-run-with-runtime-2026-09-24.jsonl",
+  ]) {
+    it(`replays ${file} to the same projection with and without the event@v9 reader`, () => {
+      const raw = readFileSync(join(import.meta.dirname, "fixtures", file), "utf-8");
+      const withoutV9: ReadonlyMap<string, Upcaster> = new Map(
+        [...upcastTable].filter(([tag]) => tag !== "event@v9"),
+      );
+      const before = replayFromRaw(raw, withoutV9);
+      const after = replayFromRaw(raw);
+      expect(after._tag).toBe("Ok");
+      if (before._tag !== "Ok" || after._tag !== "Ok") return;
+      expect(sameProjection(before.value, after.value)).toBe(true);
+    });
+  }
 });
 
 describe("readRawEvents", () => {

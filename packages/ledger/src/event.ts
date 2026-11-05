@@ -2,6 +2,7 @@ import { type Brief, isBrief } from "./brief.ts";
 import { type Debrief, isDebrief } from "./debrief.ts";
 import { type Gate, isGate } from "./gate.ts";
 import { isNode, type Node } from "./graph.ts";
+import { isMarkCounts, type MarkCounts } from "./mark.ts";
 import { isNote, type Note } from "./note.ts";
 import {
   isOutboxDelivery,
@@ -10,10 +11,12 @@ import {
   type OutboxIntent,
 } from "./outbox.ts";
 import { isOutcome, type Outcome } from "./outcome.ts";
+import { isPersonSaid, type PersonSaid } from "./personSaid.ts";
 import { isReceipt, type Receipt } from "./receipt.ts";
 import { isSession, isSessionRuntime, type Session, sessionRuntime } from "./session.ts";
 import { isSessionFacts, type SessionFacts } from "./sessionFacts.ts";
 import { isRecord, isString, prop } from "./validate.ts";
+import { isWalk, type Walk } from "./walk.ts";
 
 export type LedgerEvent =
   | { readonly kind: "node-created"; readonly node: Node }
@@ -39,6 +42,7 @@ export type LedgerEvent =
       readonly session: Session;
       readonly brief: Brief;
       readonly graphBaseSha?: string;
+      readonly walk?: Walk;
     }
   | {
       readonly kind: "note-appended";
@@ -49,6 +53,7 @@ export type LedgerEvent =
       readonly kind: "debrief-filed";
       readonly session: string;
       readonly debrief: Debrief;
+      readonly markCounts?: MarkCounts;
     }
   | {
       readonly kind: "gate-moved";
@@ -91,6 +96,11 @@ export type LedgerEvent =
       readonly kind: "session-facts-observed";
       readonly session: string;
       readonly facts: SessionFacts;
+    }
+  | {
+      readonly kind: "person-said";
+      readonly session: string;
+      readonly said: PersonSaid;
     };
 
 export function isLedgerEvent(value: unknown): value is LedgerEvent {
@@ -111,16 +121,24 @@ export function isLedgerEvent(value: unknown): value is LedgerEvent {
       return isNode(prop(value, "node")) && isString(prop(value, "session"));
     case "session-started": {
       const graphBaseSha = prop(value, "graphBaseSha");
+      const walk = prop(value, "walk");
       return (
         isSession(prop(value, "session")) &&
         isBrief(prop(value, "brief")) &&
-        (graphBaseSha === undefined || isString(graphBaseSha))
+        (graphBaseSha === undefined || isString(graphBaseSha)) &&
+        (walk === undefined || isWalk(walk))
       );
     }
     case "note-appended":
       return isString(prop(value, "session")) && isNote(prop(value, "note"));
-    case "debrief-filed":
-      return isString(prop(value, "session")) && isDebrief(prop(value, "debrief"));
+    case "debrief-filed": {
+      const markCounts = prop(value, "markCounts");
+      return (
+        isString(prop(value, "session")) &&
+        isDebrief(prop(value, "debrief")) &&
+        (markCounts === undefined || isMarkCounts(markCounts))
+      );
+    }
     case "gate-moved":
       return (
         isNode(prop(value, "node")) && isString(prop(value, "gate")) && isGate(prop(value, "to"))
@@ -145,6 +163,8 @@ export function isLedgerEvent(value: unknown): value is LedgerEvent {
       );
     case "session-facts-observed":
       return isString(prop(value, "session")) && isSessionFacts(prop(value, "facts"));
+    case "person-said":
+      return isString(prop(value, "session")) && isPersonSaid(prop(value, "said"));
     default:
       return false;
   }

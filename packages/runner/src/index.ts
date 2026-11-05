@@ -61,7 +61,7 @@ export {
   localConfigPath,
 } from "./localConfig.ts";
 export { recordingNarrate } from "./narration.ts";
-export type { PriorWork } from "./openingPrompt.ts";
+export type { PriorWork, SessionRole } from "./openingPrompt.ts";
 export { buildOpeningPrompt } from "./openingPrompt.ts";
 export { renderOpeningView } from "./openingView.ts";
 export type {
@@ -69,6 +69,8 @@ export type {
   PromptDeliveryRequest,
 } from "./promptDelivery.ts";
 export { deliverOpeningPrompt } from "./promptDelivery.ts";
+export type { RoleShape } from "./roleShape.ts";
+export { roleShapeFor } from "./roleShape.ts";
 export type {
   Agent,
   AgentIdentity,
@@ -136,6 +138,7 @@ export {
   defaultTmuxRunner,
   type TmuxCommandRunner,
 } from "./tmux/adapter.ts";
+export { renderWalkSection, withWalkSection } from "./walkSection.ts";
 export type { WorktreeOutcome, WorktreeRefusal } from "./worktree.ts";
 export {
   commitBriefIfChanged,

@@ -307,3 +307,74 @@ describe("validateDebrief", () => {
     expect(result.message).toContain("valid as notes@v0.");
   });
 });
+
+describe("validateDebrief: the role the brief supplies decides the kinds", () => {
+  function briefWithRole(cwd: string, role: string): void {
+    writeSessionBrief(cwd);
+    const path = join(cwd, ".interlock", "sessions", "g", "n", "brief.md");
+    writeFileSync(path, readFileSync(path, "utf-8").replace("role: worker", `role: ${role}`));
+  }
+
+  it("holds a node with a sentence when its role's kinds are missing, whatever the debrief calls itself", async () => {
+    const cwd = repoWithSession("g", "n", v2Debrief, notesYaml);
+    briefWithRole(cwd, "implementer");
+    const result = await validateDebrief(["g", "n"], { cwd });
+    expect(result).toEqual({
+      exitCode: 1,
+      message:
+        "g/n is held: an implementer's debrief must return hunks and returns none (roles@v0).",
+    });
+  });
+
+  it("passes when the debrief returns what its role requires", async () => {
+    const cwd = repoWithSession(
+      "g",
+      "n",
+      v2Debrief.replace("    hunks: []", "    hunks: [a.ts:1-2]"),
+      notesYaml,
+    );
+    briefWithRole(cwd, "implementer");
+    const result = await validateDebrief(["g", "n"], { cwd });
+    expect(result.exitCode).toBe(0);
+  });
+
+  it("holds a planner until its graph_file exists in the worktree", async () => {
+    const planned = v2Debrief.replace(
+      "open: []",
+      "open: []\ngraph_file: .interlock/graphs/0047-next.yaml",
+    );
+    const cwd = repoWithSession("g", "n", planned, notesYaml);
+    briefWithRole(cwd, "planner");
+    const held = await validateDebrief(["g", "n"], { cwd });
+    expect(held.exitCode).toBe(1);
+    expect(held.message).toContain(
+      "its graph_file .interlock/graphs/0047-next.yaml is not in the worktree",
+    );
+
+    mkdirSync(join(cwd, ".interlock", "graphs"), { recursive: true });
+    writeFileSync(join(cwd, ".interlock", "graphs", "0047-next.yaml"), "interlock: graph@v0\n");
+    expect((await validateDebrief(["g", "n"], { cwd })).exitCode).toBe(0);
+  });
+
+  it("reads a repository's .interlock/roles.yaml over the default", async () => {
+    const cwd = repoWithSession("g", "n", v2Debrief, notesYaml);
+    briefWithRole(cwd, "implementer");
+    writeFileSync(
+      join(cwd, ".interlock", "roles.yaml"),
+      [
+        "interlock: roles@v0",
+        "roles:",
+        "  implementer:",
+        "    debrief: { requires: [decisions] }",
+        "",
+      ].join("\n"),
+    );
+    expect((await validateDebrief(["g", "n"], { cwd })).exitCode).toBe(0);
+  });
+
+  it("checks no kinds for a brief without a node role, as before", async () => {
+    const cwd = repoWithSession("g", "n", v2Debrief, notesYaml);
+    writeSessionBrief(cwd);
+    expect((await validateDebrief(["g", "n"], { cwd })).exitCode).toBe(0);
+  });
+});

@@ -1,0 +1,295 @@
+interlock: debrief@v2
+graph: 0046-loom-feed
+node: asked-in-words
+role: implementer
+graph_base_sha: 0f9c7acfdc092ca401f0147e5f1057d11e3b30d9
+session_start_sha: e33d869d28e5bb987dbbc33b8f6f46b50104a3d8
+head_sha: 3a28a4f801762995a479db8ee4ac8e878e5f70f3
+derivation:
+  kind: agent
+  runtime: claude
+  model: claude-opus-5-5
+discoveries:
+  - id: journal-role-still-worker
+    what: >-
+      This session's session-started event in the shared journal records role "worker", while
+      its brief says "implementer". interlock debrief prepare refused the derived filing with
+      "session-started event does not match the local brief", the same refusal
+      role-shapes-the-session met.
+    found_at: '.interlock/sessions/0046-loom-feed/asked-in-words/brief.md:5 "role: implementer"'
+    mattered_because: >-
+      The runner that starts 0046 sessions runs from the main checkout, which still lacks
+      node-role's fix. Every node in this chain will keep hitting the refusal until the chain
+      lands. This debrief is authored by hand against debrief@v2, then checked with
+      interlock debrief validate and interlock verify.
+  - id: notes-enter-journal-only-at-debrief
+    what: >-
+      The runner appended note-appended only in ingestDebrief, after a debrief was filed. A
+      question written while a session waits would have reached the position only after the
+      session ended.
+    found_at: 'packages/runner/src/gateJudge.ts:341 "appendUnrecordedNotes(ledger, session, read.notes);"'
+    mattered_because: >-
+      The acceptance asks for asking while the agent is blocked. With notes recorded only at
+      debrief time it would always have been null. So this node also records questions live,
+      from the runner's own blocked observation.
+  - id: agent-status-resolved-at-read
+    what: >-
+      The agent status the position carries is resolved from the multiplexer at read time, for
+      live leases only, and is never recorded in the journal. The runner's only record of
+      "blocked" is a narration line.
+    found_at: 'packages/face/src/attempts.ts:46 "const agentStatus = isLive ? agentStatusFor?.(session.session) : undefined;"'
+    mattered_because: >-
+      "at, being when the blocked status was observed" can only be the read's own time. Nothing
+      earlier is recorded except narration text, and parsing that would be guessing.
+decisions:
+  - id: question-note-kind
+    what: >-
+      Note gains a third kind, question { at, asked, options? }, with QuestionNote, note.question,
+      isQuestionNote and its guard. notes.yaml's reader accepts it and refuses a question without
+      asked or with options that are not a list of strings. The session-columns renderer prints
+      it. The vocabulary's note row names the kind.
+    because: >-
+      The acceptance adds the kind to notes@v0, additively. Options are strict because a face
+      offers them as the session's own answers. The folded-scalar leniency that rejected gets
+      exists only for history, and a question has none. Every notes file this repository has
+      recorded still reads, and a test pins that.
+    rests_on:
+      - packages/ledger/src/note.ts
+      - packages/debrief/src/notes.ts
+    hunks:
+      - packages/ledger/src/note.ts:3-9
+      - packages/ledger/src/note.ts:23-24
+      - packages/ledger/src/note.ts:37-40
+      - packages/ledger/src/note.ts:43-46
+      - packages/ledger/src/note.ts:62-65
+      - packages/ledger/src/index.ts:62-63
+      - packages/debrief/src/notes.ts:78-86
+      - packages/face/src/sessionColumns.ts:83-89
+      - AGENTS.md:77-77
+      - packages/debrief/test/notes.test.ts:1-1
+      - packages/debrief/test/notes.test.ts:159-243
+  - id: event-v8-with-older-tags-refusing-questions
+    what: >-
+      EVENT_SHAPE moves to event@v8. upcastV7 and a predatesQuestionNotes wrapper on every older
+      upcaster refuse a note-appended carrying a question under tags v1 to v7. Every other older
+      line passes through unchanged.
+    because: >-
+      An old reader refuses a question note outright, so it cannot be additive within event@v7.
+      The acceptance gives this node the next event version, an upcaster for every older version
+      and a replay gate. One wrapper in the table keeps "an older version carries only what it
+      could have written" in one place. The replay gate checks, per older tag, that a choice
+      replays and a question is refused, that each fixture journal replays to the same projection
+      with and without the v8 entry, and that a question round-trips at event@v8. The real shared
+      journal replays too (70 sessions).
+    rests_on:
+      - packages/ledger/src/envelope.ts
+      - packages/ledger/src/upcast/v6.ts
+    hunks:
+      - packages/ledger/src/envelope.ts:7-7
+      - packages/ledger/src/envelope.ts:10-10
+      - packages/ledger/src/envelope.ts:28-31
+      - packages/ledger/src/envelope.ts:34-40
+      - packages/ledger/src/upcast/v7.ts:1-13
+      - packages/ledger/test/replay.test.ts:15-15
+      - packages/ledger/test/replay.test.ts:529-622
+  - id: embedded-note-schema
+    what: >-
+      Added schemas/event@v8.json, whose note-appended note is one of parts/note.json or the new
+      parts/question-note.json. event@v7's schema gains a rule that its note-appended note is not
+      a question. notes@v0.json gains the question entry. The corpus guards, the registry list
+      and a schema test pin all three. docs/shapes.md is regenerated.
+    because: >-
+      Widening parts/note.json would let event@v1-v4's schemas accept a kind they never had.
+      event@v7 never constrained note-appended, so without the rule a v7 line with a question
+      would validate against its schema while its upcaster refused it. I validated all 3,156
+      lines of the real shared journal against their schemas after the change, and none was
+      refused.
+    rests_on:
+      - schemas/parts/note.json
+      - packages/schemas/test/corpus.journal.test.ts
+    hunks:
+      - schemas/event@v8.json:3-5
+      - schemas/event@v8.json:8-8
+      - schemas/event@v8.json:30-30
+      - schemas/event@v8.json:37-48
+      - schemas/event@v8.json:54-54
+      - schemas/event@v7.json:37-47
+      - schemas/parts/question-note.json:1-15
+      - schemas/notes@v0.json:5-5
+      - schemas/notes@v0.json:36-47
+      - docs/shapes.md:831-831
+      - docs/shapes.md:833-833
+      - docs/shapes.md:837-837
+      - docs/shapes.md:882-885
+      - docs/shapes.md:1077-1077
+      - packages/schemas/test/corpus.guards.test.ts:255-297
+      - packages/schemas/test/corpus.guards.test.ts:391-391
+      - packages/schemas/test/corpus.guards.test.ts:400-400
+      - packages/schemas/test/corpus.guards.test.ts:416-416
+      - packages/schemas/test/corpus.guards.test.ts:423-423
+      - packages/schemas/test/corpus.guards.test.ts:433-433
+      - packages/schemas/test/corpus.guards.test.ts:457-457
+      - packages/schemas/test/corpus.guards.test.ts:463-463
+      - packages/schemas/test/corpus.guards.test.ts:480-480
+      - packages/schemas/test/corpus.guards.test.ts:485-485
+      - packages/schemas/test/corpus.guards.test.ts:488-488
+      - packages/schemas/test/corpus.guards.test.ts:500-500
+      - packages/schemas/test/corpus.guards.test.ts:520-520
+      - packages/schemas/test/registry.test.ts:25-27
+      - packages/schemas/test/askedInWords.test.ts:1-111
+  - id: asking-on-the-attempt
+    what: >-
+      askingOf in packages/face/src/asking.ts takes the latest question note on the attempt. It
+      returns { asked, options?, at } from that note, or { asked: null, because, at } when there
+      is no question or the attempt has its own outcome. In the null case, at is the read's time.
+      attemptsFor sets asking only when the resolved agent status is blocked. position@v1.json
+      gains attemptAsking and a dependentSchemas rule that asking requires agentStatus blocked.
+    because: >-
+      The acceptance defines answered as a person's words reaching the pane (say-into-pane, not
+      yet built) or the attempt ending. The attempt's own outcome is the only "ended" that can
+      still report blocked, since status is resolved only for a live lease. The two becauses say
+      which case it is in plain words. The words come only from the session's own note, never the
+      screen. at stays a string, the note's own value verbatim, so the face never rewrites the
+      session's record. Tests pin: blocked with a question, blocked without one, working, an
+      answered question, and an expired lease.
+    rests_on:
+      - packages/face/src/attempts.ts
+      - schemas/position@v1.json
+    hunks:
+      - packages/face/src/asking.ts:1-43
+      - packages/face/src/attempts.ts:9-9
+      - packages/face/src/attempts.ts:24-24
+      - packages/face/src/attempts.ts:48-51
+      - packages/face/src/attempts.ts:59-59
+      - packages/face/src/index.ts:2-3
+      - schemas/position@v1.json:194-194
+      - schemas/position@v1.json:199-204
+      - schemas/position@v1.json:207-231
+      - packages/face/test/position.test.ts:12-12
+      - packages/face/test/position.test.ts:288-402
+  - id: runner-records-questions-when-blocked
+    what: >-
+      waitForSession takes an optional recordBlocked hook and awaits it each time it observes
+      blocked. sessionDrive fills it with recordQuestionNotes, which reads the worktree's
+      notes.yaml and appends each question not yet in the journal. ingestDebrief now goes
+      through appendUnrecordedNotes, which skips a question already recorded that way.
+    because: >-
+      The runner already watches the pane's status and owns a session's journal writes, so the
+      question is in the journal while the session waits. It reads the session's own file and
+      never the pane. Only questions are deduplicated, so the old behaviour for choices and
+      surprises is unchanged. Having the face read notes.yaml itself was rejected: the position
+      would depend on a file outside the journal and stop being a replay.
+    rests_on:
+      - packages/runner/src/sessionWait.ts
+      - packages/runner/src/gateJudge.ts
+    hunks:
+      - packages/runner/src/questionNotes.ts:1-31
+      - packages/runner/src/sessionWait.ts:60-60
+      - packages/runner/src/sessionWait.ts:92-92
+      - packages/runner/src/sessionDrive.ts:25-25
+      - packages/runner/src/sessionDrive.ts:386-386
+      - packages/runner/src/gateJudge.ts:63-63
+      - packages/runner/src/gateJudge.ts:341-341
+      - packages/runner/test/questionNotes.test.ts:1-100
+      - packages/runner/test/sessionWait.test.ts:573-604
+  - id: prompt-and-guidance-say-ask-in-a-note
+    what: >-
+      Every opening prompt, whatever the role, now says that before the session stops to wait
+      for a person in its pane, it appends a question note, then asks in the pane as it does
+      today. The debrief authoring guidance carries the same instruction and a question example
+      inside its existing v1 markers.
+    because: >-
+      Any session can wait on a person, an interpreter included. withDebriefAuthoringGuidance
+      finds the generated region by its v1 markers. New markers would leave existing v1 blocks
+      unrecognized, so the new text would be appended beside them instead of replacing them.
+      A test reads the example through the notes reader, so the guidance cannot teach a note the
+      reader refuses.
+    rests_on:
+      - packages/runner/src/openingPrompt.ts
+      - packages/runner/src/debriefAuthoringGuidance.ts
+    hunks:
+      - packages/runner/src/openingPrompt.ts:55-57
+      - packages/runner/src/debriefAuthoringGuidance.ts:16-22
+      - packages/runner/src/debriefAuthoringGuidance.ts:59-67
+      - packages/runner/test/openingPrompt.test.ts:12-14
+      - packages/runner/test/openingPrompt.test.ts:116-125
+      - packages/runner/test/debriefAuthoringGuidance.test.ts:4-4
+      - packages/runner/test/debriefAuthoringGuidance.test.ts:12-12
+      - packages/runner/test/debriefAuthoringGuidance.test.ts:369-395
+  - id: notes-as-receipts
+    what: >-
+      Kept notes.yaml beside the brief, with every choice and surprise as it happened,
+      committed with the code.
+    because: >-
+      The brief requires notes@v0 committed with the code, and this debrief's decisions are
+      drawn from those notes.
+    rests_on:
+      - .interlock/sessions/0046-loom-feed/asked-in-words/brief.md
+    hunks:
+      - .interlock/sessions/0046-loom-feed/asked-in-words/notes.yaml:1-119
+  - id: bend-log-for-v7-rule
+    what: >-
+      Added a bend-log row in the design note for the not-a-question rule on the published
+      event@v7 schema.
+    because: >-
+      AGENTS.md asks for a row for every bend of the design. Tightening a published schema
+      bends "evolution is additive", even though no line ever written breaks. The row records
+      the way back and the lesson: constrain an embedded shape when its kind is introduced.
+    rests_on:
+      - AGENTS.md
+    hunks:
+      - docs/design/0001-interlock.md:632-632
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: Every workspace package typechecks.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Biome reports no findings.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+    note: packages/*/src contains no comments.
+  - id: test
+    result: pass
+    invocation: mise exec -- pnpm test
+    note: 2107 tests across eight packages, green at 9611330; the commit after it touches only the design note.
+  - id: asked-proof-1
+    result: pass
+    invocation: mise exec -- pnpm --filter face exec vitest run test/position.test.ts
+    note: 38 tests passed.
+  - id: asked-proof-2
+    result: pass
+    invocation: mise exec -- pnpm --filter debrief exec vitest run test/notes.test.ts
+    note: 11 tests passed.
+  - id: asked-proof-3
+    result: pass
+    invocation: mise exec -- pnpm --filter ledger exec vitest run test/replay.test.ts
+    note: 35 tests passed.
+open:
+  - >-
+    loom@v0 mapping. Attempt.asking.at is a number in loom@v0. The position carries a string: the
+    question note's own at verbatim, or an ISO time when asked is null. A face maps it with
+    Date.parse. A note's at is free text in notes@v0, so a face must treat an unparseable at as
+    unknown rather than invent one. Every other field of loom's asking (asked, options, because)
+    has a producer.
+  - >-
+    For asked null, at is when this read observed the blocked status, not when the session
+    first blocked, because the journal does not record status changes. A durable "blocked since"
+    needs the runner to record what it observed, for example as a session-facts field. That is
+    the next additive step if a face wants it.
+  - >-
+    Until say-into-pane lands, a question is answered only when the attempt ends. A person who
+    answers by typing straight into the pane leaves the question showing if the session blocks
+    again without writing a new one. say-into-pane's person-said fact is the planned close.
+    askingOf takes whether the question is answered as one input, so it can be extended there.
+  - >-
+    The runner records a question when it observes blocked. A session that writes its question
+    and blocks before the runner's next status wait still gets it recorded on that observation.
+    But a question written while the runner is not driving the session (a session started by
+    hand, or a runner restart) reaches the journal only at debrief time.
+  - >-
+    interlock debrief prepare refuses this node for the reason in journal-role-still-worker. The
+    debrief is authored by hand, as role-shapes-the-session's was.

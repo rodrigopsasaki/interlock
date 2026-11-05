@@ -57,6 +57,13 @@ export function diffGates(
   return lines;
 }
 
+export function diffRole(previous: string, authoritative: string): readonly string[] {
+  if (previous === authoritative) return [];
+  return [
+    `role: the repository copy declared "${previous}"; the graph supplies "${authoritative}"; overwritten.`,
+  ];
+}
+
 export function diffScope(
   previous: readonly string[],
   authoritative: readonly string[],
@@ -95,6 +102,7 @@ function frontMatterRecord(frontMatter: BriefFrontMatter): Record<string, unknow
         ? {}
         : { handle: frontMatter.substrate.handle }),
     },
+    ...(frontMatter.walk === undefined ? {} : { walk: frontMatter.walk }),
     ...(frontMatter.runner.kind === "worktree"
       ? {
           graph_base_sha: frontMatter.runner.graphBaseSha,

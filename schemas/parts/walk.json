@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/parts/walk.json",
+  "title": "walk",
+  "description": "The substrate questions a brief asks first, by the substrate's three verbs and its address. A starting point, never a fence: the whole substrate stays open to the session through its address. With the address none the walk is empty and says why; nothing errors (I5).",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "address" },
+        "address": { "type": "string" },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "verb": { "enum": ["context", "vocabulary", "absorb"] },
+              "ask": { "type": "string" }
+            },
+            "required": ["verb", "ask"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["kind", "address", "steps"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "none" },
+        "because": { "type": "string" }
+      },
+      "required": ["kind", "because"],
+      "additionalProperties": false
+    }
+  ]
+}
