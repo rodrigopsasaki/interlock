@@ -99,6 +99,7 @@ export interface GateJudgeRequest {
   readonly holdMs: number;
   readonly substrate: SubstrateClient;
   readonly personEvents?: readonly LedgerEvent[];
+  readonly env?: NodeJS.ProcessEnv;
   readonly narrate: (line: string) => void;
 }
 
@@ -113,6 +114,7 @@ function tokenize(command: string): readonly string[] {
 function spawnGateCommand(
   tokens: readonly string[],
   cwd: string,
+  env: NodeJS.ProcessEnv,
 ): Promise<{
   readonly exitCode: number;
   readonly output: string;
@@ -126,7 +128,7 @@ function spawnGateCommand(
       resolve({ exitCode: -1, output, stdout: Buffer.alloc(0), stderr: Buffer.from(output) });
       return;
     }
-    const child = spawn(bin, tokens.slice(1), { cwd });
+    const child = spawn(bin, tokens.slice(1), { cwd, env });
     let output = "";
     const stdout: Buffer[] = [];
     const stderr: Buffer[] = [];
@@ -189,6 +191,7 @@ export async function judgeGates(
     holdMs,
     substrate,
     personEvents = [],
+    env = process.env,
     narrate,
   } = request;
 
@@ -217,6 +220,7 @@ export async function judgeGates(
     const { exitCode, output, stdout, stderr } = await spawnGateCommand(
       ["mise", "exec", "--", ...tokenize(substituted.value)],
       worktree,
+      env,
     );
     const after = clock.now().monoMs;
 

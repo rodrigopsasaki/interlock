@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
@@ -24,6 +23,7 @@ import { judgeGates } from "runner";
 import { noneClient } from "substrate";
 import { afterEach, describe, expect, it } from "vitest";
 import { parse } from "yaml";
+import { fixtureGit, initFixtureRepository } from "../../../test/support/gitFixture.ts";
 import { runDebriefRevise } from "../src/debrief/revise.ts";
 import { runInterlockEvidence } from "../src/evidence.ts";
 
@@ -38,9 +38,8 @@ afterEach(() => {
 });
 
 function git(args: readonly string[], cwd: string): string {
-  return execFileSync("git", args, {
+  return fixtureGit(args, {
     cwd,
-    encoding: "utf-8",
     env: {
       ...process.env,
       GIT_AUTHOR_NAME: "fixture",
@@ -63,7 +62,7 @@ const AGENTS_MD = [
 ].join("\n");
 
 function initFixtureRepo(directory: string): void {
-  git(["-c", "init.defaultBranch=main", "init", "--quiet"], directory);
+  initFixtureRepository(directory, { defaultBranch: "main" });
   writeFileSync(join(directory, "AGENTS.md"), AGENTS_MD);
   git(["add", "-A"], directory);
   git(["-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "root"], directory);

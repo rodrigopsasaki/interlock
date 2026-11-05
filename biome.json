@@ -3,6 +3,7 @@
   "files": {
     "includes": [
       "packages/**",
+      "test/**",
       "vitest.*.ts",
       "scripts/**",
       "!**/node_modules",

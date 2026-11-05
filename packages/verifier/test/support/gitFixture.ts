@@ -1,6 +1,6 @@
-import { execFileSync } from "node:child_process";
+import { fixtureGit, initFixtureRepository } from "../../../../test/support/gitFixture.ts";
 
-const GIT_ENV = {
+export const GIT_ENV = {
   ...process.env,
   GIT_AUTHOR_NAME: "fixture",
   GIT_AUTHOR_EMAIL: "fixture@example.invalid",
@@ -8,38 +8,19 @@ const GIT_ENV = {
   GIT_COMMITTER_EMAIL: "fixture@example.invalid",
 };
 
+export const COMMIT_ARGS = ["-c", "commit.gpgsign=false", "commit", "--quiet", "-m"] as const;
+
 export function gitInitFixture(directory: string): void {
-  execFileSync("git", ["-c", "init.defaultBranch=main", "init", "--quiet"], {
-    cwd: directory,
-  });
+  initFixtureRepository(directory, { defaultBranch: "main" });
 }
 
 // Commits whatever is already on disk under `directory`.
 export function commitAll(directory: string, message: string): string {
-  execFileSync("git", ["add", "-A"], { cwd: directory });
-  execFileSync(
-    "git",
-    [
-      "-c",
-      "commit.gpgsign=false",
-      "-c",
-      "maintenance.auto=false",
-      "commit",
-      "--quiet",
-      "-m",
-      message,
-    ],
-    {
-      cwd: directory,
-      env: GIT_ENV,
-    },
-  );
+  fixtureGit(["add", "-A"], { cwd: directory });
+  fixtureGit([...COMMIT_ARGS, message], { cwd: directory, env: GIT_ENV });
   return headSha(directory);
 }
 
 export function headSha(directory: string): string {
-  return execFileSync("git", ["rev-parse", "HEAD"], {
-    cwd: directory,
-    encoding: "utf-8",
-  }).trim();
+  return fixtureGit(["rev-parse", "HEAD"], { cwd: directory }).trim();
 }

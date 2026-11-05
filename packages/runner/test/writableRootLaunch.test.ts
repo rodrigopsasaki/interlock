@@ -1,8 +1,8 @@
-import { execFileSync } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { delimiter, join } from "node:path";
 import { err } from "@phyxiusjs/fp";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { writeGitForwarder } from "../../../test/support/gitFixture.ts";
 import {
   CORRUPT_GIT_FILE_SCRIPT,
   cloneAsNonLinkedWorktree,
@@ -52,24 +52,9 @@ function catalogue(entries: readonly string[]): string {
 // Puts a git first on PATH that refuses any invocation naming one of the given flags and hands
 // every other invocation to the real git, so one rev-parse can fail while the rest still works.
 function refuseGitFlags(flags: readonly string[]): void {
-  const realGit = execFileSync("/bin/sh", ["-c", "command -v git"], { encoding: "utf-8" }).trim();
   const bin = join(runDirectory(), "bin");
   mkdirSync(bin);
-  const script = join(bin, "git");
-  writeFileSync(
-    script,
-    [
-      "#!/bin/sh",
-      'for arg in "$@"; do',
-      '  case "$arg" in',
-      `    ${flags.join("|")}) echo "fixture git refuses $arg" >&2; exit 128 ;;`,
-      "  esac",
-      "done",
-      `exec '${realGit}' "$@"`,
-      "",
-    ].join("\n"),
-  );
-  chmodSync(script, 0o755);
+  writeGitForwarder(join(bin, "git"), flags);
   process.env["PATH"] = `${bin}${delimiter}${process.env["PATH"] ?? ""}`;
 }
 

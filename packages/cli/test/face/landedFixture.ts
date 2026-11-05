@@ -1,7 +1,7 @@
-import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { type GitRun, type GitRunner, spawnedGit } from "face";
+import { fixtureGit, initFixtureRepository } from "../../../../test/support/gitFixture.ts";
 
 const GIT_ENV = {
   ...process.env,
@@ -13,11 +13,7 @@ const GIT_ENV = {
 };
 
 export function git(repo: string, ...args: string[]): string {
-  return execFileSync("git", ["-c", "commit.gpgsign=false", ...args], {
-    cwd: repo,
-    encoding: "utf-8",
-    env: GIT_ENV,
-  }).trim();
+  return fixtureGit(["-c", "commit.gpgsign=false", ...args], { cwd: repo, env: GIT_ENV }).trim();
 }
 
 export interface ClearedNode {
@@ -49,7 +45,7 @@ export function landedRepository(
 ): LandedRepository {
   mkdirSync(runsRoot, { recursive: true });
   const root = mkdtempSync(join(runsRoot, "landed-"));
-  git(root, "init", "--quiet", "--initial-branch", "main");
+  initFixtureRepository(root, { defaultBranch: "main", env: GIT_ENV });
   git(root, "commit", "--quiet", "--allow-empty", "-m", "fixture root");
   mkdirSync(join(root, ".interlock", "graphs"), { recursive: true });
   const cleared: ClearedNode[] = [];

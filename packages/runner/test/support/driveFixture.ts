@@ -1,10 +1,10 @@
-import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { type Clock, createControlledClock } from "@phyxiusjs/clock";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import type { LedgerEvent } from "ledger";
 import { noneClient } from "substrate";
+import { cloneFixtureRepository, fixtureGit } from "../../../../test/support/gitFixture.ts";
 import { type LocalConfig, loadLocalConfig } from "../../src/localConfig.ts";
 import type { Agent, Pane, Runtime, RuntimeRefusal } from "../../src/runtime.ts";
 import {
@@ -93,8 +93,8 @@ export function fixtureRepository(parent: string, localYaml: string): string {
 
 export function cloneAsNonLinkedWorktree(repoRoot: string, node: string): string {
   const path = join(repoRoot, ".worktrees", node);
-  execFileSync("git", ["branch", `graph/g/${node}`], { cwd: repoRoot });
-  execFileSync("git", ["clone", "--quiet", repoRoot, path]);
+  fixtureGit(["branch", `graph/g/${node}`], { cwd: repoRoot });
+  cloneFixtureRepository(repoRoot, path, ["--quiet"]);
   return path;
 }
 

@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
@@ -8,6 +7,7 @@ import { loadGraphDocument } from "face";
 import { isLedgerEvent, type Outcome } from "ledger";
 import type { Runtime } from "runner";
 import { afterEach, describe, expect, it } from "vitest";
+import { fixtureGit } from "../../../test/support/gitFixture.ts";
 import {
   type FakeSubstrateServer,
   startFakeSubstrateServer,
@@ -61,7 +61,7 @@ function fixture(local = localYaml): string {
   writeFileSync(join(directory, ".interlock", "config.yaml"), configYaml);
   writeFileSync(join(directory, ".interlock", "local.yaml"), local);
   gitInitFixture(directory);
-  execFileSync("git", ["config", "commit.gpgsign", "false"], {
+  fixtureGit(["config", "commit.gpgsign", "false"], {
     cwd: directory,
   });
   commitAll(directory, "fixture content");
@@ -74,7 +74,7 @@ function localYamlFor(address: string): string {
 
 function fixtureWithOrigin(local: string): string {
   const cwd = fixture(local);
-  execFileSync("git", ["remote", "add", "origin", "git@forge.example:owner/name.git"], { cwd });
+  fixtureGit(["remote", "add", "origin", "git@forge.example:owner/name.git"], { cwd });
   return cwd;
 }
 
@@ -204,10 +204,7 @@ describe("interlock plan", () => {
     const cwd = fixtureWithOrigin(localYamlFor(server.url));
     const worktreePath = join(cwd, ".worktrees", "plan", "demo");
     const selected = [".interlock/config.yaml"];
-    const authoritativeScope = execFileSync("git", ["ls-files"], {
-      cwd,
-      encoding: "utf-8",
-    })
+    const authoritativeScope = fixtureGit(["ls-files"], { cwd })
       .split("\n")
       .filter((path) => path.length > 0);
 
@@ -267,10 +264,7 @@ describe("interlock plan", () => {
     server.responseFor("context", { items: [], vocabulary: "reference@v1" });
     const cwd = fixtureWithOrigin(localYamlFor(server.url));
     const worktreePath = join(cwd, ".worktrees", "plan", "demo");
-    const authoritativeScope = execFileSync("git", ["ls-files"], {
-      cwd,
-      encoding: "utf-8",
-    })
+    const authoritativeScope = fixtureGit(["ls-files"], { cwd })
       .split("\n")
       .filter((path) => path.length > 0);
 
@@ -629,12 +623,7 @@ describe("interlock plan", () => {
       );
 
       expect(result.exitCode).toBe(0);
-      const authoritativeScope = execFileSync("git", ["ls-files"], {
-        cwd,
-        encoding: "utf-8",
-      })
-        .trim()
-        .split("\n");
+      const authoritativeScope = fixtureGit(["ls-files"], { cwd }).trim().split("\n");
       expect(server.calls.find((call) => call.verb === "context")?.body).toMatchObject({
         scope: authoritativeScope,
       });
@@ -772,7 +761,7 @@ describe("interlock plan", () => {
       .map((line): unknown => JSON.parse(line))
       .filter(isLedgerEvent)
       .filter((event) => event.kind === "session-started" || event.kind === "lease-taken");
-    execFileSync("git", ["rm", "--cached", ".interlock/config.yaml"], { cwd });
+    fixtureGit(["rm", "--cached", ".interlock/config.yaml"], { cwd });
 
     const correction = await runInterlockPlan(
       ["demo", "--correction", "the selected context path is no longer tracked"],

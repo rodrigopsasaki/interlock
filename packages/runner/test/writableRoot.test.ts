@@ -1,4 +1,3 @@
-import { execFileSync, spawnSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -11,6 +10,7 @@ import {
 import { isAbsolute, join, resolve } from "node:path";
 import { ok } from "@phyxiusjs/fp";
 import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
+import { fixtureGit, sandboxedFixtureCommand } from "../../../test/support/gitFixture.ts";
 import {
   driveOnce,
   fixtureRepository,
@@ -116,17 +116,6 @@ interface Sandboxed {
   readonly stderr: string;
 }
 
-function sandboxed(policy: string, cwd: string, command: readonly string[]): Sandboxed {
-  const run = spawnSync("sandbox-exec", ["-p", policy, ...command], {
-    cwd,
-    env: isolatedGitEnvironment(),
-    encoding: "utf-8",
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-  if (run.error !== undefined) throw run.error;
-  return { status: run.status, stderr: run.stderr };
-}
-
 interface FakeAgentRun {
   readonly roots: readonly string[];
   readonly initialized: Sandboxed;
@@ -137,33 +126,43 @@ interface FakeAgentRun {
 }
 
 function head(cwd: string): string {
-  return execFileSync("git", ["rev-parse", "HEAD"], { cwd, encoding: "utf-8" }).trim();
+  return fixtureGit(["rev-parse", "HEAD"], { cwd }).trim();
 }
 
 function fakeAgent(start: RecordedStart, outsideFile: string): FakeAgentRun {
   const roots = rootsNamedBy(start.args);
   const policy = sandboxPolicy(start.cwd, roots);
-  const initialized = sandboxed(policy, start.cwd, ["/usr/bin/true"]);
+  const initialized = sandboxedFixtureCommand(
+    policy,
+    start.cwd,
+    { argv: ["/usr/bin/true"] },
+    isolatedGitEnvironment(),
+  );
   const headBefore = head(start.cwd);
-  const commit = sandboxed(policy, start.cwd, [
-    "git",
-    "-c",
-    "commit.gpgsign=false",
-    "-c",
-    "core.hooksPath=/dev/null",
-    "commit",
-    "--quiet",
-    "-m",
-    "fake agent commit",
-  ]);
+  const commit = sandboxedFixtureCommand(
+    policy,
+    start.cwd,
+    {
+      git: [
+        "-c",
+        "commit.gpgsign=false",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "commit",
+        "--quiet",
+        "-m",
+        "fake agent commit",
+      ],
+    },
+    isolatedGitEnvironment(),
+  );
   const headAfter = head(start.cwd);
-  const outsideWrite = sandboxed(policy, start.cwd, [
-    "/bin/sh",
-    "-c",
-    'printf escaped > "$1"',
-    "sh",
-    outsideFile,
-  ]);
+  const outsideWrite = sandboxedFixtureCommand(
+    policy,
+    start.cwd,
+    { argv: ["/bin/sh", "-c", 'printf escaped > "$1"', "sh", outsideFile] },
+    isolatedGitEnvironment(),
+  );
   return { roots, initialized, headBefore, commit, headAfter, outsideWrite };
 }
 
@@ -205,11 +204,11 @@ describe("writable root sandbox proof", () => {
     const outsideFile = join(outside, "escaped.txt");
 
     const worktree = join(repoRoot, ".worktrees", "n");
-    execFileSync("git", ["worktree", "add", "--quiet", "-b", "graph/g/n", worktree, "HEAD"], {
+    fixtureGit(["worktree", "add", "--quiet", "-b", "graph/g/n", worktree, "HEAD"], {
       cwd: repoRoot,
     });
     writeFileSync(join(worktree, STAGED_PATH), STAGED_CONTENT);
-    execFileSync("git", ["add", "--", STAGED_PATH], { cwd: worktree });
+    fixtureGit(["add", "--", STAGED_PATH], { cwd: worktree });
     const commonGitDir = join(repoRoot, ".git");
 
     const runs: FakeAgentRun[] = [];
@@ -242,12 +241,8 @@ describe("writable root sandbox proof", () => {
     expect(rooted.commit).toEqual({ status: 0, stderr: "" });
     expect(rooted.headAfter).not.toBe(rooted.headBefore);
     expect(head(worktree)).toBe(rooted.headAfter);
-    expect(
-      execFileSync("git", ["rev-parse", "HEAD^"], { cwd: worktree, encoding: "utf-8" }).trim(),
-    ).toBe(rooted.headBefore);
-    expect(
-      execFileSync("git", ["show", `HEAD:${STAGED_PATH}`], { cwd: worktree, encoding: "utf-8" }),
-    ).toBe(STAGED_CONTENT);
+    expect(fixtureGit(["rev-parse", "HEAD^"], { cwd: worktree }).trim()).toBe(rooted.headBefore);
+    expect(fixtureGit(["show", `HEAD:${STAGED_PATH}`], { cwd: worktree })).toBe(STAGED_CONTENT);
 
     expect(rooted.outsideWrite.status).not.toBe(0);
     expect(rooted.outsideWrite.stderr).toContain("Operation not permitted");
@@ -384,7 +379,7 @@ interface MetadataAttempt {
 }
 
 function git(cwd: string, args: readonly string[]): string {
-  return execFileSync("git", [...args], { cwd, encoding: "utf-8" }).trim();
+  return fixtureGit(args, { cwd }).trim();
 }
 
 function reflogLines(path: string): readonly string[] {
@@ -402,7 +397,7 @@ function metadataState(cwd: string, files: MetadataFiles): MetadataState {
   };
 }
 
-const FIXTURE_GIT = ["git", "-c", "core.hooksPath=/dev/null", "-c", "core.logAllRefUpdates=true"];
+const FIXTURE_GIT = ["-c", "core.hooksPath=/dev/null", "-c", "core.logAllRefUpdates=true"];
 
 function metadataAttempt(
   cwd: string,
@@ -412,19 +407,36 @@ function metadataAttempt(
 ): MetadataAttempt {
   const policy = metadataProtectingPolicy(cwd, roots);
   const before = metadataState(cwd, files);
-  const add = sandboxed(policy, cwd, [...FIXTURE_GIT, "add", "--", FRESH_PATH]);
-  const commit = sandboxed(policy, cwd, [
-    ...FIXTURE_GIT,
-    "-c",
-    "commit.gpgsign=false",
-    "commit",
-    "--quiet",
-    "-m",
-    "fake agent commit under metadata protection",
-  ]);
+  const add = sandboxedFixtureCommand(
+    policy,
+    cwd,
+    { git: [...FIXTURE_GIT, "add", "--", FRESH_PATH] },
+    isolatedGitEnvironment(),
+  );
+  const commit = sandboxedFixtureCommand(
+    policy,
+    cwd,
+    {
+      git: [
+        ...FIXTURE_GIT,
+        "-c",
+        "commit.gpgsign=false",
+        "commit",
+        "--quiet",
+        "-m",
+        "fake agent commit under metadata protection",
+      ],
+    },
+    isolatedGitEnvironment(),
+  );
   const after = metadataState(cwd, files);
   const write = (target: string) =>
-    sandboxed(policy, cwd, ["/bin/sh", "-c", 'printf escaped >> "$1"', "sh", target]);
+    sandboxedFixtureCommand(
+      policy,
+      cwd,
+      { argv: ["/bin/sh", "-c", 'printf escaped >> "$1"', "sh", target] },
+      isolatedGitEnvironment(),
+    );
   return {
     roots,
     before,

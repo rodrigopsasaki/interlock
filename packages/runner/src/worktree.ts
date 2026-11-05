@@ -212,7 +212,15 @@ export function commitBriefIfChanged(
     "",
     BRIEF_COMMIT_FOOTER,
   ].join("\n");
-  const committed = git(worktreePath, ["commit", "-m", message, "--", briefRelativePath]);
+  const committed = git(worktreePath, [
+    "-c",
+    "maintenance.auto=false",
+    "commit",
+    "-m",
+    message,
+    "--",
+    briefRelativePath,
+  ]);
   if (isErr(committed)) return committed;
 
   const short = git(worktreePath, ["rev-parse", "--short", "HEAD"]);
@@ -252,4 +260,15 @@ export function createDetachedWorktree(
 export function removeWorktree(repoRoot: string, path: string): Result<void, WorktreeRefusal> {
   const removed = git(repoRoot, ["worktree", "remove", "--force", path]);
   return isOk(removed) ? ok(undefined) : removed;
+}
+
+export function withAutoMaintenanceDisabled(base: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const declared = Number.parseInt(base["GIT_CONFIG_COUNT"] ?? "0", 10);
+  const next = Number.isInteger(declared) && declared > 0 ? declared : 0;
+  return {
+    ...base,
+    GIT_CONFIG_COUNT: String(next + 1),
+    [`GIT_CONFIG_KEY_${next}`]: "maintenance.auto",
+    [`GIT_CONFIG_VALUE_${next}`]: "false",
+  };
 }

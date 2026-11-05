@@ -1,9 +1,9 @@
-import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { isErr, isOk, unwrap } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
+import { fixtureGit } from "../../../test/support/gitFixture.ts";
 import {
   commitBriefIfChanged,
   ensureNodeWorktree,
@@ -201,7 +201,7 @@ describe("uncommittedPaths", () => {
     const repoRoot = fixtureRepo();
     writeFileSync(join(repoRoot, "root.txt"), "changed\n");
     writeFileSync(join(repoRoot, "new-file.txt"), "new\n");
-    execFileSync("git", ["add", "new-file.txt"], { cwd: repoRoot });
+    fixtureGit(["add", "new-file.txt"], { cwd: repoRoot });
 
     const paths = [...unwrap(uncommittedPaths(repoRoot))].sort();
     expect(paths).toEqual(["new-file.txt", "root.txt"]);
@@ -224,17 +224,15 @@ describe("commitBriefIfChanged", () => {
     expect(headSha(path)).toContain(shortSha ?? "");
     expect(unwrap(uncommittedPaths(path))).toEqual([]);
 
-    const log = execFileSync("git", ["log", "-1", "--pretty=%B"], {
+    const log = fixtureGit(["log", "-1", "--pretty=%B"], {
       cwd: path,
-      encoding: "utf-8",
     });
     expect(log).toContain("chore: write the session brief for node-a");
     expect(log).toContain("session-1");
     expect(log).toContain("Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>");
 
-    const changed = execFileSync("git", ["show", "--name-only", "--pretty=", "HEAD"], {
+    const changed = fixtureGit(["show", "--name-only", "--pretty=", "HEAD"], {
       cwd: path,
-      encoding: "utf-8",
     }).trim();
     expect(changed).toBe("root.txt");
   });
@@ -246,26 +244,24 @@ describe("commitBriefIfChanged", () => {
     unwrap(ensureNodeWorktree(repoRoot, path, sha, "graph/demo/node-a"));
 
     writeFileSync(join(path, "staged-earlier.txt"), "left by an earlier session\n");
-    execFileSync("git", ["add", "staged-earlier.txt"], { cwd: path });
+    fixtureGit(["add", "staged-earlier.txt"], { cwd: path });
     writeFileSync(join(path, "root.txt"), "unstaged edit\n");
     writeFileSync(join(path, "brief.md"), "brief content\n");
-    execFileSync("git", ["add", "brief.md"], { cwd: path });
+    fixtureGit(["add", "brief.md"], { cwd: path });
 
     const result = commitBriefIfChanged(path, "brief.md", "node-a", "session-1");
 
     expect(isOk(result)).toBe(true);
     expect(unwrap(result)).toBeDefined();
 
-    const status = execFileSync("git", ["status", "--porcelain"], {
+    const status = fixtureGit(["status", "--porcelain"], {
       cwd: path,
-      encoding: "utf-8",
     });
     expect(status).toContain("staged-earlier.txt");
     expect(status).toContain("root.txt");
 
-    const changed = execFileSync("git", ["show", "--name-only", "--pretty=", "HEAD"], {
+    const changed = fixtureGit(["show", "--name-only", "--pretty=", "HEAD"], {
       cwd: path,
-      encoding: "utf-8",
     }).trim();
     expect(changed).toBe("brief.md");
   });
@@ -281,9 +277,8 @@ describe("commitBriefIfChanged", () => {
     writeFileSync(join(path, "root.txt"), "brief content\n");
     expect(isOk(commitBriefIfChanged(path, "root.txt", node, session))).toBe(true);
 
-    const message = execFileSync("git", ["log", "-1", "--format=%B"], {
+    const message = fixtureGit(["log", "-1", "--format=%B"], {
       cwd: path,
-      encoding: "utf-8",
     });
     expect(node.length).toBeGreaterThan(40);
     expect(Math.max(...message.split("\n").map((line) => line.length))).toBeLessThanOrEqual(100);
@@ -303,9 +298,8 @@ describe("commitBriefIfChanged", () => {
     writeFileSync(join(path, "root.txt"), "brief content\n");
     expect(isOk(commitBriefIfChanged(path, "root.txt", node, session))).toBe(true);
 
-    const message = execFileSync("git", ["log", "-1", "--format=%B"], {
+    const message = fixtureGit(["log", "-1", "--format=%B"], {
       cwd: path,
-      encoding: "utf-8",
     });
     const lines = message.split("\n");
     expect(node.length).toBeGreaterThan(200);

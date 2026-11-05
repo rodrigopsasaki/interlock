@@ -1,0 +1,159 @@
+interlock: debrief@v2
+graph: 0051-no-detached-maintenance
+node: worktree-maintenance
+role: implementer
+graph_base_sha: 04e9ebefc565ee96ec9546f37eed88db4ec66520
+session_start_sha: 9dd061046b08cb4f4396c0655535359b58601164
+head_sha: 2ad105ce78fd4f6a36ea9f9dc4e48ff94afa808b
+derivation:
+  kind: agent
+  runtime: claude-code
+  model: claude-opus-5-5
+discoveries:
+  - id: default-auto-task-set
+    what: >-
+      On git 2.54.0 (Apple Git-157), with no maintenance, gc or rerere key at any scope, auto
+      maintenance enables five tasks: reflog-expire, geometric-repack, commit-graph,
+      worktree-prune and rerere-gc. gc, prefetch, loose-objects, incremental-repack and pack-refs
+      are off. The geometric-repack trigger is only the one usually due.
+    found_at: '.interlock/sessions/0051-no-detached-maintenance/worktree-maintenance/notes.yaml:33-43 "pack-refs are not enabled by default"'
+    mattered_because: >-
+      The acceptance warns that the repack trigger alone does not establish every task's
+      boundary; the other four tasks each have their own write destinations.
+  - id: reflog-expire-runs-before-detach
+    what: >-
+      Git splits the task set at the detach point. reflog-expire, the one default task that
+      writes every worktree's admin directory (HEAD.lock, logs/HEAD), runs in the "maintenance
+      foreground" region before `maintenance run --auto --detach` daemonizes. Only
+      geometric-repack, commit-graph, worktree-prune and rerere-gc run in the daemon, which
+      outlives the commit. The gc strategy is split the same way.
+    found_at: '.interlock/sessions/0051-no-detached-maintenance/worktree-maintenance/notes.yaml:48-58 "returned: reflog-expire rewrites admin files in the foreground"'
+    mattered_because: >-
+      A write that reaches an admin directory finishes before the runner's commit returns, so it
+      is not a detached writer and cannot outlive the command.
+  - id: detached-write-destinations
+    what: >-
+      With both linked worktree directories and both admin directories read-only, the detached
+      task set exits 0 and writes packs, a multi-pack-index and commit-graphs into the common
+      objects directory. reflog-expire fails on every worktree's HEAD.lock, siblings included.
+      With rerere enabled, rerere-gc fails on the launching worktree's own MERGE_RR.lock.
+    found_at: '.interlock/sessions/0051-no-detached-maintenance/worktree-maintenance/notes.yaml:62-73 "on B''s HEAD.lock: the foreground task reaches every worktree''s admin directory"'
+    mattered_because: >-
+      Permissions turn "did a write happen" into a deterministic failure instead of an absence
+      to wait for. The failing positive controls show the lock-down does catch writers.
+  - id: prune-deletes-broken-entries
+    what: >-
+      worktree-prune deletes an admin entry whose gitdir file is missing whatever its age. It
+      keeps a fresh entry whose worktree directory is gone. It deletes and never creates files.
+    found_at: '.interlock/sessions/0051-no-detached-maintenance/worktree-maintenance/notes.yaml:78-80 "The detached prune deletes; it never creates a file."'
+    mattered_because: >-
+      It is the one detached task that touches admin entries of other worktrees. It is not a
+      writer, but it bears on removal races (see open).
+decisions:
+  - id: classify-non-overlap
+    what: >-
+      Demonstrated non-overlap for the stated configuration and these lifecycles; no production
+      code changed. The supported boundary: Git 2.54.0 (Apple Git-157), default maintenance
+      configuration, rerere disabled (no rr-cache). The runner's only maintenance-launching
+      command is commitBriefIfChanged's `git commit` in a node worktree that sessionDrive
+      retains. Its daemon writes only the common objects directory, plus, if rerere were
+      enabled, that node worktree's own admin MERGE_RR.lock. The runner removes only backfill
+      worktrees, and inside them runs nothing that launches maintenance. Setup commands
+      (`mise exec -- pnpm install`, worktree_setup `pnpm install --frozen-lockfile`) and the
+      standing gate commands run no Git that launches maintenance in the backfill worktree; the
+      gates' fixture repositories are pinned off by fixtures-and-worktrees. Agent commands commit
+      only in their own retained node worktree.
+    because: >-
+      The acceptance asks for no production change on demonstrated non-overlap. The
+      demonstration rests on a mechanism (Git's own detach partition plus a permission
+      lock-down with positive controls), not on successful removals or finite trials without
+      writes.
+    rests_on:
+      - '.interlock/sessions/0051-no-detached-maintenance/worktree-maintenance/notes.yaml:84-96 "only `git commit` in commitBriefIfChanged (packages/runner/src/worktree.ts),"'
+      - '.interlock/sessions/0051-no-detached-maintenance/worktree-maintenance/notes.yaml:105-113 "evidence is mechanism, not absence: the permission lock-down makes any write into a"'
+      - 'packages/runner/src/worktree.ts:215 "const committed = git(worktreePath, [\"commit\", \"-m\", message, \"--\", briefRelativePath]);"'
+      - 'packages/runner/src/backfill.ts:176 "removeWorktree(repoRoot, worktreePath);"'
+    hunks:
+      - packages/runner/test/worktreeMaintenance.test.ts:26-40
+  - id: maintenance-boundary-proof
+    what: >-
+      packages/runner/test/worktreeMaintenance.test.ts drives ensureNodeWorktree,
+      commitBriefIfChanged, createDetachedWorktree and removeWorktree in a fixture repository.
+      The fixture re-enables maintenance.auto, pins maintenance.autoDetach=false, forces the auto
+      condition of all ten known tasks and traces with GIT_TRACE2_EVENT. It asserts the real
+      admin/common layout, that the brief commit launches one `maintenance run --auto
+      --no-detach` and its exact split (reflog-expire before the detach point, the other four
+      after), and that the after-detach set, taken from that trace, succeeds against read-only
+      node and backfill worktree and admin directories while writing packs and commit-graphs.
+      Positive controls: reflog-expire fails on the sibling backfill admin HEAD.lock, and an
+      enabled rerere-gc leaves the locked backfill alone but fails on the node admin's
+      MERGE_RR.lock. The backfill create/remove lifecycle launches no maintenance child.
+    because: >-
+      Foreground maintenance finishes before each call returns, so nothing races a daemon, and
+      the test uses no sleeps, retries or lock-absence assertions. Exact task lists make a Git
+      upgrade that moves a writer across the detach point fail the proof instead of passing it.
+    rests_on:
+      - '.interlock/sessions/0051-no-detached-maintenance/worktree-maintenance/notes.yaml:123-126 "proof fail, not silently pass, if a Git upgrade moves a writer across the detach point."'
+    hunks:
+      - packages/runner/test/worktreeMaintenance.test.ts:1-346
+  - id: evidence-in-notes
+    what: >-
+      The probe evidence is kept in notes.yaml: Git version, effective configuration, resolved
+      worktree/admin/common paths, the traced subprocess sequence of a detaching commit, the
+      lock-down results and the awaited daemon exit. A first evidence/ directory of raw trace2
+      excerpts was removed. Probe scratch under packages/runner/test/.runs was removed with plain
+      rm once no `git maintenance` process survived.
+    because: >-
+      The schemas corpus test requires every .jsonl under .interlock to carry a shape tag, and
+      raw Git output is not an Interlock artifact this node should mint a shape for.
+    rests_on:
+      - '.interlock/sessions/0051-no-detached-maintenance/worktree-maintenance/notes.yaml:150-154 "interlock shape tag"'
+    hunks:
+      - .interlock/sessions/0051-no-detached-maintenance/worktree-maintenance/notes.yaml:1-174
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+  - id: worktree-maintenance-proof
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter runner exec vitest run test/worktreeMaintenance.test.ts --passWithNoTests=false
+    note: Tests 6 passed (6); logged git version 2.54.0 (Apple Git-157)
+  - id: test
+    result: pass
+    invocation: mise exec -- pnpm test
+    note: Green on every package after evidence/ was removed (runner 407, cli 406, schemas 1086). The first run failed 4 corpus tests on evidence/*.jsonl. The runner's receipts are binding.
+open:
+  - >-
+    Not detached, so outside this ask, but a real concurrent writer: the foreground
+    reflog-expire runs `git reflog expire --all` and writes every linked worktree's admin
+    HEAD.lock and logs/HEAD. If a runner brief commit (or any person's commit) runs while a
+    separate backfill invocation is removing its worktree, it can write into the admin directory
+    being removed. It is due only when the committing worktree's HEAD reflog holds at least
+    maintenance.reflog-expire.auto (default 100) expired entries, which a fresh node worktree
+    does not. Containment would be serializing backfill against concurrent runner commits, or
+    `-c maintenance.reflog-expire.auto=0` on the brief commit; a person should choose.
+  - >-
+    A detached worktree-prune from some other worktree, running while removeWorktree is part-way
+    through deleting the backfill admin directory (gitdir file already gone), can delete the same
+    entry. That is a deletion race that can fail the removal, not a write; not probed further.
+  - >-
+    Outside the stated configuration: with rerere enabled (rerere.enabled=true or an rr-cache
+    directory), a gate or worktree_setup command that commits or merges inside the backfill
+    worktree would launch a daemon whose rerere-gc writes that worktree's admin MERGE_RR.lock
+    while removeWorktree deletes it. Neither condition holds here: no rr-cache, and no standing
+    gate or setup command commits there. Other Git versions or a non-default
+    maintenance.strategy are unsupported; the proof re-derives the split on every run and fails
+    if it moves.
+  - >-
+    A note slip: notes.yaml 07:15 says the proof forces "each default task's" auto condition;
+    the test forces all ten known tasks (KNOWN_TASKS), which is what lets it detect a newly
+    enabled one.
+  - >-
+    head_sha is 2ad105c, a notes-only commit that moved the evidence; the last commit touching
+    code is c78f4b4. The debrief-valid gate is run after filing.

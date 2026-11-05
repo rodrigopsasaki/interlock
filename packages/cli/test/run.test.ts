@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -16,6 +15,7 @@ import {
 } from "ledger";
 import type { Runtime } from "runner";
 import { afterEach, describe, expect, it } from "vitest";
+import { fixtureGit } from "../../../test/support/gitFixture.ts";
 import {
   type FakeSubstrateServer,
   startFakeSubstrateServer,
@@ -50,7 +50,7 @@ function localYamlFor(address: string, sendRepository: boolean): string {
 }
 
 function setOrigin(cwd: string): void {
-  execFileSync("git", ["remote", "add", "origin", "git@forge.example:owner/name.git"], { cwd });
+  fixtureGit(["remote", "add", "origin", "git@forge.example:owner/name.git"], { cwd });
 }
 
 async function approve(cwd: string): Promise<void> {
@@ -232,10 +232,7 @@ function fixture(
 }
 
 function headSha(cwd: string): string {
-  return execFileSync("git", ["rev-parse", "HEAD"], {
-    cwd,
-    encoding: "utf-8",
-  }).trim();
+  return fixtureGit(["rev-parse", "HEAD"], { cwd }).trim();
 }
 
 // The brief commit's short sha is nondeterministic per run; splits it out of a narrated line
@@ -555,11 +552,9 @@ describe("interlock run", () => {
     // The worktree's own HEAD sits one commit ahead of headAtRunTime: the runner's own brief
     // commit. The graph base it was cut from is still headAtRunTime, asserted below via the
     // session-started event, which is the claim this test is actually about.
-    const commitsBeyondRunTime = execFileSync(
-      "git",
-      ["rev-list", "--count", `${headAtRunTime}..HEAD`],
-      { cwd: join(cwd, ".worktrees", "a"), encoding: "utf-8" },
-    ).trim();
+    const commitsBeyondRunTime = fixtureGit(["rev-list", "--count", `${headAtRunTime}..HEAD`], {
+      cwd: join(cwd, ".worktrees", "a"),
+    }).trim();
     expect(commitsBeyondRunTime).toBe("1");
     expect(existsSync(join(cwd, ".worktrees", "a", "merged-after-approval.txt"))).toBe(true);
 
@@ -716,11 +711,9 @@ describe("interlock run", () => {
       ...stubRuntime(),
       prompt: (agent, text) => {
         try {
-          execFileSync(
-            "git",
-            ["diff", "--quiet", "HEAD", "--", ".interlock/sessions/demo/a/brief.md"],
-            { cwd: worktree },
-          );
+          fixtureGit(["diff", "--quiet", "HEAD", "--", ".interlock/sessions/demo/a/brief.md"], {
+            cwd: worktree,
+          });
           canonicalCommittedBeforePrompt = true;
         } catch {
           canonicalCommittedBeforePrompt = false;
@@ -1516,7 +1509,7 @@ describe("interlock run", () => {
 
     // Stand up the worktree by hand, as an earlier interrupted session would have left it: one
     // real commit beyond the graph base, plus a path never committed.
-    execFileSync("git", ["worktree", "add", "-b", "graph/demo/a", worktreePath, baseSha], { cwd });
+    fixtureGit(["worktree", "add", "-b", "graph/demo/a", worktreePath, baseSha], { cwd });
     writeFileSync(
       join(worktreePath, "earlier-session.txt"),
       "partial progress from a session that never finished\n",
@@ -1557,7 +1550,7 @@ describe("interlock run", () => {
     const branchBaseSha = headSha(cwd);
     const worktreePath = join(cwd, ".worktrees", "a");
 
-    execFileSync("git", ["worktree", "add", "-b", "graph/demo/a", worktreePath, branchBaseSha], {
+    fixtureGit(["worktree", "add", "-b", "graph/demo/a", worktreePath, branchBaseSha], {
       cwd,
     });
     writeFileSync(
@@ -1603,7 +1596,7 @@ describe("interlock run", () => {
     await approve(cwd);
     const branchBaseSha = headSha(cwd);
     const worktreePath = join(cwd, ".worktrees", "a");
-    execFileSync("git", ["worktree", "add", "-b", "graph/demo/a", worktreePath, branchBaseSha], {
+    fixtureGit(["worktree", "add", "-b", "graph/demo/a", worktreePath, branchBaseSha], {
       cwd,
     });
     writeFileSync(join(worktreePath, "earlier-session.txt"), "partial progress\n");
