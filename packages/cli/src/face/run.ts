@@ -20,7 +20,7 @@ import { createDispatcher, type Dispatcher } from "./dispatch.ts";
 import { focusSession } from "./focus.ts";
 import { decodeKeys } from "./keys.ts";
 import { renderScreen } from "./screen.ts";
-import { drawScreen, enterAltScreen, exitAltScreen } from "./terminal.ts";
+import { drawScreen, enterAltScreen, exitAltScreen, type FaceOutput } from "./terminal.ts";
 import { buildGraphWorld, buildPlansWorld, buildSessionText } from "./world.ts";
 
 const REDRAW_INTERVAL_MS = 2000;
@@ -31,7 +31,7 @@ export interface FaceOptions {
   readonly clock?: Clock;
   readonly dispatch?: Dispatcher;
   readonly stdin?: NodeJS.ReadStream;
-  readonly stdout?: NodeJS.WriteStream;
+  readonly stdout?: FaceOutput;
   readonly keys?: AsyncIterable<FaceKey>;
   readonly by?: string;
   readonly git?: GitRunner;
