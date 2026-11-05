@@ -1,0 +1,87 @@
+interlock: graph@v0
+id: 0051-no-detached-maintenance
+ask: No git command Interlock's tests or runner start leaves a detached maintenance job writing into a directory Interlock is about to remove.
+derivation:
+  kind: model
+  model: gilb (Claude)
+  prompt: 0050-writer-is-closed-debrief-2026-11-05
+authorization:
+  granted_by: Rodrigo Sasaki
+  mandate: loom-feed-2026-11-04  # "You're free to do changes on phyxius and interlock too", 23:25 UTC
+  approver: Gilb for Rodrigo Sasaki, after a cross-vendor vet; the human merges
+read: >
+  0050 writer-is-closed (2026-11-05) found the writer behind the verifier's
+  ENOTEMPTY: git 2.54.0 `commit` (and `merge`) launches `git maintenance run
+  --auto --quiet --detach`, a daemon that outlives the command. Across one
+  instrumented full parallel suite 905 such daemons were launched (895 by
+  commit, 10 by merge). Auto maintenance estimates loose objects from
+  objects/17 alone, times 256, so two loose objects there trigger a geometric
+  repack that writes packs and a multi-pack-index after the command returns.
+  Background maintenance is on by git's default, not by any setting. 0050
+  fixed the verifier's fixture helper (packages/verifier/test/support/gitFixture.ts,
+  `-c maintenance.auto=false` on commit) and observed two cli fixtures with
+  the daemon still alive during cleanup.
+
+  Git fixtures commit or merge in at least: packages/cli/test/graph/gitFixture.ts,
+  packages/cli/test/face/landedFixture.ts, packages/runner/test/support/gitFixture.ts,
+  packages/verifier/test/support/gitFixture.ts, and inline in
+  packages/cli/test/{position,evidence,verify,main}.test.ts,
+  packages/cli/test/debrief/*.test.ts, packages/face/test/{landed,root}.test.ts,
+  packages/runner/test/{writableRoot.test.ts,herdr/adapter.test.ts}.
+
+  Production: packages/runner/src/worktree.ts creates node worktrees with `git
+  worktree add --detach` and removes them with `git worktree remove --force`
+  (removeWorktree, around line 253). Agents commit inside those worktrees. Auto
+  maintenance acts on the repository's common object store, but the
+  per-worktree git dir under <common>/worktrees/<name> is also removed, so
+  whether a daemon can write into a directory being removed is not decided by
+  reading the code. Runs after 0050 lands on main, since it builds on 0050's
+  verifier helper and its fixtureCleanup test.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: fixtures-and-worktrees
+    role: implementer
+    depends_on: []
+    acceptance: |
+      Tests. One shared fixture helper, in a package every test suite can
+      import, runs every git command a test fixture issues with
+      `-c maintenance.auto=false` (and `-c gc.auto=0` only if evidence shows gc
+      also detaches); every git fixture in every interlock package uses it,
+      including inline calls; the verifier's 0050 helper becomes a use of it. A
+      test fails when any file under packages/*/test spawns git `commit`,
+      `merge` or `am` other than through that helper, so a new fixture cannot
+      reintroduce the daemon.
+
+      Production, evidence first. In a bounded investigation (at most 45
+      minutes), establish whether a detached maintenance job started by a
+      commit or merge in a node worktree can write into that worktree's
+      directory or its per-worktree git dir while removeWorktree runs: build a
+      linked worktree, commit in it under conditions that trigger auto
+      maintenance (the objects/17 sampling 0050 found), remove it at once, and
+      record what the daemon wrote and where. Record the evidence and the
+      conclusion in the debrief. If it can, the runner's own git invocations
+      that commit, merge or remove in node worktrees run with
+      `-c maintenance.auto=false`, and a regression in
+      packages/runner/test/worktreeMaintenance.test.ts fails before the change.
+      If it cannot, change no production code and say why. Agents' own commits
+      inside a worktree are outside Interlock's control; record whether they can
+      trigger the same race and what would contain it, without changing it.
+
+      Strict TypeScript, no type assertions, no non-null operators. Preserve
+      every historical artifact. Append typed notes for choices and
+      discoveries. No push, no merge; the human merges.
+    gates:
+      - id: fixture-guard-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/fixtureGuard.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: verifier-cleanup-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter verifier exec vitest run test/fixtureCleanup.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: parallel-suite-2
+        kind: command
+        run: pnpm test
+        expect_output: 'Tests +[1-9][0-9]* passed'
