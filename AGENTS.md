@@ -74,7 +74,7 @@ a `gap`, recorded with the nearest term and the difference.
 | reviewer | A node role. Its session produces a judgment through a named lens. |
 | verifier | A node role. Its session produces the check that every debrief claim is rooted. |
 | walk | The substrate questions a role's brief asks first, by the substrate's three verbs and its address. A starting point, never a fence: the whole substrate stays open to every session. Empty, saying so, when the address is none. |
-| note | A typed entry a session appends while it works: a choice with its because, or a surprise with expected and observed. A receipt. |
+| note | A typed entry a session appends while it works: a choice with its because, a surprise with expected and observed, or a question it is about to ask a person, in its own words. A receipt. |
 | debrief | What a session returns beside its diff: discoveries and decisions, typed. Closes the notes. Versioned, verified, never overwritten. A session that ends without one is interrupted; nothing is drafted for it unless a person asks. |
 | discovery | Something the agent had to find that the brief did not give it. Every discovery is a brief deficiency. |
 | decision | A choice the session made, pointing at what it rests on and the hunk it produced. Rooted or marked unrooted. |

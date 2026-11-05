@@ -71,3 +71,49 @@ entries:
       A note's at is the session's own string, and the face never rewrites
       the session's record. A face mapping onto loom@v0 parses it. That
       mismatch goes in the debrief's open.
+  - kind: choice
+    at: "2026-11-05T02:35:00Z"
+    chose: >
+      The runner records a session's question notes in the journal each time
+      waitForSession observes the agent blocked, through an optional
+      recordBlocked hook that sessionDrive fills with recordQuestionNotes
+      (packages/runner/src/questionNotes.ts). It reads the worktree's
+      notes.yaml and appends each question not yet recorded. At debrief
+      time, ingestDebrief appends every note except a question already
+      recorded that way.
+    because: >
+      Without this, a question would reach the journal only after the
+      debrief, so asking would always be null while it mattered. The runner
+      already watches the pane's status and owns the journal writes for a
+      session. It reads the session's own file, never the pane's screen, so
+      the face still never invents or scrapes the words. Only questions are
+      deduplicated, by deep equality, so a notes file that repeats an
+      identical choice still files it twice, as it did before.
+    rejected:
+      - the face reading notes.yaml from the worktree on every read, which would make the position depend on a file outside the journal and break replay
+      - appending every note live, which changes when choices and surprises enter the journal, out of this node's scope
+  - kind: choice
+    at: "2026-11-05T02:40:00Z"
+    chose: >
+      The question instruction goes into every opening prompt, whatever the
+      role, right after the notes sentence. The same instruction and a
+      question example go inside the debrief-authoring-guidance@v1 block,
+      with its markers unchanged.
+    because: >
+      Any session can wait on a person, an interpreter included. The block's
+      markers are how withDebriefAuthoringGuidance finds and replaces the
+      generated region in a brief body. Bumping them to v2 would make every
+      existing v1 block an unknown region, so the new text would be appended
+      beside it instead of replacing it. Stored briefs are immutable either
+      way; only briefs written from now on carry the new text.
+  - kind: surprise
+    at: "2026-11-05T02:42:00Z"
+    expected: >
+      A node without a role keeps its brief byte for byte, as
+      role-shapes-the-session pinned, so adding text to the opening prompt
+      would break a byte-for-byte test for the roleless case.
+    observed: >
+      Only openingPrompt.test.ts pins the full worker prompt. The acceptance
+      asks every session to be told, so that pin now carries the new
+      sentence. The brief tests pin role behaviour against the generated
+      guidance constant, not a literal copy, so they pass unchanged.

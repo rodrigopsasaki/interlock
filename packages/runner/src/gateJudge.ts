@@ -60,6 +60,7 @@ import {
   type GateOutputRefusal,
   retainGateOutput,
 } from "./gateOutput.ts";
+import { appendUnrecordedNotes } from "./questionNotes.ts";
 
 export const GATE_DERIVATION_VERSION = "runner@0";
 
@@ -337,9 +338,7 @@ async function ingestDebrief(
   });
   if (filed !== undefined) return;
 
-  for (const note of read.notes) {
-    ledger.append({ kind: "note-appended", session, note });
-  }
+  appendUnrecordedNotes(ledger, session, read.notes);
 }
 
 interface AbsorbEvidence {

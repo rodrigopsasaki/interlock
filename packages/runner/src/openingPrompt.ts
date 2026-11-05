@@ -52,6 +52,9 @@ export function buildOpeningPrompt(
     roleSentence +
     `Append .interlock/sessions/${graph}/${node}/notes.yaml at every choice and surprise, ` +
     `commit as you go, and file .interlock/sessions/${graph}/${node}/debrief.yaml as your final commit. ` +
+    `Before you stop to wait for a person in your pane, append a question note to that notes.yaml ` +
+    `(kind: question, at, asked in the words you would say to the person, and optional options, ` +
+    `the short answers you would accept), then ask in the pane as you do today. ` +
     derivedFilingSentence +
     previewSentence +
     `When correcting an authored debrief, keep the correction in this session directory and run ` +
