@@ -3,7 +3,38 @@ interlock: brief@v1
 graph: 0050-verifier-fixture-writer
 node: writer-is-closed
 role: implementer
-gates: []
+gates:
+  - id: typecheck
+    kind: command
+    run: pnpm typecheck
+  - id: lint
+    kind: command
+    run: pnpm lint
+  - id: comments
+    kind: command
+    run: pnpm check:comments
+  - id: test
+    kind: command
+    run: pnpm test
+  - id: debrief-valid
+    kind: command
+    run: pnpm interlock debrief validate {graph} {node}
+  - id: cleanup-proof
+    kind: command
+    run: pnpm --fail-if-no-match --filter verifier exec vitest run test/fixtureCleanup.test.ts --passWithNoTests=false
+    expect_output: 'Tests +[1-9][0-9]* passed'
+  - id: verifier-suite
+    kind: command
+    run: pnpm --fail-if-no-match --filter verifier exec vitest run --passWithNoTests=false
+    expect_output: 'Tests +[1-9][0-9]* passed'
+  - id: parallel-suite-2
+    kind: command
+    run: pnpm test
+    expect_output: 'Tests +[1-9][0-9]* passed'
+  - id: parallel-suite-3
+    kind: command
+    run: pnpm test
+    expect_output: 'Tests +[1-9][0-9]* passed'
 scope: []
 substrate: { address: none }
 ---
@@ -35,7 +66,7 @@ edit it.
 
 ## Deliverable
 
-1. Commits satisfying the acceptance; all gates green, run by you before handoff.
+1. For a demonstrated repair, commits satisfying acceptance and passing runner-produced gate receipts; agent runs are preliminary validation. Otherwise, deliver the bounded unresolved handoff specified above.
 2. `notes.yaml` beside this brief, `notes@v0`: every choice with its because, every surprise
    with expected and observed. Committed with the code.
 3. `debrief.yaml` beside this brief, `debrief@v2`, final commit: `head_sha` = last code
@@ -44,24 +75,31 @@ edit it.
 
 ## Acceptance (verbatim from the graph)
 
-> Find the process or call that writes into a verifier test's temporary repository
-> after the test body returns, with evidence: reproduce the ENOTEMPTY under load
-> (the full parallel `pnpm test`, or the verifier suite run repeatedly beside other
-> packages) and capture what was written and by whom (the leftover path names, and
-> the process, for example with lsof or a write trace, or git's own trace). Record
-> the evidence and the conclusion in the debrief. Then fix the cause where it lives:
-> await or close an asynchronous writer, keep two tests from sharing a path, or, if
-> it is a detached git background job, have every git invocation in the verifier's
-> fixtures and the code under test run with background work disabled
-> (`-c gc.auto=0 -c maintenance.auto=false`) and say why. Never retry, delay or
-> force rmSync, and never serialise the suite to hide it.
+> Spend at most 60 minutes on instrumented investigation, including at most
+> three full parallel suite runs. Start with detached work launched by fixture
+> Git commands. Retain evidence linking a writer to the exact fixture directory
+> and invocation. A controlled reproducer may establish the conditions that
+> trigger the mechanism; record those conditions and distinguish it from
+> reproduction of the historical ENOTEMPTY. Fix only a demonstrated mechanism at
+> its owning boundary. Change production Git invocations only if evidence
+> implicates that boundary. Keep cleanup as one immediate rmSync(directory, {
+> recursive: true, force: true }); add no cleanup retry, delay, timeout increase
+> or suite serialization.
 >
-> Tests: a regression in packages/verifier/test/fixtureCleanup.test.ts that fails
-> before the fix and passes after, built on the cause found (for example, asserting
-> no background git job is spawned by a fixture commit, or that a test's directory
-> has no writer left when afterEach runs); the existing verifier suite stays green;
-> the full parallel `pnpm test` passes three times in a row, recorded in the
-> debrief. If the cause cannot be reproduced in a bounded effort, the debrief says
-> "not reproduced", lists what was tried, and no code changes. Strict TypeScript,
-> no assertions, no non-null operators. Preserve every historical artifact. Append
-> typed notes for choices and discoveries. No push, no merge; the human merges.
+> Tests: a regression in packages/verifier/test/fixtureCleanup.test.ts exercises
+> the demonstrated triggering condition and fails on the pre-fix code. Repeated
+> green suites or assertions that Git flags are present alone are insufficient.
+> On the final code, the runner's standing test gate and two additional full
+> parallel suite gates must all pass in the same judgment. Retain their output
+> as receipts.
+>
+> If the investigation budget expires without a demonstrated mechanism, record
+> "not reproduced; cause unconfirmed", the attempts, retained evidence and
+> remaining hypotheses. Make no source or regression-test changes; preserve
+> notes and debrief. This is an unresolved handoff: do not claim acceptance
+> satisfied, fabricate a cleanup test, or waive cleanup-proof. The node remains
+> held for a person to choose its disposition.
+>
+> Strict TypeScript, no type assertions, no non-null operators. Preserve every
+> historical artifact. Append typed notes for choices and discoveries. No push,
+> no merge; the human merges.
