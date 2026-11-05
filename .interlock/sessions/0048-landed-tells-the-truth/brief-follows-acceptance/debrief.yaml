@@ -1,0 +1,203 @@
+interlock: debrief@v2
+graph: 0048-landed-tells-the-truth
+node: brief-follows-acceptance
+role: implementer
+graph_base_sha: 68da402ae1f2babbde0f35aadcdacbd9e9c7b9df
+session_start_sha: 9b632c64a5610ae643e04b075b8597a44f173adc
+head_sha: a904d2f82225765de9a4400d75140db8dd5ee398
+derivation:
+  kind: agent
+  runtime: claude-code
+  model: claude-opus-5-5
+discoveries:
+  - id: authored-prose-inside-acceptance
+    what: >-
+      One historical brief carries clarifying prose under its quote inside the acceptance
+      section. Under the literal "replace that section's body" rule, that prose would not survive
+      a rewrite if the brief were ever materialized again. Every other authored section is
+      quote-only.
+    found_at: '.interlock/sessions/0001-bootstrap/scaffold/brief.md "\"Fails closed\" means"'
+    mattered_because: >-
+      It decides where the replaced span ends; the session is long finished and the repository
+      file is never edited, so the literal rule stands.
+  - id: fixtures-lacked-the-section
+    what: >-
+      The runner and run test fixture briefs carried no acceptance section, so every
+      exact-narration assertion picked up the new "added" line once materialization appended it.
+    found_at: 'packages/cli/test/run.test.ts:137 "so the happy-path tests below see no gate, scope or acceptance narration"'
+    mattered_because: >-
+      Giving the fixtures a matching section keeps their documented no-narration promise and
+      turns every existing exact-narration test into a proof that a matching section is silent.
+decisions:
+  - id: one-declared-node
+    what: >-
+      writeBriefIntoWorktree takes a DeclaredNode (acceptance and gates) in place of bare node
+      gates; interlock run builds it once from the approved declaration and hands the same value
+      to the materialized brief and to the recorded session brief and node gates.
+    because: >-
+      The acceptance requires the materialized acceptance, recorded brief and node gates to come
+      from the same approved declaration. One value makes that structural rather than two parallel
+      reads that could drift.
+    rests_on:
+      - packages/cli/src/run.ts
+      - packages/runner/src/sessionBrief.ts
+    hunks:
+      - packages/cli/src/run.ts:187-191
+      - packages/cli/src/run.ts:205
+      - packages/cli/src/run.ts:218-219
+      - packages/runner/src/sessionBrief.ts:38-42
+      - packages/runner/src/sessionBrief.ts:84
+      - packages/runner/src/sessionBrief.ts:92
+      - packages/cli/src/run.ts:18
+      - packages/runner/src/index.ts:106
+  - id: section-bounds
+    what: >-
+      The acceptance section runs from its heading to the next level-one or level-two heading,
+      the next generated interlock marker line, or the end of the body. Replacement rewrites only
+      that span, by offset, so every byte outside it is kept.
+    because: >-
+      "Replaces that section's body" read literally. Stopping at a generated marker keeps the
+      debrief-guidance and walk blocks outside the section so their transformations are unchanged.
+    rests_on:
+      - packages/runner/src/acceptanceSection.ts
+    hunks:
+      - packages/runner/src/acceptanceSection.ts:1-69
+  - id: whitespace-normalized-comparison
+    what: >-
+      Comparison drops section-padding blank lines, removes one ">" and at most one following
+      space per line, and normalizes CRLF and a single trailing newline on the declaration; any
+      other whitespace counts as part of the acceptance.
+    because: >-
+      Exactly the normalization the acceptance names, so quoting style never reads as a change
+      while an indent inside the acceptance still does.
+    rests_on:
+      - packages/runner/src/acceptanceSection.ts
+    hunks:
+      - packages/runner/src/acceptanceSection.ts:71-107
+  - id: reconcile-replace-or-append
+    what: >-
+      reconcileAcceptanceSection returns retained, replaced or added. A missing section is
+      appended to the authored body, and reconciliation runs before the guidance, walk and
+      context transformations, which now take its output. A node with no declared acceptance
+      reconciles against the empty string, the value its recorded brief already holds.
+    because: >-
+      Appending keeps every authored byte; running first lets the generated blocks follow the
+      section as they do in briefs that already carry it.
+    rests_on:
+      - packages/runner/src/acceptanceSection.ts
+      - packages/runner/src/sessionBrief.ts
+    hunks:
+      - packages/runner/src/acceptanceSection.ts:109-130
+      - packages/runner/src/sessionBrief.ts:15
+      - packages/runner/src/sessionBrief.ts:105
+      - packages/runner/src/sessionBrief.ts:110
+      - packages/runner/src/sessionBrief.ts:116
+  - id: narrate-beside-front-matter
+    what: >-
+      A replaced or added section yields one "acceptance:" line naming the node, appended after
+      the role, gate and scope diffs in the same narration array the session already narrates and
+      journals.
+    because: >-
+      The acceptance asks for the existing front-matter narration channel; reusing the array adds
+      no new path.
+    rests_on:
+      - packages/runner/src/acceptanceSection.ts
+    hunks:
+      - packages/runner/src/acceptanceSection.ts:132-148
+  - id: opening-view-authority
+    what: >-
+      The opening view says the "Acceptance (verbatim from the graph)" section is authoritative
+      over acceptance text elsewhere in the authored prose, only when the body carries it.
+    because: >-
+      renderOpeningView is shared with interlock plan, whose interpreter brief has no graph
+      acceptance; the sentence would otherwise point at nothing.
+    rests_on:
+      - packages/runner/src/openingView.ts
+    hunks:
+      - packages/runner/src/openingView.ts:4
+      - packages/runner/src/openingView.ts:50-52
+      - packages/runner/src/openingView.ts:56
+  - id: runner-proofs
+    what: >-
+      sessionBrief tests cover a matching section kept byte for byte with no narration, a stale
+      section replaced with outside bytes and generated blocks retained, a missing section
+      appended and reported, a whitespace-only quoting difference left silent, an indent change
+      reported, and every brief in this repository readable before and after reconciliation. The
+      existing fixtures gained a matching section and the DeclaredNode argument.
+    because: >-
+      Each is a test the acceptance names; the repository sweep proves no existing brief stops
+      reading.
+    rests_on:
+      - packages/runner/test/sessionBrief.test.ts
+    hunks:
+      - packages/runner/test/sessionBrief.test.ts:2-10
+      - packages/runner/test/sessionBrief.test.ts:13
+      - packages/runner/test/sessionBrief.test.ts:23-24
+      - packages/runner/test/sessionBrief.test.ts:31
+      - packages/runner/test/sessionBrief.test.ts:74
+      - packages/runner/test/sessionBrief.test.ts:98-101
+      - packages/runner/test/sessionBrief.test.ts:115
+      - packages/runner/test/sessionBrief.test.ts:136
+      - packages/runner/test/sessionBrief.test.ts:189
+      - packages/runner/test/sessionBrief.test.ts:230
+      - packages/runner/test/sessionBrief.test.ts:263
+      - packages/runner/test/sessionBrief.test.ts:292
+      - packages/runner/test/sessionBrief.test.ts:313
+      - packages/runner/test/sessionBrief.test.ts:335
+      - packages/runner/test/sessionBrief.test.ts:363
+      - packages/runner/test/sessionBrief.test.ts:422-425
+      - packages/runner/test/sessionBrief.test.ts:484
+      - packages/runner/test/sessionBrief.test.ts:513
+      - packages/runner/test/sessionBrief.test.ts:536
+      - packages/runner/test/sessionBrief.test.ts:569
+      - packages/runner/test/sessionBrief.test.ts:588
+      - packages/runner/test/sessionBrief.test.ts:618
+      - packages/runner/test/sessionBrief.test.ts:685
+      - packages/runner/test/sessionBrief.test.ts:822
+      - packages/runner/test/sessionBrief.test.ts:876-1022
+  - id: run-proof-reused-worktree
+    what: >-
+      run.test.ts reuses a worktree at an older base whose own graph file still holds the old
+      acceptance, rewrites the node's acceptance and gate on main and re-approves, then proves the
+      materialized acceptance, the recorded brief's acceptance and gates, the materialized gates
+      and the judged gates all follow the new declaration, and that the repository brief is
+      unchanged. The demo fixture brief gained its matching section.
+    because: >-
+      The acceptance names this test in packages/cli/test/run.test.ts.
+    rests_on:
+      - packages/cli/test/run.test.ts
+    hunks:
+      - packages/cli/test/run.test.ts:134-138
+      - packages/cli/test/run.test.ts:163-166
+      - packages/cli/test/run.test.ts:1590-1665
+      - packages/cli/test/run.test.ts:1688-1702
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+  - id: test
+    result: pass
+    invocation: pnpm test
+    note: ledger 167, debrief 98, verifier 59, substrate 91, face 185, runner 372, schemas 1056, cli 333, all passed
+  - id: brief-follows-proof
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/sessionBrief.test.ts
+    note: "Tests 46 passed"
+  - id: brief-follows-run-proof
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter cli exec vitest run test/run.test.ts
+    note: "Tests 50 passed"
+open:
+  - >-
+    The scaffold brief's prose under its acceptance quote would be replaced if that brief were
+    ever materialized again with a differing acceptance. If authored clarifications under the
+    quote should survive, the section's end needs a different rule, such as the end of the
+    blockquote run.
+  - >-
+    renderAcceptanceSection is exported from acceptanceSection.ts but used only inside it.
