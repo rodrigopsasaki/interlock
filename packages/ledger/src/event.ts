@@ -13,13 +13,7 @@ import {
 import { isOutcome, type Outcome } from "./outcome.ts";
 import { isPersonSaid, type PersonSaid } from "./personSaid.ts";
 import { isReceipt, type Receipt } from "./receipt.ts";
-import {
-  isEpochMs,
-  isSession,
-  isSessionRuntime,
-  type Session,
-  sessionRuntime,
-} from "./session.ts";
+import { isEpochMs, isSession, isSessionRuntime, type Session, sessionRuntime } from "./session.ts";
 import { isSessionFacts, type SessionFacts } from "./sessionFacts.ts";
 import { isRecord, isString, prop } from "./validate.ts";
 import { isWalk, type Walk } from "./walk.ts";

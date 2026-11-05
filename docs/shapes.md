@@ -1157,12 +1157,13 @@ No vocabulary entry for `positions`.
 ### Versions
 
 - `positions@v0`: the first version.
+- `positions@v1`: no field changes from the previous version.
 
-### Fields (`positions@v0`)
+### Fields (`positions@v1`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `interlock` | the literal `"positions@v0"` | yes |  |
+| `interlock` | the literal `"positions@v1"` | yes |  |
 | `repositories` | array of repository | yes | `?`: asked, state, root, origin (optional), journal, graphs, live; `?`: asked, state, root, origin (optional), journal, graphs; `?`: asked, state, because |
 
 ### Examples
@@ -1170,6 +1171,10 @@ No vocabulary entry for `positions`.
 #### `positions@v0`
 
 _No example of `positions@v0` was found in the corpus._
+
+#### `positions@v1`
+
+_No example of `positions@v1` was found in the corpus._
 
 ## roles
 
