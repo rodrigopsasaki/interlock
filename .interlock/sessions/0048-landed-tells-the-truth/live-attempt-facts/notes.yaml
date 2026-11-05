@@ -1,0 +1,40 @@
+interlock: notes@v0
+node: live-attempt-facts
+entries:
+  - kind: choice
+    at: "2026-11-05T15:20:00Z"
+    chose: The not-approved approval standing reads "Drafted and waiting for your approval."; the I3 test's fixed grammar list becomes at, and, for, your, renamed LINE_GRAMMAR_WORDS, and its vocabulary check alone strips .,;:!? from token edges.
+    because: The acceptance names the sentence and the three grammar words exactly; "prepositions" no longer described a list holding and and your, and stripping only in the check keeps rendered text and said quotations byte-identical.
+  - kind: surprise
+    at: "2026-11-05T15:25:00Z"
+    expected: herdr's agent.list to carry some field for an agent's subagents or child work.
+    observed: AgentInfo carries agent_status, pane_id, cwd, state_labels (empty in every live agent) and agent_session {source, agent, kind, value}; nothing about children. For a Claude agent, agent_session.value is the runtime's own session id, and that runtime's transcript records every tool call, its result, background launches (toolUseResult.status async_launched, toolUseResult.backgroundTaskId) and their completion (<task-notification> with <tool-use-id> and <status>).
+  - kind: choice
+    at: "2026-11-05T15:40:00Z"
+    chose: startedAt is an optional top-level integer on session-started in event@v9, validated by isEpochMs and the schema, projected into SessionView as a closed known/unknown union whose unknown carries UNRECORDED_START. Backfill records none.
+    because: The acceptance keeps event@v9 and forbids inferring a start; naming the absence in the ledger lets every reader say the same reason without re-deriving it.
+  - kind: choice
+    at: "2026-11-05T15:50:00Z"
+    chose: The Claude live-work evidence is the runtime's own transcript, found by herdr's agent_session id under CLAUDE_CONFIG_DIR or ~/.claude projects. Live means a tool_use with no tool_result (foreground child or subagent), or a result marked background (status async_launched, isAsync, backgroundTaskId, taskId) with no runtime-stamped task-notification attachment (queued_command, origin or commandMode task-notification) of a terminal status (completed, failed, killed, stopped). Empty, unterminated, unparseable or ambiguous transcripts read unknown.
+    because: The parent's status, its process tree and its screen cannot prove none; the transcript is the one record the runtime itself writes for every call it starts and every background completion it delivers. Notifications are trusted only from runtime-written attachment entries, so neither assistant prose nor a tool result echoing a notification can establish none.
+    rejected: [herdr pane.process_info (absence of descendants cannot establish none), state_labels (empty on every live agent), queue-operation entries (no provenance)]
+  - kind: surprise
+    at: "2026-11-05T16:05:00Z"
+    expected: A runtime timeout inside the grace window to be safe to loop on until the clock passes the grace deadline.
+    observed: Four existing tests time the wait out without moving the controlled clock; the old code read that timeout as grace expiry. Looping hung the suite, so a timeout in grace still ends grace, and now leads into the fresh observation instead of straight into judging.
+  - kind: choice
+    at: "2026-11-05T16:30:00Z"
+    chose: positionsOf takes one lazily created observation, shared by every asked repository, and only when some repository has live attempts; agent status, pane and the position's attempt status all come from it. A herdr runtime that cannot be created reads every pane unknown with the refusal; startedAt always comes from the ledger.
+    because: The acceptance asks for one agent.list per positionsOf invocation and that runtime unavailability never erase a recorded start; reading start from the journal and pane from the runtime keeps the two failure paths apart.
+  - kind: choice
+    at: "2026-11-05T16:35:00Z"
+    chose: positions@v0 stays unchanged and validating; upcastPositionsV0 reads a typed v0 value into v1 with pane and startedAt unknown because "a positions@v0 read does not record this fact", returning a new value.
+    because: positions is read back nowhere in this repository today, so the v0 reader is the typed adapter a future reader composes, proven against both schemas without rewriting the artifact.
+  - kind: choice
+    at: "2026-11-05T16:40:00Z"
+    chose: The CLI's one-observation proof drives the real herdr adapter against runner's fake herdr socket server, imported from runner/test, and asserts the recorded methods are exactly one agent.list.
+    because: A stub runtime could only count observe() calls; the acceptance names one agent.list, which only the adapter's own protocol calls can show.
+  - kind: choice
+    at: "2026-11-05T17:00:00Z"
+    chose: settled.test.ts reads committed transcript fixtures in the runtime's real entry shapes (tool_use, tool_result with toolUseResult, attachment queued_command notifications) through liveWorkOfTranscript, claudeLiveWork and the herdr adapter's observe over the fake socket, then drives waitForSession with scripted observations for each settlement path.
+    because: The acceptance asks for the adapter's actual parser on representative fixtures plus every automatic path into judging; the fixtures were shaped from live transcripts sampled read-only on this machine, and the forged-notification fixture proves prose and echoed tool output cannot establish none.

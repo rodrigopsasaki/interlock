@@ -1,0 +1,188 @@
+interlock: debrief@v2
+graph: 0048-landed-tells-the-truth
+node: live-attempt-facts
+role: implementer
+graph_base_sha: 68da402ae1f2babbde0f35aadcdacbd9e9c7b9df
+session_start_sha: 2844bafcbfb1375026edfc3ee121d9467f807a31
+head_sha: e35092e8022161d94b0d908755023109d27ed935
+derivation:
+  kind: agent
+  runtime: claude-code
+  model: claude-opus-5-5
+discoveries:
+  - id: herdr-has-no-child-work
+    what: >-
+      herdr's agent.list carries agent_status, pane_id, cwd, an always-empty state_labels and
+      agent_session {source, agent, kind, value}; nothing about an agent's children or
+      subagents. For a Claude agent, agent_session.value is the runtime's own session id, and
+      that runtime's transcript records every tool call, its result, each background launch
+      (toolUseResult status async_launched, isAsync, backgroundTaskId, taskId) and each
+      completion it delivers (an attachment queued_command whose origin is task-notification,
+      carrying tool-use-id, task-id and status).
+    found_at: 'packages/runner/src/claude/liveWork.ts:53 "function runtimeNotificationText(entry: Record<string, unknown>): string | undefined {"'
+    mattered_because: >-
+      The brief asked for an evidence source for child execution and runtime-managed subagent
+      work without naming one; the multiplexer has none, so the evidence had to come from the
+      agent runtime's own record, read by an adapter for that runtime.
+    applies_to: { kind: path, path: packages/runner/src/claude/liveWork.ts }
+  - id: grace-timeout-without-clock
+    what: >-
+      Four existing sessionWait tests end the wait with a runtime timeout and never move the
+      controlled clock; the old loop read that timeout as grace expiry. Looping until the clock
+      passed the grace deadline hung the suite with no event-loop turn for vitest's own timeout.
+    found_at: 'packages/runner/src/sessionWait.ts:181 "candidate = grace.settled;"'
+    mattered_because: >-
+      A timeout inside grace still ends grace, now leading to a fresh observation rather than
+      straight to judging; stubs that answer a status outside the requested set can still spin,
+      so drive-test fakes must observe.
+decisions:
+  - id: approval-sentence
+    what: >-
+      The not-approved approval standing reads "Drafted and waiting for your approval."; stale
+      text and priorities are unchanged. drafted, waiting and approval join the vocabulary; the
+      I3 test's grammar words become at, and, for, your (renamed LINE_GRAMMAR_WORDS), and only
+      that check strips sentence punctuation from token edges.
+    because: >-
+      Acceptance item 2 names the sentence, the three terms and the three grammar words; the old
+      name "prepositions" no longer described the list.
+    rests_on:
+      - packages/face/src/line.ts
+    hunks:
+      - packages/face/src/line.ts:177
+      - AGENTS.md:100-102
+      - packages/face/test/position.test.ts
+  - id: started-at-in-ledger
+    what: >-
+      session-started gains optional top-level startedAt (event@v9 kept), validated by isEpochMs
+      and the schema; SessionView projects a closed known/unknown SessionStartedAt whose unknown
+      carries UNRECORDED_START. The runner writes clock.now().wallMs when it appends the event;
+      backfill writes none.
+    because: >-
+      The acceptance keeps event@v9 and forbids inferring a start; naming the absence where it
+      is known lets every reader report the same reason.
+    rests_on:
+      - packages/ledger/src/session.ts
+    hunks:
+      - packages/ledger/src/session.ts:45-61
+      - packages/ledger/src/event.ts:126-133
+      - packages/ledger/src/projection.ts:42
+      - packages/ledger/src/projection.ts:176
+      - packages/runner/src/sessionDrive.ts:198
+      - schemas/event@v9.json
+  - id: observation-seam
+    what: >-
+      Runtime gains optional observe(): a RuntimeObservation whose attempt(query) answers agent
+      status, a PaneFact and a lazy liveWork() of live, none or unknown with a because.
+      observeRuntime turns a missing capability or failed observation into unknown for every
+      attempt.
+    because: >-
+      One seam serves both the position (one agent.list, no transcript reads) and the runner
+      (fresh status plus live work), and keeps protocol calls and parsing inside adapters.
+    rests_on:
+      - packages/runner/src/runtime.ts
+    hunks:
+      - packages/runner/src/runtime.ts:25-65
+      - packages/runner/src/runtime.ts:84-94
+  - id: herdr-observe
+    what: >-
+      The herdr adapter's observe() makes one agent.list and resolves status and pane by graph,
+      node and session tokens; live work goes through agent_session to a per-runtime source,
+      DEFAULT_LIVE_WORK_SOURCES mapping claude to the transcript reader. Unknown: no agent
+      session, no session id, no source for the runtime, or no listed agent.
+    because: >-
+      The acceptance requires one agent.list per positionsOf and keeps herdr calls in its one
+      adapter file; the source table keeps the Claude record reader in its own adapter.
+    rests_on:
+      - packages/runner/src/herdr/adapter.ts
+    hunks:
+      - packages/runner/src/herdr/adapter.ts:123-210
+      - packages/runner/src/herdr/adapter.ts:588-592
+  - id: claude-transcript-evidence
+    what: >-
+      liveWorkOfTranscript reads live for a tool_use with no tool_result, or a background launch
+      with no runtime-stamped terminal completion (completed, failed, killed, stopped); none
+      when neither remains; unknown for an empty, unterminated, unparseable or ambiguous
+      transcript. claudeLiveWork finds <id>.jsonl under CLAUDE_CONFIG_DIR or ~/.claude projects.
+    because: >-
+      Parent status, process absence and screens cannot prove none. Completions are trusted only
+      from attachment entries the runtime writes, so assistant prose or a tool result echoing a
+      notification cannot establish none.
+    rests_on:
+      - packages/runner/src/claude/liveWork.ts
+    hunks:
+      - packages/runner/src/claude/liveWork.ts:1-207
+  - id: settle-on-fresh-none
+    what: >-
+      waitForSession takes an observe closure and settles idle or done only after a fresh
+      observation shows idle or done with none, after the existing grace rules. Live or unknown
+      holds: it waits for working or blocked in LIVE_WORK_OBSERVE_MS slices and re-observes, so a
+      child finishing under an idle parent is seen. At the original deadline it returns a timeout
+      refusal carrying the live-work fact, judging nothing. Abandoned delivery enters the same
+      loop through alreadySettled.
+    because: >-
+      Acceptance item 3: live or unknown must block every automatic path into judging, including
+      grace expiry and abandoned delivery, and the deadline must refuse rather than judge.
+    rests_on:
+      - packages/runner/src/sessionWait.ts
+    hunks:
+      - packages/runner/src/sessionWait.ts:57-241
+      - packages/runner/src/sessionDrive.ts:412-433
+  - id: positions-v1
+    what: >-
+      positions@v1 requires pane and startedAt on every live attempt, each a closed known/unknown
+      union with a nonempty because; positions@v0 is retained unchanged. positionsOf takes one
+      lazily created observation shared across every repository, only when one has live
+      attempts; a herdr runtime that cannot be created reads every pane unknown. startedAt comes
+      from the ledger. upcastPositionsV0 reads v0 as v1 with both facts unknown, returning a new
+      value.
+    because: >-
+      Acceptance item 1. Taking the pane from the runtime and the start from the journal keeps
+      runtime unavailability from erasing a recorded start.
+    rests_on:
+      - packages/cli/src/position.ts
+    hunks:
+      - packages/cli/src/position.ts:47-140
+      - packages/cli/src/position.ts:167-200
+      - packages/cli/src/position.ts:318-321
+      - schemas/positions@v1.json
+      - docs/shapes.md
+  - id: proofs
+    what: >-
+      settled.test.ts reads committed transcript fixtures shaped from live ones through the
+      parser, the locator and the herdr adapter over the fake socket, then drives every
+      settlement path. The CLI proof drives the real herdr adapter against runner's fake server
+      and asserts exactly one agent.list for three graphs across two repositories. Ledger and
+      runner tests prove recording, replay and historical absence of startedAt; the schema
+      corpus tests both positions versions and refuses bare and mixed branches.
+    because: >-
+      The acceptance names these proofs; counting the adapter's own protocol calls is the only
+      way to show one agent.list.
+    rests_on:
+      - packages/runner/test/settled.test.ts
+    hunks:
+      - packages/runner/test/settled.test.ts
+      - packages/runner/test/fixtures/claude/repo-worktrees-node/completed.jsonl
+      - packages/cli/test/position.test.ts
+      - packages/schemas/test/corpus.positions.test.ts
+      - packages/ledger/test/replay.test.ts
+      - packages/runner/test/sessionStart.test.ts
+gates_run_by_agent: []
+open:
+  - >-
+    Only Claude has a live-work source. Codex and every other runtime read unknown, so their
+    runs now end in a timeout refusal rather than a judgment: the degraded path the acceptance
+    allows, but a real loss for codex sessions until a codex source is written from its own
+    session record.
+  - >-
+    The tmux adapter has no observe(), so a tmux-driven session can never settle. It is
+    exported but not wired into any drive today.
+  - >-
+    A background task whose completion the runtime never delivers (a crash or restart of the
+    agent) stays live until the run deadline. That is honest but costs the whole run timeout.
+  - >-
+    A runtime that answers waitUntil with a status outside the requested set, as several test
+    stubs do, makes the hold loop re-observe without the clock moving. herdr never does this;
+    drive-test fakes now carry an observe() that shows none.
+  - >-
+    The CLI test imports runner's fake herdr server from runner/test; no cross-package test
+    helper existed before.

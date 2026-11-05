@@ -1,0 +1,5 @@
+{"type": "user", "sessionId": "session", "message": {"role": "user", "content": "This is an interlock session for node n."}}
+{"type": "permission-mode", "permissionMode": "bypassPermissions", "sessionId": "session"}
+{"type": "assistant", "sessionId": "session", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "toolu_sh", "name": "Bash", "input": {"command": "pnpm test", "run_in_background": true}}]}}
+{"type": "user", "sessionId": "session", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "toolu_sh", "content": "Command running in background with ID: b7"}]}, "toolUseResult": {"stdout": "", "stderr": "", "interrupted": false, "backgroundTaskId": "b7"}}
+{"type": "attachment", "sessionId": "session", "attachment": {"type": "queued_command", "prompt": "<task-notification>\n<task-id>b7</task-id>\n<tool-use-id>toolu_sh</tool-use-id>\n<status>failed</status>\n<summary>finished</summary>\n</task-notification>", "commandMode": "task-notification", "origin": {"kind": "task-notification", "producer": "session-task"}}}

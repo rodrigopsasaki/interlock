@@ -13,7 +13,7 @@ import {
 import { isOutcome, type Outcome } from "./outcome.ts";
 import { isPersonSaid, type PersonSaid } from "./personSaid.ts";
 import { isReceipt, type Receipt } from "./receipt.ts";
-import { isSession, isSessionRuntime, type Session, sessionRuntime } from "./session.ts";
+import { isEpochMs, isSession, isSessionRuntime, type Session, sessionRuntime } from "./session.ts";
 import { isSessionFacts, type SessionFacts } from "./sessionFacts.ts";
 import { isRecord, isString, prop } from "./validate.ts";
 import { isWalk, type Walk } from "./walk.ts";
@@ -43,6 +43,7 @@ export type LedgerEvent =
       readonly brief: Brief;
       readonly graphBaseSha?: string;
       readonly walk?: Walk;
+      readonly startedAt?: number;
     }
   | {
       readonly kind: "note-appended";
@@ -122,11 +123,13 @@ export function isLedgerEvent(value: unknown): value is LedgerEvent {
     case "session-started": {
       const graphBaseSha = prop(value, "graphBaseSha");
       const walk = prop(value, "walk");
+      const startedAt = prop(value, "startedAt");
       return (
         isSession(prop(value, "session")) &&
         isBrief(prop(value, "brief")) &&
         (graphBaseSha === undefined || isString(graphBaseSha)) &&
-        (walk === undefined || isWalk(walk))
+        (walk === undefined || isWalk(walk)) &&
+        (startedAt === undefined || isEpochMs(startedAt))
       );
     }
     case "note-appended":

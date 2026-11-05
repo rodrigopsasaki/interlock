@@ -270,6 +270,16 @@ function stubRuntime(): Runtime {
     sendKeys: () => Promise.resolve(ok(undefined)),
     sendPaneKeys: () => Promise.resolve(ok(undefined)),
     closePane: () => Promise.resolve(ok(undefined)),
+    observe: () =>
+      Promise.resolve(
+        ok({
+          attempt: () => ({
+            agentStatus: "idle",
+            pane: { state: "known", address: "pane-1" },
+            liveWork: () => Promise.resolve({ state: "none" }),
+          }),
+        }),
+      ),
   };
 }
 

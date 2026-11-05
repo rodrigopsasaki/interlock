@@ -25,7 +25,7 @@ import { personSaid } from "../src/personSaid.js";
 import { fold, type LedgerProjection } from "../src/projection.js";
 import { duration, type Receipt } from "../src/receipt.js";
 import { parseLine, readRawEvents, replayFromRaw } from "../src/replay.js";
-import { sessionRuntime } from "../src/session.js";
+import { sessionRuntime, UNRECORDED_START } from "../src/session.js";
 import { createLedgerSink, type LedgerFileOperations } from "../src/sink.js";
 import { spend } from "../src/spend.js";
 import { upcastV1 } from "../src/upcast/v1.js";
@@ -841,5 +841,52 @@ describe("readRawEvents", () => {
       _tag: "Err",
       error: { tag: "event@v0", line: 2 },
     });
+  });
+});
+
+describe("replay: a session's recorded start", () => {
+  const node = { graph: "g", id: "n" };
+  const brief = {
+    graph: "g",
+    node: "n",
+    role: "implementer",
+    acceptance: "a",
+    gates: [],
+    scope: [],
+  };
+  const started = (interlock: string, extra: Record<string, unknown>) =>
+    JSON.stringify({
+      interlock,
+      kind: "session-started",
+      session: { id: "s", node, runtime: { name: "r", kind: "k", model: "m" } },
+      brief,
+      ...extra,
+    });
+
+  it("reads startedAt back as a known epoch-millisecond start", () => {
+    const replayed = unwrap(
+      replayFromRaw(`${started(EVENT_SHAPE, { startedAt: 1_762_300_000_000 })}\n`),
+    );
+    expect(replayed.sessions.get("s")?.startedAt).toEqual({
+      state: "known",
+      epochMs: 1_762_300_000_000,
+    });
+  });
+
+  it("reads a historical session with no startedAt as unknown with the reason, at every version that carries none", () => {
+    for (const version of ["event@v6", "event@v8", EVENT_SHAPE]) {
+      const replayed = unwrap(replayFromRaw(`${started(version, {})}\n`));
+      expect(replayed.sessions.get("s")?.startedAt).toEqual({
+        state: "unknown",
+        because: UNRECORDED_START,
+      });
+    }
+  });
+
+  it("refuses a startedAt that is not an epoch-millisecond integer", () => {
+    expect(parseLine(started(EVENT_SHAPE, { startedAt: 0 })).kind).toBe("event");
+    for (const startedAt of ["2026-11-05", -1, 1.5]) {
+      expect(parseLine(started(EVENT_SHAPE, { startedAt })).kind).not.toBe("event");
+    }
   });
 });

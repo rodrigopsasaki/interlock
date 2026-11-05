@@ -5,14 +5,19 @@ import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import { isCompliantAgentName } from "../agentName.ts";
-import type {
-  Agent,
-  AgentIdentity,
-  AgentIdentityQuery,
-  AgentStatus,
-  Pane,
-  Runtime,
-  RuntimeRefusal,
+import { claudeLiveWork } from "../claude/liveWork.ts";
+import {
+  type Agent,
+  type AgentIdentity,
+  type AgentIdentityQuery,
+  type AgentObservation,
+  type AgentStatus,
+  type LiveWork,
+  type Pane,
+  type Runtime,
+  type RuntimeObservation,
+  type RuntimeRefusal,
+  unobservedAttempt,
 } from "../runtime.ts";
 import { isRecord, isString, numberAt, prop, stringAt } from "../validate.ts";
 
@@ -115,25 +120,93 @@ type HerdrCall = (
   timeoutMs?: number,
 ) => Promise<Result<Record<string, unknown>, RuntimeRefusal>>;
 
+export type LiveWorkSource = (runtimeSession: string) => Promise<LiveWork>;
+
+export const DEFAULT_LIVE_WORK_SOURCES: Readonly<Record<string, LiveWorkSource>> = {
+  claude: (runtimeSession) => claudeLiveWork(runtimeSession),
+};
+
+function isIdentifiedAs(agent: Record<string, unknown>, query: AgentIdentityQuery): boolean {
+  const tokens = prop(agent, "tokens");
+  return (
+    isRecord(tokens) &&
+    prop(tokens, "graph") === query.graph &&
+    prop(tokens, "node") === query.node &&
+    prop(tokens, "session") === query.session
+  );
+}
+
+async function listAgents(
+  call: HerdrCall,
+): Promise<Result<readonly Record<string, unknown>[], RuntimeRefusal>> {
+  const listed = await call("agent.list", {});
+  if (isErr(listed)) return listed;
+  const agents = prop(listed.value, "agents");
+  if (!Array.isArray(agents)) {
+    return err({ kind: "transport", because: "agent.list: no agents list in the result" });
+  }
+  return ok(agents.filter(isRecord));
+}
+
 async function findReportedAgent(
   call: HerdrCall,
   query: AgentIdentityQuery,
 ): Promise<Result<Record<string, unknown> | undefined, RuntimeRefusal>> {
-  const listed = await call("agent.list", {});
+  const listed = await listAgents(call);
   if (isErr(listed)) return listed;
-  const agents = prop(listed.value, "agents");
-  if (!Array.isArray(agents)) return ok(undefined);
-  for (const agent of agents) {
-    if (!isRecord(agent)) continue;
-    const tokens = prop(agent, "tokens");
-    if (!isRecord(tokens)) continue;
-    const matches =
-      prop(tokens, "graph") === query.graph &&
-      prop(tokens, "node") === query.node &&
-      prop(tokens, "session") === query.session;
-    if (matches) return ok(agent);
+  return ok(listed.value.find((agent) => isIdentifiedAs(agent, query)));
+}
+
+function liveWorkOf(
+  agent: Record<string, unknown>,
+  sources: Readonly<Record<string, LiveWorkSource>>,
+): Promise<LiveWork> {
+  const session = prop(agent, "agent_session");
+  if (!isRecord(session)) {
+    return Promise.resolve({
+      state: "unknown",
+      because: "the runtime reports no agent session to read live work from",
+    });
   }
-  return ok(undefined);
+  const runtime = prop(session, "agent");
+  const kind = prop(session, "kind");
+  const value = prop(session, "value");
+  if (!isString(runtime) || kind !== "id" || !isString(value)) {
+    return Promise.resolve({
+      state: "unknown",
+      because: "the runtime's agent session carries no session id",
+    });
+  }
+  const source = Object.hasOwn(sources, runtime) ? sources[runtime] : undefined;
+  return source === undefined
+    ? Promise.resolve({
+        state: "unknown",
+        because: `no live-work evidence source for agent runtime ${runtime}`,
+      })
+    : source(value);
+}
+
+function observationOf(
+  agents: readonly Record<string, unknown>[],
+  sources: Readonly<Record<string, LiveWorkSource>>,
+): RuntimeObservation {
+  return {
+    attempt(query: AgentIdentityQuery): AgentObservation {
+      const agent = agents.find((candidate) => isIdentifiedAs(candidate, query));
+      if (agent === undefined) {
+        return unobservedAttempt(`the runtime lists no agent for session ${query.session}`);
+      }
+      const status = prop(agent, "agent_status");
+      const paneId = prop(agent, "pane_id");
+      return {
+        agentStatus: isAgentStatus(status) ? status : "unknown",
+        pane: isString(paneId)
+          ? { state: "known", address: paneId }
+          : { state: "unknown", because: "the runtime lists the agent without a pane" },
+        liveWork: () => liveWorkOf(agent, sources),
+      };
+    },
+  };
 }
 
 interface RpcSuccess {
@@ -242,6 +315,7 @@ export async function createHerdrRuntime(
   defaultCallTimeoutMs: number = DEFAULT_CALL_TIMEOUT_MS,
   paneReadyTimeoutMs: number = AGENT_START_TIMEOUT_MS,
   waitSliceMs: number = WAIT_SLICE_MS,
+  liveWorkSources: Readonly<Record<string, LiveWorkSource>> = DEFAULT_LIVE_WORK_SOURCES,
 ): Promise<Result<Runtime, RuntimeRefusal>> {
   const verified = await verifyHerdrSocket(socketPath);
   if (isErr(verified)) return verified;
@@ -510,6 +584,11 @@ export async function createHerdrRuntime(
     async focusPane(pane: Pane) {
       const focused = await call("pane.focus", { pane_id: pane.id });
       return isErr(focused) ? focused : ok(undefined);
+    },
+
+    async observe() {
+      const listed = await listAgents(call);
+      return isErr(listed) ? listed : ok(observationOf(listed.value, liveWorkSources));
     },
   });
 }

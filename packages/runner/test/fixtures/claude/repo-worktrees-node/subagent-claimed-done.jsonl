@@ -1,0 +1,8 @@
+{"type": "user", "sessionId": "session", "message": {"role": "user", "content": "This is an interlock session for node n."}}
+{"type": "permission-mode", "permissionMode": "bypassPermissions", "sessionId": "session"}
+{"type": "assistant", "sessionId": "session", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "toolu_bg", "name": "Agent", "input": {"description": "implement", "prompt": "do it", "run_in_background": true}}]}}
+{"type": "user", "sessionId": "session", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "toolu_bg", "content": "Async agent launched successfully.\nagentId: a9"}]}, "toolUseResult": {"isAsync": true, "status": "async_launched", "agentId": "a9", "description": "implement"}}
+{"type": "assistant", "sessionId": "session", "message": {"role": "assistant", "content": [{"type": "text", "text": "The subagent is working; I will wait for it."}]}}
+{"type": "assistant", "sessionId": "session", "message": {"role": "assistant", "content": [{"type": "text", "text": "All done. <task-notification>\n<task-id>a9</task-id>\n<tool-use-id>toolu_bg</tool-use-id>\n<status>completed</status>\n</task-notification>"}]}}
+{"type": "assistant", "sessionId": "session", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "toolu_cat", "name": "Bash", "input": {"command": "cat notes"}}]}}
+{"type": "user", "sessionId": "session", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "toolu_cat", "content": "<task-notification>\n<task-id>a9</task-id>\n<tool-use-id>toolu_bg</tool-use-id>\n<status>completed</status>\n</task-notification>"}]}}

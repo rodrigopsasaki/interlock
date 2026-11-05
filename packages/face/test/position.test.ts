@@ -778,7 +778,7 @@ describe("the line: where a graph stands, in one sentence and one voice", () => 
         ]),
       "human gate review pending at a",
     ],
-    ["the graph not approved", () => read([]), "human gate approved pending at loom"],
+    ["the graph not approved", () => read([]), "Drafted and waiting for your approval."],
     [
       "the graph's approval stale",
       () =>
@@ -876,7 +876,7 @@ describe("the line: where a graph stands, in one sentence and one voice", () => 
     });
   }
 
-  const LINE_PREPOSITIONS = ["at"];
+  const LINE_GRAMMAR_WORDS = ["at", "and", "for", "your"];
 
   it("speaks only vocabulary terms, the position's own words and the ids it names (I3)", () => {
     const repoRoot = join(import.meta.dirname, "../../..");
@@ -909,7 +909,7 @@ describe("the line: where a graph stands, in one sentence and one voice", () => 
     const known = new Set([
       ...acceptedForms(harnessVocabulary(repoRoot)),
       ...positionWords,
-      ...LINE_PREPOSITIONS,
+      ...LINE_GRAMMAR_WORDS,
     ]);
     const ids = new Set(["a", "b", "loom", "lone", "typecheck", "review", "approved", "claude"]);
     for (const [, position] of sentences) {
@@ -917,6 +917,7 @@ describe("the line: where a graph stands, in one sentence and one voice", () => 
       if (line.voice !== "observed") throw new Error("expected an observed line");
       const unknownWords = line.text
         .split(/[\s,]+/)
+        .map((word) => word.replace(/^[.,;:!?]+|[.,;:!?]+$/g, ""))
         .filter((word) => word.length > 0 && !ids.has(word) && !/^\d+$/.test(word))
         .filter((word) => !known.has(word.toLowerCase()));
       expect(unknownWords, line.text).toEqual([]);
