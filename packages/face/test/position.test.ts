@@ -703,6 +703,14 @@ describe("the line: where a graph stands, in one sentence and one voice", () => 
         return { kind: "on-main", main: "main", head: head.head, by: "ancestry" };
       case "off":
         return { kind: "not-on-main", main: "main", head: head.head };
+      case "partly":
+        return {
+          kind: "partly-reverted-on-main",
+          main: "main",
+          head: head.head,
+          reverted: ["c".repeat(40)],
+          revertedBy: { ["c".repeat(40)]: "d".repeat(40) },
+        };
       default:
         return { kind: "reverted-on-main", main: "main", head: head.head, revertedBy: "r" };
     }
@@ -845,11 +853,22 @@ describe("the line: where a graph stands, in one sentence and one voice", () => 
       "b cleared, reverted on main",
     ],
     [
+      "partly reverted on main",
+      () => read([...approvedFor("loom"), cleared(aNode, "on"), cleared(bNode, "partly")]),
+      "b cleared, partly reverted on main",
+    ],
+    [
       "done",
       () => read([...approvedFor("loom"), cleared(aNode, "on"), cleared(bNode, "on")]),
       "done",
     ],
   ];
+
+  it("is not done while a node is partly reverted on main, though every node is cleared", () => {
+    const position = read([...approvedFor("loom"), cleared(aNode, "on"), cleared(bNode, "partly")]);
+    expect(nodeIn(position, "b").landed?.kind).toBe("partly-reverted-on-main");
+    expect(position.done).toBe(false);
+  });
 
   for (const [state, position, sentence] of sentences) {
     it(`says "${sentence}" when ${state}`, () => {
