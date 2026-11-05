@@ -1139,6 +1139,27 @@ The current read of a graph, composed above the stream.
 
 _No example of `position@v1` was found in the corpus._
 
+## positions
+
+No vocabulary entry for `positions`.
+
+### Versions
+
+- `positions@v0`: the first version.
+
+### Fields (`positions@v0`)
+
+| field | type | required | description |
+| --- | --- | --- | --- |
+| `interlock` | the literal `"positions@v0"` | yes |  |
+| `repositories` | array of repository | yes | `?`: asked, state, root, origin (optional), journal, graphs, live; `?`: asked, state, root, origin (optional), journal, graphs; `?`: asked, state, because |
+
+### Examples
+
+#### `positions@v0`
+
+_No example of `positions@v0` was found in the corpus._
+
 ## roles
 
 No vocabulary entry for `roles`.

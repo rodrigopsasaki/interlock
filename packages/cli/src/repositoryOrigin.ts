@@ -58,7 +58,7 @@ export function repositoryForOrigin(origin: string): Result<Repository, string> 
   return ok({ ...identity.value, originUrl: url.toString() });
 }
 
-function gitOrigin(repoRoot: string): Promise<Result<string, string>> {
+export function gitOrigin(repoRoot: string): Promise<Result<string, string>> {
   return new Promise((resolve) => {
     execFile("git", ["remote", "get-url", "origin"], { cwd: repoRoot }, (error, stdout) => {
       if (error !== null) {

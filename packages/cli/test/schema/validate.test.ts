@@ -87,6 +87,33 @@ describe("runSchemaValidate", () => {
     expect(result.message).toContain("valid as brief@v1.");
   });
 
+  it("validates a positions@v0 read and refuses one whose unreadable journal carries a live list", async () => {
+    const unreadable = {
+      interlock: "positions@v0",
+      repositories: [
+        {
+          asked: "/r",
+          state: "found",
+          root: "/r",
+          journal: { state: "unreadable", line: 2, because: "line 2 refused" },
+          graphs: [{ graph: "g", state: "unreadable", because: "line 2 refused" }],
+        },
+        { asked: "/elsewhere", state: "not-found", because: "no .interlock" },
+      ],
+    };
+    const valid = fixture("positions.json", JSON.stringify(unreadable));
+    const validResult = await runSchemaValidate([valid]);
+    expect(validResult.exitCode).toBe(0);
+    expect(validResult.message).toContain("valid as positions@v0.");
+
+    const [first, second] = unreadable.repositories;
+    const withLive = { ...unreadable, repositories: [{ ...first, live: [] }, second] };
+    const invalid = fixture("positions.json", JSON.stringify(withLive));
+    const invalidResult = await runSchemaValidate([invalid]);
+    expect(invalidResult.exitCode).not.toBe(0);
+    expect(invalidResult.message).toContain("invalid as positions@v0");
+  });
+
   it("validates every line of a small journal file", async () => {
     const path = fixture(
       "journal.jsonl",
