@@ -1,0 +1,164 @@
+interlock: graph@v0
+id: 0051-no-detached-maintenance
+ask: No git command Interlock's tests or runner start leaves a detached maintenance job writing into a directory Interlock is about to remove.
+derivation:
+  kind: model
+  model: gilb (Claude)
+  prompt: 0050-writer-is-closed-debrief-2026-11-05
+authorization:
+  granted_by: Rodrigo Sasaki
+  mandate: loom-feed-2026-11-04  # "You're free to do changes on phyxius and interlock too", 23:25 UTC
+  approver: Gilb for Rodrigo Sasaki, after a cross-vendor vet; the human merges
+read: >
+  0050 writer-is-closed (2026-11-05) found the writer behind the verifier's
+  ENOTEMPTY: git 2.54.0 `commit` (and `merge`) launches `git maintenance run
+  --auto --quiet --detach`, a daemon that outlives the command. Across one
+  instrumented full parallel suite 905 such daemons were launched (895 by
+  commit, 10 by merge). Auto maintenance estimates loose objects from
+  objects/17 alone, times 256, so two loose objects there trigger a geometric
+  repack that writes packs and a multi-pack-index after the command returns.
+  Background maintenance is on by git's default, not by any setting. 0050
+  fixed the verifier's fixture helper (packages/verifier/test/support/gitFixture.ts,
+  `-c maintenance.auto=false` on commit) and observed two cli fixtures with
+  the daemon still alive during cleanup.
+
+  Git fixtures commit or merge in at least: packages/cli/test/graph/gitFixture.ts,
+  packages/cli/test/face/landedFixture.ts, packages/runner/test/support/gitFixture.ts,
+  packages/verifier/test/support/gitFixture.ts, and inline in
+  packages/cli/test/{position,evidence,verify,main}.test.ts,
+  packages/cli/test/debrief/*.test.ts, packages/face/test/{landed,root}.test.ts,
+  packages/runner/test/{writableRoot.test.ts,herdr/adapter.test.ts}.
+
+  Production: `sessionDrive.ts` creates or reuses branch-backed node worktrees
+  through `ensureNodeWorktree`, commits the session brief through
+  `commitBriefIfChanged`, and retains those worktrees. `backfill.ts` separately uses
+  `createDetachedWorktree` and `removeWorktree` for a temporary worktree. Trace
+  these lifecycles separately, including setup and gate commands. Distinguish the
+  worktree directory, its administrative Git directory and the common object store.
+  `worktree add --detach` describes checkout state, not a background process.
+
+  Git finding, by read-only inspection of the installed Git 2.54.0 (Apple Git-157)
+  against upstream: commit reaches `run_auto_maintenance`, whose preparation returns
+  before spawning when `maintenance.auto=false`. There is no evidenced independent
+  commit-triggered `gc --auto --detach` requiring another flag. Fetch and rebase use
+  the same entry point; cherry-pick can reach it through child-commit paths.
+  Execution requires the landed 0050 helper and cleanup regression from 330f39b or
+  their landed equivalent. Review evidence includes the branch's revised debrief at
+  dc00202, which records maintenance recreating an already removed fixture. Preserve
+  the distinction between demonstrated mechanisms and the inferred explanation of
+  the unrecoverable historical failure.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: fixtures-and-worktrees
+    role: implementer
+    depends_on: []
+    acceptance: |
+      Put the shared helper at `test/support/gitFixture.ts`, depending only on Node
+      built-ins, and import it through relative `.ts` paths from package tests. It
+      owns fixture Git execution and argv construction, including Git argv passed
+      through `sandbox-exec`. Preserve caller identity, dates, input, cwd and error
+      behavior. Migrate every direct fixture Git call, including read and setup
+      commands, and make existing package helpers delegate to it.
+
+      Besides the listed commit/merge producers, cover
+      `packages/verifier/test/git.test.ts`;
+      `packages/cli/test/{judge,run,plan,repositoryOrigin}.test.ts`;
+      `packages/cli/test/face/landedCache.test.ts`;
+      `packages/runner/test/{worktree,gitCeiling,gateJudge}.test.ts`; and
+      `packages/runner/test/support/driveFixture.ts`. Account explicitly for the Git
+      forwarding script in `writableRootLaunch.test.ts`.
+
+      Apply `-c maintenance.auto=false` to every direct fixture Git invocation.
+      Record the installed Git version and retain a deterministic
+      enabled-positive-control/suppressed-negative-control proof. Add `gc.auto=0`
+      only if evidence identifies an independent automatic-GC path on a supported
+      Git version. `gc.auto=0` alone does not disable every maintenance task.
+
+      Before invoking production code, initialize every disposable fixture
+      repository with repository-local `maintenance.auto=false`, so production Git
+      calls and linked worktrees inherit fixture containment. Retain per-invocation
+      suppression for direct fixture commands. Preserve the effectiveness of 0050's
+      cleanup regression: its isolated repository explicitly sets
+      `maintenance.auto=true` and `maintenance.autoDetach=false`. An enabled
+      positive control must demonstrate that the unsafe invocation performs
+      maintenance; the protected helper must suppress it. Fixture defaults must not
+      make the regression pass without the helper's protection.
+
+      Implement a deterministic source guard over executable test/support sources
+      using the TypeScript AST, in `packages/cli/test/fixtureGuard.test.ts`. Enforce
+      the audited fixture process boundary and fail closed on unsupported command
+      construction. Cover named, aliased and namespace imports of `execFileSync`,
+      `execFile`, `spawnSync`, `spawn`, `execSync` and `exec`; string and array
+      arguments; variable, spread and template arguments; shell strings and
+      generated shell scripts; and commands nested beneath `sandbox-exec` or `sh`.
+      Guard every fixture Git command. Include negative controls for these forms and
+      positive controls for permitted helper use. Keep instrumentation exceptions
+      exact and observation-only. Missing scan roots, enumeration failures and empty
+      source sets fail the guard. The helper rejects arguments or environment
+      settings that override its suppression.
+
+      Strict TypeScript, no type assertions, no non-null operators. Preserve every
+      historical artifact. Append typed notes for choices and discoveries. No push,
+      no merge; the human merges.
+    gates:
+      - id: fixture-guard-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/fixtureGuard.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: verifier-cleanup-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter verifier exec vitest run test/fixtureCleanup.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: parallel-suite-2
+        kind: command
+        run: pnpm test
+        expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: worktree-maintenance
+    role: implementer
+    depends_on: [fixtures-and-worktrees]
+    acceptance: |
+      Spend at most 45 minutes investigating the installed Git version, recorded
+      effective maintenance configuration and actual runner lifecycles. Identify the
+      enabled tasks and their possible write destinations; the geometric-repack
+      trigger alone does not establish every task's boundary. Run controlled probes
+      in a fresh disposable repository beneath this checkout. Never attach a probe
+      worktree to this checkout's common Git directory or modify global
+      configuration. Retain traces outside the directory deliberately removed. Bound
+      each probe and await or terminate only its identified descendants before final
+      scratch cleanup.
+
+      Retain the Git version, relevant configuration, resolved worktree/common/admin
+      paths, positive controls, subprocess evidence and observed writes. Classify
+      the result as demonstrated exposure, demonstrated non-overlap for the stated
+      configuration and lifecycle, or inconclusive. Successful removals, absent
+      maintenance locks and finite trials without observed writes do not establish
+      non-overlap. For demonstrated exposure, fix the narrowest runner-owned cause
+      and prove that it prevents the evidenced writer from reaching a directory
+      being removed. Containment must take effect before maintenance starts; flags
+      on `removeWorktree` cannot cancel an earlier daemon. For demonstrated
+      non-overlap, change no production code and state the supported boundary.
+      Record agent, setup and gate commands separately. If exposure requires
+      containment outside this approved scope, or the investigation remains
+      inconclusive, retain the evidence in `open` and leave the production
+      acceptance unresolved.
+
+      Always provide `packages/runner/test/worktreeMaintenance.test.ts`. Exercise
+      the actual linked-worktree/common/admin boundary and the demonstrated
+      maintenance conditions deterministically, with positive controls. When
+      production changes are required, include a regression that fails before the
+      change. A passing proof requires a conclusive supported boundary; an
+      inconclusive investigation must not be converted into a passing or skipped
+      test. Use no race-dependent sleeps, cleanup retries or maintenance-lock
+      absence assertions.
+
+      Strict TypeScript, no type assertions, no non-null operators. Preserve every
+      historical artifact. Append typed notes for choices and discoveries. No push,
+      no merge; the human merges.
+    gates:
+      - id: worktree-maintenance-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/worktreeMaintenance.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
