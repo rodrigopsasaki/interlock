@@ -1007,8 +1007,10 @@ edit it.
 ## Acceptance (verbatim from the graph)
 
 > Profile flag. A runtimes.yaml profile gains `commits: runner | agent`, default agent. A profile without it
-> reads as agent, so today's behaviour is unchanged. Version the catalogue shape with schema tests, and keep
-> the earlier version readable. Set `commits: runner` on every `kind: codex` profile in the example catalogue
+> reads as agent, so today's behaviour is unchanged. The catalogue reader accepts only runtimes@v0 today
+> (packages/runner/src/runtimeCatalogue.ts:18, 207-213), and graph 0054 also adds catalogue fields. Whichever
+> of 0055 and 0054 lands first publishes runtimes@v1, and the other extends it to runtimes@v2. Every earlier
+> version stays readable, each with schema tests. Set `commits: runner` on every `kind: codex` profile in the example catalogue
 > (.interlock/local.example.yaml or the catalogue reference the repo ships). The machine catalogue
 > (~/.config/interlock/runtimes.yaml) is the owner's, so the debrief names the one key to add per codex profile
 > and the runner never edits it.
@@ -1019,9 +1021,21 @@ edit it.
 > the prompt says instead: do not commit, leave your changes in the worktree, and write commits.yaml beside the
 > brief. The attempt settles in two phases.
 >
-> Phase 1, code. The agent leaves code changes uncommitted and writes commits.yaml, a new versioned shape,
-> commits@v0, with schema tests in packages/schemas: an ordered list of entries {message, paths}, a fallback
-> subject for changed paths no entry names, and an optional co_authored_by line. Phase 1 settles when the agent
+> Phase 1, code. The agent leaves code changes uncommitted and writes commits.yaml beside the brief, in a new
+> versioned shape, commits@v0, with schema tests in packages/schemas:
+>   interlock: commits@v0
+>   entries: [{ message, paths }]    # ordered, possibly empty
+>   fallback_subject: <string>       # required when a changed code path is in no entry
+>   co_authored_by: <string>         # optional
+> A message is a non-empty commit message whose first line is at most 100 characters. Paths are literal and
+> repository-relative: no globs, no `..`, no absolute paths. A commits.yaml is invalid, and the attempt fails
+> naming why, when a path appears in two entries, names a path that did not change, names a reserved session
+> artifact (below), or is missing fallback_subject while some changed code path is in no entry. With no entries
+> and no changed code paths, phase 1 makes no commit.
+>
+> Artifact custody. Phase 1 owns every changed path except this node's session artifacts. Phase 2 owns those:
+> notes.yaml, debrief.yaml, the debrief candidates and their sources (candidate.yaml, final.candidate.yaml,
+> fresh.candidate.yaml, packages/cli/src/debrief/derived.ts:267-282), revisions/, and commits.yaml itself. Phase 1 settles when the agent
 > is done and commits.yaml validates, with the worktree dirty. The runner then:
 > 1. lists the worktree's changed and untracked paths (git status --porcelain, gitignored files excluded);
 > 2. refuses if any path lies outside the node's declared paths, or looks like a secret, as below;
@@ -1031,7 +1045,10 @@ edit it.
 >    commitBriefIfChanged keeps its own behaviour, including its trailer;
 > 4. signs every commit through the owner's normal git signing outside the sandbox, and adds `Attempt:
 >    <session id>` and `Runtime: <profile name> (<model>)`, plus the co_authored_by line when given;
-> 5. commits commits.yaml itself with the code, in the last entry's commit.
+> 5. records the branch head before its first commit. If any commit in the sequence fails, signing included, it
+>    returns the branch to that head with a mixed `git reset <head>`, which keeps every changed file in the
+>    worktree, unstaged. So no partial or unsigned commit remains, and the worktree is left as the agent left
+>    it.
 > A signing failure fails the attempt with git's message. The runner never retries unsigned and never passes
 > a no-sign option.
 >
@@ -1040,7 +1057,10 @@ edit it.
 > current HEAD, the last code commit (packages/cli/src/debrief/derived.ts:153-170), so the debrief's head_sha
 > covers the runner's commits and the verifier's sessionStartSha..headSha diff includes them
 > (packages/verifier/src/verify.ts:48-64). When the debrief files and validates, the runner commits the
-> debrief and notes as the final commit through commitPaths, signed with the same trailers. That keeps the
+> phase-2 artifacts as the final commit through commitPaths, signed with the same trailers: notes, the debrief,
+> the candidates and their sources, revisions/ and commits.yaml. After it, the worktree must be clean. A path
+> still dirty fails the attempt, naming it, rather than being held by judgeWorktree
+> (packages/runner/src/judgeWorktree.ts:61-79). The same reset rule applies if this commit fails. That keeps the
 > rule that head_sha is the last code commit and the debrief is the final commit (AGENTS.md). Then it judges,
 > as today.
 >
@@ -1076,6 +1096,11 @@ edit it.
 > - a path outside declared paths fails the attempt naming it;
 > - each secret rule fails the attempt naming the rule and never the content;
 > - a signing failure fails the attempt with git's message and nothing unsigned is created;
+> - a signing failure on the second of two declared commits leaves the branch at its pre-commit head and every
+>   change in the worktree;
+> - each commits.yaml rule (duplicate path, unchanged path, reserved artifact, missing fallback_subject)
+>   fails naming why;
+> - after phase 2 the worktree is clean, including the candidates;
 > - every refusal records a failed outcome that the position shows;
 > - a commits: agent profile behaves exactly as today.
 > Strict TypeScript, no type assertions, no non-null operators. Preserve every historical artifact. Append
