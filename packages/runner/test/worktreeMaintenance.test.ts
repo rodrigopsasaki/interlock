@@ -13,9 +13,11 @@ import {
 import { join, relative } from "node:path";
 import { unwrap } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fixtureGit } from "../../../test/support/gitFixture.ts";
 import {
-  commitBriefIfChanged,
+  fixtureGit,
+  unsuppressedGitForMaintenanceControl,
+} from "../../../test/support/gitFixture.ts";
+import {
   createDetachedWorktree,
   ensureNodeWorktree,
   removeWorktree,
@@ -24,7 +26,9 @@ import {
 import { gitInitFixtureWithContent, headSha } from "./support/gitFixture.ts";
 
 // The supported boundary this file proves, on the installed Git: auto-maintenance launched by
-// the runner's own `git commit` (commitBriefIfChanged, in a retained node worktree) runs
+// an unsuppressed `git commit` in a retained node worktree (the maintenance control; the runner's
+// own brief commit now passes -c maintenance.auto=false and launches none, see
+// backfillMaintenance.test.ts) runs
 // reflog-expire before it detaches, and after detaching writes only into the common object
 // store. Nothing it runs after the detach point writes into any worktree directory or any
 // worktree's administrative directory, so no detached writer can reach the backfill worktree
@@ -203,18 +207,24 @@ function maintenanceFixture(): MaintenanceFixture {
   return { root, repo, commonGitDir, sha, node, nodeAdmin: adminDirectory(node, commonGitDir) };
 }
 
-interface BriefCommit {
+interface UnsuppressedCommit {
   readonly events: readonly TraceEvent[];
   readonly beforeDetach: readonly string[];
   readonly afterDetach: readonly string[];
 }
 
-function commitBrief(fixture: MaintenanceFixture): BriefCommit {
+function unsuppressedCommitInNodeWorktree(fixture: MaintenanceFixture): UnsuppressedCommit {
+  const tracePath = join(fixture.root, "unsuppressed-commit.trace");
   writeFileSync(join(fixture.node, BRIEF), "the session brief\n");
-  const { value, events } = traced(join(fixture.root, "brief-commit.trace"), () =>
-    commitBriefIfChanged(fixture.node, BRIEF, "node", "session-1"),
+  fixtureGit(["add", "--", BRIEF], { cwd: fixture.node });
+  unsuppressedGitForMaintenanceControl(
+    ["commit", "--quiet", "-m", "unsuppressed commit", "--", BRIEF],
+    {
+      cwd: fixture.node,
+      env: { ...process.env, GIT_TRACE2_EVENT: tracePath },
+    },
   );
-  expect(unwrap(value)).toBeDefined();
+  const events = traceEvents(tracePath);
   return {
     events,
     beforeDetach: tasksIn(events, "maintenance foreground"),
@@ -244,11 +254,11 @@ describe("the runner's worktrees against Git's default auto-maintenance", () => 
     }
   });
 
-  it("runs the default task set from the runner's brief commit, reflog-expire before the detach point and the rest after it", () => {
+  it("runs the default task set from an unsuppressed commit in a node worktree, reflog-expire before the detach point and the rest after it", () => {
     const fixture = maintenanceFixture();
     const packsBefore = packsIn(fixture.commonGitDir);
 
-    const commit = commitBrief(fixture);
+    const commit = unsuppressedCommitInNodeWorktree(fixture);
 
     const maintenance = childArgvs(commit.events).filter(
       (argv) => argv[1] === "maintenance" && argv[2] === "run",
@@ -267,9 +277,9 @@ describe("the runner's worktrees against Git's default auto-maintenance", () => 
 
   it("writes the detached tasks only into the common object store, never into a node or backfill worktree or admin directory", () => {
     const fixture = maintenanceFixture();
-    const { afterDetach } = commitBrief(fixture);
+    const { afterDetach } = unsuppressedCommitInNodeWorktree(fixture);
     const backfill = backfillWorktree(fixture);
-    writeLooseObjects(fixture.node, 64, "after the brief commit");
+    writeLooseObjects(fixture.node, 64, "after the unsuppressed commit");
     const packsBefore = packsIn(fixture.commonGitDir);
 
     lock(fixture.node, fixture.nodeAdmin, backfill.path, backfill.admin);
@@ -288,7 +298,7 @@ describe("the runner's worktrees against Git's default auto-maintenance", () => 
 
   it("catches, under the same lock-down, the foreground reflog-expire writing a sibling backfill worktree's admin directory", () => {
     const fixture = maintenanceFixture();
-    const { beforeDetach } = commitBrief(fixture);
+    const { beforeDetach } = unsuppressedCommitInNodeWorktree(fixture);
     const backfill = backfillWorktree(fixture);
 
     lock(backfill.admin);

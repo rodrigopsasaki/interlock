@@ -43,7 +43,12 @@ const EXECUTABLE = new Set([".ts", ".mts", ".cts", ".tsx", ".js", ".mjs", ".cjs"
 
 // The one positive control that runs Git with maintenance left on, and the file allowed to call it.
 const MAINTENANCE_CONTROL = "unsuppressedGitForMaintenanceControl";
-const MAINTENANCE_CONTROL_SITES = new Set(["packages/verifier/test/fixtureCleanup.test.ts"]);
+// worktreeMaintenance.test.ts needs an unsuppressed commit as the trigger whose maintenance
+// behaviour it traces, because the runner's own commits now run with maintenance.auto=false.
+const MAINTENANCE_CONTROL_SITES = new Set([
+  "packages/verifier/test/fixtureCleanup.test.ts",
+  "packages/runner/test/worktreeMaintenance.test.ts",
+]);
 
 // Instrumentation that wraps child_process to observe it: allowed only in this exact file, and
 // only to forward each call unchanged to the original module.
