@@ -37,6 +37,9 @@
         },
         "prompt_retries": {
           "type": "number"
+        },
+        "writable_root_args": {
+          "$ref": "parts/writable-root-args.json"
         }
       },
       "required": [

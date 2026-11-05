@@ -5,6 +5,7 @@ import { isValidSubstrateAddress } from "substrate";
 import { parse as parseYaml, YAMLParseError } from "yaml";
 import { parseStartupAnswers, type StartupAnswer } from "./startupAnswers.ts";
 import { isNonNegativeInteger, isRecord, isString, isStringArray, prop } from "./validate.ts";
+import { parseWritableRootArgs, type WritableRootTemplate } from "./writableRootArgs.ts";
 
 export const LOCAL_CONFIG_SHAPE = "local@v0";
 
@@ -23,6 +24,7 @@ export interface LocalConfig {
     readonly promptTakenTimeoutMs: number;
     readonly readySettleMs: number;
     readonly promptRetries: number;
+    readonly writableRootArgs: WritableRootTemplate | undefined;
   };
   readonly defaultRuntime?: string;
   readonly worktreeRoot: string;
@@ -54,6 +56,8 @@ const FIELD_GUIDE =
   "sending the opening prompt), " +
   "runtime.prompt_retries (optional; delivery attempts beyond the first when the opening " +
   "prompt is never taken), " +
+  "runtime.writable_root_args (optional; arguments appended for a linked worktree, with exactly " +
+  'one element "{path}" replaced by the repository\'s common git directory), ' +
   "default_runtime (optional; the name of the runtime this repository starts by default, from " +
   "the runtime catalogue or this file's own runtime block), " +
   "worktree_root (where node worktrees are created, relative to the repository root), " +
@@ -163,6 +167,14 @@ function parseShape(parsed: unknown, path: string): Result<LocalConfig, LocalCon
   }
   const promptRetries = promptRetriesField ?? DEFAULT_PROMPT_RETRIES;
 
+  const writableRootArgs = parseWritableRootArgs(
+    isRecord(runtime) ? prop(runtime, "writable_root_args") : undefined,
+    "runtime.writable_root_args",
+  );
+  if (isErr(writableRootArgs)) {
+    return err({ kind: "malformed", path, reason: writableRootArgs.error });
+  }
+
   const defaultRuntimeField = prop(parsed, "default_runtime");
   if (defaultRuntimeField !== undefined && !isString(defaultRuntimeField)) {
     return err({
@@ -265,6 +277,7 @@ function parseShape(parsed: unknown, path: string): Result<LocalConfig, LocalCon
       promptTakenTimeoutMs,
       readySettleMs,
       promptRetries,
+      writableRootArgs: writableRootArgs.value,
     },
     ...(defaultRuntimeField === undefined ? {} : { defaultRuntime: defaultRuntimeField }),
     worktreeRoot,

@@ -2,7 +2,12 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { isErr, isOk } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
-import { loadLocalConfig } from "../src/localConfig.ts";
+import { explainLocalConfigRefusal, loadLocalConfig } from "../src/localConfig.ts";
+import { expandWritableRootArgs } from "../src/writableRootArgs.ts";
+import {
+  MALFORMED_WRITABLE_ROOT_ARGS,
+  PATH_WITH_SPACES_AND_QUOTES,
+} from "./support/writableRootForms.ts";
 
 const runsRoot = join(import.meta.dirname, ".localconfig-runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -640,4 +645,66 @@ describe("loadLocalConfig substrate", () => {
       expect(result.error.reason).toContain('"substrate.send_repository"');
     }
   });
+});
+
+function localYamlWithWritableRootArgs(flow: string): string {
+  return [
+    "interlock: local@v0",
+    "runtime:",
+    "  kind: fake",
+    "  args: [--sandboxed]",
+    `  writable_root_args: ${flow}`,
+    "worktree_root: .worktrees",
+    "lease_ms: 900000",
+    "run_timeout_ms: 3600000",
+    "substrate:",
+    "  address: none",
+    "",
+  ].join("\n");
+}
+
+describe("loadLocalConfig runtime.writable_root_args", () => {
+  it("is undefined when the field is absent", async () => {
+    const repoRoot = fixtureRepo(baseFields.join("\n"));
+
+    const result = await loadLocalConfig(repoRoot);
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) expect(result.value.runtime.writableRootArgs).toBeUndefined();
+  });
+
+  it("parses a template with one whole placeholder and expands it to one argv element", async () => {
+    const repoRoot = fixtureRepo(localYamlWithWritableRootArgs('["{path}", --test-write-root]'));
+
+    const result = await loadLocalConfig(repoRoot);
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) {
+      const template = result.value.runtime.writableRootArgs;
+      expect(template).toEqual({ before: [], after: ["--test-write-root"] });
+      if (template !== undefined) {
+        expect(expandWritableRootArgs(template, PATH_WITH_SPACES_AND_QUOTES)).toEqual([
+          PATH_WITH_SPACES_AND_QUOTES,
+          "--test-write-root",
+        ]);
+      }
+    }
+  });
+
+  it.each(MALFORMED_WRITABLE_ROOT_ARGS)(
+    "refuses %s, naming runtime.writable_root_args",
+    async (_name, flow, reasonFragment) => {
+      const repoRoot = fixtureRepo(localYamlWithWritableRootArgs(flow));
+
+      const result = await loadLocalConfig(repoRoot);
+
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) {
+        expect(result.error.kind).toBe("malformed");
+        const message = explainLocalConfigRefusal(result.error);
+        expect(message).toContain('"runtime.writable_root_args');
+        expect(message).toContain(reasonFragment);
+      }
+    },
+  );
 });

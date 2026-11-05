@@ -14,6 +14,7 @@ function runtimeNamed(name: string, source: ResolvedRuntime["source"]): Resolved
     promptTakenTimeoutMs: 20_000,
     readySettleMs: 0,
     promptRetries: 2,
+    writableRootArgs: undefined,
     source,
   };
 }

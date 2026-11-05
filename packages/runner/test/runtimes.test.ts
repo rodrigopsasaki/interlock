@@ -10,6 +10,12 @@ import {
   mergeRuntimes,
   runtimeCataloguePath,
 } from "../src/runtimeCatalogue.ts";
+import { selectRuntime } from "../src/runtimeSelection.ts";
+import { expandWritableRootArgs } from "../src/writableRootArgs.ts";
+import {
+  MALFORMED_WRITABLE_ROOT_ARGS,
+  PATH_WITH_SPACES_AND_QUOTES,
+} from "./support/writableRootForms.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -38,6 +44,7 @@ function localConfigWith(overrides: Partial<LocalConfig> = {}): LocalConfig {
       promptTakenTimeoutMs: 20_000,
       readySettleMs: 0,
       promptRetries: 2,
+      writableRootArgs: undefined,
     },
     worktreeRoot: ".worktrees",
     worktreeSetup: [],
@@ -116,6 +123,7 @@ describe("loadRuntimeCatalogue: a valid catalogue", () => {
         promptTakenTimeoutMs: undefined,
         readySettleMs: 0,
         promptRetries: 2,
+        writableRootArgs: undefined,
       });
       expect(result.value.get("careful")).toEqual({
         kind: "codex",
@@ -126,6 +134,7 @@ describe("loadRuntimeCatalogue: a valid catalogue", () => {
         promptTakenTimeoutMs: undefined,
         readySettleMs: 0,
         promptRetries: 2,
+        writableRootArgs: undefined,
       });
     }
   });
@@ -183,6 +192,7 @@ describe("loadRuntimeCatalogue: a valid catalogue", () => {
       expect(result.value.get("fast")).toMatchObject({
         readySettleMs: 4_000,
         promptRetries: 5,
+        writableRootArgs: undefined,
       });
     }
   });
@@ -376,6 +386,7 @@ describe("mergeRuntimes", () => {
           promptTakenTimeoutMs: 9_000,
           readySettleMs: 2_000,
           promptRetries: 4,
+          writableRootArgs: undefined,
         },
       ],
     ]);
@@ -386,6 +397,7 @@ describe("mergeRuntimes", () => {
         promptTakenTimeoutMs: 20_000,
         readySettleMs: 1_000,
         promptRetries: 3,
+        writableRootArgs: undefined,
       },
     });
 
@@ -400,12 +412,14 @@ describe("mergeRuntimes", () => {
         promptTakenTimeoutMs: 20_000,
         readySettleMs: 1_000,
         promptRetries: 3,
+        writableRootArgs: undefined,
         source: "local.yaml",
       });
       expect(merged.value.runtimes.get("fast")).toMatchObject({
         promptTakenTimeoutMs: 9_000,
         readySettleMs: 2_000,
         promptRetries: 4,
+        writableRootArgs: undefined,
         source: "catalogue",
       });
     }
@@ -424,6 +438,7 @@ describe("mergeRuntimes", () => {
           promptTakenTimeoutMs: undefined,
           readySettleMs: 0,
           promptRetries: 2,
+          writableRootArgs: undefined,
         },
       ],
     ]);
@@ -457,6 +472,7 @@ describe("mergeRuntimes", () => {
           promptTakenTimeoutMs: undefined,
           readySettleMs: 0,
           promptRetries: 2,
+          writableRootArgs: undefined,
         },
       ],
     ]);
@@ -484,6 +500,7 @@ describe("mergeRuntimes", () => {
           promptTakenTimeoutMs: 9_000,
           readySettleMs: 0,
           promptRetries: 2,
+          writableRootArgs: undefined,
         },
       ],
     ]);
@@ -527,6 +544,7 @@ describe("mergeRuntimes", () => {
           promptTakenTimeoutMs: 20_000,
           readySettleMs: 0,
           promptRetries: 2,
+          writableRootArgs: undefined,
         },
       ],
     ]);
@@ -569,6 +587,7 @@ describe("mergeRuntimes", () => {
           promptTakenTimeoutMs: 20_000,
           readySettleMs: 0,
           promptRetries: 2,
+          writableRootArgs: undefined,
         },
       ],
     ]);
@@ -578,5 +597,115 @@ describe("mergeRuntimes", () => {
 
     expect(isOk(merged)).toBe(true);
     if (isOk(merged)) expect(merged.value.defaultRuntime).toBe("fast");
+  });
+});
+
+function catalogueWithWritableRootArgs(flow: string): string {
+  return [
+    "interlock: runtimes@v0",
+    "runtimes:",
+    "  sandboxed:",
+    "    kind: fake",
+    "    args: [--sandboxed]",
+    "    model: m",
+    `    writable_root_args: ${flow}`,
+    "",
+  ].join("\n");
+}
+
+describe("loadRuntimeCatalogue: writable_root_args", () => {
+  it("is undefined when the field is absent", async () => {
+    const path = fixtureFile(
+      [
+        "interlock: runtimes@v0",
+        "runtimes:",
+        "  plain:",
+        "    kind: fake",
+        "    model: m",
+        "",
+      ].join("\n"),
+    );
+
+    const result = await loadRuntimeCatalogue(path);
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) expect(result.value.get("plain")?.writableRootArgs).toBeUndefined();
+  });
+
+  it("parses a template with one whole placeholder and expands it to one argv element", async () => {
+    const path = fixtureFile(
+      catalogueWithWritableRootArgs('[--test-write-root, "{path}", --after]'),
+    );
+
+    const result = await loadRuntimeCatalogue(path);
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) {
+      const template = result.value.get("sandboxed")?.writableRootArgs;
+      expect(template).toEqual({ before: ["--test-write-root"], after: ["--after"] });
+      if (template !== undefined) {
+        expect(expandWritableRootArgs(template, PATH_WITH_SPACES_AND_QUOTES)).toEqual([
+          "--test-write-root",
+          PATH_WITH_SPACES_AND_QUOTES,
+          "--after",
+        ]);
+      }
+    }
+  });
+
+  it.each(MALFORMED_WRITABLE_ROOT_ARGS)(
+    "refuses %s, naming runtimes.<name>.writable_root_args",
+    async (_name, flow, reasonFragment) => {
+      const path = fixtureFile(catalogueWithWritableRootArgs(flow));
+
+      const result = await loadRuntimeCatalogue(path);
+
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) {
+        expect(result.error.kind).toBe("malformed");
+        const message = explainRuntimeCatalogueRefusal(result.error);
+        expect(message).toContain(path);
+        expect(message).toContain('"runtimes.sandboxed.writable_root_args');
+        expect(message).toContain(reasonFragment);
+      }
+    },
+  );
+
+  it("carries the catalogue template through merge and selection", async () => {
+    const path = fixtureFile(catalogueWithWritableRootArgs('[--test-write-root, "{path}"]'));
+    const catalogue = await loadRuntimeCatalogue(path);
+    expect(isOk(catalogue)).toBe(true);
+    if (!isOk(catalogue)) return;
+
+    const merged = mergeRuntimes(catalogue.value, localConfigWith());
+    expect(isOk(merged)).toBe(true);
+    if (!isOk(merged)) return;
+
+    const selected = selectRuntime(merged.value, "sandboxed");
+    const legacy = selectRuntime(merged.value, "default");
+    expect(isOk(selected) && selected.value.writableRootArgs).toEqual({
+      before: ["--test-write-root"],
+      after: [],
+    });
+    expect(isOk(selected) && selected.value.args).toEqual(["--sandboxed"]);
+    expect(isOk(legacy) && legacy.value.writableRootArgs).toBeUndefined();
+  });
+
+  it("carries the legacy local.yaml template through merge and selection", () => {
+    const local = localConfigWith();
+    const merged = mergeRuntimes(new Map(), {
+      ...local,
+      runtime: { ...local.runtime, writableRootArgs: { before: ["--test-write-root"], after: [] } },
+    });
+    expect(isOk(merged)).toBe(true);
+    if (!isOk(merged)) return;
+
+    const selected = selectRuntime(merged.value, undefined);
+
+    expect(isOk(selected) && selected.value.source).toBe("local.yaml");
+    expect(isOk(selected) && selected.value.writableRootArgs).toEqual({
+      before: ["--test-write-root"],
+      after: [],
+    });
   });
 });
