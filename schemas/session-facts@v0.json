@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/session-facts@v0.json",
+  "title": "session-facts@v0",
+  "description": "The vendor-neutral facts a runtime record can contribute to a session; unavailable facts use a state-tagged unknown reading.",
+  "type": "object",
+  "properties": {
+    "promptReceived": { "$ref": "#/$defs/promptFact" },
+    "lastActivity": { "$ref": "#/$defs/lastActivity" },
+    "usage": { "$ref": "#/$defs/usageFact" },
+    "quota": { "$ref": "#/$defs/quotaFact" },
+    "deliveryBasis": { "enum": ["record", "status"] }
+  },
+  "required": ["promptReceived", "lastActivity", "usage", "quota", "deliveryBasis"],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": { "properties": { "deliveryBasis": { "const": "status" } } },
+      "then": { "properties": { "promptReceived": { "$ref": "#/$defs/unknown" } } }
+    }
+  ],
+  "$defs": {
+    "unknown": {
+      "type": "object",
+      "properties": { "state": { "const": "unknown" } },
+      "required": ["state"],
+      "additionalProperties": false
+    },
+    "promptFact": {
+      "oneOf": [
+        { "$ref": "#/$defs/unknown" },
+        {
+          "type": "object",
+          "properties": {
+            "state": { "const": "known" },
+            "value": { "const": "yes" }
+          },
+          "required": ["state", "value"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "lastActivity": {
+      "oneOf": [
+        { "$ref": "#/$defs/unknown" },
+        {
+          "type": "object",
+          "properties": {
+            "state": { "const": "known" },
+            "value": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
+            }
+          },
+          "required": ["state", "value"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "usage": {
+      "type": "object",
+      "properties": {
+        "input": { "type": "number" },
+        "output": { "type": "number" },
+        "cachedInput": { "type": "number" },
+        "reasoning": { "type": "number" },
+        "raw": { "type": "object", "additionalProperties": { "type": "number" } }
+      },
+      "required": ["raw"],
+      "additionalProperties": false
+    },
+    "usageFact": {
+      "oneOf": [
+        { "$ref": "#/$defs/unknown" },
+        {
+          "type": "object",
+          "properties": {
+            "state": { "const": "known" },
+            "value": { "$ref": "#/$defs/usage" }
+          },
+          "required": ["state", "value"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "quotaFact": {
+      "oneOf": [
+        { "$ref": "#/$defs/unknown" },
+        {
+          "type": "object",
+          "properties": {
+            "state": { "const": "known" },
+            "value": {
+              "type": "object",
+              "properties": {
+                "window": { "type": "string" },
+                "usedPercentage": { "type": "number" }
+              },
+              "required": ["window", "usedPercentage"],
+              "additionalProperties": false
+            }
+          },
+          "required": ["state", "value"],
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

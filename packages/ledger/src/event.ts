@@ -12,6 +12,7 @@ import {
 import { isOutcome, type Outcome } from "./outcome.ts";
 import { isReceipt, type Receipt } from "./receipt.ts";
 import { isSession, isSessionRuntime, type Session, sessionRuntime } from "./session.ts";
+import { isSessionFacts, type SessionFacts } from "./sessionFacts.ts";
 import { isRecord, isString, prop } from "./validate.ts";
 
 export type LedgerEvent =
@@ -85,6 +86,11 @@ export type LedgerEvent =
       readonly session: string;
       readonly at: number;
       readonly line: string;
+    }
+  | {
+      readonly kind: "session-facts-observed";
+      readonly session: string;
+      readonly facts: SessionFacts;
     };
 
 export function isLedgerEvent(value: unknown): value is LedgerEvent {
@@ -137,6 +143,8 @@ export function isLedgerEvent(value: unknown): value is LedgerEvent {
         typeof prop(value, "at") === "number" &&
         isString(prop(value, "line"))
       );
+    case "session-facts-observed":
+      return isString(prop(value, "session")) && isSessionFacts(prop(value, "facts"));
     default:
       return false;
   }
