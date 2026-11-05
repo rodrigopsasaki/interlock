@@ -203,7 +203,9 @@ export async function writeLandedCache(
   const reusable = entries.map(serialized).filter((entry) => cachedOf(entry) !== undefined);
   try {
     await mkdir(dirname(path), { recursive: true });
-    await writeFile(join(dirname(path), ".gitignore"), "*\n", { flag: "wx" }).catch(() => undefined);
+    await writeFile(join(dirname(path), ".gitignore"), "*\n", { flag: "wx" }).catch(
+      () => undefined,
+    );
     await writeFile(
       temporary,
       `${JSON.stringify({ version: LANDED_CACHE_VERSION, entries: reusable })}\n`,
