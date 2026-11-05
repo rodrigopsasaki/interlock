@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import {
   type ClearedHead,
   type FaceKey,
@@ -186,9 +186,25 @@ describe("landed cache: across processes, on disk", () => {
     expect(landed).toEqual(repository.cleared.map((node) => onMainByAncestry(node.head)));
   });
 
+  it("keeps its cache under a folder that ignores itself, so a repository it reads never needs an ignore line", async () => {
+    const repository = fixture();
+    await warm(repository);
+    expect(landedCachePath(repository.root)).toBe(
+      join(repository.root, ".interlock", ".cache", "landed-cache.json"),
+    );
+    expect(
+      readFileSync(join(dirname(landedCachePath(repository.root)), ".gitignore"), "utf-8"),
+    ).toBe("*\n");
+    const status = execFileSync("git", ["status", "--porcelain", "--untracked-files=all"], {
+      cwd: repository.root,
+      encoding: "utf-8",
+    });
+    expect(status.split("\n").filter((line) => line.includes(".interlock/.cache"))).toEqual([]);
+  });
+
   it("ignores a corrupt cache and rebuilds it", async () => {
     const repository = fixture();
-    mkdirSync(join(repository.root, ".interlock"), { recursive: true });
+    mkdirSync(dirname(landedCachePath(repository.root)), { recursive: true });
     writeFileSync(landedCachePath(repository.root), "{ not json");
     expect((await freshReadCounts(repository)).counts.judgments).toBe(4);
     expect(cacheFileOf(repository.root).entries).toHaveLength(4);
@@ -286,7 +302,9 @@ describe("landed cache: across processes, on disk", () => {
       ],
     });
     expect(
-      readdirSync(join(repository.root, ".interlock")).filter((name) => name.endsWith(".tmp")),
+      readdirSync(dirname(landedCachePath(repository.root))).filter((name) =>
+        name.endsWith(".tmp"),
+      ),
     ).toEqual([]);
   });
 });

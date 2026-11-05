@@ -1,12 +1,14 @@
 import { randomUUID } from "node:crypto";
-import { readFile, rename, unlink, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import type { Landed, LandedBy } from "./landed.ts";
 import type { MainSnapshot } from "./mainLine.ts";
 
 export const LANDED_CACHE_VERSION = "landed-cache@1";
 
 export const LANDED_CACHE_FILE = "landed-cache.json";
+
+export const CACHE_DIRECTORY = ".cache";
 
 export type RecordedBase =
   | { readonly kind: "recorded"; readonly sha: string }
@@ -25,7 +27,7 @@ export interface CachedLanded {
 }
 
 export function landedCachePath(repoRoot: string): string {
-  return join(repoRoot, ".interlock", LANDED_CACHE_FILE);
+  return join(repoRoot, ".interlock", CACHE_DIRECTORY, LANDED_CACHE_FILE);
 }
 
 export function landedKeyOf(main: MainSnapshot, head: string, base: string | undefined): LandedKey {
@@ -200,6 +202,8 @@ export async function writeLandedCache(
   const temporary = `${path}.${process.pid}.${randomUUID()}.tmp`;
   const reusable = entries.map(serialized).filter((entry) => cachedOf(entry) !== undefined);
   try {
+    await mkdir(dirname(path), { recursive: true });
+    await writeFile(join(dirname(path), ".gitignore"), "*\n", { flag: "wx" }).catch(() => undefined);
     await writeFile(
       temporary,
       `${JSON.stringify({ version: LANDED_CACHE_VERSION, entries: reusable })}\n`,

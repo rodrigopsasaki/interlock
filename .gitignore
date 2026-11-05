@@ -17,6 +17,4 @@ packages/schemas/test/.runs/
 packages/substrate/test/.runs/
 .interlock/ledger/
 .interlock/local.yaml
-.interlock/landed-cache.json
-.interlock/landed-cache.json.*.tmp
 .interlock/sessions/**/screen.txt
