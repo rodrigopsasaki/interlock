@@ -31,6 +31,10 @@ gates:
   kind: command
   run: pnpm --fail-if-no-match --filter cli exec vitest run test/position.test.ts --passWithNoTests=false
   expect_output: Tests +[1-9][0-9]* passed
+- id: schema-proof
+  kind: command
+  run: pnpm --fail-if-no-match --filter schemas exec vitest run --passWithNoTests=false
+  expect_output: Tests +[1-9][0-9]* passed
 scope:
 - .gitignore
 - .interlock/config.yaml
@@ -80,6 +84,7 @@ scope:
 - .interlock/graphs/0050-verifier-fixture-writer.yaml
 - .interlock/graphs/0051-no-detached-maintenance.yaml
 - .interlock/graphs/0052-count-tells-the-truth.yaml
+- .interlock/graphs/0054-provider-routing.yaml
 - .interlock/graphs/readme-interlock-concept.yaml
 - .interlock/local.example.yaml
 - .interlock/sessions/0001-bootstrap/attempts/brief.md
@@ -377,6 +382,7 @@ scope:
 - .interlock/sessions/0051-no-detached-maintenance/worktree-maintenance/notes.yaml
 - .interlock/sessions/0052-count-tells-the-truth/landed/brief.md
 - .interlock/sessions/0052-count-tells-the-truth/retire/brief.md
+- .interlock/sessions/0054-provider-routing/provider-routing/brief.md
 - .interlock/sessions/readme-interlock-concept/readme/brief.md
 - .interlock/sessions/readme-interlock-concept/readme/debrief.yaml
 - .interlock/sessions/readme-interlock-concept/readme/notes.yaml
@@ -1005,24 +1011,35 @@ edit it.
 > shape (runtimes@v1) with schema tests, and keep runtimes@v0 readable.
 >
 > Selection. `--runtime <name>` still wins and is recorded as chosen-by explicit. Without it, the router
-> chooses among routable profiles. It picks the provider with the most known headroom. Ties and unknowns go
-> round-robin, in the order of the last attempt per provider, read from the ledger, never from process
-> memory. The provider `anthropic` is chosen only when no other routable provider is available or every other
-> one is known exhausted, and the recorded reason says which. local.yaml may name `provider_order` and
-> `last_resort` to override that default, both optional. With no routable profile, selection falls back
-> exactly as today and records why.
+> chooses among routable profiles:
+> - Headroom is compared as the fraction of a provider's own allowance remaining, 0 to 1. A source that gives
+>   no allowance to divide by makes that provider's headroom unknown.
+> - A provider is known exhausted when its fraction is 0, or its CLI reports it rate-limited now. It is
+>   available otherwise, and unknown headroom counts as available.
+> - Among available non-anthropic providers, the highest known fraction wins. Ties, and providers whose
+>   headroom is unknown, go round-robin: a provider never attempted goes first (in provider_order, else
+>   catalogue order), then the provider whose last attempt in the ledger is oldest. The ledger is read, never
+>   process memory.
+> - `anthropic` is chosen only when no other routable provider is available. With every headroom unknown,
+>   that means only when anthropic is the sole routable provider, as intended. The recorded reason says which
+>   case held.
+> - local.yaml may set `provider_order` (the order for never-attempted providers and ties) and `last_resort`
+>   (the provider kept last, default anthropic), both optional. Neither overrides a known headroom.
+> - With no routable profile, selection falls back exactly as today and records why.
 >
 > Headroom. Each provider's headroom comes from what that CLI or its local usage file actually reports. Find
 > out what codex, kimi and claude each expose on this machine, read-only and without spending a model call,
 > and record in notes what was found, with paths. A provider whose source exists reads as known, with its
-> value, unit and where it came from. A provider with no source reads as unknown, with its reason. Never
-> estimate one provider's headroom from another's. Headroom is read once per selection and never cached past
-> it.
+> fraction, the raw value and unit, and where it came from. A provider with no source reads as unknown, with
+> its reason. Never estimate one provider's headroom from another's. Headroom is read once per selection and
+> never cached past it.
 >
 > Record. Every attempt records provider, profile name, model, and chosen-by: explicit, routed with the
 > headroom reading of each candidate, last-resort with why, or fallback with why. `interlock position
-> --json` carries these on each attempt, and the text face says them in one line. Existing attempts read as
-> provider unknown, chosen-by unrecorded. Version every changed shape with schema tests.
+> --json` carries these on each attempt (live attempts and every node's attempts), and the text face says them
+> in one line in renderLive (packages/cli/src/position.ts:341) and the face's node rows. Existing attempts read as
+> provider unknown, chosen-by unrecorded. Version every changed shape (runtimes, local config, the session
+> event, positions) with schema tests in packages/schemas, keeping docs/shapes.md current.
 >
 > Tests: catalogue load with and without provider; the one-routable-per-provider refusal; round-robin from a
 > fixture ledger; most-headroom wins; anthropic last; explicit wins; fallback with no routable profile; known
