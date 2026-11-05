@@ -1,0 +1,140 @@
+interlock: debrief@v2
+graph: 0050-verifier-fixture-writer
+node: writer-is-closed
+role: implementer
+graph_base_sha: 652135b269933449c6978e5f922b2b3634b72236
+session_start_sha: b59458e8e06b4541360b3fa402bda413dcd1e5c6
+head_sha: b58f3a3d125060f7c4c7b900e2990d9da63608ce
+derivation:
+  kind: agent
+  runtime: claude-code
+  model: claude-opus-5-5
+discoveries:
+  - id: commit-launches-detached-maintenance
+    what: >-
+      git 2.54.0 `commit` launches `git maintenance run --auto --quiet --detach`, whose daemon
+      outlives the commit. Across one instrumented full parallel suite, 905 such daemons were
+      launched (895 by commit, 10 by merge), and some were still alive after their fixture's
+      teardown began.
+    found_at: '.interlock/sessions/0050-verifier-fixture-writer/writer-is-closed/notes.yaml:20 "spawns `git maintenance run --auto"'
+    mattered_because: >-
+      execFileSync waits only for the direct Git child, so a fixture's synchronous helpers do not
+      bound what Git keeps doing inside the fixture after they return.
+  - id: shard-17-sampling-triggers-repack
+    what: >-
+      Auto maintenance's geometric-repack condition estimates loose objects from objects/17 alone,
+      times 256, so two loose objects there are enough. The detached daemon then repacks after the
+      commit returns, creating pack files, a multi-pack-index and info/packs in the fixture.
+    found_at: '.interlock/sessions/0050-verifier-fixture-writer/writer-is-closed/notes.yaml:91 "too_many_loose_objects counts only objects/17/"'
+    mattered_because: >-
+      That makes the daemon a writer that creates entries, the only kind of concurrent change that
+      makes rmSync throw ENOTEMPTY. Concurrent deletion was benign in every trial.
+  - id: foundat-fixture-is-one-object-away
+    what: >-
+      The foundAt fixture always has one object in objects/17. Its commit id, which varies with
+      the commit timestamp, puts a second there about 1 in 256 commits, and foundAt.test.ts makes
+      21 commits per run.
+    found_at: '.interlock/sessions/0050-verifier-fixture-writer/writer-is-closed/notes.yaml:122 "one deterministic in 17/"'
+    mattered_because: >-
+      This explains why the failure hit foundAt.test.ts's afterEach rarely and only under load,
+      but it is an inference: the historical run-64TMAq is gone, so its commit id cannot be checked.
+  - id: deletion-is-benign
+    what: >-
+      Node 24.14's rmSync calls std::filesystem::remove_all. Concurrent deletion inside the tree
+      gave no ENOTEMPTY and no leftovers in 60 trials (41 with the deleter mid-flight). A stress
+      replica of init, add, commit and an immediate rmSync gave 0 failures in 1200 cycles.
+    found_at: '.interlock/sessions/0050-verifier-fixture-writer/writer-is-closed/notes.yaml:59 "Concurrent deletion is benign"'
+    mattered_because: >-
+      It rules out the daemon's routine release of objects/maintenance.lock as the cause, and
+      leaves only a creating writer.
+  - id: lock-is-gone-at-return
+    what: >-
+      The maintenance lock is a tempfile owned by the parent that daemonize() exits, so its atexit
+      cleanup unlinks it before the commit returns. The daemon repacks with no lock on disk.
+    found_at: '.interlock/sessions/0050-verifier-fixture-writer/writer-is-closed/notes.yaml:156 "atexit cleanup"'
+    mattered_because: >-
+      A regression that looked for the lock or for packs right after return failed only 1 time in
+      5 on the pre-fix code. The regression has to observe the writes without racing the daemon.
+  - id: daemon-recreates-removed-fixture
+    what: >-
+      In a real vitest run on the pre-fix commitAll, the daemon's pack-objects wrote
+      objects/pack/.tmp-88857-pack-*.pack after the test's single rmSync had already removed the
+      fixture. That recreated packages/verifier/test/.runs/run-1eaqpQ, which leaked silently.
+    found_at: '.interlock/sessions/0050-verifier-fixture-writer/writer-is-closed/notes.yaml:203 "rmSync had already removed the fixture"'
+    mattered_because: >-
+      It catches the writer inside a real fixture after its teardown rather than in a reproducer,
+      and it shows a second failure mode beside ENOTEMPTY, leaked fixtures, which the same fix
+      closes.
+decisions:
+  - id: close-at-fixture-commit
+    what: >-
+      commitAll in packages/verifier/test/support/gitFixture.ts passes -c maintenance.auto=false
+      beside its existing -c commit.gpgsign=false, so a fixture commit launches no maintenance.
+      Cleanup stays one immediate rmSync, and packages/verifier/src/git.ts is unchanged.
+    because: >-
+      The evidence implicates the fixture's commit invocation. Every verifier fixture commit goes
+      through commitAll, and production git.ts runs only cat-file, merge-base, show and diff, none
+      of which launches maintenance. With the same commit and teardown pause, a controlled
+      reproducer gave 5/80 ENOTEMPTY with auto maintenance and 0/80 with this flag.
+    rests_on:
+      - ".interlock/sessions/0050-verifier-fixture-writer/writer-is-closed/notes.yaml:114 \"0/40 and 0/40\""
+      - ".interlock/sessions/0050-verifier-fixture-writer/writer-is-closed/notes.yaml:80 \"895 by commit, 10 by merge\""
+      - packages/verifier/src/git.ts
+    hunks:
+      - packages/verifier/test/support/gitFixture.ts:20-36
+  - id: regression-observes-the-writes
+    what: >-
+      packages/verifier/test/fixtureCleanup.test.ts sets up the trigger with two blobs in
+      objects/17. It pins maintenance.autoDetach=false in the fixture's own config so any
+      maintenance the commit launches finishes before it returns, then runs the real commitAll
+      and asserts objects/pack is empty and both blobs are still loose.
+    because: >-
+      This exercises the demonstrated trigger through the helper's own path, and it observes what
+      reaches the repository rather than Git's flags, with no wait and no race. The command-line
+      -c in commitAll outranks repository config, so the test also proves the fix is the setting
+      in effect. On the pre-fix helper it failed 3 of 3 with "expected [ 'multi-pack-index', …(3) ]
+      to deeply equal []"; with the fix it passed 5 of 5.
+    rests_on:
+      - ".interlock/sessions/0050-verifier-fixture-writer/writer-is-closed/notes.yaml:156 \"atexit cleanup\""
+      - ".interlock/sessions/0050-verifier-fixture-writer/writer-is-closed/notes.yaml:91 \"too_many_loose_objects counts only objects/17/\""
+    hunks:
+      - packages/verifier/test/fixtureCleanup.test.ts:1-61
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+  - id: cleanup-proof
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter verifier exec vitest run test/fixtureCleanup.test.ts --passWithNoTests=false
+    note: Tests 1 passed (1)
+  - id: verifier-suite
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter verifier exec vitest run --passWithNoTests=false
+    note: Tests 60 passed (60)
+  - id: test
+    result: pass
+    invocation: mise exec -- pnpm test
+    note: >-
+      One full parallel run on the fixed code, 2417 tests. parallel-suite-2 and parallel-suite-3
+      are left to the runner, whose receipts are the binding proof.
+open:
+  - >-
+    The historical ENOTEMPTY itself was not reproduced in the suite. One instrumented full parallel
+    run was green, and the mechanism is demonstrated by a controlled reproducer and a deterministic
+    regression. The link to run-64TMAq is inferred from foundAt's fixture having one object in
+    objects/17 permanently; its commit id cannot be recovered.
+  - >-
+    packages/cli and packages/runner test fixtures also commit inside directories they
+    remove with rmSync. Their own helpers do not disable auto maintenance, so they carry the same
+    latent writer. Two cli fixtures (plan-88ffjG, run-7GKTDs) had a daemon still alive during
+    teardown. This node's acceptance scopes the fix to the verifier, so those helpers are unchanged.
+  - >-
+    The brief's global-config snapshot came from `git config --global --get-regexp`. On this
+    machine the global config lives at ~/.config/git/config, and auto maintenance is on by Git's
+    default rather than by any key, so the snapshot's lack of maintenance keys never ruled it out.
