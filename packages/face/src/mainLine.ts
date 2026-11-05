@@ -242,6 +242,7 @@ export const STABLE_DIFF_OPTIONS: readonly string[] = [
   "--no-ext-diff",
   "--no-textconv",
   "--no-renames",
+  "--no-prefix",
   "--unified=3",
 ];
 

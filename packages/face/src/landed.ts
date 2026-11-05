@@ -257,6 +257,20 @@ function touches(entry: MainCommit, paths: ReadonlySet<string>): string | undefi
   return entry.paths.find((path) => paths.has(path));
 }
 
+async function constituentRevertOf(
+  git: RepoGit,
+  evidence: Evidence,
+  landing: Landing,
+): Promise<Result<MainCommit | undefined, string>> {
+  const [squash] = landing.units;
+  if (landing.by !== "squash" || squash === undefined) return ok(undefined);
+  return firstDescendant(
+    git,
+    [squash.counterpart],
+    evidence.mainLog.filter((entry) => revertNames(entry, squash.originals)),
+  );
+}
+
 async function undoOf(
   git: RepoGit,
   evidence: Evidence,
@@ -286,7 +300,18 @@ async function undoOf(
     const found = wholeUndoer.value;
     if (found !== undefined) for (const unit of standing) undoers.set(unit, found);
   }
-  if (undoers.size === 0) return ok({ kind: "on-main", main: main.branch, head, by: landing.by });
+  if (undoers.size === 0) {
+    const partial = await constituentRevertOf(git, evidence, landing);
+    if (isErr(partial)) return partial;
+    if (partial.value !== undefined) {
+      return ok(
+        unknownLanded(
+          `${short(partial.value.commit)} on ${main.branch} reverts one of the commits squashed into ${short(landing.units[0]?.counterpart ?? head)}, which does not prove the whole squash undone`,
+        ),
+      );
+    }
+    return ok({ kind: "on-main", main: main.branch, head, by: landing.by });
+  }
 
   for (const [unit, undoer] of undoers) {
     const forwards = new Set(
