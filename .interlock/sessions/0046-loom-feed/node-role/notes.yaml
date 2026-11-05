@@ -41,3 +41,44 @@ entries:
       copy's word cannot override the graph's, exactly as gates and scope
       are already overwritten from the runner's view; leaving the no-role
       path untouched is what keeps the old brief byte for byte.
+  - kind: choice
+    at: "2026-11-05T01:30:00Z"
+    chose: >
+      interlock plan's own session keeps the role "interpreter"; the planner
+      role is a graph node's word, and the plan verb proves its output by a
+      pre-judgement check that every drafted node names a role, holding the
+      plan with a sentence when one does not.
+    because: >
+      Renaming interpreter would make every historical plan brief and
+      session-started event disagree with the new word for no gain this
+      node needs; the check makes "plan drafts graphs whose nodes each name
+      a role" a harness proof (I1) rather than a line in the brief alone.
+  - kind: choice
+    at: "2026-11-05T01:35:00Z"
+    chose: >
+      The runner's role parameter became a union SessionRole = worker |
+      interpreter | NodeRole instead of string, and the opening prompt picks
+      its sentence by an exhaustive switch over it; every non-interpreter
+      role keeps the derived filing sentence.
+    because: >
+      A string let any word reach the prompt with no sentence; the union
+      makes an unsentenced role unrepresentable. All six roles under
+      interlock run still file a debrief the same way; what each must
+      return is role-shapes-the-session's job.
+  - kind: surprise
+    at: "2026-11-05T01:45:00Z"
+    expected: >
+      The standing comments gate to pass on the graph base.
+    observed: >
+      Nine comment lines in packages/*/src (git buffer constants in four
+      files, a herdr u64 note) arrived from main and failed pnpm
+      check:comments before any change of mine. Fixed in its own commit by
+      naming the reason in the identifiers; behaviour unchanged.
+  - kind: surprise
+    at: "2026-11-05T01:50:00Z"
+    expected: >
+      The written worktree brief to start its body right after the closing
+      front-matter fence.
+    observed: >
+      renderBriefFile keeps the repository body's leading blank line, so
+      the byte-for-byte pin carries an empty line after "---".
