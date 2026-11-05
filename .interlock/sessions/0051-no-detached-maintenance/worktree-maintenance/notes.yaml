@@ -144,3 +144,31 @@ entries:
       The acceptance asks for traces retained outside the directories deliberately removed;
       the session directory is committed with the code, while test/.runs is gitignored
       scratch.
+  - kind: surprise
+    at: "2026-11-05T07:19:00Z"
+    expected: Raw trace excerpts to sit beside the notes under .interlock.
+    observed: >
+      packages/schemas/test/corpus.files.test.ts validates every .yaml, .yml, .md and .jsonl
+      under .interlock and failed four tests on the evidence/*.trace2.jsonl files ("carries no
+      interlock shape tag"). Raw Git trace2 output is not an Interlock artifact, and minting a
+      shape for it is outside this node's scope.
+  - kind: choice
+    at: "2026-11-05T07:20:00Z"
+    chose: >
+      Removed evidence/ and retained the subprocess evidence here instead. probe-b's default
+      detaching commit (trace sid suffixes; times UTC 2026-11-05):
+      07:10:26.492 commit P000182b9 spawns `git maintenance run --auto`;
+      .497 P000182db enters maintenance foreground/reflog-expire and spawns `git reflog expire
+      --all`, which exits 0 at .504; .504 P000182db enters maintenance/detach and its
+      foreground half exits 0 at .505; .505 the daemon enters maintenance/geometric-repack and
+      spawns `git repack -d -l --geometric=2 --quiet --write-midx`; .505 the commit P000182b9
+      exits 0, while the repack is still running; .524 `git multi-pack-index write
+      --stdin-packs`; .531 maintenance/commit-graph, `git commit-graph write --split
+      --reachable`; .537 maintenance/worktree-prune, `git worktree prune --expire
+      3.months.ago`; .541 maintenance/rerere-gc, `git rerere gc`; .546 the daemon exits 0.
+      The probe scripts' steps are recorded in the entries above; the proof test re-earns the
+      same partition and lock-down observations on every run.
+    because: >
+      This supersedes the 07:17 choice to keep evidence/ under the session directory: the
+      notes are the typed receipt the corpus already validates, and the deterministic test is
+      the retained, re-runnable form of the probes.
