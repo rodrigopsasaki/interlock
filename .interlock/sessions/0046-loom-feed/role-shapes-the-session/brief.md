@@ -66,3 +66,5 @@ edit it.
 > stays named generically (the wall). Tests pin, per role: prompt paragraph, required
 > debrief kinds, the walk with an address and with none, and the position fields.
 > Strict TypeScript. No push, no merge; the human merges.
+>
+> The attempt's `brief` also carries the `acceptance` from the stored session brief (never the graph's current text), so an attempt that predates an acceptance change shows what it was given; a test pins that case.

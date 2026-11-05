@@ -84,6 +84,8 @@ nodes:
       stays named generically (the wall). Tests pin, per role: prompt paragraph, required
       debrief kinds, the walk with an address and with none, and the position fields.
       Strict TypeScript. No push, no merge; the human merges.
+      The attempt's `brief` also carries the `acceptance` from the stored session brief (never the graph's current
+      text), so an attempt that predates an acceptance change shows what it was given; a test pins that case.
     gates:
       - id: role-session-proof
         kind: command
@@ -110,10 +112,13 @@ nodes:
       question shows its words; blocked without one shows null with the because; working
       shows no asking; an answered question stops showing. Strict TypeScript. Preserve every
       historical artifact. Append typed notes. No push, no merge; the human merges.
+      A `question` note enters the journal through note-appended, so this node owns the event change: the next
+      event version, the embedded-note schema, an upcaster for every older version, and a replay gate. `asking`
+      with no question is `{ asked: null, because, at }`, `at` being when the blocked status was observed.
     gates:
       - id: asked-proof
         kind: command
-        run: pnpm --filter face exec vitest run test/position.test.ts && pnpm --filter debrief exec vitest run test/notes.test.ts
+        run: pnpm --filter face exec vitest run test/position.test.ts && pnpm --filter debrief exec vitest run test/notes.test.ts && pnpm --filter ledger exec vitest run test/replay.test.ts
         expect_output: 'Tests +[1-9][0-9]* passed'
   - id: say-into-pane
     role: implementer
@@ -133,14 +138,17 @@ nodes:
       the event schema and the corpus check. Tests pin: delivered, refused with no live
       attempt, uncertain when the adapter fails after the intent is written, question
       closed, older journals replay. Strict TypeScript. No push, no merge; the human merges.
+      `heard` and the closing of `asking` follow only an acknowledged delivery, by a stable outbox identity: an
+      uncertain delivery leaves the question open and says so. Tests cover a crash between intent and delivery, and
+      replay. The gate runs test/session/say.test.ts by name.
     gates:
       - id: say-proof
         kind: command
-        run: pnpm --filter cli exec vitest run test/session && pnpm --filter ledger exec vitest run test/replay.test.ts
+        run: pnpm --filter cli exec vitest run test/session/say.test.ts && pnpm --filter ledger exec vitest run test/replay.test.ts
         expect_output: 'Tests +[1-9][0-9]* passed'
   - id: landed-on-main
     role: implementer
-    depends_on: [role-shapes-the-session]
+    depends_on: [say-into-pane]   # the chain: every node touches the position
     acceptance: |
       Say in the position whether a cleared node's work is on the repository's main line,
       so done can mean done. Each node gains `landed`, one of: `on-main` (the attempt's
@@ -155,6 +163,9 @@ nodes:
       Tests build real temporary git repositories and pin all four values, including a
       squash-merged branch reading on-main and a revert reading reverted-on-main. Strict
       TypeScript. No push, no merge; the human merges.
+      `on-main` for a squash compares the attempt's whole change (its diff from the attempt's base to its cleared
+      head) with main's history; a two-commit branch squashed into one is pinned as on-main, and anything ambiguous
+      reads `unknown` with a because, never a guess.
     gates:
       - id: landed-proof
         kind: command
@@ -180,6 +191,10 @@ nodes:
       no face reads the graph file beside it. Update schemas/position@v1.json and the terminal
       face, which shows the line under the graph's name. Tests pin one sentence per state
       and the said case. Strict TypeScript. No push, no merge; the human merges.
+      So a face needs nothing else: each attempt carries `runner`, the runner's own steps oldest first in the
+      observed voice; each node carries `notes`, every note of its latest attempt in its own words; and each graph
+      carries `changedAt` (latest change anywhere in it) and `sinceAt` (when it entered its present state), each
+      from a named journal fact.
     gates:
       - id: lines-proof
         kind: command

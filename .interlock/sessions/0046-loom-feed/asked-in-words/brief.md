@@ -61,3 +61,5 @@ edit it.
 > question shows its words; blocked without one shows null with the because; working
 > shows no asking; an answered question stops showing. Strict TypeScript. Preserve every
 > historical artifact. Append typed notes. No push, no merge; the human merges.
+>
+> A `question` note enters the journal through note-appended, so this node owns the event change: the next event version, the embedded-note schema, an upcaster for every older version, and a replay gate. `asking` with no question is `{ asked: null, because, at }`, `at` being when the blocked status was observed.

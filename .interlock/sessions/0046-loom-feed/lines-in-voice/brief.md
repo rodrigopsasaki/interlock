@@ -60,3 +60,5 @@ edit it.
 > no face reads the graph file beside it. Update schemas/position@v1.json and the terminal
 > face, which shows the line under the graph's name. Tests pin one sentence per state
 > and the said case. Strict TypeScript. No push, no merge; the human merges.
+>
+> So a face needs nothing else: each attempt carries `runner`, the runner's own steps oldest first in the observed voice; each node carries `notes`, every note of its latest attempt in its own words; and each graph carries `changedAt` (latest change anywhere in it) and `sinceAt` (when it entered its present state), each from a named journal fact.

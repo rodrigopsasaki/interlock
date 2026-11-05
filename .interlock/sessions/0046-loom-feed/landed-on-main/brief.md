@@ -57,3 +57,5 @@ edit it.
 > Tests build real temporary git repositories and pin all four values, including a
 > squash-merged branch reading on-main and a revert reading reverted-on-main. Strict
 > TypeScript. No push, no merge; the human merges.
+>
+> `on-main` for a squash compares the attempt's whole change (its diff from the attempt's base to its cleared head) with main's history; a two-commit branch squashed into one is pinned as on-main, and anything ambiguous reads `unknown` with a because, never a guess.

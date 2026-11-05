@@ -58,3 +58,5 @@ edit it.
 > the event schema and the corpus check. Tests pin: delivered, refused with no live
 > attempt, uncertain when the adapter fails after the intent is written, question
 > closed, older journals replay. Strict TypeScript. No push, no merge; the human merges.
+>
+> `heard` and the closing of `asking` follow only an acknowledged delivery, by a stable outbox identity: an uncertain delivery leaves the question open and says so. Tests cover a crash between intent and delivery, and replay. The gate runs test/session/say.test.ts by name.
