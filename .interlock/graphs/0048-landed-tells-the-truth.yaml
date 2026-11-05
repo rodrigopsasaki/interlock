@@ -155,3 +155,57 @@ nodes:
         kind: command
         run: pnpm --fail-if-no-match --filter cli exec vitest run test/face/landedCache.test.ts
         expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: live-attempt-facts
+    role: implementer
+    depends_on: []
+    acceptance: |
+      Two additions from the Preston cockpit thread, both in the position
+      that `interlock position --json` prints.
+
+      1. Every live attempt, in every repository asked about, carries a
+      `pane` and a `startedAt`. `pane` is the address the herdr adapter
+      reports for the attempt's session, kept as an opaque string that no
+      reader parses. `startedAt` is milliseconds since the epoch, taken
+      from a recorded time for the session's start (the journal's own, or
+      the runner's lease for that session). When either cannot be known
+      (no adapter attached, the adapter does not know the session, or no
+      recorded start time), the field reads
+      `{ "state": "unknown", "because": "<reason in words>" }`, never an
+      invented value and never omitted; a known one reads
+      `{ "state": "known", "value": ... }`. The runtime adapter is asked
+      once per position read, shared across graphs, as agent status is
+      today. The change is additive under positions@v0 if, and only if, no
+      existing v0 reader refuses the new fields; otherwise publish
+      positions@v1 alongside v0, following docs/design/0001-interlock.md
+      on evolution, and say which in a typed note.
+
+      2. lines-in-voice: for a graph whose approval gate is pending (never
+      approved), the observed line reads exactly "Drafted and waiting for
+      your approval." in place of "human gate approved pending at <graph>".
+      A stale approval keeps its current line. Every word is in the face's
+      closed vocabulary; extend that vocabulary in the same place the
+      existing I3 test reads it, if any word is missing.
+
+      Tests: a live attempt with a known pane and start time; one whose
+      adapter is absent; one whose session the adapter does not know; one
+      with no recorded start; two repositories asked at once, each with a
+      live attempt; the schema accepts the known and unknown shapes and
+      refuses a bare string or number; the pending-approval line equals the
+      new text exactly, a stale one is unchanged, and the I3 vocabulary
+      test passes with it. Strict TypeScript, no assertions, no non-null
+      operators. Preserve every historical artifact. Append typed notes for
+      choices and discoveries. No push, no merge; the human merges.
+    gates:
+      - id: live-facts-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/position.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: voice-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter face exec vitest run test/position.test.ts test/render.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: schema-proof-positions
+        kind: command
+        run: pnpm --fail-if-no-match --filter schemas exec vitest run
+        expect_output: 'Tests +[1-9][0-9]* passed'
