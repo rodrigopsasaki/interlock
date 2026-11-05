@@ -99,11 +99,45 @@ nodes:
       base SHA). An unchanged refresh whose requested keys all have successful
       cached judgments performs only the shared main snapshot read and zero
       per-node git reads. A screen-only redraw performs none. Main movement
-      invalidates every entry keyed by the previous SHA. Do not persist the
-      cache. A judgment caused by a failed git read or an unavailable required
+      invalidates every entry keyed by the previous SHA. A judgment caused by a failed git read or an unavailable required
       head/base object is not cacheable; retry it on a later refresh even when
       its key is unchanged. Deterministic unknown results from complete,
       successful reads may be cached.
+
+      4. No blocking git in the read path. Since a6f878f,
+      packages/face/src/mainLine.ts runs git through spawnSync for every
+      cleared node (rev-list, diff, cat-file, merge-base), so any
+      process that imports face in-process has its event loop blocked
+      for minutes; an in-process reader stopped answering for that
+      reason. mainLine and every git read on face's read path become
+      asynchronous, with a bounded concurrency of git children shared
+      across all repositories and nodes in one read (a named constant,
+      default 8). No spawnSync, execSync or execFileSync remains
+      anywhere in packages/face/src or in the cli's position read path;
+      a test fails if one is reintroduced there.
+
+      5. A warm read is fast. A successful judgment is a pure function
+      of its key (main branch, main SHA, cleared head SHA, base SHA),
+      because git objects are immutable, so successful judgments are
+      also kept on disk across processes, in a per-repository cache file
+      under .interlock/ that is listed in .gitignore, never committed
+      and never read as truth: a missing, unreadable or wrong-version
+      cache file is ignored and rebuilt, and a judgment from a failed
+      read is never written. With the cache warm and nothing moved,
+      `interlock position --json --repo <preston> --repo <interlock>` on
+      the owner's Mac finishes in under 1 second wall time.
+      scripts/warmPosition.ts measures it: it runs the command once to
+      warm, then three more times, and prints the slowest of the three
+      in milliseconds as `warm position ms: <n>` and `warm position: ok`
+      when n < 1000, exiting nonzero otherwise. It takes the repository
+      paths as arguments and refuses to run when either path is missing.
+
+      Create packages/face/test/noSyncGit.test.ts asserting no synchronous
+      child-process call in packages/face/src or the cli position read path,
+      and that one read of many cleared nodes never runs more git children at
+      once than the bound. Extend landedCache.test.ts: a judgment survives a
+      new process through the disk cache, a corrupt cache file is ignored and
+      rebuilt, and a failed read is never written.
 
       Tests, in packages/face/test/landed.test.ts, each in a real temporary
       repository built by the test. Use three independently reversible commits
@@ -154,6 +188,14 @@ nodes:
       - id: cache-proof
         kind: command
         run: pnpm --fail-if-no-match --filter cli exec vitest run test/face/landedCache.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: warm-position-proof
+        kind: command
+        run: node scripts/warmPosition.ts /Users/rodrigosasaki/dev/private/preston /Users/rodrigosasaki/dev/private/interlock
+        expect_output: 'warm position: ok'
+      - id: no-sync-git-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter face exec vitest run test/noSyncGit.test.ts
         expect_output: 'Tests +[1-9][0-9]* passed'
 
   - id: live-attempt-facts
