@@ -50,9 +50,13 @@ nodes:
       old brief byte for byte; an unknown role refuses with a sentence. Preserve every
       historical artifact. Append typed notes. No push, no merge; the human merges.
     gates:
-      - id: role-proof
+      - id: role-proof-1
         kind: command
-        run: pnpm --filter face exec vitest run test/position.test.ts && pnpm --filter runner exec vitest run test/sessionBrief.test.ts
+        run: pnpm --filter face exec vitest run test/position.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: role-proof-2
+        kind: command
+        run: pnpm --filter runner exec vitest run test/sessionBrief.test.ts
         expect_output: 'Tests +[1-9][0-9]* passed'
       - id: role-schema-proof
         kind: command
@@ -87,9 +91,17 @@ nodes:
       The attempt's `brief` also carries the `acceptance` from the stored session brief (never the graph's current
       text), so an attempt that predates an acceptance change shows what it was given; a test pins that case.
     gates:
-      - id: role-session-proof
+      - id: role-session-proof-1
         kind: command
-        run: pnpm --filter runner exec vitest run test/sessionBrief.test.ts && pnpm --filter debrief exec vitest run && pnpm --filter face exec vitest run test/position.test.ts
+        run: pnpm --filter runner exec vitest run test/sessionBrief.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: role-session-proof-2
+        kind: command
+        run: pnpm --filter debrief exec vitest run
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: role-session-proof-3
+        kind: command
+        run: pnpm --filter face exec vitest run test/position.test.ts
         expect_output: 'Tests +[1-9][0-9]* passed'
   - id: asked-in-words
     role: implementer
@@ -116,9 +128,17 @@ nodes:
       event version, the embedded-note schema, an upcaster for every older version, and a replay gate. `asking`
       with no question is `{ asked: null, because, at }`, `at` being when the blocked status was observed.
     gates:
-      - id: asked-proof
+      - id: asked-proof-1
         kind: command
-        run: pnpm --filter face exec vitest run test/position.test.ts && pnpm --filter debrief exec vitest run test/notes.test.ts && pnpm --filter ledger exec vitest run test/replay.test.ts
+        run: pnpm --filter face exec vitest run test/position.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: asked-proof-2
+        kind: command
+        run: pnpm --filter debrief exec vitest run test/notes.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: asked-proof-3
+        kind: command
+        run: pnpm --filter ledger exec vitest run test/replay.test.ts
         expect_output: 'Tests +[1-9][0-9]* passed'
   - id: say-into-pane
     role: implementer
@@ -142,9 +162,13 @@ nodes:
       uncertain delivery leaves the question open and says so. Tests cover a crash between intent and delivery, and
       replay. The gate runs test/session/say.test.ts by name.
     gates:
-      - id: say-proof
+      - id: say-proof-1
         kind: command
-        run: pnpm --filter cli exec vitest run test/session/say.test.ts && pnpm --filter ledger exec vitest run test/replay.test.ts
+        run: pnpm --filter cli exec vitest run test/session/say.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: say-proof-2
+        kind: command
+        run: pnpm --filter ledger exec vitest run test/replay.test.ts
         expect_output: 'Tests +[1-9][0-9]* passed'
   - id: landed-on-main
     role: implementer
@@ -219,7 +243,11 @@ nodes:
       journal; an unparseable graph file; the live-attempt list. Strict TypeScript. No push,
       no merge; the human merges.
     gates:
-      - id: everything-proof
+      - id: everything-proof-1
         kind: command
-        run: pnpm --filter cli exec vitest run test/position.test.ts && pnpm --filter schemas exec vitest run
+        run: pnpm --filter cli exec vitest run test/position.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: everything-proof-2
+        kind: command
+        run: pnpm --filter schemas exec vitest run
         expect_output: 'Tests +[1-9][0-9]* passed'
