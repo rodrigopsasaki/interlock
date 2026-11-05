@@ -1,0 +1,59 @@
+interlock: notes@v0
+node: writer-is-closed
+entries:
+  - kind: choice
+    at: "2026-11-05T06:11:45Z"
+    chose: >
+      Started the 60-minute instrumented-investigation clock at 06:11:45Z and
+      began with detached work launched by fixture Git commands, tracing a
+      replica of the verifier fixture (init, add -A, commit) with
+      GIT_TRACE2_EVENT under packages/verifier/test/.runs/probe.
+    because: >
+      The acceptance names detached fixture Git work as the first hypothesis
+      and bounds the investigation; trace2 records every child Git spawns,
+      including daemonized ones, without changing the code under test.
+  - kind: surprise
+    at: "2026-11-05T06:12:10Z"
+    expected: >
+      A one-commit fixture would launch no detached Git work.
+    observed: >
+      git 2.54.0 (Apple Git-157) `commit` spawns `git maintenance run --auto
+      --quiet --detach` (trace2 child_start, run-command.c:739). The child
+      takes objects/maintenance.lock, daemonizes (region "maintenance
+      detach"), and its daemon emitted its exit event after `git commit`
+      itself had exited. `init`, `add -A` and `rev-parse` spawn nothing. Per
+      v2.54.0 run-command.c prepare_auto_maintenance, `maintenance.auto=false`
+      suppresses the spawn and `maintenance.autoDetach`/`gc.autoDetach` decide
+      --detach.
+  - kind: surprise
+    at: "2026-11-05T06:14:00Z"
+    expected: >
+      The detached daemon might write into the fixture repository after the
+      commit returns (the hypothesis's writer).
+    observed: >
+      Per v2.54.0 builtin/gc.c maintenance_run_tasks, the lock is taken before
+      daemonize() and released by rollback_lock_file() after the background
+      phase. Auto maintenance uses the geometric strategy (commit-graph,
+      geometric-repack, pack-refs, rerere-gc, reflog-expire, worktree-prune),
+      each gated by an auto condition that a one-commit repository does not
+      meet (commit-graph needs 100 commits outside a graph; geometric-repack
+      needs 100 loose objects or two packs to merge), and the trace shows no
+      task region. So under defaults the daemon's only write after commit
+      returns is the unlink of objects/maintenance.lock: a deletion, not a
+      creation. A poller (test/.runs/watch.mjs, three runs, unloaded) saw no
+      lock left when the commit returned and no entry appear in .git over
+      1.5 s afterward.
+  - kind: surprise
+    at: "2026-11-05T06:15:00Z"
+    expected: >
+      A concurrent deletion inside the tree could make rmSync fail.
+    observed: >
+      Node v24.14.0 RmSync (src/node_file.cc) calls
+      std::filesystem::remove_all, treats ENOENT as success and, with the
+      default maxRetries 0, throws ENOTEMPTY ("Directory not empty") on the
+      first failure. A controlled reproducer (test/.runs/unlinkrace.mjs: 4000
+      files under .git/objects deleted by a concurrent `rm` while rmSync
+      runs, 60 trials) produced no ENOTEMPTY and no silent leftovers. A
+      stress replica (test/.runs/race.mjs: init, add, commit, immediate
+      rmSync; 8 parallel processes x 150) produced 0 failures in 1200.
+      Concurrent deletion is benign; ENOTEMPTY needs a concurrent creation.
