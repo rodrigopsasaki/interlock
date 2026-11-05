@@ -75,7 +75,15 @@ function parseEntry(raw: unknown): Result<Note, string> {
     if (!isString(observed)) return err('missing "observed"');
     return ok({ kind: "surprise", at, expected, observed });
   }
-  return err('"kind" must be "choice" or "surprise"');
+  if (kind === "question") {
+    const asked = prop(raw, "asked");
+    if (!isString(asked)) return err('missing "asked"');
+    const options = prop(raw, "options");
+    if (options === undefined) return ok({ kind: "question", at, asked });
+    if (!isStringArray(options)) return err('"options" must be a list of short answers');
+    return ok({ kind: "question", at, asked, options });
+  }
+  return err('"kind" must be "choice", "surprise" or "question"');
 }
 
 export async function readNotesFile(path: string): Promise<Result<readonly Note[], NotesRefusal>> {

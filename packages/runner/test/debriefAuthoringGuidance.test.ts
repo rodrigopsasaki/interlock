@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { isOk } from "@phyxiusjs/fp";
-import { readDebriefDocument } from "debrief";
+import { readDebriefDocument, readNotesFile } from "debrief";
 import { derivation, mark } from "ledger";
 import { evidenceOf, toWireDebrief } from "substrate";
 import { verifyDebrief } from "verifier";
@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   debriefAuthoringGuidance,
   pathAppliesToExample,
+  questionNoteExample,
   rangedDiscoveryExample,
   rangedDiscoveryFoundAt,
   repositoryAppliesToExample,
@@ -363,5 +364,32 @@ describe("debrief authoring guidance", () => {
       decisions: [{ decision, marks: [mark.unrooted(verifier, "support is unavailable")] }],
     });
     expect(unrooted.items).toEqual([]);
+  });
+});
+
+describe("debrief authoring guidance: waiting on a person", () => {
+  it("tells the session to append a question note before it waits, then ask in the pane", () => {
+    expect(debriefAuthoringGuidance).toContain(
+      "Before you stop to wait for a person in your pane, append a question note to notes.yaml, then\nask in the pane as you do today.",
+    );
+    expect(debriefAuthoringGuidance).toContain(questionNoteExample);
+  });
+
+  it("shows a question note example that notes@v0's reader accepts as written", async () => {
+    directory = mkdtempSync(join(runsRoot, "run-"));
+    const path = join(directory, "notes.yaml");
+    writeFileSync(
+      path,
+      ["interlock: notes@v0", "node: n", "entries:", questionNoteExample, ""].join("\n"),
+    );
+    const read = await readNotesFile(path);
+    expect(isOk(read) && read.value).toEqual([
+      {
+        kind: "question",
+        at: "2026-11-05T01:30:00Z",
+        asked: "Should the walk stay empty when the substrate address is none?",
+        options: ["yes", "no"],
+      },
+    ]);
   });
 });

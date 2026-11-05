@@ -22,6 +22,7 @@ import type { LocalConfig } from "./localConfig.ts";
 import { recordingNarrate } from "./narration.ts";
 import { buildOpeningPrompt, type PriorWork, type SessionRole } from "./openingPrompt.ts";
 import { deliverOpeningPrompt } from "./promptDelivery.ts";
+import { recordQuestionNotes } from "./questionNotes.ts";
 import type { RoleShape } from "./roleShape.ts";
 import {
   type Agent,
@@ -382,6 +383,7 @@ export async function driveInteractiveSession(
         localConfig.answerGraceMs,
         narrate,
         readUnfinishedWork,
+        () => recordQuestionNotes(ledger, sessionId, worktreePath, targetNode),
       );
     }
     lease.stop();

@@ -57,6 +57,7 @@ export async function waitForSession(
   answerGraceMs: number,
   narrate: (line: string) => void,
   readUnfinishedWork: () => UnfinishedWork | undefined,
+  recordBlocked: () => Promise<void> = () => Promise.resolve(),
 ): Promise<Result<AgentStatus, RuntimeRefusal>> {
   let until = AFTER_WORKING;
   let lastStatus: AgentStatus = "unknown";
@@ -88,6 +89,7 @@ export async function waitForSession(
     lastStatus = waited.value;
 
     if (waited.value === "blocked") {
+      await recordBlocked();
       const screen = await runtime.read(agent);
       const summary = isErr(screen)
         ? `(screen unreadable: ${explainRuntimeRefusal(screen.error)})`

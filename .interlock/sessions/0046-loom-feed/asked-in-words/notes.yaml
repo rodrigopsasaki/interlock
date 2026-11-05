@@ -1,0 +1,119 @@
+interlock: notes@v0
+node: asked-in-words
+entries:
+  - kind: surprise
+    at: "2026-11-05T02:05:00Z"
+    expected: >
+      Notes reach the journal while a session works, so a face could read a
+      blocked session's question from the projection.
+    observed: >
+      The runner appends note-appended only in ingestDebrief
+      (packages/runner/src/gateJudge.ts), after the session's debrief is
+      filed. A question written while the session is blocked would not reach
+      the position until the session ended, when it no longer matters.
+  - kind: choice
+    at: "2026-11-05T02:10:00Z"
+    chose: >
+      The question note is its own event version, event@v8. Its upcaster
+      table refuses a note-appended carrying a question under every older
+      tag (v1 to v7), through one wrapper in envelope.ts, and passes every
+      other older line through unchanged.
+    because: >
+      The acceptance owns the next event version for this note kind. An old
+      reader would refuse a question note outright, so it cannot be additive
+      within event@v7. Refusing a question under an older tag keeps the rule
+      that a version carries only what it could have written.
+    rejected:
+      - widening parts/note.json, which event@v1-v4 embed, so old schemas would accept a kind they never had
+  - kind: choice
+    at: "2026-11-05T02:12:00Z"
+    chose: >
+      The embedded question gets its own part, parts/question-note.json, and
+      event@v8 constrains note-appended's note to one of parts/note.json or
+      it. event@v7's schema gains a not-a-question rule on note-appended.
+    because: >
+      event@v7 never constrained note-appended, so without the rule a v7
+      line carrying a question would validate against its schema while the
+      upcaster refused it. I checked all 3,156 lines of the real shared
+      journal against their schemas after the change: none refused.
+  - kind: choice
+    at: "2026-11-05T02:15:00Z"
+    chose: >
+      notes.yaml's question refuses options that are not a list of strings,
+      unlike a choice's rejected, which the reader drops when it parsed as a
+      plain string.
+    because: >
+      The leniency on rejected exists for history (folded scalars in real
+      files). A question has no history, and options a face would offer as
+      answers must be the session's exact short answers, never a guess.
+  - kind: choice
+    at: "2026-11-05T02:20:00Z"
+    chose: >
+      askingOf (packages/face/src/asking.ts) takes the latest question note
+      on the attempt. It counts as answered only when the attempt has its own
+      outcome. With no question, or an answered one, asked is null with a
+      because, and at is the read's own time (nowWallMs) in ISO form.
+    because: >
+      The acceptance defines answered as a person's words reaching the pane
+      (say-into-pane, not built yet) or the attempt ending. The only ended
+      attempt that can still report blocked is one whose outcome was set
+      while its lease is live, because agentStatus is only resolved for a
+      live lease. The face resolves the blocked status itself at read time,
+      so the read's own time is when the blocked status was observed.
+      Nothing in the journal records it earlier, except the runner's
+      narration line, and parsing that text would be guessing.
+  - kind: choice
+    at: "2026-11-05T02:22:00Z"
+    chose: >
+      asking.at is a string: the question note's own at verbatim, or an ISO
+      time for the observed blocked status. loom@v0 types at as a number.
+    because: >
+      A note's at is the session's own string, and the face never rewrites
+      the session's record. A face mapping onto loom@v0 parses it. That
+      mismatch goes in the debrief's open.
+  - kind: choice
+    at: "2026-11-05T02:35:00Z"
+    chose: >
+      The runner records a session's question notes in the journal each time
+      waitForSession observes the agent blocked, through an optional
+      recordBlocked hook that sessionDrive fills with recordQuestionNotes
+      (packages/runner/src/questionNotes.ts). It reads the worktree's
+      notes.yaml and appends each question not yet recorded. At debrief
+      time, ingestDebrief appends every note except a question already
+      recorded that way.
+    because: >
+      Without this, a question would reach the journal only after the
+      debrief, so asking would always be null while it mattered. The runner
+      already watches the pane's status and owns the journal writes for a
+      session. It reads the session's own file, never the pane's screen, so
+      the face still never invents or scrapes the words. Only questions are
+      deduplicated, by deep equality, so a notes file that repeats an
+      identical choice still files it twice, as it did before.
+    rejected:
+      - the face reading notes.yaml from the worktree on every read, which would make the position depend on a file outside the journal and break replay
+      - appending every note live, which changes when choices and surprises enter the journal, out of this node's scope
+  - kind: choice
+    at: "2026-11-05T02:40:00Z"
+    chose: >
+      The question instruction goes into every opening prompt, whatever the
+      role, right after the notes sentence. The same instruction and a
+      question example go inside the debrief-authoring-guidance@v1 block,
+      with its markers unchanged.
+    because: >
+      Any session can wait on a person, an interpreter included. The block's
+      markers are how withDebriefAuthoringGuidance finds and replaces the
+      generated region in a brief body. Bumping them to v2 would make every
+      existing v1 block an unknown region, so the new text would be appended
+      beside it instead of replacing it. Stored briefs are immutable either
+      way; only briefs written from now on carry the new text.
+  - kind: surprise
+    at: "2026-11-05T02:42:00Z"
+    expected: >
+      A node without a role keeps its brief byte for byte, as
+      role-shapes-the-session pinned, so adding text to the opening prompt
+      would break a byte-for-byte test for the roleless case.
+    observed: >
+      Only openingPrompt.test.ts pins the full worker prompt. The acceptance
+      asks every session to be told, so that pin now carries the new
+      sentence. The brief tests pin role behaviour against the generated
+      guidance constant, not a literal copy, so they pass unchanged.

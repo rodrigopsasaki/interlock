@@ -13,6 +13,13 @@ export const rangedDiscoveryExample = [
   "    mattered_because: A later session can re-read the cited source.",
 ].join("\n");
 
+export const questionNoteExample = [
+  "  - kind: question",
+  '    at: "2026-11-05T01:30:00Z"',
+  "    asked: Should the walk stay empty when the substrate address is none?",
+  "    options: [yes, no]",
+].join("\n");
+
 export const debriefAuthoringGuidance = [
   START,
   "## Debrief authoring",
@@ -49,6 +56,15 @@ export const debriefAuthoringGuidance = [
   "judgment. Treat received context as a hypothesis: check, reject, or leave it unused.",
   "",
   "Before filing, optionally inspect an authored candidate read-only with `interlock debrief preview --file <candidate>`.",
+  "",
+  "Before you stop to wait for a person in your pane, append a question note to notes.yaml, then",
+  "ask in the pane as you do today. `asked` is the question in the words you would say to the",
+  "person; optional `options` are the short answers you would accept. The position shows exactly",
+  "these words while you wait, and nothing else:",
+  "",
+  "```yaml",
+  questionNoteExample,
+  "```",
   END,
 ].join("\n");
 

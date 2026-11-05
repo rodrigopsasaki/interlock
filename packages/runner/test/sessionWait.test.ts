@@ -570,4 +570,36 @@ describe("waitForSession", () => {
 
     expect(lines).toEqual(["agent settled with no debrief; judging in 5s unless it resumes"]);
   });
+
+  it("lets the runner record what the session asked each time it observes the agent blocked", async () => {
+    const clock = createControlledClock({ initialTime: 0 });
+    const script: AgentStatus[] = ["blocked", "working", "blocked", "done"];
+    const runtime = stubRuntime({
+      waitUntil: (_agent, until, timeoutMs) => {
+        const next = script.shift();
+        if (next !== undefined) return Promise.resolve(ok(next));
+        clock.advanceBy(ms(timeoutMs));
+        return Promise.resolve(err({ kind: "timeout", until, timeoutMs, status: "done" }));
+      },
+    });
+    let recorded = 0;
+
+    const result = await waitForSession(
+      runtime,
+      agent,
+      clock,
+      deadlineFrom(clock.now().monoMs, ms(600_000)),
+      600_000,
+      5_000,
+      () => undefined,
+      () => undefined,
+      () => {
+        recorded += 1;
+        return Promise.resolve();
+      },
+    );
+
+    expect(isErr(result)).toBe(false);
+    expect(recorded).toBe(2);
+  });
 });

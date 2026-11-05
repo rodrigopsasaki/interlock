@@ -1,5 +1,12 @@
 import { isRecord, isString, isStringArray, prop } from "./validate.ts";
 
+export type QuestionNote = {
+  readonly kind: "question";
+  readonly at: string;
+  readonly asked: string;
+  readonly options?: readonly string[];
+};
+
 export type Note =
   | {
       readonly kind: "choice";
@@ -13,7 +20,8 @@ export type Note =
       readonly at: string;
       readonly expected: string;
       readonly observed: string;
-    };
+    }
+  | QuestionNote;
 
 export const note = {
   choice: (at: string, chose: string, because: string, rejected?: readonly string[]): Note =>
@@ -26,7 +34,15 @@ export const note = {
     expected,
     observed,
   }),
+  question: (at: string, asked: string, options?: readonly string[]): QuestionNote =>
+    options === undefined
+      ? { kind: "question", at, asked }
+      : { kind: "question", at, asked, options },
 };
+
+export function isQuestionNote(value: Note): value is QuestionNote {
+  return value.kind === "question";
+}
 
 export function isNote(value: unknown): value is Note {
   if (!isRecord(value)) return false;
@@ -43,6 +59,10 @@ export function isNote(value: unknown): value is Note {
     }
     case "surprise":
       return isString(prop(value, "expected")) && isString(prop(value, "observed"));
+    case "question": {
+      const options = prop(value, "options");
+      return isString(prop(value, "asked")) && (options === undefined || isStringArray(options));
+    }
     default:
       return false;
   }

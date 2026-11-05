@@ -59,8 +59,8 @@ export {
 } from "./mark.ts";
 export type { NearestTerm } from "./nearestTerm.ts";
 export { nearestTerm } from "./nearestTerm.ts";
-export type { Note } from "./note.ts";
-export { isNote, note } from "./note.ts";
+export type { Note, QuestionNote } from "./note.ts";
+export { isNote, isQuestionNote, note } from "./note.ts";
 export type {
   OutboxArtifact,
   OutboxArtifactRefusal,
