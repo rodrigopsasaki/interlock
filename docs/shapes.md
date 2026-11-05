@@ -822,13 +822,14 @@ No vocabulary entry for `event`.
 - `event@v4`: no field changes from the previous version.
 - `event@v5`: removed kind `node-created`; removed kind `lease-taken|lease-renewed`; removed kind `lease-expired`; removed kind `session-started`; removed kind `note-appended`; removed kind `debrief-filed`; removed kind `gate-moved`; removed kind `receipt-written`; removed kind `outcome-set`; removed kind `outbox-intent-recorded`; removed kind `session-narrated`.
 - `event@v6`: no field changes from the previous version.
+- `event@v7`: retyped `kind`.
 
-### Fields (`event@v6`)
+### Fields (`event@v7`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `interlock` | the literal `"event@v6"` | yes |  |
-| `kind` | one of `"node-created"`, `"lease-taken"`, `"lease-renewed"`, `"lease-expired"`, `"session-started"`, `"note-appended"`, `"debrief-filed"`, `"gate-moved"`, `"receipt-written"`, `"outcome-set"`, `"outbox-intent-recorded"`, `"outbox-delivery-recorded"`, `"session-narrated"` | yes |  |
+| `interlock` | the literal `"event@v7"` | yes |  |
+| `kind` | one of `"node-created"`, `"lease-taken"`, `"lease-renewed"`, `"lease-expired"`, `"session-started"`, `"note-appended"`, `"debrief-filed"`, `"gate-moved"`, `"receipt-written"`, `"outcome-set"`, `"outbox-intent-recorded"`, `"outbox-delivery-recorded"`, `"session-narrated"`, `"session-facts-observed"` | yes |  |
 
 ### Examples
 
@@ -867,6 +868,10 @@ _No example of `event@v5` was found in the corpus._
 #### `event@v6`
 
 _No example of `event@v6` was found in the corpus._
+
+#### `event@v7`
+
+_No example of `event@v7` was found in the corpus._
 
 ## graph
 

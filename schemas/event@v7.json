@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/event@v7.json",
+  "title": "event@v7",
+  "description": "One journal line at the current shape. Additive over event@v6: a session may carry an observed session-facts record.",
+  "type": "object",
+  "properties": {
+    "interlock": { "const": "event@v7" },
+    "kind": {
+      "enum": ["node-created", "lease-taken", "lease-renewed", "lease-expired", "session-started", "note-appended", "debrief-filed", "gate-moved", "receipt-written", "outcome-set", "outbox-intent-recorded", "outbox-delivery-recorded", "session-narrated", "session-facts-observed"]
+    }
+  },
+  "required": ["interlock", "kind"],
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "const": "session-started" } } },
+      "then": {
+        "properties": {
+          "session": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "node": { "$ref": "parts/node.json" },
+              "runtime": { "$ref": "parts/session-runtime.json" }
+            },
+            "required": ["id", "node", "runtime"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["session"]
+      }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "session-facts-observed" } } },
+      "then": {
+        "properties": {
+          "session": { "type": "string" },
+          "facts": { "$ref": "parts/session-facts.json" }
+        },
+        "required": ["session", "facts"]
+      }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "outbox-intent-recorded" } } },
+      "then": {
+        "properties": { "node": { "$ref": "parts/node.json" }, "effect": { "$ref": "parts/outbox-intent.json" } },
+        "required": ["node", "effect"]
+      }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "outbox-delivery-recorded" } } },
+      "then": {
+        "properties": {
+          "delivery": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+              "state": { "enum": ["acknowledged", "uncertain"] },
+              "because": { "type": "string" },
+              "derivation": { "$ref": "parts/derivation.json" },
+              "acknowledgment": { "$ref": "parts/outbox-artifact.json" }
+            },
+            "required": ["id", "state", "because", "derivation"],
+            "allOf": [
+              {
+                "if": { "properties": { "state": { "const": "acknowledged" } } },
+                "then": {
+                  "properties": {
+                    "acknowledgment": { "$ref": "parts/outbox-artifact.json" }
+                  },
+                  "required": ["acknowledgment"]
+                },
+                "else": { "not": { "required": ["acknowledgment"] } }
+              }
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": ["delivery"]
+      }
+    }
+  ]
+}
