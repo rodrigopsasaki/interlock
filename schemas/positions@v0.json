@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/positions@v0.json",
+  "title": "positions@v0",
+  "description": "One read of every graph in every repository a face asks about, emitted only by interlock position --json and read back nowhere. Each repository says whether its journal read; a journal that did not read never stands in as an empty one, so its graphs read unreadable and it carries no live list. A graph file that does not load stays listed by id with the loader's refusal. Nothing in it is cached between reads.",
+  "type": "object",
+  "properties": {
+    "interlock": { "const": "positions@v0" },
+    "repositories": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/repository" }
+    }
+  },
+  "required": ["interlock", "repositories"],
+  "additionalProperties": false,
+  "$defs": {
+    "repository": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "asked": { "type": "string" },
+            "state": { "const": "found" },
+            "root": { "type": "string" },
+            "origin": { "$ref": "#/$defs/origin" },
+            "journal": {
+              "type": "object",
+              "properties": { "state": { "const": "read" } },
+              "required": ["state"],
+              "additionalProperties": false
+            },
+            "graphs": { "type": "array", "items": { "$ref": "#/$defs/graph" } },
+            "live": {
+              "description": "Every session across all graphs whose lease is live, so a face can show who is in a pane without a second read.",
+              "type": "array",
+              "items": { "$ref": "#/$defs/liveAttempt" }
+            }
+          },
+          "required": ["asked", "state", "root", "journal", "graphs", "live"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "asked": { "type": "string" },
+            "state": { "const": "found" },
+            "root": { "type": "string" },
+            "origin": { "$ref": "#/$defs/origin" },
+            "journal": {
+              "description": "The journal did not read. line is the journal line that failed, absent when the file itself could not be read.",
+              "type": "object",
+              "properties": {
+                "state": { "const": "unreadable" },
+                "line": { "type": "integer", "minimum": 1 },
+                "because": { "type": "string" }
+              },
+              "required": ["state", "because"],
+              "additionalProperties": false
+            },
+            "graphs": { "type": "array", "items": { "$ref": "#/$defs/graph" } }
+          },
+          "required": ["asked", "state", "root", "journal", "graphs"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "asked": { "type": "string" },
+            "state": { "const": "not-found" },
+            "because": { "type": "string" }
+          },
+          "required": ["asked", "state", "because"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "origin": {
+      "description": "Absent when the repository sets no origin. Identified carries the origin with any credentials stripped; unidentified says why it could not be named.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "state": { "const": "identified" },
+            "url": { "type": "string" },
+            "owner": { "type": "string" },
+            "name": { "type": "string" }
+          },
+          "required": ["state", "url", "owner", "name"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "state": { "const": "unidentified" },
+            "because": { "type": "string" }
+          },
+          "required": ["state", "because"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "graph": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "graph": { "type": "string" },
+            "state": { "const": "read" },
+            "position": {
+              "$ref": "https://github.com/rodrigopsasaki/interlock/schemas/position@v1.json"
+            }
+          },
+          "required": ["graph", "state", "position"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "graph": { "type": "string" },
+            "state": { "const": "unreadable" },
+            "because": { "type": "string" }
+          },
+          "required": ["graph", "state", "because"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "liveAttempt": {
+      "type": "object",
+      "properties": {
+        "graph": { "type": "string" },
+        "node": { "type": "string" },
+        "session": { "type": "string" },
+        "role": {
+          "description": "The role the session was briefed with; absent when its brief named none of the closed set.",
+          "enum": ["scout", "planner", "implementer", "tester", "reviewer", "verifier"]
+        },
+        "runtime": { "$ref": "parts/session-runtime.json" },
+        "agentStatus": {
+          "description": "What the runtime reports for the session's pane; unknown when it reported nothing.",
+          "enum": ["idle", "working", "blocked", "done", "unknown"]
+        }
+      },
+      "required": ["graph", "node", "session", "runtime", "agentStatus"],
+      "additionalProperties": false
+    }
+  }
+}

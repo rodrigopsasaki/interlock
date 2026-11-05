@@ -15,6 +15,7 @@ import { runInterlockJudge } from "./judge.ts";
 import { runNodeCancel } from "./node/cancel.ts";
 import { runNodeReset } from "./node/reset.ts";
 import { runInterlockPlan } from "./plan.ts";
+import { runInterlockPosition } from "./position.ts";
 import { runInterlockRun } from "./run.ts";
 import { runRuntimeList } from "./runtime/list.ts";
 import { runSchemaReference } from "./schema/reference.ts";
@@ -106,6 +107,10 @@ export async function run(argv: readonly string[]): Promise<CommandResult> {
 
   if (group === "run") {
     return runInterlockRun(argv.slice(1));
+  }
+
+  if (group === "position") {
+    return runInterlockPosition(argv.slice(1));
   }
 
   if (group === "plan") {

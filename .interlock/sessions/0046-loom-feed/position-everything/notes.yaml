@@ -1,0 +1,94 @@
+interlock: notes@v0
+node: position-everything
+entries:
+  - kind: choice
+    at: "2026-11-05T12:00:00Z"
+    chose: >
+      Compose positions@v0 in packages/cli/src/position.ts from the same parts
+      graph show and the face world already use (listGraphIds,
+      loadGraphDocument, readReplay, receiptId, positionOf,
+      resolveAgentStatuses), with no new reader in face or ledger.
+    because: >
+      The command needs the herdr runtime (runner), the content hash (ledger)
+      and the git origin (cli), and cli is the only package that already holds
+      all three; graph show stays byte-for-byte as it was because nothing it
+      calls changes.
+  - kind: choice
+    at: "2026-11-05T12:05:00Z"
+    chose: >
+      When a repository's journal does not read, every graph file in it is
+      listed as unreadable with the journal's refusal as its because, and the
+      repository carries no live list at all; the type ties the live list to a
+      journal that read.
+    because: >
+      positionOf over an empty projection would be exactly the "journal that
+      cannot be read reads as an empty one" the acceptance forbids, and an
+      empty live list would say nobody is in a pane when the truth is unknown.
+  - kind: choice
+    at: "2026-11-05T12:10:00Z"
+    chose: >
+      Read the live attempts from the journal's sessions across every graph id
+      the journal names, not from the positions, and resolve agent status once
+      per graph, sharing the result with each position.
+    because: >
+      A session whose graph file no longer parses is still a person-visible
+      pane; reading live from the positions would drop it, and asking herdr
+      twice per session would be a second read the acceptance rules out.
+  - kind: choice
+    at: "2026-11-05T12:30:00Z"
+    chose: >
+      Discriminate repositories by state found or not-found, and graphs and
+      journals by state read or unreadable; origin is absent when git names
+      none, identified (credentials stripped through repositoryForOrigin) or
+      unidentified with its because. agentStatus on a live attempt is always
+      present, unknown when the runtime reported nothing.
+    because: >
+      Each union makes the invalid read unrepresentable (no live list beside
+      an unreadable journal, no position without a graph that loaded), and
+      loom@v0's Attempt.agent already names unknown, so a face never has to
+      tell absent from unknown.
+  - kind: surprise
+    at: "2026-11-05T12:40:00Z"
+    expected: >
+      A scratch directory under packages/cli/test/.runs to read as a path with
+      no interlock repository.
+    observed: >
+      findRepoRoot walks up to this worktree's own .interlock, so every path
+      under the worktree is found. The not-found test asks for / instead,
+      since the brief forbids directories outside the worktree.
+  - kind: surprise
+    at: "2026-11-05T12:45:00Z"
+    expected: >
+      This very session to read with role implementer in the real
+      positions@v0 read of this repository, as its brief says.
+    observed: >
+      Its session-started (event@v7) recorded brief.role "worker", so the live
+      attempt carries no role. The live list reports the role the session was
+      briefed with as the journal recorded it, not the graph's current
+      declaration; the node's declared role is in the position beside it.
+  - kind: choice
+    at: "2026-11-05T12:50:00Z"
+    chose: >
+      Regenerate docs/shapes.md and add positions to the reference test's
+      list of artifact terms with no vocabulary row, as notes and roles are.
+    because: >
+      The reference test pins the page byte for byte, and positions is the
+      plural read of the vocabulary's position, not a new term worth a row in
+      the closed table.
+  - kind: surprise
+    at: "2026-11-05T13:10:00Z"
+    expected: >
+      interlock debrief prepare to derive this session's start and write a
+      candidate, as the opening view instructs.
+    observed: >
+      It refuses with "session-started event does not match the local brief"
+      (packages/cli/src/debrief/sessionIdentity.ts:151, started.brief.role !==
+      brief.role). The journal's session-started for session
+      a4ffe3fa-cfed-4ff9-93bb-3915f50ca3ce is event@v7 with brief.role
+      "worker"; brief.md front matter says role: implementer. The main
+      checkout (cbb6bfa) has no node-role runner, while this branch's
+      run.ts passes shape?.role, so the session looks started by a runner
+      older than the brief it was handed. Neither the brief (immutable) nor
+      the journal (receipts) is mine to change, and hand-filing a debrief
+      around the derived identity check would bypass it, so the debrief is
+      not filed and the session stops for a person.
