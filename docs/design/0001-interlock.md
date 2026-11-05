@@ -280,7 +280,7 @@ there, what had to be found, what was chosen, what happened.
 
 | column | holds | why it is there |
 | --- | --- | --- |
-| Brief | The node, acceptance, gates, context slice, and the session's role. Immutable. The role is supplied by the brief, never self-declared, so a worker cannot hide gates from itself by deciding what it is. | You can see exactly what the agent was told. Nothing softened. |
+| Brief | The node, acceptance, gates, context slice, and the session's role. Immutable. The role is supplied by the brief, never self-declared, so a worker cannot hide gates from itself by deciding what it is. The graph names it per node, one of scout (reads and reports, changes nothing), planner (drafts a graph for approval), implementer (the diff), tester (the proof the gates run), reviewer (a judgment through a named lens) or verifier (that every debrief claim is rooted); a node that names none briefs as it did before roles existed. | You can see exactly what the agent was told. Nothing softened. |
 | Context | Head SHA, files in scope, declared gates, runtime and model used. | Reproducibility. The same brief on a different SHA is a different session. |
 | Discoveries | Files read outside scope, conventions inferred, questions the agent answered for itself. | The column that pays for everything. In aggregate it is the list of what your briefs keep failing to say. |
 | Decisions | Each choice, what it rests on, the hunk it produced, rooted or unrooted. | Control without watching. You read choices, not transcripts. |

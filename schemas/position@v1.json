@@ -21,6 +21,10 @@
       "type": "object",
       "properties": {
         "id": { "type": "string" },
+        "role": {
+          "description": "The node's role as its graph supplies it; absent when the graph names none.",
+          "enum": ["scout", "planner", "implementer", "tester", "reviewer", "verifier"]
+        },
         "dependsOn": { "type": "array", "items": { "type": "string" } },
         "state": { "$ref": "#/$defs/nodeState" },
         "gates": {

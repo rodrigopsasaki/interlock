@@ -26,6 +26,17 @@
           "id": {
             "type": "string"
           },
+          "role": {
+            "description": "Optional, supplied by the graph and never self-declared: what this node's session produces. Absent means the node briefs exactly as before roles existed. An unknown word is refused by the loader with a sentence naming the nearest role.",
+            "enum": [
+              "scout",
+              "planner",
+              "implementer",
+              "tester",
+              "reviewer",
+              "verifier"
+            ]
+          },
           "acceptance": {
             "type": "string"
           },

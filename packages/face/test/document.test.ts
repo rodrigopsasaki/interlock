@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { isErr, isOk, unwrap } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
-import { explainGraphRefusal, loadGraphDocument } from "../src/document.ts";
+import { explainGraphRefusal, loadGraphDocument, loadGraphDocumentText } from "../src/document.ts";
 import { findRepoRoot, graphFilePath } from "../src/root.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
@@ -283,5 +283,45 @@ describe("expect_output", () => {
 
     const dogfoodGate = allGates.find((gate) => gate.id === "dogfood");
     expect(dogfoodGate?.expectOutput).toBeUndefined();
+  });
+});
+
+describe("role", () => {
+  const graphWithRole = (role: string): string =>
+    ["interlock: graph@v0", "id: demo", "nodes:", "  - id: a", `    role: ${role}`, ""].join("\n");
+
+  it.each(["scout", "planner", "implementer", "tester", "reviewer", "verifier"])(
+    "parses the supplied role %s onto the node",
+    (role) => {
+      const document = unwrap(loadGraphDocumentText(graphWithRole(role), "graph.yaml"));
+      expect(document.nodes[0]?.role).toBe(role);
+    },
+  );
+
+  it("leaves role absent, not defaulted, when the graph names none", () => {
+    const document = unwrap(
+      loadGraphDocumentText(
+        ["interlock: graph@v0", "id: demo", "nodes:", "  - id: a", ""].join("\n"),
+        "graph.yaml",
+      ),
+    );
+    expect(document.nodes[0]).toEqual({ id: "a", dependsOn: [], gates: [] });
+    expect(document.nodes[0] !== undefined && "role" in document.nodes[0]).toBe(false);
+  });
+
+  it("refuses an unknown role with a sentence naming the nearest role", () => {
+    const loaded = loadGraphDocumentText(graphWithRole("implmenter"), "graph.yaml");
+    expect(isErr(loaded)).toBe(true);
+    if (!isErr(loaded)) return;
+    expect(explainGraphRefusal(loaded.error)).toBe(
+      'graph.yaml: node "a": role "implmenter" is not one of scout, planner, implementer, tester, reviewer, verifier; the nearest is "implementer"',
+    );
+  });
+
+  it("refuses a role that is not a string", () => {
+    const loaded = loadGraphDocumentText(graphWithRole("[scout]"), "graph.yaml");
+    expect(isErr(loaded)).toBe(true);
+    if (!isErr(loaded)) return;
+    expect(explainGraphRefusal(loaded.error)).toBe('graph.yaml: node "a": "role" must be a string');
   });
 });

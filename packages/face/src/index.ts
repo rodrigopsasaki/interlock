@@ -55,6 +55,8 @@ export { positionGate } from "./positionGate.ts";
 export type { ReceiptSummary } from "./receiptSummary.ts";
 export { summarizeReceipt } from "./receiptSummary.ts";
 export { renderPosition } from "./render.ts";
+export type { NodeRole } from "./role.ts";
+export { isNodeRole, NODE_ROLES, parseNodeRole } from "./role.ts";
 export {
   currentCommitSha,
   findRepoRoot,

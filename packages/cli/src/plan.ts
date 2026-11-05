@@ -10,6 +10,7 @@ import {
   findRepoRoot,
   graphFilePath,
   loadGraphDocument,
+  NODE_ROLES,
   sharedJournalDirectory,
 } from "face";
 import {
@@ -392,6 +393,11 @@ export async function runInterlockPlan(
       }
       if (loaded.value.id !== graph) {
         const because = `${path}: graph "id" is "${loaded.value.id}", expected "${graph}".`;
+        return err({ on: heldOn.gateFailure(because, "repair"), because });
+      }
+      const unroled = loaded.value.nodes.filter((declared) => declared.role === undefined);
+      if (unroled.length > 0) {
+        const because = `${path}: node(s) ${unroled.map((declared) => `"${declared.id}"`).join(", ")} name no role; every drafted node names one of ${NODE_ROLES.join(", ")}.`;
         return err({ on: heldOn.gateFailure(because, "repair"), because });
       }
       return ok(undefined);

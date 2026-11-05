@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import { parseExpectOutput } from "ledger";
 import { parse as parseYaml, YAMLParseError } from "yaml";
+import { type NodeRole, parseNodeRole } from "./role.ts";
 import { topologicalOrder } from "./topology.ts";
 import { isRecord, isString, isStringArray, prop } from "./validate.ts";
 
@@ -16,6 +17,7 @@ export interface GateDeclaration {
 
 export interface NodeDeclaration {
   readonly id: string;
+  readonly role?: NodeRole;
   readonly acceptance?: string;
   readonly dependsOn: readonly string[];
   readonly gates: readonly GateDeclaration[];
@@ -130,6 +132,13 @@ function parseShape(parsed: unknown): Result<GraphDocument, string> {
     const nodeId = prop(rawNode, "id");
     if (!isString(nodeId)) return err(`node ${index}: "id" is missing or not a string`);
 
+    const rawRole = prop(rawNode, "role");
+    if (rawRole !== undefined && !isString(rawRole)) {
+      return err(`node "${nodeId}": "role" must be a string`);
+    }
+    const role = rawRole === undefined ? undefined : parseNodeRole(rawRole);
+    if (role !== undefined && isErr(role)) return err(`node "${nodeId}": ${role.error}`);
+
     const rawAcceptance = prop(rawNode, "acceptance");
     if (rawAcceptance !== undefined && !isString(rawAcceptance)) {
       return err(`node "${nodeId}": "acceptance" must be a string`);
@@ -145,6 +154,7 @@ function parseShape(parsed: unknown): Result<GraphDocument, string> {
 
     nodes.push({
       id: nodeId,
+      ...(role === undefined ? {} : { role: role.value }),
       ...(rawAcceptance === undefined ? {} : { acceptance: rawAcceptance }),
       dependsOn: rawDependsOn ?? [],
       gates: parsedNodeGates.value,

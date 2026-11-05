@@ -598,6 +598,40 @@ describe("interlock run", () => {
     expect(promptText).toContain(".interlock/sessions/demo/a/brief.md");
   }, 30_000);
 
+  it("supplies the graph's role to the ledger brief, the worktree brief and the opening prompt", async () => {
+    const cwd = fixture({
+      graphYaml: graphYaml.replace("  - id: a\n", "  - id: a\n    role: scout\n"),
+    });
+    await approve(cwd);
+
+    let promptText: string | undefined;
+    const lines: string[] = [];
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime: {
+        ...stubRuntime(),
+        prompt: (agent, text) => {
+          promptText = text;
+          return stubRuntime().prompt(agent, text);
+        },
+      },
+      narrate: (line) => lines.push(line),
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(sessionStartedFrom(cwd).brief.role).toBe("scout");
+    expect(promptText).toContain("Your role is scout: you read and report, and change nothing. ");
+    expect(lines).toContain(
+      'role: the repository copy declared "worker"; the graph supplies "scout"; overwritten.',
+    );
+    const worktreeBrief = readFileSync(
+      join(cwd, ".worktrees", "a", ".interlock", "sessions", "demo", "a", "brief.md"),
+      "utf-8",
+    );
+    expect(worktreeBrief).toContain("\nrole: scout\n");
+  }, 30_000);
+
   it("sends a concise prompt projection after committing a complete 3000-path canonical brief", async () => {
     server = await startFakeSubstrateServer();
     server.responseFor("context", { items: [], vocabulary: "reference@v1" });

@@ -39,6 +39,8 @@ export type { Mandate, MandateQuery } from "./mandate.ts";
 export { isMandate, mandateCovers } from "./mandate.ts";
 export type { Gap, Mark } from "./mark.ts";
 export { isGap, isMark, mark } from "./mark.ts";
+export type { NearestTerm } from "./nearestTerm.ts";
+export { nearestTerm } from "./nearestTerm.ts";
 export type { Note } from "./note.ts";
 export { isNote, note } from "./note.ts";
 export type {
