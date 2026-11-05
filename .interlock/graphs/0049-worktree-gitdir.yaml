@@ -1,0 +1,91 @@
+interlock: graph@v0
+id: 0049-worktree-gitdir
+ask: A sandboxed agent in a node's linked worktree can write that worktree's own git dir, because the runner hands it as a second writable root beside the common git dir.
+derivation:
+  kind: model
+  model: gilb (Claude)
+  prompt: codex-smoke-2026-11-05
+authorization:
+  granted_by: Rodrigo Sasaki
+  mandate: loom-feed-2026-11-04  # "You're free to do changes on phyxius and interlock too", 23:25 UTC
+  approver: Gilb for Rodrigo Sasaki, after a cross-vendor vet; the human merges
+read: >
+  0047 (merged as #76) hands a sandboxed agent the repository's common git dir
+  as a writable root through the catalogue's `writable_root_args`. On
+  2026-11-05 at about 04:50 UTC a codex smoke run in a scratch linked worktree
+  of this repository, with `--sandbox workspace-write` and `--add-dir
+  <repo>/.git`, could not create the worktree's index.lock ("operation not
+  permitted"). In this smoke run, granting the common git directory did not
+  make the per-worktree index writable. Adding the per-worktree directory
+  allowed index writes and reached signing; successful shared ref, object, and
+  reflog writes were not established. The machine's old catalogue listed such
+  per-worktree paths by hand.
+
+  Commit signing failed next ("gpg: signing failed: Input/output error"): the
+  sandbox cannot reach the signing agent. Signing is out of scope here; it is
+  the owner's decision about his commit identity. Until he decides, codex does
+  not route builds. Out of scope as before: any other writable root, network
+  access, sandbox modes, and the machine's catalogue.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: worktree-gitdir-writable
+    role: implementer
+    depends_on: []
+    acceptance: |
+      When `writable_root_args` is present, resolve each directory once
+      through `worktree.ts`, first with `git rev-parse --path-format=absolute
+      --git-dir`, then with `git rev-parse --path-format=absolute
+      --git-common-dir`, in the node worktree. If the returned absolute paths
+      are equal, append no expansion. Otherwise append a full template
+      expansion for the common directory, followed by a full expansion for the
+      per- worktree directory. Preserve the original runtime entry and args.
+      Without the field, preserve argv and perform no root resolution. Failure
+      of either resolution returns the existing readable typed refusal before
+      `openPane` or `startAgent`; no partial expansion is launched. Derive no
+      additional roots.
+
+      Update the shared schema description, Runtime catalogue arguments
+      rationale, and both configuration examples to describe this behavior.
+      Keep the one-placeholder constraints and configuration versions
+      unchanged. Append a bend-log row explaining the departure from common-
+      directory-only expansion; preserve historical artifacts. In
+      schemas/parts/writable-root-args.json the operational sentence reads:
+      "For a node in a linked worktree, the runner appends two full expansions
+      of this repeatable template after the runtime's args: first for the
+      absolute common git directory, then for the absolute per-worktree git
+      directory. Each expansion replaces {path} with that directory as one
+      argv element, never shell-evaluated or split. Outside a linked worktree,
+      no expansion is appended."
+
+      In `writableRootLaunch.test.ts`, assert exact common-then-per-worktree
+      expansions, whole argv elements including paths containing spaces and
+      quotes, unchanged argv for main worktrees and absent templates, both
+      resolution refusals, and independent attempts sharing an immutable
+      runtime entry. Test each resolution failure independently, asserting its
+      readable reason and zero pane-open and agent-start calls. In
+      `writableRoot.test.ts`, retain the existing generic sandbox boundary
+      assertions. Add a separate macOS `sandbox-exec` policy fixture
+      reproducing the motivating metadata exclusion and explicit-root
+      exception, with its policy provenance recorded. Common-root-only must
+      reproduce the denial; production-supplied roots must permit fresh `git
+      add` and an unsigned commit using `git -c commit.gpgsign=false`, with
+      hooks disabled and reflogs enabled. Confine the signing override to the
+      fixture Git invocation. Verify index updates, new objects, shared branch
+      ref and branch reflog updates, and the per-worktree HEAD reflog update.
+      Unrelated writes remain denied. Emit the proof marker only after these
+      assertions pass.
+
+      Strict TypeScript, no assertions, no non-null operators. Preserve every
+      historical artifact. Append typed notes for choices and discoveries. No
+      push, no merge; the human merges.
+    gates:
+      - id: writable-root-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/writableRoot.test.ts --passWithNoTests=false
+        expect_output: 'writable-root-sandbox-proof: passed'
+      - id: writable-root-launch-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/writableRootLaunch.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
