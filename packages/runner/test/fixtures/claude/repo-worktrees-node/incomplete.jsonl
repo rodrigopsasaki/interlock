@@ -1,0 +1,10 @@
+{"type": "user", "sessionId": "session", "message": {"role": "user", "content": "This is an interlock session for node n."}}
+{"type": "permission-mode", "permissionMode": "bypassPermissions", "sessionId": "session"}
+{"type": "assistant", "sessionId": "session", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "toolu_read", "name": "Read", "input": {"file_path": "/repo/AGENTS.md"}}]}}
+{"type": "user", "sessionId": "session", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "toolu_read", "content": "# Working"}]}}
+{"type": "assistant", "sessionId": "session", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "toolu_test", "name": "Bash", "input": {"command": "pnpm test"}}]}}
+{"type": "user", "sessionId": "session", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "toolu_test", "content": "Tests 3 passed"}]}, "toolUseResult": {"stdout": "Tests 3 passed", "stderr": "", "interrupted": false}}
+{"type": "assistant", "sessionId": "session", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "toolu_sync", "name": "Agent", "input": {"description": "review", "prompt": "review it"}}]}}
+{"type": "user", "sessionId": "session", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "toolu_sync", "content": "looks right"}]}, "toolUseResult": {"status": "completed", "agentId": "a1", "content": []}}
+{"type": "assistant", "sessionId": "session", "message": {"role": "assistant", "content": [{"type": "text", "text": "Committed and filed the debrief."}]}}
+{"type": "assistant", "sessionId": "sess

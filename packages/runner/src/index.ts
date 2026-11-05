@@ -10,6 +10,7 @@ export {
   diffScope,
   renderBriefFile,
 } from "./briefRewrite.ts";
+export { claudeLiveWork, liveWorkOfTranscript } from "./claude/liveWork.ts";
 export { withRenderedContextSlice } from "./contextSlice.ts";
 export { decidedNodeRefusal } from "./decidedNode.ts";
 export { unmetDependencies } from "./dependencies.ts";
@@ -38,7 +39,6 @@ export {
   retainGateOutput,
   storeGateOutput,
 } from "./gateOutput.ts";
-export { claudeLiveWork, liveWorkOfTranscript } from "./claude/liveWork.ts";
 export type { LiveWorkSource } from "./herdr/adapter.ts";
 export {
   createHerdrRuntime,

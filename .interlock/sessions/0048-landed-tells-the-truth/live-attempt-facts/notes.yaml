@@ -34,3 +34,7 @@ entries:
     at: "2026-11-05T16:40:00Z"
     chose: The CLI's one-observation proof drives the real herdr adapter against runner's fake herdr socket server, imported from runner/test, and asserts the recorded methods are exactly one agent.list.
     because: A stub runtime could only count observe() calls; the acceptance names one agent.list, which only the adapter's own protocol calls can show.
+  - kind: choice
+    at: "2026-11-05T17:00:00Z"
+    chose: settled.test.ts reads committed transcript fixtures in the runtime's real entry shapes (tool_use, tool_result with toolUseResult, attachment queued_command notifications) through liveWorkOfTranscript, claudeLiveWork and the herdr adapter's observe over the fake socket, then drives waitForSession with scripted observations for each settlement path.
+    because: The acceptance asks for the adapter's actual parser on representative fixtures plus every automatic path into judging; the fixtures were shaped from live transcripts sampled read-only on this machine, and the forged-notification fixture proves prose and echoed tool output cannot establish none.
