@@ -1,0 +1,436 @@
+interlock: debrief@v2
+graph: 0046-loom-feed
+node: role-shapes-the-session
+role: implementer
+graph_base_sha: 0935d4f697921758b79787fc654445080075b5d8
+session_start_sha: c65576cf984d9f60c1dab4145d97281ac1442e6d
+head_sha: 714cc86a2b4a32f73fc06d43e2df215516d027a5
+derivation:
+  kind: agent
+  runtime: claude
+  model: claude-opus-5-5
+discoveries:
+  - id: journal-role-still-worker
+    what: >-
+      This session's session-started event in the shared journal records role "worker", while
+      its brief says "implementer". interlock debrief prepare refused the derived filing with
+      "session-started event does not match the local brief".
+    found_at: '.interlock/sessions/0046-loom-feed/role-shapes-the-session/brief.md:5 "role: implementer"'
+    mattered_because: >-
+      node-role's fix (179edc8) makes run.ts record the graph's role. The journal lives under the
+      main checkout, and that checkout's main (1049b02) does not contain the fix, so this session
+      was started by a runner without it. Every 0046 node started before node-role reaches the
+      runner's main will hit the same refusal. This debrief is authored by hand against
+      debrief@v2 for that reason, and checked with interlock debrief validate, which now includes
+      the implementer's kinds.
+  - id: event-v7-open-where-it-mattered
+    what: >-
+      event@v7 constrains only `session` on session-started and has no block for debrief-filed.
+      parts/session-brief.json and parts/debrief-event.json are referenced only by event@v1-v4.
+      The readers check only the keys they know.
+    found_at: 'packages/ledger/src/event.ts:121 "isBrief(prop(value,"'
+    mattered_because: >-
+      Recording the walk and the mark counts looked like it needed event@v8, which
+      asked-in-words' acceptance already claims. Because event@v7 is open there and isBrief and
+      isDebrief ignore unknown keys, both went in as optional fields within event@v7, recorded in
+      the bend log.
+  - id: no-substrate-verb-for-sessions
+    what: >-
+      interlock has no command through which a session asks the substrate anything. The client's
+      context verb is called only by the runner while it composes a brief.
+    found_at: 'packages/substrate/src/client.ts:59 "context(node: Node, scope: readonly string[], role: string): Promise<ContextOutcome>;"'
+    mattered_because: >-
+      "The whole substrate is open to the session through its address" can only mean the address
+      itself, so the brief names it. The runner does not ask the walk's questions for the
+      session, because that would be a fourth substrate call, which D4 requires a bend-log entry
+      for.
+  - id: marks-never-journaled
+    what: >-
+      Before this node, the verifier's marks were computed at judgement only to build absorb
+      evidence, and never written to the journal.
+    found_at: 'packages/runner/src/gateJudge.ts:357 "const verified = await verifyDebrief(worktree, debrief);"'
+    mattered_because: >-
+      "Marks counted by mark" in the position needs a journal fact, because a face cannot run git.
+      Ingest now verifies once more and writes the counts on debrief-filed.
+decisions:
+  - id: roles-move-to-ledger
+    what: >-
+      Moved NODE_ROLES, NodeRole, isNodeRole and parseNodeRole from packages/face/src/role.ts to
+      packages/ledger/src/role.ts. face/src/role.ts re-exports them.
+    because: >-
+      The debrief package must know the roles to check a role's kinds, and it depends on ledger
+      but not on face. One definition stays, and every existing import from face keeps working.
+    rests_on:
+      - packages/face/src/role.ts
+      - packages/debrief/package.json
+    hunks:
+      - packages/ledger/src/role.ts:2-2
+      - packages/face/src/role.ts:1-2
+  - id: walk-and-debrief-kinds-in-ledger
+    what: >-
+      Added Walk ({ kind address, address, steps of { verb, ask } } or { kind none, because })
+      with walkFor, the closed set of seven debrief kinds with debriefKindsPresent, MarkCounts
+      with countMarks, and the optional debrief sections ProofEntry, Findings and MarkedClaim plus
+      graphFile, all with guards.
+    because: >-
+      The walk, the kinds and the counts travel through the journal, so they belong to ledger
+      shapes. Making Walk a tagged union means "address none with steps" cannot be represented.
+      Kinds are computed from the debrief alone, so the validator and the position agree on them.
+    rests_on:
+      - packages/ledger/src/debrief.ts
+      - packages/ledger/src/mark.ts
+    hunks:
+      - packages/ledger/src/walk.ts:1-44
+      - packages/ledger/src/debriefKind.ts:1-31
+      - packages/ledger/src/mark.ts:41-70
+      - packages/ledger/src/debrief.ts:2-2
+      - packages/ledger/src/debrief.ts:40-62
+      - packages/ledger/src/debrief.ts:76-117
+      - packages/ledger/src/debrief.ts:186-187
+      - packages/ledger/src/debrief.ts:203-207
+      - packages/ledger/src/index.ts:11-12
+      - packages/ledger/src/index.ts:14-15
+      - packages/ledger/src/index.ts:23-24
+      - packages/ledger/src/index.ts:26-27
+      - packages/ledger/src/index.ts:29-30
+      - packages/ledger/src/index.ts:50-59
+      - packages/ledger/src/index.ts:129-130
+      - packages/ledger/src/index.ts:152-160
+  - id: additive-within-event-v7
+    what: >-
+      session-started gains an optional walk and debrief-filed an optional markCounts.
+      SessionView gains walk, debriefFilings and markCounts. The event@v7 schema names both
+      fields through new parts/walk.json and parts/mark-counts.json.
+    because: >-
+      event@v7 never constrained those objects, and every reader skips unknown keys, so older
+      lines read and validate unchanged and a missing field reads as not recorded. A version bump
+      is owed when an older reader would refuse a line, which is why asked-in-words keeps event@v8
+      for its new note kind.
+    rests_on:
+      - schemas/event@v7.json
+      - packages/ledger/src/envelope.ts
+    hunks:
+      - packages/ledger/src/event.ts:5-5
+      - packages/ledger/src/event.ts:18-18
+      - packages/ledger/src/event.ts:44-44
+      - packages/ledger/src/event.ts:55-55
+      - packages/ledger/src/event.ts:118-118
+      - packages/ledger/src/event.ts:122-123
+      - packages/ledger/src/event.ts:128-135
+      - packages/ledger/src/projection.ts:7-7
+      - packages/ledger/src/projection.ts:14-14
+      - packages/ledger/src/projection.ts:38-38
+      - packages/ledger/src/projection.ts:40-41
+      - packages/ledger/src/projection.ts:154-154
+      - packages/ledger/src/projection.ts:156-157
+      - packages/ledger/src/projection.ts:184-185
+      - schemas/event@v7.json:5-5
+      - schemas/event@v7.json:28-31
+      - schemas/event@v7.json:37-47
+      - schemas/parts/walk.json:1-38
+      - schemas/parts/mark-counts.json:1-15
+  - id: role-table
+    what: >-
+      Added roles@v0 in packages/debrief/src/roles.ts. defaultRoleTable gives each of the six
+      roles its prompt paragraph, debrief requires/forbids and walk. readRoleTable overlays
+      .interlock/roles.yaml field by field per role, and refuses a wrong tag, an unknown role (by
+      nearest term), an unknown kind or an unknown verb with a sentence. Added schemas/roles@v0.json.
+    because: >-
+      The acceptance asks for a repository default in the package that a repository can override,
+      additively. A field-by-field overlay lets a repository change one role's walk without
+      restating its prompt. The table is plain data, so changing a role's kinds needs no code.
+    rests_on:
+      - packages/debrief/src/brief.ts
+    hunks:
+      - packages/debrief/src/roles.ts:1-221
+      - packages/debrief/src/index.ts:60-70
+      - schemas/roles@v0.json:1-49
+  - id: role-sections-in-debrief
+    what: >-
+      debrief@v2 reads optional proof [{ test, pins, gate? }], findings { lens, items: [{ id, what,
+      found_at }] }, graph_file and marks [{ claim, mark, because }], and refuses each when it is
+      malformed. findings must name a non-empty lens. The debrief@v2 schema describes all four.
+    because: >-
+      The tester, reviewer, planner and verifier had nowhere in debrief@v2 to return what their
+      roles produce. The schema is open (additionalProperties true), so these are additive. A
+      reviewer's findings may be empty, since a clean review through a lens is still a judgment.
+    rests_on:
+      - schemas/debrief@v2.json
+    hunks:
+      - packages/debrief/src/roleSections.ts:1-101
+      - packages/debrief/src/debrief.ts:8-8
+      - packages/debrief/src/debrief.ts:140-142
+      - packages/debrief/src/debrief.ts:158-158
+      - schemas/debrief@v2.json:5-5
+      - schemas/debrief@v2.json:74-164
+  - id: validator-holds-on-missing-kinds
+    what: >-
+      roleKindsRefusal returns one sentence naming the kinds missing and the kinds forbidden but
+      present, for example "g/n is held: a reviewer's debrief must return no hunks and returns
+      some (roles@v0).". interlock debrief validate <graph> <node> reads the role from the
+      session's brief (falling back to the debrief's own word only when there is no brief),
+      checks a planner's graph_file exists, and exits 1 with the sentence.
+    because: >-
+      The standing debrief-valid gate already runs this command in every worktree, so a missing
+      kind blocks that gate and the runner holds the node, with the gate's output as its proof
+      (I1). The brief's role is supplied by the graph, so a session cannot escape its kinds by
+      writing another word into its debrief. A role-less brief is checked exactly as before.
+    rests_on:
+      - packages/cli/src/debrief/validate.ts
+      - .interlock/config.yaml
+    hunks:
+      - packages/debrief/src/roleKinds.ts:1-44
+      - packages/cli/src/debrief/validate.ts:3-3
+      - packages/cli/src/debrief/validate.ts:6-6
+      - packages/cli/src/debrief/validate.ts:12-12
+      - packages/cli/src/debrief/validate.ts:15-15
+      - packages/cli/src/debrief/validate.ts:18-19
+      - packages/cli/src/debrief/validate.ts:22-22
+      - packages/cli/src/debrief/validate.ts:97-129
+      - packages/cli/src/debrief/validate.ts:177-179
+  - id: brief-carries-the-walk
+    what: >-
+      brief@v1 front matter reads an optional walk. When the node has a role, the runner writes
+      the walk into the worktree brief's front matter and opening view, and appends a generated
+      "## Walk" section (role-walk@v0 markers, replaced in place on a rewrite). The section lists
+      the steps by verb with the address and says the whole substrate stays open, or, with the
+      address none, says the walk is empty and why, and that nothing errors.
+    because: >-
+      The acceptance asks that the brief ask the walk first, and say that the walk is never a
+      fence. The front matter makes the walk machine-readable, and the section makes it what the
+      session reads. Without a role nothing is added, so the existing byte-for-byte test still
+      holds.
+    rests_on:
+      - packages/runner/src/debriefAuthoringGuidance.ts
+      - packages/runner/src/sessionBrief.ts
+    hunks:
+      - packages/runner/src/walkSection.ts:1-48
+      - packages/runner/src/roleShape.ts:1-13
+      - packages/runner/src/sessionBrief.ts:12-12
+      - packages/runner/src/sessionBrief.ts:26-26
+      - packages/runner/src/sessionBrief.ts:29-29
+      - packages/runner/src/sessionBrief.ts:80-80
+      - packages/runner/src/sessionBrief.ts:98-98
+      - packages/runner/src/sessionBrief.ts:108-109
+      - packages/runner/src/sessionBrief.ts:123-123
+      - packages/runner/src/briefRewrite.ts:105-105
+      - packages/runner/src/openingView.ts:32-32
+      - packages/runner/src/index.ts:72-73
+      - packages/runner/src/index.ts:141-141
+      - packages/debrief/src/brief.ts:3-3
+      - packages/debrief/src/brief.ts:39-39
+      - packages/debrief/src/brief.ts:221-227
+      - packages/debrief/src/brief.ts:241-241
+      - schemas/brief@v1.json:56-59
+  - id: run-supplies-the-shape
+    what: >-
+      interlock run reads the role table only when the node names a role, builds a RoleShape
+      (role, entry, and the walk for the substrate's address), and passes it to the brief writer
+      and the session drive. The drive records the walk on session-started and puts the entry's
+      paragraph in the opening prompt. buildOpeningPrompt takes an optional paragraph and falls
+      back to the default table's.
+    because: >-
+      One shape from one source means the journal, the brief and the prompt cannot disagree. A
+      malformed roles.yaml refuses only roled nodes, so a role-less node keeps today's behaviour
+      exactly, and it refuses with the table's sentence.
+    rests_on:
+      - packages/cli/src/run.ts
+      - packages/runner/src/sessionDrive.ts
+    hunks:
+      - packages/cli/src/run.ts:4-4
+      - packages/cli/src/run.ts:30-30
+      - packages/cli/src/run.ts:32-32
+      - packages/cli/src/run.ts:133-141
+      - packages/cli/src/run.ts:201-201
+      - packages/cli/src/run.ts:210-211
+      - packages/runner/src/sessionDrive.ts:25-25
+      - packages/runner/src/sessionDrive.ts:81-81
+      - packages/runner/src/sessionDrive.ts:111-111
+      - packages/runner/src/sessionDrive.ts:168-168
+      - packages/runner/src/sessionDrive.ts:337-344
+      - packages/runner/src/openingPrompt.ts:1-1
+      - packages/runner/src/openingPrompt.ts:6-6
+      - packages/runner/src/openingPrompt.ts:16-16
+      - packages/runner/src/openingPrompt.ts:31-31
+      - packages/runner/src/openingPrompt.ts:33-33
+  - id: ingest-counts-marks
+    what: >-
+      When the runner ingests a cleared node's debrief, it runs verifyDebrief and puts
+      countMarks of the result on debrief-filed, leaving it off when verification refuses.
+    because: >-
+      The position reads only the journal, and verification needs the worktree's git. Leaving the
+      field off when it refuses is the honest unknown; the position then says the marks were not
+      recorded.
+    rests_on:
+      - packages/runner/src/gateJudge.ts
+      - packages/verifier/src/verify.ts
+    hunks:
+      - packages/runner/src/gateJudge.ts:17-17
+      - packages/runner/src/gateJudge.ts:331-337
+  - id: position-attempt-brief-and-debrief
+    what: >-
+      PositionAttempt gains brief (path, role when it is one of the six, the stored session
+      brief's acceptance, and the walk, or none with why: no role, address none, or a session that
+      predates the recorded walk) and debrief when filed (path, the filing count as version, the
+      kinds present, and the marks counted or unknown with why). position@v1 describes both as
+      optional.
+    because: >-
+      A face can show what a session was told and what it returned without opening files. The
+      acceptance comes from session-started, never from the graph's current text, so an attempt
+      that predates an acceptance change shows what it was given. Each absence carries a because
+      instead of a silent gap.
+    rests_on:
+      - packages/face/src/attempts.ts
+      - schemas/position@v1.json
+    hunks:
+      - packages/face/src/attemptRecord.ts:1-65
+      - packages/face/src/attempts.ts:9-14
+      - packages/face/src/attempts.ts:23-24
+      - packages/face/src/attempts.ts:45-45
+      - packages/face/src/attempts.ts:53-54
+      - packages/face/src/index.ts:2-2
+      - schemas/position@v1.json:193-195
+      - schemas/position@v1.json:199-246
+  - id: tests-pin-each-role
+    what: >-
+      Tests pin, per role: the prompt paragraph and that a repository's paragraph replaces it
+      (sessionBrief); the walk with an address and with none, in front matter and body
+      (sessionBrief); the required and forbidden kinds, the held sentence, a diff from a reviewer
+      or scout, and a planner's missing graph file (debrief roles); the brief and debrief position
+      fields, the stored acceptance surviving a graph change, and each walk because (position).
+      Validate, run, gateJudge and the schemas also gained tests.
+    because: >-
+      These are the acceptance's own test list. The three node gates run exactly these files.
+      The fixtures that build PositionAttempt now carry brief, because it is required.
+    rests_on:
+      - .interlock/graphs/0046-loom-feed.yaml
+    hunks:
+      - packages/runner/test/sessionBrief.test.ts:5-12
+      - packages/runner/test/sessionBrief.test.ts:17-17
+      - packages/runner/test/sessionBrief.test.ts:25-25
+      - packages/runner/test/sessionBrief.test.ts:651-651
+      - packages/runner/test/sessionBrief.test.ts:666-669
+      - packages/runner/test/sessionBrief.test.ts:690-690
+      - packages/runner/test/sessionBrief.test.ts:746-763
+      - packages/runner/test/sessionBrief.test.ts:765-765
+      - packages/runner/test/sessionBrief.test.ts:767-853
+      - packages/debrief/test/roles.test.ts:1-335
+      - packages/face/test/position.test.ts:2-2
+      - packages/face/test/position.test.ts:9-11
+      - packages/face/test/position.test.ts:16-17
+      - packages/face/test/position.test.ts:307-490
+      - packages/face/test/faceReducer.test.ts:2-2
+      - packages/face/test/faceReducer.test.ts:7-12
+      - packages/face/test/faceReducer.test.ts:37-37
+      - packages/face/test/faceReducer.test.ts:43-43
+      - packages/cli/test/debrief/validate.test.ts:310-380
+      - packages/cli/test/run.test.ts:7-7
+      - packages/cli/test/run.test.ts:624-628
+      - packages/cli/test/run.test.ts:637-658
+      - packages/runner/test/gateJudge.test.ts:857-858
+      - packages/runner/test/gateJudge.test.ts:1101-1101
+      - packages/runner/test/gateJudge.test.ts:1121-1123
+      - packages/schemas/test/roleShapes.test.ts:1-118
+      - packages/schemas/test/corpus.position.test.ts:90-94
+      - packages/schemas/test/corpus.position.test.ts:98-139
+  - id: notes-as-receipts
+    what: >-
+      Kept notes.yaml beside the brief with every choice and surprise as it happened, committed
+      with the code.
+    because: >-
+      The brief requires notes@v0 committed with the code, and the debrief's decisions are drawn
+      from them.
+    rests_on:
+      - .interlock/sessions/0046-loom-feed/role-shapes-the-session/brief.md
+    hunks:
+      - .interlock/sessions/0046-loom-feed/role-shapes-the-session/notes.yaml:1-134
+  - id: reference-and-vocabulary
+    what: >-
+      Regenerated docs/shapes.md and added "roles" to the reference test's list of artifact terms
+      without a vocabulary row. Added a "walk" row to AGENTS.md's vocabulary and extended its
+      brief row. Added a bend-log row for the fields added within event@v7.
+    because: >-
+      I3: a face will say "walk" from the position. "roles" names a file shape, the way
+      "runtimes" does, not something a face says. The bend log records the one place this node
+      bent the version convention, and the way back kept.
+    rests_on:
+      - packages/schemas/test/reference.test.ts
+      - AGENTS.md
+    hunks:
+      - docs/shapes.md:12-12
+      - docs/shapes.md:26-26
+      - docs/shapes.md:232-232
+      - docs/shapes.md:251-254
+      - docs/shapes.md:1126-1146
+      - packages/schemas/test/reference.test.ts:33-33
+      - AGENTS.md:69-69
+      - AGENTS.md:76-76
+      - docs/design/0001-interlock.md:631-631
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: Every workspace package typechecks.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Biome checked 370 files with no findings.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+    note: packages/*/src contains no comments.
+  - id: test
+    result: pass
+    invocation: mise exec -- pnpm test
+    note: >-
+      2066 tests across eight packages, green on the last two full runs at 714cc86. One earlier
+      full run failed two runner tests that pass alone; see open.
+  - id: role-session-proof-1
+    result: pass
+    invocation: mise exec -- pnpm --filter runner exec vitest run test/sessionBrief.test.ts
+    note: 39 tests passed.
+  - id: role-session-proof-2
+    result: pass
+    invocation: mise exec -- pnpm --filter debrief exec vitest run
+    note: 94 tests passed.
+  - id: role-session-proof-3
+    result: pass
+    invocation: mise exec -- pnpm --filter face exec vitest run test/position.test.ts
+    note: 32 tests passed.
+open:
+  - >-
+    gap: interlock debrief prepare refused this session ("session-started event does not match
+    the local brief") because the shared journal recorded role worker. The runner that started it
+    runs from main, which lacks node-role's fix. This debrief is authored by hand. Merging
+    node-role and this node to the runner's main before starting asked-in-words avoids the same
+    refusal there.
+  - >-
+    loom@v0 mapping. Brief.role is absent rather than null when the session's role is not one of
+    the six; a face maps absent to null. Brief.walk is Known<string[]>, while the position
+    carries a structured walk ({ kind address, address, steps of { verb, ask } } or { kind none,
+    because }); a face renders each step as "verb: ask" and maps none to { unknown: true,
+    because }. Debrief.version is the number of times the session's debrief was filed, not the
+    shape's version, which is always debrief@v2 in the journal. Debrief.marks is { kind counted,
+    counts } or { kind unknown, because }, which a face flattens to the Record loom expects. Every
+    field of loom's Brief and Debrief now has a producer.
+  - >-
+    The attempt's debrief appears only once a debrief is ingested, and the runner ingests only
+    on a cleared outcome. A node held by debrief-valid for missing kinds therefore shows a brief
+    but no debrief in the position. Ingesting on hold too would change judgement order, so it was
+    left out of this node.
+  - >-
+    interlock debrief validate --file does not check role kinds, because it has no session brief
+    to take the role from. Only the graph/node form, which the gate runs, holds on kinds.
+  - >-
+    The verifier's found_at path pattern ([A-Za-z0-9_./-]+ in packages/verifier/src/foundAt.ts)
+    has no "@", so a discovery cannot cite any schema file (schemas/event@v7.json and so on) by
+    path and line; it reads as unrooted. This debrief cites the reader in event.ts instead. Adding
+    "@" to the pattern is a small fix for whichever node next touches the verifier.
+  - >-
+    interlock debrief prepare's candidate does not scaffold a role's sections (proof, findings,
+    graph_file, marks). A session authors them from the role paragraph and the brief.
+  - >-
+    One full pnpm test run failed two runner tests (gateJudge "leaves old receipts honestly
+    without output ..." and sessionBrief "gives the verifier session an empty walk ...") that pass
+    alone. The next two full runs were green. The failure output was not kept. Parallel git-fixture
+    load is the likeliest cause, and it is unconfirmed.
