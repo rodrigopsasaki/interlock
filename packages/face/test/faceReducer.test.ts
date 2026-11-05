@@ -47,6 +47,7 @@ const position: Position = {
     },
   ],
   criticalPath: ["a", "b"],
+  done: false,
 };
 
 const world: FaceWorld = {

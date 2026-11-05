@@ -5,6 +5,7 @@ import { attemptsFor, type PositionAttempt } from "./attempts.ts";
 import { criticalPath } from "./criticalPath.ts";
 import type { GraphDocument, NodeDeclaration } from "./document.ts";
 import { type Float, floatOf } from "./float.ts";
+import { type ClearedHead, clearedHeadOf, type Landed, type LandedReader } from "./landed.ts";
 import { type PositionGate, positionGate } from "./positionGate.ts";
 import type { NodeRole } from "./role.ts";
 import { topologicalOrder } from "./topology.ts";
@@ -27,6 +28,7 @@ export interface PositionNode {
   readonly gates: readonly PositionGate[];
   readonly attempts: readonly PositionAttempt[];
   readonly float: Float;
+  readonly landed?: Landed;
 }
 
 export interface Position {
@@ -35,6 +37,7 @@ export interface Position {
   readonly approval: ApprovalState;
   readonly nodes: readonly PositionNode[];
   readonly criticalPath: readonly string[];
+  readonly done: boolean;
 }
 
 export function approvalState(current: Gate | undefined, contentHash: string): ApprovalState {
@@ -71,12 +74,51 @@ function nodeGates(
   );
 }
 
+function clearedHeadFor(
+  graph: string,
+  node: string,
+  cleared: Extract<Outcome, { kind: "cleared" }>,
+  projection: LedgerProjection,
+): ClearedHead {
+  const view = projection.nodes.get(nodeKey({ graph, id: node }));
+  const clearing = [...projection.sessions.values()].find(
+    (session) =>
+      session.node.graph === graph &&
+      session.node.id === node &&
+      session.leaseGeneration === view?.outcomeSetAtGeneration,
+  );
+  return clearedHeadOf(cleared, clearing?.graphBaseSha);
+}
+
+function landedFor(
+  graph: string,
+  node: string,
+  outcome: Outcome | undefined,
+  projection: LedgerProjection,
+  landedReader: LandedReader | undefined,
+): Landed | undefined {
+  if (outcome?.kind !== "cleared") return undefined;
+  if (landedReader === undefined) {
+    return { kind: "unknown", because: "this read was given no repository to read main from" };
+  }
+  return landedReader(clearedHeadFor(graph, node, outcome, projection));
+}
+
+function isNodeDone(node: PositionNode): boolean {
+  return (
+    node.state.kind === "outcome" &&
+    node.state.outcome.kind === "cleared" &&
+    node.landed?.kind === "on-main"
+  );
+}
+
 export function positionOf(
   document: GraphDocument,
   projection: LedgerProjection,
   contentHash: string,
   nowWallMs: number,
   agentStatusFor?: (session: string) => AgentStatus | undefined,
+  landedReader?: LandedReader,
 ): Position {
   const ordered = topologicalOrder(document.nodes);
   const order = isOk(ordered) ? ordered.value : document.nodes;
@@ -90,8 +132,15 @@ export function positionOf(
   const weightOf = (id: string) => nodeWeight(id, outcomeByNode.get(id));
   const floats = floatOf(order, weightOf);
 
-  const nodes = order.map(
-    (declaration): PositionNode => ({
+  const nodes = order.map((declaration): PositionNode => {
+    const landed = landedFor(
+      document.id,
+      declaration.id,
+      outcomeByNode.get(declaration.id),
+      projection,
+      landedReader,
+    );
+    return {
       id: declaration.id,
       ...(declaration.role === undefined ? {} : { role: declaration.role }),
       dependsOn: declaration.dependsOn,
@@ -102,8 +151,9 @@ export function positionOf(
         kind: "unknown",
         because: `${declaration.id}: no outcome yet`,
       },
-    }),
-  );
+      ...(landed === undefined ? {} : { landed }),
+    };
+  });
 
   const graphNodeView = projection.nodes.get(nodeKey({ graph: document.id, id: document.id }));
   const approvalGate = graphNodeView?.gates.get("approved");
@@ -117,5 +167,6 @@ export function positionOf(
       const weight = weightOf(id);
       return weight.kind === "measured" ? weight.ms : undefined;
     }),
+    done: nodes.every(isNodeDone),
   };
 }

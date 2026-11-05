@@ -1124,8 +1124,9 @@ The current read of a graph, composed above the stream.
 | `interlock` | the literal `"position@v1"` | yes |  |
 | `graph` | string | yes |  |
 | `approval` | one of `"approved"`, `"stale"`, `"not-approved"` | yes |  |
-| `nodes` | array of positionNode | yes | fields: id (string, required); role (one of `"scout"`, `"planner"`, `"implementer"`, `"tester"`, `"reviewer"`, `"verifier"`, optional); dependsOn (array of string, required); state (nodeState, required); gates (array of positionGate, required); attempts (array of positionAttempt, required); float (float, required) |
+| `nodes` | array of positionNode | yes | fields: id (string, required); role (one of `"scout"`, `"planner"`, `"implementer"`, `"tester"`, `"reviewer"`, `"verifier"`, optional); dependsOn (array of string, required); state (nodeState, required); gates (array of positionGate, required); attempts (array of positionAttempt, required); float (float, required); landed (landed, optional) |
 | `criticalPath` | array of string | yes |  |
+| `done` | boolean | no | True when every node is cleared and its landed reads on-main. Absent from positions produced before landed-on-main. |
 
 ### Examples
 

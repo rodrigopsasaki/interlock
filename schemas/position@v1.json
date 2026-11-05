@@ -12,7 +12,11 @@
       "type": "array",
       "items": { "$ref": "#/$defs/positionNode" }
     },
-    "criticalPath": { "type": "array", "items": { "type": "string" } }
+    "criticalPath": { "type": "array", "items": { "type": "string" } },
+    "done": {
+      "description": "True when every node is cleared and its landed reads on-main. Absent from positions produced before landed-on-main.",
+      "type": "boolean"
+    }
   },
   "required": ["interlock", "graph", "approval", "nodes", "criticalPath"],
   "additionalProperties": false,
@@ -35,10 +39,57 @@
           "type": "array",
           "items": { "$ref": "#/$defs/positionAttempt" }
         },
-        "float": { "$ref": "#/$defs/float" }
+        "float": { "$ref": "#/$defs/float" },
+        "landed": { "$ref": "#/$defs/landed" }
       },
       "required": ["id", "dependsOn", "state", "gates", "attempts", "float"],
       "additionalProperties": false
+    },
+    "landed": {
+      "description": "Present only on a cleared node: whether its cleared head is on the repository's main line, by ancestry, by git cherry patch equivalence, or by its whole change squashed into one commit, and whether main later reverts it. Read from git, read-only, at every read.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "on-main" },
+            "main": { "type": "string" },
+            "head": { "type": "string" },
+            "by": { "enum": ["ancestry", "patch", "squash"] }
+          },
+          "required": ["kind", "main", "head", "by"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "not-on-main" },
+            "main": { "type": "string" },
+            "head": { "type": "string" }
+          },
+          "required": ["kind", "main", "head"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "reverted-on-main" },
+            "main": { "type": "string" },
+            "head": { "type": "string" },
+            "revertedBy": { "type": "string" }
+          },
+          "required": ["kind", "main", "head", "revertedBy"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "unknown" },
+            "because": { "type": "string" }
+          },
+          "required": ["kind", "because"],
+          "additionalProperties": false
+        }
+      ]
     },
     "nodeState": {
       "oneOf": [

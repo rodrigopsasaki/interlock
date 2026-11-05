@@ -40,6 +40,8 @@ export {
 } from "./frameRender.ts";
 export { listGraphIds } from "./graphs.ts";
 export { HELP_TEXT } from "./helpText.ts";
+export type { ClearedHead, Landed, LandedBy, LandedReader } from "./landed.ts";
+export { clearedHeadOf, landedOf, mainLineReader } from "./landed.ts";
 export type { LeaseState } from "./leaseState.ts";
 export { leaseStateOf, renderAgo } from "./leaseState.ts";
 export type { NodeRow } from "./nodeRow.ts";
