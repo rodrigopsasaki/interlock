@@ -11,6 +11,7 @@ import {
   type OutboxIntent,
 } from "./outbox.ts";
 import { isOutcome, type Outcome } from "./outcome.ts";
+import { isPersonSaid, type PersonSaid } from "./personSaid.ts";
 import { isReceipt, type Receipt } from "./receipt.ts";
 import { isSession, isSessionRuntime, type Session, sessionRuntime } from "./session.ts";
 import { isSessionFacts, type SessionFacts } from "./sessionFacts.ts";
@@ -95,6 +96,11 @@ export type LedgerEvent =
       readonly kind: "session-facts-observed";
       readonly session: string;
       readonly facts: SessionFacts;
+    }
+  | {
+      readonly kind: "person-said";
+      readonly session: string;
+      readonly said: PersonSaid;
     };
 
 export function isLedgerEvent(value: unknown): value is LedgerEvent {
@@ -157,6 +163,8 @@ export function isLedgerEvent(value: unknown): value is LedgerEvent {
       );
     case "session-facts-observed":
       return isString(prop(value, "session")) && isSessionFacts(prop(value, "facts"));
+    case "person-said":
+      return isString(prop(value, "session")) && isPersonSaid(prop(value, "said"));
     default:
       return false;
   }

@@ -1,0 +1,127 @@
+interlock: notes@v0
+node: say-into-pane
+entries:
+  - kind: choice
+    at: "2026-11-05T04:05:00Z"
+    chose: >
+      person-said is a new event kind at event@v9, carrying session and said
+      (id, by, text, at, optional answers, optional because). Its delivery is
+      recorded by the existing outbox-delivery-recorded under said.id, as
+      acknowledged (with an acknowledgment artifact) or uncertain.
+    because: >
+      I7 already has a shape in this repository: an intent with a stable
+      identity, persisted before dispatch, then a delivery fact that is
+      acknowledged or uncertain. Composing over that keeps one delivery fact
+      for every outward effect. The person-said fact itself is the intent, so
+      persisting it before the prompt is one confirmed append, not two.
+    rejected:
+      - a separate outbox-intent-recorded beside person-said, which would make the intent two appends and leave a window where one exists without the other
+      - a new person-heard event, which would duplicate outbox-delivery-recorded's acknowledged/uncertain states
+  - kind: choice
+    at: "2026-11-05T04:08:00Z"
+    chose: >
+      said.id is the sha256 of session, by, text, at, answers and because.
+      The projection folds an outbox-delivery-recorded whose id names no
+      outbox intent onto the session whose said carries that id.
+    because: >
+      The id is derived from the fact's own content, so it is stable across
+      replay and the same for whoever recomputes it. A delivery for an unknown
+      id was ignored before; it still is when no said matches.
+  - kind: choice
+    at: "2026-11-05T04:10:00Z"
+    chose: >
+      said.at is a number, milliseconds since the epoch from the clock's wall
+      time, and position's heard.at is that number.
+    because: >
+      The CLI owns this time, unlike a note's at, which is the session's own
+      string. loom@v0 types heard.at as a number, so heard maps onto it
+      exactly; session-narrated already records at as a number.
+  - kind: choice
+    at: "2026-11-05T04:12:00Z"
+    chose: >
+      A person-said names the question it answers in answers ({at, asked} of
+      the question note), filled by the CLI from the attempt's open question
+      at the moment of saying. asking closes only when an acknowledged
+      person-said names the latest question.
+    because: >
+      The acceptance says a person-said after a question closes that
+      question's asking. The projection keeps notes and said in separate
+      lists with no shared order, so the order is captured as a fact at say
+      time: the open question then is the question the words come after. It
+      also lets a journal reader see which question was answered without
+      reconstructing the order.
+  - kind: choice
+    at: "2026-11-05T04:15:00Z"
+    chose: >
+      An uncertain answer leaves asking's words in place and adds a because
+      to the open-question arm saying whose answer, when, and why its
+      delivery is in doubt (or that no delivery was recorded, the crash
+      case).
+    because: >
+      The acceptance asks an uncertain delivery to leave the question open
+      and say so. loom@v0's asking already has an optional because, so the
+      field maps without a new name. The position@v1 schema gains because as
+      optional on that arm, additive.
+  - kind: choice
+    at: "2026-11-05T04:18:00Z"
+    chose: >
+      The runtime seam gains an optional resolveAgent(query), which the herdr
+      adapter fills from agent.list by the reported graph, node and session
+      tokens, returning the agent's name and pane. The CLI prompts through
+      Runtime.prompt, the adapter's existing agent.prompt delivery.
+    because: >
+      Runtime.prompt needs an Agent (herdr's agent name and pane), and the
+      CLI holds only the session id. resolvePane already finds the record by
+      the same tokens but returns only the pane. The real agent.list output
+      carries name and pane_id, which I checked with a read-only herdr agent
+      list. No herdr call leaves the adapter (I6).
+  - kind: choice
+    at: "2026-11-05T04:20:00Z"
+    chose: >
+      The acknowledgment artifact is the JSON of said id, session, agent name
+      and pane id, retained under outbox/acknowledgment. The delivery's
+      derivation is the outbox gate at runner@0, run by "interlock session
+      say".
+    because: >
+      Runtime.prompt returns no body on success, so there is no response to
+      retain verbatim. The artifact records what the adapter acknowledged,
+      and the existing acknowledged-delivery shape requires an artifact.
+  - kind: choice
+    at: "2026-11-05T04:22:00Z"
+    chose: >
+      Refusals (no live attempt, pane not found, --by missing) happen before
+      anything is written. An uncertain delivery exits 1 with a sentence
+      saying the words were recorded but their delivery is uncertain.
+    because: >
+      A refusal is not a person-said, so nothing should enter the journal.
+      An uncertain delivery is not a success a face should show as done.
+  - kind: surprise
+    at: "2026-11-05T04:25:00Z"
+    expected: >
+      herdr's agent.prompt delivers to an agent in any state, so a person can
+      answer a blocked session through it.
+    observed: >
+      herdr agent prompt --help: "If the agent is already blocked, submission
+      is rejected with agent_blocked before any input is sent." asking only
+      shows while the agent is blocked, so the main use, answering a blocked
+      session's question, may be refused by herdr. Say records that refusal
+      as uncertain (never assumed), and the question stays open saying why.
+  - kind: surprise
+    at: "2026-11-05T04:50:00Z"
+    expected: >
+      The event@v8 corpus case would keep passing once the current shape moved
+      to event@v9, since it names the v8 schema.
+    observed: >
+      It built its line with envelopeFor, which stamps the current tag, so the
+      v8 schema refused an event@v9 line. The case now tags the line event@v8
+      itself.
+  - kind: choice
+    at: "2026-11-05T04:55:00Z"
+    chose: >
+      Checked the real shared journal (3,209 lines) replays to the same
+      projection with and without the event@v9 reader, through a throwaway
+      test under packages/ledger/test/.runs, removed after.
+    because: >
+      The fixtures predate event@v8; the real journal carries v8 lines with
+      question notes, which is what "every older journal replays unchanged"
+      has to hold for.

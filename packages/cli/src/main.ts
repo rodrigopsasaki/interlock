@@ -19,6 +19,7 @@ import { runInterlockRun } from "./run.ts";
 import { runRuntimeList } from "./runtime/list.ts";
 import { runSchemaReference } from "./schema/reference.ts";
 import { runSchemaValidate } from "./schema/validate.ts";
+import { runSessionSay } from "./session/say.ts";
 import { runSessionShow } from "./session/show.ts";
 import { runInterlockSweep } from "./sweep.ts";
 import { runInterlockVerify } from "./verify.ts";
@@ -69,6 +70,10 @@ export async function run(argv: readonly string[]): Promise<CommandResult> {
 
   if (group === "session" && action === "show") {
     return runSessionShow(argv.slice(2));
+  }
+
+  if (group === "session" && action === "say") {
+    return runSessionSay(argv.slice(2));
   }
 
   if (group === "node" && action === "cancel") {

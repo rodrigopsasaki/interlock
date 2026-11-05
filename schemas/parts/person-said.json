@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/parts/person-said.json",
+  "title": "person-said",
+  "description": "A person's words put into a live session's pane, recorded before they are delivered. id is the outbox identity its delivery is recorded under. at is when the person said it, in milliseconds since the epoch. answers names the question note it answers, when the session had one open; because is the person's own reason, when given. Embedded in person-said from event@v9; no older event version may carry one.",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "by": { "type": "string" },
+    "text": { "type": "string" },
+    "at": { "type": "number" },
+    "answers": {
+      "type": "object",
+      "properties": {
+        "at": { "type": "string" },
+        "asked": { "type": "string" }
+      },
+      "required": ["at", "asked"],
+      "additionalProperties": false
+    },
+    "because": { "type": "string" }
+  },
+  "required": ["id", "by", "text", "at"],
+  "additionalProperties": false
+}

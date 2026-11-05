@@ -1,6 +1,6 @@
 export type { AgentStatus } from "./agentStatus.ts";
-export type { Asking } from "./asking.ts";
-export { askingOf } from "./asking.ts";
+export type { Asking, Heard } from "./asking.ts";
+export { askingOf, heardOf, openQuestionOf } from "./asking.ts";
 export type { AttemptBrief, AttemptDebrief, AttemptMarks } from "./attemptRecord.ts";
 export type { PositionAttempt } from "./attempts.ts";
 export { attemptsFor, liveOrLatestAttempt } from "./attempts.ts";

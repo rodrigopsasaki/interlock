@@ -85,5 +85,6 @@ export interface Runtime {
     query: AgentIdentityQuery,
   ): Promise<Result<AgentStatus | undefined, RuntimeRefusal>>;
   resolvePane?(query: AgentIdentityQuery): Promise<Result<Pane | undefined, RuntimeRefusal>>;
+  resolveAgent?(query: AgentIdentityQuery): Promise<Result<Agent | undefined, RuntimeRefusal>>;
   focusPane?(pane: Pane): Promise<Result<void, RuntimeRefusal>>;
 }
