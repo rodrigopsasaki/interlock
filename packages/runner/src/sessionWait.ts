@@ -3,8 +3,11 @@ import { deadlineFrom, elapsedSince, hasPassed, ms } from "@phyxiusjs/clock";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import {
   type Agent,
+  type AgentObservation,
   type AgentStatus,
+  describeLiveWork,
   explainRuntimeRefusal,
+  type LiveWork,
   type Runtime,
   type RuntimeRefusal,
 } from "./runtime.ts";
@@ -13,6 +16,9 @@ import { lastNonEmptyLine } from "./sessionScreen.ts";
 const AFTER_BLOCKED: readonly AgentStatus[] = ["working", "idle", "done"];
 const AFTER_WORKING: readonly AgentStatus[] = ["idle", "blocked", "done"];
 const AFTER_SETTLED: readonly AgentStatus[] = ["working"];
+const WHILE_HELD: readonly AgentStatus[] = ["working", "blocked"];
+const SETTLED: readonly AgentStatus[] = ["idle", "done"];
+export const LIVE_WORK_OBSERVE_MS = 5_000;
 
 interface AnswerGrace {
   readonly deadline: MonoMs;
@@ -48,9 +54,54 @@ function describeUnfinishedWork(work: UnfinishedWork): string {
   return parts.join(" and ");
 }
 
+interface Held {
+  readonly settled: AgentStatus;
+  readonly work: LiveWork;
+}
+
+type Settlement =
+  | { readonly kind: "settled"; readonly status: AgentStatus }
+  | { readonly kind: "resumed" }
+  | { readonly kind: "held"; readonly held: Held };
+
+async function settle(
+  settled: AgentStatus,
+  observe: () => Promise<AgentObservation>,
+): Promise<Settlement> {
+  const observation = await observe();
+  if (observation.agentStatus === "working" || observation.agentStatus === "blocked") {
+    return { kind: "resumed" };
+  }
+  const work = await observation.liveWork();
+  if (!SETTLED.includes(observation.agentStatus)) {
+    return {
+      kind: "held",
+      held: {
+        settled,
+        work:
+          work.state === "none"
+            ? {
+                state: "unknown",
+                because: `the runtime's observation shows the agent ${observation.agentStatus}`,
+              }
+            : work,
+      },
+    };
+  }
+  return work.state === "none"
+    ? { kind: "settled", status: settled }
+    : { kind: "held", held: { settled, work } };
+}
+
+export interface WaitOptions {
+  readonly alreadySettled?: AgentStatus;
+  readonly observeEveryMs?: number;
+}
+
 export async function waitForSession(
   runtime: Runtime,
   agent: Agent,
+  observe: () => Promise<AgentObservation>,
   clock: Clock,
   deadline: MonoMs,
   runTimeoutMs: number,
@@ -58,30 +109,78 @@ export async function waitForSession(
   narrate: (line: string) => void,
   readUnfinishedWork: () => UnfinishedWork | undefined,
   recordBlocked: () => Promise<void> = () => Promise.resolve(),
+  options: WaitOptions = {},
 ): Promise<Result<AgentStatus, RuntimeRefusal>> {
+  const observeEveryMs = options.observeEveryMs ?? LIVE_WORK_OBSERVE_MS;
   let until = AFTER_WORKING;
-  let lastStatus: AgentStatus = "unknown";
+  let lastStatus: AgentStatus = options.alreadySettled ?? "unknown";
   let seenBlocked = false;
   let grace: AnswerGrace | undefined;
+  let held: Held | undefined;
+  let candidate: AgentStatus | undefined = options.alreadySettled;
+
+  const hold = (next: Held): void => {
+    if (held === undefined || describeLiveWork(held.work) !== describeLiveWork(next.work)) {
+      narrate(
+        `agent ${next.settled} but its work is not shown finished (${describeLiveWork(next.work)}); observing again`,
+      );
+    }
+    held = next;
+  };
 
   for (;;) {
+    if (candidate !== undefined) {
+      const settlement = await settle(candidate, observe);
+      candidate = undefined;
+      if (settlement.kind === "settled") return ok(settlement.status);
+      if (settlement.kind === "resumed") {
+        held = undefined;
+        until = AFTER_WORKING;
+      } else {
+        hold(settlement.held);
+      }
+      continue;
+    }
+
     const now = clock.now().monoMs;
-    const boundDeadline = grace?.deadline ?? deadline;
-    if (hasPassed(now, boundDeadline)) {
-      if (grace !== undefined) return ok(grace.settled);
+    if (held === undefined && grace !== undefined && hasPassed(now, grace.deadline)) {
+      candidate = grace.settled;
+      grace = undefined;
+      continue;
+    }
+    if (hasPassed(now, deadline)) {
       return err({
         kind: "timeout",
-        until,
+        until: held === undefined ? until : WHILE_HELD,
         timeoutMs: runTimeoutMs,
         status: lastStatus,
+        ...(held === undefined ? {} : { liveWork: held.work }),
       });
     }
 
+    const observeBy = deadlineFrom(now, ms(observeEveryMs));
+    const boundDeadline =
+      held !== undefined
+        ? hasPassed(observeBy, deadline)
+          ? deadline
+          : observeBy
+        : (grace?.deadline ?? deadline);
     const remaining = elapsedSince(boundDeadline, now);
-    const waited = await runtime.waitUntil(agent, until, remaining);
+    const waited = await runtime.waitUntil(
+      agent,
+      held === undefined ? until : WHILE_HELD,
+      remaining,
+    );
     if (isErr(waited)) {
-      if (grace !== undefined && waited.error.kind === "timeout") {
-        return ok(grace.settled);
+      if (waited.error.kind !== "timeout") return waited;
+      if (held !== undefined) {
+        candidate = held.settled;
+        continue;
+      }
+      if (grace !== undefined) {
+        candidate = grace.settled;
+        grace = undefined;
+        continue;
       }
       return waited;
     }
@@ -98,6 +197,7 @@ export async function waitForSession(
       until = AFTER_BLOCKED;
       seenBlocked = true;
       grace = undefined;
+      held = undefined;
       continue;
     }
 
@@ -105,6 +205,12 @@ export async function waitForSession(
       narrate("agent working");
       until = AFTER_WORKING;
       grace = undefined;
+      held = undefined;
+      continue;
+    }
+
+    if (held !== undefined) {
+      candidate = held.settled;
       continue;
     }
 
@@ -132,6 +238,6 @@ export async function waitForSession(
       continue;
     }
 
-    return waited;
+    candidate = waited.value;
   }
 }

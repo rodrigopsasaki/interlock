@@ -38,7 +38,13 @@ export {
   retainGateOutput,
   storeGateOutput,
 } from "./gateOutput.ts";
-export { createHerdrRuntime, defaultHerdrSocketPath } from "./herdr/adapter.ts";
+export { claudeLiveWork, liveWorkOfTranscript } from "./claude/liveWork.ts";
+export type { LiveWorkSource } from "./herdr/adapter.ts";
+export {
+  createHerdrRuntime,
+  DEFAULT_LIVE_WORK_SOURCES,
+  defaultHerdrSocketPath,
+} from "./herdr/adapter.ts";
 export type { InterpreterCorrection } from "./interpreterBrief.ts";
 export { extractAsk, interpreterBriefBody } from "./interpreterBrief.ts";
 export type {
@@ -75,12 +81,22 @@ export type {
   Agent,
   AgentIdentity,
   AgentIdentityQuery,
+  AgentObservation,
   AgentStatus,
+  LiveWork,
   Pane,
+  PaneFact,
   Runtime,
+  RuntimeObservation,
   RuntimeRefusal,
 } from "./runtime.ts";
-export { explainRuntimeRefusal } from "./runtime.ts";
+export {
+  describeLiveWork,
+  explainRuntimeRefusal,
+  NO_OBSERVATION_CAPABILITY,
+  observeRuntime,
+  unobservedAttempt,
+} from "./runtime.ts";
 export type {
   CatalogueRuntime,
   MergedRuntimes,

@@ -9,3 +9,16 @@ entries:
     at: "2026-11-05T15:25:00Z"
     expected: herdr's agent.list to carry some field for an agent's subagents or child work.
     observed: AgentInfo carries agent_status, pane_id, cwd, state_labels (empty in every live agent) and agent_session {source, agent, kind, value}; nothing about children. For a Claude agent, agent_session.value is the runtime's own session id, and that runtime's transcript records every tool call, its result, background launches (toolUseResult.status async_launched, toolUseResult.backgroundTaskId) and their completion (<task-notification> with <tool-use-id> and <status>).
+  - kind: choice
+    at: "2026-11-05T15:40:00Z"
+    chose: startedAt is an optional top-level integer on session-started in event@v9, validated by isEpochMs and the schema, projected into SessionView as a closed known/unknown union whose unknown carries UNRECORDED_START. Backfill records none.
+    because: The acceptance keeps event@v9 and forbids inferring a start; naming the absence in the ledger lets every reader say the same reason without re-deriving it.
+  - kind: choice
+    at: "2026-11-05T15:50:00Z"
+    chose: The Claude live-work evidence is the runtime's own transcript, found by herdr's agent_session id under CLAUDE_CONFIG_DIR or ~/.claude projects. Live means a tool_use with no tool_result (foreground child or subagent), or a result marked background (status async_launched, isAsync, backgroundTaskId, taskId) with no runtime-stamped task-notification attachment (queued_command, origin or commandMode task-notification) of a terminal status (completed, failed, killed, stopped). Empty, unterminated, unparseable or ambiguous transcripts read unknown.
+    because: The parent's status, its process tree and its screen cannot prove none; the transcript is the one record the runtime itself writes for every call it starts and every background completion it delivers. Notifications are trusted only from runtime-written attachment entries, so neither assistant prose nor a tool result echoing a notification can establish none.
+    rejected: [herdr pane.process_info (absence of descendants cannot establish none), state_labels (empty on every live agent), queue-operation entries (no provenance)]
+  - kind: surprise
+    at: "2026-11-05T16:05:00Z"
+    expected: A runtime timeout inside the grace window to be safe to loop on until the clock passes the grace deadline.
+    observed: Four existing tests time the wait out without moving the controlled clock; the old code read that timeout as grace expiry. Looping hung the suite, so a timeout in grace still ends grace, and now leads into the fresh observation instead of straight into judging.
