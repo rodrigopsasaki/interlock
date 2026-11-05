@@ -1,0 +1,41 @@
+interlock: notes@v0
+node: common-git-writable
+entries:
+  - kind: choice
+    at: "2026-11-05T12:00:00Z"
+    chose: One shared parser, writableRootArgs.ts, called by both the catalogue and the legacy local.yaml reader with the field path as its label, the way startupAnswers.ts already serves both.
+    because: The acceptance asks for identical constraints on both readers; one parser makes divergence impossible, and each reader keeps wrapping the reason in its own existing malformed refusal, so no new refusal kind or face state is coined.
+    rejected: [a template class with its own refusal union, duplicating the checks per reader]
+  - kind: surprise
+    at: "2026-11-05T12:05:00Z"
+    expected: Every runtime adapter passes args to the agent as a list.
+    observed: The herdr adapter sends args as a JSON list, but the tmux adapter joins kind and args with spaces into one send-keys string, so a path with spaces would split there. The tmux adapter is exported but not wired into run or plan, so production launches go through herdr.
+  - kind: choice
+    at: "2026-11-05T12:30:00Z"
+    chose: Decide linked versus not-linked by comparing git rev-parse --path-format=absolute --git-dir with --git-common-dir, resolved only when the entry declares writable_root_args.
+    because: The acceptance names --git-common-dir for the root, and a linked worktree is exactly one whose git dir differs from the common one; a main checkout or a clone has them equal. Resolving lazily keeps runs without the field byte-for-byte unchanged, with no extra git call.
+    rejected: [testing whether <worktree>/.git is a file, which a gitdir-file submodule also satisfies]
+  - kind: choice
+    at: "2026-11-05T12:32:00Z"
+    chose: Narrate the effective argv as its own recorded line, "agent argv <JSON>", right after "agent <id> started", and the root as "writable root <path> supplied to runtime <name>" after the runtime line.
+    because: The recording narrate already appends session-narrated events, so the argv is retained with no new event or session shape; a separate line leaves the existing "agent <id> started (<kind>)" sentence that run tests match unchanged. The argv is the args list startAgent received, without the kind, since that is the exact value the acceptance asks to compare.
+  - kind: surprise
+    at: "2026-11-05T13:10:00Z"
+    expected: A sandbox that allows file writes only beneath cwd and the supplied roots lets git commit once the common git dir is among them.
+    observed: Every git invocation under that policy died with "could not open '/dev/null' for reading and writing"; git opens /dev/null read-write at startup. The proof's policy also allows writes to the literal /dev/null device, which persists nothing; with that, cwd alone fails on <common>/worktrees/n/index.lock and the granted run commits.
+  - kind: choice
+    at: "2026-11-05T13:12:00Z"
+    chose: Drive both proof launches through driveInteractiveSession on one fixture, the first with a catalogue entry without the field and the second with ["--test-write-root", "{path}"], building each sandbox policy only from the argv the recording runtime's startAgent received.
+    because: The acceptance asks that the permissions come from the argv the production launch supplied, so "cwd alone" is the launch of an entry that declares nothing, not a hand-built argv; the staged change, the worktree and HEAD carry over between the two launches, so "the same fixture" is literal.
+  - kind: choice
+    at: "2026-11-05T13:14:00Z"
+    chose: Create the linked worktree and stage the change before the first drive, and let ensureNodeWorktree reuse it.
+    because: Staging has to happen before the fake agent launches, and the drive offers no hook between creating the worktree and starting the agent that the fixture could use without new production surface; a reused worktree at the graph base is the production path a second attempt takes anyway.
+  - kind: choice
+    at: "2026-11-05T13:15:00Z"
+    chose: Make the sandbox's own initialization an assertion, by running /usr/bin/true under each policy and requiring exit 0 with empty stderr, and put a space and double quotes in the fixture path.
+    because: The cwd-only commit is expected to fail, so a policy that fails to initialize would pass that half silently; the true probe makes an initialization failure fail the test. The quoted path exercises the policy-string escaping instead of only claiming it.
+  - kind: surprise
+    at: "2026-11-05T13:30:00Z"
+    expected: A new narration line would leave the run tests untouched, since they match lines by content.
+    observed: Two cli run tests pin the full narrated sequence with toEqual, so the "agent argv []" line had to be added to both expectations; the line is the deliberate receipt, so the expectations move rather than the line.

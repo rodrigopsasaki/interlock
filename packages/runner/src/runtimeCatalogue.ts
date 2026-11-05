@@ -13,6 +13,7 @@ import {
 } from "./localConfig.ts";
 import { parseStartupAnswers, type StartupAnswer } from "./startupAnswers.ts";
 import { isNonNegativeInteger, isRecord, isString, isStringArray, prop } from "./validate.ts";
+import { parseWritableRootArgs, type WritableRootTemplate } from "./writableRootArgs.ts";
 
 export const RUNTIME_CATALOGUE_SHAPE = "runtimes@v0";
 
@@ -27,6 +28,7 @@ export interface CatalogueRuntime {
   readonly promptTakenTimeoutMs: number | undefined;
   readonly readySettleMs: number;
   readonly promptRetries: number;
+  readonly writableRootArgs: WritableRootTemplate | undefined;
 }
 
 export type RuntimeCatalogueRefusal =
@@ -70,6 +72,7 @@ const KNOWN_ENTRY_KEYS: ReadonlySet<string> = new Set([
   "prompt_taken_timeout_ms",
   "ready_settle_ms",
   "prompt_retries",
+  "writable_root_args",
 ]);
 
 function isPositiveInteger(value: unknown): value is number {
@@ -169,6 +172,14 @@ function parseEntry(
     });
   }
 
+  const writableRootArgs = parseWritableRootArgs(
+    prop(value, "writable_root_args"),
+    `runtimes.${name}.writable_root_args`,
+  );
+  if (isErr(writableRootArgs)) {
+    return err({ kind: "malformed", path, reason: writableRootArgs.error });
+  }
+
   return ok({
     kind,
     args: args ?? [],
@@ -178,6 +189,7 @@ function parseEntry(
     promptTakenTimeoutMs: promptTakenTimeoutMsField,
     readySettleMs: readySettleMsField ?? DEFAULT_READY_SETTLE_MS,
     promptRetries: promptRetriesField ?? DEFAULT_PROMPT_RETRIES,
+    writableRootArgs: writableRootArgs.value,
   });
 }
 
@@ -264,6 +276,7 @@ export interface ResolvedRuntime {
   readonly promptTakenTimeoutMs: number;
   readonly readySettleMs: number;
   readonly promptRetries: number;
+  readonly writableRootArgs: WritableRootTemplate | undefined;
   readonly source: "catalogue" | "local.yaml";
 }
 
@@ -310,6 +323,7 @@ export function mergeRuntimes(
         DEFAULT_PROMPT_TAKEN_TIMEOUT_MS,
       readySettleMs: entry.readySettleMs,
       promptRetries: entry.promptRetries,
+      writableRootArgs: entry.writableRootArgs,
       source: "catalogue",
     });
   }
@@ -328,6 +342,7 @@ export function mergeRuntimes(
       promptTakenTimeoutMs: local.runtime.promptTakenTimeoutMs,
       readySettleMs: local.runtime.readySettleMs,
       promptRetries: local.runtime.promptRetries,
+      writableRootArgs: local.runtime.writableRootArgs,
       source: "local.yaml",
     });
   }

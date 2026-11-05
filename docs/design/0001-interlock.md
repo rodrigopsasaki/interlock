@@ -516,6 +516,31 @@ persisted journal events beneath them. A shape written today must still be reada
 - The three substrate verbs are versioned like any other shape.
 - The `open` section of every debrief is the shapes' own gap log; that is how the formats grow.
 
+### Runtime catalogue arguments
+
+A runtime entry's `args` are trusted operator configuration: the runner passes them to the agent
+as given and never reads them, because reading them would mean knowing a vendor's flags (I6).
+The one thing the runner does know and the operator cannot write down ahead of time is where a
+node's worktree keeps its git state. A linked worktree's index, HEAD and refs live under the
+repository's common git directory, outside the worktree and so outside a sandboxed runtime's
+writable roots; a catalogue that hard-codes that directory works for the repositories someone
+listed and fails, at the first commit, for the next one.
+
+So the entry may declare `writable_root_args`, on runtimes@v0 and on local@v0's `runtime:` block
+alike, with one shared schema part: a template in which exactly one whole element is `{path}`.
+For an attempt in a linked worktree the runner resolves the absolute common git directory and
+appends the expanded template after `args`, in a fresh list, with the path as one argument and no
+shell in between. It derives no other root and touches neither sandbox mode nor network access;
+without the field, or outside a linked worktree, the argv is exactly the entry's. The template is
+opaque in the same way `args` is: the runner substitutes one element and knows nothing of what
+the others mean. The field is optional, so both shapes stay at v0 and every existing catalogue
+and local.yaml still reads; a reader older than the field refuses a catalogue entry that uses it,
+by name, as it refuses any unknown key.
+
+The effective argv is narrated as JSON through the recorded session narration once the agent has
+started, so what a session was actually given is a receipt rather than a recomputation, and no
+session or event shape changes to carry it.
+
 ## The weekend
 
 The ordinary failure case, not the catastrophic one. Saturday 13:00, sessions running on the home

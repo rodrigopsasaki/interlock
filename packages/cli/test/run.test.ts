@@ -333,7 +333,7 @@ describe("interlock run", () => {
       scope: expect.any(Array),
       role: "worker",
     });
-  });
+  }, 17_000);
 
   it("refuses without a graph and node", async () => {
     const result = await runInterlockRun([]);
@@ -870,6 +870,7 @@ describe("interlock run", () => {
       "pane pane-1 opened",
       "runtime default (claude, model undeclared)",
       "agent agent-1 started (claude)",
+      "agent argv []",
       "identity reported",
       "agent ready (idle)",
       "prompt sent",
@@ -915,6 +916,7 @@ describe("interlock run", () => {
       "pane pane-1 opened",
       "runtime default (claude, model undeclared)",
       "agent agent-1 started (claude)",
+      "agent argv []",
       "identity reported",
       "agent ready (idle)",
       "prompt sent",

@@ -1,0 +1,314 @@
+interlock: debrief@v2
+graph: 0047-worktree-commits
+node: common-git-writable
+role: implementer
+graph_base_sha: 9ae55a9e0465f888246e25c4b99b11b776720103
+session_start_sha: 0f45d960a1e4d8055344f989e179096e5b37a326
+head_sha: ed7d24a8351918de703ed4b30ad997dd5e14c4fa
+derivation:
+  kind: agent
+  runtime: claude
+  model: claude-opus-5-5
+discoveries:
+  - id: git-opens-dev-null-read-write
+    what: >-
+      Under a macOS sandbox that denies every file write except beneath cwd and the supplied
+      roots, git refuses to start at all: "could not open '/dev/null' for reading and writing".
+      The proof's policy also allows writes to the literal /dev/null device.
+    found_at: 'packages/runner/test/writableRoot.test.ts:52 "(allow file-write* (literal"'
+    mattered_because: >-
+      Without it the cwd-only commit fails for the wrong reason and the granted commit fails too,
+      so the proof would prove nothing. /dev/null persists no file, so the grant stays "beneath
+      cwd and the supplied roots" in every sense that matters. A real sandboxed runtime's policy
+      already allows it.
+  - id: tmux-adapter-joins-argv
+    what: >-
+      The tmux adapter starts an agent by joining kind and args with spaces into one send-keys
+      string, so the shell in the pane re-splits them. A common git dir with a space would break
+      there. The herdr adapter, the one run and plan use, sends args as a JSON list.
+    found_at: 'packages/runner/src/tmux/adapter.ts:36 "const command = [kind, ...args].join("'
+    mattered_because: >-
+      The acceptance requires the path to reach the runtime as one argv element with no shell
+      splitting. That holds for the production path (herdr). It does not hold for the exported but
+      unwired tmux adapter, so it is left in open rather than changed here.
+  - id: shapes-reference-embeds-local-example
+    what: >-
+      docs/shapes.md is generated from the schemas and also embeds .interlock/local.example.yaml
+      and runtimes.example.yaml verbatim. Editing a template after regenerating breaks the
+      schemas package's freshness test.
+    found_at: 'packages/schemas/src/reference.ts:19 "return join(repoRoot,"'
+    mattered_because: >-
+      Any change to an example template has to be followed by interlock schema reference --write.
+      The brief named the templates but not the generated page.
+    applies_to: { kind: path, path: docs/shapes.md }
+decisions:
+  - id: one-template-parser
+    what: >-
+      writableRootArgs.ts parses writable_root_args once for both readers into a
+      WritableRootTemplate of before/after lists around the single placeholder, and expands it
+      as [...before, path, ...after]. It rejects non-lists, empty lists, non-string elements,
+      embedded placeholders, and a placeholder count other than one, naming the element index.
+    because: >-
+      The acceptance asks for identical constraints on two readers. One parser, as
+      startupAnswers.ts already is, makes them one by construction. The before/after shape makes
+      a template without exactly one placeholder unrepresentable once it is past the reader, and
+      the path becomes one element by array construction, never a string substitution.
+    rests_on:
+      - packages/runner/src/startupAnswers.ts
+    hunks:
+      - packages/runner/src/writableRootArgs.ts:1-53
+    rejected: two inline copies of the checks, one per reader
+  - id: readers-reuse-malformed-refusal
+    what: >-
+      The catalogue entry and local.yaml's runtime block read writable_root_args through the
+      shared parser and wrap its reason in their existing malformed refusal, under
+      runtimes.<name>.writable_root_args and runtime.writable_root_args. The catalogue adds the
+      key to its known keys. mergeRuntimes carries the template onto ResolvedRuntime from both
+      sources. local.yaml's field guide names it.
+    because: >-
+      I3. No new refusal kind or face state, and the explanation functions callers already
+      render stay the single place the sentence is formed.
+    rests_on:
+      - packages/runner/src/runtimeCatalogue.ts
+      - packages/runner/src/localConfig.ts
+    hunks:
+      - packages/runner/src/runtimeCatalogue.ts:16
+      - packages/runner/src/runtimeCatalogue.ts:31
+      - packages/runner/src/runtimeCatalogue.ts:75
+      - packages/runner/src/runtimeCatalogue.ts:175-182
+      - packages/runner/src/runtimeCatalogue.ts:192
+      - packages/runner/src/runtimeCatalogue.ts:279
+      - packages/runner/src/runtimeCatalogue.ts:326
+      - packages/runner/src/runtimeCatalogue.ts:345
+      - packages/runner/src/localConfig.ts:8
+      - packages/runner/src/localConfig.ts:27
+      - packages/runner/src/localConfig.ts:59-60
+      - packages/runner/src/localConfig.ts:170-177
+      - packages/runner/src/localConfig.ts:280
+  - id: linked-by-git-dir-comparison
+    what: >-
+      worktree.ts gains worktreeGitLayout, which runs git rev-parse --path-format=absolute for
+      --git-dir and --git-common-dir in the worktree and returns linked with the common git dir
+      when they differ, not-linked when they are equal, or the existing git-failed refusal.
+    because: >-
+      The acceptance names --git-common-dir for the root. A linked worktree is exactly one whose
+      own git dir differs from the common one, while a main checkout or a clone has them equal.
+      Testing whether .git is a file would also match a gitdir-file submodule.
+    rests_on:
+      - packages/runner/src/herdr/adapter.ts
+    hunks:
+      - packages/runner/src/worktree.ts:222-242
+  - id: launch-argv-per-attempt
+    what: >-
+      The drive computes the attempt's launch before creating the runtime. Without the field it
+      uses the entry's args untouched and resolves nothing. Otherwise it resolves the layout, and
+      for a linked worktree it builds a fresh list of the entry's args followed by the expanded
+      template. A resolution failure is refused as "writable root refused: ..." before openPane.
+      The root is narrated after the runtime line, and startAgent receives the launch args.
+    because: >-
+      Per attempt and without mutating the entry, so attempts that share an entry cannot leak
+      roots into each other. Resolving only when the field is declared keeps every other run's
+      argv and git calls unchanged. Refusing before createHerdrRuntime and openPane means a bad
+      worktree never opens a pane. Nothing reads the template's other elements (I6).
+    rests_on:
+      - packages/runner/src/sessionDrive.ts
+    hunks:
+      - packages/runner/src/sessionDrive.ts:49-53
+      - packages/runner/src/sessionDrive.ts:70-92
+      - packages/runner/src/sessionDrive.ts:256-263
+      - packages/runner/src/sessionDrive.ts:286-290
+      - packages/runner/src/sessionDrive.ts:295
+  - id: argv-as-narrated-receipt
+    what: >-
+      After a successful start the drive narrates "agent argv <JSON of the args startAgent
+      received>" as its own line through the recording narrate. The two cli run tests that pin
+      the full narration sequence now expect that line.
+    because: >-
+      The recording narrate already appends session-narrated events, so the argv is kept with no
+      new session or event shape. A separate line leaves the existing "agent <id> started" text
+      unchanged. Only the args are encoded, not the kind, because that list is what the
+      acceptance asks to compare with what startAgent received. A refused start returns before
+      the line.
+    rests_on:
+      - packages/runner/src/narration.ts
+    hunks:
+      - packages/runner/src/sessionDrive.ts:307
+      - packages/cli/test/run.test.ts:873
+      - packages/cli/test/run.test.ts:919
+  - id: shared-schema-part
+    what: >-
+      schemas/parts/writable-root-args.json is the template constraint (minItems 1, string items
+      that are either "{path}" or do not contain it, contains "{path}" with minContains and
+      maxContains 1). runtimes@v0 entries and local@v0's runtime block both $ref it.
+      docs/shapes.md is regenerated.
+    because: >-
+      "Identical template constraints" holds best as one definition. Two copies would be
+      identical only until the next edit. The field is optional, so both shapes stay at v0 and
+      every existing file validates.
+    rests_on:
+      - schemas/parts/startup-answer.json
+    hunks:
+      - schemas/parts/writable-root-args.json:1-15
+      - schemas/runtimes@v0.json:52-54
+      - schemas/local@v0.json:40-42
+      - docs/shapes.md:993
+      - docs/shapes.md:1033-1036
+      - docs/shapes.md:1217-1220
+  - id: examples-move-codex-add-dir
+    what: >-
+      Both templates document the field with a neutral commented example. In
+      runtimes.example.yaml the three codex entries' hard-coded --add-dir "<git-common-dir>"
+      pair becomes writable_root_args: [--add-dir, "{path}"].
+    because: >-
+      That placeholder is exactly what the runner now supplies per attempt. Leaving it as a
+      literal arg would keep teaching the hard-coding that failed on the first unlisted
+      repository. The machine's real catalogue is untouched, as the graph's read says.
+    rests_on:
+      - .interlock/graphs/0047-worktree-commits.yaml
+    hunks:
+      - runtimes.example.yaml:8-11
+      - runtimes.example.yaml:50-51
+      - runtimes.example.yaml:75
+      - runtimes.example.yaml:102
+      - runtimes.example.yaml:129
+      - .interlock/local.example.yaml:25-28
+  - id: design-note-rationale
+    what: >-
+      A "Runtime catalogue arguments" subsection under Compatibility explains why args stay
+      opaque operator configuration, why the git dir is the one thing the runner supplies, the
+      expansion rules, why both shapes stay at v0, and that the argv is a narrated receipt.
+    because: >-
+      The acceptance asks for it, and the why belongs in the design note, which is the source of
+      truth. No bend-log row was changed, since nothing bent.
+    rests_on:
+      - docs/design/0001-interlock.md
+    hunks:
+      - docs/design/0001-interlock.md:519-543
+  - id: reader-and-schema-tests
+    what: >-
+      One table of every malformed form (scalar, mapping, null, empty, non-string, nested list,
+      missing, repeated, embedded, whole beside embedded) drives the catalogue reader, the
+      local.yaml reader, and both schemas. Tests cover absence, valid templates, expansion of a
+      path with spaces and both kinds of quote, and the template surviving merge and selection
+      from the catalogue and from the legacy block.
+    because: >-
+      One table cannot test one reader for a form it forgets to test on the other, and the error
+      text is checked for the field path each reader must name.
+    rests_on:
+      - packages/runner/test/support/writableRootForms.ts
+    hunks:
+      - packages/runner/test/support/writableRootForms.ts:1-18
+      - packages/runner/test/runtimes.test.ts:13-18
+      - packages/runner/test/runtimes.test.ts:602-711
+      - packages/runner/test/localConfig.test.ts:5-10
+      - packages/runner/test/localConfig.test.ts:649-710
+      - packages/schemas/test/runtimes.test.ts:112-168
+  - id: fixture-type-updates
+    what: >-
+      The existing typed runtime fixtures gain writableRootArgs undefined.
+    because: >-
+      CatalogueRuntime, ResolvedRuntime and LocalConfig's runtime now carry the field as
+      explicitly possibly-undefined, so typed literals must state it. Behaviour is unchanged.
+    rests_on:
+      - packages/runner/src/runtimeCatalogue.ts
+    hunks:
+      - packages/runner/test/runtimes.test.ts:47
+      - packages/runner/test/runtimes.test.ts:126
+      - packages/runner/test/runtimes.test.ts:137
+      - packages/runner/test/runtimes.test.ts:195
+      - packages/runner/test/runtimes.test.ts:389
+      - packages/runner/test/runtimes.test.ts:400
+      - packages/runner/test/runtimes.test.ts:415
+      - packages/runner/test/runtimes.test.ts:422
+      - packages/runner/test/runtimes.test.ts:441
+      - packages/runner/test/runtimes.test.ts:475
+      - packages/runner/test/runtimes.test.ts:503
+      - packages/runner/test/runtimes.test.ts:547
+      - packages/runner/test/runtimes.test.ts:590
+      - packages/runner/test/runtimeSelection.test.ts:17
+  - id: drive-wiring-tests
+    what: >-
+      A shared drive fixture isolates git configuration, builds canonical repositories with a
+      space in their path, selects runtimes through loadLocalConfig, loadRuntimeCatalogue,
+      mergeRuntimes and selectRuntime, and injects a recording Runtime that stops the drive at
+      reportIdentity. Tests assert the exact argv startAgent received and that it equals the
+      narrated JSON, for a catalogue entry and for the legacy block. Further tests cover argv
+      unchanged without the field and for a cloned non-linked worktree, zero pane and start
+      calls when a setup step corrupts .git, independent argv for two repositories sharing one
+      frozen entry, and no started or argv line on a refused start.
+    because: >-
+      The acceptance asks for wiring proven through driveInteractiveSession itself. A worktree
+      setup step is the only existing seam between a valid worktree and the launch, so it is
+      where a resolution failure can be forced without new production surface. Two repositories
+      give two different common dirs, so independence is observable, not vacuous. Breaking the
+      wiring on purpose failed three of these tests, so they are not vacuous either.
+    rests_on:
+      - packages/runner/src/worktreeSetup.ts
+    hunks:
+      - packages/runner/test/support/driveFixture.ts:1-217
+      - packages/runner/test/writableRootLaunch.test.ts:1-219
+  - id: sandbox-proof
+    what: >-
+      writableRoot.test.ts drives the same fixture twice on macOS: first with an entry without
+      the field, then with ["--test-write-root", "{path}"]. Each time the fake agent builds a
+      sandbox-exec policy from only the argv it received (reads allowed, writes only beneath the
+      canonical cwd and roots, escaped strings), checks that the policy initializes with
+      /usr/bin/true, and runs a commit with signing and hooks off on a change staged before
+      launch. It asserts the cwd-only commit fails with HEAD unchanged, the granted commit
+      advances HEAD onto the staged content, and a write into a pre-created outside directory
+      fails and leaves no file. Only then does it print the proof line. Other platforms skip with
+      a reason and never print it.
+    because: >-
+      The permissions must come from the production launch's argv, so "cwd alone" is the launch
+      of an entry that declares nothing. Probing initialization first keeps a broken sandbox from
+      passing the half that expects failure. Quotes and a space in the fixture path exercise the
+      escaping.
+    rests_on:
+      - packages/runner/test/support/driveFixture.ts
+    hunks:
+      - packages/runner/test/writableRoot.test.ts:1-208
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+  - id: test
+    result: pass
+    invocation: pnpm test
+    note: ledger 167, debrief 98, verifier 59, face 165, substrate 91, runner 361, schemas 1018, cli 320, all passed
+  - id: writable-root-proof
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/writableRoot.test.ts
+    note: 'printed "writable-root-sandbox-proof: passed" on macOS 27.2'
+  - id: catalogue-proof
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/runtimes.test.ts
+    note: "Tests 42 passed"
+  - id: local-config-proof
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/localConfig.test.ts
+    note: "Tests 42 passed"
+  - id: schema-proof
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter schemas exec vitest run test/runtimes.test.ts
+    note: "Tests 48 passed"
+open:
+  - >-
+    The tmux adapter joins kind and args into one shell string (packages/runner/src/tmux/adapter.ts:36),
+    so a writable root with a space would be split if that adapter were ever wired in. Production
+    launches go through herdr, which passes a list. Out of this node's scope; it is worth a node
+    of its own before tmux is used.
+  - >-
+    The operator still has to remove the hard-coded --add-dir lines from this machine's real
+    runtimes.yaml and add writable_root_args: [--add-dir, "{path}"] to each codex entry. A runner
+    built before this change rejects a catalogue entry carrying the key as unknown, so the real
+    catalogue should change only after this merges.
+  - >-
+    The narrated argv includes every literal catalogue arg. They are trusted operator
+    configuration and are already visible in herdr, but anything an operator puts in args now
+    also lands in the shared journal as narration.
