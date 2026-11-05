@@ -6,6 +6,7 @@ import type { Runtime } from "runner";
 import { buildRegistry, judgeValue } from "schemas";
 import { afterEach, describe, expect, it } from "vitest";
 import { runInterlockPosition } from "../src/position.ts";
+import { git as landedGit, landedRepository, writeLandedJournal } from "./face/landedFixture.ts";
 import { gitInitFixture } from "./graph/gitFixture.ts";
 
 function stubRuntime(reportedAgentStatus: NonNullable<Runtime["reportedAgentStatus"]>): Runtime {
@@ -226,5 +227,51 @@ describe("interlock position --json", () => {
     writeFileSync(join(cwd, ".interlock", "graphs", "beta.yaml"), graphYaml("beta", ["b"]));
     const after = await positionsJson([], cwd);
     expect(after.repositories[0].graphs).toHaveLength(2);
+  });
+});
+
+describe("interlock position --json: a partly reverted node", () => {
+  it("prints partly-reverted-on-main with each undone commit's undoer, and keeps the graph not done", async () => {
+    const { root } = landedRepository(runsRoot, { solo: [] });
+    directories.push(root);
+    const base = landedGit(root, "rev-parse", "HEAD");
+    const commits = ["one", "two", "three"].map((name) => {
+      mkdirSync(join(root, "src"), { recursive: true });
+      writeFileSync(join(root, "src", `${name}.ts`), `export const ${name} = true;\n`);
+      landedGit(root, "add", "src");
+      landedGit(root, "commit", "--quiet", "-m", `feat: ${name}`);
+      return landedGit(root, "rev-parse", "HEAD");
+    });
+    const [, second, head] = commits;
+    if (second === undefined || head === undefined) throw new Error("expected three commits");
+    landedGit(root, "rm", "--quiet", "src/two.ts");
+    landedGit(root, "commit", "--quiet", "-m", "chore: take two back out");
+    const undo = landedGit(root, "rev-parse", "HEAD");
+    writeFileSync(
+      join(root, ".interlock", "graphs", "solo.yaml"),
+      ["interlock: graph@v0", "id: solo", "nodes:", "  - id: n", "    depends_on: []", ""].join(
+        "\n",
+      ),
+    );
+    writeLandedJournal(root, [{ graph: "solo", node: "n", session: "s-n", base, head }]);
+
+    const parsed = await positionsJson(["--repo", root], root);
+    const [repository] = parsed.repositories;
+    expect(repository.graphs[0].position).toMatchObject({
+      interlock: "position@v2",
+      done: false,
+      nodes: [
+        {
+          id: "n",
+          landed: {
+            kind: "partly-reverted-on-main",
+            main: "main",
+            head,
+            reverted: [second],
+            revertedBy: { [second]: undo },
+          },
+        },
+      ],
+    });
   });
 });
