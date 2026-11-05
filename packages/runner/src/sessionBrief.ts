@@ -12,6 +12,7 @@ import {
 import type { GateDeclaration } from "face";
 import type { Brief } from "ledger";
 import { narrateContext, type SubstrateClient } from "substrate";
+import { narrateAcceptance, reconcileAcceptanceSection } from "./acceptanceSection.ts";
 import {
   authoritativeBriefGates,
   diffGates,
@@ -32,6 +33,11 @@ export const briefPath = briefFilePath;
 
 export function briefExists(repoRoot: string, graph: string, node: string): boolean {
   return existsSync(briefPath(repoRoot, graph, node));
+}
+
+export interface DeclaredNode {
+  readonly acceptance: string;
+  readonly gates: readonly GateDeclaration[];
 }
 
 export interface BriefWriteOutcome {
@@ -75,7 +81,7 @@ export async function writeBriefIntoWorktree(
   graphBaseSha: string,
   session: string,
   standing: readonly StandingGate[],
-  nodeGates: readonly GateDeclaration[],
+  declared: DeclaredNode,
   substrate: SubstrateClient,
   shape?: RoleShape,
 ): Promise<Result<BriefWriteOutcome, SessionBriefRefusal>> {
@@ -83,7 +89,7 @@ export async function writeBriefIntoWorktree(
   if (isErr(read)) return err({ kind: "read", refusal: read.error });
   if (read.value.kind === "legacy") return err({ kind: "legacy", graph, node });
 
-  const authoritativeGates = authoritativeBriefGates(standing, nodeGates);
+  const authoritativeGates = authoritativeBriefGates(standing, declared.gates);
   const authoritativeScope = gitTrackedFiles(repoRoot);
   const contextScope = read.value.frontMatter.contextScope ?? authoritativeScope;
   const tracked = new Set(authoritativeScope);
@@ -96,16 +102,18 @@ export async function writeBriefIntoWorktree(
     });
   }
   const role = shape?.role ?? read.value.frontMatter.role;
+  const acceptance = reconcileAcceptanceSection(read.value.body, declared.acceptance);
   const narration = [
     ...diffRole(read.value.frontMatter.role, role),
     ...diffGates(read.value.frontMatter.gates, authoritativeGates),
     ...diffScope(read.value.frontMatter.scope, authoritativeScope),
+    ...narrateAcceptance(node, acceptance),
   ];
 
   const contextOutcome = await substrate.context({ graph, id: node }, contextScope, role);
   narration.push(narrateContext(substrate.address, contextOutcome));
   const rendered = contextOutcome.kind === "rendered";
-  const guidedBody = withDebriefAuthoringGuidance(read.value.body);
+  const guidedBody = withDebriefAuthoringGuidance(acceptance.body);
   const authoredBody = shape === undefined ? guidedBody : withWalkSection(guidedBody, shape);
   const body = rendered
     ? withRenderedContextSlice(authoredBody, renderSlice(substrate.address, contextOutcome.items))

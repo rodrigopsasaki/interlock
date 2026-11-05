@@ -103,7 +103,7 @@ export {
   selectRuntime,
 } from "./runtimeSelection.ts";
 export { gitTrackedFiles } from "./scope.ts";
-export type { BriefWriteOutcome, SessionBriefRefusal } from "./sessionBrief.ts";
+export type { BriefWriteOutcome, DeclaredNode, SessionBriefRefusal } from "./sessionBrief.ts";
 export {
   briefExists,
   briefPath,
