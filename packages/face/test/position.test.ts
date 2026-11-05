@@ -1,14 +1,20 @@
 import {
+  type Debrief,
   derivation,
   duration,
   fold,
   gate,
   heldOn,
   type LedgerEvent,
+  type MarkCounts,
+  NODE_ROLES,
+  type NodeRole,
   outcome,
   type Receipt,
   sessionRuntime,
   spend,
+  type WalkStep,
+  walkFor,
 } from "ledger";
 import { describe, expect, it } from "vitest";
 import type { GraphDocument } from "../src/document.ts";
@@ -295,6 +301,190 @@ describe("positionOf: role", () => {
     const position = positionOf(roled, projection, "some-hash", Date.now());
     expect(nodeIn(position, "a").role).toBe("implementer");
     expect("role" in nodeIn(position, "b")).toBe(false);
+  });
+});
+
+describe("positionOf: what a session was told and what it returned", () => {
+  const SHA = "c".repeat(40);
+  const node = { graph: "demo", id: "a" };
+  const roled = (role: NodeRole | undefined, acceptance: string): GraphDocument => ({
+    id: "demo",
+    gates: [],
+    nodes: [
+      { id: "a", ...(role === undefined ? {} : { role }), acceptance, dependsOn: [], gates: [] },
+    ],
+  });
+  const steps: readonly WalkStep[] = [
+    { verb: "context", ask: "Which conventions govern these paths?" },
+  ];
+  const counts: MarkCounts = { rooted: 3, unrooted: 1, unexplained: 0, gap: 2 };
+
+  const returned: Readonly<Record<NodeRole, Partial<Debrief>>> = {
+    scout: {
+      discoveries: [{ id: "x", what: "found", foundAt: "a.ts:1", matteredBecause: "unsaid" }],
+    },
+    planner: { graphFile: ".interlock/graphs/0047-next.yaml" },
+    implementer: {
+      decisions: [{ id: "d", what: "did", because: "why", restsOn: [], hunks: ["a.ts:1-2"] }],
+    },
+    tester: { proof: [{ test: "a.test.ts", pins: "the refusal" }] },
+    reviewer: { findings: { lens: "security", items: [] } },
+    verifier: { marks: [{ claim: "n/d", mark: "rooted", because: "its hunk is there" }] },
+  };
+  const kinds: Readonly<Record<NodeRole, readonly string[]>> = {
+    scout: ["discoveries"],
+    planner: ["graph"],
+    implementer: ["decisions", "hunks"],
+    tester: ["proof"],
+    reviewer: ["findings"],
+    verifier: ["marks"],
+  };
+
+  function debriefOf(role: string, sections: Partial<Debrief>): Debrief {
+    return {
+      graph: "demo",
+      node: "a",
+      role,
+      graphBaseSha: SHA,
+      sessionStartSha: SHA,
+      headSha: SHA,
+      derivation: { kind: "human", who: "Rodrigo Sasaki" },
+      discoveries: [],
+      decisions: [],
+      gatesRunByAgent: [],
+      open: [],
+      ...sections,
+    };
+  }
+
+  function started(role: string, acceptance: string, address?: string): LedgerEvent {
+    return {
+      kind: "session-started",
+      session: { id: "session-1", node, runtime: sessionRuntime.unknown() },
+      brief: { graph: "demo", node: "a", role, acceptance, gates: [], scope: [] },
+      graphBaseSha: SHA,
+      ...(address === undefined ? {} : { walk: walkFor(address, steps) }),
+    };
+  }
+
+  it.each(NODE_ROLES)(
+    "shows a %s attempt's brief, walk and debrief without opening a file",
+    (role) => {
+      const position = positionOf(
+        roled(role, "do it"),
+        fold([
+          { kind: "node-created", node },
+          started(role, "do it", "https://substrate.test"),
+          {
+            kind: "debrief-filed",
+            session: "session-1",
+            debrief: debriefOf(role, returned[role]),
+            markCounts: counts,
+          },
+        ]),
+        "some-hash",
+        Date.now(),
+      );
+      const attempt = nodeIn(position, "a").attempts[0];
+      expect(attempt?.brief).toEqual({
+        path: ".interlock/sessions/demo/a/brief.md",
+        role,
+        acceptance: "do it",
+        walk: { kind: "address", address: "https://substrate.test", steps },
+      });
+      expect(attempt?.debrief).toEqual({
+        path: ".interlock/sessions/demo/a/debrief.yaml",
+        version: 1,
+        kinds: kinds[role],
+        marks: { kind: "counted", counts },
+      });
+    },
+  );
+
+  it.each(NODE_ROLES)(
+    "shows a %s attempt's empty walk with its because when the address is none",
+    (role) => {
+      const position = positionOf(
+        roled(role, "do it"),
+        fold([{ kind: "node-created", node }, started(role, "do it", "none")]),
+        "some-hash",
+        Date.now(),
+      );
+      const attempt = nodeIn(position, "a").attempts[0];
+      expect(attempt?.brief.walk).toEqual({
+        kind: "none",
+        because: "the substrate address is none, so there is nothing to ask",
+      });
+      expect(attempt?.debrief).toBeUndefined();
+    },
+  );
+
+  it("carries the acceptance the stored session brief gave, never the graph's current text", () => {
+    const position = positionOf(
+      roled("implementer", "the acceptance as the graph reads now"),
+      fold([
+        { kind: "node-created", node },
+        started("implementer", "the acceptance the session was given", "none"),
+      ]),
+      "some-hash",
+      Date.now(),
+    );
+    expect(nodeIn(position, "a").attempts[0]?.brief.acceptance).toBe(
+      "the acceptance the session was given",
+    );
+  });
+
+  it("says why a brief has no walk: no role, or a session older than the recorded walk", () => {
+    const roleless = positionOf(
+      roled(undefined, "x"),
+      fold([{ kind: "node-created", node }, started("worker", "x")]),
+      "some-hash",
+      Date.now(),
+    );
+    expect(nodeIn(roleless, "a").attempts[0]?.brief).toEqual({
+      path: ".interlock/sessions/demo/a/brief.md",
+      acceptance: "x",
+      walk: { kind: "none", because: "the node names no role, so its brief carried no walk" },
+    });
+
+    const older = positionOf(
+      roled("tester", "x"),
+      fold([{ kind: "node-created", node }, started("tester", "x")]),
+      "some-hash",
+      Date.now(),
+    );
+    expect(nodeIn(older, "a").attempts[0]?.brief.walk).toEqual({
+      kind: "none",
+      because: "this session started before the journal recorded the walk a brief gave",
+    });
+  });
+
+  it("counts each filing as the debrief's version and says when marks were not recorded", () => {
+    const filed = (sections: Partial<Debrief>): LedgerEvent => ({
+      kind: "debrief-filed",
+      session: "session-1",
+      debrief: debriefOf("implementer", sections),
+    });
+    const position = positionOf(
+      roled("implementer", "x"),
+      fold([
+        { kind: "node-created", node },
+        started("implementer", "x", "none"),
+        filed({}),
+        filed(returned.implementer),
+      ]),
+      "some-hash",
+      Date.now(),
+    );
+    expect(nodeIn(position, "a").attempts[0]?.debrief).toEqual({
+      path: ".interlock/sessions/demo/a/debrief.yaml",
+      version: 2,
+      kinds: ["decisions", "hunks"],
+      marks: {
+        kind: "unknown",
+        because: "the verifier's marks were not recorded when it was filed",
+      },
+    });
   });
 });
 

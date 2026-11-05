@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/roles@v0.json",
+  "title": "roles@v0",
+  "description": "A repository's override of the role table at .interlock/roles.yaml. The package carries the default for all six roles; each role named here replaces only the fields it names. For each role: prompt is the opening prompt's role paragraph, debrief.requires and debrief.forbids are the debrief kinds interlock debrief validate holds the node on, and walk is the substrate questions its brief asks first, by verb. The walk is a starting point, never a fence.",
+  "type": "object",
+  "properties": {
+    "interlock": { "const": "roles@v0" },
+    "roles": {
+      "type": "object",
+      "propertyNames": { "enum": ["scout", "planner", "implementer", "tester", "reviewer", "verifier"] },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "prompt": { "type": "string", "minLength": 1 },
+          "debrief": {
+            "type": "object",
+            "properties": {
+              "requires": { "$ref": "#/$defs/kinds" },
+              "forbids": { "$ref": "#/$defs/kinds" }
+            },
+            "additionalProperties": false
+          },
+          "walk": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "verb": { "enum": ["context", "vocabulary", "absorb"] },
+                "ask": { "type": "string" }
+              },
+              "required": ["verb", "ask"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["interlock", "roles"],
+  "additionalProperties": false,
+  "$defs": {
+    "kinds": {
+      "type": "array",
+      "items": { "enum": ["discoveries", "decisions", "hunks", "proof", "findings", "graph", "marks"] }
+    }
+  }
+}

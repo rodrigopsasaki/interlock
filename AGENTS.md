@@ -66,13 +66,14 @@ a `gap`, recorded with the nearest term and the difference.
 | --- | --- |
 | graph | The directed acyclic graph of nodes produced from one ask. Named by the ask, never by the type. |
 | node | One unit of work with an acceptance, dependency edges and at most one live session. The unit of recovery, drilldown and gating. |
-| brief | What a session is given: node, acceptance, gates, context slice, role. Immutable once the session starts. Role is supplied, never self-declared: the graph names it per node, one of scout, planner, implementer, tester, reviewer, verifier. |
+| brief | What a session is given: node, acceptance, gates, context slice, role. Immutable once the session starts. Role is supplied, never self-declared: the graph names it per node, one of scout, planner, implementer, tester, reviewer, verifier. The role decides the brief's opening paragraph, the debrief kinds it must return and its walk, from the role table. |
 | scout | A node role. Its session reads and reports and changes nothing: discoveries, no diff. |
 | planner | A node role. Its session drafts a graph for a person to approve. |
 | implementer | A node role. Its session produces the diff. |
 | tester | A node role. Its session produces the proof the gates run. |
 | reviewer | A node role. Its session produces a judgment through a named lens. |
 | verifier | A node role. Its session produces the check that every debrief claim is rooted. |
+| walk | The substrate questions a role's brief asks first, by the substrate's three verbs and its address. A starting point, never a fence: the whole substrate stays open to every session. Empty, saying so, when the address is none. |
 | note | A typed entry a session appends while it works: a choice with its because, or a surprise with expected and observed. A receipt. |
 | debrief | What a session returns beside its diff: discoveries and decisions, typed. Closes the notes. Versioned, verified, never overwritten. A session that ends without one is interrupted; nothing is drafted for it unless a person asks. |
 | discovery | Something the agent had to find that the brief did not give it. Every discovery is a brief deficiency. |

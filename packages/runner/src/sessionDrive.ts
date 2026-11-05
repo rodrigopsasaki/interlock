@@ -22,6 +22,7 @@ import type { LocalConfig } from "./localConfig.ts";
 import { recordingNarrate } from "./narration.ts";
 import { buildOpeningPrompt, type PriorWork, type SessionRole } from "./openingPrompt.ts";
 import { deliverOpeningPrompt } from "./promptDelivery.ts";
+import type { RoleShape } from "./roleShape.ts";
 import {
   type Agent,
   type AgentStatus,
@@ -77,6 +78,7 @@ export interface DriveSessionRequest {
   readonly graph: string;
   readonly node: string;
   readonly role: SessionRole;
+  readonly shape?: RoleShape;
   readonly acceptance: string;
   readonly nodeGates: readonly GateDeclaration[];
   readonly localConfig: LocalConfig;
@@ -106,6 +108,7 @@ export async function driveInteractiveSession(
     graph,
     node,
     role,
+    shape,
     acceptance,
     nodeGates,
     localConfig,
@@ -162,6 +165,7 @@ export async function driveInteractiveSession(
       },
       brief,
       graphBaseSha,
+      ...(shape === undefined ? {} : { walk: shape.walk }),
     });
     narrate = recordingNarrate(ledger, clock, sessionId, narrate);
 
@@ -330,7 +334,14 @@ export async function driveInteractiveSession(
       agent,
       clock,
       narrate,
-      prompt: buildOpeningPrompt(graph, node, priorWork, role, briefWritten.value.openingView),
+      prompt: buildOpeningPrompt(
+        graph,
+        node,
+        priorWork,
+        role,
+        briefWritten.value.openingView,
+        shape?.entry.prompt,
+      ),
       readySettleMs: agentRuntime.readySettleMs,
       promptRetries: agentRuntime.promptRetries,
       promptTakenTimeoutMs: agentRuntime.promptTakenTimeoutMs,

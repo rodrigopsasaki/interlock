@@ -1,20 +1,25 @@
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { relative } from "node:path";
+import { join, relative } from "node:path";
 import { isErr } from "@phyxiusjs/fp";
 import {
+  briefFilePath,
   DEBRIEF_V2,
   type DebriefRead,
   debriefFilePath,
   explainDebriefRefusal,
   explainNotesRefusal,
+  explainRoleTableRefusal,
   NOTES_V0,
   notesFilePath,
+  readBriefFile,
   readDebriefFile,
   readNotesFile,
+  readRoleTable,
+  roleKindsRefusal,
 } from "debrief";
 import { findRepoRoot } from "face";
-import { shapeTag } from "ledger";
+import { isNodeRole, type NodeRole, shapeTag } from "ledger";
 import {
   buildRegistry,
   describeOutcome,
@@ -89,6 +94,39 @@ async function validateOneFile(path: string): Promise<CommandResult> {
   };
 }
 
+async function suppliedRole(
+  repoRoot: string,
+  graph: string,
+  node: string,
+  read: DebriefRead,
+): Promise<NodeRole | undefined> {
+  const brief = await readBriefFile(briefFilePath(repoRoot, graph, node));
+  if (!isErr(brief) && brief.value.kind === "v1") {
+    const word = brief.value.frontMatter.role;
+    return isNodeRole(word) ? word : undefined;
+  }
+  if (read.kind !== "v2") return undefined;
+  return isNodeRole(read.debrief.role) ? read.debrief.role : undefined;
+}
+
+async function roleRefusal(
+  repoRoot: string,
+  graph: string,
+  node: string,
+  read: DebriefRead,
+): Promise<string | undefined> {
+  const role = await suppliedRole(repoRoot, graph, node, read);
+  if (role === undefined) return undefined;
+  if (read.kind !== "v2") {
+    return `${graph}/${node} is held: a ${role}'s debrief must be ${DEBRIEF_V2} to carry the kinds its role requires; this one is ${read.version}.`;
+  }
+  const table = await readRoleTable(repoRoot);
+  if (isErr(table)) return explainRoleTableRefusal(table.error);
+  return roleKindsRefusal(role, table.value[role], read.debrief, (path) =>
+    existsSync(join(repoRoot, path)),
+  );
+}
+
 export async function validateDebrief(
   args: readonly string[],
   options: { readonly cwd?: string } = {},
@@ -135,6 +173,9 @@ export async function validateDebrief(
     const refusal = await schemaRefusal(debriefPath);
     if (refusal !== undefined) return { exitCode: 1, message: refusal };
   }
+
+  const heldForRole = await roleRefusal(repoRoot, graph, node, debriefRead.value);
+  if (heldForRole !== undefined) return { exitCode: 1, message: heldForRole };
 
   const notesPath = notesFilePath(repoRoot, graph, node);
   const notesRead = await readNotesFile(notesPath);

@@ -38,6 +38,36 @@ export type Mark =
       readonly gap: Gap;
     };
 
+export const MARK_KINDS = ["rooted", "unrooted", "unexplained", "gap"] as const;
+
+export type MarkKind = (typeof MARK_KINDS)[number];
+
+export type MarkCounts = Readonly<Record<MarkKind, number>>;
+
+export function isMarkKind(value: unknown): value is MarkKind {
+  return MARK_KINDS.some((kind) => kind === value);
+}
+
+export function countMarks(marks: readonly Mark[]): MarkCounts {
+  const countOf = (kind: MarkKind): number => marks.filter((each) => each.kind === kind).length;
+  return {
+    rooted: countOf("rooted"),
+    unrooted: countOf("unrooted"),
+    unexplained: countOf("unexplained"),
+    gap: countOf("gap"),
+  };
+}
+
+export function isMarkCounts(value: unknown): value is MarkCounts {
+  return (
+    isRecord(value) &&
+    MARK_KINDS.every((kind) => {
+      const count = prop(value, kind);
+      return typeof count === "number" && Number.isInteger(count) && count >= 0;
+    })
+  );
+}
+
 export const mark = {
   rooted: (derivation: Derivation, hunk: string): Mark => ({
     kind: "rooted",

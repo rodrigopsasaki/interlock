@@ -4,12 +4,14 @@ import type { LedgerEvent } from "./event.ts";
 import type { Gate } from "./gate.ts";
 import { type Node, nodeKey } from "./graph.ts";
 import type { Lease } from "./lease.ts";
+import type { MarkCounts } from "./mark.ts";
 import type { Note } from "./note.ts";
 import type { OutboxDelivery, OutboxIntent } from "./outbox.ts";
 import type { Outcome } from "./outcome.ts";
 import type { Receipt } from "./receipt.ts";
 import type { SessionRuntime } from "./session.ts";
 import { type SessionFacts, sessionFacts } from "./sessionFacts.ts";
+import type { Walk } from "./walk.ts";
 
 export interface NodeView {
   readonly node: Node;
@@ -33,7 +35,10 @@ export interface SessionView {
   readonly runtime: SessionRuntime;
   readonly facts: SessionFacts;
   readonly notes: readonly Note[];
+  readonly walk: Walk | undefined;
   readonly debrief: Debrief | undefined;
+  readonly debriefFilings: number;
+  readonly markCounts: MarkCounts | undefined;
   readonly lease: Lease | undefined;
   readonly leaseExpired: boolean;
   readonly leaseGeneration: number | undefined;
@@ -146,7 +151,10 @@ export function applyEvent(projection: LedgerProjection, event: LedgerEvent): Le
         runtime: event.session.runtime,
         facts: sessionFacts.unknown(),
         notes: [],
+        walk: event.walk,
         debrief: undefined,
+        debriefFilings: 0,
+        markCounts: undefined,
         lease: undefined,
         leaseExpired: false,
         leaseGeneration: undefined,
@@ -173,6 +181,8 @@ export function applyEvent(projection: LedgerProjection, event: LedgerEvent): Le
       return withSession(projection, event.session, (view) => ({
         ...view,
         debrief: event.debrief,
+        debriefFilings: view.debriefFilings + 1,
+        markCounts: event.markCounts,
       }));
     case "gate-moved":
       return withNode(projection, event.node, (view) => {

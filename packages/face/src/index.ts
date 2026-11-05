@@ -1,4 +1,5 @@
 export type { AgentStatus } from "./agentStatus.ts";
+export type { AttemptBrief, AttemptDebrief, AttemptMarks } from "./attemptRecord.ts";
 export type { PositionAttempt } from "./attempts.ts";
 export { attemptsFor, liveOrLatestAttempt } from "./attempts.ts";
 export { criticalPath } from "./criticalPath.ts";

@@ -854,6 +854,8 @@ describe("debrief ingestion", () => {
     const sessionView = ledger.projection().sessions.get("s1");
     expect(sessionView?.debrief?.graph).toBe("fixture");
     expect(sessionView?.notes).toHaveLength(1);
+    expect(sessionView?.debriefFilings).toBe(1);
+    expect(sessionView?.markCounts).toBeUndefined();
   });
 
   it("appends nothing beyond the outcome for a legacy-valid debrief", async () => {
@@ -1096,7 +1098,7 @@ describe("absorb carries live evidence", () => {
     writeSession(root, "fixture", "n1", evidenceDebrief, notesYaml);
 
     const { client, absorbCalls } = spySubstrate();
-    const { ledger } = memoryLedgerWithLog();
+    const { ledger, events } = memoryLedgerWithLog();
 
     const judged = await judgeGates({
       ledger,
@@ -1115,6 +1117,9 @@ describe("absorb carries live evidence", () => {
       narrate: () => {},
     });
     if (isErr(judged)) throw new Error("expected an outcome");
+
+    const filed = events.find((event) => isDebriefFiledForSession(event, "s1"));
+    expect(filed?.markCounts).toEqual({ rooted: 2, unrooted: 1, unexplained: 0, gap: 0 });
 
     expect(absorbCalls).toHaveLength(1);
     const evidence = absorbCalls[0];

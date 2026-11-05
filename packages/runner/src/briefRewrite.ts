@@ -102,6 +102,7 @@ function frontMatterRecord(frontMatter: BriefFrontMatter): Record<string, unknow
         ? {}
         : { handle: frontMatter.substrate.handle }),
     },
+    ...(frontMatter.walk === undefined ? {} : { walk: frontMatter.walk }),
     ...(frontMatter.runner.kind === "worktree"
       ? {
           graph_base_sha: frontMatter.runner.graphBaseSha,

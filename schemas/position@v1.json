@@ -190,9 +190,59 @@
         "runtime": { "$ref": "parts/session-runtime.json" },
         "outcome": { "$ref": "parts/outcome.json" },
         "leaseState": { "$ref": "#/$defs/leaseState" },
-        "agentStatus": { "enum": ["idle", "working", "blocked", "done", "unknown"] }
+        "agentStatus": { "enum": ["idle", "working", "blocked", "done", "unknown"] },
+        "brief": { "$ref": "#/$defs/attemptBrief" },
+        "debrief": { "$ref": "#/$defs/attemptDebrief" }
       },
       "required": ["session", "runtime", "leaseState"],
+      "additionalProperties": false
+    },
+    "attemptBrief": {
+      "description": "What the session was told, from its session-started fact: the brief's path in the worktree, the role it was supplied (absent when not one of the six), the acceptance the stored session brief carried (never the graph's current text), and the walk it was given, or none with why.",
+      "type": "object",
+      "properties": {
+        "path": { "type": "string" },
+        "role": { "enum": ["scout", "planner", "implementer", "tester", "reviewer", "verifier"] },
+        "acceptance": { "type": "string" },
+        "walk": { "$ref": "parts/walk.json" }
+      },
+      "required": ["path", "acceptance", "walk"],
+      "additionalProperties": false
+    },
+    "attemptDebrief": {
+      "description": "What the session returned, present once a debrief is filed: its path, how many times it was filed (version), the debrief kinds it carries, and the verifier's marks on its claims counted by mark, or unknown with why.",
+      "type": "object",
+      "properties": {
+        "path": { "type": "string" },
+        "version": { "type": "integer", "minimum": 1 },
+        "kinds": {
+          "type": "array",
+          "items": { "enum": ["discoveries", "decisions", "hunks", "proof", "findings", "graph", "marks"] }
+        },
+        "marks": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": { "const": "counted" },
+                "counts": { "$ref": "parts/mark-counts.json" }
+              },
+              "required": ["kind", "counts"],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": { "const": "unknown" },
+                "because": { "type": "string" }
+              },
+              "required": ["kind", "because"],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": ["path", "version", "kinds", "marks"],
       "additionalProperties": false
     }
   }

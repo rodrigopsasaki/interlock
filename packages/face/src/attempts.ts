@@ -6,6 +6,12 @@ import {
   type SessionRuntime,
 } from "ledger";
 import type { AgentStatus } from "./agentStatus.ts";
+import {
+  type AttemptBrief,
+  type AttemptDebrief,
+  attemptBriefOf,
+  attemptDebriefOf,
+} from "./attemptRecord.ts";
 import { type LeaseState, leaseStateOf } from "./leaseState.ts";
 
 export interface PositionAttempt {
@@ -14,6 +20,8 @@ export interface PositionAttempt {
   readonly outcome?: Outcome;
   readonly leaseState: LeaseState;
   readonly agentStatus?: AgentStatus;
+  readonly brief: AttemptBrief;
+  readonly debrief?: AttemptDebrief;
 }
 
 export function attemptsFor(
@@ -34,6 +42,7 @@ export function attemptsFor(
         : undefined;
     const isLive = leaseIsLive(session, nowWallMs);
     const agentStatus = isLive ? agentStatusFor?.(session.session) : undefined;
+    const debrief = attemptDebriefOf(session);
 
     attempts.push({
       session: session.session,
@@ -41,6 +50,8 @@ export function attemptsFor(
       ...(ownOutcome === undefined ? {} : { outcome: ownOutcome }),
       leaseState: leaseStateOf(session, nowWallMs),
       ...(agentStatus === undefined ? {} : { agentStatus }),
+      brief: attemptBriefOf(session),
+      ...(debrief === undefined ? {} : { debrief }),
     });
   }
   return attempts;

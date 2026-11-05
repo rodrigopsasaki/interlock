@@ -53,6 +53,10 @@
       ],
       "additionalProperties": true
     },
+    "walk": {
+      "description": "Present only when the node's graph names a role: the walk the role table gave this brief for the substrate address it was written against.",
+      "$ref": "parts/walk.json"
+    },
     "graph_base_sha": {
       "type": "string",
       "pattern": "^[0-9a-fA-F]{40}$"

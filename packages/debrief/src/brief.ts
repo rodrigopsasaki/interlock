@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
+import { isWalk, type Walk } from "ledger";
 import { parse as parseYaml, YAMLParseError } from "yaml";
 import { type BriefGate, parseBriefGate } from "./briefGate.ts";
 import { isValidScopePath } from "./briefScopePath.ts";
@@ -35,6 +36,7 @@ export interface BriefFrontMatter {
   readonly scope: readonly string[];
   readonly contextScope?: readonly string[];
   readonly substrate: BriefSubstrate;
+  readonly walk?: Walk;
   readonly runner: BriefRunnerFields;
 }
 
@@ -216,6 +218,13 @@ function parseV1(
   const substrate = parseBriefSubstrate(prop(parsed, "substrate"));
   if (isErr(substrate)) return invalid(path, substrate.error);
 
+  const walk = prop(parsed, "walk");
+  if (walk !== undefined && !isWalk(walk))
+    return invalid(
+      path,
+      '"walk" must be { kind: address, address, steps: [{ verb, ask }] } or { kind: none, because }',
+    );
+
   const runner = parseRunnerFields(parsed, path);
   if (isErr(runner)) return runner;
 
@@ -229,6 +238,7 @@ function parseV1(
       scope: scope.value,
       ...(contextScope.value === undefined ? {} : { contextScope: contextScope.value }),
       substrate: substrate.value,
+      ...(walk === undefined ? {} : { walk }),
       runner: runner.value,
     },
     body,
