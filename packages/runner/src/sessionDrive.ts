@@ -20,7 +20,7 @@ import { HELD_REVISIT_MS, judgeWorktree } from "./judgeWorktree.ts";
 import { takeLease } from "./lease.ts";
 import type { LocalConfig } from "./localConfig.ts";
 import { recordingNarrate } from "./narration.ts";
-import { buildOpeningPrompt, type PriorWork } from "./openingPrompt.ts";
+import { buildOpeningPrompt, type PriorWork, type SessionRole } from "./openingPrompt.ts";
 import { deliverOpeningPrompt } from "./promptDelivery.ts";
 import {
   type Agent,
@@ -76,7 +76,7 @@ export interface DriveSessionRequest {
   readonly repoRoot: string;
   readonly graph: string;
   readonly node: string;
-  readonly role: string;
+  readonly role: SessionRole;
   readonly acceptance: string;
   readonly nodeGates: readonly GateDeclaration[];
   readonly localConfig: LocalConfig;

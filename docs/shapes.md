@@ -18,7 +18,7 @@ What a session is given: node, acceptance, gates, context slice, role.
 | `interlock` | the literal `"brief@v1"` | yes |  |
 | `graph` | string | yes |  |
 | `node` | string | yes |  |
-| `role` | string matching `^\S+$` | yes |  |
+| `role` | string matching `^\S+$` | yes | The session's role, supplied and never self-declared. When the node's graph names a role (scout, planner, implementer, tester, reviewer, verifier) the runner writes that word here; otherwise the repository copy's word stands, historically worker, or interpreter for interlock plan. Any plain word stays readable. |
 | `gates` | array of gate-declaration | yes | A gate as declared on a graph node, a graph, or a brief's front matter: an id, a kind, and an optional command and output check. A human gate carries no run. |
 | `scope` | array of string | yes |  |
 | `context_scope` | array of string | no |  |
@@ -888,7 +888,7 @@ The directed acyclic graph of nodes produced from one ask.
 | `interlock` | the literal `"graph@v0"` | yes |  |
 | `id` | string | yes |  |
 | `gates` | array of gate-declaration | no | A gate as declared on a graph node, a graph, or a brief's front matter: an id, a kind, and an optional command and output check. A human gate carries no run. |
-| `nodes` | array of object | yes | fields: id (string, required); acceptance (string, optional); depends_on (array of string, optional); gates (array of gate-declaration, optional) |
+| `nodes` | array of object | yes | fields: id (string, required); role (one of `"scout"`, `"planner"`, `"implementer"`, `"tester"`, `"reviewer"`, `"verifier"`, optional); acceptance (string, optional); depends_on (array of string, optional); gates (array of gate-declaration, optional) |
 
 ### Examples
 
@@ -1109,7 +1109,7 @@ The current read of a graph, composed above the stream.
 | `interlock` | the literal `"position@v1"` | yes |  |
 | `graph` | string | yes |  |
 | `approval` | one of `"approved"`, `"stale"`, `"not-approved"` | yes |  |
-| `nodes` | array of positionNode | yes | fields: id (string, required); dependsOn (array of string, required); state (nodeState, required); gates (array of positionGate, required); attempts (array of positionAttempt, required); float (float, required) |
+| `nodes` | array of positionNode | yes | fields: id (string, required); role (one of `"scout"`, `"planner"`, `"implementer"`, `"tester"`, `"reviewer"`, `"verifier"`, optional); dependsOn (array of string, required); state (nodeState, required); gates (array of positionGate, required); attempts (array of positionAttempt, required); float (float, required) |
 | `criticalPath` | array of string | yes |  |
 
 ### Examples

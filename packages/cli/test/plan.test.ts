@@ -95,7 +95,7 @@ function stubRuntime(): Runtime {
   };
 }
 
-function graphYaml(id: string): string {
+function graphYaml(id: string, roleLine: readonly string[] = ["    role: implementer"]): string {
   return [
     "interlock: graph@v0",
     `id: ${id}`,
@@ -104,6 +104,7 @@ function graphYaml(id: string): string {
     "    kind: human",
     "nodes:",
     "  - id: only-node",
+    ...roleLine,
     "    acceptance: a trivial node",
     "    depends_on: []",
     "",
@@ -402,6 +403,28 @@ describe("interlock plan", () => {
     expect(result.exitCode).toBe(1);
     expect(result.message).toContain('graph "id" is "something-else"');
     expect(result.message).toContain('expected "demo"');
+
+    const recorded = latestOutcomeFor(cwd, "demo", "plan/demo");
+    expect(recorded?.kind).toBe("held");
+  }, 30_000);
+
+  it("refuses a produced graph whose nodes do not each name a role, recording held", async () => {
+    const cwd = fixture();
+    const worktreePath = join(cwd, ".worktrees", "plan", "demo");
+
+    const result = await runInterlockPlan(["demo", "--ask", "add a health check endpoint"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime: {
+        ...stubRuntime(),
+        waitUntil: finishedWaitUntil(worktreePath, "demo", "plan/demo", graphYaml("demo", [])),
+      },
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.message).toContain(
+      'node(s) "only-node" name no role; every drafted node names one of scout, planner, implementer, tester, reviewer, verifier.',
+    );
 
     const recorded = latestOutcomeFor(cwd, "demo", "plan/demo");
     expect(recorded?.kind).toBe("held");

@@ -278,6 +278,26 @@ describe("positionOf", () => {
   });
 });
 
+describe("positionOf: role", () => {
+  it("carries the graph's role on its node and leaves it absent where the graph names none", () => {
+    const roled: GraphDocument = {
+      id: "demo",
+      gates: [],
+      nodes: [
+        { id: "a", role: "implementer", dependsOn: [], gates: [] },
+        { id: "b", dependsOn: ["a"], gates: [] },
+      ],
+    };
+    const projection = fold([
+      { kind: "node-created", node: { graph: "demo", id: "a" } },
+      { kind: "node-created", node: { graph: "demo", id: "b" } },
+    ]);
+    const position = positionOf(roled, projection, "some-hash", Date.now());
+    expect(nodeIn(position, "a").role).toBe("implementer");
+    expect("role" in nodeIn(position, "b")).toBe(false);
+  });
+});
+
 describe("approvalState", () => {
   it("is not-approved when there is no gate at all", () => {
     expect(approvalState(undefined, "hash")).toBe("not-approved");

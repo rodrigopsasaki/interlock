@@ -186,6 +186,7 @@ export async function runInterlockRun(
         standingGates.value,
         declaration.gates,
         substrate,
+        declaration.role,
       );
       return isErr(written) ? err(explainSessionBriefRefusal(written.error)) : ok(written.value);
     };
@@ -194,7 +195,7 @@ export async function runInterlockRun(
       repoRoot,
       graph,
       node,
-      role: "worker",
+      role: declaration.role ?? "worker",
       acceptance: declaration.acceptance ?? "",
       nodeGates: declaration.gates,
       localConfig: localConfig.value,

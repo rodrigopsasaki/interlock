@@ -1,3 +1,30 @@
+import type { NodeRole } from "face";
+
+export type SessionRole = "worker" | "interpreter" | NodeRole;
+
+const NODE_ROLE_SENTENCES: Readonly<Record<NodeRole, string>> = {
+  scout: "Your role is scout: you read and report, and change nothing. ",
+  planner: "Your role is planner: you draft a graph for a person to approve. ",
+  implementer: "Your role is implementer: you produce the diff. ",
+  tester: "Your role is tester: you produce the proof the gates run. ",
+  reviewer: "Your role is reviewer: you produce a judgment through a named lens. ",
+  verifier: "Your role is verifier: you produce the check that every debrief claim is rooted. ",
+};
+
+function roleSentenceFor(graph: string, role: SessionRole): string {
+  switch (role) {
+    case "worker":
+      return "";
+    case "interpreter":
+      return (
+        `This session produces .interlock/graphs/${graph}.yaml for a person to approve or ` +
+        "correct; it never leases or runs a node. "
+      );
+    default:
+      return NODE_ROLE_SENTENCES[role];
+  }
+}
+
 export interface PriorWork {
   readonly uncommittedPaths: number;
   readonly commitsBeyondBase: number;
@@ -7,16 +34,12 @@ export function buildOpeningPrompt(
   graph: string,
   node: string,
   priorWork?: PriorWork,
-  role = "worker",
+  role: SessionRole = "worker",
   openingView?: string,
 ): string {
-  const roleSentence =
-    role === "interpreter"
-      ? `This session produces .interlock/graphs/${graph}.yaml for a person to approve or ` +
-        "correct; it never leases or runs a node. "
-      : "";
+  const roleSentence = roleSentenceFor(graph, role);
   const derivedFilingSentence =
-    role === "worker"
+    role !== "interpreter"
       ? `For a first filing, run interlock debrief prepare ${graph} ${node} --to <candidate-path> --agent-runtime <runtime> --agent-model <model>, or replace both agent flags with --human <name>; author its claims and reports, then run ` +
         `interlock debrief preview --file <candidate-path> to inspect it read-only if useful before interlock debrief file-derived ${graph} ${node} --from <candidate-path>. After source changes, commit, prepare a fresh candidate, author it, inspect it if useful, and file it. `
       : "";

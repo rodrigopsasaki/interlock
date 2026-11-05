@@ -1,0 +1,43 @@
+interlock: notes@v0
+node: node-role
+entries:
+  - kind: surprise
+    at: "2026-11-05T01:00:00Z"
+    expected: >
+      This session's ledger session-started brief and its worktree brief
+      front matter to carry the same role, since deriveSessionStart refuses
+      a debrief when they differ.
+    observed: >
+      The shared journal records role "worker" for session
+      834ca8ec-4581-4653-ba4f-4623881ba57b (run.ts hardcodes it) while the
+      worktree brief front matter says "implementer" (the repository copy's
+      own word). Derived filing for this very session may refuse with
+      "session-started event does not match the local brief"; the fix this
+      node makes (run.ts passes the graph's role to both) only helps
+      sessions started after it lands.
+  - kind: choice
+    at: "2026-11-05T01:05:00Z"
+    chose: >
+      The closed set lives in packages/face/src/role.ts beside the graph
+      loader, and the nearest-term search moves from the verifier's
+      vocabulary check into packages/ledger as nearestTerm so the graph
+      loader and the verifier share one implementation.
+    because: >
+      face owns graph@v0 parsing and every reader of a node (runner, cli,
+      schemas) already depends on it; a second Levenshtein beside the
+      verifier's would be a reinvention, and ledger is the one package both
+      face and verifier already import.
+  - kind: choice
+    at: "2026-11-05T01:10:00Z"
+    chose: >
+      When the graph names a role, the runner makes it authoritative in the
+      worktree brief front matter (narrated when the repository copy said
+      something else), in the ledger's session-started brief and in the
+      opening prompt; when the graph names none, the front matter is left
+      exactly as the repository copy wrote it and the ledger and prompt keep
+      "worker".
+    because: >
+      "Supplied by the graph, never self-declared" means the repository
+      copy's word cannot override the graph's, exactly as gates and scope
+      are already overwritten from the runner's view; leaving the no-role
+      path untouched is what keeps the old brief byte for byte.

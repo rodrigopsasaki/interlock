@@ -6,6 +6,7 @@ import { criticalPath } from "./criticalPath.ts";
 import type { GraphDocument, NodeDeclaration } from "./document.ts";
 import { type Float, floatOf } from "./float.ts";
 import { type PositionGate, positionGate } from "./positionGate.ts";
+import type { NodeRole } from "./role.ts";
 import { topologicalOrder } from "./topology.ts";
 import { nodeWeight } from "./weight.ts";
 
@@ -20,6 +21,7 @@ export type NodeState =
 
 export interface PositionNode {
   readonly id: string;
+  readonly role?: NodeRole;
   readonly dependsOn: readonly string[];
   readonly state: NodeState;
   readonly gates: readonly PositionGate[];
@@ -91,6 +93,7 @@ export function positionOf(
   const nodes = order.map(
     (declaration): PositionNode => ({
       id: declaration.id,
+      ...(declaration.role === undefined ? {} : { role: declaration.role }),
       dependsOn: declaration.dependsOn,
       state: nodeState(declaration, outcomeByNode),
       gates: nodeGates(declaration, projection, document.id),

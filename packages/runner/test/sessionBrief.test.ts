@@ -3,13 +3,14 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { join } from "node:path";
 import { isErr, isOk } from "@phyxiusjs/fp";
 import { type Item, readBriefFile } from "debrief";
-import type { GateDeclaration } from "face";
+import { explainGraphRefusal, type GateDeclaration, loadGraphDocumentText } from "face";
 import { noneClient, type SubstrateClient } from "substrate";
 import { afterEach, describe, expect, it } from "vitest";
 import { contextSlice, contextSliceOf, withRenderedContextSlice } from "../src/contextSlice.ts";
 import { buildOpeningPrompt } from "../src/openingPrompt.ts";
 import {
   briefPath,
+  buildBrief,
   explainSessionBriefRefusal,
   writeBriefIntoWorktree,
 } from "../src/sessionBrief.ts";
@@ -624,5 +625,127 @@ describe("withRenderedContextSlice", () => {
     expect(second.match(/^## Context slice$/gm)).toHaveLength(1);
     expect(second).not.toContain("first rendered item");
     expect(contextSliceOf(second)).toContain("second rendered item");
+  });
+});
+
+describe("role supplied by the graph", () => {
+  const graphText = (roleLine: readonly string[]): string =>
+    [
+      "interlock: graph@v0",
+      "id: g",
+      "nodes:",
+      "  - id: n",
+      ...roleLine,
+      "    acceptance: do the work",
+      "",
+    ].join("\n");
+
+  async function writeFor(roleLine: readonly string[]) {
+    const declaration = loadGraphDocumentText(graphText(roleLine), "g.yaml");
+    if (isErr(declaration)) throw new Error(explainGraphRefusal(declaration.error));
+    const node = declaration.value.nodes[0];
+    if (node === undefined) throw new Error("expected node n");
+    const { repo, worktree } = fixture(v1WithMatchingGatesAndScope);
+    const result = await writeBriefIntoWorktree(
+      repo,
+      worktree,
+      "g",
+      "n",
+      "b".repeat(40),
+      "session-1",
+      standing,
+      nodeGates,
+      substrate,
+      node.role,
+    );
+    if (!isOk(result)) throw new Error("expected the brief to be written");
+    return { node, result: result.value, worktree };
+  }
+
+  it("parses the graph's role and carries it into the brief, the ledger brief and the prompt", async () => {
+    const { node, result, worktree } = await writeFor(["    role: tester"]);
+    expect(node.role).toBe("tester");
+    expect(result.narration).toContain(
+      'role: the repository copy declared "worker"; the graph supplies "tester"; overwritten.',
+    );
+
+    const written = await readBriefFile(briefPath(worktree, "g", "n"));
+    if (!isOk(written) || written.value.kind !== "v1") throw new Error("expected v1");
+    expect(written.value.frontMatter.role).toBe("tester");
+    expect(result.openingView).toContain("role: tester");
+
+    const role = node.role ?? "worker";
+    expect(buildBrief("g", "n", "do the work", [], [], role).role).toBe("tester");
+    const prompt = buildOpeningPrompt("g", "n", undefined, role, result.openingView);
+    expect(prompt).toContain("Your role is tester: you produce the proof the gates run. ");
+    expect(prompt).toContain("For a first filing, run interlock debrief prepare g n");
+  });
+
+  it("keeps the repository copy's brief byte for byte when the graph names no role", async () => {
+    const { node, result, worktree } = await writeFor([]);
+    expect(node.role).toBeUndefined();
+    expect(result.narration).toEqual(["context none: no substrate addressed"]);
+
+    const bytes = readFileSync(briefPath(worktree, "g", "n"), "utf-8");
+    expect(
+      bytes.startsWith(
+        [
+          "---",
+          "interlock: brief@v1",
+          "graph: g",
+          "node: n",
+          "role: worker",
+          "gates:",
+          "  - id: typecheck",
+          "    kind: command",
+          "    run: pnpm typecheck",
+          "  - id: own-gate",
+          "    kind: command",
+          "    run: pnpm test",
+          "scope:",
+          "  - .interlock/sessions/g/n/brief.md",
+          "  - tracked.ts",
+          "substrate:",
+          "  address: none",
+          `graph_base_sha: ${"b".repeat(40)}`,
+          "session: session-1",
+          "---",
+          "",
+          "# brief",
+          "",
+        ].join("\n"),
+      ),
+    ).toBe(true);
+
+    const role = node.role ?? "worker";
+    expect(buildBrief("g", "n", "do the work", [], []).role).toBe("worker");
+    expect(buildOpeningPrompt("g", "n", undefined, role, result.openingView)).toBe(
+      buildOpeningPrompt("g", "n", undefined, undefined, result.openingView),
+    );
+    expect(buildOpeningPrompt("g", "n", undefined, role)).not.toContain("Your role is");
+  });
+
+  it("refuses an unknown role in the graph with a sentence naming the nearest role", () => {
+    const loaded = loadGraphDocumentText(graphText(["    role: reviwer"]), "g.yaml");
+    if (!isErr(loaded)) throw new Error("expected a refusal");
+    expect(explainGraphRefusal(loaded.error)).toBe(
+      'g.yaml: node "n": role "reviwer" is not one of scout, planner, implementer, tester, reviewer, verifier; the nearest is "reviewer"',
+    );
+  });
+
+  it.each([
+    ["scout", "Your role is scout: you read and report, and change nothing. "],
+    ["planner", "Your role is planner: you draft a graph for a person to approve. "],
+    ["implementer", "Your role is implementer: you produce the diff. "],
+    ["tester", "Your role is tester: you produce the proof the gates run. "],
+    ["reviewer", "Your role is reviewer: you produce a judgment through a named lens. "],
+    [
+      "verifier",
+      "Your role is verifier: you produce the check that every debrief claim is rooted. ",
+    ],
+  ] as const)("states what the %s role produces in one sentence", (role, sentence) => {
+    expect(buildOpeningPrompt("g", "n", undefined, role)).toContain(
+      `Work only in this worktree. ${sentence}Append`,
+    );
   });
 });
