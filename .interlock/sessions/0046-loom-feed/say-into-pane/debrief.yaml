@@ -1,0 +1,278 @@
+interlock: debrief@v2
+graph: 0046-loom-feed
+node: say-into-pane
+role: implementer
+graph_base_sha: 97783df0d07ee78822d6c8ca7489b861a24a4e8d
+session_start_sha: 7106a0628ed397c488b78c75e9746e26ad440c98
+head_sha: d2ac35604195934e9e2c1b29b757d40a20df4232
+derivation:
+  kind: agent
+  runtime: claude
+  model: claude-opus-5-5
+discoveries:
+  - id: journal-role-still-worker
+    what: >-
+      This session's session-started event in the shared journal records role "worker", while
+      its brief says "implementer". interlock debrief prepare refused the derived filing with
+      "session-started event does not match the local brief", the same refusal the three
+      earlier nodes of this chain met.
+    found_at: '.interlock/sessions/0046-loom-feed/say-into-pane/brief.md:5 "role: implementer"'
+    mattered_because: >-
+      The runner that starts 0046 sessions runs from the main checkout, which lacks node-role's
+      fix until the chain lands. This debrief is authored by hand against debrief@v2, then
+      checked with interlock debrief validate.
+  - id: herdr-refuses-prompts-to-blocked-agents
+    what: >-
+      herdr's agent.prompt rejects a submission to an agent that is already blocked, with
+      agent_blocked, before any input is sent (herdr agent prompt --help). The position shows
+      asking only while the agent is blocked.
+    found_at: 'packages/runner/src/herdr/adapter.ts:383 "const prompted = await call("'
+    mattered_because: >-
+      The main use of say, answering a blocked session's question, may be refused by the
+      multiplexer. Say records that refusal as an uncertain delivery, never as delivered, and the
+      question stays open saying why. A test pins exactly that case. Whether answering a blocked
+      agent needs a different delivery (keys into its prompt) is a question for the adapter, in
+      open below.
+  - id: prompt-needs-the-agent-not-the-pane
+    what: >-
+      Runtime.prompt takes an Agent (herdr's agent name and its pane), and the only lookup by a
+      session's identity, resolvePane, returned the pane alone. herdr's agent.list entries carry
+      name and pane_id, checked with a read-only herdr agent list.
+    found_at: 'packages/runner/src/herdr/adapter.ts:503 "const name = prop(found.value,"'
+    mattered_because: >-
+      The CLI holds a session id, not an agent. The adapter gained resolveAgent so no herdr call
+      leaves it (I6).
+decisions:
+  - id: person-said-at-event-v9
+    what: >-
+      LedgerEvent gains person-said { session, said }, with PersonSaid { id, by, text, at,
+      answers?, because? }, its guard, and personSaid, which derives id as the sha256 of the
+      fact's own content. EVENT_SHAPE moves to event@v9. upcastV8 and a predatesPersonSaid
+      wrapper on every older tag refuse person-said; every other older line passes unchanged.
+    because: >-
+      An older reader refuses an unknown kind, so person-said cannot be additive within event@v8.
+      The acceptance gives this node the next event version and an upcaster so older journals
+      replay unchanged. A content-derived id is the stable outbox identity the acceptance asks
+      for: the same for whoever recomputes it, and the same across replay. at is a number
+      because the CLI owns this time, and loom@v0 types heard.at as one.
+    rests_on:
+      - packages/ledger/src/envelope.ts
+      - packages/ledger/src/upcast/v7.ts
+      - packages/ledger/src/event.ts
+    hunks:
+      - packages/ledger/src/personSaid.ts:1-79
+      - packages/ledger/src/event.ts:14-14
+      - packages/ledger/src/event.ts:99-103
+      - packages/ledger/src/event.ts:166-167
+      - packages/ledger/src/envelope.ts:8-8
+      - packages/ledger/src/envelope.ts:11-11
+      - packages/ledger/src/envelope.ts:29-32
+      - packages/ledger/src/envelope.ts:34-34
+      - packages/ledger/src/envelope.ts:39-40
+      - packages/ledger/src/upcast/v8.ts:1-11
+      - packages/ledger/src/index.ts:99-100
+      - packages/ledger/src/index.ts:105-105
+      - packages/ledger/test/replay.test.ts:24-24
+      - packages/ledger/test/replay.test.ts:565-565
+      - packages/ledger/test/replay.test.ts:620-781
+  - id: delivery-through-the-existing-outbox-fact
+    what: >-
+      A person-said's delivery is recorded by the existing outbox-delivery-recorded under
+      said.id, acknowledged with an acknowledgment artifact or uncertain with a because. The
+      projection keeps each session's said with its delivery, and folds a delivery whose id
+      names no outbox intent onto the session whose said carries it.
+    because: >-
+      I7 already has a shape here: an intent with a stable identity, persisted before dispatch,
+      then a delivery fact that is acknowledged or uncertain. Composing over it keeps one
+      delivery fact for every outward effect. The person-said fact is itself the intent, so
+      persisting it before the prompt is one confirmed append, not two. A delivery for an
+      unknown id is still ignored, and a test pins that.
+    rests_on:
+      - packages/ledger/src/outbox.ts
+      - packages/runner/src/gateJudge.ts
+    hunks:
+      - packages/ledger/src/projection.ts:11-11
+      - packages/ledger/src/projection.ts:31-35
+      - packages/ledger/src/projection.ts:52-52
+      - packages/ledger/src/projection.ts:114-129
+      - packages/ledger/src/projection.ts:185-185
+      - packages/ledger/src/projection.ts:204-208
+      - packages/ledger/src/projection.ts:244-244
+  - id: resolve-agent-in-the-adapter
+    what: >-
+      The runtime seam gains an optional resolveAgent(query); the herdr adapter fills it from
+      agent.list by the reported graph, node and session tokens, returning the agent's name and
+      pane, or undefined when the matching entry lacks either.
+    because: >-
+      The CLI must prompt through the adapter's existing delivery, which needs an Agent. Finding
+      it by the same tokens resolvePane uses keeps every herdr call inside the adapter (I6), and
+      an entry without a name resolves to nothing rather than a guess.
+    rests_on:
+      - packages/runner/src/runtime.ts
+      - packages/runner/src/herdr/adapter.ts
+    hunks:
+      - packages/runner/src/runtime.ts:88-88
+      - packages/runner/src/herdr/adapter.ts:499-509
+      - packages/runner/test/herdr/adapter.test.ts:15-15
+      - packages/runner/test/herdr/adapter.test.ts:878-932
+  - id: session-say-command
+    what: >-
+      interlock session say <graph> <node> <text> --by <name> [--because <why>] finds the
+      node's live attempt, resolves its agent, names the open question it answers, appends
+      person-said with a confirmed append, prompts through Runtime.prompt, then records the
+      delivery. It refuses before writing anything when --by is missing, when there is no live
+      attempt, or when the pane can't be found. An adapter refusal, an acknowledgment that can't
+      be retained, or a delivery that can't be recorded is uncertain, and the command exits 1
+      saying the words were recorded but their delivery is uncertain.
+    because: >-
+      A refusal is not a person-said, so nothing should enter the journal. The acknowledgment
+      artifact is the JSON of said id, session, agent and pane, because Runtime.prompt returns
+      no body to retain, and the acknowledged shape requires an artifact. The delivery's
+      derivation is the outbox gate at runner@0, the same derivation the runner's own outbox
+      deliveries carry. An uncertain delivery is not a success a face should show as done.
+    rests_on:
+      - packages/cli/src/node/cancel.ts
+      - packages/runner/src/gateJudge.ts
+    hunks:
+      - packages/cli/src/session/say.ts:1-212
+      - packages/cli/src/main.ts:22-22
+      - packages/cli/src/main.ts:75-78
+      - packages/cli/test/session/say.test.ts:1-360
+  - id: heard-and-asking-follow-acknowledgment
+    what: >-
+      The position's attempt gains heard, the last acknowledged person-said (by, text, at). A
+      question closes only when an acknowledged person-said names it in answers; asked becomes
+      null with a because naming who answered and when. While an answer's delivery is uncertain
+      or unrecorded, the question keeps its words and gains a because saying the answer is not
+      known to have reached the pane and why. openQuestionOf gives the CLI the same rule.
+    because: >-
+      The acceptance makes heard and the close follow only an acknowledged delivery, and asks
+      an uncertain one to leave the question open and say so. loom@v0's asking already has an
+      optional because, so it maps without a new name. answers carries the order the projection
+      cannot: notes and said are separate lists, so the question open at say time is captured
+      as a fact, and a question asked after the words is not closed by them, which a test pins.
+    rests_on:
+      - packages/face/src/attempts.ts
+      - schemas/position@v1.json
+    hunks:
+      - packages/face/src/asking.ts:1-7
+      - packages/face/src/asking.ts:13-13
+      - packages/face/src/asking.ts:22-27
+      - packages/face/src/asking.ts:32-63
+      - packages/face/src/asking.ts:66-66
+      - packages/face/src/asking.ts:86-101
+      - packages/face/src/attempts.ts:9-9
+      - packages/face/src/attempts.ts:25-25
+      - packages/face/src/attempts.ts:49-49
+      - packages/face/src/attempts.ts:52-52
+      - packages/face/src/attempts.ts:62-62
+      - packages/face/src/index.ts:2-3
+  - id: schemas-and-corpus
+    what: >-
+      Added schemas/event@v9.json (person-said in the kind enum and its shape) and
+      schemas/parts/person-said.json. position@v1 gains attemptHeard and an optional because on
+      the open-question arm of asking. The corpus's current-event cases move to event@v9; the
+      event@v8 question case now tags its line event@v8 itself. registry lists event@v9, and
+      docs/shapes.md is regenerated.
+    because: >-
+      The acceptance asks for the event schema and the corpus check. The guard and the part
+      agree on real values, and the v8 schema refuses person-said, so the version boundary is
+      checked in both readers. The v8 case had used envelopeFor, which stamps the current tag,
+      so it would have checked a v9 line against the v8 schema.
+    rests_on:
+      - schemas/event@v8.json
+      - packages/schemas/test/askedInWords.test.ts
+    hunks:
+      - schemas/event@v9.json:1-120
+      - schemas/parts/person-said.json:1-25
+      - schemas/position@v1.json:195-195
+      - schemas/position@v1.json:208-218
+      - schemas/position@v1.json:220-220
+      - schemas/position@v1.json:227-227
+      - docs/shapes.md:832-832
+      - docs/shapes.md:834-834
+      - docs/shapes.md:838-839
+      - docs/shapes.md:887-890
+      - packages/schemas/test/sayIntoPane.test.ts:1-136
+      - packages/schemas/test/registry.test.ts:28-28
+      - packages/schemas/test/corpus.guards.test.ts:285-285
+      - packages/schemas/test/corpus.guards.test.ts:391-391
+      - packages/schemas/test/corpus.guards.test.ts:400-400
+      - packages/schemas/test/corpus.guards.test.ts:416-416
+      - packages/schemas/test/corpus.guards.test.ts:423-423
+      - packages/schemas/test/corpus.guards.test.ts:433-433
+      - packages/schemas/test/corpus.guards.test.ts:457-457
+      - packages/schemas/test/corpus.guards.test.ts:463-463
+      - packages/schemas/test/corpus.guards.test.ts:480-480
+      - packages/schemas/test/corpus.guards.test.ts:485-485
+      - packages/schemas/test/corpus.guards.test.ts:488-488
+      - packages/schemas/test/corpus.guards.test.ts:500-500
+      - packages/schemas/test/corpus.guards.test.ts:520-520
+  - id: notes-as-receipts
+    what: >-
+      notes.yaml records each choice above with its because and what it rejected, the
+      herdr agent_blocked surprise, the corpus surprise, and the real-journal replay check.
+    because: >-
+      The brief asks for a typed note at every choice and surprise, committed with the code, so
+      a later session can walk why each piece is shaped as it is.
+    rests_on:
+      - .interlock/sessions/0046-loom-feed/say-into-pane/brief.md
+    hunks:
+      - .interlock/sessions/0046-loom-feed/say-into-pane/notes.yaml:1-127
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: Every workspace package typechecks.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Biome reports no findings over 380 files.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+    note: packages/*/src contains no comments.
+  - id: test
+    result: pass
+    invocation: mise exec -- pnpm test
+    note: 2145 tests across eight packages, green at d2ac356.
+  - id: say-proof-1
+    result: pass
+    invocation: mise exec -- pnpm --filter cli exec vitest run test/session/say.test.ts
+    note: 10 tests passed.
+  - id: say-proof-2
+    result: pass
+    invocation: mise exec -- pnpm --filter ledger exec vitest run test/replay.test.ts
+    note: 53 tests passed.
+open:
+  - >-
+    herdr refuses agent.prompt to a blocked agent (agent_blocked), and asking shows only while
+    the agent is blocked. So answering a blocked session's question through say records an
+    uncertain delivery and leaves the question open, which is honest but not useful. Either the
+    adapter needs a delivery for a blocked agent (for example keys into its prompt, which is a
+    guess about each runtime's dialog), or asking should also show while the agent is idle
+    after writing a question, if sessions that ask in words read as idle rather than blocked.
+    I did not change either: both are outside this node's acceptance, and the second changes
+    asked-in-words' rule.
+  - >-
+    A question closes by answers, which the CLI fills from the journal at say time. A question
+    a session has written but the runner has not yet recorded (it records questions when it
+    observes blocked) is not in the journal, so words said then carry no answers and do not
+    close it later.
+  - >-
+    loom@v0 mapping. heard maps exactly (by, text, at as a number). asking.because now has a
+    producer on the open arm too. asking.at stays a string, as asked-in-words left it. loom's
+    Attempt.pane is not filled by this node; resolveAgent returns the pane id, so a later node
+    can carry it.
+  - >-
+    Uncertain deliveries are never reconciled. A person saying the same words again makes a new
+    person-said with a new identity, since at differs. A reconciler that reads herdr's pane
+    history to settle an uncertain delivery would need its own evidence and is not built.
+  - >-
+    The real shared journal (3,209 lines) replays to the same projection with and without the
+    event@v9 reader, checked once by a throwaway test that was removed. The committed fixtures
+    predate event@v8, so the committed proof of v8 replay is the synthetic v8 journal in
+    replay.test.ts.
+  - >-
+    interlock debrief prepare refuses this node for the reason in journal-role-still-worker.
+    The debrief is authored by hand, as the three earlier nodes' were.
