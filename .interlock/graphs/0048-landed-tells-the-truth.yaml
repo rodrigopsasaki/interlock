@@ -230,35 +230,55 @@ nodes:
     depends_on: []
     acceptance: |
       A node's authored brief can fall behind its graph. On 2026-11-05 a
-      node's acceptance in another repository was rewritten three times after its brief
-      was authored, and the runner started a session on the old brief body
-      because it reconciles only the brief's front matter (role, gates,
-      scope) with the graph. The worker built the smaller, older spec while
-      the gates judged the newer one.
+      node's acceptance in another repository was rewritten three times
+      after its brief was authored, and the runner started a session on the
+      old brief body because it reconciles only the brief's front matter
+      (role, gates, scope) with the graph. The worker built the smaller,
+      older spec while the gates judged the newer one.
 
       When the runner materializes a brief for a session, it also
       reconciles the brief's "Acceptance (verbatim from the graph)" section
-      with the node's acceptance in the graph at the session's base: if the
-      two differ, it replaces that section's body with the graph's
-      acceptance, quoted the same way, and records the rewrite in the brief
-      diff it already reports (as it does for gates and scope), naming the
-      node and that the acceptance changed. Text outside that section is
-      untouched. An authored brief with no such section is refused before
-      any worktree, session or pane exists, with the reason in words, so a
-      brief that cannot be reconciled never starts a session. The authored
-      brief file in the repository is never edited by the runner.
+      with the acceptance from the same approved node declaration that
+      supplies the session's recorded brief and node gates, even when a
+      reused worktree has an older `graph_base_sha`. If the two differ, it
+      replaces that section's body with the declaration's acceptance, quoted
+      the same way, and reports the rewrite through the existing narration
+      channel it uses for front-matter diffs, naming the node and that the
+      acceptance changed. Comparison removes one blockquote marker and at
+      most one following space per quoted line, normalizes line endings and
+      excludes section-padding blank lines; it preserves whitespace
+      belonging to the acceptance itself. Acceptance reconciliation
+      preserves every body byte outside the section it replaces. Existing
+      front-matter reconciliation and generated debrief-guidance, walk and
+      context-slice transformations continue unchanged.
 
-      Tests: an authored brief whose acceptance section matches starts
-      unchanged; one whose section is stale starts with the graph's
-      acceptance in the materialized brief, the rest of the body byte for
-      byte, and the rewrite reported; one with no acceptance section is
-      refused before a worktree exists; a whitespace-only difference in
-      quoting is not reported as a change. Strict TypeScript, no assertions,
-      no non-null operators. Preserve every historical artifact. Append
-      typed notes for choices and discoveries. No push, no merge; the human
-      merges.
+      For an otherwise valid brief@v1 without this section, append the
+      canonical quoted acceptance section to the materialized copy and
+      report its addition through the existing narration channel. The
+      opening view identifies this section as authoritative over acceptance
+      text elsewhere in the authored prose. Existing brief readers and
+      repository files remain unchanged; the authored brief file in the
+      repository is never edited by the runner.
+
+      Tests: a matching acceptance section is retained byte for byte and
+      produces no acceptance-rewrite narration; a stale section is replaced
+      and reported, with outside bytes preserved by acceptance
+      reconciliation and existing generated-body transformations retained;
+      an existing brief@v1 without the section materializes successfully
+      with the authoritative acceptance appended and its addition reported;
+      every existing brief remains readable; a whitespace-only difference in
+      quoting is not reported as a change. In packages/cli/test/run.test.ts,
+      cover a reused worktree with an older base and prove that the
+      materialized acceptance, recorded brief and node gates use the same
+      approved declaration. Strict TypeScript, no assertions, no non-null
+      operators. Preserve every historical artifact. Append typed notes for
+      choices and discoveries. No push, no merge; the human merges.
     gates:
       - id: brief-follows-proof
         kind: command
         run: pnpm --fail-if-no-match --filter runner exec vitest run test/sessionBrief.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: brief-follows-run-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/run.test.ts
         expect_output: 'Tests +[1-9][0-9]* passed'
