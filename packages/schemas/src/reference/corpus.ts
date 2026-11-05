@@ -67,7 +67,7 @@ export const referenceSources: readonly ReferenceSource[] = [
     sourcePath: ".interlock/sessions/0019-next-briefing-strategy/propose-next-briefs/notes.yaml",
     tag: "notes@v0",
   },
-  { sourcePath: "runtimes.example.yaml", tag: "runtimes@v0" },
+  { sourcePath: "runtimes.example.yaml", tag: "runtimes@v1" },
 ];
 
 function candidatesFromMarkdown(content: string): readonly Candidate[] {

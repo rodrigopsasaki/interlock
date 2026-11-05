@@ -75,20 +75,63 @@ function commitsBeyondBase(
   return ok(Number.parseInt(counted.value.trim(), 10));
 }
 
-function parsePorcelainPath(line: string): string {
-  const path = line.slice(3);
-  const arrow = path.indexOf(" -> ");
-  return arrow === -1 ? path : path.slice(arrow + 4);
+export function uncommittedPaths(
+  worktreePath: string,
+  includeRenameSources = false,
+): Result<readonly string[], WorktreeRefusal> {
+  const status = git(worktreePath, ["status", "--porcelain", "-z", "--untracked-files=all"]);
+  if (isErr(status)) return status;
+  const records = status.value.split("\0");
+  const paths = new Set<string>();
+  for (let index = 0; index < records.length; index += 1) {
+    const record = records[index];
+    if (record === undefined || record.length === 0) continue;
+    paths.add(record.slice(3));
+    if (record.slice(0, 2).includes("R") || record.slice(0, 2).includes("C")) {
+      const source = records[++index];
+      if (includeRenameSources && source !== undefined) paths.add(source);
+    }
+  }
+  return ok([...paths]);
 }
 
-export function uncommittedPaths(worktreePath: string): Result<readonly string[], WorktreeRefusal> {
-  const status = git(worktreePath, ["status", "--porcelain", "--untracked-files=all"]);
-  if (isErr(status)) return status;
-  const paths = status.value
-    .split("\n")
-    .filter((line) => line.length > 0)
-    .map(parsePorcelainPath);
-  return ok(paths);
+export function worktreeHead(worktree: string): Result<string, WorktreeRefusal> {
+  const head = git(worktree, ["rev-parse", "HEAD"]);
+  return isErr(head) ? head : ok(head.value.trim());
+}
+
+export function resetCommits(worktree: string, head: string): Result<string, WorktreeRefusal> {
+  return git(worktree, ["reset", "--mixed", head]);
+}
+
+export function commitPaths(
+  worktree: string,
+  paths: readonly string[],
+  message: string,
+  trailers: readonly string[],
+): Result<string, WorktreeRefusal> {
+  if (paths.length === 0) return worktreeHead(worktree);
+  const reset = git(worktree, ["--literal-pathspecs", "reset", "--quiet", "HEAD", "--", ...paths]);
+  if (isErr(reset)) return reset;
+  const staged = git(worktree, ["--literal-pathspecs", "add", "--", ...paths]);
+  if (isErr(staged)) return staged;
+  const committed = git(worktree, [
+    "--literal-pathspecs",
+    "-c",
+    "maintenance.auto=false",
+    "commit",
+    "-S",
+    "--only",
+    "-m",
+    [message, "", ...trailers].join("\n"),
+    "--",
+    ...paths,
+  ]);
+  return isErr(committed) ? committed : worktreeHead(worktree);
+}
+
+export function isIgnoredPath(worktree: string, path: string): boolean {
+  return isOk(git(worktree, ["check-ignore", "--quiet", "--", path]));
 }
 
 export function isCommittedAtHead(worktreePath: string, relativePath: string): boolean {

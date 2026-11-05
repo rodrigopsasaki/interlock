@@ -217,6 +217,7 @@ export async function runInterlockRun(
       ...(shape === undefined ? {} : { shape }),
       acceptance: declared.acceptance,
       nodeGates: declared.gates,
+      ...(declaration.paths === undefined ? {} : { paths: declaration.paths }),
       localConfig: localConfig.value,
       agentRuntime: agentRuntime.value,
       standingGates: standingGates.value,

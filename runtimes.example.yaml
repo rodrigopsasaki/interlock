@@ -12,7 +12,7 @@
 # used unchanged.
 # For example: writable_root_args: ["--your-writable-root-flag", "{path}"]
 
-interlock: runtimes@v0
+interlock: runtimes@v1
 
 runtimes:
   # A name matches ^[a-z][a-z0-9_-]{0,31}$, the same shape herdr accepts for an agent name.
@@ -55,6 +55,7 @@ runtimes:
   # hard-coded path.
   astra:
     kind: codex
+    commits: runner
     # Session observation: a hooks-review modal needed SessionStart trust before the opening prompt
     # could be delivered; a person dismissed it with Esc and the runner resent the prompt.
     args:
@@ -82,6 +83,7 @@ runtimes:
 
   terra:
     kind: codex
+    commits: runner
     # Session observation: a hooks-review modal needed SessionStart trust before the opening prompt
     # could be delivered; a person dismissed it with Esc and the runner resent the prompt.
     args:
@@ -109,6 +111,7 @@ runtimes:
 
   luna:
     kind: codex
+    commits: runner
     # Session observation: a hooks-review modal needed SessionStart trust before the opening prompt
     # could be delivered; a person dismissed it with Esc and the runner resent the prompt.
     args:

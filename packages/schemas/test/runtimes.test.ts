@@ -166,3 +166,29 @@ describe.each(schemaForms)("%s writable_root_args", (_schema, valid) => {
     expect(valid({ writable_root_args: template })).toBe(false);
   });
 });
+
+const validateV1 = registry.ajv.getSchema(
+  "https://github.com/rodrigopsasaki/interlock/schemas/runtimes@v1.json",
+);
+describe("runtimes@v1", () => {
+  it.each([undefined, "agent", "runner"])("accepts commits %s", (commits) => {
+    if (validateV1 === undefined) throw new Error("missing runtimes@v1");
+    expect(
+      validateV1({
+        interlock: "runtimes@v1",
+        runtimes: {
+          worker: { kind: "fake", model: "m", ...(commits === undefined ? {} : { commits }) },
+        },
+      }),
+    ).toBe(true);
+  });
+  it.each(["both", 1, null])("refuses commits %s", (commits) => {
+    if (validateV1 === undefined) throw new Error("missing runtimes@v1");
+    expect(
+      validateV1({
+        interlock: "runtimes@v1",
+        runtimes: { worker: { kind: "fake", model: "m", commits } },
+      }),
+    ).toBe(false);
+  });
+});

@@ -15,11 +15,14 @@ import { parseStartupAnswers, type StartupAnswer } from "./startupAnswers.ts";
 import { isNonNegativeInteger, isRecord, isString, isStringArray, prop } from "./validate.ts";
 import { parseWritableRootArgs, type WritableRootTemplate } from "./writableRootArgs.ts";
 
-export const RUNTIME_CATALOGUE_SHAPE = "runtimes@v0";
+export const RUNTIME_CATALOGUE_SHAPE = "runtimes@v1";
 
 export const DEFAULT_RUNTIME_NAME = "default";
 
+export type CommitMode = "runner" | "agent";
+
 export interface CatalogueRuntime {
+  readonly commits: CommitMode;
   readonly kind: string;
   readonly args: readonly string[];
   readonly model: string;
@@ -64,6 +67,7 @@ export function runtimeCataloguePath(): string {
 }
 
 const KNOWN_ENTRY_KEYS: ReadonlySet<string> = new Set([
+  "commits",
   "kind",
   "args",
   "model",
@@ -99,6 +103,16 @@ function parseEntry(
         reason: `"runtimes.${name}" has an unknown key "${key}"`,
       });
     }
+  }
+
+  const commitsField = prop(value, "commits");
+  const commits = commitsField === undefined ? "agent" : commitsField;
+  if (commits !== "agent" && commits !== "runner") {
+    return err({
+      kind: "malformed",
+      path,
+      reason: `"runtimes.${name}.commits" must be runner or agent`,
+    });
   }
 
   const kind = prop(value, "kind");
@@ -181,6 +195,7 @@ function parseEntry(
   }
 
   return ok({
+    commits,
     kind,
     args: args ?? [],
     model,
@@ -205,7 +220,7 @@ function parseDocument(
     });
   }
   const tag = prop(parsed, "interlock");
-  if (tag !== RUNTIME_CATALOGUE_SHAPE) {
+  if (tag !== "runtimes@v0" && tag !== RUNTIME_CATALOGUE_SHAPE) {
     return err({
       kind: "malformed",
       path,
@@ -267,6 +282,7 @@ function isNodeError(error: unknown): error is NodeJS.ErrnoException {
 }
 
 export interface ResolvedRuntime {
+  readonly commits: CommitMode;
   readonly name: string;
   readonly kind: string;
   readonly args: readonly string[];
@@ -312,6 +328,7 @@ export function mergeRuntimes(
   for (const [name, entry] of catalogue) {
     runtimes.set(name, {
       name,
+      commits: entry.commits,
       kind: entry.kind,
       args: entry.args,
       model: entry.model,
@@ -334,6 +351,7 @@ export function mergeRuntimes(
     }
     runtimes.set(DEFAULT_RUNTIME_NAME, {
       name: DEFAULT_RUNTIME_NAME,
+      commits: "agent",
       kind: local.runtime.kind,
       args: local.runtime.args,
       model: undefined,
