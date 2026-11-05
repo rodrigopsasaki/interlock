@@ -56,8 +56,9 @@ const FIELD_GUIDE =
   "sending the opening prompt), " +
   "runtime.prompt_retries (optional; delivery attempts beyond the first when the opening " +
   "prompt is never taken), " +
-  "runtime.writable_root_args (optional; arguments appended for a linked worktree, with exactly " +
-  'one element "{path}" replaced by the repository\'s common git directory), ' +
+  "runtime.writable_root_args (optional; arguments appended twice for a linked worktree, with " +
+  'exactly one element "{path}" replaced first by the common git directory, then by the ' +
+  "worktree's own git directory), " +
   "default_runtime (optional; the name of the runtime this repository starts by default, from " +
   "the runtime catalogue or this file's own runtime block), " +
   "worktree_root (where node worktrees are created, relative to the repository root), " +

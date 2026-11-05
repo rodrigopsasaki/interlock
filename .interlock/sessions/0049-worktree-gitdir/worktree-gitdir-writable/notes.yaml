@@ -45,3 +45,7 @@ entries:
     at: "2026-11-05T05:32:00Z"
     expected: Reverting the launch to common-only would fail the metadata fixture at the add.
     observed: It fails earlier, at the roots-equal assertion, in both tests, and the marker is not printed. The add-level denial under common-only is still proven, by the common-only attempt inside the green run.
+  - kind: choice
+    at: "2026-11-05T05:40:00Z"
+    chose: Besides the four named surfaces, update local.yaml's readable-refusal help sentence in localConfig.ts and regenerate docs/shapes.md through `interlock schema reference`, which mirrors both examples and the schema part.
+    because: The help sentence told an operator the placeholder becomes the common git directory, the same behavior the acceptance asks the prose to stop describing; shapes.md is generated and guarded by `schema reference --check`, so editing its sources and regenerating is the only way to keep it fresh.
