@@ -16,13 +16,14 @@ read: >
   whose nodes are all cleared but not done is tier 1). A sweep of the 40 items
   found three needs-you items truly his. The rest come from two Interlock gaps.
 
-  First gap, no retire. 31 interlock graphs (0008-0015, 0018-0026, 0028, 0029,
+  First gap, no retire. 30 interlock graphs (0008-0015, 0018-0026, 0028, 0029,
   0031-0041) are September 14-16 drafts that were never approved. Three approved
   graphs (0005-gate-output-way-back, 0007-absorb-outbox,
   readme-interlock-concept) were held in September and later superseded on main.
   The CLI has graph approve/show/status, node cancel/reset and gate clear/waive.
-  Nothing says a graph will not be done. Approving would start runs and spend. A
-  waive records that a person accepted the work. `node cancel` acts per node,
+  Nothing says a graph will not be done. Approval itself spends nothing
+  (approve.ts records spend none), but it authorizes runs that would. A waive
+  records that a person accepted the work. `node cancel` acts per node,
   and a not-approved graph counts as needs-you whatever its nodes say.
 
   Second gap, landed work reading "on main unknown". These graphs' branches are
@@ -39,8 +40,15 @@ read: >
   The landed reader (packages/face/src/landed.ts, from 0048) knows `on-main` by
   ancestry, patch and squash, plus reverted and partly reverted. The first
   family never reaches ancestry because the base is missing, though ancestry
-  needs only the cleared head and main. The second family lets an unresolved
-  question about later main history replace the fact that the node landed.
+  needs only the cleared head and main (landed.ts:454). The second family lets an
+  unresolved question about later main history replace the fact that the node
+  landed (landed.ts:361).
+
+  Consumers: the Preston cockpit (preston cockpit/loom/serve.ts:474) reads only
+  positions@v0 and positions@v1 and shows "answered in a shape this cockpit
+  doesn't read" for anything newer. The cockpit lands outside graphs, by the
+  cockpit thread. Gilb has it accept positions@v2 (retired graphs never counted)
+  before this graph's land PR merges, so the cockpit never goes dark.
 gates:
   - id: approved
     kind: human
@@ -52,33 +60,43 @@ nodes:
       Add `interlock graph retire <graph> --by <who> --because <sentence>
       [--superseded-by <ref>]`. It refuses without --by or --because, and refuses
       an unknown graph id, as `node cancel` and `node reset` do. It works the same
-      on an approved, not-approved or stale graph, and on a graph with live,
-      held, cleared or never-started nodes. It refuses a graph with a live lease,
+      on an approved, not-approved or stale graph, and on a graph with held,
+      cleared or never-started nodes. It refuses a graph with a live lease,
       naming the session and lease end, as judge does. Retiring an already retired
       graph is refused, and the refusal names the earlier retirement. A
       retirement starts no run, judges no gate, and records no approval or waive.
 
+      Retirement is authoritative for execution. `interlock run`, `judge`,
+      `graph approve`, `node reset`, `node cancel` and `gate clear`/`waive` on a
+      retired graph refuse before any work, lease, receipt or spend, and the
+      refusal names who retired it and why. Each refusal has a regression test.
+      Un-retiring is out of scope.
+
       The retirement is a ledger record carrying the graph id, who, why, when
       (from the injected clock), the optional superseded-by text (free text: a
-      PR, commit, graph id or path, stored as given) and the graph file's content
-      hash at retirement. Existing journals and ledgers read unchanged. Version
-      any shape or event that changes, following the repo's existing
-      versioning, with the schema tests.
+      PR, commit, graph id or path, stored as given) and the graph's content hash
+      at retirement. It also carries a snapshot taken at retirement: the graph's
+      ask, approval state, and every node's id, depends_on and final state. With
+      that snapshot, the retired entry stays complete after the graph file is
+      edited, deleted or becomes unparseable. Existing journals and ledgers read
+      unchanged. Version every shape or event that changes, with schema tests.
 
-      `interlock position --json` (positions@v1 and the per-graph position) moves
-      a retired graph out of `graphs` into a `retired` list per repository. Each
-      entry gives the graph id, who, why, when, superseded-by when given, and the
-      final node states. A retired graph never appears in `graphs`, criticalPath,
-      or any count of work waiting on a person. Consumers that read only
-      `graphs`, the Preston cockpit included, then drop it without any change on
-      their side. State this contract in the positions shape reference. The
-      text face shows retired graphs in their own quiet section, never as
-      waiting. `interlock graph show` and `status` on a retired graph say it is
-      retired, by whom and why.
+      Positions become positions@v2. Each repository carries `graphs` (active
+      only) and `retired`. A retired entry gives the graph id, who, why, when,
+      superseded-by when given, and the snapshot's ask, approval and node final
+      states. It also gives `file`: one of unchanged, changed (hash differs),
+      missing or unparseable, read from the current tree. A retired graph never
+      appears in `graphs`, criticalPath, or any count of work waiting on a
+      person. It has no `done`, `line` or criticalPath of its own: its state is
+      `retired`. The per-graph `interlock position` and `graph show` on a retired
+      graph return that retired entry. `graph status` says it is retired, by
+      whom and why, and exits 0. State this contract in docs/shapes.md, with the
+      change from v1.
 
-      A graph file edited after retirement stays retired. The retirement records
-      the hash it retired, and the position reports when the file has changed
-      since. Un-retiring is out of scope.
+      Add `retired` to the closed vocabulary (AGENTS.md I3) with its definition.
+      The face shows retired graphs in their own quiet section, never as
+      waiting. Its sentence is exercised by the I3 vocabulary test in
+      packages/face/test/position.test.ts.
 
       Strict TypeScript, no type assertions, no non-null operators. Fixture git
       only through test/support/gitFixture.ts. Preserve every historical
@@ -97,9 +115,9 @@ nodes:
         kind: command
         run: pnpm --fail-if-no-match --filter cli exec vitest run test/position.test.ts --passWithNoTests=false
         expect_output: 'Tests +[1-9][0-9]* passed'
-      - id: full-suite
+      - id: schema-proof
         kind: command
-        run: pnpm test
+        run: pnpm --fail-if-no-match --filter schemas exec vitest run --passWithNoTests=false
         expect_output: 'Tests +[1-9][0-9]* passed'
 
   - id: landed
@@ -107,36 +125,65 @@ nodes:
     depends_on: [retire]
     acceptance: |
       Fix both landed families from the read at their cause in
-      packages/face/src/landed.ts and its callers.
+      packages/face/src/landed.ts and its callers. This deliberately changes
+      0048's completion rule (0048-landed-tells-the-truth.yaml, landed node);
+      docs/shapes.md records the change and why.
 
-      Ancestry needs no base. When a node's cleared head is known and is an
-      ancestor of main, the node is `on-main` by ancestry, whether or not the
-      attempt recorded a base. A missing base still leaves patch and squash
-      detection unknown when the head is not an ancestor, and the reason says
-      so. If a backfilled attempt has no cleared head at all, find out why from
-      the ledger. Fix it at that cause if the receipts name the head. Otherwise
-      leave it unknown with a reason that names what is missing.
+      What a reading means. `on-main` says the node's change is on main now. A
+      node lands once, by ancestry, patch or squash. Later main history can undo
+      some or all of it, and that undoing is reported as such. It never turns
+      a proved landing back into unknown. Unknown stays only for a landing
+      that was never proved.
 
-      Landing is a fact about the moment of landing. Once a node is on main (by
-      ancestry, patch or squash), later main history cannot turn it back into
-      unknown. Undone units stay reported beside the landing, never instead of
-      it: a node with some units undone reads partly reverted (or a later-change
-      variant naming the unresolved paths and commits, as the reason does
-      today). A node whose every unit was reverted reads reverted. A graph is
-      done when every node landed. Partly reverted, or unresolved after landing,
-      counts as landed for `done` and for anything that waits on a person. Fully
-      reverted does not. Keep 0048's evidence (patch ids, inverse detection,
-      the cache), so no sync git returns.
+      Missing base. When a node's cleared head is known and is an ancestor of
+      main, the node is landed by ancestry whether or not the attempt recorded a
+      base. Without a base, the attempt's units cannot be computed, so reversion
+      cannot be checked. The node reads `on-main` by ancestry with
+      `reversions: unchecked` and the reason "the attempt recorded no base, so
+      what later main undid cannot be checked". With a base, inverse detection
+      runs exactly as today. When the head is not an ancestor and there is no
+      base, patch and squash detection stay unknown, and the reason says so. If
+      a backfilled attempt has no cleared head at all, find out why from the
+      ledger. Fix it at that cause if the receipts name the head. Otherwise leave
+      it unknown, with a reason naming what is missing.
 
-      Prove both families with fixture repositories that reproduce their exact
-      shape: a cleared attempt with no base whose head is an ancestor of main,
-      and a landed unit whose inverse appears on main next to a later change to
-      the same path. Each pins the new reading and `done`. After the change, run
-      `interlock position --json` against ~/dev/private/interlock and
-      ~/dev/private/preston, read-only. Record in the debrief, node by node,
-      what 0001-bootstrap, 0002-shapes, 0003-translator and preston
-      0013-reviews-say-what-matters read before and after. Anything still not
-      on main gets its stated reason, never a guess.
+      One post-landing discriminant. `partly-reverted-on-main` keeps its name
+      and carries `main`, `head`, `by`, `reverted` (unit ids proved inverted on
+      main), `revertedBy` (unit id to main commit) and `unresolved`, always
+      present and possibly empty. Each `unresolved` entry is {unit, path,
+      attemptCommit, mainCommit} for a unit whose inverse appears on main beside
+      a later change to the same path. That is today's "what still stands is
+      unresolved" case, which no longer yields unknown. `reverted-on-main`
+      stays for a node whose every unit is proved inverted. Version the landed
+      shape and the position contract (positions@v2, shared with the retire
+      node).
+
+      Done. A graph is done when every node's change is on main:
+      `on-main` (any `reversions`) or `partly-reverted-on-main`. A fully reverted
+      node is not done, because nothing of its change remains on main and its
+      acceptance no longer holds there. A partly reverted node's landing
+      happened, and the later change to part of it is a decision on main, not
+      unfinished work. Not-on-main, reverted and unknown nodes keep a graph not
+      done.
+
+      Cache. Bump landed-cache@1 to @2 (landedCache.ts:7). Seed regression
+      tests with landed-cache@1 unknown entries for both families, and prove
+      they are recomputed rather than reused. Keep 0048's evidence (patch ids,
+      inverse detection, the cache), so no sync git returns.
+
+      Tests. Use fixture repositories that reproduce each shape: no base with
+      head an ancestor; no base with head not an ancestor; recorded base fully
+      reverted; no base fully reverted (reads on-main, reversions unchecked);
+      an inverse beside a later change to the same path (partly reverted,
+      unresolved); a reverted unit later reapplied; a squash whose constituent
+      is reverted; a never-proved landing (stays unknown). Each pins the reading
+      and `done`.
+
+      After the change, run `interlock position --json` against
+      ~/dev/private/interlock and ~/dev/private/preston, read-only. Record in
+      the debrief, node by node, what 0001-bootstrap, 0002-shapes,
+      0003-translator and preston 0013-reviews-say-what-matters read before and
+      after. Anything still not done gets its stated reason, never a guess.
 
       Strict TypeScript, no type assertions, no non-null operators. Fixture git
       only through test/support/gitFixture.ts. Preserve every historical
@@ -155,7 +202,7 @@ nodes:
         kind: command
         run: pnpm --fail-if-no-match --filter face exec vitest run test/noSyncGit.test.ts --passWithNoTests=false
         expect_output: 'Tests +[1-9][0-9]* passed'
-      - id: full-suite
+      - id: cache-proof
         kind: command
-        run: pnpm test
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/face/landedCache.test.ts --passWithNoTests=false
         expect_output: 'Tests +[1-9][0-9]* passed'
