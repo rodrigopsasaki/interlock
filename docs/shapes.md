@@ -990,7 +990,7 @@ No vocabulary entry for `local`.
 | field | type | required | description |
 | --- | --- | --- | --- |
 | `interlock` | the literal `"local@v0"` | yes |  |
-| `runtime` | object | yes | fields: kind (string, required); args (array of string, optional); startup_answers (array of startup-answer, optional); startup_timeout_ms (number, optional); prompt_taken_timeout_ms (number, optional); ready_settle_ms (number, optional); prompt_retries (number, optional) |
+| `runtime` | object | yes | fields: kind (string, required); args (array of string, optional); startup_answers (array of startup-answer, optional); startup_timeout_ms (number, optional); prompt_taken_timeout_ms (number, optional); ready_settle_ms (number, optional); prompt_retries (number, optional); writable_root_args (writable-root-args, optional) |
 | `default_runtime` | string | no |  |
 | `worktree_root` | string | yes |  |
 | `worktree_setup` | array of string | no |  |

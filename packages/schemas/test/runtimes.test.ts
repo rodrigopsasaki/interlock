@@ -109,3 +109,60 @@ describe("runtimes@v0 schema", () => {
     expect(schemaValid({ interlock: "runtimes@v9" })).toBe(false);
   });
 });
+
+const validateLocal = registry.ajv.getSchema(
+  "https://github.com/rodrigopsasaki/interlock/schemas/local@v0.json",
+);
+
+function localValid(value: unknown): boolean {
+  if (validateLocal === undefined) throw new Error("local@v0 schema is unavailable");
+  return validateLocal(value) === true;
+}
+
+function localWithRuntime(runtime: Record<string, unknown>): unknown {
+  return {
+    interlock: "local@v0",
+    runtime: { kind: "fake", ...runtime },
+    worktree_root: ".worktrees",
+    lease_ms: 900000,
+    run_timeout_ms: 3600000,
+    substrate: { address: "none" },
+  };
+}
+
+const schemaForms: readonly (readonly [string, (field: Record<string, unknown>) => boolean])[] = [
+  [
+    "runtimes@v0",
+    (field) => schemaValid(catalogueWith({ fake: { kind: "fake", model: "m", ...field } })),
+  ],
+  ["local@v0", (field) => localValid(localWithRuntime(field))],
+];
+
+describe.each(schemaForms)("%s writable_root_args", (_schema, valid) => {
+  it("accepts an entry without the field", () => {
+    expect(valid({})).toBe(true);
+  });
+
+  it.each([
+    ["the placeholder alone", ["{path}"]],
+    ["a flag before the placeholder", ["--test-write-root", "{path}"]],
+    ["literals on both sides of the placeholder", ["--a", "{path}", "--b"]],
+  ])("accepts %s", (_name, template) => {
+    expect(valid({ writable_root_args: template })).toBe(true);
+  });
+
+  it.each([
+    ["a scalar instead of a list", "{path}"],
+    ["a mapping instead of a list", { path: "here" }],
+    ["a null instead of a list", null],
+    ["an empty list", []],
+    ["a non-string element", ["{path}", 7]],
+    ["a nested list element", ["{path}", ["--nested"]]],
+    ["a missing placeholder", ["--test-write-root"]],
+    ["a repeated placeholder", ["{path}", "{path}"]],
+    ["an embedded placeholder", ["--test-write-root={path}"]],
+    ["a whole placeholder beside an embedded one", ["{path}", "--also={path}"]],
+  ])("refuses %s", (_name, template) => {
+    expect(valid({ writable_root_args: template })).toBe(false);
+  });
+});
