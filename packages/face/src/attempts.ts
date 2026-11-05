@@ -14,6 +14,7 @@ import {
   attemptDebriefOf,
 } from "./attemptRecord.ts";
 import { type LeaseState, leaseStateOf } from "./leaseState.ts";
+import { type AttemptSaid, type RunnerStep, runnerOf, saidOf } from "./said.ts";
 
 export interface PositionAttempt {
   readonly session: string;
@@ -25,6 +26,8 @@ export interface PositionAttempt {
   readonly heard?: Heard;
   readonly brief: AttemptBrief;
   readonly debrief?: AttemptDebrief;
+  readonly said?: AttemptSaid;
+  readonly runner: readonly RunnerStep[];
 }
 
 export function attemptsFor(
@@ -51,6 +54,7 @@ export function attemptsFor(
       agentStatus === "blocked"
         ? askingOf(session.notes, session.said, ownOutcome !== undefined, nowWallMs)
         : undefined;
+    const said = saidOf(session.notes);
 
     attempts.push({
       session: session.session,
@@ -62,6 +66,8 @@ export function attemptsFor(
       ...(heard === undefined ? {} : { heard }),
       brief: attemptBriefOf(session),
       ...(debrief === undefined ? {} : { debrief }),
+      ...(said === undefined ? {} : { said }),
+      runner: runnerOf(session.narration),
     });
   }
   return attempts;

@@ -1,0 +1,130 @@
+interlock: notes@v0
+node: lines-in-voice
+entries:
+  - kind: surprise
+    at: "2026-11-06T00:30:00Z"
+    expected: >
+      Every journal fact to carry its time, so changedAt, sinceAt and "newer
+      than its latest observed change" could each be read off the fact that
+      moved.
+    observed: >
+      The sink writes only entry.data; Phyxius's JournalEntry timestamp is
+      dropped. Of the event kinds, only session-narrated (at, wall ms),
+      person-said (said.at), and the note embedded in note-appended (note.at,
+      a string the session writes) carry a time. gate-moved, outcome-set,
+      receipt-written and lease events carry none.
+  - kind: choice
+    at: "2026-11-06T00:35:00Z"
+    chose: >
+      Date everything from the three facts that carry a time:
+      session-narrated (the runner's own steps), note-appended (the note's
+      own at) and person-said (only acknowledged words, as heard already
+      does). A node's latest observed change is the latest of its latest
+      attempt's narrated steps and heard words. changedAt and sinceAt carry
+      the fact they came from, or unknown with a because.
+    because: >
+      The acceptance asks for "a named journal fact" and the runner narrates
+      every step it takes, gate judgments and holds included, so its
+      narration is the observed record of the moves that have no time of
+      their own. Stamping every event would be a new event version and an
+      upcaster for nine older ones, outside this node's acceptance.
+    rejected:
+      - a new event version stamping every fact with the journal entry's timestamp
+      - reading the lease expiry as a time of change
+  - kind: choice
+    at: "2026-11-06T00:40:00Z"
+    chose: >
+      Model each node's standing as a tagged union (held, asking, approval,
+      person-gate, ready, working, waiting, ended, cleared, done) in
+      line.ts, rank it in the acceptance's order, and compose the sentence
+      from the standing alone. Ties keep the graph's topological order.
+    because: >
+      The ranking reads five fields at once (outcome, live attempt, asking,
+      gate kinds and states, landed); naming the standing makes the order
+      one switch and each sentence one case, so a test can pin one sentence
+      per state.
+  - kind: choice
+    at: "2026-11-06T00:45:00Z"
+    chose: >
+      Rank the outcomes the acceptance does not name (failed, reset,
+      cancelled, superseded) as "ended" after waiting and before cleared;
+      within cleared, on-main ranks last, so a cleared node not on main,
+      reverted, or unknown is what the line names before done.
+    because: >
+      The acceptance's order lists no place for them. They are unfinished
+      work a person may act on, so they come before work that is cleared,
+      and after work that is still moving.
+  - kind: choice
+    at: "2026-11-06T00:50:00Z"
+    chose: >
+      A graph that is not approved, or whose approval is stale, is "a
+      person's gate open" on the graph itself: "human gate approved pending
+      at <graph>" or "human gate approved stale at <graph>", at the same
+      rank as a node's open human gate.
+    because: >
+      approved is the graph-level human gate (AGENTS.md vocabulary), and
+      nothing leases before it, so it is the person's move and outranks
+      ready and working.
+  - kind: choice
+    at: "2026-11-06T00:55:00Z"
+    chose: >
+      A node's human gate counts as open when it is pending, the node has no
+      outcome, is not blocked on an upstream node, and every other declared
+      gate is satisfied or waived.
+    because: >
+      Before the node's own gates pass, the human gate is not yet the next
+      move; reading it as open on a fresh node would put every node with a
+      review gate ahead of ready work.
+  - kind: choice
+    at: "2026-11-06T01:00:00Z"
+    chose: >
+      Observed sentences use only vocabulary terms (node ids aside), the
+      position's own enum and const words (working, blocked, pending,
+      human, on, not, main, reverted, unknown, done, cancelled, ...), and
+      one preposition, "at". The test reads AGENTS.md through the
+      verifier's harnessVocabulary and acceptedForms and the words from
+      schemas/position@v1.json and the parts it references.
+    because: >
+      I3 says the face speaks only the closed vocabulary. The verifier's
+      vocabulary check reads identifiers in diffs, not sentences, so the
+      test reuses its reader of the vocabulary rather than a second list.
+      The position's own enum words are already what every face shows.
+      "waiting on" became "blocked on" (the node state's own word) and
+      "gates left" became "gates pending" (the gate state's own word).
+    rejected:
+      - adding main, working and waiting to the AGENTS.md vocabulary table
+      - a hand-kept list of allowed words in src
+  - kind: choice
+    at: "2026-11-06T01:05:00Z"
+    chose: >
+      An attempt's said quotes one field of its latest note exactly: a
+      choice's chose, a surprise's observed, a question's asked. said.at and
+      a said line's at are the note's own at string, as asking.at already is.
+    because: >
+      Joining chose and because into one string would compose words the
+      session did not write. The note's time is the session's string;
+      parsing it to a number would lose it when it is not RFC 3339, and
+      position@v1 already quotes note times as strings.
+  - kind: surprise
+    at: "2026-11-06T01:10:00Z"
+    expected: >
+      The I3 word check to pass once the position schema's enums were read.
+    observed: >
+      "cancelled" is in schemas/parts/outcome.json, referenced from
+      position@v1.json, not in it. The check now follows parts/ $refs.
+  - kind: surprise
+    at: "2026-11-06T01:15:00Z"
+    expected: >
+      pnpm install to add only the face → verifier link to pnpm-lock.yaml.
+    observed: >
+      The local pnpm (10.13.1) also dropped every libc field from the
+      platform-specific biome entries. The lockfile was restored and only
+      the three-line link was kept.
+  - kind: choice
+    at: "2026-11-06T01:20:00Z"
+    chose: >
+      The graph loader now reads ask and refuses one that is not a string;
+      position carries it verbatim, absent when the graph declares none.
+    because: >
+      Same rule as role and acceptance. All 41 graphs in .interlock/graphs
+      load with a string ask, checked before the change.

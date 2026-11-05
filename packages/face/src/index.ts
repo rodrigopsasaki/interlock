@@ -44,6 +44,9 @@ export type { ClearedHead, Landed, LandedBy, LandedReader } from "./landed.ts";
 export { clearedHeadOf, landedOf, mainLineReader } from "./landed.ts";
 export type { LeaseState } from "./leaseState.ts";
 export { leaseStateOf, renderAgo } from "./leaseState.ts";
+export type { PositionLine } from "./line.ts";
+export { renderLine } from "./line.ts";
+export type { JournalFact, Moment } from "./moment.ts";
 export type { NodeRow } from "./nodeRow.ts";
 export { isLiveAttempt, nodeRowsOf } from "./nodeRow.ts";
 export type { PlansEntry } from "./plansEntry.ts";
@@ -71,6 +74,7 @@ export {
 export type { RuntimeAttempt } from "./runtimeAttempts.ts";
 export { lastAttemptByRuntimeName } from "./runtimeAttempts.ts";
 export { renderSessionRuntime } from "./runtimeLine.ts";
+export type { AttemptSaid, RunnerStep } from "./said.ts";
 export type { SessionColumnsInput } from "./sessionColumns.ts";
 export {
   renderBrief,

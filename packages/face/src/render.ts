@@ -1,5 +1,6 @@
 import { liveOrLatestAttempt } from "./attempts.ts";
 import type { Float } from "./float.ts";
+import { renderLine } from "./line.ts";
 import { isLiveAttempt } from "./nodeRow.ts";
 import type { ApprovalState, NodeState, Position, PositionNode } from "./position.ts";
 import type { PositionGate, PositionGateState } from "./positionGate.ts";
@@ -53,7 +54,11 @@ function renderNodeRuntime(node: PositionNode): string | undefined {
 }
 
 export function renderPosition(position: Position): string {
-  const lines: string[] = [`graph ${position.graph} — ${renderApproval(position.approval)}`, ""];
+  const lines: string[] = [
+    `graph ${position.graph} — ${renderApproval(position.approval)}`,
+    `  ${renderLine(position.line)}`,
+    "",
+  ];
 
   for (const node of position.nodes) {
     lines.push(`${node.id} — ${renderState(node.state)}`);

@@ -325,3 +325,27 @@ describe("role", () => {
     expect(explainGraphRefusal(loaded.error)).toBe('graph.yaml: node "a": "role" must be a string');
   });
 });
+
+describe("ask", () => {
+  const graphWithAsk = (ask: string): string =>
+    ["interlock: graph@v0", "id: demo", ask, "nodes:", "  - id: a", ""].join("\n");
+
+  it("reads the graph's ask verbatim", () => {
+    const document = unwrap(
+      loadGraphDocumentText(graphWithAsk("ask: Say where it stands."), "g.yaml"),
+    );
+    expect(document.ask).toBe("Say where it stands.");
+  });
+
+  it("leaves ask absent when the graph declares none", () => {
+    const document = unwrap(loadGraphDocumentText(graphWithAsk(""), "g.yaml"));
+    expect("ask" in document).toBe(false);
+  });
+
+  it("refuses an ask that is not a string", () => {
+    const loaded = loadGraphDocumentText(graphWithAsk("ask: [one, two]"), "g.yaml");
+    expect(isErr(loaded)).toBe(true);
+    if (!isErr(loaded)) return;
+    expect(explainGraphRefusal(loaded.error)).toBe('g.yaml: "ask" must be a string');
+  });
+});

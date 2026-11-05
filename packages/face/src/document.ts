@@ -25,6 +25,7 @@ export interface NodeDeclaration {
 
 export interface GraphDocument {
   readonly id: string;
+  readonly ask?: string;
   readonly gates: readonly GateDeclaration[];
   readonly nodes: readonly NodeDeclaration[];
 }
@@ -119,6 +120,9 @@ function parseShape(parsed: unknown): Result<GraphDocument, string> {
   const id = prop(parsed, "id");
   if (!isString(id)) return err('"id" is missing or not a string');
 
+  const ask = prop(parsed, "ask");
+  if (ask !== undefined && !isString(ask)) return err('"ask" must be a string');
+
   const parsedGates = parseGateDeclarations(prop(parsed, "gates"), "");
   if (isErr(parsedGates)) return parsedGates;
 
@@ -161,7 +165,7 @@ function parseShape(parsed: unknown): Result<GraphDocument, string> {
     });
   }
 
-  return ok({ id, gates: parsedGates.value, nodes });
+  return ok({ id, ...(ask === undefined ? {} : { ask }), gates: parsedGates.value, nodes });
 }
 
 export function loadGraphDocumentText(
