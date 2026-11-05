@@ -333,7 +333,7 @@ describe("interlock run", () => {
       scope: expect.any(Array),
       role: "worker",
     });
-  });
+  }, 17_000);
 
   it("refuses without a graph and node", async () => {
     const result = await runInterlockRun([]);

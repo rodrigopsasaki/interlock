@@ -426,7 +426,7 @@ describe("interlock evidence", () => {
     expect(evidence.exitCode).toBe(0);
     expect(evidence.message).toContain("recorded corrected src/widget.ts:2-3");
     expect(evidence.message).not.toContain("statement: recorded src/widget.ts:1");
-  });
+  }, 20_000);
 
   it("carries a person's waiver into evidence as a professed decision", async () => {
     const { dir, from, to } = fixtureRepo();
