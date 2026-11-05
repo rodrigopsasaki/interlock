@@ -117,6 +117,7 @@ describe("graph show --json", () => {
       "approval",
       "nodes",
       "criticalPath",
+      "done",
     ]);
   });
 });
