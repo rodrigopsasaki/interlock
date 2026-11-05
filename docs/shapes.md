@@ -829,13 +829,14 @@ No vocabulary entry for `event`.
 - `event@v6`: no field changes from the previous version.
 - `event@v7`: retyped `kind`.
 - `event@v8`: no field changes from the previous version.
+- `event@v9`: retyped `kind`.
 
-### Fields (`event@v8`)
+### Fields (`event@v9`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `interlock` | the literal `"event@v8"` | yes |  |
-| `kind` | one of `"node-created"`, `"lease-taken"`, `"lease-renewed"`, `"lease-expired"`, `"session-started"`, `"note-appended"`, `"debrief-filed"`, `"gate-moved"`, `"receipt-written"`, `"outcome-set"`, `"outbox-intent-recorded"`, `"outbox-delivery-recorded"`, `"session-narrated"`, `"session-facts-observed"` | yes |  |
+| `interlock` | the literal `"event@v9"` | yes |  |
+| `kind` | one of `"node-created"`, `"lease-taken"`, `"lease-renewed"`, `"lease-expired"`, `"session-started"`, `"note-appended"`, `"debrief-filed"`, `"gate-moved"`, `"receipt-written"`, `"outcome-set"`, `"outbox-intent-recorded"`, `"outbox-delivery-recorded"`, `"session-narrated"`, `"session-facts-observed"`, `"person-said"` | yes |  |
 
 ### Examples
 
@@ -882,6 +883,10 @@ _No example of `event@v7` was found in the corpus._
 #### `event@v8`
 
 _No example of `event@v8` was found in the corpus._
+
+#### `event@v9`
+
+_No example of `event@v9` was found in the corpus._
 
 ## graph
 

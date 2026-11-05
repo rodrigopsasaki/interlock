@@ -192,6 +192,7 @@
         "leaseState": { "$ref": "#/$defs/leaseState" },
         "agentStatus": { "enum": ["idle", "working", "blocked", "done", "unknown"] },
         "asking": { "$ref": "#/$defs/attemptAsking" },
+        "heard": { "$ref": "#/$defs/attemptHeard" },
         "brief": { "$ref": "#/$defs/attemptBrief" },
         "debrief": { "$ref": "#/$defs/attemptDebrief" }
       },
@@ -204,14 +205,26 @@
       },
       "additionalProperties": false
     },
+    "attemptHeard": {
+      "description": "Additive within position@v1: the last person-said on this attempt whose delivery to the pane was acknowledged, with who said it, their words exactly, and when they said it in milliseconds since the epoch. Absent when no person's words are known to have reached the pane; words whose delivery is uncertain never appear here.",
+      "type": "object",
+      "properties": {
+        "by": { "type": "string" },
+        "text": { "type": "string" },
+        "at": { "type": "number" }
+      },
+      "required": ["by", "text", "at"],
+      "additionalProperties": false
+    },
     "attemptAsking": {
-      "description": "Additive within position@v1, present only while the attempt's agent status is blocked: what the session asked, from the latest question note it appended and that is not yet answered, in its own words and with the short answers it would accept, at the time the note names. When the session is blocked and has no unanswered question, asked is null, because says why in plain words, and at is when the blocked status was observed. The words are never invented and never read off the pane's screen. A question counts as answered once the attempt ends.",
+      "description": "Additive within position@v1, present only while the attempt's agent status is blocked: what the session asked, from the latest question note it appended and that is not yet answered, in its own words and with the short answers it would accept, at the time the note names. When the session is blocked and has no unanswered question, asked is null, because says why in plain words, and at is when the blocked status was observed. The words are never invented and never read off the pane's screen. A question counts as answered once the attempt ends, or once a person's words naming it (person-said) are acknowledged as delivered to the pane. While an answer's delivery is uncertain or unrecorded, the question stays open and because says so.",
       "oneOf": [
         {
           "type": "object",
           "properties": {
             "asked": { "type": "string" },
             "options": { "type": "array", "items": { "type": "string" } },
+            "because": { "type": "string" },
             "at": { "type": "string" }
           },
           "required": ["asked", "at"],

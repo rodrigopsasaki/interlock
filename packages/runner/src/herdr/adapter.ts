@@ -496,6 +496,17 @@ export async function createHerdrRuntime(
       return ok(isString(paneId) ? { id: paneId } : undefined);
     },
 
+    async resolveAgent(query: AgentIdentityQuery) {
+      const found = await findReportedAgent(call, query);
+      if (isErr(found)) return found;
+      if (found.value === undefined) return ok(undefined);
+      const name = prop(found.value, "name");
+      const paneId = prop(found.value, "pane_id");
+      return ok(
+        isString(name) && isString(paneId) ? { id: name, pane: { id: paneId } } : undefined,
+      );
+    },
+
     async focusPane(pane: Pane) {
       const focused = await call("pane.focus", { pane_id: pane.id });
       return isErr(focused) ? focused : ok(undefined);

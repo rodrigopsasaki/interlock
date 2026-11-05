@@ -96,10 +96,13 @@ export {
   outcome,
   proposeOutcomeMove,
 } from "./outcome.ts";
+export type { AnsweredQuestion, PersonSaid, PersonSaying } from "./personSaid.ts";
+export { answersQuestion, isPersonSaid, personSaid } from "./personSaid.ts";
 export type {
   LedgerProjection,
   Narrated,
   NodeView,
+  SaidView,
   SessionView,
 } from "./projection.ts";
 export {
