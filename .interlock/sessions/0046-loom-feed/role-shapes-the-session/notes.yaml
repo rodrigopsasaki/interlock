@@ -132,3 +132,17 @@ entries:
       I3: a face will say "walk" from the position, so the word must be in the
       closed vocabulary. "roles" names a file shape, not something a face
       says.
+  - kind: surprise
+    at: "2026-11-05T01:10:00Z"
+    expected: >
+      pnpm test green on every run at 714cc86, since each package's suite
+      passed alone.
+    observed: >
+      One full run of the eight-package suite failed two runner tests:
+      gateJudge "leaves old receipts honestly without output and refuses
+      before writing a receipt when storage fails" and sessionBrief "gives the
+      verifier session an empty walk ... when the address is none". Both
+      passed alone, and the next two full runs were green (2066 tests). The
+      failure output was not captured, so the cause is unconfirmed. Load from
+      git-fixture tests running in parallel across packages is the likeliest
+      candidate.
