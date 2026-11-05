@@ -88,6 +88,44 @@ edit it.
 > Update the existing sentences table so exact-output and I3 checks
 > exercise this sentence.
 >
+> 3. Settled means no live work. On 2026-11-05 the runner judged
+> attempts early at least four times: it called an agent settled
+> ("agent settled with no debrief", then "agent status done") while
+> that agent's subagent was still running, and held a node whose
+> worker then kept working. The runner may call an attempt settled
+> only when the runtime adapter's observation reports no live child
+> or subagent work for that attempt's agent. Extend the Runtime
+> bulk-observation seam with a per-attempt live-work fact: live,
+> none, or unknown with a reason. Implement and identify the
+> adapter's evidence source for both child execution and runtime-
+> managed subagent work. Parent status, absence of descendant
+> processes, missing screen indicators, or an agent's prose
+> assertion cannot establish none. Missing, incomplete or failed
+> observation produces unknown. Keep collection and parsing inside
+> adapters. Preserve one agent.list per positionsOf invocation;
+> session waiting obtains fresh observations.
+>
+> Live or unknown prevents settlement on every automatic path into
+> judging, including abandoned prompt delivery and grace expiry.
+> Continue observing while the parent remains idle or done;
+> settlement requires a fresh observation of idle or done together
+> with none, subject to the existing grace rules. Preserve the
+> original run deadline. Deadline expiry returns a timeout refusal
+> without judging or claiming the agent stopped. The normal
+> supported runtime path must establish none before timeout;
+> unknown-to-timeout is the degraded path. Uncommitted paths and
+> debrief absence remain separate artifact facts.
+>
+> In packages/runner/test/settled.test.ts, exercise the adapter's
+> actual evidence parser with representative runtime fixtures,
+> including an ordinary completed attempt that establishes none.
+> Prove that live work blocks judgment with a clean worktree and
+> across grace expiry; child completion is detected while the parent
+> remains idle; idle and done with none retain existing grace
+> behavior; and unknown cannot become settled through any grace or
+> deadline path. At the run deadline, unknown returns a timeout
+> refusal without judgment.
+>
 > Strict TypeScript, no assertions, no non-null operators. Preserve every
 > historical artifact. Append typed notes for choices and discoveries. No
 > push, no merge; the human merges.

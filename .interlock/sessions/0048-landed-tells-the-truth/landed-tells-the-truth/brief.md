@@ -31,7 +31,7 @@ edit it.
   once before the debrief.
 - Conventional Commits, why-subjects, bodies. Commit on this branch. **Do not push.** End
   every commit message with a `Co-Authored-By:` line naming the model you are.
-- No files outside this worktree. No `/tmp`. No `rm -rf`. Never start or stop herdr.
+- No files outside this worktree, except the ignored landed-cache file and its same-directory temporary files in each repository supplied to `scripts/warmPosition.ts`, solely for that gate. No `/tmp`. No `rm -rf`. Never start or stop herdr.
 
 ## Deliverable
 
@@ -98,11 +98,72 @@ edit it.
 > base SHA). An unchanged refresh whose requested keys all have successful
 > cached judgments performs only the shared main snapshot read and zero
 > per-node git reads. A screen-only redraw performs none. Main movement
-> invalidates every entry keyed by the previous SHA. Do not persist the
-> cache. A judgment caused by a failed git read or an unavailable required
+> invalidates every entry keyed by the previous SHA. A judgment caused by a failed git read or an unavailable required
 > head/base object is not cacheable; retry it on a later refresh even when
 > its key is unchanged. Deterministic unknown results from complete,
 > successful reads may be cached.
+>
+> 4. No blocking git in the read path. Since a6f878f,
+> packages/face/src/mainLine.ts runs git through spawnSync for every
+> cleared node (rev-list, diff, cat-file, merge-base), so any
+> process that imports face in-process has its event loop blocked
+> for minutes; an in-process reader stopped answering for that
+> reason. mainLine and every git read on face's read path become
+> asynchronous, with a bounded concurrency of git children shared
+> across all repositories and nodes in one read (a named constant,
+> default 8). No spawnSync, execSync or execFileSync remains
+> anywhere in packages/face/src or in the cli's position read path;
+> a test fails if one is reintroduced there.
+>
+> 5. A warm read is fast. Successful judgments are also cached
+> across processes in a Git-ignored, disposable file under each
+> repository worktree's `.interlock/`. Keys contain the main branch
+> and full main, cleared-head and recorded-base SHAs, with an
+> explicit absent-base value. The cache carries a named version
+> covering its format and judgment computation; change that version
+> whenever either changes. Validate complete keys and Landed
+> payloads before reuse. Missing, unreadable, corrupt or
+> incompatible data is a cache miss. Cache I/O failures never fail a
+> position read. Failed git reads and unavailable required objects
+> never populate either cache; deterministic unknown judgments from
+> complete successful reads may populate both. Publish cache updates
+> through unique sibling temporary files and atomic rename.
+> Concurrent writers may lose reusable entries but must never
+> publish partial entries.
+>
+> With the cache warm and nothing moved, a position read of the two
+> configured repositories on the owner's Mac finishes in under 1
+> second wall time. `scripts/warmPosition.ts` launches four fresh
+> processes using `process.execPath` and the absolute
+> `packages/cli/src/bin.ts` resolved from the script's own checkout,
+> passing `position --json` and both repository paths. `--repo-env
+> NAME` reads a repository path from the named environment variable
+> inside the script. Configure both paths locally on the owner's
+> Mac. Unset, empty, nonexistent or unusable paths fail nonzero
+> without the success marker. Validate both paths as existing
+> repository roots before running. The first process warms the
+> cache. Measure each remaining process from immediately before
+> spawn through close using a monotonic clock. Every invocation must
+> exit zero and return valid positions JSON containing exactly both
+> requested roots, with readable journals and graphs. Otherwise exit
+> nonzero without printing the success marker. Print each
+> repository's graph and cleared-node counts alongside the timings.
+> Print the slowest measured duration as `warm position ms: <n>`;
+> print `warm position: ok` only when n < 1000.
+>
+> Create `packages/face/test/noSyncGit.test.ts` asserting no
+> `spawnSync`, `execSync` or `execFileSync` use anywhere in
+> `packages/face/src`, or in `runInterlockPosition`/`positionsOf`
+> and their executed transitive callees (journal-directory
+> resolution in packages/face/src/root.ts included). Assert that one
+> read spanning multiple graphs and cleared nodes in at least two
+> repositories never exceeds the shared git-child bound, counting
+> children from spawn until close or spawn error. Extend
+> `landedCache.test.ts`: successful judgments survive a new process;
+> corrupt and wrong-version caches are ignored and rebuilt; changing
+> a full-SHA key component misses; failed reads and unavailable
+> required objects never populate either cache; an unwritable cache
+> does not fail the position read.
 >
 > Tests, in packages/face/test/landed.test.ts, each in a real temporary
 > repository built by the test. Use three independently reversible commits
