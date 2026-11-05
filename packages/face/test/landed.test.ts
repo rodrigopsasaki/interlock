@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import {
@@ -11,6 +10,7 @@ import {
   spend,
 } from "ledger";
 import { afterEach, describe, expect, it } from "vitest";
+import { fixtureGit, initFixtureRepository } from "../../../test/support/gitFixture.ts";
 import type { GraphDocument } from "../src/document.ts";
 import { type ClearedHead, clearedHeadOf, landedOf } from "../src/landed.ts";
 import { mainLineReader } from "../src/mainLineReader.ts";
@@ -28,28 +28,28 @@ function git(repo: string, ...args: string[]): string {
   return gitWith(repo, {}, args);
 }
 
+function gitEnv(repo: string, extra: Readonly<Record<string, string>>): NodeJS.ProcessEnv {
+  return {
+    ...extra,
+    ...process.env,
+    GIT_CONFIG_GLOBAL: join(repo, "..", "no-global-gitconfig"),
+    GIT_CONFIG_NOSYSTEM: "1",
+    GIT_AUTHOR_NAME: "Fixture",
+    GIT_AUTHOR_EMAIL: "fixture@example.invalid",
+    GIT_COMMITTER_NAME: "Fixture",
+    GIT_COMMITTER_EMAIL: "fixture@example.invalid",
+    ...extra,
+  };
+}
+
 function gitWith(
   repo: string,
   extra: Readonly<Record<string, string>>,
   args: readonly string[],
   input?: string,
 ): string {
-  return execFileSync("git", args, {
-    cwd: repo,
-    encoding: "utf-8",
-    input,
-    env: {
-      ...extra,
-      ...process.env,
-      GIT_CONFIG_GLOBAL: join(repo, "..", "no-global-gitconfig"),
-      GIT_CONFIG_NOSYSTEM: "1",
-      GIT_AUTHOR_NAME: "Fixture",
-      GIT_AUTHOR_EMAIL: "fixture@example.invalid",
-      GIT_COMMITTER_NAME: "Fixture",
-      GIT_COMMITTER_EMAIL: "fixture@example.invalid",
-      ...extra,
-    },
-  }).trim();
+  const piped = input === undefined ? {} : { input };
+  return fixtureGit(args, { cwd: repo, env: gitEnv(repo, extra), ...piped }).trim();
 }
 
 function repository(main = "main"): string {
@@ -57,7 +57,7 @@ function repository(main = "main"): string {
   directory = mkdtempSync(join(runsRoot, "landed-"));
   const repo = join(directory, "repo");
   mkdirSync(repo);
-  git(repo, "init", "--quiet", "--initial-branch", main);
+  initFixtureRepository(repo, { initArgs: ["--initial-branch", main], env: gitEnv(repo, {}) });
   commit(repo, "README", "fixture\n", "chore: start the fixture");
   return repo;
 }

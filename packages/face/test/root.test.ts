@@ -1,7 +1,7 @@
-import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { fixtureGit, initFixtureRepository } from "../../../test/support/gitFixture.ts";
 import { sharedJournalDirectory } from "../src/root.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
@@ -23,13 +23,13 @@ const gitEnv = {
 };
 
 function git(args: readonly string[], cwd: string): void {
-  execFileSync("git", args, { cwd, env: gitEnv });
+  fixtureGit(args, { cwd, env: gitEnv });
 }
 
 describe("sharedJournalDirectory", () => {
   it("resolves the same path from every worktree of one repository", async () => {
     directory = mkdtempSync(join(runsRoot, "repo-"));
-    git(["-c", "init.defaultBranch=main", "init", "--quiet"], directory);
+    initFixtureRepository(directory, { defaultBranch: "main", env: gitEnv });
     git(
       ["-c", "commit.gpgsign=false", "commit", "--quiet", "--allow-empty", "-m", "root"],
       directory,

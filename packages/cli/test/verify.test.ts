@@ -1,16 +1,15 @@
-import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { fixtureGit, initFixtureRepository } from "../../../test/support/gitFixture.ts";
 import { runInterlockVerify } from "../src/verify.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
 
 function git(args: readonly string[], cwd: string): string {
-  return execFileSync("git", args, {
+  return fixtureGit(args, {
     cwd,
-    encoding: "utf-8",
     env: {
       ...process.env,
       GIT_AUTHOR_NAME: "fixture",
@@ -71,7 +70,7 @@ function fixtureRepo(): {
   readonly to: string;
 } {
   directory = mkdtempSync(join(runsRoot, "verify-"));
-  git(["-c", "init.defaultBranch=main", "init", "--quiet"], directory);
+  initFixtureRepository(directory, { defaultBranch: "main" });
   writeFileSync(join(directory, "AGENTS.md"), AGENTS_MD);
   git(["add", "-A"], directory);
   git(["-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "root"], directory);

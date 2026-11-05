@@ -10,6 +10,7 @@ import {
   mainLineReader,
 } from "face";
 import { afterEach, describe, expect, it } from "vitest";
+import { fixtureGit } from "../../../../test/support/gitFixture.ts";
 import { runInterlockFace } from "../../src/face/run.ts";
 import { runInterlockPosition } from "../../src/position.ts";
 import {
@@ -195,9 +196,8 @@ describe("landed cache: across processes, on disk", () => {
     expect(
       readFileSync(join(dirname(landedCachePath(repository.root)), ".gitignore"), "utf-8"),
     ).toBe("*\n");
-    const status = execFileSync("git", ["status", "--porcelain", "--untracked-files=all"], {
+    const status = fixtureGit(["status", "--porcelain", "--untracked-files=all"], {
       cwd: repository.root,
-      encoding: "utf-8",
     });
     expect(status.split("\n").filter((line) => line.includes(".interlock/.cache"))).toEqual([]);
   });

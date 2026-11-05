@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
@@ -7,6 +6,7 @@ import { sharedJournalDirectory } from "face";
 import { createLedger, isLedgerEvent, sessionRuntime } from "ledger";
 import type { Runtime } from "runner";
 import { afterEach, describe, expect, it } from "vitest";
+import { fixtureGit } from "../../../test/support/gitFixture.ts";
 import {
   type FakeSubstrateServer,
   startFakeSubstrateServer,
@@ -198,7 +198,7 @@ describe("interlock judge", () => {
       gaps: [],
     });
     const cwd = fixture(localYamlFor(server.url));
-    execFileSync("git", ["remote", "add", "origin", "git@forge.example:owner/name.git"], { cwd });
+    fixtureGit(["remote", "add", "origin", "git@forge.example:owner/name.git"], { cwd });
     await approve(cwd);
     const ran = await runInterlockRun(["demo", "a"], {
       cwd,

@@ -1,9 +1,9 @@
-import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { basename, join, relative } from "node:path";
 import { isErr, type Result } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
+import { fixtureGit, initFixtureRepository } from "../../../../test/support/gitFixture.ts";
 import {
   createHerdrRuntime,
   generateAgentName,
@@ -65,17 +65,19 @@ describe("repositoryLabel", () => {
     const worktreeA = join(runsRoot, `wt-a-${randomUUID().slice(0, 8)}`);
     const worktreeB = join(runsRoot, `wt-b-${randomUUID().slice(0, 8)}`);
     try {
-      execFileSync("git", ["init", "--quiet"], { cwd: repoRoot });
-      execFileSync(
-        "git",
+      initFixtureRepository(repoRoot);
+      fixtureGit(
         ["-c", "commit.gpgsign=false", "commit", "--quiet", "--allow-empty", "-m", "root"],
-        { cwd: repoRoot, env: GIT_ENV },
+        {
+          cwd: repoRoot,
+          env: GIT_ENV,
+        },
       );
-      execFileSync("git", ["worktree", "add", "-b", "node-a", worktreeA], {
+      fixtureGit(["worktree", "add", "-b", "node-a", worktreeA], {
         cwd: repoRoot,
         env: GIT_ENV,
       });
-      execFileSync("git", ["worktree", "add", "-b", "node-b", worktreeB], {
+      fixtureGit(["worktree", "add", "-b", "node-b", worktreeB], {
         cwd: repoRoot,
         env: GIT_ENV,
       });

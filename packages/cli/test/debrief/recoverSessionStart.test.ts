@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { isErr, isOk } from "@phyxiusjs/fp";
 import { debriefRevisionsDirectory, reviseDebrief } from "debrief";
 import { afterEach, describe, expect, it } from "vitest";
+import { fixtureGit, initFixtureRepository } from "../../../../test/support/gitFixture.ts";
 import { recoverSessionStart } from "../../src/debrief/recoverSessionStart.ts";
 
 const runsRoot = join(import.meta.dirname, "..", ".runs");
@@ -23,7 +24,7 @@ const SESSION = "session-1";
 const BASE_PLACEHOLDER = "a".repeat(40);
 
 function git(root: string, args: readonly string[]): string {
-  return execFileSync("git", args, { cwd: root, encoding: "utf-8" }).trim();
+  return fixtureGit(args, { cwd: root }).trim();
 }
 
 function commit(root: string, message: string): string {
@@ -106,7 +107,7 @@ function writeStarted(root: string, base: string, session = SESSION, append = fa
 
 function fixture(): Fixture {
   directory = mkdtempSync(join(runsRoot, "recover-session-start-"));
-  git(directory, ["-c", "init.defaultBranch=main", "init", "--quiet"]);
+  initFixtureRepository(directory, { defaultBranch: "main" });
   git(directory, ["config", "user.name", "fixture"]);
   git(directory, ["config", "user.email", "fixture@example.test"]);
   const session = join(directory, ".interlock", "sessions", GRAPH, NODE);

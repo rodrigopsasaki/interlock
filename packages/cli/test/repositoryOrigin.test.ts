@@ -1,8 +1,8 @@
-import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { isErr, isOk } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
+import { initFixtureRepository } from "../../../test/support/gitFixture.ts";
 import {
   type FakeSubstrateServer,
   startFakeSubstrateServer,
@@ -62,7 +62,7 @@ describe("substrateClientForRepository", () => {
 
   it("refuses an enabled missing origin before issuing HTTP", async () => {
     directory = mkdtempSync(join(runsRoot, "origin-"));
-    execFileSync("git", ["init", "--quiet"], { cwd: directory });
+    initFixtureRepository(directory);
     server = await startFakeSubstrateServer();
 
     const client = await substrateClientForRepository(directory, server.url, undefined, true);

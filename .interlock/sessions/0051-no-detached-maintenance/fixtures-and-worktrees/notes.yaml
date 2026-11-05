@@ -1,0 +1,149 @@
+interlock: notes@v0
+node: fixtures-and-worktrees
+entries:
+  - kind: choice
+    at: "2026-11-05T06:50:00Z"
+    chose: >
+      The shared helper test/support/gitFixture.ts prefixes every argv with
+      `-c maintenance.auto=false`, refuses `-c`/`--config-env` naming
+      maintenance.auto anywhere in the argv and GIT_CONFIG_PARAMETERS or
+      GIT_CONFIG_KEY_n naming it in the caller's environment, and refuses the
+      `init` and `clone` subcommands outside initFixtureRepository and
+      cloneFixtureRepository, which pin repository-local
+      maintenance.auto=false.
+    because: >
+      Command-line configuration is read last (GIT_CONFIG_COUNT entries, then
+      GIT_CONFIG_PARAMETERS, to which `-c` appends), so the per-invocation flag
+      wins over every other scope and the children Git spawns inherit it.
+      Making repository creation go through the two init helpers turns the
+      acceptance's "initialize every disposable fixture repository with
+      repository-local maintenance.auto=false" into a runtime refusal rather
+      than a convention a later fixture can forget.
+  - kind: choice
+    at: "2026-11-05T06:51:00Z"
+    chose: >
+      The helper owns sandbox-exec execution (sandboxedFixtureCommand with a
+      `{ git }` or `{ argv }` command) and the PATH Git forwarder for
+      writableRootLaunch (writeGitForwarder), instead of exporting a bare argv
+      builder for tests to splice into their own spawnSync.
+    because: >
+      writableRoot.test.ts passed its sandboxed command through a parameter
+      (`...command`), which no static guard can read; moving the spawn into
+      the helper keeps the guard fail-closed without an exception, and the
+      `{ argv }` form refuses git or a shell script naming git at runtime. The
+      forwarder previously exec'd the real Git unsuppressed, so production
+      calls routed through it in that test now carry the suppression too.
+  - kind: choice
+    at: "2026-11-05T06:52:00Z"
+    chose: >
+      One deliberately unsuppressed entry,
+      unsuppressedGitForMaintenanceControl, always passes
+      `-c maintenance.autoDetach=false`, and the guard allows its identifier
+      only in packages/verifier/test/fixtureCleanup.test.ts.
+    because: >
+      The acceptance requires an enabled positive control showing the unsafe
+      invocation performs maintenance, while the guard forbids direct fixture
+      Git. Keeping the control inside the helper and foreground-only means it
+      can never leave a detached writer, and the exact-site rule keeps it from
+      becoming a general escape hatch.
+  - kind: choice
+    at: "2026-11-05T06:53:00Z"
+    chose: >
+      The guard (packages/cli/test/fixtureGuard.test.ts) scans test/ and every
+      packages/*/test, skipping dot-named scratch directories and
+      node_modules, over .ts/.mts/.cts/.tsx/.js/.mjs/.cjs/.jsx sources. A
+      spawning call passes only when its command resolves statically (string
+      literal, untemplated template, a const bound to one, or
+      process.execPath) and is not git; shells need a literal argv with a
+      static `-c` script free of a git word; sandbox-exec and command wrappers
+      recurse into their nested command; any other use of a child_process
+      binding fails.
+    because: >
+      "Fail closed on unsupported command construction" means anything the
+      guard cannot resolve is a finding, not a pass. Dot-named directories
+      under test/ are the gitignored `.runs`-style scratch trees that hold
+      fixture output, never sources.
+  - kind: choice
+    at: "2026-11-05T06:54:00Z"
+    chose: >
+      The instrumentation exception is the exact file
+      packages/face/test/noSyncGit.test.ts, and inside its
+      vi.mock("node:child_process") factory the original module may only be
+      spread into the returned object, named in type positions, or called as
+      `actual.<spawning fn>(...rest)` forwarding the enclosing arrow's rest
+      parameter unchanged.
+    because: >
+      That test observes child processes to prove the face's read path never
+      spawns synchronously; the acceptance keeps instrumentation exceptions
+      exact and observation-only, so a call that does anything but forward
+      fails even in that file.
+  - kind: surprise
+    at: "2026-11-05T06:58:00Z"
+    expected: >
+      Possibly an automatic-GC path independent of maintenance.auto among the
+      commands fixtures run, which would justify adding gc.auto=0.
+    observed: >
+      Installed Git is `git version 2.54.0 (Apple Git-157)`. A GIT_TRACE2_EVENT
+      probe under packages/cli/test/.runs (300 loose objects, so maintenance is
+      due) ran commit, merge --no-ff, cherry-pick, revert, rebase, clone,
+      fetch, pull and worktree add. With `-c maintenance.autoDetach=false`
+      alone, commit, merge, fetch and pull each started exactly one child
+      `git maintenance run --auto --quiet --no-detach` and no `gc` child; with
+      `-c maintenance.auto=false`, none of them started a gc or maintenance
+      child. No independent automatic-GC path appeared, so gc.auto=0 is not
+      added.
+  - kind: choice
+    at: "2026-11-05T06:59:00Z"
+    chose: >
+      The 0050 cleanup regression now builds its repository through the
+      fixture initializer, then explicitly sets repository-local
+      maintenance.auto=true and maintenance.autoDetach=false, and runs three
+      tests: the repository's own config reads maintenance.auto=true; the
+      unsuppressed control commit leaves a pack; the helper's commitAll leaves
+      no pack and the two sampled loose objects in place.
+    because: >
+      Fixture repositories now default to maintenance.auto=false, which would
+      make the original regression pass without the helper's protection. The
+      explicit re-enable plus the positive control make the negative control
+      depend on the per-invocation flag alone. The positive control logs the
+      Git version into the gate's output.
+  - kind: surprise
+    at: "2026-11-05T07:05:00Z"
+    expected: >
+      With repository-local maintenance.auto=false as the fixture default, the
+      helper's per-invocation flag might be redundant for the regression.
+    observed: >
+      Mutation check: removing MAINTENANCE_SUPPRESSION from fixtureGitArgv
+      (helper restored afterwards with git checkout) made the negative control
+      "launches no auto-maintenance ... when the fixture helper commits" fail
+      while the positive control and the config check still passed. The
+      regression's explicit maintenance.auto=true keeps it dependent on the
+      helper's protection, as the acceptance asks.
+  - kind: choice
+    at: "2026-11-05T07:06:00Z"
+    chose: >
+      Migrated cli and runner through two parallel workers under one brief
+      each, and face and verifier by hand. Small behaviour-neutral edits they
+      reported: inits that previously ran through identity-carrying wrappers
+      (evidence, verify, preview) now call initFixtureRepository without env,
+      since init reads no identity; landedFixture's `--initial-branch main`
+      became defaultBranch main and its no-op `-c commit.gpgsign=false` on init
+      dropped; gitCeiling.test.ts binds its fixture directory to a local const
+      because fixtureGit's cwd is `string` under exactOptionalPropertyTypes.
+    because: >
+      The guard's repository scan listed every remaining site per package, so
+      disjoint file sets could be migrated concurrently and checked against
+      the same zero-findings gate.
+  - kind: choice
+    at: "2026-11-05T07:07:00Z"
+    chose: >
+      Left production Git invoked from fixtures (face's spawnedGit in
+      landedFixture, runner's commitBriefIfChanged and worktree commands, gate
+      and setup commands run in fixture worktrees) unchanged; they inherit the
+      repository-local maintenance.auto=false the initializers pin, and
+      linked worktrees share that configuration.
+    because: >
+      The acceptance scopes this node to fixtures and asks that production
+      Git calls and linked worktrees inherit fixture containment, not that
+      production code change; production containment is the
+      worktree-maintenance node's question.

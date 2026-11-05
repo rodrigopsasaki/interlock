@@ -1,7 +1,7 @@
-import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { fixtureGit } from "../../../test/support/gitFixture.ts";
 import { diffFiles, fileContentAt, isAncestor, isCommit, pathExistsAt } from "../src/git.ts";
 import { commitAll, gitInitFixture } from "./support/gitFixture.ts";
 
@@ -93,7 +93,7 @@ describe("diffFiles", () => {
   // this session's own packages/cli and packages/verifier package.json files.
   it("reports a new file textually similar to one also modified in the same commit as its own added hunk, even when the machine's git config detects copies", () => {
     const dir = freshRepo();
-    execFileSync("git", ["config", "diff.renames", "copies"], { cwd: dir });
+    fixtureGit(["config", "diff.renames", "copies"], { cwd: dir });
     const original = [
       "{",
       '  "name": "a",',

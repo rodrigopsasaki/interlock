@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { fixtureGit, initFixtureRepository } from "../../../../test/support/gitFixture.ts";
 
 const GIT_ENV = {
   ...process.env,
@@ -10,11 +10,8 @@ const GIT_ENV = {
 
 // A fixture directory without its own `.git` would resolve to the real repository's journal.
 export function gitInitFixture(directory: string): void {
-  execFileSync("git", ["-c", "init.defaultBranch=main", "init", "--quiet"], {
-    cwd: directory,
-  });
-  execFileSync(
-    "git",
+  initFixtureRepository(directory, { defaultBranch: "main" });
+  fixtureGit(
     ["-c", "commit.gpgsign=false", "commit", "--quiet", "--allow-empty", "-m", "fixture root"],
     { cwd: directory, env: GIT_ENV },
   );
@@ -22,8 +19,8 @@ export function gitInitFixture(directory: string): void {
 
 // A worktree checkout needs real, committed content: stages and commits whatever is on disk.
 export function commitAll(directory: string, message: string): void {
-  execFileSync("git", ["add", "-A"], { cwd: directory });
-  execFileSync("git", ["-c", "commit.gpgsign=false", "commit", "--quiet", "-m", message], {
+  fixtureGit(["add", "-A"], { cwd: directory });
+  fixtureGit(["-c", "commit.gpgsign=false", "commit", "--quiet", "-m", message], {
     cwd: directory,
     env: GIT_ENV,
   });
@@ -33,9 +30,8 @@ export function commitAll(directory: string, message: string): void {
 // that wants to say "this one file is settled, everything else is still dirty" needs this rather
 // than commitAll's git add -A.
 export function commitPath(directory: string, relativePath: string, message: string): void {
-  execFileSync("git", ["add", "--", relativePath], { cwd: directory });
-  execFileSync(
-    "git",
+  fixtureGit(["add", "--", relativePath], { cwd: directory });
+  fixtureGit(
     ["-c", "commit.gpgsign=false", "commit", "--quiet", "-m", message, "--", relativePath],
     { cwd: directory, env: GIT_ENV },
   );

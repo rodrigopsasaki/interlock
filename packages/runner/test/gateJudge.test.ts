@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -10,6 +9,7 @@ import type { AbsorbOutcome, EvidenceForAbsorb, SubstrateClient } from "substrat
 import { noneClient } from "substrate";
 import { afterAll, afterEach, describe, expect, it } from "vitest";
 import { parse, stringify } from "yaml";
+import { fixtureGit } from "../../../test/support/gitFixture.ts";
 import type { GateCommand } from "../src/gateCommand.ts";
 import { judgeGates, legacyOutputForChunk } from "../src/gateJudge.ts";
 import { readGateOutput, storeGateOutput } from "../src/gateOutput.ts";
@@ -640,7 +640,7 @@ describe("retained gate output", () => {
   it("keeps output in the shared journal after its linked worktree leaves", async () => {
     const root = fixture();
     const linked = `${root}-linked`;
-    execFileSync("git", ["worktree", "add", "--detach", linked, "HEAD"], { cwd: root });
+    fixtureGit(["worktree", "add", "--detach", linked, "HEAD"], { cwd: root });
     const ledger = memoryLedger();
     const judged = await judgeGates({
       ledger,
@@ -659,7 +659,7 @@ describe("retained gate output", () => {
       narrate: () => {},
     });
 
-    execFileSync("git", ["worktree", "remove", linked], { cwd: root });
+    fixtureGit(["worktree", "remove", linked], { cwd: root });
     if (isErr(judged)) throw new Error("expected retained output");
     const receipt = ledger.projection().nodes.get(nodeKey(node))?.receipts[0];
     expect(receipt).toBeDefined();

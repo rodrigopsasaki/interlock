@@ -11,6 +11,7 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { fixtureGit, initFixtureRepository } from "../../../../test/support/gitFixture.ts";
 import { runDebriefFileDerived, runDebriefPrepare } from "../../src/debrief/derived.ts";
 import { runDebriefRevise } from "../../src/debrief/revise.ts";
 
@@ -29,7 +30,7 @@ const node = "n";
 const session = "session-1";
 
 function git(root: string, args: readonly string[]): string {
-  return execFileSync("git", args, { cwd: root, encoding: "utf-8" }).trim();
+  return fixtureGit(args, { cwd: root }).trim();
 }
 
 function commit(root: string, message: string): string {
@@ -73,7 +74,7 @@ function fixture(nodeId = node): {
   readonly start: string;
 } {
   directory = mkdtempSync(join(runsRoot, "derived-"));
-  git(directory, ["-c", "init.defaultBranch=main", "init", "--quiet"]);
+  initFixtureRepository(directory, { defaultBranch: "main" });
   git(directory, ["config", "user.name", "fixture"]);
   git(directory, ["config", "user.email", "fixture@example.test"]);
   const sessionPath = join(directory, ".interlock", "sessions", graph, nodeId);

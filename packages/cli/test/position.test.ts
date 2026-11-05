@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -12,6 +11,7 @@ import {
 } from "runner";
 import { buildRegistry, judgeValue } from "schemas";
 import { afterEach, describe, expect, it } from "vitest";
+import { fixtureGit } from "../../../test/support/gitFixture.ts";
 import { type FakeHerdrServer, startFakeHerdrServer } from "../../runner/test/herdr/fakeServer.ts";
 import {
   type PositionsV0,
@@ -128,7 +128,7 @@ describe("interlock position --json", () => {
   it("reads two repositories in one read, each with its root, origin and every graph", async () => {
     const first = repository({ alpha: graphYaml("alpha", ["a"]), beta: graphYaml("beta", ["b"]) });
     const second = repository({ gamma: graphYaml("gamma", ["c"]) });
-    execFileSync("git", ["remote", "add", "origin", "git@github.com:someone/second.git"], {
+    fixtureGit(["remote", "add", "origin", "git@github.com:someone/second.git"], {
       cwd: second,
     });
 
