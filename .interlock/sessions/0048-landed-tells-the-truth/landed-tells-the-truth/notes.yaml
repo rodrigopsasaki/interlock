@@ -31,3 +31,24 @@ entries:
     at: "2026-11-05T14:40:00Z"
     expected: Only mainLine.ts in packages/face/src spawns git synchronously.
     observed: root.ts's sharedJournalDirectory and currentCommitSha use execFileSync too, and both are called from ~25 places across cli and runner. Both are now async, and every caller awaits them.
+  - kind: surprise
+    at: "2026-11-05T15:05:00Z"
+    expected: "`git log -p -R` over the attempt yields the same stable patch id as a main commit that undoes one attempt commit exactly."
+    observed: "-R swaps the a/ and b/ prefixes (diff --git b/f a/f), and patch-id --stable hashes the --- and +++ lines, so no reversed log ever matched a real undo. STABLE_DIFF_OPTIONS now carries --no-prefix on every side, which makes the reversed log equal `git diff --no-prefix <c> <c>^` and main's log byte for byte."
+  - kind: choice
+    at: "2026-11-05T15:10:00Z"
+    chose: A revert line on main naming one commit that was squashed into main, descending from the squash, reads unknown rather than on-main.
+    because: The acceptance says such a trailer does not prove the whole squash undone; leaving the reading on-main would claim the squash stands untouched when main says part of it was reverted.
+  - kind: surprise
+    at: "2026-11-05T15:20:00Z"
+    expected: With the landed caches warm, a position read of interlock and preston is dominated by process start and git.
+    observed: "The warm read took ~1015 ms, and ~740 ms of it was herdr: positionsOf created one herdr runtime per graph with live sessions (each verifying the socket) and asked agent.list once per live session, all sequentially. Git was 6 calls, ~60 ms."
+  - kind: choice
+    at: "2026-11-05T15:25:00Z"
+    chose: positionsOf creates the herdr runtime once per read (sharedRuntime) and resolves every live session's status concurrently (statusesFrom); resolveAgentStatuses keeps its signature for the face world and graph show.
+    because: It brings the warm read to ~600 ms with the smallest change on the read path, and leaves the one-agent.list bulk observation to the sibling node live-attempt-facts, whose acceptance owns that seam.
+    rejected: [one bulk agent.list here, which would pre-empt the sibling node's Runtime seam]
+  - kind: choice
+    at: "2026-11-05T15:30:00Z"
+    chose: The warm-position gate was run with INTERLOCK_WARM_REPO_A=~/dev/private/interlock (the main checkout) and INTERLOCK_WARM_REPO_B=~/dev/private/preston.
+    because: Those are the two repositories the cockpit reads together; the variables are set per invocation and nothing outside this worktree was configured, so the owner sets them in their own environment.
