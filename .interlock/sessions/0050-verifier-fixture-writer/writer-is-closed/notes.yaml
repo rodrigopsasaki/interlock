@@ -57,3 +57,135 @@ entries:
       stress replica (test/.runs/race.mjs: init, add, commit, immediate
       rmSync; 8 parallel processes x 150) produced 0 failures in 1200.
       Concurrent deletion is benign; ENOTEMPTY needs a concurrent creation.
+  - kind: surprise
+    at: "2026-11-05T06:16:55Z"
+    expected: >
+      Wrapping fs.rmSync from vitest.setup.ts would instrument the suite.
+    observed: >
+      The first instrumented `pnpm test` aborted in setup with "TypeError:
+      Cannot redefine property: rmSync" (ledger, 17 files failed, no test
+      executed). Not counted as one of the three full parallel suite runs
+      since no test ran. Patching the CommonJS fs object and calling
+      module.syncBuiltinESMExports() worked (validated on foundAt.test.ts, 21
+      teardowns logged). The instrumentation lived only in the uncommitted
+      working tree and was reverted.
+  - kind: surprise
+    at: "2026-11-05T06:18:15Z"
+    expected: >
+      An instrumented full parallel suite might reproduce ENOTEMPTY.
+    observed: >
+      Suite run 1 of 3 (06:17:16-06:18:15Z, FIXTURE_INSTR rmSync log plus
+      GIT_TRACE2_EVENT per process; test/.runs/instr/suite1.txt, rm1.jsonl,
+      trace/) was green: 733 teardowns, 0 failed, 0 survived. 905 detached
+      maintenance daemons were launched (895 by commit, 10 by merge); none ran
+      a task. Two cli fixtures (cli/test/.runs/plan-88ffjG, run-7GKTDs) had
+      their daemon's exit event 0.3-0.5 ms after their rmSync began, so the
+      daemon does outlive teardown under load. No verifier fixture had a Git
+      event after its teardown started in this run.
+  - kind: surprise
+    at: "2026-11-05T06:20:30Z"
+    expected: >
+      geometric-repack's auto condition (100 loose objects) is unreachable by
+      a fixture of about fifteen objects.
+    observed: >
+      v2.54.0 too_many_loose_objects counts only objects/17/ and multiplies by
+      256 (object-file.c odb_source_loose_count_objects,
+      ODB_COUNT_OBJECTS_APPROXIMATE), against a threshold rounded up to 256.
+      Two loose objects whose ids start with 17 therefore make the detached
+      daemon of the fixture's commit run geometric-repack after the commit
+      returned. A probe (test/.runs/repackprobe.mjs, trace in
+      repackprobe.json) showed regions maintenance/geometric-repack and, 500
+      ms after return, pack-*.pack/.idx/.rev, pack/multi-pack-index and
+      info/packs written into the fixture by that daemon: a writer that
+      creates entries, linked to the fixture directory and the `git -c
+      commit.gpgsign=false commit --quiet -m m` invocation.
+  - kind: surprise
+    at: "2026-11-05T06:21:36Z"
+    expected: >
+      The controlled reproducer would show whether that writer yields the
+      historical error.
+    observed: >
+      Controlled reproducer test/.runs/repack.mjs (two blobs in objects/17,
+      init/add/commit as the fixture does, then a random 0-30 ms or 0-60 ms
+      pause before one rmSync): 3/40 and 2/40 threw "ENOTEMPTY, Directory not
+      empty" on the fixture's top directory, with leftovers written by the
+      repack (objects/pack/tmp_pack_*, objects/info/packs, info/refs); 0/40 at
+      0-120 ms (repack already done). The same with `-c maintenance.auto=false`
+      on the commit: 0/40 and 0/40. This is a controlled reproducer of the
+      conditions, not a reproduction of the historical failure in the suite.
+  - kind: surprise
+    at: "2026-11-05T06:22:30Z"
+    expected: >
+      The historical foundAt fixture would need two random objects in 17/.
+    observed: >
+      Replicating repoWithSession (test/.runs/foundatfixture.mjs): 15 loose
+      objects, one deterministic in 17/ (170eea166c...). The commit id varies
+      with the commit timestamp, so whenever it starts with 17 (about 1 in
+      256 commits) the fixture meets the trigger; foundAt.test.ts makes 21
+      such commits per run (about 8% of file runs meet it at least once),
+      and an ENOTEMPTY additionally needs teardown to overlap the repack,
+      which load widens. Consistent with a rare failure in
+      foundAt.test.ts's afterEach on its own fixture, but the historical
+      run-64TMAq is gone, so its commit id cannot be checked.
+  - kind: choice
+    at: "2026-11-05T06:23:00Z"
+    chose: >
+      Close the writer at the fixture's commit invocation in
+      packages/verifier/test/support/gitFixture.ts commitAll, adding `-c
+      maintenance.auto=false` beside its existing `-c commit.gpgsign=false`.
+      Leave packages/verifier/src/git.ts unchanged.
+    because: >
+      The evidence implicates the fixture's `git commit`, the only verifier
+      invocation that launches detached work (suite-wide, maintenance is
+      spawned only by commit and merge; src/git.ts runs cat-file, merge-base,
+      show and diff). Every verifier fixture commit goes through commitAll,
+      and a per-invocation -c is the idiom that helper already uses. Cleanup
+      stays the single immediate rmSync.
+    rejected:
+      - "writing maintenance.auto=false into the fixture repository's config in gitInitFixture (covers future commands too, but adds a Git call per fixture and moves the fix away from the invocation the evidence names)"
+      - "maintenance.autoDetach=false (the commit would wait for maintenance, so repack would still run, in the foreground, inside the fixture on every trigger)"
+      - "retrying or delaying rmSync (forbidden by the acceptance, and it hides a writer instead of closing it)"
+  - kind: surprise
+    at: "2026-11-05T06:23:40Z"
+    expected: >
+      A regression asserting that objects/maintenance.lock is absent and
+      objects/pack is empty right after commitAll returns would fail on the
+      pre-fix helper, because the daemon holds the lock while it repacks.
+    observed: >
+      It failed only 1 run in 5. In v2.54.0 the lock is a tempfile owned by
+      the maintenance parent, which daemonize() exits, so its atexit cleanup
+      unlinks the lock before the commit returns; the daemon repacks with no
+      lock on disk, and the race to see its packs is lost most of the time.
+  - kind: choice
+    at: "2026-11-05T06:24:00Z"
+    chose: >
+      In fixtureCleanup.test.ts, pin maintenance.autoDetach=false in the
+      fixture repository's own config, put two blobs into objects/17 (found
+      by hashing candidate contents), run the real commitAll, and assert that
+      objects/pack is empty and both blobs are still loose.
+    because: >
+      autoDetach=false moves whatever maintenance the commit launches into the
+      commit itself, so its writes are observable deterministically when it
+      returns, with no wait and no race; the trigger (auto-maintenance due on a
+      fixture commit) is still exercised by the production path of the
+      helper. The assertions are on the repository's contents, not on Git's
+      flags. Pre-fix it failed 6/6 then 3/3 on the final text with
+      "expected [ 'multi-pack-index', …(3) ] to deeply equal []"
+      (test/.runs/prefix-final.txt); post-fix it passed 5/5. Command-line -c
+      maintenance.auto=false in commitAll outranks the repository's config, so
+      the test also checks the fix is the one in effect.
+    rejected:
+      - "polling for packs after the commit returns (a timed wait in the test, slow when green and still a race)"
+      - "asserting no maintenance child via GIT_TRACE2_EVENT (observes the process, not what reaches the repository, and needs the env captured before gitFixture.ts builds GIT_ENV)"
+  - kind: choice
+    at: "2026-11-05T06:24:30Z"
+    chose: >
+      Ran typecheck, lint, check:comments, cleanup-proof and verifier-suite
+      once on the fixed tree (all exit 0; 1 and 60 tests passed), with
+      outputs under test/.runs/gates/. Investigation ended at about
+      06:24:30Z, 13 minutes into the 60-minute budget, after one full
+      parallel suite run.
+    because: >
+      The brief asks for the standing gates once before the debrief; the
+      runner produces the binding receipts, including the two extra parallel
+      suites.

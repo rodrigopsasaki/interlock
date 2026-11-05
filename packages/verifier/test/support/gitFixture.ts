@@ -17,10 +17,23 @@ export function gitInitFixture(directory: string): void {
 // Commits whatever is already on disk under `directory`.
 export function commitAll(directory: string, message: string): string {
   execFileSync("git", ["add", "-A"], { cwd: directory });
-  execFileSync("git", ["-c", "commit.gpgsign=false", "commit", "--quiet", "-m", message], {
-    cwd: directory,
-    env: GIT_ENV,
-  });
+  execFileSync(
+    "git",
+    [
+      "-c",
+      "commit.gpgsign=false",
+      "-c",
+      "maintenance.auto=false",
+      "commit",
+      "--quiet",
+      "-m",
+      message,
+    ],
+    {
+      cwd: directory,
+      env: GIT_ENV,
+    },
+  );
   return headSha(directory);
 }
 
