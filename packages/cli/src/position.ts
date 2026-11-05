@@ -32,7 +32,7 @@ import {
   type SessionView,
 } from "ledger";
 import type { Runtime } from "runner";
-import { resolveAgentStatuses } from "./herdrStatus.ts";
+import { sharedRuntime, statusesFrom } from "./herdrStatus.ts";
 import type { CommandResult } from "./main.ts";
 import { gitOrigin, repositoryForOrigin } from "./repositoryOrigin.ts";
 
@@ -119,19 +119,22 @@ async function originOf(repoRoot: string): Promise<RepositoryOrigin | undefined>
 
 async function agentStatusesOf(
   live: readonly SessionView[],
-  runtime: Runtime | undefined,
+  runtime: () => Promise<Runtime | undefined>,
 ): Promise<ReadonlyMap<string, AgentStatus>> {
-  const statuses = new Map<string, AgentStatus>();
-  const graphIds = new Set(live.map((session) => session.node.graph));
-  for (const graphId of graphIds) {
-    const resolved = await resolveAgentStatuses(
-      graphId,
-      live.filter((session) => session.node.graph === graphId),
-      runtime,
-    );
-    for (const [session, status] of resolved) statuses.set(session, status);
-  }
-  return statuses;
+  if (live.length === 0) return new Map();
+  const observing = await runtime();
+  if (observing === undefined) return new Map();
+  const graphIds = [...new Set(live.map((session) => session.node.graph))];
+  const resolved = await Promise.all(
+    graphIds.map((graphId) =>
+      statusesFrom(
+        graphId,
+        live.filter((session) => session.node.graph === graphId),
+        observing,
+      ),
+    ),
+  );
+  return new Map(resolved.flatMap((statuses) => [...statuses]));
 }
 
 function liveAttemptOf(
@@ -199,7 +202,7 @@ function graphRead(
 
 async function repositoryPosition(
   asked: string,
-  runtime: Runtime | undefined,
+  runtime: () => Promise<Runtime | undefined>,
   nowWallMs: number,
   git: GitRunner,
 ): Promise<RepositoryPosition> {
@@ -262,9 +265,10 @@ export async function positionsOf(
 ): Promise<Positions> {
   const nowWallMs = clock.now().wallMs;
   const git = boundedGit();
+  const observing = sharedRuntime(runtime);
   const repositories: RepositoryPosition[] = [];
   for (const path of asked) {
-    repositories.push(await repositoryPosition(path, runtime, nowWallMs, git));
+    repositories.push(await repositoryPosition(path, observing, nowWallMs, git));
   }
   return { interlock: POSITIONS_SHAPE, repositories };
 }
