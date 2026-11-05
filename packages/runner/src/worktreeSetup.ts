@@ -52,7 +52,7 @@ async function removeTemporary(path: string): Promise<void> {
 async function retainSetupLog(worktree: string, tail: Buffer): Promise<string | undefined> {
   if (tail.length === 0) return undefined;
   try {
-    const journalDirectory = sharedJournalDirectory(worktree);
+    const journalDirectory = await sharedJournalDirectory(worktree);
     const sha256 = createHash("sha256").update(tail).digest("hex");
     const directory = join(journalDirectory, "worktree-setup", "sha256");
     const artifact = join(directory, sha256);

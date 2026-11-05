@@ -6,7 +6,9 @@ import {
   type FaceState,
   type FaceWorld,
   findRepoRoot,
+  type GitRunner,
   initialFaceState,
+  mainLineReader,
   reduce,
   type Selection,
   sharedJournalDirectory,
@@ -18,7 +20,7 @@ import { createDispatcher, type Dispatcher } from "./dispatch.ts";
 import { focusSession } from "./focus.ts";
 import { decodeKeys } from "./keys.ts";
 import { renderScreen } from "./screen.ts";
-import { drawScreen, enterAltScreen, exitAltScreen } from "./terminal.ts";
+import { drawScreen, enterAltScreen, exitAltScreen, type FaceOutput } from "./terminal.ts";
 import { buildGraphWorld, buildPlansWorld, buildSessionText } from "./world.ts";
 
 const REDRAW_INTERVAL_MS = 2000;
@@ -29,9 +31,10 @@ export interface FaceOptions {
   readonly clock?: Clock;
   readonly dispatch?: Dispatcher;
   readonly stdin?: NodeJS.ReadStream;
-  readonly stdout?: NodeJS.WriteStream;
+  readonly stdout?: FaceOutput;
   readonly keys?: AsyncIterable<FaceKey>;
   readonly by?: string;
+  readonly git?: GitRunner;
 }
 
 function worldWithBy(world: FaceWorld, by: string | undefined): FaceWorld {
@@ -120,6 +123,7 @@ export async function runInterlockFace(
   const dispatch = options.dispatch ?? createDispatcher();
   const by = options.by ?? process.env["INTERLOCK_BY"];
   const clock = options.clock ?? createSystemClock();
+  const landed = mainLineReader(repoRoot, options.git === undefined ? {} : { git: options.git });
 
   let state: FaceState =
     graph === undefined
@@ -130,12 +134,12 @@ export async function runInterlockFace(
 
   async function refreshWorld(): Promise<void> {
     if (state.level === "plans") {
-      world = worldWithBy(await buildPlansWorld(repoRoot, options.runtime, clock), by);
+      world = worldWithBy(await buildPlansWorld(repoRoot, landed, options.runtime, clock), by);
       return;
     }
     const graphId = state.selection.graph ?? graph;
     if (graphId === undefined) return;
-    const built = await buildGraphWorld(repoRoot, graphId, options.runtime, clock);
+    const built = await buildGraphWorld(repoRoot, graphId, landed, options.runtime, clock);
     world = worldWithBy(isErr(built) ? { plans: [] } : built.value, by);
 
     if (
@@ -207,11 +211,13 @@ export async function runInterlockFace(
   enterAltScreen(stdout);
   draw();
 
-  const watcher = usingRealKeys
-    ? watchJournalDirectory(sharedJournalDirectory(repoRoot), () => {
-        void refreshWorld().then(draw);
-      })
-    : undefined;
+  const journalDirectory = usingRealKeys ? await sharedJournalDirectory(repoRoot) : undefined;
+  const watcher =
+    journalDirectory !== undefined
+      ? watchJournalDirectory(journalDirectory, () => {
+          void refreshWorld().then(draw);
+        })
+      : undefined;
   const timer = usingRealKeys
     ? setInterval(() => void refreshWorld().then(draw), REDRAW_INTERVAL_MS)
     : undefined;

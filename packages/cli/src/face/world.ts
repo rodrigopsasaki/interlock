@@ -2,12 +2,13 @@ import { relative } from "node:path";
 import { type Clock, createSystemClock } from "@phyxiusjs/clock";
 import { isErr, isOk, ok, type Result } from "@phyxiusjs/fp";
 import {
+  clearedHeadsOf,
   type FaceWorld,
   type GraphRefusal,
   graphFilePath,
   listGraphIds,
   loadGraphDocument,
-  mainLineReader,
+  type MainLineReader,
   plansEntryOf,
   positionOf,
   renderSessionColumns,
@@ -25,34 +26,42 @@ async function contentHashOf(repoRoot: string, path: string): Promise<string | u
 
 export async function buildPlansWorld(
   repoRoot: string,
+  landed: MainLineReader,
   runtime: Runtime | undefined,
   clock: Clock = createSystemClock(),
 ): Promise<FaceWorld> {
-  const journal = sharedJournalDirectory(repoRoot);
+  const journal = await sharedJournalDirectory(repoRoot);
   const replayed = await readReplay(journal);
   const projection = isErr(replayed) ? emptyProjection() : replayed.value;
   const nowWallMs = clock.now().wallMs;
 
   const graphIds = await listGraphIds(repoRoot);
-  const plans = [];
+  const loaded = [];
   for (const graphId of graphIds) {
     const path = graphFilePath(repoRoot, graphId);
     const document = await loadGraphDocument(path);
     if (isErr(document)) continue;
     const contentHash = await contentHashOf(repoRoot, path);
     if (contentHash === undefined) continue;
+    loaded.push({ graphId, document: document.value, contentHash });
+  }
+  const landedReader = await landed.read(
+    loaded.flatMap(({ document }) => clearedHeadsOf(document, projection)),
+  );
+  const plans = [];
+  for (const { graphId, document, contentHash } of loaded) {
     const statuses = await resolveAgentStatuses(
       graphId,
       liveSessionsOf(graphId, projection.sessions, nowWallMs),
       runtime,
     );
     const position = positionOf(
-      document.value,
+      document,
       projection,
       contentHash,
       nowWallMs,
       (session) => statuses.get(session),
-      mainLineReader(repoRoot),
+      landedReader,
     );
     plans.push(plansEntryOf(position));
   }
@@ -62,6 +71,7 @@ export async function buildPlansWorld(
 export async function buildGraphWorld(
   repoRoot: string,
   graphId: string,
+  landed: MainLineReader,
   runtime: Runtime | undefined,
   clock: Clock = createSystemClock(),
 ): Promise<Result<FaceWorld, GraphRefusal>> {
@@ -69,7 +79,7 @@ export async function buildGraphWorld(
   const document = await loadGraphDocument(path);
   if (isErr(document)) return document;
 
-  const journal = sharedJournalDirectory(repoRoot);
+  const journal = await sharedJournalDirectory(repoRoot);
   const replayed = await readReplay(journal);
   const projection = isErr(replayed) ? emptyProjection() : replayed.value;
   const nowWallMs = clock.now().wallMs;
@@ -80,13 +90,14 @@ export async function buildGraphWorld(
     liveSessionsOf(graphId, projection.sessions, nowWallMs),
     runtime,
   );
+  const landedReader = await landed.read(clearedHeadsOf(document.value, projection));
   const position = positionOf(
     document.value,
     projection,
     contentHash,
     nowWallMs,
     (session) => statuses.get(session),
-    mainLineReader(repoRoot),
+    landedReader,
   );
   return ok({ plans: [], position });
 }
@@ -97,7 +108,7 @@ export async function buildSessionText(
   node: string,
   sessionId: string,
 ): Promise<string> {
-  const journal = sharedJournalDirectory(repoRoot);
+  const journal = await sharedJournalDirectory(repoRoot);
   const replayed = await readReplay(journal);
   if (isErr(replayed)) {
     return `${journal}: line ${replayed.error.line} has shape tag "${replayed.error.tag}", which this build does not recognize.`;

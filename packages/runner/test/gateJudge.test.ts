@@ -587,7 +587,7 @@ describe("retained gate output", () => {
       const receipt = ledger.projection().nodes.get(nodeKey(node))?.receipts[0];
       expect(receipt).toBeDefined();
       if (receipt === undefined) return;
-      const output = await readGateOutput(sharedJournalDirectory(root), receipt.proof);
+      const output = await readGateOutput(await sharedJournalDirectory(root), receipt.proof);
       if (isErr(output)) throw new Error("expected readable retained output");
       expect(output.value).toEqual({
         kind: "available",
@@ -622,7 +622,7 @@ describe("retained gate output", () => {
     const receipt = ledger.projection().nodes.get(nodeKey(node))?.receipts[0];
     expect(receipt).toBeDefined();
     if (receipt === undefined) return;
-    const output = await readGateOutput(sharedJournalDirectory(root), receipt.proof);
+    const output = await readGateOutput(await sharedJournalDirectory(root), receipt.proof);
     if (isErr(output) || output.value.kind !== "available") {
       throw new Error("expected readable retained output");
     }
@@ -664,7 +664,7 @@ describe("retained gate output", () => {
     const receipt = ledger.projection().nodes.get(nodeKey(node))?.receipts[0];
     expect(receipt).toBeDefined();
     if (receipt === undefined) return;
-    const output = await readGateOutput(sharedJournalDirectory(root), receipt.proof);
+    const output = await readGateOutput(await sharedJournalDirectory(root), receipt.proof);
     if (isErr(output) || output.value.kind !== "available") {
       throw new Error("expected retained output after worktree removal");
     }
@@ -673,7 +673,7 @@ describe("retained gate output", () => {
 
   it("accepts concurrent identical writes and refuses missing or corrupt stored output", async () => {
     const root = fixture();
-    const journal = sharedJournalDirectory(root);
+    const journal = await sharedJournalDirectory(root);
     const stdout = Buffer.from("same stdout");
     const stderr = Buffer.from("same stderr");
     const stored = await Promise.all([
@@ -700,7 +700,9 @@ describe("retained gate output", () => {
 
   it("leaves old receipts honestly without output and refuses before writing a receipt when storage fails", async () => {
     const root = fixture();
-    const absent = await readGateOutput(sharedJournalDirectory(root), { outputHash: "legacy" });
+    const absent = await readGateOutput(await sharedJournalDirectory(root), {
+      outputHash: "legacy",
+    });
     if (isErr(absent)) throw new Error("expected legacy output to be absent, not corrupt");
     expect(absent.value).toEqual({ kind: "absent" });
 

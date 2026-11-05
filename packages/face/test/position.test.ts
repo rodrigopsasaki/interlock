@@ -67,7 +67,7 @@ function nodeIn(position: Position, id: string): PositionNode {
 describe("positionOf", () => {
   it("names the shape on every value it produces", () => {
     const position = positionOf(document, fold([]), "some-hash", Date.now());
-    expect(position.interlock).toBe("position@v1");
+    expect(position.interlock).toBe("position@v2");
   });
 
   it("shows a node with no upstream state as ready, and pending gates, when the projection knows nothing", () => {
@@ -703,6 +703,14 @@ describe("the line: where a graph stands, in one sentence and one voice", () => 
         return { kind: "on-main", main: "main", head: head.head, by: "ancestry" };
       case "off":
         return { kind: "not-on-main", main: "main", head: head.head };
+      case "partly":
+        return {
+          kind: "partly-reverted-on-main",
+          main: "main",
+          head: head.head,
+          reverted: ["c".repeat(40)],
+          revertedBy: { ["c".repeat(40)]: "d".repeat(40) },
+        };
       default:
         return { kind: "reverted-on-main", main: "main", head: head.head, revertedBy: "r" };
     }
@@ -845,11 +853,22 @@ describe("the line: where a graph stands, in one sentence and one voice", () => 
       "b cleared, reverted on main",
     ],
     [
+      "partly reverted on main",
+      () => read([...approvedFor("loom"), cleared(aNode, "on"), cleared(bNode, "partly")]),
+      "b cleared, partly reverted on main",
+    ],
+    [
       "done",
       () => read([...approvedFor("loom"), cleared(aNode, "on"), cleared(bNode, "on")]),
       "done",
     ],
   ];
+
+  it("is not done while a node is partly reverted on main, though every node is cleared", () => {
+    const position = read([...approvedFor("loom"), cleared(aNode, "on"), cleared(bNode, "partly")]);
+    expect(nodeIn(position, "b").landed?.kind).toBe("partly-reverted-on-main");
+    expect(position.done).toBe(false);
+  });
 
   for (const [state, position, sentence] of sentences) {
     it(`says "${sentence}" when ${state}`, () => {
@@ -886,7 +905,7 @@ describe("the line: where a graph stands, in one sentence and one voice", () => 
       const schema: unknown = JSON.parse(readFileSync(join(repoRoot, "schemas", path), "utf-8"));
       collect(schema);
     };
-    collectFile("position@v1.json");
+    collectFile("position@v2.json");
     const known = new Set([
       ...acceptedForms(harnessVocabulary(repoRoot)),
       ...positionWords,

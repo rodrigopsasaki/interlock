@@ -155,6 +155,8 @@ function landedWords(landed: Landed | undefined): string {
       return "not on main";
     case "reverted-on-main":
       return "reverted on main";
+    case "partly-reverted-on-main":
+      return "partly reverted on main";
     case "unknown":
     case undefined:
       return "on main unknown";

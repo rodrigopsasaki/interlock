@@ -221,7 +221,7 @@ export async function runInterlockPlan(
   const node = `plan/${graph}`;
   const targetNode = { graph, id: node };
 
-  const journal = sharedJournalDirectory(repoRoot);
+  const journal = await sharedJournalDirectory(repoRoot);
   const clock = options.clock ?? createSystemClock();
   const opened = await createLedger({ clock, directory: journal });
   if (isErr(opened)) {

@@ -1,0 +1,66 @@
+interlock: notes@v0
+node: landed-tells-the-truth
+entries:
+  - kind: choice
+    at: "2026-11-05T14:10:00Z"
+    chose: positionOf stays synchronous and pure; a MainLineReader resolves every cleared head of a refresh in one async read (one main snapshot, bounded concurrent judgments) and hands positionOf a synchronous LandedReader over the results. clearedHeadsOf exposes the heads a document will ask for.
+    because: The acceptance asks for one main snapshot shared across all graphs and nodes of a refresh, which a per-node async reader inside positionOf could not give without positionOf owning I/O. Keeping positionOf pure leaves its ~50 test callers and every renderer untouched.
+    rejected: [making positionOf async with an async LandedReader, threading a promise through every face and schema test]
+  - kind: choice
+    at: "2026-11-05T14:12:00Z"
+    chose: The main snapshot is one `git for-each-ref` over refs/heads and refs/remotes/origin/HEAD, resolving origin's HEAD, main and master and their SHAs in a single child.
+    because: The acceptance counts "only the shared main snapshot read" on an unchanged refresh; one child makes that read a single, identifiable git call instead of up to four rev-parse and symbolic-ref calls.
+  - kind: choice
+    at: "2026-11-05T14:20:00Z"
+    chose: A unit's undo is checked with --ancestry-path-equivalent merge-base --is-ancestor from its landing counterpart; inverse patch ids come from `git log -p -R` over base..head and the whole inverse from `git diff head base`, both with STABLE_DIFF_OPTIONS and the same path scope as main's log (every path any attempt commit touched).
+    because: The acceptance requires identical, explicit diff options and path scope on both sides of the inverse comparison, and descent rather than log order. The union of per-commit paths is the smallest scope that contains every attempt commit's whole patch.
+  - kind: choice
+    at: "2026-11-05T14:25:00Z"
+    chose: Unresolved overlapping later edits make the reading unknown only once some unit is proved undone; with no undo evidence a later edit to the same file still reads on-main.
+    because: Applying the overlap rule unconditionally would turn every landed node whose files a later graph edits into unknown, so done would almost never be true. The acceptance's overlap rule sits inside the undo detector, and it already concedes the no-trailer detector does not recognize every manual undo.
+    rejected: [reading unknown for any later main commit touching an attempt path]
+  - kind: choice
+    at: "2026-11-05T14:30:00Z"
+    chose: positions@v0 gains a oneOf of position@v1 and position@v2 for a graph's position, additively, rather than a new positions version.
+    because: positionsOf now emits position@v2 inside positions@v0; every existing positions@v0 artifact still validates, and the sibling node live-attempt-facts owns publishing positions@v1.
+  - kind: choice
+    at: "2026-11-05T14:35:00Z"
+    chose: The disk cache lives at <worktree>/.interlock/landed-cache.json, ignored here by a new .gitignore line, written through `<file>.<pid>.<uuid>.tmp` and rename. It is not created when .interlock does not exist.
+    because: The acceptance names the worktree's .interlock/ and atomic sibling renames; creating .interlock would invent an interlock repository where there is none.
+  - kind: surprise
+    at: "2026-11-05T14:40:00Z"
+    expected: Only mainLine.ts in packages/face/src spawns git synchronously.
+    observed: root.ts's sharedJournalDirectory and currentCommitSha use execFileSync too, and both are called from ~25 places across cli and runner. Both are now async, and every caller awaits them.
+  - kind: surprise
+    at: "2026-11-05T15:05:00Z"
+    expected: "`git log -p -R` over the attempt yields the same stable patch id as a main commit that undoes one attempt commit exactly."
+    observed: "-R swaps the a/ and b/ prefixes (diff --git b/f a/f), and patch-id --stable hashes the --- and +++ lines, so no reversed log ever matched a real undo. STABLE_DIFF_OPTIONS now carries --no-prefix on every side, which makes the reversed log equal `git diff --no-prefix <c> <c>^` and main's log byte for byte."
+  - kind: choice
+    at: "2026-11-05T15:10:00Z"
+    chose: A revert line on main naming one commit that was squashed into main, descending from the squash, reads unknown rather than on-main.
+    because: The acceptance says such a trailer does not prove the whole squash undone; leaving the reading on-main would claim the squash stands untouched when main says part of it was reverted.
+  - kind: surprise
+    at: "2026-11-05T15:20:00Z"
+    expected: With the landed caches warm, a position read of interlock and preston is dominated by process start and git.
+    observed: "The warm read took ~1015 ms, and ~740 ms of it was herdr: positionsOf created one herdr runtime per graph with live sessions (each verifying the socket) and asked agent.list once per live session, all sequentially. Git was 6 calls, ~60 ms."
+  - kind: choice
+    at: "2026-11-05T15:25:00Z"
+    chose: positionsOf creates the herdr runtime once per read (sharedRuntime) and resolves every live session's status concurrently (statusesFrom); resolveAgentStatuses keeps its signature for the face world and graph show.
+    because: It brings the warm read to ~600 ms with the smallest change on the read path, and leaves the one-agent.list bulk observation to the sibling node live-attempt-facts, whose acceptance owns that seam.
+    rejected: [one bulk agent.list here, which would pre-empt the sibling node's Runtime seam]
+  - kind: choice
+    at: "2026-11-05T15:30:00Z"
+    chose: The warm-position gate was run with INTERLOCK_WARM_REPO_A=~/dev/private/interlock (the main checkout) and INTERLOCK_WARM_REPO_B=~/dev/private/preston.
+    because: Those are the two repositories the cockpit reads together; the variables are set per invocation and nothing outside this worktree was configured, so the owner sets them in their own environment.
+  - kind: choice
+    at: "2026-11-05T16:00:00Z"
+    chose: FaceOutput, the face's own three-member output interface (write, on resize, off resize), replaces NodeJS.WriteStream in runInterlockFace and terminal.ts.
+    because: The acceptance forbids assertions in the new tests, and the only way to hand runInterlockFace a fake terminal was `as unknown as NodeJS.WriteStream`. Typing the output by what the face uses lets a plain object stand in, and process.stdout still satisfies it.
+  - kind: choice
+    at: "2026-11-05T16:05:00Z"
+    chose: noSyncGit.test.ts proves the read path twice, statically (face/src, the cli position read path files, face root.ts, ledger/src) and dynamically (vi.mock of node:child_process recording every sync call and every child from spawn until close or error during a real two-repository read).
+    because: A whole-file static scan of runner would fail on herdr's openPane, which no position read executes; the dynamic check proves the executed callees, and a self-check that the mock saw the fixture's own execFileSync calls keeps an empty list meaningful.
+  - kind: surprise
+    at: "2026-11-05T16:10:00Z"
+    expected: The landed cache file is ignored in every repository a position read touches.
+    observed: It is ignored here by the new .gitignore line, but preston (and interlock's main checkout until this merges) list .interlock/landed-cache.json as untracked after the warm gate; this node may not edit other repositories.

@@ -38,7 +38,7 @@ const readRepository = {
 describe("corpus: positions@v0", () => {
   const registry = buildRegistry();
 
-  it("validates a read carrying a code-produced position@v1 beside an unreadable graph", () => {
+  it("validates a read carrying a code-produced position@v2 beside an unreadable graph", () => {
     expect(
       judgeValue(registry, { interlock: "positions@v0", repositories: [readRepository] }),
     ).toEqual({ kind: "valid", tag: "positions@v0" });

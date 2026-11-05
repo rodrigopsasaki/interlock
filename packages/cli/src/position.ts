@@ -3,10 +3,15 @@ import { type Clock, createSystemClock } from "@phyxiusjs/clock";
 import { err, isErr, type Result } from "@phyxiusjs/fp";
 import {
   type AgentStatus,
+  boundedGit,
+  clearedHeadsOf,
   explainGraphRefusal,
   findRepoRoot,
+  type GitRunner,
+  type GraphDocument,
   graphFilePath,
   isNodeRole,
+  type LandedReader,
   listGraphIds,
   loadGraphDocument,
   mainLineReader,
@@ -27,7 +32,7 @@ import {
   type SessionView,
 } from "ledger";
 import type { Runtime } from "runner";
-import { resolveAgentStatuses } from "./herdrStatus.ts";
+import { sharedRuntime, statusesFrom } from "./herdrStatus.ts";
 import type { CommandResult } from "./main.ts";
 import { gitOrigin, repositoryForOrigin } from "./repositoryOrigin.ts";
 
@@ -85,7 +90,7 @@ export interface Positions {
 
 async function readJournal(repoRoot: string): Promise<Result<LedgerProjection, JournalRefusal>> {
   try {
-    const journal = sharedJournalDirectory(repoRoot);
+    const journal = await sharedJournalDirectory(repoRoot);
     const replayed = await readReplay(journal);
     if (isErr(replayed)) {
       return err({
@@ -114,19 +119,22 @@ async function originOf(repoRoot: string): Promise<RepositoryOrigin | undefined>
 
 async function agentStatusesOf(
   live: readonly SessionView[],
-  runtime: Runtime | undefined,
+  runtime: () => Promise<Runtime | undefined>,
 ): Promise<ReadonlyMap<string, AgentStatus>> {
-  const statuses = new Map<string, AgentStatus>();
-  const graphIds = new Set(live.map((session) => session.node.graph));
-  for (const graphId of graphIds) {
-    const resolved = await resolveAgentStatuses(
-      graphId,
-      live.filter((session) => session.node.graph === graphId),
-      runtime,
-    );
-    for (const [session, status] of resolved) statuses.set(session, status);
-  }
-  return statuses;
+  if (live.length === 0) return new Map();
+  const observing = await runtime();
+  if (observing === undefined) return new Map();
+  const graphIds = [...new Set(live.map((session) => session.node.graph))];
+  const resolved = await Promise.all(
+    graphIds.map((graphId) =>
+      statusesFrom(
+        graphId,
+        live.filter((session) => session.node.graph === graphId),
+        observing,
+      ),
+    ),
+  );
+  return new Map(resolved.flatMap((statuses) => [...statuses]));
 }
 
 function liveAttemptOf(
@@ -143,13 +151,16 @@ function liveAttemptOf(
   };
 }
 
-async function graphRead(
-  repoRoot: string,
-  graphId: string,
-  projection: LedgerProjection,
-  nowWallMs: number,
-  statuses: ReadonlyMap<string, AgentStatus>,
-): Promise<GraphRead> {
+type GraphLoad =
+  | {
+      readonly graph: string;
+      readonly state: "loaded";
+      readonly document: GraphDocument;
+      readonly contentHash: string;
+    }
+  | { readonly graph: string; readonly state: "unreadable"; readonly because: string };
+
+async function graphLoad(repoRoot: string, graphId: string): Promise<GraphLoad> {
   const path = graphFilePath(repoRoot, graphId);
   const document = await loadGraphDocument(path);
   if (isErr(document)) {
@@ -161,22 +172,39 @@ async function graphRead(
   }
   return {
     graph: graphId,
+    state: "loaded",
+    document: document.value,
+    contentHash: contentHash.value,
+  };
+}
+
+function graphRead(
+  load: GraphLoad,
+  projection: LedgerProjection,
+  nowWallMs: number,
+  statuses: ReadonlyMap<string, AgentStatus>,
+  landed: LandedReader,
+): GraphRead {
+  if (load.state === "unreadable") return load;
+  return {
+    graph: load.graph,
     state: "read",
     position: positionOf(
-      document.value,
+      load.document,
       projection,
-      contentHash.value,
+      load.contentHash,
       nowWallMs,
       (session) => statuses.get(session),
-      mainLineReader(repoRoot),
+      landed,
     ),
   };
 }
 
 async function repositoryPosition(
   asked: string,
-  runtime: Runtime | undefined,
+  runtime: () => Promise<Runtime | undefined>,
   nowWallMs: number,
+  git: GitRunner,
 ): Promise<RepositoryPosition> {
   const root = findRepoRoot(asked);
   if (root === undefined) {
@@ -214,10 +242,14 @@ async function repositoryPosition(
     leaseIsLive(session, nowWallMs),
   );
   const statuses = await agentStatusesOf(live, runtime);
-  const graphs: GraphRead[] = [];
-  for (const graphId of graphIds) {
-    graphs.push(await graphRead(root, graphId, projection, nowWallMs, statuses));
-  }
+  const loads: GraphLoad[] = [];
+  for (const graphId of graphIds) loads.push(await graphLoad(root, graphId));
+  const landed = await mainLineReader(root, { git }).read(
+    loads.flatMap((load) =>
+      load.state === "loaded" ? clearedHeadsOf(load.document, projection) : [],
+    ),
+  );
+  const graphs = loads.map((load) => graphRead(load, projection, nowWallMs, statuses, landed));
   return {
     ...found,
     journal: { state: "read" },
@@ -232,9 +264,11 @@ export async function positionsOf(
   clock: Clock,
 ): Promise<Positions> {
   const nowWallMs = clock.now().wallMs;
+  const git = boundedGit();
+  const observing = sharedRuntime(runtime);
   const repositories: RepositoryPosition[] = [];
   for (const path of asked) {
-    repositories.push(await repositoryPosition(path, runtime, nowWallMs));
+    repositories.push(await repositoryPosition(path, observing, nowWallMs, git));
   }
   return { interlock: POSITIONS_SHAPE, repositories };
 }

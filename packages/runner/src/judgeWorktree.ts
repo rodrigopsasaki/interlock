@@ -79,7 +79,7 @@ export async function judgeWorktree(
     return ok(held);
   }
 
-  const commitSha = currentCommitSha(worktree);
+  const commitSha = await currentCommitSha(worktree);
   const judged = await judgeGates({
     ledger,
     clock,

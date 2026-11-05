@@ -1,0 +1,390 @@
+interlock: debrief@v2
+graph: 0048-landed-tells-the-truth
+node: landed-tells-the-truth
+role: implementer
+graph_base_sha: 920ef5435d737d8284fc892256b7d7eed4447964
+session_start_sha: 99e8e40518b1a374e507ad5da522bdc223f7b0db
+head_sha: 5932a72ffa10e158ba2b63787da3300eb4c014ce
+derivation:
+  kind: agent
+  runtime: claude-code
+  model: claude-opus-5-5
+discoveries:
+  - id: reversed-log-swaps-prefixes
+    what: >-
+      `git log -p -R` swaps the a/ and b/ prefixes (diff --git b/f a/f), and patch-id --stable
+      hashes the --- and +++ lines, so a reversed attempt log never matches the stable patch id
+      of a real undo commit on main. With --no-prefix on every side, the reversed log, `git diff
+      <c> <c>^` and main's log agree byte for byte.
+    found_at: 'packages/face/src/mainLine.ts:245 "--no-prefix"'
+    mattered_because: >-
+      Without it the no-trailer detector the acceptance asks for detects nothing; the first
+      exact-inverse tests read on-main until this was found.
+    applies_to: { kind: path, path: packages/face/src/mainLine.ts }
+  - id: root-ts-blocks-too
+    what: >-
+      mainLine.ts was not face's only synchronous git: root.ts resolved the journal directory and
+      the current commit through execFileSync, and about 25 callers across cli and runner used
+      them. Both are now async and every caller awaits them.
+    found_at: 'packages/face/src/root.ts:28 "export async function sharedJournalDirectory"'
+    mattered_because: >-
+      The acceptance names journal-directory resolution as part of the read path; leaving it
+      synchronous would have kept a blocking child in every position read and face refresh.
+  - id: herdr-dominated-the-warm-read
+    what: >-
+      With the landed caches warm, the read of interlock and preston still took ~1015 ms, about
+      740 ms of it herdr: positionsOf made a herdr runtime per graph with live sessions, each
+      verifying the socket, and one agent.list per live session, all in sequence. Git was six
+      calls, ~60 ms.
+    found_at: 'packages/cli/src/herdrStatus.ts:41 "created ??="'
+    mattered_because: >-
+      The warm gate could not pass on git work alone; the brief's read path includes the herdr
+      status read it did not mention.
+  - id: face-output-forced-assertions
+    what: >-
+      runInterlockFace took a NodeJS.WriteStream, so every existing face test forged its fake
+      terminal with `as unknown as NodeJS.WriteStream`. The acceptance forbids assertions in the
+      new lifecycle test.
+    found_at: 'packages/cli/src/face/terminal.ts:7 "export interface FaceOutput {"'
+    mattered_because: >-
+      Driving the real CLI lifecycle without an assertion needed the face's output typed by what
+      it uses.
+decisions:
+  - id: async-bounded-git
+    what: >-
+      Every git read on face's read path goes through an async GitRunner. spawnedGit spawns git
+      and resolves on close or spawn error; boundedGit queues callers so at most
+      GIT_CHILDREN_BOUND (8) children run at once. positionsOf makes one bounded runner per read
+      and shares it across every repository and node.
+    because: >-
+      Acceptance item 4: an in-process reader stopped answering because spawnSync blocked its
+      event loop for minutes. One shared semaphore is the smallest thing that bounds children
+      across repositories without coordinating readers.
+    rests_on:
+      - packages/face/src/mainLine.ts
+    hunks:
+      - packages/face/src/mainLine.ts:1-71
+      - packages/cli/src/position.ts:261-274
+  - id: one-snapshot-one-ref-read
+    what: >-
+      mainSnapshotOf resolves origin's HEAD, main and master and their SHAs in one
+      `git for-each-ref` over refs/heads and refs/remotes/origin/HEAD. Every comparison uses that
+      SHA; Landed's main field keeps the branch name.
+    because: >-
+      The acceptance counts "only the shared main snapshot read" on an unchanged refresh. One child
+      makes it a single identifiable call, and the immutable SHA keeps a refresh internally
+      consistent while main moves under it.
+    rests_on:
+      - packages/face/src/mainLine.ts
+    hunks:
+      - packages/face/src/mainLine.ts:103-143
+  - id: units-counterparts-proved-undo
+    what: >-
+      landed.ts judges in units with an identified main landing counterpart: each commit itself
+      by ancestry, its first patch-id match by patch, or the whole squash commit as one unit. A
+      unit is undone by the first main commit descending from its counterpart (merge-base
+      --is-ancestor) that names the counterpart or the original in a revert line, or whose stable
+      patch id equals the unit's inverse. A whole inverse descending from every counterpart undoes
+      the rest. A revert of an undoer or a forward reapplication reads unknown; once anything is
+      undone, any other main commit descending from a counterpart and touching its paths reads
+      unknown. Some units undone with the rest standing is partly-reverted-on-main, all undone
+      stays reverted-on-main, with the last undoer.
+    because: >-
+      Acceptance item 1, literally: descent rather than log order, inverse equivalence under one
+      set of explicit diff options and one path scope (every path an attempt commit touched), a
+      squash as one unit, and unknown whenever the remaining units are not established.
+    rests_on:
+      - packages/face/src/landed.ts
+      - packages/face/src/mainLine.ts
+    hunks:
+      - packages/face/src/landed.ts:20-53
+      - packages/face/src/landed.ts:100-207
+      - packages/face/src/landed.ts:230-392
+      - packages/face/src/landed.ts:394-488
+      - packages/face/src/mainLine.ts:145-312
+    rejected: >-
+      reading git cherry for per-commit equivalence; its diff options are git's own and could not
+      be held identical to the inverse side
+  - id: overlap-only-with-undo-evidence
+    what: >-
+      A later main edit to an attempt's paths reads unknown only when some unit is already proved
+      undone. With no undo evidence the reading stays on-main.
+    because: >-
+      Applying the overlap rule to every landing would turn any node whose files a later graph
+      edits into unknown, and done would almost never be true. The acceptance places the overlap
+      rule inside undo detection and concedes the no-trailer detector does not catch every manual
+      undo.
+    rests_on:
+      - packages/face/src/landed.ts
+    hunks:
+      - packages/face/src/landed.ts:358-375
+    rejected: unknown for every later main commit that touches an attempt path
+  - id: squash-constituent-trailer-doubts
+    what: >-
+      A revert line on main naming one commit that was squashed in, descending from the squash,
+      makes the reading unknown instead of on-main.
+    because: >-
+      The acceptance says such a trailer does not prove the squash undone. on-main would claim
+      the squash stands untouched when main says part of it was reverted.
+    rests_on:
+      - packages/face/src/landed.ts
+    hunks:
+      - packages/face/src/landed.ts:260-272
+      - packages/face/src/landed.ts:302-315
+  - id: ambiguous-squash-names-candidate
+    what: >-
+      After ancestry, per-commit and whole-patch matching fail with nothing landed,
+      possibleLandingOf ranks the main commits since the base that touch an attempt path by
+      distinct shared paths, then earliest committer time, then full SHA, and reads unknown
+      naming the first with its shared count out of the attempt's distinct paths. With none, the
+      reading stays not-on-main. A partial landing keeps its existing unknown sentence.
+    because: >-
+      Acceptance item 2. Path overlap is conservative possible-landing evidence; the because
+      carries the full SHA and the count so a person can check the candidate.
+    rests_on:
+      - packages/face/src/landed.ts
+    hunks:
+      - packages/face/src/landed.ts:155-228
+  - id: pure-position-shared-reader
+    what: >-
+      positionOf stays synchronous and pure. A MainLineReader, held for the face's lifetime and
+      passed through buildPlansWorld and buildGraphWorld, reads the snapshot once per refresh for
+      every cleared head of every graph (clearedHeadsOf), judges only keys with no settled
+      judgment, and returns a synchronous LandedReader. Main moving clears the in-memory entries;
+      transient judgments are returned but never kept.
+    because: >-
+      Acceptance item 3 wants one snapshot shared across all graphs and nodes of a refresh, which
+      per-node async reads inside positionOf cannot give. Keeping positionOf pure leaves the
+      renderers and the many positionOf callers unchanged.
+    rests_on:
+      - packages/face/src/position.ts
+      - packages/cli/src/face/world.ts
+    hunks:
+      - packages/face/src/mainLineReader.ts:1-119
+      - packages/face/src/position.ts:17
+      - packages/face/src/position.ts:116-128
+      - packages/cli/src/face/world.ts:27-103
+      - packages/cli/src/face/run.ts:9-11
+      - packages/cli/src/face/run.ts:37
+      - packages/cli/src/face/run.ts:126-142
+      - packages/cli/src/face/run.ts:214-220
+      - packages/cli/src/position.ts:154-259
+      - packages/cli/src/graph/show.ts
+      - packages/face/src/index.ts
+    rejected: an async positionOf with an async LandedReader
+  - id: disk-cache-validated-atomic
+    what: >-
+      landedCache.ts stores settled judgments in <worktree>/.interlock/landed-cache.json under
+      LANDED_CACHE_VERSION, keyed by branch and full main, head and base SHAs with an explicit
+      { kind: absent } base. Reads validate every key and Landed payload, including revertedBy's
+      exact keys, and treat anything else as a miss. Writes merge the file's current entries for
+      this main, go to <file>.<pid>.<uuid>.tmp and rename, and swallow every I/O failure. The file
+      is never created where .interlock does not exist; .gitignore ignores it and its temporaries.
+    because: >-
+      Acceptance item 5. A unique sibling plus rename means concurrent writers can lose entries
+      but never publish a partial one; keeping only the current main bounds the file.
+    rests_on:
+      - packages/face/src/landedCache.ts
+    hunks:
+      - packages/face/src/landedCache.ts:1-212
+      - .gitignore:20-21
+  - id: root-async
+    what: >-
+      sharedJournalDirectory and currentCommitSha return promises through execFile, and every
+      caller in cli, runner and their tests awaits them.
+    because: >-
+      Acceptance item 4 names journal-directory resolution in root.ts as part of the read path,
+      and no synchronous child may remain anywhere in packages/face/src.
+    rests_on:
+      - packages/face/src/root.ts
+    hunks:
+      - packages/face/src/root.ts:1-35
+      - packages/cli/src/evidence.ts
+      - packages/cli/src/judge.ts
+      - packages/cli/src/sweep.ts
+      - packages/cli/src/backfill.ts
+      - packages/cli/src/run.ts
+      - packages/cli/src/plan.ts
+      - packages/cli/src/graph/approve.ts
+      - packages/cli/src/graph/status.ts
+      - packages/cli/src/runtime/list.ts
+      - packages/cli/src/gate/waive.ts
+      - packages/cli/src/gate/clear.ts
+      - packages/cli/src/node/reset.ts
+      - packages/cli/src/node/cancel.ts
+      - packages/cli/src/session/show.ts
+      - packages/cli/src/session/say.ts
+      - packages/runner/src/worktreeSetup.ts
+      - packages/runner/src/judgeWorktree.ts
+      - packages/runner/src/sessionDrive.ts
+      - packages/runner/src/gateOutput.ts
+  - id: position-v2-and-positions-oneof
+    what: >-
+      schemas/position@v2.json is position@v1 with the new const and a partly-reverted-on-main
+      landed variant: reverted a unique non-empty list of full SHAs, revertedBy an object from full
+      SHAs to full SHAs. position@v1.json is untouched. positions@v0 accepts a graph position of
+      either version, additively. docs/shapes.md is regenerated. The observed line says "partly
+      reverted on main", whose words come from the v2 schema's own const.
+    because: >-
+      The acceptance publishes the discriminant in position@v2 and preserves v1. positionsOf now
+      emits v2 inside positions@v0, and every existing positions@v0 artifact still validates;
+      publishing positions@v1 belongs to the sibling node live-attempt-facts.
+    rests_on:
+      - schemas/position@v1.json
+      - schemas/positions@v0.json
+    hunks:
+      - schemas/position@v2.json:1-913
+      - schemas/positions@v0.json:5
+      - schemas/positions@v0.json:109-115
+      - docs/shapes.md
+      - packages/face/src/line.ts:158-159
+  - id: herdr-once-per-read
+    what: >-
+      positionsOf creates the herdr runtime once per read (sharedRuntime, lazily, only when a
+      repository has live sessions) and resolves every live session's status concurrently
+      (statusesFrom). resolveAgentStatuses keeps its signature for the face world and graph show.
+    because: >-
+      It took the warm read from ~1015 ms to ~560 ms with the smallest change on the read path,
+      and leaves the single bulk agent.list observation to live-attempt-facts, whose acceptance
+      owns that Runtime seam.
+    rests_on:
+      - packages/cli/src/herdrStatus.ts
+    hunks:
+      - packages/cli/src/herdrStatus.ts:16-57
+      - packages/cli/src/position.ts:120-138
+    rejected: one bulk agent.list here, which would pre-empt the sibling node's seam
+  - id: face-output-interface
+    what: >-
+      FaceOutput (write, on resize, off resize) replaces NodeJS.WriteStream as the face's output
+      type.
+    because: >-
+      The new lifecycle test may not use assertions; typing the output by what the face uses lets
+      a plain object stand in, and process.stdout still satisfies it.
+    rests_on:
+      - packages/cli/src/face/terminal.ts
+    hunks:
+      - packages/cli/src/face/terminal.ts:7-23
+      - packages/cli/src/face/run.ts:23
+      - packages/cli/src/face/run.ts:34
+  - id: warm-position-script
+    what: >-
+      scripts/warmPosition.ts validates two repositories named by --repo-env as git toplevels
+      holding .interlock, launches four fresh `process.execPath packages/cli/src/bin.ts position
+      --json` processes, times the last three from spawn to close with performance.now, validates
+      each output against positions@v0 with exactly the asked roots and every journal and graph
+      read, prints per-repository graph and cleared counts and `warm position ms: <n>`, and prints
+      the marker only under 1000 ms.
+    because: The acceptance specifies the script line by line; it was followed literally.
+    rests_on:
+      - packages/cli/src/position.ts
+      - schemas/positions@v0.json
+    hunks:
+      - scripts/warmPosition.ts:1-180
+  - id: proofs
+    what: >-
+      landed.test.ts covers every listed git case in real repositories with captured SHAs and
+      complete payloads; schemas/test/landed.test.ts covers code-produced v2 for every kind, fixed
+      v1 fixtures, absent landed, done false and malformed evidence; landedCache.test.ts drives
+      runInterlockFace with a counting runner over real git and proves the disk cache across a
+      real second process; noSyncGit.test.ts scans statically and mocks node:child_process to count
+      sync calls and in-flight children during a 24-node two-repository read; the CLI JSON test
+      reads a real partial revert. Tests that validate positionOf output select position@v2.
+    because: >-
+      The acceptance names each file and case. A self-check that the child_process mock saw the
+      fixture's own execFileSync keeps the empty sync list meaningful.
+    rests_on:
+      - packages/face/src/landed.ts
+      - packages/face/src/mainLineReader.ts
+      - packages/cli/src/face/run.ts
+    hunks:
+      - packages/face/test/landed.test.ts:1-764
+      - packages/face/test/noSyncGit.test.ts:1-131
+      - packages/face/test/position.test.ts
+      - packages/face/test/faceReducer.test.ts:14
+      - packages/face/test/root.test.ts
+      - packages/schemas/test/landed.test.ts:1-245
+      - packages/schemas/test/askedInWords.test.ts
+      - packages/schemas/test/corpus.position.test.ts
+      - packages/schemas/test/corpus.positions.test.ts
+      - packages/schemas/test/graphRole.test.ts
+      - packages/schemas/test/sayIntoPane.test.ts
+      - packages/schemas/test/registry.test.ts
+      - packages/cli/test/face/landedCache.test.ts:1-292
+      - packages/cli/test/face/landedFixture.ts:1-222
+      - packages/cli/test/face/world.test.ts
+      - packages/cli/test/position.test.ts
+      - packages/cli/test/graph/show.test.ts
+      - packages/cli/test/session/say.test.ts
+      - packages/cli/test/evidence.test.ts
+      - packages/cli/test/judge.test.ts
+      - packages/cli/test/run.test.ts
+      - packages/cli/test/runtime.test.ts
+      - packages/cli/test/gate/waive.test.ts
+      - packages/cli/test/node/reset.test.ts
+      - packages/cli/test/node/cancel.test.ts
+      - packages/cli/test/session/show.test.ts
+      - packages/runner/test/gateJudge.test.ts
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+  - id: test
+    result: pass
+    invocation: pnpm test
+    note: ledger 167, debrief 98, verifier 59, substrate 91, face 185, runner 361, schemas 1048, cli 332, all passed
+  - id: landed-proof
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter face exec vitest run test/landed.test.ts
+    note: "Tests 37 passed"
+  - id: position-proof
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter face exec vitest run test/position.test.ts
+    note: "Tests 58 passed"
+  - id: schema-proof
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter schemas exec vitest run test/landed.test.ts
+    note: "Tests 27 passed"
+  - id: cache-proof
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter cli exec vitest run test/face/landedCache.test.ts
+    note: "Tests 11 passed"
+  - id: warm-position-proof
+    result: pass
+    invocation: node scripts/warmPosition.ts --repo-env INTERLOCK_WARM_REPO_A --repo-env INTERLOCK_WARM_REPO_B
+    note: >-
+      With INTERLOCK_WARM_REPO_A=~/dev/private/interlock and INTERLOCK_WARM_REPO_B=~/dev/private/preston
+      set for the invocation: 44 graphs / 37 cleared and 22 graphs / 65 cleared; warm runs 553, 558,
+      550 ms; "warm position ms: 558", "warm position: ok".
+  - id: no-sync-git-proof
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter face exec vitest run test/noSyncGit.test.ts
+    note: "Tests 3 passed"
+open:
+  - >-
+    INTERLOCK_WARM_REPO_A and INTERLOCK_WARM_REPO_B are not configured anywhere persistent; this
+    session set them per invocation to the interlock main checkout and preston. The runner will
+    fail the warm-position gate until the owner exports them where gates run.
+  - >-
+    .interlock/landed-cache.json is ignored only in this repository. Preston (and interlock's main
+    checkout until this merges) now shows it untracked after the warm gate ran; preston needs the
+    same two .gitignore lines.
+  - >-
+    positions@v0 now admits position@v2 additively. The sibling node live-attempt-facts publishes
+    positions@v1 assuming an unchanged v0; whichever merges second should make positions@v1 refer to
+    position@v2 and keep v0 as it is at that point.
+  - >-
+    A single manual undo whose context changed (or any unrecognised manual undo) with no other undo
+    evidence still reads on-main; the overlap rule applies only once something is proved undone.
+    That keeps done reachable, at the cost of the detector's acknowledged blind spot.
+  - >-
+    A unit cherry-picked onto main more than once lands on its earliest copy; later copies count as
+    overlapping edits only when undo evidence exists.
+  - >-
+    The herdr status read still asks agent.list once per live session, now concurrently;
+    live-attempt-facts' single bulk observation would cut it to one call.
