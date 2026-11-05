@@ -12,7 +12,11 @@ authorization:
 read: >
   Rodrigo, 2026-11-05 12:49: "I want you to have one model of each to do any task, and you do them in round robin
   or on whoever has the most tokens available. Protect your anthropic tokens to the most because it's what I use to
-  talk to you."
+  talk to you." Preston's laws say the same twice: "Never reach for a stronger model to fix review quality"
+  (preston docs/laws.md:32, charter law 2.1.1), and "never hardcode a provider; model choice is orthogonal to
+  workflow meaning and belongs to the attempt, never to a gate's meaning" (docs/laws.md:142, 3.2.10). So the
+  router picks a provider for an attempt and never a model tier for quality: a node never moves itself to a
+  stronger model.
 
   Today (interlock main b0d6f8b), packages/runner/src/runtimeSelection.ts picks `--runtime` when given, else the
   merged catalogue's default (local.yaml `default_runtime`, packages/runner/src/localConfig.ts:179), else the legacy
