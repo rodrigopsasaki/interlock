@@ -1,4 +1,15 @@
-import { duration, fold, heldOn, type LedgerEvent, outcome, sessionRuntime } from "ledger";
+import {
+  derivation,
+  duration,
+  fold,
+  gate,
+  heldOn,
+  type LedgerEvent,
+  note,
+  outcome,
+  sessionRuntime,
+  spend,
+} from "ledger";
 import { describe, expect, it } from "vitest";
 import type { GraphDocument } from "../src/document.ts";
 import { positionOf } from "../src/position.ts";
@@ -153,5 +164,55 @@ describe("renderPosition", () => {
     ];
     const text = renderPosition(positionOf(document, fold(events), "hash", Date.now()));
     expect(text).toContain("  runtime: luna (codex, model undeclared)");
+  });
+
+  it("shows the graph's line under its name: observed as it reads, said as a quotation", () => {
+    const observed = renderPosition(positionOf(document, fold([]), "hash", Date.now()));
+    expect(observed.split("\n").slice(0, 2)).toEqual([
+      "graph demo — not approved",
+      "  human gate approved pending at demo",
+    ]);
+
+    const now = Date.parse("2026-11-05T12:00:00Z");
+    const node = { graph: "demo", id: "a" };
+    const said = positionOf(
+      document,
+      fold([
+        {
+          kind: "gate-moved",
+          node: { graph: "demo", id: "demo" },
+          gate: "approved",
+          to: gate.satisfied({
+            id: "hash",
+            gate: "approved",
+            commitSha: "deadbeef",
+            spend: spend.none(),
+            duration: duration.unknown(),
+            derivation: derivation.human("Rodrigo Sasaki"),
+            proof: {},
+          }),
+        },
+        {
+          kind: "session-started",
+          session: {
+            id: "s1",
+            node,
+            runtime: sessionRuntime.declared("claude", "claude-code", undefined),
+          },
+          brief: brief("a"),
+        },
+        { kind: "lease-taken", node, session: "s1", expiry: now + 60_000 },
+        { kind: "session-narrated", session: "s1", at: now - 60_000, line: "agent working" },
+        {
+          kind: "note-appended",
+          session: "s1",
+          note: note.choice("2026-11-05T11:59:30Z", "kept it in one module", "one owner"),
+        },
+      ]),
+      "hash",
+      now,
+      () => "working",
+    );
+    expect(renderPosition(said).split("\n")[1]).toBe('  claude: "kept it in one module"');
   });
 });

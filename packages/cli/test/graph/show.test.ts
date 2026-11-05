@@ -115,9 +115,12 @@ describe("graph show --json", () => {
       "interlock",
       "graph",
       "approval",
+      "line",
       "nodes",
       "criticalPath",
       "done",
+      "changedAt",
+      "sinceAt",
     ]);
   });
 });

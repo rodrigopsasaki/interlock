@@ -36,6 +36,7 @@ function emptyNode(): PositionNode {
     gates: [],
     attempts: [],
     float: { kind: "unknown", because: "" },
+    notes: [],
   };
 }
 

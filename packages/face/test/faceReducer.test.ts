@@ -19,9 +19,10 @@ const position: Position = {
       id: "a",
       dependsOn: [],
       state: { kind: "outcome", outcome: { kind: "cleared", receipts: [] } },
-      gates: [{ id: "typecheck", state: { kind: "satisfied" } }],
+      gates: [{ id: "typecheck", kind: "command", state: { kind: "satisfied" } }],
       attempts: [],
       float: { kind: "unknown", because: "a: no receipt carries a duration" },
+      notes: [],
     },
     {
       id: "b",
@@ -30,24 +31,30 @@ const position: Position = {
       gates: [
         {
           id: "blocked-gate",
+          kind: "command",
           state: { kind: "blocked", evidence: "exit 1", because: "broken" },
         },
       ],
       attempts: [
-        { session: "s-done", runtime: "unknown", leaseState: { kind: "none" }, brief },
+        { session: "s-done", runtime: "unknown", leaseState: { kind: "none" }, brief, runner: [] },
         {
           session: "s-live",
           runtime: "unknown",
           leaseState: { kind: "live" },
           agentStatus: "working",
           brief,
+          runner: [],
         },
       ],
       float: { kind: "unknown", because: "b: no outcome yet" },
+      notes: [],
     },
   ],
   criticalPath: ["a", "b"],
   done: false,
+  line: { voice: "observed", text: "unknown working b, 0 gates pending" },
+  changedAt: { kind: "unknown", because: "fixture" },
+  sinceAt: { kind: "unknown", because: "fixture" },
 };
 
 const world: FaceWorld = {

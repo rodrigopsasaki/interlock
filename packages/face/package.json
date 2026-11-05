@@ -17,6 +17,7 @@
   "devDependencies": {
     "@types/node": "24.13.3",
     "typescript": "^5.7.2",
+    "verifier": "workspace:*",
     "vitest": "^2.1.8"
   }
 }

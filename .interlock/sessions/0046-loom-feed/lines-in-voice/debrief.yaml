@@ -1,0 +1,308 @@
+interlock: debrief@v2
+graph: 0046-loom-feed
+node: lines-in-voice
+role: implementer
+graph_base_sha: 73ed833c1c834f63e8c0c514d2dc5c3c32d6397e
+session_start_sha: 783ad46e3e5c68bfb9f0e9402bccfc3fc1996d97
+head_sha: 376f63e08ef084b13742db823d637412e2ca24e1
+derivation:
+  kind: agent
+  runtime: claude
+  model: claude-opus-5-5
+discoveries:
+  - id: journal-role-still-worker
+    what: >-
+      interlock debrief prepare refused the derived filing with "session-started event does not
+      match the local brief", the same refusal every earlier node of this chain met: the runner
+      that starts 0046 sessions runs from main, which records role worker, while this brief
+      says implementer.
+    found_at: '.interlock/sessions/0046-loom-feed/lines-in-voice/brief.md:5 "role: implementer"'
+    mattered_because: >-
+      This debrief is authored by hand against debrief@v2 and checked with interlock debrief
+      validate, as landed-on-main's was.
+  - id: journal-drops-entry-timestamps
+    what: >-
+      The ledger sink writes only entry.data, so Phyxius's JournalEntry timestamp never reaches
+      the journal. Only session-narrated, person-said and the note inside note-appended carry a
+      time; gate-moved, outcome-set, receipt-written and lease events carry none.
+    found_at: 'packages/ledger/src/sink.ts:54 "operations.write(descriptor, `${JSON.stringify(envelopeFor(entry.data))}\n`);"'
+    mattered_because: >-
+      changedAt, sinceAt and "newer than its latest observed change" can only be dated from
+      those three facts. Gate moves and outcomes are dated through the runner's narration of
+      them, which it writes at every step.
+  - id: vocabulary-check-reads-identifiers-not-sentences
+    what: >-
+      The verifier's vocabulary check extracts identifiers and module names from added lines of
+      a diff; it never reads string contents, so on its own it cannot see the words of a
+      composed sentence.
+    found_at: 'packages/verifier/src/vocabulary.ts:192 "for (const word of [...identifierWords(line), ...moduleWords(line)]) {"'
+    mattered_because: >-
+      "The existing vocabulary check covers the new sentences" is met by reusing its reader of
+      the vocabulary (harnessVocabulary, acceptedForms) in a test that checks every observed
+      sentence word by word.
+  - id: outcome-words-live-in-a-part
+    what: >-
+      The outcome kinds a sentence may say (cancelled, failed, reset, superseded) are declared in
+      schemas/parts/outcome.json, which position@v1.json references rather than inlines.
+    found_at: 'schemas/parts/outcome.json:54 "cancelled"'
+    mattered_because: >-
+      The I3 test first flagged "cancelled" as a coinage; it now follows parts/ references when
+      it collects the position's own words.
+decisions:
+  - id: standing-ranked-then-spoken
+    what: >-
+      line.ts names each node's standing as a tagged union (held, asking, approval, person-gate,
+      ready, working, waiting, ended, cleared, done), ranks it in the acceptance's order with
+      ties kept in topological order, and composes the observed sentence from the standing
+      alone. Unnamed outcomes (failed, reset, cancelled, superseded) rank as ended, after
+      waiting and before cleared; within cleared, on-main ranks last. An unapproved or stale
+      graph is a person's gate open on the graph itself.
+    because: >-
+      The order reads outcome, live attempt, asking, gate kinds and states and landed at once;
+      naming the standing makes it one switch and each sentence one case, so a test can pin one
+      sentence per state. Ended work is unfinished and a person may act on it, so it comes
+      before cleared work and after moving work. approved is the graph's human gate and nothing
+      leases before it.
+    rests_on:
+      - packages/face/src/position.ts
+      - packages/face/src/landed.ts
+      - packages/face/src/asking.ts
+    hunks:
+      - packages/face/src/line.ts:1-211
+  - id: person-gate-open-only-when-next
+    what: >-
+      A node's human gate counts as open when it is pending, the node has no outcome and no
+      unmet upstream, and every other declared gate is satisfied or waived.
+    because: >-
+      Before the node's own gates pass, the human gate is not the next move; reading it as open
+      on a fresh node would put every node with a review gate ahead of ready work.
+    rests_on:
+      - packages/runner/src/gateJudge.ts
+    hunks:
+      - packages/face/src/line.ts:1-211
+  - id: said-quotes-one-field-exactly
+    what: >-
+      An attempt's said is its latest note: kind, the one field that is the session's words (a
+      choice's chose, a surprise's observed, a question's asked) and the note's own at string.
+      The line is said when the attention node's live or latest attempt has a note newer than
+      its latest narrated step or delivered words; who is the runtime's name. A note whose at
+      does not parse never claims to be newer.
+    because: >-
+      Joining chose and because would compose words the session did not write. position@v1
+      already quotes note times as strings (asking.at); parsing to a number would lose a time
+      that is not RFC 3339.
+    rests_on:
+      - packages/ledger/src/note.ts
+      - packages/face/src/asking.ts
+    hunks:
+      - packages/face/src/said.ts:1-34
+      - packages/face/src/attempts.ts:17-17
+      - packages/face/src/attempts.ts:29-30
+      - packages/face/src/attempts.ts:57-57
+      - packages/face/src/attempts.ts:69-70
+  - id: moments-from-named-facts
+    what: >-
+      changedAt is the latest of every attempt's narrated steps, delivered words and latest
+      note; sinceAt is the latest narrated step or delivered words on the latest attempt of the
+      node the line is about (the graph's latest narrated step when done). Each carries the
+      fact it came from (session-narrated, note-appended, person-said), or unknown with a
+      because.
+    because: >-
+      The acceptance asks for a named journal fact, and only these three facts carry a time.
+      Stamping every event would be a new event version with upcasters for nine older ones,
+      outside this node.
+    rests_on:
+      - packages/ledger/src/sink.ts
+      - packages/ledger/src/event.ts
+      - packages/runner/src/narration.ts
+    hunks:
+      - packages/face/src/moment.ts:1-85
+  - id: position-carries-what-faces-read-beside-it
+    what: >-
+      positionOf adds the graph's ask, line, changedAt and sinceAt; each node's acceptance (as
+      declared) and notes (every note of its live or latest attempt, as the journal holds it);
+      each gate's declared kind. The graph loader reads ask and refuses one that is not a
+      string.
+    because: >-
+      So no face reads the graph file beside the position. ask follows the rule role and
+      acceptance already follow; all 41 graphs in .interlock/graphs load with it.
+    rests_on:
+      - packages/face/src/document.ts
+    hunks:
+      - packages/face/src/position.ts:2-2
+      - packages/face/src/position.ts:4-4
+      - packages/face/src/position.ts:9-11
+      - packages/face/src/position.ts:29-29
+      - packages/face/src/position.ts:36-36
+      - packages/face/src/position.ts:42-42
+      - packages/face/src/position.ts:44-44
+      - packages/face/src/position.ts:48-49
+      - packages/face/src/position.ts:82-82
+      - packages/face/src/position.ts:116-123
+      - packages/face/src/position.ts:160-166
+      - packages/face/src/position.ts:170-170
+      - packages/face/src/position.ts:174-174
+      - packages/face/src/position.ts:180-180
+      - packages/face/src/position.ts:186-188
+      - packages/face/src/position.ts:193-195
+      - packages/face/src/position.ts:201-203
+      - packages/face/src/positionGate.ts:25-25
+      - packages/face/src/positionGate.ts:30-34
+      - packages/face/src/positionGate.ts:37-37
+      - packages/face/src/document.ts:28-28
+      - packages/face/src/document.ts:123-125
+      - packages/face/src/document.ts:168-168
+      - packages/face/src/faceReducer.ts:39-39
+      - packages/face/src/index.ts:47-49
+      - packages/face/src/index.ts:77-77
+  - id: terminal-face-shows-the-line
+    what: >-
+      graph show and the face's graph frame print the line on the row under the graph's name:
+      an observed line as it reads, a said line as who: "words".
+    because: >-
+      The acceptance names the terminal face; both renderers open with the graph's name, so
+      both carry it. Quotation marks show the voice without adding a word.
+    rests_on:
+      - packages/cli/src/graph/show.ts
+    hunks:
+      - packages/face/src/render.ts:3-3
+      - packages/face/src/render.ts:57-61
+      - packages/face/src/frameRender.ts:4-4
+      - packages/face/src/frameRender.ts:63-67
+  - id: schemas-additive
+    what: >-
+      schemas/position@v1.json gains line, a moment definition, ask, changedAt, sinceAt, node
+      acceptance and notes, gate kind, attempt said and runner, all optional; graph@v0.json
+      describes ask; docs/shapes.md is regenerated.
+    because: >-
+      Additive only: every position produced before this node still validates, and the loader's
+      own description now names ask among what it reads.
+    rests_on:
+      - schemas/position@v1.json
+      - schemas/parts/note.json
+      - schemas/parts/question-note.json
+    hunks:
+      - schemas/position@v1.json:10-13
+      - schemas/position@v1.json:15-15
+      - schemas/position@v1.json:24-31
+      - schemas/position@v1.json:37-84
+      - schemas/position@v1.json:93-96
+      - schemas/position@v1.json:108-113
+      - schemas/position@v1.json:276-279
+      - schemas/position@v1.json:322-336
+      - schemas/position@v1.json:347-357
+      - schemas/graph@v0.json:5-5
+      - schemas/graph@v0.json:14-17
+      - docs/shapes.md:905-905
+      - docs/shapes.md:1127-1127
+      - docs/shapes.md:1129-1130
+      - docs/shapes.md:1133-1134
+  - id: i3-test-reuses-the-vocabulary-reader
+    what: >-
+      position.test.ts checks every observed sentence word by word against the AGENTS.md
+      vocabulary (through the verifier's harnessVocabulary and acceptedForms), the enum and
+      const words of position@v1.json and the parts it references, and one preposition, at.
+      face gains verifier as a dev dependency; the lockfile change is that one link.
+    because: >-
+      I3. Reusing the verifier's reader keeps one source for the vocabulary. Sentences were
+      worded to need no new term: blocked on (the node state's word) for waiting, gates pending
+      (the gate state's word) for gates left.
+    rests_on:
+      - packages/verifier/src/vocabulary.ts
+      - AGENTS.md
+    hunks:
+      - packages/face/package.json:20-20
+      - pnpm-lock.yaml:101-103
+      - packages/face/test/position.test.ts:1-2
+      - packages/face/test/position.test.ts:22-22
+      - packages/face/test/position.test.ts:25-25
+  - id: tests-pin-each-sentence-and-the-said-case
+    what: >-
+      position.test.ts pins one observed sentence per state (held at a gate, blocked session,
+      person's gate on a node, not approved, stale, ready, working with gates pending, blocked
+      on upstream, ended, cleared not on main, reverted on main, done), the said voice for a
+      choice and a question, the observed voice when the runner stepped after the note, the new
+      fields, and both moments known and unknown. render.test.ts pins the line under the name;
+      document.test.ts pins ask; the corpus validates a position carrying every new field;
+      existing fixtures and expectations gain gate kind, notes and runner; graph show's
+      pinned keys gain line, changedAt and sinceAt.
+    because: >-
+      The acceptance asks for one sentence per state and the said case, and the lines-proof
+      gate runs position.test.ts and render.test.ts by name.
+    rests_on:
+      - packages/face/test/landed.test.ts
+    hunks:
+      - packages/face/test/position.test.ts:77-77
+      - packages/face/test/position.test.ts:145-145
+      - packages/face/test/position.test.ts:630-1036
+      - packages/face/test/render.test.ts:1-12
+      - packages/face/test/render.test.ts:168-217
+      - packages/face/test/document.test.ts:328-351
+      - packages/face/test/faceReducer.test.ts:22-22
+      - packages/face/test/faceReducer.test.ts:25-25
+      - packages/face/test/faceReducer.test.ts:34-34
+      - packages/face/test/faceReducer.test.ts:39-39
+      - packages/face/test/faceReducer.test.ts:46-46
+      - packages/face/test/faceReducer.test.ts:50-50
+      - packages/face/test/faceReducer.test.ts:55-57
+      - packages/face/test/frameRender.test.ts:190-190
+      - packages/schemas/test/corpus.position.test.ts:3-12
+      - packages/schemas/test/corpus.position.test.ts:104-104
+      - packages/schemas/test/corpus.position.test.ts:150-202
+      - packages/cli/test/graph/show.test.ts:118-118
+      - packages/cli/test/graph/show.test.ts:122-123
+  - id: notes-kept
+    what: Typed notes for every choice and surprise of this session.
+    because: The brief asks for notes@v0 beside it, committed with the code.
+    rests_on:
+      - .interlock/sessions/0046-loom-feed/lines-in-voice/brief.md
+    hunks:
+      - .interlock/sessions/0046-loom-feed/lines-in-voice/notes.yaml:1-146
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: Every workspace package typechecks.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Biome reports no findings over 386 files.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+    note: packages/*/src contains no comments.
+  - id: test
+    result: pass
+    invocation: mise exec -- pnpm test
+    note: 2194 tests across eight packages, green at 376f63e.
+  - id: lines-proof
+    result: pass
+    invocation: mise exec -- pnpm --filter face exec vitest run test/position.test.ts test/render.test.ts
+    note: 64 tests passed.
+open:
+  - >-
+    loom@v0 mapping. Line maps field for field except at: loom's Line.at is a number, the
+    position's said at is the note's own string, so the cockpit's reader parses it. Attempt.said
+    likewise. Attempt.runner is loom's string list; the position gives { at, line } and the
+    reader keeps line. Node.notes is loom's string list; the position gives the typed notes, and
+    the reader picks the words (chose, observed, asked). Workstream.changedAt and sinceAt are
+    numbers in loom; the position's are { kind: known, at, fact } or { kind: unknown, because },
+    which loom cannot carry: the cockpit's reader needs a fallback or loom needs Known<number>.
+  - >-
+    sinceAt is the latest narrated step on the attention node's latest attempt, which is when
+    the runner last moved it, not a recorded transition. It reads unknown for a ready or waiting
+    node with no attempt and for the graph's approval. A true "entered this state at" needs
+    journal entries to keep their timestamp (the sink drops it), which is a new event version.
+  - >-
+    A live session that is idle or done (not blocked) reads as working until the runner judges
+    it; the line does not distinguish waiting-to-be-judged from working.
+  - >-
+    The working sentence counts the node's declared gates that are pending; standing gates from
+    config.yaml are not in the position, so the count leaves them out.
+  - >-
+    The ranking is the acceptance's order plus choices for what it does not name (ended outcomes,
+    on-main last, a stale or missing approval as a person's gate). A person may want failed work
+    ranked above ready work.
+  - >-
+    I sent one typecheck log to the directory above the worktree (../lv-typecheck.log), against
+    the brief, and removed it at once with plain rm.

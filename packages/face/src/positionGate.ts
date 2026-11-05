@@ -22,23 +22,26 @@ export type PositionGateState =
 
 export interface PositionGate {
   readonly id: string;
+  readonly kind: string;
   readonly state: PositionGateState;
   readonly receipt?: ReceiptSummary;
 }
 
-export function positionGate(id: string, current: Gate): PositionGate {
+export function positionGate(id: string, kind: string, current: Gate): PositionGate {
+  return { id, kind, ...gateFacts(current) };
+}
+
+function gateFacts(current: Gate): Omit<PositionGate, "id" | "kind"> {
   switch (current.kind) {
     case "pending":
-      return { id, state: { kind: "pending" } };
+      return { state: { kind: "pending" } };
     case "satisfied":
       return {
-        id,
         state: { kind: "satisfied" },
         receipt: summarizeReceipt(current.receipt),
       };
     case "blocked":
       return {
-        id,
         state: {
           kind: "blocked",
           evidence: current.evidence,
@@ -47,7 +50,6 @@ export function positionGate(id: string, current: Gate): PositionGate {
       };
     case "waived":
       return {
-        id,
         state: {
           kind: "waived",
           authority: current.authority,
@@ -57,7 +59,6 @@ export function positionGate(id: string, current: Gate): PositionGate {
       };
     case "superseded":
       return {
-        id,
         state: {
           kind: "superseded",
           authority: current.authority,

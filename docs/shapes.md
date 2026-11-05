@@ -902,6 +902,7 @@ The directed acyclic graph of nodes produced from one ask.
 | --- | --- | --- | --- |
 | `interlock` | the literal `"graph@v0"` | yes |  |
 | `id` | string | yes |  |
+| `ask` | string | no | The ask the graph was produced from. Optional; when present the loader requires a string and the position carries it verbatim. |
 | `gates` | array of gate-declaration | no | A gate as declared on a graph node, a graph, or a brief's front matter: an id, a kind, and an optional command and output check. A human gate carries no run. |
 | `nodes` | array of object | yes | fields: id (string, required); role (one of `"scout"`, `"planner"`, `"implementer"`, `"tester"`, `"reviewer"`, `"verifier"`, optional); acceptance (string, optional); depends_on (array of string, optional); gates (array of gate-declaration, optional) |
 
@@ -1123,10 +1124,14 @@ The current read of a graph, composed above the stream.
 | --- | --- | --- | --- |
 | `interlock` | the literal `"position@v1"` | yes |  |
 | `graph` | string | yes |  |
+| `ask` | string | no | Additive within position@v1: the graph file's ask, verbatim, so no face reads the graph file beside the position. Absent when the graph declares none. |
 | `approval` | one of `"approved"`, `"stale"`, `"not-approved"` | yes |  |
-| `nodes` | array of positionNode | yes | fields: id (string, required); role (one of `"scout"`, `"planner"`, `"implementer"`, `"tester"`, `"reviewer"`, `"verifier"`, optional); dependsOn (array of string, required); state (nodeState, required); gates (array of positionGate, required); attempts (array of positionAttempt, required); float (float, required); landed (landed, optional) |
+| `line` | line | no | `?`: voice, text; `?`: voice, who, text, at |
+| `nodes` | array of positionNode | yes | fields: id (string, required); role (one of `"scout"`, `"planner"`, `"implementer"`, `"tester"`, `"reviewer"`, `"verifier"`, optional); acceptance (string, optional); dependsOn (array of string, required); state (nodeState, required); gates (array of positionGate, required); attempts (array of positionAttempt, required); float (float, required); landed (landed, optional); notes (array of one of `?`, `?`, optional) |
 | `criticalPath` | array of string | yes |  |
 | `done` | boolean | no | True when every node is cleared and its landed reads on-main. Absent from positions produced before landed-on-main. |
+| `changedAt` | moment | no | `known`: at, fact; `unknown`: because |
+| `sinceAt` | moment | no | `known`: at, fact; `unknown`: because |
 
 ### Examples
 
