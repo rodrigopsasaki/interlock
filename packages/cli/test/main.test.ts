@@ -1,7 +1,7 @@
-import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { fixtureGit, initFixtureRepository } from "../../../test/support/gitFixture.ts";
 import { run } from "../src/main.ts";
 
 describe("interlock debrief validate", () => {
@@ -96,11 +96,8 @@ afterEach(() => {
 function isolatedRepo(): string {
   directory = mkdtempSync(join(runsRoot, "main-"));
   mkdirSync(join(directory, ".interlock", "graphs"), { recursive: true });
-  execFileSync("git", ["-c", "init.defaultBranch=main", "init", "--quiet"], {
-    cwd: directory,
-  });
-  execFileSync(
-    "git",
+  initFixtureRepository(directory, { defaultBranch: "main" });
+  fixtureGit(
     ["-c", "commit.gpgsign=false", "commit", "--quiet", "--allow-empty", "-m", "fixture root"],
     { cwd: directory, env: GIT_ENV },
   );

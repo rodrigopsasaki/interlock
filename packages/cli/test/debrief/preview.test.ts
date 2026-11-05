@@ -1,7 +1,7 @@
-import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { fixtureGit, initFixtureRepository } from "../../../../test/support/gitFixture.ts";
 import { runDebriefPreview } from "../../src/debrief/preview.ts";
 import { run } from "../../src/main.ts";
 
@@ -25,12 +25,12 @@ afterEach(() => {
 });
 
 function git(args: readonly string[], cwd: string): string {
-  return execFileSync("git", args, { cwd, encoding: "utf-8", env: GIT_ENV });
+  return fixtureGit(args, { cwd, env: GIT_ENV });
 }
 
 function fixtureRepo(): { readonly cwd: string; readonly start: string; readonly head: string } {
   directory = mkdtempSync(join(runsRoot, "preview-"));
-  git(["-c", "init.defaultBranch=main", "init", "--quiet"], directory);
+  initFixtureRepository(directory, { defaultBranch: "main" });
   mkdirSync(join(directory, ".interlock"), { recursive: true });
   writeFileSync(join(directory, "AGENTS.md"), "## Vocabulary\n\n| term | means |\n| --- | --- |\n");
   git(["add", "-A"], directory);

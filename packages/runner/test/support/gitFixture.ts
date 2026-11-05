@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { fixtureGit, initFixtureRepository } from "../../../../test/support/gitFixture.ts";
 
 const GIT_ENV = {
   ...process.env,
@@ -11,23 +11,18 @@ const GIT_ENV = {
 // Commits whatever is already on disk under `directory`, so a fixture repository's own worktree
 // checkouts and `git rev-parse main` resolve real, present content.
 export function gitInitFixtureWithContent(directory: string): void {
-  execFileSync("git", ["-c", "init.defaultBranch=main", "init", "--quiet"], {
-    cwd: directory,
-  });
+  initFixtureRepository(directory, { defaultBranch: "main" });
   commitAll(directory, "fixture root");
 }
 
 export function commitAll(directory: string, message: string): void {
-  execFileSync("git", ["add", "-A"], { cwd: directory });
-  execFileSync("git", ["-c", "commit.gpgsign=false", "commit", "--quiet", "-m", message], {
+  fixtureGit(["add", "-A"], { cwd: directory });
+  fixtureGit(["-c", "commit.gpgsign=false", "commit", "--quiet", "-m", message], {
     cwd: directory,
     env: GIT_ENV,
   });
 }
 
 export function headSha(directory: string): string {
-  return execFileSync("git", ["rev-parse", "HEAD"], {
-    cwd: directory,
-    encoding: "utf-8",
-  }).trim();
+  return fixtureGit(["rev-parse", "HEAD"], { cwd: directory }).trim();
 }
