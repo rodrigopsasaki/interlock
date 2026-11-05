@@ -15,6 +15,7 @@ import {
   type BriefWriteOutcome,
   briefExists,
   briefPath,
+  type DeclaredNode,
   decidedNodeRefusal,
   driveInteractiveSession,
   explainLocalConfigRefusal,
@@ -183,6 +184,11 @@ export async function runInterlockRun(
       };
     }
 
+    const declared: DeclaredNode = {
+      acceptance: declaration.acceptance ?? "",
+      gates: declaration.gates,
+    };
+
     const composeBrief = async (
       worktreePath: string,
       graphBaseSha: string,
@@ -196,7 +202,7 @@ export async function runInterlockRun(
         graphBaseSha,
         session,
         standingGates.value,
-        declaration.gates,
+        declared,
         substrate,
         shape,
       );
@@ -209,8 +215,8 @@ export async function runInterlockRun(
       node,
       role: shape?.role ?? "worker",
       ...(shape === undefined ? {} : { shape }),
-      acceptance: declaration.acceptance ?? "",
-      nodeGates: declaration.gates,
+      acceptance: declared.acceptance,
+      nodeGates: declared.gates,
       localConfig: localConfig.value,
       agentRuntime: agentRuntime.value,
       standingGates: standingGates.value,
