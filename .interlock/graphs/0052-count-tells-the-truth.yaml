@@ -67,9 +67,10 @@ nodes:
       retirement starts no run, judges no gate, and records no approval or waive.
 
       Retirement is authoritative for execution. `interlock run`, `judge`,
-      `graph approve`, `node reset`, `node cancel` and `gate clear`/`waive` on a
-      retired graph refuse before any work, lease, receipt or spend, and the
-      refusal names who retired it and why. Each refusal has a regression test.
+      `plan` (including `--correction`), `backfill`, `graph approve`,
+      `node reset`, `node cancel` and `gate clear`/`waive` on a retired graph
+      refuse before any session, worktree, work, lease, receipt or spend, and
+      the refusal names who retired it and why. Each refusal has a regression test.
       Un-retiring is out of scope.
 
       The retirement is a ledger record carrying the graph id, who, why, when
@@ -150,10 +151,22 @@ nodes:
       One post-landing discriminant. `partly-reverted-on-main` keeps its name
       and carries `main`, `head`, `by`, `reverted` (unit ids proved inverted on
       main), `revertedBy` (unit id to main commit) and `unresolved`, always
-      present and possibly empty. Each `unresolved` entry is {unit, path,
-      attemptCommit, mainCommit} for a unit whose inverse appears on main beside
-      a later change to the same path. That is today's "what still stands is
-      unresolved" case, which no longer yields unknown. `reverted-on-main`
+      present and possibly empty (`reverted` may be empty only when
+      `unresolved` is not). Each `unresolved` entry is {unit, why, path,
+      attemptCommit, mainCommit}, with `why` one of:
+      - `inverse-beside-later-change`: the unit's inverse appears on main beside
+        a later change to the same path. This is today's "what still stands is
+        unresolved" case (landed.ts:361), which no longer yields unknown.
+        `attemptCommit` is the attempt commit that changed the path, and
+        `mainCommit` is the later main commit.
+      - `constituent-reverted`: the landing is a squash, which stays one unit
+        (its id is the squash commit on main, the counterpart). One of its
+        constituent attempt commits is reverted on main. Today that reads
+        unknown (landed.ts:303-311). Now it is `partly-reverted-on-main` with
+        `reverted: []`, `revertedBy: {}` and one entry per path that the
+        reverting commit changes inside the squash: `unit` is the squash
+        commit, `attemptCommit` the reverted constituent, `mainCommit` the
+        reverting commit. `reverted-on-main`
       stays for a node whose every unit is proved inverted. Version the landed
       shape and the position contract (positions@v2, shared with the retire
       node).
@@ -176,7 +189,7 @@ nodes:
       reverted; no base fully reverted (reads on-main, reversions unchecked);
       an inverse beside a later change to the same path (partly reverted,
       unresolved); a reverted unit later reapplied; a squash whose constituent
-      is reverted; a never-proved landing (stays unknown). Each pins the reading
+      is reverted (asserting the exact entry above, with done true); a never-proved landing (stays unknown). Each pins the reading
       and `done`.
 
       After the change, run `interlock position --json` against
