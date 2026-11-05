@@ -1,0 +1,140 @@
+interlock: graph@v0
+id: 0047-worktree-commits
+ask: A sandboxed agent in a node's worktree can commit there, because the runner hands it the repository's common git dir and nothing else.
+derivation:
+  kind: model
+  model: gilb (Claude)
+  prompt: preston-revival-2026-11-05-answer-open-held
+authorization:
+  granted_by: Rodrigo Sasaki
+  mandate: loom-feed-2026-11-04  # "You're free to do changes on phyxius and interlock too", 23:25 UTC
+  approver: Gilb for Rodrigo Sasaki, after a cross-vendor vet; the human merges
+read: >
+  On 2026-11-05 at 03:14 UTC, preston's 0020 answer-open ran on sol (codex,
+  `--sandbox workspace-write`) and could not make its first commit. A node's
+  worktree is a linked git worktree: its index, HEAD and refs live under the
+  repository's common git dir (`<repo>/.git/worktrees/<name>` and `<repo>/.git`),
+  which sits outside the worktree and so outside the sandbox's writable roots.
+  The machine's runtime catalogue papers over this by hard-coding `--add-dir
+  <repo>/.git` for interlock and mycelium in every codex profile, so codex
+  worked there and failed on the first repository nobody had listed. The cause
+  is that the runner knows where the git dir is and never says so; the cure is
+  that it says so, per attempt, for exactly that repository.
+
+  Kimi was checked first and has no such limit. k3-first-run (graph
+  0043-any-runtime, 2026-09-24) ran k3 (`kimi --auto`, no `--add-dir`) in the
+  linked worktree interlock-worktrees/any-runtime/.worktrees/k3-first-run,
+  whose gitdir is interlock/.git/worktrees/k3-first-run, and committed 85311ff,
+  2c425c4 and c490d23 there itself. Kimi Code runs without an OS sandbox, so
+  its profile needs no writable root. Claude profiles run with
+  `--dangerously-skip-permissions` and need none either.
+
+  Interlock keeps vendor knowledge out of code (I6: profile args are opaque).
+  So the runner does not learn that codex spells it `--add-dir`. The catalogue
+  entry declares it instead: an optional `writable_root_args`, a list of
+  strings in which exactly one element is the literal `{path}`, e.g. `["--add-dir", "{path}"]` in the catalogue. When a
+  profile declares it and the node's worktree is a linked worktree, the runner
+  resolves `git rev-parse --git-common-dir` in that worktree to an absolute
+  path and appends the expanded args to the profile's args for that attempt
+  only. Nothing else is widened. Out of scope: any other writable root, network
+  access, changing sandbox modes, and editing the machine's real catalogue (the
+  operator removes the hard-coded `--add-dir` lines after this lands).
+
+  Ordering: 0046-loom-feed changes packages/runner/src/sessionDrive.ts and
+  worktree.ts, the files this node touches, so this graph runs after PR #71
+  merges, branched from interlock main at that point.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: common-git-writable
+    role: implementer
+    depends_on: []
+    acceptance: |
+      Give a sandboxed agent exactly the writable root it needs to commit in a
+      node's worktree, and nothing more.
+
+      `writable_root_args` is optional, on runtimes@v0 entries and on the
+      legacy local.yaml `runtime:` block alike. When present, it is a
+      non-empty list of strings with exactly one element equal to the literal
+      `{path}`; no other element contains `{path}`. That element is replaced
+      with the resolved directory as one argv element, with no shell
+      evaluation or splitting. Both readers reject non-lists, empty lists,
+      non-string elements, and missing, repeated or embedded placeholders,
+      through their existing typed malformed-configuration refusal and
+      explanation functions, naming `runtimes.<name>.writable_root_args` or
+      `runtime.writable_root_args` (I3; no newly coined face state). Test every
+      rejected form, and a valid path containing spaces and quotes.
+
+      For each attempt whose runtime entry declares `writable_root_args` and
+      whose node uses a linked worktree, resolve the absolute common git
+      directory through worktree.ts with `git rev-parse --path-format=absolute
+      --git-common-dir`. Append the expanded template after the original
+      args, without mutating the entry. Derive no other root, and change
+      neither the sandbox mode nor network access. Literal catalogue arguments
+      remain trusted operator configuration. Narrate the path supplied to the
+      runtime. A resolution failure returns a readable refusal before
+      `openPane` or `startAgent`. Without the field, or for a non-linked
+      worktree, the original argv is preserved without expansion. Add no
+      runtime-specific branch, flag, binary or assumption outside its adapter;
+      production code treats the template arguments opaquely (I6).
+
+      After `startAgent` succeeds, retain the JSON-encoded effective argv
+      through the existing recorded session narration, and assert that it
+      equals the argv `startAgent` received. A refused start produces no
+      successful-start record. This node changes no persisted session or
+      event shape.
+
+      Update schemas/runtimes@v0.json and schemas/local@v0.json with identical
+      template constraints. In packages/schemas/test/runtimes.test.ts, test
+      absence, valid declarations and every malformed form against both
+      schemas. Update runtimes.example.yaml and .interlock/local.example.yaml
+      with neutral examples of the new field. Add a "Runtime catalogue
+      arguments" rationale subsection under Compatibility in the design note,
+      preserving existing bend-log rows and historical artifacts.
+
+      Wiring tests: inject a Runtime into `driveInteractiveSession` and assert
+      the exact argv `startAgent` receives; zero pane and start calls on a
+      resolution failure; unchanged argv without the field and for a
+      non-linked worktree; and independent argv across two attempts sharing
+      one immutable runtime entry. Cover both the catalogue and the legacy
+      configuration through merge and selection.
+
+      Sandbox proof, in packages/runner/test/writableRoot.test.ts: use a fake
+      runtime with the neutral arguments `["--test-write-root", "{path}"]`, and
+      build its sandbox permissions from the argv supplied by the production
+      launch. Create an isolated repository and a real linked worktree, and
+      stage a non-empty change before launching the fake agent. Set a fixture
+      git identity, disable signing and hooks, and isolate inherited git
+      configuration and repository variables. On macOS, canonicalize fixture
+      paths and escape sandbox-policy strings; allow filesystem reads, but
+      allow file writes only beneath cwd and the supplied roots. With cwd
+      alone, the commit must fail and HEAD must stay unchanged. With the same
+      fixture and the resolved common git directory added, the commit must
+      succeed: assert HEAD advances and contains the staged change. Under that
+      grant, writing into a pre-created writable directory outside both roots
+      must fail and leave no file. A sandbox initialization failure on macOS
+      fails the test. Other platforms print a skip reason and do not satisfy
+      the proof. Emit `writable-root-sandbox-proof: passed` only after all
+      three assertions succeed.
+
+      Strict TypeScript, no assertions, no non-null operators. Preserve every
+      historical artifact. Append typed notes for choices and discoveries. No
+      push, no merge; the human merges.
+    gates:
+      - id: writable-root-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/writableRoot.test.ts
+        expect_output: 'writable-root-sandbox-proof: passed'
+      - id: catalogue-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/runtimes.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: local-config-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/localConfig.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: schema-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter schemas exec vitest run test/runtimes.test.ts
+        expect_output: 'Tests +[1-9][0-9]* passed'
