@@ -1,0 +1,82 @@
+interlock: graph@v0
+id: 0054-provider-routing
+ask: An `interlock run` without --runtime picks a profile by provider, spreading work across providers by headroom and keeping Anthropic last, and every attempt says which provider and profile it ran on and why.
+derivation:
+  kind: model
+  model: gilb (Claude)
+  prompt: provider-routing-2026-11-05
+authorization:
+  granted_by: Rodrigo Sasaki
+  mandate: loom-feed-2026-11-04  # "You're free to do changes on phyxius and interlock too", 23:25 UTC
+  approver: Gilb for Rodrigo Sasaki, after a cross-vendor vet; the human merges
+read: >
+  Rodrigo, 2026-11-05 12:49: "I want you to have one model of each to do any task, and you do them in round robin
+  or on whoever has the most tokens available. Protect your anthropic tokens to the most because it's what I use to
+  talk to you."
+
+  Today (interlock main b0d6f8b), packages/runner/src/runtimeSelection.ts picks `--runtime` when given, else the
+  merged catalogue's default (local.yaml `default_runtime`, packages/runner/src/localConfig.ts:179), else the legacy
+  local.yaml `runtime:` block. Both managed repos' local.yaml set that block to claude-sonnet-5-5, and the catalogue
+  (~/.config/interlock/runtimes.yaml, runtimes@v0) sets no default. Every attempt on preston and interlock since
+  2026-11-04 ran on claude (opus by an explicit --runtime, sonnet by the local.yaml block), except one codex (sol)
+  attempt on preston 0020 answer-open. A catalogue profile carries kind, args, model, startup_answers,
+  startup_timeout_ms and writable_root_args (packages/runner/src/runtimeCatalogue.ts:67-75). Nothing names the
+  provider whose account a profile spends, and an attempt's record names the runtime name, kind and model but not
+  why it was chosen.
+
+  Providers on this machine: anthropic (claude profiles), openai (codex profiles), moonshot (kimi profile k3).
+  DeepSeek is spent only inside Preston, never as an Interlock runtime. Out of scope: Preston's own model choice;
+  changing any vendor CLI's configuration.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: provider-routing
+    role: implementer
+    depends_on: []
+    acceptance: |
+      Catalogue. A runtimes.yaml profile gains `provider` (a string naming whose account it spends, e.g.
+      anthropic, openai, moonshot) and an optional `routable: true` that marks the one profile per provider the
+      router may pick. A catalogue without these fields still reads, and its profiles are simply not routable.
+      At most one routable profile per provider: a second is refused at load, naming both. Version the catalogue
+      shape (runtimes@v1) with schema tests, and keep runtimes@v0 readable.
+
+      Selection. `--runtime <name>` still wins and is recorded as chosen-by explicit. Without it, the router
+      chooses among routable profiles. It picks the provider with the most known headroom. Ties and unknowns go
+      round-robin, in the order of the last attempt per provider, read from the ledger, never from process
+      memory. The provider `anthropic` is chosen only when no other routable provider is available or every other
+      one is known exhausted, and the recorded reason says which. local.yaml may name `provider_order` and
+      `last_resort` to override that default, both optional. With no routable profile, selection falls back
+      exactly as today and records why.
+
+      Headroom. Each provider's headroom comes from what that CLI or its local usage file actually reports. Find
+      out what codex, kimi and claude each expose on this machine, read-only and without spending a model call,
+      and record in notes what was found, with paths. A provider whose source exists reads as known, with its
+      value, unit and where it came from. A provider with no source reads as unknown, with its reason. Never
+      estimate one provider's headroom from another's. Headroom is read once per selection and never cached past
+      it.
+
+      Record. Every attempt records provider, profile name, model, and chosen-by: explicit, routed with the
+      headroom reading of each candidate, last-resort with why, or fallback with why. `interlock position
+      --json` carries these on each attempt, and the text face says them in one line. Existing attempts read as
+      provider unknown, chosen-by unrecorded. Version every changed shape with schema tests.
+
+      Tests: catalogue load with and without provider; the one-routable-per-provider refusal; round-robin from a
+      fixture ledger; most-headroom wins; anthropic last; explicit wins; fallback with no routable profile; known
+      and unknown headroom; the attempt record in position --json. No real vendor call in any test. Strict
+      TypeScript, no type assertions, no non-null operators. Fixture git only through test/support/gitFixture.ts.
+      Preserve every historical artifact. Append typed notes for choices and discoveries. No push, no merge; the
+      human merges.
+    gates:
+      - id: routing-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/providerRouting.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: catalogue-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/runtimes.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: position-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/position.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
