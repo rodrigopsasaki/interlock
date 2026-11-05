@@ -1,0 +1,11 @@
+interlock: notes@v0
+node: live-attempt-facts
+entries:
+  - kind: choice
+    at: "2026-11-05T15:20:00Z"
+    chose: The not-approved approval standing reads "Drafted and waiting for your approval."; the I3 test's fixed grammar list becomes at, and, for, your, renamed LINE_GRAMMAR_WORDS, and its vocabulary check alone strips .,;:!? from token edges.
+    because: The acceptance names the sentence and the three grammar words exactly; "prepositions" no longer described a list holding and and your, and stripping only in the check keeps rendered text and said quotations byte-identical.
+  - kind: surprise
+    at: "2026-11-05T15:25:00Z"
+    expected: herdr's agent.list to carry some field for an agent's subagents or child work.
+    observed: AgentInfo carries agent_status, pane_id, cwd, state_labels (empty in every live agent) and agent_session {source, agent, kind, value}; nothing about children. For a Claude agent, agent_session.value is the runtime's own session id, and that runtime's transcript records every tool call, its result, background launches (toolUseResult.status async_launched, toolUseResult.backgroundTaskId) and their completion (<task-notification> with <tool-use-id> and <status>).

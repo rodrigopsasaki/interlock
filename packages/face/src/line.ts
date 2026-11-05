@@ -174,7 +174,7 @@ export function observedText(standing: Standing): string {
     case "approval":
       return standing.approval === "stale"
         ? `human gate approved stale at ${standing.graph}`
-        : `human gate approved pending at ${standing.graph}`;
+        : "Drafted and waiting for your approval.";
     case "person-gate":
       return `human gate ${standing.gate} pending at ${standing.node}`;
     case "ready":
