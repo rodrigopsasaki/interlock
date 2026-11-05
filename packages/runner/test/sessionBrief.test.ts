@@ -2,12 +2,19 @@ import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { isErr, isOk } from "@phyxiusjs/fp";
-import { type Item, readBriefFile } from "debrief";
-import { explainGraphRefusal, type GateDeclaration, loadGraphDocumentText } from "face";
+import { defaultRoleTable, type Item, readBriefFile } from "debrief";
+import {
+  explainGraphRefusal,
+  type GateDeclaration,
+  loadGraphDocumentText,
+  NODE_ROLES,
+  type NodeRole,
+} from "face";
 import { noneClient, type SubstrateClient } from "substrate";
 import { afterEach, describe, expect, it } from "vitest";
 import { contextSlice, contextSliceOf, withRenderedContextSlice } from "../src/contextSlice.ts";
 import { buildOpeningPrompt } from "../src/openingPrompt.ts";
+import { roleShapeFor } from "../src/roleShape.ts";
 import {
   briefPath,
   buildBrief,
@@ -15,6 +22,7 @@ import {
   writeBriefIntoWorktree,
 } from "../src/sessionBrief.ts";
 import type { StandingGate } from "../src/standingGates.ts";
+import { withWalkSection } from "../src/walkSection.ts";
 import { gitInitFixtureWithContent } from "./support/gitFixture.ts";
 
 const substrate = noneClient();
@@ -640,7 +648,7 @@ describe("role supplied by the graph", () => {
       "",
     ].join("\n");
 
-  async function writeFor(roleLine: readonly string[]) {
+  async function writeFor(roleLine: readonly string[], client: SubstrateClient = substrate) {
     const declaration = loadGraphDocumentText(graphText(roleLine), "g.yaml");
     if (isErr(declaration)) throw new Error(explainGraphRefusal(declaration.error));
     const node = declaration.value.nodes[0];
@@ -655,8 +663,10 @@ describe("role supplied by the graph", () => {
       "session-1",
       standing,
       nodeGates,
-      substrate,
-      node.role,
+      client,
+      node.role === undefined
+        ? undefined
+        : roleShapeFor(node.role, defaultRoleTable, client.address),
     );
     if (!isOk(result)) throw new Error("expected the brief to be written");
     return { node, result: result.value, worktree };
@@ -677,7 +687,7 @@ describe("role supplied by the graph", () => {
     const role = node.role ?? "worker";
     expect(buildBrief("g", "n", "do the work", [], [], role).role).toBe("tester");
     const prompt = buildOpeningPrompt("g", "n", undefined, role, result.openingView);
-    expect(prompt).toContain("Your role is tester: you produce the proof the gates run. ");
+    expect(prompt).toContain(`${defaultRoleTable.tester.prompt} `);
     expect(prompt).toContain("For a first filing, run interlock debrief prepare g n");
   });
 
@@ -733,19 +743,113 @@ describe("role supplied by the graph", () => {
     );
   });
 
-  it.each([
-    ["scout", "Your role is scout: you read and report, and change nothing. "],
-    ["planner", "Your role is planner: you draft a graph for a person to approve. "],
-    ["implementer", "Your role is implementer: you produce the diff. "],
-    ["tester", "Your role is tester: you produce the proof the gates run. "],
-    ["reviewer", "Your role is reviewer: you produce a judgment through a named lens. "],
-    [
-      "verifier",
-      "Your role is verifier: you produce the check that every debrief claim is rooted. ",
-    ],
-  ] as const)("states what the %s role produces in one sentence", (role, sentence) => {
+  const paragraphs: Readonly<Record<NodeRole, string>> = {
+    scout:
+      "Your role is scout: you read and report, and change nothing. Your debrief returns discoveries, each with where you found it, and no diff: no decision cites a hunk.",
+    planner:
+      "Your role is planner: you draft a graph for a person to approve. Commit it under .interlock/graphs/ and name it in your debrief's graph_file; a person approves it, never you.",
+    implementer:
+      "Your role is implementer: you produce the diff. Your debrief returns decisions, each rooted in the hunks it produced.",
+    tester:
+      "Your role is tester: you produce the proof the gates run. Your debrief returns proof: each test, the gate that runs it, and what it pins.",
+    reviewer:
+      "Your role is reviewer: you produce a judgment through a named lens. Your debrief names the lens and returns findings through it, each with where you found it, and no diff: no decision cites a hunk.",
+    verifier:
+      "Your role is verifier: you produce the check that every debrief claim is rooted. Your debrief returns marks: each claim with rooted, unrooted, unexplained or gap, and why.",
+  };
+
+  it.each(NODE_ROLES)("opens a %s session with its role paragraph", (role) => {
+    const paragraph = paragraphs[role];
+    expect(defaultRoleTable[role].prompt).toBe(paragraph);
     expect(buildOpeningPrompt("g", "n", undefined, role)).toContain(
-      `Work only in this worktree. ${sentence}Append`,
+      `Work only in this worktree. ${paragraph} Append`,
     );
+    expect(
+      buildOpeningPrompt("g", "n", undefined, role, undefined, "A repository's own paragraph."),
+    ).toContain("Work only in this worktree. A repository's own paragraph. Append");
+  });
+});
+
+describe("the role shapes the session's walk", () => {
+  const graphText = (role: string): string =>
+    [
+      "interlock: graph@v0",
+      "id: g",
+      "nodes:",
+      "  - id: n",
+      `    role: ${role}`,
+      "    acceptance: do the work",
+      "",
+    ].join("\n");
+
+  const addressed: SubstrateClient = { ...noneClient(), address: "https://substrate.test" };
+
+  async function writeRole(role: string, client: SubstrateClient) {
+    const loaded = loadGraphDocumentText(graphText(role), "g.yaml");
+    if (isErr(loaded)) throw new Error(explainGraphRefusal(loaded.error));
+    const nodeRole = loaded.value.nodes[0]?.role;
+    if (nodeRole === undefined) throw new Error("expected a role");
+    const shape = roleShapeFor(nodeRole, defaultRoleTable, client.address);
+    const { repo, worktree } = fixture(v1WithMatchingGatesAndScope);
+    const result = await writeBriefIntoWorktree(
+      repo,
+      worktree,
+      "g",
+      "n",
+      "b".repeat(40),
+      "session-1",
+      standing,
+      nodeGates,
+      client,
+      shape,
+    );
+    if (!isOk(result)) throw new Error("expected the brief to be written");
+    const read = await readBriefFile(briefPath(worktree, "g", "n"));
+    if (!isOk(read) || read.value.kind !== "v1") throw new Error("expected v1");
+    return { shape, read: read.value, openingView: result.value.openingView ?? "" };
+  }
+
+  it.each(NODE_ROLES)("asks the %s walk first, by verb, through the address", async (role) => {
+    const { shape, read, openingView } = await writeRole(role, addressed);
+    const steps = defaultRoleTable[role].walk;
+    expect(steps.length).toBeGreaterThan(0);
+    expect(shape.walk).toEqual({ kind: "address", address: "https://substrate.test", steps });
+    expect(read.frontMatter.walk).toEqual(shape.walk);
+    expect(read.body).toContain(`Role: ${role}.`);
+    expect(read.body).toContain(
+      "Ask the substrate at https://substrate.test these first, by verb:",
+    );
+    for (const [index, step] of steps.entries()) {
+      expect(read.body).toContain(`${index + 1}. ${step.verb}: ${step.ask}`);
+    }
+    expect(read.body).toContain(
+      "The walk is a starting point, never a fence: the whole substrate is open to this session through its address https://substrate.test, so any role may walk anywhere it wants.",
+    );
+    expect(openingView).toContain("walk:");
+  });
+
+  it.each(NODE_ROLES)(
+    "gives the %s session an empty walk that says so when the address is none",
+    async (role) => {
+      const { shape, read } = await writeRole(role, substrate);
+      expect(shape.walk).toEqual({
+        kind: "none",
+        because: "the substrate address is none, so there is nothing to ask",
+      });
+      expect(read.frontMatter.walk).toEqual(shape.walk);
+      expect(read.body).toContain(
+        "This walk is empty: the substrate address is none, so there is nothing to ask. Nothing here errors; the session runs without a substrate.",
+      );
+      expect(read.body).not.toContain("Ask the substrate at");
+    },
+  );
+
+  it("rewrites the walk section in place when a brief is written again", async () => {
+    const { read } = await writeRole("tester", addressed);
+    const shape = roleShapeFor("tester", defaultRoleTable, "none");
+    const again = withWalkSection(read.body, shape);
+    expect(again.match(/^## Walk$/gm)).toHaveLength(1);
+    expect(again).toContain("This walk is empty");
+    expect(again).not.toContain("Ask the substrate at");
   });
 });

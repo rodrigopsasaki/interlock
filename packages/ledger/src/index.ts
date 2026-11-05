@@ -8,7 +8,11 @@ export type {
   Decision,
   Discovery,
   Drafted,
+  Finding,
+  Findings,
   GateRun,
+  MarkedClaim,
+  ProofEntry,
 } from "./debrief.ts";
 export {
   isDebrief,
@@ -16,8 +20,14 @@ export {
   isDecision,
   isDiscovery,
   isDrafted,
+  isFinding,
+  isFindings,
   isGateRun,
+  isMarkedClaim,
+  isProofEntry,
 } from "./debrief.ts";
+export type { DebriefKind } from "./debriefKind.ts";
+export { DEBRIEF_KINDS, debriefKindsPresent, isDebriefKind } from "./debriefKind.ts";
 export type { Derivation } from "./derivation.ts";
 export { derivation, isDerivation } from "./derivation.ts";
 export type { Disposition } from "./disposition.ts";
@@ -37,8 +47,16 @@ export type { Ledger, LedgerAppendRefusal, LedgerOptions } from "./ledger.ts";
 export { createLedger } from "./ledger.ts";
 export type { Mandate, MandateQuery } from "./mandate.ts";
 export { isMandate, mandateCovers } from "./mandate.ts";
-export type { Gap, Mark } from "./mark.ts";
-export { isGap, isMark, mark } from "./mark.ts";
+export type { Gap, Mark, MarkCounts, MarkKind } from "./mark.ts";
+export {
+  countMarks,
+  isGap,
+  isMark,
+  isMarkCounts,
+  isMarkKind,
+  MARK_KINDS,
+  mark,
+} from "./mark.ts";
 export type { NearestTerm } from "./nearestTerm.ts";
 export { nearestTerm } from "./nearestTerm.ts";
 export type { Note } from "./note.ts";
@@ -108,6 +126,8 @@ export {
   readReplay,
   replayFromRaw,
 } from "./replay.ts";
+export type { NodeRole } from "./role.ts";
+export { isNodeRole, NODE_ROLES, parseNodeRole } from "./role.ts";
 export type { Session, SessionRuntime } from "./session.ts";
 export { isSession, isSessionRuntime, sessionRuntime } from "./session.ts";
 export type {
@@ -129,3 +149,12 @@ export {
 } from "./sink.ts";
 export type { Spend } from "./spend.ts";
 export { isSpend, spend } from "./spend.ts";
+export type { SubstrateVerb, Walk, WalkStep } from "./walk.ts";
+export {
+  isSubstrateVerb,
+  isWalk,
+  isWalkStep,
+  NO_ADDRESS_WALK_BECAUSE,
+  SUBSTRATE_VERBS,
+  walkFor,
+} from "./walk.ts";

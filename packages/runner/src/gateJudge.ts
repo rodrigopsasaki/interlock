@@ -14,6 +14,7 @@ import {
 } from "debrief";
 import {
   buildCleared,
+  countMarks,
   createReceipt,
   type Debrief,
   derivation,
@@ -327,7 +328,13 @@ async function ingestDebrief(
   const filed = ledger.projection().sessions.get(session)?.debrief;
   if (filed !== undefined && isDeepStrictEqual(filed, read.debrief)) return;
 
-  ledger.append({ kind: "debrief-filed", session, debrief: read.debrief });
+  const verified = await verifyDebrief(worktree, read.debrief);
+  ledger.append({
+    kind: "debrief-filed",
+    session,
+    debrief: read.debrief,
+    ...(isErr(verified) ? {} : { markCounts: countMarks(verified.value.marks) }),
+  });
   if (filed !== undefined) return;
 
   for (const note of read.notes) {

@@ -1,0 +1,134 @@
+interlock: notes@v0
+node: role-shapes-the-session
+entries:
+  - kind: choice
+    at: "2026-11-04T23:50:00Z"
+    chose: >
+      The closed set of six roles moves from packages/face/src/role.ts down to
+      packages/ledger/src/role.ts, and face re-exports it unchanged. The role
+      table roles@v0 lives in packages/debrief.
+    because: >
+      The debrief validator has to know the roles, and debrief depends on
+      ledger but not on face. Moving the set down keeps one definition, and
+      every existing import from face keeps working.
+  - kind: surprise
+    at: "2026-11-04T23:55:00Z"
+    expected: >
+      Recording the walk a session was given in the journal would need the
+      next event version, because parts/session-brief.json is closed
+      (additionalProperties false).
+    observed: >
+      event@v7's session-started block constrains only `session`, and its
+      debrief-filed has no block at all; parts/session-brief.json and
+      parts/debrief-event.json are referenced only by event@v1-v4. isBrief and
+      isDebrief ignore unknown keys, so an optional `walk` on session-started
+      and optional `markCounts` and role sections on debrief-filed are
+      additive within event@v7.
+  - kind: choice
+    at: "2026-11-04T23:58:00Z"
+    chose: >
+      The walk, the debrief's role sections and the verifier's mark counts
+      enter the journal as optional fields within event@v7, not as event@v8.
+    because: >
+      Every older line still reads and validates unchanged, and an absent
+      field reads as "not recorded". asked-in-words' acceptance owns "the next
+      event version" for a new note kind, which old readers would refuse
+      outright. These fields are ones old readers already skip.
+  - kind: choice
+    at: "2026-11-05T00:02:00Z"
+    chose: >
+      The validator's "holds the node" goes through the standing debrief-valid
+      gate. interlock debrief validate <graph> <node> exits 1 with one
+      sentence naming the missing kinds, so the gate blocks and the runner
+      holds the node with that gate's proof.
+    because: >
+      That gate already runs the validator in every worktree, and a held node
+      whose proof is the gate's own output is I1. A second, separate hold path
+      in the runner would judge the same thing twice.
+  - kind: choice
+    at: "2026-11-05T00:05:00Z"
+    chose: >
+      The role a validator checks against is the one in the session's brief
+      (supplied by the graph), not the debrief's own role word. The validator
+      falls back to the debrief's word only when the session directory holds
+      no brief.
+    because: >
+      A role is supplied, never self-declared. Otherwise a session could
+      escape its required kinds by writing another word into its debrief.
+  - kind: choice
+    at: "2026-11-05T00:20:00Z"
+    chose: >
+      Debrief kinds are a closed set of seven, computed from the debrief
+      alone: discoveries, decisions, hunks (a decision cites a hunk, which
+      means a diff), proof, findings, graph and marks. Each role's table entry
+      names the kinds it requires and the kinds it forbids. Reviewer and scout
+      forbid hunks, which is how "no diff" is checked.
+    because: >
+      "No diff" has to be decidable from the debrief, the same artifact the
+      validator already reads, without git. A hunk citation is what a diff
+      looks like in a debrief. requires/forbids keeps the table data, so a
+      repository's override can change it without new code.
+  - kind: choice
+    at: "2026-11-05T00:25:00Z"
+    chose: >
+      The tester's, reviewer's, planner's and verifier's kinds enter debrief@v2
+      as optional sections: proof [{ test, pins, gate? }], findings
+      { lens, items }, graph_file, and marks [{ claim, mark, because }].
+    because: >
+      debrief@v2 had nowhere for those kinds, and its schema is open
+      (additionalProperties true), so each section is additive. findings
+      requires its lens, because the acceptance says "through its named lens".
+      Its items may be empty, since a clean review is still a judgment.
+  - kind: choice
+    at: "2026-11-05T00:30:00Z"
+    chose: >
+      The runner does not ask the walk's questions itself. The brief writes
+      them under a generated "## Walk" section (role-walk@v0 markers) and in
+      the front matter as walk, and the session asks them through the address.
+      The existing context call is unchanged.
+    because: >
+      The acceptance calls the walk "the substrate questions its brief asks
+      first" and "a starting point, never a fence". Asking them in the runner
+      would add a fourth substrate call per brief, and D4 needs a bend-log
+      justification for a fourth verb.
+  - kind: surprise
+    at: "2026-11-05T00:35:00Z"
+    expected: >
+      A command through which a session asks the substrate its walk.
+    observed: >
+      interlock has no such verb. A session can reach a substrate only through
+      its address, which the brief now names. With the address none the walk
+      is empty and says so.
+  - kind: choice
+    at: "2026-11-05T00:40:00Z"
+    chose: >
+      The verifier's marks are counted when the runner ingests a debrief on a
+      cleared node: it runs verifyDebrief over the worktree and puts the
+      counts on debrief-filed as markCounts. When verification refuses, the
+      field is omitted, and the position says the marks were not recorded.
+    because: >
+      Marks were never journaled. The position reads only the journal, and
+      verifying needs the worktree's git, which a face never has.
+  - kind: choice
+    at: "2026-11-05T00:45:00Z"
+    chose: >
+      The attempt's brief and debrief come from the journal alone. brief is
+      always present: path, role (only when it is one of the six), the stored
+      acceptance, and the walk, or none with one of three becauses. debrief is
+      present once filed; its version counts debrief-filed events for that
+      session.
+    because: >
+      "Without opening files", and the acceptance must be the stored session
+      brief's. session-started already carries that acceptance. A filing count
+      is the version a reader can check, because debriefs are versioned and
+      never overwritten.
+  - kind: choice
+    at: "2026-11-05T00:50:00Z"
+    chose: >
+      Added "walk" to AGENTS.md's vocabulary table and a bend-log row for the
+      fields added within event@v7. roles@v0 is left in the reference's list of
+      artifact terms without a vocabulary row, like runtimes and notes.
+    because: >
+      I3: a face will say "walk" from the position, so the word must be in the
+      closed vocabulary. "roles" names a file shape, not something a face
+      says.

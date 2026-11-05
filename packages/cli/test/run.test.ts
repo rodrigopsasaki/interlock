@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { dirname, join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
 import { err, isOk, ok, unwrap } from "@phyxiusjs/fp";
-import { debriefFilePath, readBriefFile } from "debrief";
+import { debriefFilePath, defaultRoleTable, readBriefFile } from "debrief";
 import { sharedJournalDirectory } from "face";
 import {
   createLedger,
@@ -621,7 +621,11 @@ describe("interlock run", () => {
 
     expect(result.exitCode).toBe(0);
     expect(sessionStartedFrom(cwd).brief.role).toBe("scout");
-    expect(promptText).toContain("Your role is scout: you read and report, and change nothing. ");
+    expect(sessionStartedFrom(cwd).walk).toEqual({
+      kind: "none",
+      because: "the substrate address is none, so there is nothing to ask",
+    });
+    expect(promptText).toContain(`${defaultRoleTable.scout.prompt} `);
     expect(lines).toContain(
       'role: the repository copy declared "worker"; the graph supplies "scout"; overwritten.',
     );
@@ -630,6 +634,28 @@ describe("interlock run", () => {
       "utf-8",
     );
     expect(worktreeBrief).toContain("\nrole: scout\n");
+    expect(worktreeBrief).toContain("This walk is empty: the substrate address is none");
+  }, 30_000);
+
+  it("refuses to run a roled node with a sentence when the repository's roles.yaml is malformed", async () => {
+    const cwd = fixture({
+      graphYaml: graphYaml.replace("  - id: a\n", "  - id: a\n    role: scout\n"),
+    });
+    await approve(cwd);
+    writeFileSync(
+      join(cwd, ".interlock", "roles.yaml"),
+      "interlock: roles@v0\nroles:\n  scuot: {}\n",
+    );
+    const result = await runInterlockRun(["demo", "a"], {
+      cwd,
+      clock: createControlledClock(),
+      runtime: stubRuntime(),
+      narrate: () => undefined,
+    });
+    expect(result).toEqual({
+      exitCode: 1,
+      message: `${join(cwd, ".interlock", "roles.yaml")}: role "scuot" is not one of scout, planner, implementer, tester, reviewer, verifier; the nearest is "scout"`,
+    });
   }, 30_000);
 
   it("sends a concise prompt projection after committing a complete 3000-path canonical brief", async () => {

@@ -9,7 +9,7 @@ import {
   readBriefFile,
   renderSlice,
 } from "debrief";
-import type { GateDeclaration, NodeRole } from "face";
+import type { GateDeclaration } from "face";
 import type { Brief } from "ledger";
 import { narrateContext, type SubstrateClient } from "substrate";
 import {
@@ -23,8 +23,10 @@ import { withRenderedContextSlice } from "./contextSlice.ts";
 import { withDebriefAuthoringGuidance } from "./debriefAuthoringGuidance.ts";
 import type { SessionRole } from "./openingPrompt.ts";
 import { renderOpeningView } from "./openingView.ts";
+import type { RoleShape } from "./roleShape.ts";
 import { gitTrackedFiles } from "./scope.ts";
 import type { StandingGate } from "./standingGates.ts";
+import { withWalkSection } from "./walkSection.ts";
 
 export const briefPath = briefFilePath;
 
@@ -75,7 +77,7 @@ export async function writeBriefIntoWorktree(
   standing: readonly StandingGate[],
   nodeGates: readonly GateDeclaration[],
   substrate: SubstrateClient,
-  graphRole?: NodeRole,
+  shape?: RoleShape,
 ): Promise<Result<BriefWriteOutcome, SessionBriefRefusal>> {
   const read = await readBriefFile(briefPath(repoRoot, graph, node));
   if (isErr(read)) return err({ kind: "read", refusal: read.error });
@@ -93,7 +95,7 @@ export async function writeBriefIntoWorktree(
       selectedPath: missingSelectedPath,
     });
   }
-  const role = graphRole ?? read.value.frontMatter.role;
+  const role = shape?.role ?? read.value.frontMatter.role;
   const narration = [
     ...diffRole(read.value.frontMatter.role, role),
     ...diffGates(read.value.frontMatter.gates, authoritativeGates),
@@ -103,7 +105,8 @@ export async function writeBriefIntoWorktree(
   const contextOutcome = await substrate.context({ graph, id: node }, contextScope, role);
   narration.push(narrateContext(substrate.address, contextOutcome));
   const rendered = contextOutcome.kind === "rendered";
-  const authoredBody = withDebriefAuthoringGuidance(read.value.body);
+  const guidedBody = withDebriefAuthoringGuidance(read.value.body);
+  const authoredBody = shape === undefined ? guidedBody : withWalkSection(guidedBody, shape);
   const body = rendered
     ? withRenderedContextSlice(authoredBody, renderSlice(substrate.address, contextOutcome.items))
     : authoredBody;
@@ -117,6 +120,7 @@ export async function writeBriefIntoWorktree(
       substrate: rendered
         ? { ...read.value.frontMatter.substrate, address: substrate.address }
         : read.value.frontMatter.substrate,
+      ...(shape === undefined ? {} : { walk: shape.walk }),
       runner: { kind: "worktree", graphBaseSha, session },
     },
     body,

@@ -1,6 +1,7 @@
 import { relative } from "node:path";
 import { type Clock, createSystemClock } from "@phyxiusjs/clock";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
+import { explainRoleTableRefusal, readRoleTable } from "debrief";
 import {
   approvalState,
   explainGraphRefusal,
@@ -26,7 +27,9 @@ import {
   loadRuntimeCatalogue,
   loadStandingGates,
   mergeRuntimes,
+  type RoleShape,
   type Runtime,
+  roleShapeFor,
   selectRuntime,
   unmetDependencies,
   writeBriefIntoWorktree,
@@ -127,6 +130,15 @@ export async function runInterlockRun(
     };
   }
 
+  let shape: RoleShape | undefined;
+  if (declaration.role !== undefined) {
+    const roleTable = await readRoleTable(repoRoot);
+    if (isErr(roleTable)) {
+      return { exitCode: 1, message: explainRoleTableRefusal(roleTable.error) };
+    }
+    shape = roleShapeFor(declaration.role, roleTable.value, substrate.address);
+  }
+
   if (!briefExists(repoRoot, graph, node)) {
     return {
       exitCode: 1,
@@ -186,7 +198,7 @@ export async function runInterlockRun(
         standingGates.value,
         declaration.gates,
         substrate,
-        declaration.role,
+        shape,
       );
       return isErr(written) ? err(explainSessionBriefRefusal(written.error)) : ok(written.value);
     };
@@ -195,7 +207,8 @@ export async function runInterlockRun(
       repoRoot,
       graph,
       node,
-      role: declaration.role ?? "worker",
+      role: shape?.role ?? "worker",
+      ...(shape === undefined ? {} : { shape }),
       acceptance: declaration.acceptance ?? "",
       nodeGates: declaration.gates,
       localConfig: localConfig.value,

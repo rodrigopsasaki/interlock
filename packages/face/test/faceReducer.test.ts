@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
+import type { AttemptBrief } from "../src/attemptRecord.ts";
 import { reduce } from "../src/faceReducer.ts";
 import { type FaceKey, type FaceWorld, initialFaceState } from "../src/faceState.ts";
 import type { Position } from "../src/position.ts";
+
+const brief: AttemptBrief = {
+  path: ".interlock/sessions/g1/b/brief.md",
+  acceptance: "",
+  walk: { kind: "none", because: "the node names no role, so its brief carried no walk" },
+};
 
 const position: Position = {
   interlock: "position@v1",
@@ -27,12 +34,13 @@ const position: Position = {
         },
       ],
       attempts: [
-        { session: "s-done", runtime: "unknown", leaseState: { kind: "none" } },
+        { session: "s-done", runtime: "unknown", leaseState: { kind: "none" }, brief },
         {
           session: "s-live",
           runtime: "unknown",
           leaseState: { kind: "live" },
           agentStatus: "working",
+          brief,
         },
       ],
       float: { kind: "unknown", because: "b: no outcome yet" },

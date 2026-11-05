@@ -1,17 +1,9 @@
+import { defaultRoleTable } from "debrief";
 import type { NodeRole } from "face";
 
 export type SessionRole = "worker" | "interpreter" | NodeRole;
 
-const NODE_ROLE_SENTENCES: Readonly<Record<NodeRole, string>> = {
-  scout: "Your role is scout: you read and report, and change nothing. ",
-  planner: "Your role is planner: you draft a graph for a person to approve. ",
-  implementer: "Your role is implementer: you produce the diff. ",
-  tester: "Your role is tester: you produce the proof the gates run. ",
-  reviewer: "Your role is reviewer: you produce a judgment through a named lens. ",
-  verifier: "Your role is verifier: you produce the check that every debrief claim is rooted. ",
-};
-
-function roleSentenceFor(graph: string, role: SessionRole): string {
+function roleSentenceFor(graph: string, role: SessionRole, roleParagraph?: string): string {
   switch (role) {
     case "worker":
       return "";
@@ -21,7 +13,7 @@ function roleSentenceFor(graph: string, role: SessionRole): string {
         "correct; it never leases or runs a node. "
       );
     default:
-      return NODE_ROLE_SENTENCES[role];
+      return `${roleParagraph ?? defaultRoleTable[role].prompt} `;
   }
 }
 
@@ -36,8 +28,9 @@ export function buildOpeningPrompt(
   priorWork?: PriorWork,
   role: SessionRole = "worker",
   openingView?: string,
+  roleParagraph?: string,
 ): string {
-  const roleSentence = roleSentenceFor(graph, role);
+  const roleSentence = roleSentenceFor(graph, role, roleParagraph);
   const derivedFilingSentence =
     role !== "interpreter"
       ? `For a first filing, run interlock debrief prepare ${graph} ${node} --to <candidate-path> --agent-runtime <runtime> --agent-model <model>, or replace both agent flags with --human <name>; author its claims and reports, then run ` +

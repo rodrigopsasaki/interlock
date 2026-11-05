@@ -9,7 +9,7 @@ What a session is given: node, acceptance, gates, context slice, role.
 ### Versions
 
 - `brief@v0`: the first version.
-- `brief@v1`: added `graph` (required); added `node` (required); added `role` (required); added `gates` (required); added `scope` (required); added `context_scope` (optional); added `substrate` (required); added `graph_base_sha` (optional); added `session` (optional).
+- `brief@v1`: added `graph` (required); added `node` (required); added `role` (required); added `gates` (required); added `scope` (required); added `context_scope` (optional); added `substrate` (required); added `walk` (optional); added `graph_base_sha` (optional); added `session` (optional).
 
 ### Fields (`brief@v1`)
 
@@ -23,6 +23,7 @@ What a session is given: node, acceptance, gates, context slice, role.
 | `scope` | array of string | yes |  |
 | `context_scope` | array of string | no |  |
 | `substrate` | object | yes | fields: address (string, required); handle (string, optional) |
+| `walk` | walk | no | The substrate questions a brief asks first, by the substrate's three verbs and its address. A starting point, never a fence: the whole substrate stays open to the session through its address. With the address none the walk is empty and says why; nothing errors (I5). |
 | `graph_base_sha` | string matching `^[0-9a-fA-F]{40}$` | no |  |
 | `session` | string | no |  |
 
@@ -228,7 +229,7 @@ What a session returns beside its diff: discoveries and decisions, typed.
 
 - `debrief@v0`: the first version.
 - `debrief@v1`: added `role` (required); added `graph_base_sha` (required); added `session_start_sha` (required); removed `base_sha`.
-- `debrief@v2`: retyped `discoveries`; retyped `decisions`; retyped `gates_run_by_agent`; added `drafted` (optional).
+- `debrief@v2`: retyped `discoveries`; retyped `decisions`; retyped `gates_run_by_agent`; added `drafted` (optional); added `proof` (optional); added `findings` (optional); added `graph_file` (optional); added `marks` (optional).
 
 ### Fields (`debrief@v2`)
 
@@ -247,6 +248,10 @@ What a session returns beside its diff: discoveries and decisions, typed.
 | `gates_run_by_agent` | array of gate-run | yes | A gate run entry as debrief@v2 requires it in full: result is exactly pass or fail. |
 | `open` | array of string | yes |  |
 | `drafted` | object | no | fields: by (string, required); from (string, required) |
+| `proof` | array of object | no | fields: test (string, required); pins (string, required); gate (string, optional) |
+| `findings` | object | no | fields: lens (string, required); items (array of object, required) |
+| `graph_file` | string | no |  |
+| `marks` | array of object | no | fields: claim (string, required); mark (one of `"rooted"`, `"unrooted"`, `"unexplained"`, `"gap"`, required); because (string, required) |
 
 ### Examples
 
@@ -1117,6 +1122,27 @@ The current read of a graph, composed above the stream.
 #### `position@v1`
 
 _No example of `position@v1` was found in the corpus._
+
+## roles
+
+No vocabulary entry for `roles`.
+
+### Versions
+
+- `roles@v0`: the first version.
+
+### Fields (`roles@v0`)
+
+| field | type | required | description |
+| --- | --- | --- | --- |
+| `interlock` | the literal `"roles@v0"` | yes |  |
+| `roles` | object | yes |  |
+
+### Examples
+
+#### `roles@v0`
+
+_No example of `roles@v0` was found in the corpus._
 
 ## runtimes
 
