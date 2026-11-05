@@ -35,3 +35,7 @@ entries:
     at: "2026-11-05T13:15:00Z"
     chose: Make the sandbox's own initialization an assertion, by running /usr/bin/true under each policy and requiring exit 0 with empty stderr, and put a space and double quotes in the fixture path.
     because: The cwd-only commit is expected to fail, so a policy that fails to initialize would pass that half silently; the true probe makes an initialization failure fail the test. The quoted path exercises the policy-string escaping instead of only claiming it.
+  - kind: surprise
+    at: "2026-11-05T13:30:00Z"
+    expected: A new narration line would leave the run tests untouched, since they match lines by content.
+    observed: Two cli run tests pin the full narrated sequence with toEqual, so the "agent argv []" line had to be added to both expectations; the line is the deliberate receipt, so the expectations move rather than the line.
