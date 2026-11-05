@@ -35,12 +35,12 @@ nodes:
     depends_on: []
     acceptance: |
       When `writable_root_args` is present, resolve each directory once
-      through `worktree.ts`, using `git rev-parse --path-format=absolute
-      --git-dir` followed by `git rev-parse --path-format=absolute --git-
-      common-dir` in the node worktree. If the returned absolute paths are
-      equal, append no expansion. Otherwise append a full template expansion
-      for the common directory, followed by a full expansion for the per-
-      worktree directory. Preserve the original runtime entry and args.
+      through `worktree.ts`, first with `git rev-parse --path-format=absolute
+      --git-dir`, then with `git rev-parse --path-format=absolute
+      --git-common-dir`, in the node worktree. If the returned absolute paths
+      are equal, append no expansion. Otherwise append a full template
+      expansion for the common directory, followed by a full expansion for the
+      per- worktree directory. Preserve the original runtime entry and args.
       Without the field, preserve argv and perform no root resolution. Failure
       of either resolution returns the existing readable typed refusal before
       `openPane` or `startAgent`; no partial expansion is launched. Derive no
@@ -65,12 +65,15 @@ nodes:
       resolution refusals, and independent attempts sharing an immutable
       runtime entry. Test each resolution failure independently, asserting its
       readable reason and zero pane-open and agent-start calls. In
-      `writableRoot.test.ts`, retain the existing sandbox assertions and add a
-      faithful reproduction of the motivating metadata protection: common-
-      root-only must reproduce the denial; production-supplied roots must
-      permit fresh `git add` and an unsigned commit, with hooks disabled and
-      reflogs enabled. Verify index updates, new objects, shared branch ref
-      and branch reflog updates, and the per-worktree HEAD reflog update.
+      `writableRoot.test.ts`, retain the existing generic sandbox boundary
+      assertions. Add a separate macOS `sandbox-exec` policy fixture
+      reproducing the motivating metadata exclusion and explicit-root
+      exception, with its policy provenance recorded. Common-root-only must
+      reproduce the denial; production-supplied roots must permit fresh `git
+      add` and an unsigned commit using `git -c commit.gpgsign=false`, with
+      hooks disabled and reflogs enabled. Confine the signing override to the
+      fixture Git invocation. Verify index updates, new objects, shared branch
+      ref and branch reflog updates, and the per-worktree HEAD reflog update.
       Unrelated writes remain denied. Emit the proof marker only after these
       assertions pass.
 
