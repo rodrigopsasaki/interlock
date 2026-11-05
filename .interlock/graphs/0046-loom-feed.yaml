@@ -1,5 +1,5 @@
 interlock: graph@v0
-id: 0045-loom-feed
+id: 0046-loom-feed
 ask: One read of every graph on the machine carries everything a face needs to show who moves next, in whose words, and what landed.
 derivation:
   kind: model
