@@ -1,0 +1,146 @@
+interlock: notes@v0
+node: worktree-maintenance
+entries:
+  - kind: choice
+    at: "2026-11-05T07:06:35Z"
+    chose: >
+      Started the 45-minute investigation clock at 07:06:35Z and ran every probe in fresh
+      repositories under packages/runner/test/.runs/probe-{a,b,c}, with traces in the sibling
+      packages/runner/test/.runs/traces, never attaching a worktree to this checkout's common
+      Git directory and never writing global configuration.
+    because: >
+      The acceptance bounds the investigation and forbids touching this checkout's common
+      directory; keeping traces in a directory no probe removes retains them past each probe's
+      cleanup.
+  - kind: surprise
+    at: "2026-11-05T07:08:00Z"
+    expected: Some maintenance, gc or rerere setting in the effective configuration.
+    observed: >
+      `git version 2.54.0 (Apple Git-157)`. `git config --show-scope --show-origin
+      --get-regexp '^(maintenance|gc)\.'` and `'^rerere\.'` print nothing in this worktree
+      (system, global, local and worktree scopes), and the common directory
+      /Users/rodrigosasaki/dev/private/interlock/.git has no rr-cache. This worktree resolves
+      to worktree /Users/rodrigosasaki/dev/private/interlock-worktrees/land-0051/.worktrees/worktree-maintenance,
+      admin /Users/rodrigosasaki/dev/private/interlock/.git/worktrees/worktree-maintenance,
+      common /Users/rodrigosasaki/dev/private/interlock/.git. Every maintenance setting is
+      Git's default.
+  - kind: surprise
+    at: "2026-11-05T07:09:30Z"
+    expected: >
+      The default auto-maintenance task set to be the geometric repack alone, as 0050's
+      trigger suggested.
+    observed: >
+      probe-a forced every task's auto condition (`-c maintenance.<task>.auto=-1` for all ten
+      tasks, which changes when an enabled task is due, not which tasks are enabled) and
+      traced `git maintenance run --auto --no-detach` from a linked worktree. Exactly five
+      tasks ran: region "maintenance foreground"/reflog-expire (`git reflog expire --all`),
+      then region "maintenance" geometric-repack (`git repack -d -l --geometric=2 --quiet
+      --write-midx`), commit-graph (`git commit-graph write --split --reachable
+      --no-progress`), worktree-prune (`git worktree prune --expire 3.months.ago`) and
+      rerere-gc (`git rerere gc`). gc, prefetch, loose-objects, incremental-repack and
+      pack-refs are not enabled by default. Unforced, a commit with ~1500 loose objects ran
+      only geometric-repack, as an all-into-one cruft repack (`repack -d -l --cruft
+      --cruft-expiration=2.weeks.ago --quiet --write-midx`).
+  - kind: surprise
+    at: "2026-11-05T07:10:30Z"
+    expected: The whole task set to run in the detached daemon.
+    observed: >
+      probe-b traced a default (detaching) `git commit` in a linked worktree with every task
+      forced. Process P000182db (`git maintenance run --auto`) ran reflog-expire, then entered
+      region maintenance/detach and its foreground half exited; the commit process exited
+      next; the daemon, under the same trace sid, then ran geometric-repack, commit-graph,
+      worktree-prune and rerere-gc and recorded its own exit (code 0, 07:10:26.546Z), so the
+      only descendant the probe launched was awaited by its trace before any scratch removal,
+      and `ps` showed no surviving `git maintenance` process. The admin reflog
+      worktrees/wt/logs/HEAD changed inode (237938745 to 237938863) before the commit
+      returned: reflog-expire rewrites admin files in the foreground. With
+      `maintenance.strategy=gc`, the gc task likewise runs pack-refs and `reflog expire --all`
+      in "maintenance foreground" and detaches only `gc --skip-foreground-tasks`.
+  - kind: surprise
+    at: "2026-11-05T07:11:00Z"
+    expected: A timing-free way to show where each task writes.
+    observed: >
+      probe-c made two linked worktrees A and B and recursively removed write permission from
+      both worktree directories and both admin directories (repo/.git/worktrees/A and B),
+      leaving the common objects directory writable. From A, `git maintenance run --no-detach
+      --task=geometric-repack --task=commit-graph --task=worktree-prune --task=rerere-gc`
+      exited 0 and wrote packs, a multi-pack-index and objects/info/commit-graphs.
+      `--task=reflog-expire` from A failed with "Unable to create .../worktrees/A/HEAD.lock"
+      and ".../worktrees/B/HEAD.lock: Permission denied", and with only B locked still failed
+      on B's HEAD.lock: the foreground task reaches every worktree's admin directory. With
+      `-c rerere.enabled=true`, rerere-gc from a locked A failed on
+      ".../worktrees/A/MERGE_RR.lock". Commit with rerere enabled also locks the per-worktree
+      MERGE_RR.lock in the foreground (a pre-created sentinel made the commit itself fail).
+  - kind: surprise
+    at: "2026-11-05T07:12:00Z"
+    expected: worktree-prune to delete only admin entries older than its expiry.
+    observed: >
+      `git worktree prune --expire 3.months.ago -v` removed an admin entry whose gitdir file
+      was missing ("gitdir file does not exist") regardless of age, and kept a fresh entry
+      whose worktree directory was gone. The detached prune deletes; it never creates a file.
+  - kind: choice
+    at: "2026-11-05T07:13:00Z"
+    chose: >
+      Traced the runner's lifecycles from source. Runner-owned Git that can launch
+      maintenance: only `git commit` in commitBriefIfChanged (packages/runner/src/worktree.ts),
+      run in a node worktree that ensureNodeWorktree created or reused and that sessionDrive
+      retains. Runner-owned removal: only removeWorktree in backfillGraph, of the
+      `backfill-<uuid>` worktree createDetachedWorktree made; inside it the runner runs
+      rev-parse, worktree add --detach, ls-files and worktree remove, none of which launch
+      maintenance. Setup commands, separately: `mise exec -- pnpm install` from backfill and
+      the configured worktree_setup `pnpm install --frozen-lockfile`; neither runs a Git
+      command that launches maintenance. Gate commands, separately: the standing table's
+      pnpm typecheck, lint, check:comments, test and `interlock debrief validate`; their Git
+      writes happen in fixture repositories that fixtures-and-worktrees pins to
+      maintenance.auto=false. Agent commands: the session's own commits in its retained node
+      worktree.
+    because: >
+      The acceptance asks for agent, setup and gate commands recorded separately and for the
+      worktree directory, admin directory and common store distinguished per lifecycle.
+  - kind: choice
+    at: "2026-11-05T07:14:00Z"
+    chose: >
+      Classified the result as demonstrated non-overlap for the stated configuration and
+      lifecycle, and changed no production code.
+    because: >
+      The detached half of the default task set writes only under the common objects
+      directory, which the runner never removes; worktree-prune only deletes; rerere-gc writes
+      only the launching worktree's admin MERGE_RR.lock and only when rerere is enabled, which
+      it is not here, and the launching worktree is always a retained node worktree. The one
+      writer that reaches every admin directory, reflog-expire, runs before Git detaches. The
+      evidence is mechanism, not absence: the permission lock-down makes any write into a
+      locked directory fail, and the positive controls show that it does fail for the writers
+      that do reach there.
+  - kind: choice
+    at: "2026-11-05T07:15:00Z"
+    chose: >
+      packages/runner/test/worktreeMaintenance.test.ts drives the production functions
+      (ensureNodeWorktree, commitBriefIfChanged, createDetachedWorktree, removeWorktree) in a
+      fixture repository that re-enables maintenance.auto, pins maintenance.autoDetach=false
+      and forces each default task's auto condition, traces them with GIT_TRACE2_EVENT, and
+      derives the detached task set from the commit's own trace before running it against
+      read-only node and backfill worktree and admin directories.
+    because: >
+      Foreground maintenance makes every write finish before the call returns, so nothing
+      races a daemon; deriving the after-detach set from Git's own region categories makes the
+      proof fail, not silently pass, if a Git upgrade moves a writer across the detach point.
+  - kind: surprise
+    at: "2026-11-05T07:16:00Z"
+    expected: >
+      commitBriefIfChanged's maintenance child to read `git maintenance run --auto --quiet
+      --no-detach`, as it did from a `commit -q` in probe-a.
+    observed: >
+      The runner's commit passes no `-q`, so Git launches `git maintenance run --auto
+      --no-quiet --no-detach`. The proof asserts one `maintenance run` child carrying
+      `--auto` and `--no-detach` rather than the exact argv.
+  - kind: choice
+    at: "2026-11-05T07:17:00Z"
+    chose: >
+      Retained the probe scripts and the maintenance-relevant trace2 events (version, start,
+      exit, child_start, child_exit and maintenance regions) under evidence/ beside this
+      session's notes, then removed packages/runner/test/.runs/probe-{a,b,c} and its traces
+      with plain rm after confirming no `git maintenance` process survived.
+    because: >
+      The acceptance asks for traces retained outside the directories deliberately removed;
+      the session directory is committed with the code, while test/.runs is gitignored
+      scratch.
