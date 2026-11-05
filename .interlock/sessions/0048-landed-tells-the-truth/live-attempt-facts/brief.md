@@ -88,6 +88,22 @@ edit it.
 > Update the existing sentences table so exact-output and I3 checks
 > exercise this sentence.
 >
+> 3. Settled means no live work. On 2026-11-05 the runner judged
+> attempts early at least four times: it called an agent settled
+> ("agent settled with no debrief", then "agent status done") while
+> that agent's subagent was still running, and held a node whose
+> worker then kept working. The runner may call an attempt settled
+> only when the runtime adapter's observation reports no live child
+> or subagent work for that attempt's agent. The adapter derives
+> this from what it can observe (the agent's live child processes,
+> or the agent's own report of subagent work); when it cannot tell,
+> it reports unknown, and unknown never counts as settled: the
+> runner keeps waiting until the attempt reports done with no live
+> work, or its timeout ends it. Test, in packages/runner/test/settled.test.ts: an attempt whose agent reports
+> idle while a subagent is still running is not judged, and is
+> judged once the subagent ends; an attempt whose live work is
+> unknown is not judged before its timeout.
+>
 > Strict TypeScript, no assertions, no non-null operators. Preserve every
 > historical artifact. Append typed notes for choices and discoveries. No
 > push, no merge; the human merges.
