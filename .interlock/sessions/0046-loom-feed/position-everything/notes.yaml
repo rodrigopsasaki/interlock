@@ -75,3 +75,20 @@ entries:
       The reference test pins the page byte for byte, and positions is the
       plural read of the vocabulary's position, not a new term worth a row in
       the closed table.
+  - kind: surprise
+    at: "2026-11-05T13:10:00Z"
+    expected: >
+      interlock debrief prepare to derive this session's start and write a
+      candidate, as the opening view instructs.
+    observed: >
+      It refuses with "session-started event does not match the local brief"
+      (packages/cli/src/debrief/sessionIdentity.ts:151, started.brief.role !==
+      brief.role). The journal's session-started for session
+      a4ffe3fa-cfed-4ff9-93bb-3915f50ca3ce is event@v7 with brief.role
+      "worker"; brief.md front matter says role: implementer. The main
+      checkout (cbb6bfa) has no node-role runner, while this branch's
+      run.ts passes shape?.role, so the session looks started by a runner
+      older than the brief it was handed. Neither the brief (immutable) nor
+      the journal (receipts) is mine to change, and hand-filing a debrief
+      around the derived identity check would bypass it, so the debrief is
+      not filed and the session stops for a person.
