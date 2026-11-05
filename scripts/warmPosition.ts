@@ -2,6 +2,7 @@ import { execFile, spawn } from "node:child_process";
 import { realpath, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
+import { POSITIONS_SHAPE } from "../packages/cli/src/position.ts";
 import { buildRegistry, validatorFor } from "../packages/schemas/src/registry.ts";
 
 const checkout = resolve(import.meta.dirname, "..");
@@ -105,7 +106,7 @@ async function counted(
   }
   const positions: unknown = JSON.parse(invocation.stdout);
   if (validate(positions) === false || isObject(positions) === false) {
-    throw new Error("output is not valid positions@v0 JSON");
+    throw new Error(`output is not valid ${POSITIONS_SHAPE} JSON`);
   }
   const repositories = listAt(positions, "repositories");
   if (repositories.length !== roots.length) {
@@ -148,8 +149,8 @@ async function main(): Promise<number> {
   const roots: string[] = [];
   for (const name of names) roots.push(await repositoryRoot(name));
   if (new Set(roots).size !== roots.length) throw new Error("both paths name the same repository");
-  const validator = validatorFor(buildRegistry(), "positions@v0");
-  if (validator === undefined) throw new Error("positions@v0 schema not found");
+  const validator = validatorFor(buildRegistry(), POSITIONS_SHAPE);
+  if (validator === undefined) throw new Error(`${POSITIONS_SHAPE} schema not found`);
   const validate = (value: unknown): boolean => validator(value) === true;
 
   const measured: number[] = [];
