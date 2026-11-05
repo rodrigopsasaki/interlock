@@ -4,7 +4,7 @@ node: writer-is-closed
 role: implementer
 graph_base_sha: 652135b269933449c6978e5f922b2b3634b72236
 session_start_sha: b59458e8e06b4541360b3fa402bda413dcd1e5c6
-head_sha: 330f39ba8e7d7db941259a456be4f527975b3c42
+head_sha: b58f3a3d125060f7c4c7b900e2990d9da63608ce
 derivation:
   kind: agent
   runtime: claude-code
@@ -55,6 +55,16 @@ discoveries:
     mattered_because: >-
       A regression that looked for the lock or for packs right after return failed only 1 time in
       5 on the pre-fix code. The regression has to observe the writes without racing the daemon.
+  - id: daemon-recreates-removed-fixture
+    what: >-
+      In a real vitest run on the pre-fix commitAll, the daemon's pack-objects wrote
+      objects/pack/.tmp-88857-pack-*.pack after the test's single rmSync had already removed the
+      fixture. That recreated packages/verifier/test/.runs/run-1eaqpQ, which leaked silently.
+    found_at: '.interlock/sessions/0050-verifier-fixture-writer/writer-is-closed/notes.yaml:203 "rmSync had already removed the fixture"'
+    mattered_because: >-
+      It catches the writer inside a real fixture after its teardown rather than in a reproducer,
+      and it shows a second failure mode beside ENOTEMPTY, leaked fixtures, which the same fix
+      closes.
 decisions:
   - id: close-at-fixture-commit
     what: >-
