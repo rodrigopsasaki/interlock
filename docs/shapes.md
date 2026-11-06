@@ -163,6 +163,29 @@ substrate:
   address: none
 ```
 
+## commits
+
+No vocabulary entry for `commits`.
+
+### Versions
+
+- `commits@v0`: the first version.
+
+### Fields (`commits@v0`)
+
+| field | type | required | description |
+| --- | --- | --- | --- |
+| `interlock` | the literal `"commits@v0"` | yes |  |
+| `entries` | array of object | yes | fields: message (message, required); paths (array of string matching `^(?!/\|[A-Za-z]:[\\/])(?!.*[\\\u0000*?\[\]{}])(?!.*(?:^\|/)\.{1,2}(?:/\|$))(?!.*//)(?!.*\/$).+$`, required) |
+| `fallback_subject` | string matching `^(?=.*\S)[^\r\n\u0000]+$` | no |  |
+| `co_authored_by` | string matching `^(?=.*\S)[^\r\n\u0000]+$` | no |  |
+
+### Examples
+
+#### `commits@v0`
+
+_No example of `commits@v0` was found in the corpus._
+
 ## config
 
 No vocabulary entry for `config`.
@@ -904,7 +927,7 @@ The directed acyclic graph of nodes produced from one ask.
 | `id` | string | yes |  |
 | `ask` | string | no | The ask the graph was produced from. Optional; when present the loader requires a string and the position carries it verbatim. |
 | `gates` | array of gate-declaration | no | A gate as declared on a graph node, a graph, or a brief's front matter: an id, a kind, and an optional command and output check. A human gate carries no run. |
-| `nodes` | array of object | yes | fields: id (string, required); role (one of `"scout"`, `"planner"`, `"implementer"`, `"tester"`, `"reviewer"`, `"verifier"`, optional); acceptance (string, optional); depends_on (array of string, optional); gates (array of gate-declaration, optional) |
+| `nodes` | array of object | yes | fields: id (string, required); role (one of `"scout"`, `"planner"`, `"implementer"`, `"tester"`, `"reviewer"`, `"verifier"`, optional); acceptance (string, optional); depends_on (array of string, optional); gates (array of gate-declaration, optional); paths (array of string, optional) |
 
 ### Examples
 
@@ -1204,17 +1227,22 @@ No vocabulary entry for `runtimes`.
 ### Versions
 
 - `runtimes@v0`: the first version.
+- `runtimes@v1`: retyped `runtimes`.
 
-### Fields (`runtimes@v0`)
+### Fields (`runtimes@v1`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `interlock` | the literal `"runtimes@v0"` | yes |  |
+| `interlock` | the literal `"runtimes@v1"` | yes |  |
 | `runtimes` | object | no |  |
 
 ### Examples
 
 #### `runtimes@v0`
+
+_No example of `runtimes@v0` was found in the corpus._
+
+#### `runtimes@v1`
 
 Source: `runtimes.example.yaml`
 
@@ -1233,7 +1261,7 @@ Source: `runtimes.example.yaml`
 # used unchanged.
 # For example: writable_root_args: ["--your-writable-root-flag", "{path}"]
 
-interlock: runtimes@v0
+interlock: runtimes@v1
 
 runtimes:
   # A name matches ^[a-z][a-z0-9_-]{0,31}$, the same shape herdr accepts for an agent name.
@@ -1276,6 +1304,7 @@ runtimes:
   # hard-coded path.
   astra:
     kind: codex
+    commits: runner
     # Session observation: a hooks-review modal needed SessionStart trust before the opening prompt
     # could be delivered; a person dismissed it with Esc and the runner resent the prompt.
     args:
@@ -1303,6 +1332,7 @@ runtimes:
 
   terra:
     kind: codex
+    commits: runner
     # Session observation: a hooks-review modal needed SessionStart trust before the opening prompt
     # could be delivered; a person dismissed it with Esc and the runner resent the prompt.
     args:
@@ -1330,6 +1360,7 @@ runtimes:
 
   luna:
     kind: codex
+    commits: runner
     # Session observation: a hooks-review modal needed SessionStart trust before the opening prompt
     # could be delivered; a person dismissed it with Esc and the runner resent the prompt.
     args:

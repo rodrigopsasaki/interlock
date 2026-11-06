@@ -1,0 +1,10 @@
+interlock: commits@v0
+entries:
+  - message: |-
+      fix(runner): keep the signing fixture readable to the process guard
+
+      Use literal shell content and an adjacent failure-count file so the guard
+      can audit the signing stub while rollback tests retain their behavior.
+    paths:
+      - packages/runner/test/runnerCommits.test.ts
+co_authored_by: GPT-6 <noreply@openai.com>

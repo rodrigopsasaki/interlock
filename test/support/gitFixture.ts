@@ -208,7 +208,11 @@ function shellQuoted(value: string): string {
 // Writes an executable `git` at `script` that refuses any invocation naming one of `refused`
 // and hands every other one to the Git currently on PATH, with the fixture suppression applied,
 // so production code that finds this script first still runs Git with maintenance off.
-export function writeGitForwarder(script: string, refused: readonly string[]): void {
+export function writeGitForwarder(
+  script: string,
+  refused: readonly string[],
+  logPath?: string,
+): void {
   const realGit = executableOnPath("git");
   const refusal =
     refused.length === 0
@@ -224,6 +228,7 @@ export function writeGitForwarder(script: string, refused: readonly string[]): v
     script,
     [
       "#!/bin/sh",
+      ...(logPath === undefined ? [] : [`printf '%s\\n' "$@" >> ${shellQuoted(logPath)}`]),
       ...refusal,
       `exec ${[realGit, ...MAINTENANCE_SUPPRESSION].map(shellQuoted).join(" ")} "$@"`,
       "",
