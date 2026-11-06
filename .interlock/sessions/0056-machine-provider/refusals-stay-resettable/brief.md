@@ -982,7 +982,7 @@ walk:
   kind: none
   because: the substrate address is none, so there is nothing to ask
 graph_base_sha: ca21061149d5085ca7bae8bdbcb9b20df31d9f5d
-session: 2a8116c4-5aec-42f9-a310-c73ecbf85e3a
+session: 2345da5a-6bdf-41e8-bc10-b52c7c3597d6
 ---
 
 # Brief · node `refusals-stay-resettable` · graph `0056-machine-provider`
