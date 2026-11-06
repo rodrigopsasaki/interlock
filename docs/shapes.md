@@ -15,7 +15,7 @@ No vocabulary entry for `arcs`.
 | field | type | required | description |
 | --- | --- | --- | --- |
 | `interlock` | the literal `"arcs@v0"` | yes |  |
-| `arcs` | array of object | yes | fields: id (string matching `^[a-z0-9]+(?:-[a-z0-9]+)*$`, required); title (line, required); ask (line, required); source (line, required); graphs (array of line, required) |
+| `arcs` | array of object | yes | fields: id (string matching `^[a-z0-9]+(?:-[a-z0-9]+)*$`, required); title (line, required); ask (line, required); source (line, required); also_said (array of object, optional); graphs (array of line, required) |
 | `needs_his_words` | array of object | no | fields: graph (line, required); found (line, required) |
 
 ### Examples
