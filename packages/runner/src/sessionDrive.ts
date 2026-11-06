@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
 import { join, relative } from "node:path";
 import { type Clock, deadlineFrom, ms } from "@phyxiusjs/clock";
 import { isErr, isOk, ok, type Result } from "@phyxiusjs/fp";
@@ -24,6 +25,7 @@ import { buildOpeningPrompt, type PriorWork, type SessionRole } from "./openingP
 import { deliverOpeningPrompt } from "./promptDelivery.ts";
 import { recordQuestionNotes } from "./questionNotes.ts";
 import type { RoleShape } from "./roleShape.ts";
+import { commitRunnerCode, commitRunnerDebrief } from "./runnerCommits.ts";
 import {
   type Agent,
   explainRuntimeRefusal,
@@ -43,6 +45,7 @@ import {
   ensureNodeWorktree,
   explainWorktreeRefusal,
   isCommittedAtHead,
+  isIgnoredPath,
   uncommittedPaths,
   type WorktreeOutcome,
   type WorktreeRefusal,
@@ -103,6 +106,7 @@ export interface DriveSessionOutcome {
 }
 
 export interface DriveSessionRequest {
+  readonly paths?: readonly string[];
   readonly repoRoot: string;
   readonly graph: string;
   readonly node: string;
@@ -202,9 +206,20 @@ export async function driveInteractiveSession(
     const lease = takeLease(ledger, clock, targetNode, sessionId, localConfig.leaseMs);
     narrate(`leased ${node} (session ${sessionId}, expires ${isoOf(lease.expiry)})`);
 
-    const refuse = (step: string, explanation: string): DriveSessionOutcome => {
+    const refuse = (
+      step: string,
+      explanation: string,
+      recordFailure = true,
+    ): DriveSessionOutcome => {
       const line = `${step} refused: ${explanation}`;
       narrate(line);
+      if (recordFailure && agentRuntime.commits === "runner") {
+        ledger.append({
+          kind: "outcome-set",
+          node: targetNode,
+          outcome: outcome.failed([], step, "repair", line),
+        });
+      }
       return { exitCode: 1, message: line };
     };
     const abandonLease = (): void => {
@@ -383,6 +398,7 @@ export async function driveInteractiveSession(
         role,
         briefWritten.value.openingView,
         shape?.entry.prompt,
+        agentRuntime.commits,
       ),
       readySettleMs: agentRuntime.readySettleMs,
       promptRetries: agentRuntime.promptRetries,
@@ -400,6 +416,7 @@ export async function driveInteractiveSession(
     const delivery = delivered.value;
 
     const readUnfinishedWork = (): UnfinishedWork | undefined => {
+      if (agentRuntime.commits === "runner") return undefined;
       const dirty = uncommittedPaths(worktreePath);
       const dirtyCount = isOk(dirty) ? dirty.value.length : 0;
       const debriefRelative = relative(worktreePath, debriefFilePath(worktreePath, graph, node));
@@ -431,12 +448,74 @@ export async function driveInteractiveSession(
       () => recordQuestionNotes(ledger, sessionId, worktreePath, targetNode),
       delivery.kind === "abandoned" ? { alreadySettled: "idle" } : {},
     );
-    lease.stop();
     if (isErr(waited)) {
+      lease.stop();
       const result = refuse("wait", explainRuntimeRefusal(waited.error));
       abandonLease();
       return result;
     }
+
+    if (agentRuntime.commits === "runner") {
+      const custody = {
+        worktree: worktreePath,
+        graph,
+        node,
+        session: sessionId,
+        runtime: agentRuntime.name,
+        model: agentRuntime.model,
+        ...(request.paths === undefined ? {} : { paths: request.paths }),
+      };
+      const code = commitRunnerCode(custody);
+      if (isErr(code)) {
+        lease.stop();
+        return refuse("code commit", code.error);
+      }
+      const sent = await runtime.prompt(
+        agent,
+        `Your code is committed at ${code.value.head}. File your debrief and notes now, without committing. ` +
+          `Run interlock debrief prepare ${graph} ${node} --to <candidate-path> --agent-runtime ${agentRuntime.name} --agent-model ${agentRuntime.model ?? "undeclared"}; author and file the candidate. ` +
+          `head_sha must be ${code.value.head}. Leave all candidates and sources in the session directory. Stop when filed.`,
+      );
+      if (isErr(sent)) {
+        lease.stop();
+        return refuse("debrief prompt", explainRuntimeRefusal(sent.error));
+      }
+      const taken = await runtime.waitUntil(
+        agent,
+        ["working", "blocked", "done"],
+        agentRuntime.promptTakenTimeoutMs,
+      );
+      if (isErr(taken)) {
+        lease.stop();
+        return refuse("debrief prompt", explainRuntimeRefusal(taken.error));
+      }
+      const filed = await waitForSession(
+        runtime,
+        agent,
+        observe,
+        clock,
+        deadlineFrom(clock.now().monoMs, ms(localConfig.runTimeoutMs)),
+        localConfig.runTimeoutMs,
+        localConfig.answerGraceMs,
+        narrate,
+        () =>
+          existsSync(debriefFilePath(worktreePath, graph, node))
+            ? undefined
+            : { uncommittedPaths: 0, debriefMissing: true },
+        () => recordQuestionNotes(ledger, sessionId, worktreePath, targetNode),
+      );
+      if (isErr(filed)) {
+        lease.stop();
+        return refuse("debrief wait", explainRuntimeRefusal(filed.error));
+      }
+      const committed = await commitRunnerDebrief(custody, code.value);
+      if (isErr(committed)) {
+        lease.stop();
+        return refuse("debrief commit", committed.error);
+      }
+      narrate(`debrief committed ${committed.value}`);
+    }
+    lease.stop();
 
     const screenRead = await runtime.read(agent);
     if (isErr(screenRead)) {
@@ -445,7 +524,12 @@ export async function driveInteractiveSession(
 
     const onWorktreeRead = async (): Promise<void> => {
       if (!isOk(screenRead)) return;
-      await writeScreenSnapshot(worktreePath, graph, node, screenRead.value);
+      if (
+        agentRuntime.commits === "agent" ||
+        isIgnoredPath(worktreePath, `.interlock/sessions/${graph}/${node}/screen.txt`)
+      ) {
+        await writeScreenSnapshot(worktreePath, graph, node, screenRead.value);
+      }
       narrate(`agent screen: ${lastNonEmptyLine(screenRead.value) ?? "(no output)"}`);
     };
 
@@ -462,7 +546,7 @@ export async function driveInteractiveSession(
           clock.now().wallMs + HELD_REVISIT_MS,
         );
         ledger.append({ kind: "outcome-set", node: targetNode, outcome: held });
-        const result = refuse("graph", preCheck.error.because);
+        const result = refuse("graph", preCheck.error.because, false);
         abandonLease();
         return result;
       }

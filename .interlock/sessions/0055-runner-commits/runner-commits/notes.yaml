@@ -1,0 +1,193 @@
+interlock: notes@v0
+node: runner-commits
+entries:
+  - kind: choice
+    at: '2026-11-05T20:20:00Z'
+    chose: >-
+      Publish runtimes@v1 and isolate commit custody in a runner module.
+    because: >-
+      This checkout has only v0; a separate module lets fixture repositories prove exact staging, secret refusals and rollback before session integration.
+  - kind: choice
+    at: '2026-11-05T20:20:01Z'
+    chose: >-
+      Preserve agent-mode settlement and use two explicit waits for runner-mode code and debrief.
+    because: >-
+      The last code HEAD must exist before debrief prepare derives its proof boundary.
+  - kind: surprise
+    at: '2026-11-05T20:35:00Z'
+    expected: >-
+      mise exec would select the pinned Node and pnpm together.
+    observed: >-
+      PATH chose Homebrew Node 26, and putting Node 24 first selected a different Corepack pnpm. Focused checks now put mise pnpm 10.13.1 and Node 24.14.0 explicitly first within mise exec.
+  - kind: choice
+    at: '2026-11-05T20:35:01Z'
+    chose: >-
+      Use NUL-delimited porcelain status, literal Git pathspecs, and signed exact-path commits.
+    because: >-
+      Quoted filenames, renames, deletions and pre-staged unrelated paths must not broaden what the runner commits.
+  - kind: surprise
+    at: '2026-11-05T20:39:00Z'
+    expected: >-
+      The first incremental commit would use the repository's normal signing.
+    observed: >-
+      Git refused because the sandbox cannot write GPG lock files or connect to keyboxd; no commit was created. Continue implementation and checks, retaining staged changes for an outside-sandbox signed code commit before debrief prepare.
+  - kind: choice
+    at: '2026-11-05T20:41:00Z'
+    chose: >-
+      Refuse uninspectable symbolic links and validate debrief identity, role kinds and notes before the final commit.
+    because: >-
+      Secret scanning must not follow an agent-created link outside the worktree, and artifact custody must preserve the brief's role and last-code-HEAD boundary.
+  - kind: surprise
+    at: '2026-11-05T20:42:00Z'
+    expected: >-
+      Exact git add would also accept the source of an already staged rename.
+    observed: >-
+      Git no longer matches that removed source in the index. The exact-path helper now first resets only its named index paths to HEAD, then stages their worktree contents; unrelated staged paths remain outside its commit.
+  - kind: choice
+    at: '2026-11-05T20:44:00Z'
+    chose: >-
+      Recognize debrief-shaped YAML candidates under the session directory even when the author chose a custom filename.
+    because: >-
+      The debrief CLI accepts arbitrary candidate filenames; phase 2 must retain their custody alongside the conventional candidate names and sources.
+  - kind: surprise
+    at: '2026-11-05T20:44:01Z'
+    expected: >-
+      Switching to pinned Node alone would leave the existing package toolchain intact.
+    observed: >-
+      Its Corepack pnpm attempted an install and created an untracked .pnpm-store. Removed that newly created store with plain rm; all subsequent commands use the installed mise pnpm explicitly.
+  - kind: choice
+    at: '2026-11-05T20:46:00Z'
+    chose: >-
+      In runner custody, persist the optional screen snapshot only when Git ignores that path, retaining its narration either way.
+    because: >-
+      Creating an untracked snapshot after the final artifact commit would otherwise make judging dirty in repositories without the screen ignore rule; agent custody keeps its existing behavior.
+  - kind: choice
+    at: '2026-11-05T20:49:00Z'
+    chose: >-
+      Keep the existing rename count for agent custody while runner path checks inspect both sides; preserve an explicit before-judge held outcome.
+    because: >-
+      Exact commit custody needs the removed source checked, but it must not change existing agent-mode settlement counts or overwrite a separately recorded hold.
+  - kind: surprise
+    at: '2026-11-05T20:49:01Z'
+    expected: >-
+      The standing test command would exercise every package.
+    observed: >-
+      Substrate HTTP fixtures failed because the sandbox denies listen on 127.0.0.1; pnpm stopped before the dependent packages. Focused runner, schemas and debrief proofs run separately. Existing brief-commit compatibility fixtures inherited the owner's signing configuration; rerunning those fixtures with isolated Git environment passed all 67 checks.
+  - kind: choice
+    at: '2026-11-05T20:50:00Z'
+    chose: >-
+      Leave the machine catalogue untouched and opt the shipped codex profiles into runner custody.
+    because: >-
+      The machine catalogue belongs to the owner; add commits: runner under each codex profile there when adopting this change. The example publishes runtimes@v1 and the reader keeps runtimes@v0 readable.
+  - kind: surprise
+    at: '2026-11-05T20:50:01Z'
+    expected: >-
+      A final debrief could follow the source commit in this session.
+    observed: >-
+      No source commit can be signed here because GPG access is denied. Debrief validation reports no filing; prepare and file-derived must wait for an outside-sandbox signed code commit so head_sha covers these changes.
+  - kind: choice
+    at: '2026-11-05T20:50:02Z'
+    chose: >-
+      Handoff the staged implementation with its proof limits recorded, and resume debrief authoring after the signed source commit.
+    because: >-
+      Typecheck, lint and comments passed; runner-commits 41, catalogue 48, schemas 1120, focused debrief 44 and isolated compatibility 67 tests passed. The standing pnpm test stopped in substrate with 24 listener-denial failures. Runner receipts remain binding and the standing test needs rerunning outside the sandbox.
+  - kind: question
+    at: '2026-11-05T20:50:03Z'
+    asked: >-
+      Can you run git commit -F packages/runner/test/.runs/code-commit-message.txt in this worktree outside the sandbox, then resume this session so I can file the debrief against that signed code SHA?
+  - kind: choice
+    at: 2026-11-05T20:50:51.476Z
+    chose: Leave all implementation changes uncommitted and supply commits.yaml for
+      runner custody, then stop.
+    because: The owner changed this session workflow explicitly. Prepare the debrief
+      at HEAD only when instructed, file debrief and notes without committing,
+      and stop again. All previously started background shells have finished.
+  - kind: choice
+    at: 2026-11-05T20:54:24.658Z
+    chose: Prepare the first debrief at 5b0bea4, author six decisions covering every
+      code path in the session diff, and file it without committing session
+      artifacts.
+    because: The owner confirmed the signed code HEAD and explicitly requested
+      debrief filing now. All previously started background shells have
+      finished; this filing starts no background work. Preserve the standing
+      test failure and catalogue adoption key in open items.
+  - kind: choice
+    at: 2026-11-05T20:54:50.343Z
+    chose: Stop with the derived debrief, candidate, commits plan and completed
+      notes uncommitted for runner custody.
+    because: File-derived accepted the candidate at code HEAD 5b0bea4 and the
+      session debrief and notes validate. Preview rooted every decision hunk
+      citation. HEAD remains unchanged, no background shell remains running, and
+      the owner explicitly forbids an artifact commit from this pane.
+  - kind: surprise
+    at: '2026-11-05T21:37:59Z'
+    expected: The shared Git fixture helper would expose writeRecordingStub.
+    observed: This checkout exposes writeGitForwarder but no writeRecordingStub;
+      the guard accepts generated shell scripts only when every piece is literal.
+  - kind: choice
+    at: '2026-11-05T21:38:00Z'
+    chose: Make the signing stub entirely literal, derive its counter path from
+      its own filename, and read the failure count from an adjacent fixture file.
+    because: This repairs the judged fixture guard failure while retaining the
+      signing and rollback tests. The owner requires changes and commits.yaml
+      to remain uncommitted, with no Git configuration or signing changes.
+  - kind: choice
+    at: '2026-11-05T21:39:00Z'
+    chose: Leave the fixture repair, notes and updated commits.yaml uncommitted
+      and stop after the two requested focused checks.
+    because: The fixture guard passed all 69 tests and runnerCommits passed all
+      41 tests, including expected signing failures and rollback. The commit
+      plan names only the changed code path; notes remain session artifacts.
+      Both test processes exited and no background shell remains running.
+  - kind: choice
+    at: '2026-11-06T14:10:53.885000+00:00'
+    chose: Reuse the existing literal signing-stub repair and exact-path commit plan,
+      and rerun only the two requested focused checks after the interrupted attempt.
+    because: The resumed worktree already contains the judged-failure repair. The
+      owner explicitly requires no Git configuration, signing changes or commits,
+      and all changes to remain uncommitted for runner custody. No background
+      shell has been started in this resumed turn.
+  - kind: choice
+    at: '2026-11-06T14:11:19.586993+00:00'
+    chose: Stop with the existing fixture repair and updated commits.yaml uncommitted.
+    because: The resumed checks passed fixtureGuard 69 tests and runnerCommits
+      41 tests, including the deliberate signing-failure and rollback fixtures.
+      The plan names only packages/runner/test/runnerCommits.test.ts; both test
+      processes exited and no background shell remains from this turn.
+  - kind: choice
+    at: '2026-11-06T14:13:26.989681+00:00'
+    chose: Prepare a fresh candidate at bca9a41 and select it through debrief revise,
+      retaining the previous filing and leaving every artifact uncommitted.
+    because: The owner confirmed the signed fix at the current HEAD. Existing
+      debrief history must be retained while head_sha covers the fixture repair;
+      add its rooted decision and the two focused check reports. All prior test
+      processes exited and no background shell is running from this session.
+  - kind: surprise
+    at: '2026-11-06T14:14:21.974526+00:00'
+    expected: The new prepare would retain the original implementation proof range.
+    observed: The current resumed brief derives session_start_sha 1511cf9 and
+      head_sha bca9a41. This filing covers the fixture repair only; debrief revise
+      will retain the original implementation claims in its previous revision.
+  - kind: surprise
+    at: '2026-11-06T14:14:21.974598+00:00'
+    expected: The root package could import yaml for candidate authoring.
+    observed: yaml is a package dependency rather than a root dependency, so the
+      initial authoring helper exited without writing; use the CLI package adapter.
+  - kind: surprise
+    at: '2026-11-06T14:14:49.503714+00:00'
+    expected: debrief revise would select the freshly derived resumed-session candidate.
+    observed: It refuses because session_start_sha differs from the old filing;
+      the recovery flag is only for a missing old commit, not a new resumed brief.
+  - kind: choice
+    at: '2026-11-06T14:14:49.503769+00:00'
+    chose: Retain the old filing byte-for-byte in its SHA-addressed revisions path
+      and file the newly prepared candidate with file-derived for the resumed session.
+    because: The owner requests re-filing at HEAD and the current proof identity
+      differs from the prior session. Preserve the earlier debrief unchanged
+      rather than altering either session boundary to pass the revision check.
+  - kind: choice
+    at: '2026-11-06T14:15:02.783461+00:00'
+    chose: Stop with the re-filed debrief and notes uncommitted for runner custody.
+    because: File-derived accepted head_sha bca9a417185cf5c97feeed2fd907a178be07816d
+      and preview rooted the repair decision. The prior filing remains in
+      revisions, HEAD is unchanged, and no background process was started.
