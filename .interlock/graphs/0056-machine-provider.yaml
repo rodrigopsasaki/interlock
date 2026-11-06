@@ -50,8 +50,9 @@ nodes:
       Order of a launch. Run worktree setup through heavy; open the pane with no agent in it; read the pane's process
       pid from the runtime adapter (herdr pane process-info), refusing the launch if no pid is available; run admit
       with the holder "<graph>/<node> (<session id>)", the token "<session id>/<pane id>" and that pid; start the
-      agent only if admit exits zero. A non-zero admit refuses the launch: the runner records a failed outcome whose
-      because is the provider's first output line verbatim, closes the pane, and starts no agent.
+      agent only if admit exits zero. A non-zero admit refuses the launch: the runner narrates the provider's first
+      output line verbatim and returns it as the exit message, closes the pane, abandons the lease with no outcome
+      (refusals-stay-resettable), and starts no agent, so the same node runs again once the machine has room.
       Release. When the runner closes a pane it admitted and the close is confirmed (the adapter's close returns ok),
       it runs release with the token. A close that fails or times out keeps the session held and is narrated; the
       provider reaps it when the pane's process is gone. A pane left open for drilldown is never released by the
@@ -68,7 +69,8 @@ nodes:
       Tests in packages/runner/test/machineProvider.test.ts with fixture provider scripts, no real provider:
       - no machine file: setup, launch, env and gates are unchanged, and the launch narrates no provider;
       - admit runs after the pane opens and before the agent starts, with holder, token and pid; a non-zero admit
-        refuses the launch with the provider's line as the because, closes the pane and starts no agent;
+        refuses the launch with the provider's line, closes the pane, records no outcome and starts no agent, and
+        a second run after the fixture provider admits succeeds;
       - no pane pid refuses the launch;
       - release runs with the token only after a confirmed close; a failed close keeps the session held;
       - env reaches a codex profile as -c flags with quoting cases (spaces, quotes), a kimi-shaped fixture agent
