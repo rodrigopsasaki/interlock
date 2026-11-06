@@ -1,0 +1,77 @@
+interlock: graph@v0
+id: 0056-machine-provider
+ask: The runner asks the machine before it starts agent work, so a configured provider can refuse a launch past the machine's limits, queue heavy gate commands, and set the limits environment of every agent it starts.
+derivation:
+  kind: model
+  model: gilb (Claude)
+  prompt: machine-limits-2026-11-06
+authorization:
+  granted_by: Rodrigo Sasaki
+  mandate: loom-feed-2026-11-04  # "You're free to do changes on phyxius and interlock too", 23:25 UTC
+  approver: Gilb for Rodrigo Sasaki, after a cross-vendor vet; the human merges
+read: >
+  Rodrigo's Mac froze on 2026-11-06 at 15:30 UTC under concurrent agent builds started by Interlock runners and he cut
+  the power. Rodrigo, 15:43 UTC: "this has to be managed via Preston settings, I don't want you working around the
+  product when doing this is also the purpose of the product." Preston graph 0034-machine-limits makes the limits a
+  Preston setting and provides the commands; this graph is the minimal Interlock side: one generic hook, naming no
+  product.
+
+  Today the runner opens a pane and starts the agent with the profile's args (packages/runner/src/sessionDrive.ts:292,
+  308-314), spawns each gate without a shell (packages/runner/src/gateJudge.ts:131), and closes the pane when it has
+  custody or leaves it open for drilldown (sessionDrive.ts:586-593). Nothing asks the machine first.
+
+  A pane left open counts as live work until it closes, so a session's release follows the pane's process, not the
+  runner's exit: the runner gives the provider the pid of the pane's process (herdr pane process-info), and the
+  provider reaps the session when that pid is gone.
+
+  Out of scope: Interlock deciding any limit itself, reading memory, or knowing Preston. Without a machine file the
+  runner behaves exactly as today.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: machine-provider
+    role: implementer
+    depends_on: []
+    acceptance: |
+      Machine file. A per-machine file, ~/.config/interlock/machine.yaml (path overridable by INTERLOCK_MACHINE for
+      tests, like INTERLOCK_RUNTIMES), shape machine@v0 with a JSON schema and schema tests:
+        interlock: machine@v0
+        provider:
+          admit: [argv...]      # run before every launch; {holder} and {pid} are substituted
+          release: [argv...]    # run when the runner closes a pane it admitted; {pid}
+          env: [argv...]        # prints a JSON object of environment for agents and gates
+          heavy: [argv...]      # prefix for every gate command
+      Every key is optional; an absent file or key means today's behaviour for that step.
+      Admission. Before opening a pane, the runner runs admit with the holder "<graph>/<node> (<session id>)" and,
+      once the pane exists, the pid of the pane's process from the runtime adapter. Open the pane first, ask with its
+      pid, and close the pane at once if admit refuses. A non-zero admit refuses the launch: the runner records a
+      failed outcome whose because is the provider's first output line verbatim, closes the pane, and starts no agent.
+      When the runner closes a pane it admitted, it runs release with that pid; a pane left open for drilldown is
+      released by the provider when its pid is gone.
+      Environment. When env is set, the runner runs it once per attempt and passes the object to the agent: for a
+      codex profile as `-c shell_environment_policy.set.<KEY>="<value>"` arguments appended to the profile's args,
+      and for any other kind as the environment of the command that starts the agent in the pane. The same object
+      is merged into every gate's environment. An env that fails or prints anything but a JSON object of strings
+      refuses the launch naming why.
+      Heavy gates. When heavy is set, every gate command runs as heavy's argv followed by the gate's argv, still with
+      no shell (gateJudge.ts:131).
+      Tests in packages/runner/test/machineProvider.test.ts with fixture provider scripts, no real provider:
+      - no machine file: launch, env and gates are unchanged;
+      - an admit that exits non-zero refuses the launch, records the provider's line as the because, closes the
+        pane, and starts no agent;
+      - an accepted admit receives the holder and the pane's pid, and release runs when the runner closes the pane;
+      - env's object reaches a codex profile as -c flags and a gate's environment;
+      - heavy prefixes a gate's argv;
+      - a malformed machine.yaml is refused naming the field.
+      Strict TypeScript, no type assertions, no non-null operators. Preserve every historical artifact. No push, no
+      merge; the human merges.
+    gates:
+      - id: provider-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/machineProvider.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: schema-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter schemas exec vitest run --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
