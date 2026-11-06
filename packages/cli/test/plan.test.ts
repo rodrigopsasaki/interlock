@@ -459,6 +459,16 @@ describe("interlock plan", () => {
 
     const result = await runInterlockPlan(["demo", "--ask", "add a health check endpoint"], {
       cwd,
+      runtime: {
+        ...stubRuntime(),
+        checkServer: () =>
+          Promise.resolve(
+            err({
+              kind: "not-ready",
+              message: "herdr's server is not running; open herdr and run again",
+            }),
+          ),
+      },
     });
 
     expect(result.exitCode).toBe(1);

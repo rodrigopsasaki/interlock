@@ -387,22 +387,8 @@ export async function createHerdrRuntime(
 
   return ok({
     async checkServer() {
-      const status = await call("server.status", {});
-      if (isErr(status)) return status;
-      const value = stringAt(status.value, "status") ?? stringAt(status.value, "server", "status");
-      return value === "running"
-        ? ok(undefined)
-        : err(
-            value === undefined
-              ? {
-                  kind: "transport",
-                  because: "server.status: no running status in the result",
-                }
-              : {
-                  kind: "not-ready",
-                  message: "herdr's server is not running; open herdr and run again",
-                },
-          );
+      const pinged = await call("ping", {});
+      return isErr(pinged) ? pinged : ok(undefined);
     },
     async openPane(cwd) {
       const label = repositoryLabel(cwd);

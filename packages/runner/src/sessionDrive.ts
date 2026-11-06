@@ -130,6 +130,7 @@ export interface DriveSessionRequest {
     session: string,
   ) => Promise<Result<BriefWriteOutcome, string>>;
   readonly beforeJudge?: (worktreePath: string) => Promise<Result<void, BeforeJudgeRefusal>>;
+  readonly beforeRuntime?: () => Promise<Result<void, string>>;
   readonly describeDone?: (kind: Outcome["kind"], narrate: (line: string) => void) => string;
 }
 
@@ -186,6 +187,7 @@ export async function driveInteractiveSession(
     afterWorktree,
     composeBrief,
     beforeJudge,
+    beforeRuntime,
     describeDone,
   } = request;
   let narrate = request.narrate;
@@ -196,6 +198,14 @@ export async function driveInteractiveSession(
   let paneCustody: "runner" | "person" = "runner";
 
   try {
+    if (beforeRuntime !== undefined) {
+      const checked = await beforeRuntime();
+      if (isErr(checked)) {
+        narrate(checked.error);
+        return { exitCode: 1, message: checked.error };
+      }
+    }
+
     const createdRuntime =
       injectedRuntime === undefined ? await createHerdrLaunchRuntime() : ok(injectedRuntime);
     if (isErr(createdRuntime)) {
