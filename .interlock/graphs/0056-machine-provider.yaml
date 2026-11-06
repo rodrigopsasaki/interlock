@@ -180,3 +180,28 @@ nodes:
         kind: command
         run: pnpm --fail-if-no-match --filter runner exec vitest run test/runnerCommits.test.ts --passWithNoTests=false
         expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: base-holds-graph
+    role: implementer
+    depends_on: [refusals-stay-resettable]
+    acceptance: |
+      A session never starts on a base that cannot hold its own graph. A brief pins graph_base_sha when its session
+      starts and is immutable after (laws I8). When a kept worktree was cut before its graph existed, that base lacks
+      the graph file, and the session can never file its debrief: on 2026-11-06 preston's 0032-ceilings-per-operation-4
+      session 1fb47ed5 pinned 3774917, which had no 0032-ceilings-per-operation-4.yaml, so `interlock debrief prepare`
+      refused twice, even after main was merged into the worktree, and the session had to be stopped and started again.
+      Before it writes a brief or starts an agent, the runner checks that the base it is about to pin holds
+      .interlock/graphs/<graph>.yaml (git cat-file at that commit). If it does not, the launch is refused with one plain
+      line, "this worktree's base (<short sha>) predates graph <graph>; merge main into graph/<graph>/<node> and run
+      again", and it is a non-terminal refusal from refusals-stay-resettable: the lease is abandoned with no outcome, no
+      brief is committed, and the node runs again once the base is current.
+      Tests in packages/runner/test/baseHoldsGraph.test.ts with a fixture repository:
+      - a kept worktree whose merge-base with main predates the graph file is refused with the line, records no
+        outcome, commits no brief and starts no agent;
+      - after main is merged into that worktree's branch, the same launch proceeds and pins a base that holds the graph;
+      - a fresh worktree cut from a main that holds the graph proceeds as today.
+    gates:
+      - id: base-holds-graph-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/baseHoldsGraph.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
