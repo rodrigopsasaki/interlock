@@ -1,0 +1,106 @@
+interlock: queue@v0
+# The machine-wide order of work, as of 2026-11-06 18:45 UTC. The same list sits beside arcs.yaml in preston,
+# interlock and gilb; at most 2 live agent sessions machine-wide (the bridge until preston 0034 lands).
+# state: running | queued | held. waitsOn says what has to happen first.
+
+queue:
+  - repo: preston
+    graph: 0032-ceilings-per-operation-4
+    node: ceilings
+    arc: ceilings-per-operation
+    state: running
+    waitsOn: the agent's debrief at 24b6e48, then the runner stopped, the debrief committed signed and a hand judgment after the lease lapses
+
+  - repo: preston
+    graph: 0034-machine-limits
+    with: interlock/0056-machine-provider
+    step: strict confirm vet of the core (codex sol, labelled tab)
+    arc: machine-limits-as-a-preston-setting
+    state: running
+    waitsOn: nothing
+
+  - repo: gilb
+    graph: 0002-doors
+    node: door-routes (first build node)
+    arc: talk-to-gilb-from-anywhere
+    state: queued
+    waitsOn: the next free slot, reserved for it
+
+  - repo: preston
+    graph: 0034-machine-limits
+    with: interlock/0056-machine-provider
+    step: build the core
+    arc: machine-limits-as-a-preston-setting
+    state: queued
+    waitsOn: the strict vet approving, the plan PRs merged and the graphs approved
+
+  - repo: interlock
+    graph: 0053-graph-arc
+    step: draft and vet (arc required on every graph, arcs and queue reads)
+    arc: every-ask-is-an-arc
+    state: queued
+    waitsOn: a free slot for its vet; until it lands, no plan PR merges without an arc line and an arcs.yaml entry
+
+  - repo: preston
+    graph: 0036-driver
+    step: vet
+    arc: gilb-drives-preston
+    state: queued
+    waitsOn: the core vets passing
+
+  - repo: preston
+    graph: 0029-review-walks-the-graph
+    node: loads
+    arc: bring-october-back
+    state: queued
+    waitsOn: a free slot; first, remove luna's nested clone (packages/review/test/.runs/combined) from its worktree, then relaunch after the 15:30 UTC freeze interrupted it
+
+  - repo: interlock
+    graph: 0054-provider-routing
+    node: provider-routing
+    arc: spread-work-across-models
+    state: queued
+    waitsOn: a free slot; resumes its kept worktree after the freeze interrupted it
+
+  - repo: interlock
+    graph: 0052-count-tells-the-truth
+    node: landed
+    arc: needs-his-words
+    state: queued
+    waitsOn: a free slot on k3; rerun after the freeze interrupted it, and his words for its arc
+
+  - repo: preston
+    graph: 0030-climb-port
+    node: climb-store
+    arc: bring-october-back
+    state: queued
+    waitsOn: a free slot on k3
+
+  - repo: preston
+    graph: 0031-review-you-can-ask
+    node: stored-findings, with the answered-asks node to add
+    arc: ask-about-my-reviews
+    state: queued
+    waitsOn: the answered-asks plan PR pushed, vetted and merged
+
+  - repo: preston
+    graph: 0033-mcp-port
+    node: mcp-plumbing
+    arc: preston-mcp-back
+    state: queued
+    waitsOn: a free slot
+
+  - repo: preston
+    graph: 0029-review-walks-the-graph
+    step: 0029 acceptance draws (three draws each of phyxius #21, #47 and #53; #47's CAS and #53's want<=0 post on every draw)
+    arc: bring-october-back
+    state: queued
+    waitsOn: 0029 loads
+
+  - repo: preston
+    graph: 0035-limits-smart
+    with: interlock/0057-own-sessions (own-sessions first)
+    step: vet, then build
+    arc: machine-limits-as-a-preston-setting
+    state: held
+    waitsOn: the core (0034 and 0056) landing
