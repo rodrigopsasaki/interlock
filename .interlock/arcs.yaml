@@ -1,0 +1,56 @@
+interlock: arcs@v0
+# Rodrigo, 2026-11-06 18:34 UTC: "nothing should run in 'not in an arc yet' because if I asked for something, the way
+# in which I asked should be the arc, even if the arc has only one graph in it. Arcs are my language, graphs are the
+# result of what the planner decided the work should be to satisfy my intent."
+# Each arc's ask is his message verbatim, as relayed into the project thread; graphs are repo/graph ids. A graph
+# whose ask cannot be found in his words is listed under needs_his_words, never given an invented one.
+
+arcs:
+  - id: interlock-feeds-the-app
+    title: Interlock feeds the app
+    ask: "you need to make interlock capable of feeding that UI ... You're free to do changes on phyxius and interlock too"
+    source: 2026-11-04 23:25 UTC, project chat (the loom-feed-2026-11-04 mandate these graphs cite)
+    graphs:
+      - interlock/0046-loom-feed
+      - interlock/0047-worktree-commits
+      - interlock/0048-landed-tells-the-truth
+      - interlock/0049-worktree-gitdir
+      - interlock/0050-verifier-fixture-writer
+      - interlock/0051-no-detached-maintenance
+
+  - id: spread-work-across-models
+    title: Spread work across models
+    ask: "I want you to have one model of each to do any task, and you do them in round robin or on whoever has the most tokens available. Protect your anthropic tokens to the most because it's what I use to talk to you."
+    source: 2026-11-05 12:49 UTC, project chat (quoted in graph 0054's read)
+    graphs:
+      - interlock/0054-provider-routing
+
+  - id: only-signed-commits
+    title: Only signed commits
+    ask: "I don't want to have unsigned commits"
+    source: 2026-11-05 14:38 UTC, project chat
+    graphs:
+      - interlock/0055-runner-commits
+
+  - id: machine-limits-as-a-preston-setting
+    title: Machine limits as a Preston setting
+    ask: "this has to be managed via Preston settings, I don't want you working around the product when doing this is also the purpose of the product."
+    source: 2026-11-06 15:43 UTC, project chat (the arc's full words, through 17:13 UTC, are in preston's .interlock/arcs.yaml)
+    graphs:
+      - interlock/0056-machine-provider
+      - interlock/0057-own-sessions
+      - preston/0034-machine-limits
+      - preston/0035-limits-smart
+
+  - id: every-ask-is-an-arc
+    title: Every ask is an arc
+    ask: "nothing should run in 'not in an arc yet' because if I asked for something, the way in which I asked should be the arc, even if the arc has only one graph in it. Arcs are my language, graphs are the result of what the planner decided the work should be to satisfy my intent."
+    source: 2026-11-06 18:34 UTC, project chat
+    graphs:
+      - interlock/0053-graph-arc (to be drafted)
+
+needs_his_words:
+  - graph: interlock/0052-count-tells-the-truth
+    found: cites only the loom-feed mandate and a cockpit reading ("35 things need you"); its retire node acted on his 12:24 UTC message, whose exact words are not held here
+  - graph: interlock/0001-bootstrap .. interlock/0045, interlock/readme-interlock-concept
+    found: finished before arcs existed; not searched message by message yet
