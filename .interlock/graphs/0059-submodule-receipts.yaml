@@ -1,0 +1,92 @@
+interlock: graph@v0
+id: 0059-submodule-receipts
+arc: talk-to-gilb-from-anywhere
+ask: The judge hashes a submodule by the commit its gitlink records instead of reading it as a file, and a resumed session keeps the signed code of the attempt it resumes inside its debrief range, so a repository with submodules can be judged and a hand-committed attempt can be resumed.
+derivation:
+  kind: model
+  model: gilb (Claude)
+  prompt: submodule-receipts-2026-11-06
+authorization:
+  granted_by: Rodrigo Sasaki
+  mandate: loom-feed-2026-11-04  # "You're free to do changes on phyxius and interlock too", 23:25 UTC
+  approver: Rodrigo Sasaki; Gilb relays the recorded approval and coordinates cleared-node merges. The cross-vendor vet is advisory.
+read: >
+  Arc: talk-to-gilb-from-anywhere (.interlock/arcs.yaml). Gilb's graph 0002-doors builds Gilb's doors; its first
+  node, door-routes, is done, signed, green by hand and debriefed, and waits only on this graph, because Interlock's
+  judge cannot judge any node in Gilb's repository.
+
+  The crash. `interlock judge` on a repository with a git submodule fails with EISDIR. The scope is plain
+  `git ls-files` (packages/runner/src/scope.ts:6), which lists a gitlink (mode 160000, here Gilb's dialeto submodule)
+  as a path; receiptId reads every scope path as a file (packages/ledger/src/receipt.ts:84, `readFile`), so the
+  gitlink's directory throws, from createReceipt in judgeGates (packages/runner/src/gateJudge.ts:243). A gitlink's
+  content, as git itself records it, is the commit id it points at.
+
+  The range. In the hand-commit flow (codex profiles are commits: agent until a codex live-work evidence source
+  exists), the runner's session commits the agent's code signed, and a resumed session writes a new brief commit
+  after it (packages/runner/src/sessionDrive.ts:255, commitBriefIfChanged). The resumed session's start is its own
+  session-started event (packages/cli/src/debrief/sessionIdentity.ts:138-142), so the signed code of the attempt it
+  resumes falls before session_start_sha, outside the debrief's range, and the decisions that rest on it are
+  unrooted. Seen on 2026-11-06 for preston 0032-4 and interlock 0056 refusals-stay-resettable.
+
+  Dropped: an enter-submits node (herdr's prompt submit) is moot since graph 0060-headless-runtime removes herdr.
+
+  Order. Vetted after the running preston 0036 vet, built ahead of graph 0054 since it unblocks Gilb. Every attempt
+  opens with: run one heavy command at a time, never several in parallel or in the background; never clone the
+  repository inside your worktree, use the worktree you were given.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: gitlinks-hash-commit
+    role: implementer
+    depends_on: []
+    acceptance: |
+      The scope reads `git ls-files -s` (packages/runner/src/scope.ts:6) and keeps each entry's mode and object id
+      beside its path. receiptId (packages/ledger/src/receipt.ts:84) hashes a mode 160000 entry (a gitlink) by its
+      path and the commit id the index records for it, never by reading the path from disk, and hashes every other
+      entry as today, so every receipt for a repository without submodules is byte-identical to today's (the
+      receipt ids of existing receipts do not change). A submodule bump changes the recorded commit id and so the
+      receipt; a submodule whose checkout on disk differs from its recorded commit does not, since the index is the
+      truth the commit carries. A gitlink missing from disk, or a submodule never initialized, hashes the same way and
+      never throws. The scope type names the entry kind (file or gitlink) so no caller reads a gitlink as a file.
+      Tests in packages/runner/test/submoduleReceipts.test.ts on a real fixture: a temporary repository that adds a
+      second temporary repository as a submodule (git -c protocol.file.allow=always submodule add, local paths only,
+      no network):
+      - judging a node whose scope includes the gitlink writes a receipt and does not throw;
+      - committing a submodule bump changes the receipt id; changing only the submodule's working checkout does not;
+      - an uninitialized submodule hashes without throwing;
+      - a repository without submodules yields the same receipt id as before the change, for a fixed fixture whose
+        expected id is written in the test.
+      Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
+    gates:
+      - id: submodule-receipts-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/submoduleReceipts.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: resume-keeps-range
+    role: implementer
+    depends_on: []
+    acceptance: |
+      A resumed session's debrief range keeps the signed code of the attempt it resumes. When a session starts on a
+      worktree whose branch carries commits beyond the graph base made for the same graph and node by an earlier
+      session that filed no debrief (the runner already narrates this as "worktree carries prior work",
+      packages/runner/src/sessionDrive.ts:240), the session-started event records that earlier session's start as the
+      range start it inherits, and deriveSessionStart (packages/cli/src/debrief/sessionIdentity.ts:117) uses the
+      inherited start, so session_start_sha..head covers the earlier attempt's signed commits and the new brief commit
+      both. A session whose worktree carries no such prior work starts its range at its own start, exactly as today.
+      An earlier session whose debrief was filed and judged is never inherited from: its range is closed. The
+      inherited start is recorded as such in the event (the earlier session's id beside it), so the chain is
+      walkable, and the event schema evolves additively with a reader that accepts every event already written.
+      Tests in packages/cli/test/resumeRange.test.ts on a fixture repository and journal:
+      - a session commits signed-style code, stops without a debrief, and a resumed session writes a new brief commit:
+        debrief prepare's range includes the earlier code commit and the decisions rooted in it validate;
+      - a fresh session with no prior work keeps today's range;
+      - prior work from an earlier session whose debrief was filed is not inherited;
+      - an existing session-started event without the new field still reads.
+      Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
+    gates:
+      - id: resume-range-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/resumeRange.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
