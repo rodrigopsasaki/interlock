@@ -1,0 +1,53 @@
+interlock: debrief@v2
+graph: 0055-runner-commits
+node: runner-commits
+role: implementer
+graph_base_sha: 550dbbf084e51e4426f82a49341235a3f00d5c0c
+session_start_sha: 1511cf957aae48afbc24a9acd48c4e302757fd80
+head_sha: bca9a417185cf5c97feeed2fd907a178be07816d
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-6
+discoveries: []
+decisions:
+  - id: keep-signing-fixture-statically-readable
+    what: Write the signing stub from literal shell lines, derive its counter path
+      from its own filename, and read the requested failure count from an
+      adjacent fixture file.
+    because: The process guard must audit generated shell content statically. Moving
+      variable fixture data outside the script preserves deterministic signing
+      failures and rollback coverage without weakening the guard.
+    rests_on:
+      - packages/cli/test/fixtureGuard.test.ts
+      - packages/runner/test/runnerCommits.test.ts:138-155
+    hunks:
+      - packages/runner/test/runnerCommits.test.ts:138-155
+gates_run_by_agent:
+  - id: fixture-guard-repair
+    result: pass
+    invocation: pnpm --filter cli exec vitest run test/fixtureGuard.test.ts
+      --passWithNoTests=false
+    note: 69 tests passed on 2026-11-06 with the fixture repair before its signed
+      commit at bca9a41; executed through mise with the pinned toolchain.
+  - id: runner-commits-proof
+    result: pass
+    invocation: pnpm --filter runner exec vitest run test/runnerCommits.test.ts
+      --passWithNoTests=false
+    note: 41 tests passed on 2026-11-06 with the fixture repair before its signed
+      commit at bca9a41, including deliberate signing failures and rollback. No
+      real signing key is used by this proof.
+open:
+  - This resumed filing covers the fixture repair in the derived
+    1511cf9..bca9a41 range. The earlier implementation debrief and
+    standing-check reports remain in revision history. Only the two requested
+    focused fixture checks were rerun for the repair; runner gate receipts
+    remain binding.
+  - The earlier standing pnpm test run stopped at sandbox-denied localhost HTTP
+    listeners; its full result still needs runner verification outside that
+    restriction.
+  - "The owner-managed ~/.config/interlock/runtimes.yaml was not edited. Add
+    commits: runner under each kind: codex profile to adopt runner custody."
+  - The owner reports the fixture repair committed and signed at bca9a41. Leave
+    notes, commits.yaml, candidates, revisions and the selected debrief
+    uncommitted for runner custody under the explicit session instruction.

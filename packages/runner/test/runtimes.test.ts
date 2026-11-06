@@ -4,6 +4,7 @@ import { isErr, isOk } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
 import type { LocalConfig } from "../src/localConfig.ts";
 import {
+  type CatalogueRuntime,
   explainMergeRuntimesRefusal,
   explainRuntimeCatalogueRefusal,
   loadRuntimeCatalogue,
@@ -115,6 +116,7 @@ describe("loadRuntimeCatalogue: a valid catalogue", () => {
     expect(isOk(result)).toBe(true);
     if (isOk(result)) {
       expect(result.value.get("fast")).toEqual({
+        commits: "agent",
         kind: "claude",
         args: ["--flag"],
         model: "fast-model-label",
@@ -126,6 +128,7 @@ describe("loadRuntimeCatalogue: a valid catalogue", () => {
         writableRootArgs: undefined,
       });
       expect(result.value.get("careful")).toEqual({
+        commits: "agent",
         kind: "codex",
         args: [],
         model: "careful-model-label",
@@ -374,10 +377,11 @@ describe("runtimeCataloguePath", () => {
 
 describe("mergeRuntimes", () => {
   it("merges catalogue entries with the legacy default from local.yaml", () => {
-    const catalogue = new Map([
+    const catalogue = new Map<string, CatalogueRuntime>([
       [
         "fast",
         {
+          commits: "agent",
           kind: "claude",
           args: [],
           model: "fast-model-label",
@@ -426,10 +430,11 @@ describe("mergeRuntimes", () => {
   });
 
   it("inherits local.yaml's legacy prompt_taken_timeout_ms for a catalogue entry that omits its own", () => {
-    const catalogue = new Map([
+    const catalogue = new Map<string, CatalogueRuntime>([
       [
         "fast",
         {
+          commits: "agent",
           kind: "claude",
           args: [],
           model: "fast-model-label",
@@ -460,10 +465,11 @@ describe("mergeRuntimes", () => {
   });
 
   it("falls back to the 20000ms default when neither a catalogue entry nor local.yaml declare prompt_taken_timeout_ms", () => {
-    const catalogue = new Map([
+    const catalogue = new Map<string, CatalogueRuntime>([
       [
         "fast",
         {
+          commits: "agent",
           kind: "claude",
           args: [],
           model: "fast-model-label",
@@ -488,10 +494,11 @@ describe("mergeRuntimes", () => {
   });
 
   it("keeps a catalogue entry's own prompt_taken_timeout_ms over local.yaml's legacy value", () => {
-    const catalogue = new Map([
+    const catalogue = new Map<string, CatalogueRuntime>([
       [
         "fast",
         {
+          commits: "agent",
           kind: "claude",
           args: [],
           model: "fast-model-label",
@@ -532,10 +539,11 @@ describe("mergeRuntimes", () => {
   });
 
   it("refuses when the catalogue also declares a runtime named default", () => {
-    const catalogue = new Map([
+    const catalogue = new Map<string, CatalogueRuntime>([
       [
         "default",
         {
+          commits: "agent",
           kind: "claude",
           args: [],
           model: "m",
@@ -575,10 +583,11 @@ describe("mergeRuntimes", () => {
   });
 
   it("accepts default_runtime naming a known catalogue entry", () => {
-    const catalogue = new Map([
+    const catalogue = new Map<string, CatalogueRuntime>([
       [
         "fast",
         {
+          commits: "agent",
           kind: "claude",
           args: [],
           model: "m",
@@ -707,5 +716,36 @@ describe("loadRuntimeCatalogue: writable_root_args", () => {
       before: ["--test-write-root"],
       after: [],
     });
+  });
+});
+
+describe("catalogue commit custody", () => {
+  it.each(["runtimes@v0", "runtimes@v1"])("defaults %s to agent commits", async (tag) => {
+    const result = await loadRuntimeCatalogue(
+      fixtureFile(`interlock: ${tag}\nruntimes:\n  worker:\n    kind: fake\n    model: m\n`),
+    );
+    if (isErr(result)) throw new Error(JSON.stringify(result.error));
+    expect(result.value.get("worker")?.commits).toBe("agent");
+  });
+  it("passes runner custody through merge and selection", async () => {
+    const result = await loadRuntimeCatalogue(
+      fixtureFile(
+        "interlock: runtimes@v1\nruntimes:\n  worker:\n    kind: fake\n    model: m\n    commits: runner\n",
+      ),
+    );
+    if (isErr(result)) throw new Error(JSON.stringify(result.error));
+    const merged = mergeRuntimes(result.value, undefined);
+    if (isErr(merged)) throw new Error(JSON.stringify(merged.error));
+    const selected = selectRuntime(merged.value, "worker");
+    if (isErr(selected)) throw new Error(JSON.stringify(selected.error));
+    expect(selected.value.commits).toBe("runner");
+  });
+  it.each(["both", "null", "7"])("refuses invalid commits %s", async (commits) => {
+    const result = await loadRuntimeCatalogue(
+      fixtureFile(
+        `interlock: runtimes@v1\nruntimes:\n  worker:\n    kind: fake\n    model: m\n    commits: ${commits}\n`,
+      ),
+    );
+    expect(isErr(result)).toBe(true);
   });
 });

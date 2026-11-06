@@ -55,6 +55,13 @@
             "items": {
               "$ref": "parts/gate-declaration.json"
             }
+          },
+          "paths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Optional declared path globs. The node session directory is always declared; absent uses the tracked tree and safe new paths."
           }
         },
         "required": [

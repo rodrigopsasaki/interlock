@@ -16,6 +16,7 @@ export interface GateDeclaration {
 }
 
 export interface NodeDeclaration {
+  readonly paths?: readonly string[];
   readonly id: string;
   readonly role?: NodeRole;
   readonly acceptance?: string;
@@ -148,6 +149,11 @@ function parseShape(parsed: unknown): Result<GraphDocument, string> {
       return err(`node "${nodeId}": "acceptance" must be a string`);
     }
 
+    const paths = prop(rawNode, "paths");
+    if (paths !== undefined && !isStringArray(paths)) {
+      return err(`node "${nodeId}": "paths" must be a list of globs`);
+    }
+
     const rawDependsOn = prop(rawNode, "depends_on");
     if (rawDependsOn !== undefined && !isStringArray(rawDependsOn)) {
       return err(`node "${nodeId}": "depends_on" must be a list of strings`);
@@ -158,6 +164,7 @@ function parseShape(parsed: unknown): Result<GraphDocument, string> {
 
     nodes.push({
       id: nodeId,
+      ...(paths === undefined ? {} : { paths }),
       ...(role === undefined ? {} : { role: role.value }),
       ...(rawAcceptance === undefined ? {} : { acceptance: rawAcceptance }),
       dependsOn: rawDependsOn ?? [],

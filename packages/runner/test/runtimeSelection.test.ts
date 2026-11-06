@@ -6,6 +6,7 @@ import { explainRuntimeSelectionRefusal, selectRuntime } from "../src/runtimeSel
 function runtimeNamed(name: string, source: ResolvedRuntime["source"]): ResolvedRuntime {
   return {
     name,
+    commits: "agent",
     kind: "claude",
     args: [],
     model: undefined,
