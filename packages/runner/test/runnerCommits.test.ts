@@ -137,16 +137,18 @@ function repository(
 }
 function signing(root: string, failAt = 0): void {
   const program = join(directory, "signer");
-  const count = join(directory, "sign-count");
+  writeFileSync(`${program}.fail-at`, String(failAt));
   writeFileSync(
     program,
     [
       "#!/bin/sh",
       "cat >/dev/null",
-      `count=$(cat '${count}' 2>/dev/null || printf 0)`,
+      'count_path="${0%/*}/sign-count"',
+      'count=$(cat "$count_path" 2>/dev/null || printf 0)',
       "count=$((count + 1))",
-      `printf '%s' "$count" > '${count}'`,
-      `if [ "$count" -eq ${failAt} ]; then echo 'fixture signing failed' >&2; exit 1; fi`,
+      'printf \'%s\' "$count" > "$count_path"',
+      'fail_at=$(cat "$0.fail-at")',
+      'if [ "$count" -eq "$fail_at" ]; then echo \'fixture signing failed\' >&2; exit 1; fi',
       "printf '%s\\n' '-----BEGIN PGP SIGNATURE-----' '' 'Zml4dHVyZQ==' '-----END PGP SIGNATURE-----'",
       "echo '[GNUPG:] SIG_CREATED D 1 10 00 0 0123456789012345678901234567890123456789' >&2",
       "",
