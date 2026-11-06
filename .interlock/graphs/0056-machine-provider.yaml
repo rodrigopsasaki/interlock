@@ -87,3 +87,32 @@ nodes:
         kind: command
         run: pnpm --fail-if-no-match --filter schemas exec vitest run --passWithNoTests=false
         expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: refusals-stay-resettable
+    role: implementer
+    depends_on: []
+    acceptance: |
+      A machine that is not ready never decides a node. Since graph 0055, the runner's refuse (packages/runner/src/
+      sessionDrive.ts:211-222) appends a failed outcome for every refusal on a `commits: runner` profile. A failed
+      outcome is decided (packages/ledger/src/outcome.ts:66-71), so node reset refuses it and the runner asks for a new
+      graph version (decidedNode.ts:9). On 2026-11-06 a launch made while herdr was not running ("herdr.sock: no
+      socket found") failed preston's 0032 ceilings for good, and the graph had to be re-issued as
+      0032-ceilings-per-operation-2. Graph 0055's acceptance asked for a recorded failure only on its four commit
+      refusals.
+      Only those four record a failed outcome, with their failure, disposition and because as 0055 specified: a path
+      outside the node's declared paths, a secret-looking path, an invalid commits.yaml, and a commit or signing
+      failure. Every other refusal, on any profile, abandons the lease with no outcome, as before 0055: the runtime
+      or its server not attached, worktree or worktree setup, brief, pane or agent start, prompt delivery, and the
+      machine provider's admit or env from this graph. Make the split a closed type over the refusal steps, so a new
+      step must say which side it is on.
+      Tests in packages/runner/test/refusalOutcomes.test.ts with fixture runtimes:
+      - a herdr-down refusal on a commits: runner profile records no outcome; `interlock node reset` then has
+        nothing to refuse and a second `interlock run` proceeds;
+      - a worktree setup refusal and an agent start refusal record no outcome, on runner and agent profiles;
+      - each of the four commit refusals still records failed, as 0055's tests assert;
+      - every refusal step is classified (the type check fails for an unclassified step).
+    gates:
+      - id: refusal-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/refusalOutcomes.test.ts test/runnerCommits.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
