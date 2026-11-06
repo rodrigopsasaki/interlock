@@ -1,14 +1,12 @@
 interlock: commits@v0
 entries:
-  - message: |-
-      fix(runner): keep non-commit refusals resettable
-
-      Classify refusal steps so only runner commit failures decide nodes, and preflight runtime health before any launch state is written.
+  - message: "fix(runner): use herdr ping and defer preflight past plan refusals"
     paths:
+      - packages/cli/src/plan.ts
+      - packages/cli/test/plan.test.ts
       - packages/runner/src/herdr/adapter.ts
-      - packages/runner/src/runtime.ts
       - packages/runner/src/sessionDrive.ts
       - packages/runner/test/herdr/adapter.test.ts
       - packages/runner/test/herdr/fakeServer.ts
-      - packages/runner/test/refusalOutcomes.test.ts
-co_authored_by: GPT-5.6-Luna <noreply@openai.com>
+fallback_subject: "chore: record the refusal repair session"
+co_authored_by: "GPT-5 <noreply@openai.com>"

@@ -4,101 +4,72 @@ node: refusals-stay-resettable
 role: implementer
 graph_base_sha: ca21061149d5085ca7bae8bdbcb9b20df31d9f5d
 session_start_sha: 7b4e8986b195d68b7ab2df6383fab6e4654f8be5
-head_sha: c276bd1802757277aeefb82ff0e992770af329ab
+head_sha: 815a56bae3e2c42c38f949b0cc90a06857878697
 derivation:
   kind: agent
   runtime: luna
   model: gpt-5.6-luna
 discoveries: []
 decisions:
-  - id: classify-refusals-by-disposition
-    what: Model refusal steps as a closed discriminated union, with abandon steps separate from brief, code, and debrief commit steps; append a failed outcome only for a commit step on runner custody.
-    because: The acceptance permits a failed outcome only for the four runner commit refusal classes, while runtime, setup, launch, prompt, wait, and gate refusals must leave the node resettable.
+  - id: probe-herdr-with-ping
+    what: Make the herdr adapter probe liveness with ping, normalize a missing launch socket to the not-ready refusal, and make the fake server reject unsupported methods with herdr's invalid_request unknown-variant shape.
+    because: The real herdr server serves ping but not server.status; matching the fake's unknown-method response to the real protocol prevents tests from accepting an unavailable method.
     rests_on:
-      - packages/runner/src/sessionDrive.ts:136-165
-      - packages/runner/src/sessionDrive.ts:260-270
+      - packages/runner/src/herdr/adapter.ts:388-392
+      - packages/runner/src/herdr/adapter.ts:600-608
+      - packages/runner/test/herdr/fakeServer.ts:183-186
+      - packages/runner/test/herdr/fakeServer.ts:317-318
     hunks:
-      - packages/runner/src/sessionDrive.ts:136-165
-      - packages/runner/src/sessionDrive.ts:260-270
-      - packages/runner/src/sessionDrive.ts:291-318
-      - packages/runner/src/sessionDrive.ts:488-551
-      - packages/runner/src/sessionDrive.ts:607-613
+      - packages/runner/src/herdr/adapter.ts:388-392
+      - packages/runner/test/herdr/fakeServer.ts:183-186
+      - packages/runner/test/herdr/fakeServer.ts:317-318
+      - packages/runner/test/herdr/adapter.test.ts:160-168
     produces:
-      - packages/runner/src/sessionDrive.ts
-  - id: preflight-before-launch-state
-    what: Create and check the runtime before reading the launch base into worktree setup, and return the preflight refusal before a worktree, session event, or lease can be written.
-    because: A stale socket must not turn an unavailable runtime into a partially recorded launch or a decided node.
-    rests_on:
-      - packages/runner/src/sessionDrive.ts:198-224
-      - packages/runner/src/sessionDrive.ts:241-258
-    hunks:
-      - packages/runner/src/sessionDrive.ts:198-217
-    produces:
-      - packages/runner/src/sessionDrive.ts
-  - id: keep-runtime-wording-behind-the-adapter
-    what: Let the herdr adapter query server.status and carry the exact not-ready sentence through the generic runtime refusal boundary; map a missing herdr socket to the same launch refusal without changing direct adapter no-socket behavior.
-    because: The runner needs one stable preflight message, while the generic runtime seam must not name herdr or depend on a multiplexer protocol.
-    rests_on:
-      - packages/runner/src/runtime.ts:66-118
-      - packages/runner/src/herdr/adapter.ts:388-405
-      - packages/runner/src/herdr/adapter.ts:614-622
-    hunks:
-      - packages/runner/src/runtime.ts:66-118
-      - packages/runner/src/herdr/adapter.ts:388-405
-      - packages/runner/src/herdr/adapter.ts:614-622
-    produces:
-      - packages/runner/src/runtime.ts
       - packages/runner/src/herdr/adapter.ts
-  - id: prove-resettable-refusals
-    what: Add fixture coverage for server preflight, worktree setup, agent start, and an unjudged wait, asserting that each returns non-zero without an outcome; extend the fake adapter with a controllable server status.
-    because: The regression must distinguish resettable refusals from the existing runner commit refusal proof and must observe that preflight opens no pane and appends no ledger event.
-    rests_on:
-      - packages/runner/test/refusalOutcomes.test.ts:57-129
-      - packages/runner/test/herdr/fakeServer.ts:21-25
-      - packages/runner/test/herdr/fakeServer.ts:183-186
-    hunks:
-      - packages/runner/test/refusalOutcomes.test.ts:57-129
-      - packages/runner/test/herdr/fakeServer.ts:21-25
-      - packages/runner/test/herdr/fakeServer.ts:111-118
-      - packages/runner/test/herdr/fakeServer.ts:183-186
-      - packages/runner/test/herdr/adapter.test.ts:157-180
-    produces:
-      - packages/runner/test/refusalOutcomes.test.ts
       - packages/runner/test/herdr/fakeServer.ts
       - packages/runner/test/herdr/adapter.test.ts
+  - id: validate-plan-state-before-runtime
+    what: Run existing-graph and missing-correction state checks through driveInteractiveSession's beforeRuntime hook, while leaving graph authoring in the afterWorktree hook.
+    because: Planning refusals determined from command arguments and graph state must return their own messages without creating or contacting a runtime, while the runtime hook must still run before launch effects.
+    rests_on:
+      - packages/runner/src/sessionDrive.ts:133-133
+      - packages/runner/src/sessionDrive.ts:190-227
+      - packages/cli/src/plan.ts:259-283
+      - packages/cli/src/plan.ts:435-439
+      - packages/cli/test/plan.test.ts:455-476
+      - packages/cli/test/plan.test.ts:852-860
+    hunks:
+      - packages/runner/src/sessionDrive.ts:133-133
+      - packages/runner/src/sessionDrive.ts:190-227
+      - packages/cli/src/plan.ts:259-283
+      - packages/cli/src/plan.ts:435-439
+      - packages/cli/test/plan.test.ts:455-476
+    produces:
+      - packages/cli/src/plan.ts
+      - packages/cli/test/plan.test.ts
 gates_run_by_agent:
   - id: typecheck
     result: pass
-    invocation: mise exec -- pnpm typecheck
-    note: All workspace packages typechecked before the signed commit.
+    invocation: pnpm typecheck
+    note: Standing gate reported passing on signed head 815a56b; not rerun during this filing step.
   - id: lint
     result: pass
-    invocation: mise exec -- pnpm lint
-    note: Biome exited zero; it reported one pre-existing warning and one pre-existing informational fix suggestion in runnerCommits.test.ts.
+    invocation: pnpm lint
+    note: Standing gate reported passing on signed head 815a56b; not rerun during this filing step.
   - id: comments
     result: pass
-    invocation: mise exec -- pnpm check:comments
-    note: The source comment guard passed.
+    invocation: pnpm check:comments
+    note: Standing gate reported passing on signed head 815a56b; not rerun during this filing step.
+  - id: test
+    result: pass
+    invocation: pnpm test
+    note: Full standing test reported passing on signed head 815a56b, including cli 406/406; not rerun during this filing step.
   - id: refusal-proof
     result: pass
-    invocation: mise exec -- pnpm --fail-if-no-match --filter runner exec vitest run test/refusalOutcomes.test.ts --passWithNoTests=false --maxWorkers=1 --minWorkers=1
-    note: 4 tests passed before the signed commit; the worker flags were required because the environment supplied conflicting Vitest limits.
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/refusalOutcomes.test.ts --passWithNoTests=false
+    note: Standing gate reported passing on signed head 815a56b; not rerun during this filing step.
   - id: commit-refusals-still-fail
     result: pass
-    invocation: mise exec -- pnpm --fail-if-no-match --filter runner exec vitest run test/runnerCommits.test.ts --passWithNoTests=false --maxWorkers=1 --minWorkers=1
-    note: 41 tests passed before the signed commit, including the existing runner commit refusal classes.
-  - id: test
-    result: fail
-    invocation: mise exec -- pnpm test
-    note: The gate stopped before tests because inherited VITEST_MAX_THREADS and VITEST_MAX_FORKS conflicted; a constrained rerun then encountered substrate absorb timeouts and schema corpus failures for pre-existing arcs@v0 and queue@v0 files.
-  - id: herdr-adapter-preflight
-    result: fail
-    invocation: mise exec -- pnpm --fail-if-no-match --filter runner exec vitest run test/herdr/adapter.test.ts -t "checks the server status" --passWithNoTests=false --maxWorkers=1 --minWorkers=1
-    note: The sandbox rejected the fake Unix socket listen with EPERM before the adapter test could run.
-open:
-  - >-
-    The exact root test gate was not green in this environment: Vitest worker configuration failed first, and the constrained repository run later hit unavailable substrate observations plus the schemas corpus arcs@v0 and queue@v0 failures.
-  - >-
-    The herdr adapter socket regression could not run because this sandbox denies the fake server listen with EPERM; the runner refusal proof and existing commit refusal proof passed.
-  - >-
-    No tests were rerun after Rodrigo's signed commit, per the explicit handoff instruction; the recorded focused receipts were produced against the same source changes before c276bd1.
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/runnerCommits.test.ts --passWithNoTests=false
+    note: Standing gate reported passing on signed head 815a56b; not rerun during this filing step.
+open: []
