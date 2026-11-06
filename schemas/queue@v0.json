@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/queue@v0.json",
+  "title": "queue@v0",
+  "description": "The machine-wide order of work. Each entry names a repository's graph, the node or step it is at, the arc it serves, its state and what it waits on.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "interlock": {
+      "const": "queue@v0"
+    },
+    "queue": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "repo": {
+            "$ref": "#/$defs/line"
+          },
+          "graph": {
+            "$ref": "#/$defs/line"
+          },
+          "node": {
+            "$ref": "#/$defs/line"
+          },
+          "step": {
+            "$ref": "#/$defs/line"
+          },
+          "with": {
+            "$ref": "#/$defs/line"
+          },
+          "arc": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "state": {
+            "enum": [
+              "running",
+              "queued",
+              "held"
+            ]
+          },
+          "waitsOn": {
+            "$ref": "#/$defs/line"
+          }
+        },
+        "required": [
+          "repo",
+          "graph",
+          "arc",
+          "state",
+          "waitsOn"
+        ]
+      }
+    }
+  },
+  "required": [
+    "interlock",
+    "queue"
+  ],
+  "$defs": {
+    "line": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?=.*\\S)[^\\r\\n\\u0000]+$"
+    }
+  }
+}
