@@ -31,8 +31,11 @@ read: >
   0057-own-sessions (own-sessions, then plan-reviews-are-sessions), sequenced after this graph so the machine
   provider protects launches first. Nothing is dropped.
 
-  Out of scope: Interlock deciding any limit itself, reading memory, or knowing Preston. Without a machine file the
-  runner behaves exactly as today, and `interlock run` says once per launch that no machine provider is configured.
+  Out of scope: Interlock deciding any limit itself, reading memory, or knowing Preston. The machine file is
+  required: without one the runner refuses agent launches and heavy commands, saying how to write it, and a
+  machine that wants no provider says so explicitly with `provider: none`, which keeps today's behaviour. Landing
+  this graph on Rodrigo's Mac: Gilb writes machine.yaml with `provider: none` at once (the bridge still limits
+  work), then names Preston's commands when graph 0034 lands, per 0034's bridge-gone handoff.
 gates:
   - id: approved
     kind: human
@@ -49,7 +52,10 @@ nodes:
           release: [argv...]    # {token}
           env: [argv...]        # prints a JSON object of string values
           heavy: [argv...]      # prefix for every heavy command
-      An absent file means today's behaviour, narrated once per launch. A present file is all or nothing: a
+      or, explicitly, `provider: none`.
+      An absent file refuses every launch and heavy command before anything is written, with one line ("no machine
+      provider is configured; write ~/.config/interlock/machine.yaml, or `provider: none` to run without one").
+      `provider: none` means today's behaviour, narrated once per launch. A provider is all or nothing: a
       provider missing any of the four keys, or malformed, refuses every launch before anything is written, naming the
       missing or bad field. The runner resolves the machine file before worktree setup.
       Order of a launch. Run env first (below); an env that fails, exits non-zero or prints anything but a JSON object
@@ -61,6 +67,11 @@ nodes:
       output line verbatim and returns it as the exit message, closes the pane, abandons the lease with no outcome
       (refusals-stay-resettable), and starts no agent, so the same node runs again once the machine has room.
       Release. When the runner closes a pane it admitted and the close is confirmed, it runs release with the token.
+      Both the close and the release are outbox effects (laws I7): intent persisted in the ledger before dispatch,
+      a stable identity (pane id and session for the close, token for the release), delivery recorded, and a lost
+      acknowledgement or a crash between the two recorded as uncertain and reconciled on the runner's next start
+      (ask the adapter whether the pane still exists; re-send a release whose delivery is uncertain, which the
+      provider treats as idempotent per token).
       Confirmation is complete or it is not: the herdr adapter's closePane (herdr/adapter.ts:541-555) returns an
       error whenever its tab inspection or the close itself fails, instead of reporting success, and the runner
       (sessionDrive.ts:587-593) reads that result instead of ignoring it. A close that fails or times out keeps the
@@ -78,7 +89,10 @@ nodes:
       backfill.ts:99), including gates run by a standalone `interlock judge` (packages/cli/src/judge.ts:169-182,
       packages/runner/src/judgeWorktree.ts), which resolves the machine file the same way.
       Tests in packages/runner/test/machineProvider.test.ts with fixture provider scripts, no real provider:
-      - no machine file: setup, launch, env and gates are unchanged, and the launch narrates no provider;
+      - no machine file refuses the launch with the line before writing anything; `provider: none` leaves setup,
+        launch, env and gates unchanged and narrates no provider;
+      - a crash after the close and before the release leaves an uncertain release that the next start re-sends
+        once, and the provider sees one release per token;
       - admit runs after the pane opens and before the agent starts, with holder, token and pid; a non-zero admit
         refuses the launch with the provider's line, closes the pane, records no outcome and starts no agent, and
         a second run after the fixture provider admits succeeds;
