@@ -10,6 +10,9 @@ arcs:
     title: Interlock feeds the app
     ask: "you need to make interlock capable of feeding that UI ... You're free to do changes on phyxius and interlock too"
     source: 2026-11-04 23:25 UTC, project chat (the loom-feed-2026-11-04 mandate these graphs cite)
+    also_said:
+      - words: "do all these things really need me?"
+        source: 2026-11-05 12:24 UTC (0052's approval receipt in .interlock/ledger/journal.jsonl; preston's .interlock/handoff.md:159); 0052 placed here on his 22:06 UTC word (cmsg_01BN1q6CYuBjcZAFT6C2pgFd6QJVvmV1AsDav1RxL4JYZo)
     graphs:
       - interlock/0046-loom-feed
       - interlock/0047-worktree-commits
@@ -17,6 +20,7 @@ arcs:
       - interlock/0049-worktree-gitdir
       - interlock/0050-verifier-fixture-writer
       - interlock/0051-no-detached-maintenance
+      - interlock/0052-count-tells-the-truth
 
   - id: spread-work-across-models
     title: Spread work across models
@@ -71,8 +75,21 @@ arcs:
       - interlock/0060-headless-runtime
       - preston/0038-lean-install
 
+  - id: interlock-runs-any-runtime
+    title: Interlock runs any runtime
+    ask: "I want you to be able to invoke sessions of any of the available models I have… orchestrate lunas or kimi 3.0s. Plan the work."
+    source: 2025-09-24, as quoted (trimmed) on the hand-kept arcs page (interlock-notes/the-arcs-2026-09-26.html, arc "Jarvis"; the graphs' derivation prompts rodrigo-conversation-2026-09-24-*); registered 2026-11-06 on his 22:06 UTC word, "give these arcs please" (cmsg_01BN1q6CYuBjcZAFT6C2pgFd6QJVvmV1AsDav1RxL4JYZo)
+    also_said:
+      - words: "My Jarvis, literally."
+        source: 2025-09-24, the same page
+      - words: "I want it gone, I want a good integration for you on this, not to have to keep babysitting or working around anything."
+        source: 2025-09-24, the same page
+    graphs:
+      - interlock/0043-any-runtime
+      - interlock/0044-runtime-coverage
+
 needs_his_words:
-  - graph: interlock/0052-count-tells-the-truth
-    found: cites only the loom-feed mandate and a cockpit reading ("35 things need you"); its retire node acted on his 12:24 UTC message, whose exact words are not held here
-  - graph: interlock/0001-bootstrap .. interlock/0045, interlock/readme-interlock-concept
-    found: finished before arcs existed; not searched message by message yet
+  - graph: interlock/0008-learning-witness .. interlock/0041-citation-type-repair (every file present; 0016, 0017, 0027 and 0030 do not exist)
+    found: the learning-loop work. His per-run mandates are held verbatim ("ok, try another 6, and see if we can have a more fluent process", interlock-notes/second-six-graph-mandate-2026-09-14.md:5, for 0009 to 0013; "ok you are cleared for another 10 iterations, then present them in the same way", interlock-notes/2026-09-16-ten-iteration-learning-find-shape.md:5, for 0031 to 0040; "alright, you are cleared until completion of M5 or 15 iterations, whatever comes first", interlock-notes/2026-09-16-m5-exit-find-shape.md:5, for 0041), but they authorize runs and are not the ask; the one ask-shaped quote (interlock-notes/FABLE-CONTINUE-M5-AND-ASSESS-JEV.md:11-13) reads as a takeover prompt that may have been drafted for him, so it is not written here as his words
+  - graph: interlock/0001-bootstrap .. interlock/0007-absorb-outbox, interlock/readme-interlock-concept
+    found: derived from his design conversation of 2025-09-10/11 and approved by him in conversation (receipts in .interlock/ledger/journal.jsonl), with no words of his held; 0005, 0007 and readme-interlock-concept were retired on his 12:24 UTC 2026-11-05 words, now under interlock-feeds-the-app
