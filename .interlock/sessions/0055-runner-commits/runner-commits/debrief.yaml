@@ -3,177 +3,51 @@ graph: 0055-runner-commits
 node: runner-commits
 role: implementer
 graph_base_sha: 550dbbf084e51e4426f82a49341235a3f00d5c0c
-session_start_sha: 7ddf93275f93e6cc7513a067fbb9d339b589c228
-head_sha: 5b0bea4c659fb58e58d2368f2ca581999c380859
+session_start_sha: 1511cf957aae48afbc24a9acd48c4e302757fd80
+head_sha: bca9a417185cf5c97feeed2fd907a178be07816d
 derivation:
   kind: agent
   runtime: codex
   model: gpt-6
 discoveries: []
 decisions:
-  - id: profile-commit-custody
-    what: Publish runtimes@v1 with runner or agent commit custody, keep runtimes@v0
-      readable, default missing custody to agent, and opt every shipped codex
-      profile into runner custody.
-    because: The catalogue had only v0 in this checkout. Explicit custody moves
-      signing outside an agent sandbox while existing profiles and the legacy
-      local runtime retain their behavior.
+  - id: keep-signing-fixture-statically-readable
+    what: Write the signing stub from literal shell lines, derive its counter path
+      from its own filename, and read the requested failure count from an
+      adjacent fixture file.
+    because: The process guard must audit generated shell content statically. Moving
+      variable fixture data outside the script preserves deterministic signing
+      failures and rollback coverage without weakening the guard.
     rests_on:
-      - .interlock/graphs/0055-runner-commits.yaml
-      - packages/runner/src/runtimeCatalogue.ts:18-28
-      - packages/runner/src/runtimeCatalogue.ts:105-119
+      - packages/cli/test/fixtureGuard.test.ts
+      - packages/runner/test/runnerCommits.test.ts:138-155
     hunks:
-      - packages/runner/src/runtimeCatalogue.ts
-      - packages/runner/test/runtimeSelection.test.ts
-      - packages/runner/test/runtimes.test.ts
-      - schemas/runtimes@v1.json
-      - packages/schemas/test/runtimes.test.ts
-      - packages/schemas/test/runtimesExample.test.ts
-      - runtimes.example.yaml
-  - id: validate-plan-and-custody-before-staging
-    what: Add commits@v0 and validate messages, literal paths, duplicate and
-      unchanged entries, reserved artifacts and fallback coverage. Check
-      declared paths and secret names or the first 64 KB before staging, and
-      retain debrief candidates and sources for phase 2.
-    because: A complete preflight avoids partial commits on a known refusal.
-      Uninspectable symbolic links refuse rather than following a path outside
-      the worktree, and custom debrief candidate filenames need the same custody
-      as conventional names.
-    rests_on:
-      - .interlock/graphs/0055-runner-commits.yaml
-      - packages/runner/src/runnerCommits.ts:40-199
-    hunks:
-      - packages/runner/src/runnerCommits.ts:40-199
-      - schemas/commits@v0.json
-      - packages/schemas/test/commits.test.ts
-  - id: sign-exact-path-sequences-and-rollback
-    what: Commit exact literal paths in plan order with signed Git commits and
-      attempt, runtime and optional co-author trailers. Reset a failed sequence
-      to its starting HEAD with a mixed reset, preserving files and leaving them
-      unstaged.
-    because: Signing must use the owner’s normal Git environment. NUL status
-      preserves literal filenames; checking both sides of renames prevents
-      path-scope escapes. Resetting only the named index paths before staging
-      also handles already-staged deletions without including unrelated staged
-      files. The existing brief commit and its trailer remain intact.
-    rests_on:
-      - .interlock/graphs/0055-runner-commits.yaml
-      - packages/runner/src/worktree.ts:78-135
-      - packages/runner/src/runnerCommits.ts:201-283
-    hunks:
-      - packages/runner/src/worktree.ts
-      - packages/runner/src/runnerCommits.ts:201-283
-      - test/support/gitFixture.ts
-  - id: settle-code-before-authoring-the-debrief
-    what: Give runner custody a dirty code settlement, commit code before the second
-      pane prompt, validate debrief identity, role kinds and notes, then commit
-      session artifacts last before judging. Record runner refusals as failed
-      outcomes with a disposition and because while retaining explicit
-      before-judge holds.
-    because: Debrief prepare must see the last code HEAD so its verification range
-      includes runner commits. A dirty code path in phase 2 fails by name.
-      Optional screen snapshots are persisted only when ignored in runner mode,
-      preventing a new dirty path after the final commit. Agent custody retains
-      its existing instructions and settlement.
-    rests_on:
-      - docs/design/0001-interlock.md:224-240
-      - .interlock/graphs/0055-runner-commits.yaml
-      - packages/runner/src/runnerCommits.ts:286-344
-    hunks:
-      - packages/runner/src/openingPrompt.ts
-      - packages/runner/src/sessionDrive.ts
-      - packages/runner/src/runnerCommits.ts:286-344
-      - packages/runner/test/runnerCommits.test.ts
-  - id: carry-graph-declared-paths
-    what: Read optional node path globs from the graph and carry them through
-      interlock run into the session commit check, with the node session
-      directory always declared.
-    because: The commit check needs the declaration from the approved graph rather
-      than an agent-supplied scope. Without an explicit declaration it permits
-      ordinary tracked and new paths while excluding Git metadata, other
-      sessions and graph files.
-    rests_on:
-      - .interlock/graphs/0055-runner-commits.yaml
-      - packages/runner/src/runnerCommits.ts:136-143
-    hunks:
-      - packages/face/src/document.ts
-      - packages/cli/src/run.ts
-      - schemas/graph@v0.json
-      - packages/runner/test/runnerCommits.test.ts:650-653
-  - id: retain-the-artifact-reference-and-design-reason
-    what: Regenerate the artifact reference for commits@v0, runtimes@v1 and node
-      paths, select the updated catalogue example, retain historical schemas,
-      and record the D26 revisit in the bend log.
-    because: The artifact reference must describe the published shapes, and the
-      design needs the reason dirty code may settle even though judging still
-      waits for committed proof.
-    rests_on:
-      - docs/design/0001-interlock.md:224-240
-      - schemas/commits@v0.json
-      - schemas/runtimes@v1.json
-    hunks:
-      - docs/design/0001-interlock.md:666
-      - docs/shapes.md
-      - packages/schemas/src/reference/corpus.ts
-      - packages/schemas/test/reference.test.ts
+      - packages/runner/test/runnerCommits.test.ts:138-155
 gates_run_by_agent:
-  - id: typecheck
+  - id: fixture-guard-repair
     result: pass
-    invocation: pnpm typecheck
-    note: Executed through mise with pnpm 10.13.1 and Node 24.14.0; all workspace
-      packages passed.
-  - id: lint
-    result: pass
-    invocation: pnpm lint
-    note: Biome returned success; one informational template-literal suggestion
-      remains.
-  - id: comments
-    result: pass
-    invocation: pnpm check:comments
-    note: No comments found in packages/*/src.
-  - id: test
-    result: fail
-    invocation: pnpm test
-    note: "The standing run stopped in substrate: 24 failures and listener errors
-      because the sandbox denies listen on 127.0.0.1. Dependent package suites
-      were run separately where relevant."
+    invocation: pnpm --filter cli exec vitest run test/fixtureGuard.test.ts
+      --passWithNoTests=false
+    note: 69 tests passed on 2026-11-06 with the fixture repair before its signed
+      commit at bca9a41; executed through mise with the pinned toolchain.
   - id: runner-commits-proof
     result: pass
-    invocation: pnpm --fail-if-no-match --filter runner exec vitest run
-      test/runnerCommits.test.ts --passWithNoTests=false
-    note: 41 tests passed using fixture repositories and a fixture signing program;
-      no real signing key is used by this proof.
-  - id: catalogue-proof
-    result: pass
-    invocation: pnpm --fail-if-no-match --filter runner exec vitest run
-      test/runtimes.test.ts --passWithNoTests=false
-    note: 48 tests passed.
-  - id: debrief-proof
-    result: pass
-    invocation: pnpm --filter cli exec vitest run test/debrief --passWithNoTests=false
-    note: 44 tests passed.
-  - id: schema-proof
-    result: pass
-    invocation: pnpm --filter schemas exec vitest run --passWithNoTests=false
-    note: 1120 tests passed, including historical catalogue and new commits schemas.
-  - id: worktree-compatibility
-    result: pass
-    invocation: pnpm --filter runner exec vitest run test/worktree.test.ts
-      test/worktreeMaintenance.test.ts test/openingPrompt.test.ts
-      test/runtimeSelection.test.ts test/sessionWait.test.ts
-      test/writableRootLaunch.test.ts
-    note: 67 tests passed with GIT_CONFIG_GLOBAL=/dev/null, GIT_CONFIG_NOSYSTEM=1
-      and fixture author/committer identities. An earlier run inherited owner
-      signing and four existing brief-commit fixtures failed at sandbox-denied
-      GPG access.
+    invocation: pnpm --filter runner exec vitest run test/runnerCommits.test.ts
+      --passWithNoTests=false
+    note: 41 tests passed on 2026-11-06 with the fixture repair before its signed
+      commit at bca9a41, including deliberate signing failures and rollback. No
+      real signing key is used by this proof.
 open:
-  - "The standing pnpm test gate needs rerunning outside this sandbox: localhost
-    HTTP listener creation was denied. Focused passing checks are agent reports;
-    runner gate receipts remain binding."
+  - This resumed filing covers the fixture repair in the derived
+    1511cf9..bca9a41 range. The earlier implementation debrief and
+    standing-check reports remain in revision history. Only the two requested
+    focused fixture checks were rerun for the repair; runner gate receipts
+    remain binding.
+  - The earlier standing pnpm test run stopped at sandbox-denied localhost HTTP
+    listeners; its full result still needs runner verification outside that
+    restriction.
   - "The owner-managed ~/.config/interlock/runtimes.yaml was not edited. Add
-    commits: runner under each kind: codex profile to adopt runner custody; the
-    shipped example uses runtimes@v1 and the reader also accepts runtimes@v0."
-  - The owner reports the code committed and signed at 5b0bea4. Per the updated
-    session instruction, leave notes, commits.yaml, the authored candidate and
-    filed debrief uncommitted for runner custody; do not create a final artifact
-    commit from this pane.
+    commits: runner under each kind: codex profile to adopt runner custody."
+  - The owner reports the fixture repair committed and signed at bca9a41. Leave
+    notes, commits.yaml, candidates, revisions and the selected debrief
+    uncommitted for runner custody under the explicit session instruction.

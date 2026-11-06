@@ -1,53 +1,10 @@
 interlock: commits@v0
 entries:
-  - message: >-
-      feat(runner): preserve signed attempts when agents cannot commit
+  - message: |-
+      fix(runner): keep the signing fixture readable to the process guard
 
-
-      Let runtime profiles give commit custody to the runner while keeping agent
-
-      custody as the default and reading every earlier catalogue version.
-
-
-      Settle code before preparing the debrief, validate declared paths and
-      secret
-
-      rules before staging, and sign only exact paths. Roll back a failed commit
-
-      sequence to its starting head while preserving every worktree file. Commit
-
-      validated session artifacts last so debrief head_sha remains the code
-      head.
-
-
-      Fixture signing and session proofs cover ordering, trailers, fallback
-      paths,
-
-      refusals, rollback, declared-path forwarding and final artifact custody.
-
-      The standing test command is blocked by sandbox-denied HTTP listeners.
+      Use literal shell content and an adjacent failure-count file so the guard
+      can audit the signing stub while rollback tests retain their behavior.
     paths:
-      - docs/design/0001-interlock.md
-      - docs/shapes.md
-      - packages/cli/src/run.ts
-      - packages/face/src/document.ts
-      - packages/runner/src/openingPrompt.ts
-      - packages/runner/src/runnerCommits.ts
-      - packages/runner/src/runtimeCatalogue.ts
-      - packages/runner/src/sessionDrive.ts
-      - packages/runner/src/worktree.ts
       - packages/runner/test/runnerCommits.test.ts
-      - packages/runner/test/runtimeSelection.test.ts
-      - packages/runner/test/runtimes.test.ts
-      - packages/schemas/src/reference/corpus.ts
-      - packages/schemas/test/commits.test.ts
-      - packages/schemas/test/reference.test.ts
-      - packages/schemas/test/runtimes.test.ts
-      - packages/schemas/test/runtimesExample.test.ts
-      - runtimes.example.yaml
-      - schemas/commits@v0.json
-      - schemas/graph@v0.json
-      - schemas/runtimes@v1.json
-      - test/support/gitFixture.ts
-fallback_subject: "feat(runner): preserve signed attempts when agents cannot commit"
 co_authored_by: GPT-6 <noreply@openai.com>

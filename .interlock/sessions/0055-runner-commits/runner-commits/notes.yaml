@@ -119,3 +119,75 @@ entries:
       session debrief and notes validate. Preview rooted every decision hunk
       citation. HEAD remains unchanged, no background shell remains running, and
       the owner explicitly forbids an artifact commit from this pane.
+  - kind: surprise
+    at: '2026-11-05T21:37:59Z'
+    expected: The shared Git fixture helper would expose writeRecordingStub.
+    observed: This checkout exposes writeGitForwarder but no writeRecordingStub;
+      the guard accepts generated shell scripts only when every piece is literal.
+  - kind: choice
+    at: '2026-11-05T21:38:00Z'
+    chose: Make the signing stub entirely literal, derive its counter path from
+      its own filename, and read the failure count from an adjacent fixture file.
+    because: This repairs the judged fixture guard failure while retaining the
+      signing and rollback tests. The owner requires changes and commits.yaml
+      to remain uncommitted, with no Git configuration or signing changes.
+  - kind: choice
+    at: '2026-11-05T21:39:00Z'
+    chose: Leave the fixture repair, notes and updated commits.yaml uncommitted
+      and stop after the two requested focused checks.
+    because: The fixture guard passed all 69 tests and runnerCommits passed all
+      41 tests, including expected signing failures and rollback. The commit
+      plan names only the changed code path; notes remain session artifacts.
+      Both test processes exited and no background shell remains running.
+  - kind: choice
+    at: '2026-11-06T14:10:53.885000+00:00'
+    chose: Reuse the existing literal signing-stub repair and exact-path commit plan,
+      and rerun only the two requested focused checks after the interrupted attempt.
+    because: The resumed worktree already contains the judged-failure repair. The
+      owner explicitly requires no Git configuration, signing changes or commits,
+      and all changes to remain uncommitted for runner custody. No background
+      shell has been started in this resumed turn.
+  - kind: choice
+    at: '2026-11-06T14:11:19.586993+00:00'
+    chose: Stop with the existing fixture repair and updated commits.yaml uncommitted.
+    because: The resumed checks passed fixtureGuard 69 tests and runnerCommits
+      41 tests, including the deliberate signing-failure and rollback fixtures.
+      The plan names only packages/runner/test/runnerCommits.test.ts; both test
+      processes exited and no background shell remains from this turn.
+  - kind: choice
+    at: '2026-11-06T14:13:26.989681+00:00'
+    chose: Prepare a fresh candidate at bca9a41 and select it through debrief revise,
+      retaining the previous filing and leaving every artifact uncommitted.
+    because: The owner confirmed the signed fix at the current HEAD. Existing
+      debrief history must be retained while head_sha covers the fixture repair;
+      add its rooted decision and the two focused check reports. All prior test
+      processes exited and no background shell is running from this session.
+  - kind: surprise
+    at: '2026-11-06T14:14:21.974526+00:00'
+    expected: The new prepare would retain the original implementation proof range.
+    observed: The current resumed brief derives session_start_sha 1511cf9 and
+      head_sha bca9a41. This filing covers the fixture repair only; debrief revise
+      will retain the original implementation claims in its previous revision.
+  - kind: surprise
+    at: '2026-11-06T14:14:21.974598+00:00'
+    expected: The root package could import yaml for candidate authoring.
+    observed: yaml is a package dependency rather than a root dependency, so the
+      initial authoring helper exited without writing; use the CLI package adapter.
+  - kind: surprise
+    at: '2026-11-06T14:14:49.503714+00:00'
+    expected: debrief revise would select the freshly derived resumed-session candidate.
+    observed: It refuses because session_start_sha differs from the old filing;
+      the recovery flag is only for a missing old commit, not a new resumed brief.
+  - kind: choice
+    at: '2026-11-06T14:14:49.503769+00:00'
+    chose: Retain the old filing byte-for-byte in its SHA-addressed revisions path
+      and file the newly prepared candidate with file-derived for the resumed session.
+    because: The owner requests re-filing at HEAD and the current proof identity
+      differs from the prior session. Preserve the earlier debrief unchanged
+      rather than altering either session boundary to pass the revision check.
+  - kind: choice
+    at: '2026-11-06T14:15:02.783461+00:00'
+    chose: Stop with the re-filed debrief and notes uncommitted for runner custody.
+    because: File-derived accepted head_sha bca9a417185cf5c97feeed2fd907a178be07816d
+      and preview rooted the repair decision. The prior filing remains in
+      revisions, HEAD is unchanged, and no background process was started.
