@@ -386,6 +386,10 @@ export async function createHerdrRuntime(
   };
 
   return ok({
+    async checkServer() {
+      const pinged = await call("ping", {});
+      return isErr(pinged) ? pinged : ok(undefined);
+    },
     async openPane(cwd) {
       const label = repositoryLabel(cwd);
       const listed = await call("workspace.list", {});
@@ -591,4 +595,15 @@ export async function createHerdrRuntime(
       return isErr(listed) ? listed : ok(observationOf(listed.value, liveWorkSources));
     },
   });
+}
+
+export async function createHerdrLaunchRuntime(): Promise<Result<Runtime, RuntimeRefusal>> {
+  const created = await createHerdrRuntime();
+  if (isErr(created) && created.error.kind === "no-socket") {
+    return err({
+      kind: "not-ready",
+      message: "herdr's server is not running; open herdr and run again",
+    });
+  }
+  return created;
 }

@@ -181,6 +181,9 @@ export function startFakeHerdrServer(socketPath: string): Promise<FakeHerdrServe
     }
 
     switch (method) {
+      case "ping":
+        respond(socket, id, {});
+        return;
       case "workspace.create": {
         const label = prop(params, "label");
         const workspace: Workspace = {
@@ -312,7 +315,7 @@ export function startFakeHerdrServer(socketPath: string): Promise<FakeHerdrServe
         respond(socket, id, {});
         return;
       default:
-        fail(socket, id, "unhandled", `fake herdr server does not implement "${method}"`);
+        fail(socket, id, "invalid_request", `unknown variant \`${method}\``);
     }
   }
 

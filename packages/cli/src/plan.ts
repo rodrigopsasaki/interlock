@@ -220,6 +220,7 @@ export async function runInterlockPlan(
 
   const node = `plan/${graph}`;
   const targetNode = { graph, id: node };
+  const targetWorktreePath = join(repoRoot, localConfig.value.worktreeRoot, node);
 
   const journal = await sharedJournalDirectory(repoRoot);
   const clock = options.clock ?? createSystemClock();
@@ -255,19 +256,21 @@ export async function runInterlockPlan(
     let selectedContextScope = parsedContextScope.value;
     let correction: InterpreterCorrection | undefined;
 
-    const afterWorktree = async (worktreePath: string): Promise<Result<void, string>> => {
-      const worktreeGraphPath = graphFilePath(worktreePath, graph);
-      const previousGraphYaml = await readIfExists(worktreeGraphPath);
+    const beforeRuntime = async (): Promise<Result<void, string>> => {
+      const statePath = existsSync(targetWorktreePath)
+        ? graphFilePath(targetWorktreePath, graph)
+        : graphFilePath(repoRoot, graph);
+      const previousGraphYaml = await readIfExists(statePath);
       if (isErr(previousGraphYaml)) return err(previousGraphYaml.error);
 
       if (previousGraphYaml.value === undefined && correctionReason !== undefined) {
         return err(
-          `${worktreeGraphPath}: no such file; --correction reopens an existing graph, not a new one.`,
+          `${statePath}: no such file; --correction reopens an existing graph, not a new one.`,
         );
       }
       if (previousGraphYaml.value !== undefined && correctionReason === undefined) {
         return err(
-          `${worktreeGraphPath}: a graph already exists for "${graph}"; use --correction "<reason>" to reopen it.`,
+          `${statePath}: a graph already exists for "${graph}"; use --correction "<reason>" to reopen it.`,
         );
       }
       if (correctionReason !== undefined && previousGraphYaml.value !== undefined) {
@@ -276,7 +279,10 @@ export async function runInterlockPlan(
           previousGraphYaml: previousGraphYaml.value,
         };
       }
+      return ok(undefined);
+    };
 
+    const afterWorktree = async (worktreePath: string): Promise<Result<void, string>> => {
       if (resolvedAsk === undefined) {
         const previousBriefPath = join(
           worktreePath,
@@ -428,6 +434,7 @@ export async function runInterlockPlan(
       narrate,
       ...(options.runtime === undefined ? {} : { runtime: options.runtime }),
       runnerIdPrefix: "plan",
+      beforeRuntime,
       afterWorktree,
       composeBrief,
       beforeJudge,
