@@ -44,8 +44,13 @@ read: >
   and verbatim, and the driver's reading of them, recorded as the driver's own, never as the owner's. One cite
   authorizes one act: the receipt binds the cite to the action (approve, clear or publish), its target (graph,
   node and gate) and the graph's content hash, and the same cite offered for any other action, target or content is
-  refused naming the act it already authorized. An edited graph stales its approval (D20), and the stale approval's
-  cite cannot approve the edit. A reading the owner disputes is retracted like any receipt.
+  refused naming the act it already authorized. A cite is bound by its canonical source identity, never by the
+  string offered: `said:` and `msg:` by kind and id, a GitHub comment by the stable id the git host returns for it
+  (its node id), so a differently cased or otherwise aliased URL for the same comment is the same cite. An edited
+  graph stales its approval (D20), and the stale approval's cite cannot approve the edit; a delegated gate clearance
+  counts only while the graph's content hash equals the one it was bound to, so an edited graph holds the gate until
+  it is cleared again. A delegated receipt the owner disputes is retracted by the owner, append-only: the receipt and
+  its consumed cite stay in the ledger, and from the retraction on the act it authorized no longer counts.
 
   Invariants. I2: nothing merges on an agent's opinion; publishing opens a pull request and never merges one. I7:
   pushes and pull-request opens are outbox effects. I10: the owner's own authority is never gated; the owner's own
@@ -78,7 +83,17 @@ nodes:
       --for, recorded as the driver's), as part of its derivation, so it is told apart from an approval the owner made
       himself. One cite authorizes one act: the ledger keeps each delegated receipt's cite bound to its action,
       target (graph, and node and gate for a clearance) and graph content hash, and a cite already bound is refused
-      for any other action, target or content, naming the act it authorized. The human derivation (packages/ledger/src/derivation.ts:16, today kind and who,
+      for any other action, target or content, naming the act it authorized. The binding key is the cite's canonical
+      identity: kind and id for said: and msg:, and for a comment URL the comment's node id as the git-host adapter
+      returns it, while the literal cite is kept for provenance. The gate judge (packages/runner/src/gateJudge.ts:205
+      today accepts any satisfied human gate) counts a delegated clearance only while the graph's current content
+      hash equals its bound hash; otherwise the gate reads held until cleared again, and a fresh clearance is allowed
+      (packages/cli/src/gate/clear.ts:123 refuses re-clearing a satisfied gate today; it allows it when the standing
+      clearance is a delegated one gone stale). The owner retracts a delegated receipt with `interlock receipt retract
+      <graph> [<node> <gate>] --by <owner> --because <why>`, never with --for: an append-only ledger event naming the
+      receipt, which stays with its consumed cite; from that event on, a retracted approval reads unapproved and a
+      retracted clearance reads held, and the cite stays consumed. The owner's own receipts are untouched (I10). The
+      human derivation (packages/ledger/src/derivation.ts:16, today kind and who,
       and schemas/parts/derivation.json:36, which refuses other fields) evolves additively: a delegated form carrying
       for, cite, the verified author, words and at, the reading, and the bound action, target and content hash, with
       its schema and a reader that keeps accepting every receipt already written. A call with --for and no --cites, an empty cite, a cite in no known form, a cite
@@ -103,6 +118,13 @@ nodes:
       - a cite that approved one graph is refused for another graph, for the same graph's edited content, and for a
         gate clearance, each naming the act it already authorized; --for without --reading is refused;
       - the receipt keeps the owner's words and the driver's reading in separate fields;
+      - a comment URL whose owner and repository differ only in case from one already bound resolves to the same
+        node id and is refused as already used;
+      - a delegated clearance of gate H on graph content H1 stops counting once the graph is edited to H2: the gate
+        reads held, a fresh delegated clearance with a new cite is accepted, and the old receipt stays in the ledger;
+      - the owner retracts a delegated approval and a delegated clearance: replaying the ledger shows the graph
+        unapproved and the gate held, both receipts and their cites still present and consumed; a retract with --for
+        is refused;
       - a delegated receipt is reopened from the ledger and validates against the evolved schema with for, cite,
         author, words and at inside its derivation, while an existing human receipt still reads.
       Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
