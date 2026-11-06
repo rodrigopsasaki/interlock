@@ -139,7 +139,11 @@ nodes:
     gates:
       - id: refusal-proof
         kind: command
-        run: pnpm --fail-if-no-match --filter runner exec vitest run test/refusalOutcomes.test.ts test/runnerCommits.test.ts --passWithNoTests=false
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/refusalOutcomes.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: commit-refusals-still-fail
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/runnerCommits.test.ts --passWithNoTests=false
         expect_output: 'Tests +[1-9][0-9]* passed'
 
   - id: own-sessions
@@ -154,14 +158,22 @@ nodes:
       Ownership record. Every pane the runner opens is recorded in the ledger beside the session: pane id,
       workspace, agent kind, pane pid, worktree path, graph/node/session and opened-at, and passed to the provider's
       admit. A pane with no record is the owner's, and the runner never touches it.
-      Lifecycle. When an attempt settles (cleared, held, failed, or abandoned), the runner closes its own pane
-      through the runtime adapter, unless the pane was kept for drilldown, which now carries an expiry (default 2
-      hours, a local.yaml key) after which it is closed like any other. herdr restore relaunches panes, so on every
-      launch, and when `interlock run`'s adapter finds herdr freshly started, the runner matches restored copies back
-      to their records by worktree path, agent kind and pane id, and closes those whose session has settled and
-      whose agent is idle. All herdr calls stay inside the herdr adapter (laws I6). Every close is recorded in the
-      ledger with by runner, why (settled, drilldown expired, restored copy), the pane and its record, and is
-      released through the provider only once confirmed (machine-provider).
+      Lifecycle. When an attempt's outcome is recorded (cleared, held or failed: the judge has run, so its work is
+      over), the runner closes its own pane through the runtime adapter, unless the pane was kept for drilldown,
+      which now carries an expiry (default 2 hours, a local.yaml key) after which it is closed like any other. An
+      abandoned attempt (lease lapsed) or a restored copy is closed only when the adapter confirms no live work
+      (liveWork none, packages/runner/src/sessionWait.ts:67), never on idle alone; a pane whose live work is present
+      or unknown (codex has no live-work evidence source yet) is kept, counted by the provider, and listed by
+      `interlock sessions` as waiting on its owner. herdr restore relaunches panes, so on every launch, and when
+      the adapter finds herdr freshly started, the runner matches restored copies back to their records by worktree
+      path, agent kind and pane id. A restored owned pane is never resumed or given work by the runner: it stays as
+      herdr restored it, is counted, and new launches are admitted only within the limit counting it. Measure whether
+      herdr 0.9.5 can restore a pane without relaunching its agent; if it can, the runner marks owned panes that way.
+      All herdr calls stay inside the herdr adapter (laws I6). Every close and every release is an outbox effect
+      (laws I7): intent persisted before dispatch, a stable identity (pane id and session), delivery recorded, and a
+      lost acknowledgement recorded as uncertain and reconciled on the next start by asking the adapter whether the
+      pane still exists. Each close records by runner, why (settled, drilldown expired, restored copy), the pane and
+      its record, and is released through the provider only once confirmed (machine-provider).
       `interlock sessions` lists the panes the runner owns with their state; `interlock sessions close <session|--idle>`
       closes owned panes only and refuses any other pane with one line naming it as not opened by interlock. When a
       host refuses an agent's own call to close (an agent's safety checks), the owner's command or the app's click
@@ -169,8 +181,11 @@ nodes:
       Tests in packages/runner/test/ownSessions.test.ts with a fixture runtime adapter:
       - a pane opened for an attempt is closed when the attempt settles, and recorded;
       - a drilldown pane is kept until its expiry, then closed;
-      - a simulated herdr restore (same worktree, agent and pane id, new pid) closes the restored idle copy of a
-        settled session while an unowned pane with an agent survives;
+      - a simulated herdr restore (same worktree, agent and pane id, new pid) closes the restored copy of a settled
+        session whose live work is none, while an unowned pane with an agent survives;
+      - a restored or abandoned pane that is idle but whose live work is present or unknown is kept and counted;
+      - a restore while the limit is full admits no new launch, and no restored pane is resumed;
+      - a close whose acknowledgement is lost is recorded uncertain and reconciled after a restart;
       - `interlock sessions close` refuses an unowned pane with its line and closes an owned idle one;
       - a close that the adapter cannot confirm keeps the record open and releases nothing.
       Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
@@ -182,7 +197,7 @@ nodes:
 
   - id: plan-reviews-are-sessions
     role: implementer
-    depends_on: [machine-provider]
+    depends_on: [own-sessions]
     acceptance: |
       A review of a plan graph runs as a session the harness can see, lease and count. Until now cross-vendor reviews
       of drafted graphs ran as bare `codex exec` calls outside interlock, invisible to the position, the face and the
