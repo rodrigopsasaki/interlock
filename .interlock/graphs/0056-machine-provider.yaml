@@ -35,37 +35,44 @@ gates:
 nodes:
   - id: machine-provider
     role: implementer
-    depends_on: []
+    depends_on: [refusals-stay-resettable]
     acceptance: |
       Machine file. A per-machine file, ~/.config/interlock/machine.yaml (path overridable by INTERLOCK_MACHINE for
       tests, like INTERLOCK_RUNTIMES), shape machine@v0 with a JSON schema and schema tests:
         interlock: machine@v0
         provider:
-          admit: [argv...]      # {holder}, {token} and {pid} are substituted
+          admit: [argv...]      # {holder}, {token}, {pid}, {pane}, {workspace}, {agent}, {worktree} and {attempt}
           release: [argv...]    # {token}
           env: [argv...]        # prints a JSON object of string values
           heavy: [argv...]      # prefix for every heavy command
-      Each key is optional; an absent file or key means today's behaviour for that step, narrated once per launch.
-      The runner resolves the machine file before worktree setup.
-      Order of a launch. Run worktree setup through heavy; open the pane with no agent in it; read the pane's process
+      An absent file means today's behaviour, narrated once per launch. A present file is all or nothing: a
+      provider missing any of the four keys, or malformed, refuses every launch before anything is written, naming the
+      missing or bad field. The runner resolves the machine file before worktree setup.
+      Order of a launch. Run env first (below); an env that fails, exits non-zero or prints anything but a JSON object
+      of string values refuses the launch before setup, naming why. Then run worktree setup through heavy; open the
+      pane with no agent in it; read the pane's process
       pid from the runtime adapter (herdr pane process-info), refusing the launch if no pid is available; run admit
       with the holder "<graph>/<node> (<session id>)", the token "<session id>/<pane id>" and that pid; start the
       agent only if admit exits zero. A non-zero admit refuses the launch: the runner narrates the provider's first
       output line verbatim and returns it as the exit message, closes the pane, abandons the lease with no outcome
       (refusals-stay-resettable), and starts no agent, so the same node runs again once the machine has room.
-      Release. When the runner closes a pane it admitted and the close is confirmed (the adapter's close returns ok),
-      it runs release with the token. A close that fails or times out keeps the session held and is narrated; the
+      Release. When the runner closes a pane it admitted and the close is confirmed, it runs release with the token.
+      Confirmation is complete or it is not: the herdr adapter's closePane (herdr/adapter.ts:541-555) returns an
+      error whenever its tab inspection or the close itself fails, instead of reporting success, and the runner
+      (sessionDrive.ts:587-593) reads that result instead of ignoring it. A close that fails or times out keeps the
+      session held and is narrated; the
       provider reaps it when the pane's process is gone. A pane left open for drilldown is never released by the
       runner.
-      Environment. When env is set, the runner runs it once per attempt. For a codex profile it appends
+      Environment. The runner runs env once per attempt, before anything else. For a codex profile it appends
       `-c shell_environment_policy.set.<KEY>="<value>"` for each key, with TOML string quoting. For any other kind it
-      passes the object to herdr's agent start: measure herdr 0.9.5's agent.start for an environment parameter and
-      use it; if there is none, start the agent through `env KEY=value... <command>` in the pane with shell-safe
-      quoting, or, if herdr offers neither, refuse to launch a non-codex agent while env is configured, naming why
-      (fail closed). The object is merged into the environment of every gate, worktree setup and backfill install.
+      passes the object to the pane it opens, inside the herdr adapter (laws I6): herdr 0.9.5's `tab create` takes
+      `--env KEY=VALUE` for the launched process, measured 2026-11-06; measure agent.start for an environment
+      parameter too and use whichever reaches the agent. If neither reaches it, refuse to launch a non-codex agent
+      while env is configured, naming why (fail closed). The object is merged into the environment of every gate, worktree setup and backfill install.
       Heavy commands. When heavy is set, every gate command, worktree setup command and backfill install runs as
       heavy's argv followed by the command's argv, still without a shell (gateJudge.ts:131, worktreeSetup.ts:84,
-      backfill.ts:99), including gates run by a standalone `interlock judge`.
+      backfill.ts:99), including gates run by a standalone `interlock judge` (packages/cli/src/judge.ts:169-182,
+      packages/runner/src/judgeWorktree.ts), which resolves the machine file the same way.
       Tests in packages/runner/test/machineProvider.test.ts with fixture provider scripts, no real provider:
       - no machine file: setup, launch, env and gates are unchanged, and the launch narrates no provider;
       - admit runs after the pane opens and before the agent starts, with holder, token and pid; a non-zero admit
@@ -77,7 +84,11 @@ nodes:
         reports the same values from its own environment, and a gate sees them;
       - heavy prefixes a gate, the worktree setup and the backfill install, and two runners sharing one fixture
         heavy prefix run their setup and gates one at a time;
-      - a malformed machine.yaml is refused naming the field.
+      - a malformed machine.yaml, and one missing any of the four keys, refuses before anything is written, naming
+        the field;
+      - an env that fails or prints a non-object refuses before setup and admits nothing;
+      - a herdr close whose tab inspection fails reports an error and the session stays held;
+      - a standalone `interlock judge` runs its gates through heavy with the env (packages/cli/test/judgeProvider.test.ts).
       Strict TypeScript, no type assertions, no non-null operators. Preserve every historical artifact. No push, no
       merge; the human merges.
     gates:
@@ -85,9 +96,13 @@ nodes:
         kind: command
         run: pnpm --fail-if-no-match --filter runner exec vitest run test/machineProvider.test.ts --passWithNoTests=false
         expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: judge-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/judgeProvider.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
       - id: schema-proof
         kind: command
-        run: pnpm --fail-if-no-match --filter schemas exec vitest run --passWithNoTests=false
+        run: pnpm --fail-if-no-match --filter schemas exec vitest run test/machine.test.ts --passWithNoTests=false
         expect_output: 'Tests +[1-9][0-9]* passed'
 
   - id: refusals-stay-resettable
@@ -125,4 +140,71 @@ nodes:
       - id: refusal-proof
         kind: command
         run: pnpm --fail-if-no-match --filter runner exec vitest run test/refusalOutcomes.test.ts test/runnerCommits.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: own-sessions
+    role: implementer
+    depends_on: [machine-provider]
+    acceptance: |
+      Interlock closes the panes it opened. Rodrigo, 17:13 UTC: "Preston should be able to close its own sessions,
+      if herdr is a problem and I have to choose between this and herdr, this wins. It makes no sense to tell a
+      preston user 'hey, open up herdr and close down these things that I opened without even asking you...'" On
+      2026-11-06 herdr restored 59 agent panes runners had opened, about 16 GB idle, and the owner had to close them
+      by hand.
+      Ownership record. Every pane the runner opens is recorded in the ledger beside the session: pane id,
+      workspace, agent kind, pane pid, worktree path, graph/node/session and opened-at, and passed to the provider's
+      admit. A pane with no record is the owner's, and the runner never touches it.
+      Lifecycle. When an attempt settles (cleared, held, failed, or abandoned), the runner closes its own pane
+      through the runtime adapter, unless the pane was kept for drilldown, which now carries an expiry (default 2
+      hours, a local.yaml key) after which it is closed like any other. herdr restore relaunches panes, so on every
+      launch, and when `interlock run`'s adapter finds herdr freshly started, the runner matches restored copies back
+      to their records by worktree path, agent kind and pane id, and closes those whose session has settled and
+      whose agent is idle. All herdr calls stay inside the herdr adapter (laws I6). Every close is recorded in the
+      ledger with by runner, why (settled, drilldown expired, restored copy), the pane and its record, and is
+      released through the provider only once confirmed (machine-provider).
+      `interlock sessions` lists the panes the runner owns with their state; `interlock sessions close <session|--idle>`
+      closes owned panes only and refuses any other pane with one line naming it as not opened by interlock. When a
+      host refuses an agent's own call to close (an agent's safety checks), the owner's command or the app's click
+      runs the same close; that is the owner's path to it, and nothing edits a permission.
+      Tests in packages/runner/test/ownSessions.test.ts with a fixture runtime adapter:
+      - a pane opened for an attempt is closed when the attempt settles, and recorded;
+      - a drilldown pane is kept until its expiry, then closed;
+      - a simulated herdr restore (same worktree, agent and pane id, new pid) closes the restored idle copy of a
+        settled session while an unowned pane with an agent survives;
+      - `interlock sessions close` refuses an unowned pane with its line and closes an owned idle one;
+      - a close that the adapter cannot confirm keeps the record open and releases nothing.
+      Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
+    gates:
+      - id: own-sessions-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/ownSessions.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: plan-reviews-are-sessions
+    role: implementer
+    depends_on: [machine-provider]
+    acceptance: |
+      A review of a plan graph runs as a session the harness can see, lease and count. Until now cross-vendor reviews
+      of drafted graphs ran as bare `codex exec` calls outside interlock, invisible to the position, the face and the
+      machine provider's limits (Rodrigo, 15:43 UTC: no working around the product).
+      `interlock review <graph> --lens <name> --runtime <profile> [--prompt-file <path>]` starts a reviewer-role
+      session on the graph file: leased like a node attempt under a review key (graph, lens, graph content hash), in
+      a pane the runner owns and labels "review <graph> <lens> · <runtime>", admitted and given env through the
+      machine provider like any launch, with the runtime's read-only sandbox (a profile key, read_only_args, for the
+      flags; codex uses --sandbox read-only). The brief is the graph file path, the lens's instruction (from the
+      prompt file or a named lens in local.yaml) and the reviewer role's opening. The session's judgment is saved as
+      a versioned review document beside the graph (.interlock/reviews/<graph>/<content hash>/<lens>-<session>.md)
+      and recorded as a receipt with derivation model, lens and runtime. A review is advisory: it never moves the
+      approved gate or any node (laws I2, I9). The pane closes when the review is saved (own-sessions). The position
+      shows reviews in flight and done for each drafted graph.
+      Tests in packages/runner/test/planReview.test.ts with a fixture runtime and provider:
+      - a review is admitted through the provider, runs in an owned labelled pane, saves its document and receipt,
+        and closes its pane;
+      - a refused admit starts nothing and records no outcome;
+      - a review never changes the approved gate or any node's state;
+      - two reviews of the same graph content and lens are both kept, versioned by session.
+    gates:
+      - id: review-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/planReview.test.ts --passWithNoTests=false
         expect_output: 'Tests +[1-9][0-9]* passed'
