@@ -41,6 +41,7 @@ gates:
     expect_output: Tests +[1-9][0-9]* passed
 scope:
   - .gitignore
+  - .interlock/arcs.yaml
   - .interlock/config.yaml
   - .interlock/graphs/0001-bootstrap.yaml
   - .interlock/graphs/0002-shapes.yaml
@@ -90,8 +91,10 @@ scope:
   - .interlock/graphs/0052-count-tells-the-truth.yaml
   - .interlock/graphs/0054-provider-routing.yaml
   - .interlock/graphs/0055-runner-commits.yaml
+  - .interlock/graphs/0056-machine-provider.yaml
   - .interlock/graphs/readme-interlock-concept.yaml
   - .interlock/local.example.yaml
+  - .interlock/queue.yaml
   - .interlock/sessions/0001-bootstrap/attempts/brief.md
   - .interlock/sessions/0001-bootstrap/attempts/debrief.yaml
   - .interlock/sessions/0001-bootstrap/attempts/notes.yaml
@@ -395,6 +398,9 @@ scope:
   - .interlock/sessions/0055-runner-commits/runner-commits/fresh.candidate.yaml
   - .interlock/sessions/0055-runner-commits/runner-commits/notes.yaml
   - .interlock/sessions/0055-runner-commits/runner-commits/revisions/721431e59d00f4f6e78b1b89959725fe022f2f2c0e4981ee02f1ba234e9b068d.yaml
+  - .interlock/sessions/0056-machine-provider/base-holds-graph/brief.md
+  - .interlock/sessions/0056-machine-provider/machine-provider/brief.md
+  - .interlock/sessions/0056-machine-provider/refusals-stay-resettable/brief.md
   - .interlock/sessions/readme-interlock-concept/readme/brief.md
   - .interlock/sessions/readme-interlock-concept/readme/debrief.yaml
   - .interlock/sessions/readme-interlock-concept/readme/notes.yaml
@@ -985,8 +991,8 @@ substrate:
 walk:
   kind: none
   because: the substrate address is none, so there is nothing to ask
-graph_base_sha: 50bd9355afa54e21d90dc675696741f7ef72cad3
-session: 4b93f8aa-ddc2-47c6-b177-0efc9f7a399e
+graph_base_sha: ca21061149d5085ca7bae8bdbcb9b20df31d9f5d
+session: 5405ceeb-e0ae-4b84-a7e4-5fea43b2b8d1
 ---
 
 # Brief · node `provider-routing` · graph `0054-provider-routing`
