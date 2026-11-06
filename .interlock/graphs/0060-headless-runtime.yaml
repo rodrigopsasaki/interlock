@@ -11,12 +11,10 @@ authorization:
   mandate: loom-feed-2026-11-04  # "You're free to do changes on phyxius and interlock too", 23:25 UTC
   approver: Rodrigo Sasaki; Gilb relays the recorded approval and coordinates cleared-node merges. The cross-vendor vet is advisory.
 read: >
-  Arc: herdr-only-for-visuals (.interlock/arcs.yaml). Rodrigo, 2026-11-06 21:52 UTC: "If herdr is only there for
-  visuals then we don't need it. That's what I mean. I used herdr when working on interlock but Preston had no
-  interface, that's not true anymore". 21:54 UTC: "I thought we needed it to manage sessions, but if we don't, then
-  let's scrap it. I want Preston's install to be as lean as possible. We already have a UI, a server, an MCP and a
-  postgres". Preston graph 0038-lean-install takes herdr out of Preston's install; this graph takes it out of the
-  runner.
+  Arc: herdr-only-for-visuals (.interlock/arcs.yaml, which holds the owner's 21:52 and 21:54 UTC words verbatim):
+  herdr was there to see sessions, the substrate now has its own interface (an app, a server, an MCP and a store),
+  and the owner wants its install as lean as possible. A companion graph in the substrate's repository,
+  0038-lean-install, takes herdr out of that install; this graph takes it out of the runner.
 
   Today the runner opens a herdr pane and starts the agent in it (packages/runner/src/herdr/adapter.ts, behind the
   Runtime interface in packages/runner/src/runtime.ts; a tmux stub in packages/runner/src/tmux/adapter.ts), types
@@ -33,7 +31,7 @@ read: >
   only panes needed.
 
   The app reads sessions from Interlock, never from a runtime: the sessions@v0 document and the transcript@v0
-  lines below are the contract the Preston app builds against, and are fixed here before the build.
+  lines below are the contract the substrate's app builds against, and are fixed here before the build.
 
   sessions@v0, printed by `interlock sessions --json` (all of this machine's sessions for the repository, newest
   first; `--live` keeps state running only):

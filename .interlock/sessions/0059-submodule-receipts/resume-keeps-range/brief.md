@@ -992,20 +992,37 @@ edit it.
 
 ## Acceptance (verbatim from the graph)
 
-> A resumed session's debrief range keeps the signed code of the attempt it resumes. When a session starts on a
-> worktree whose branch carries commits beyond the graph base made for the same graph and node by an earlier
-> session that filed no debrief (the runner already narrates this as "worktree carries prior work",
-> packages/runner/src/sessionDrive.ts:240), the session-started event records that earlier session's start as the
-> range start it inherits, and deriveSessionStart (packages/cli/src/debrief/sessionIdentity.ts:117) uses the
-> inherited start, so session_start_sha..head covers the earlier attempt's signed commits and the new brief commit
-> both. A session whose worktree carries no such prior work starts its range at its own start, exactly as today.
-> An earlier session whose debrief was filed and judged is never inherited from: its range is closed. The
-> inherited start is recorded as such in the event (the earlier session's id beside it), so the chain is
-> walkable, and the event schema evolves additively with a reader that accepts every event already written.
-> Tests in packages/cli/test/resumeRange.test.ts on a fixture repository and journal:
-> - a session commits signed-style code, stops without a debrief, and a resumed session writes a new brief commit:
->   debrief prepare's range includes the earlier code commit and the decisions rooted in it validate;
-> - a fresh session with no prior work keeps today's range;
-> - prior work from an earlier session whose debrief was filed is not inherited;
-> - an existing session-started event without the new field still reads.
+> A resumed session's debrief range keeps the signed code of the attempt it resumes, and only that attempt's.
+> Every check deriveSessionStart makes today stays and runs first: the current session's own identity, the
+> graph base, the unique brief-identity transition and the unchanged brief bytes
+> (packages/cli/src/debrief/sessionIdentity.ts:117-212). Only then may the start move earlier, to an inherited
+> start, and only when all of these hold:
+> - the worktree's checked-out branch is the node's graph branch and its HEAD descends from the inherited start
+>   (the runner's worktree reuse, packages/runner/src/worktree.ts:170, verifies the actual branch today only by
+>   name; it now verifies the checked-out branch and HEAD before any inheritance);
+> - the predecessor is the single latest earlier session of the same graph and node on the same graph base, on
+>   the ancestry path from the graph base to HEAD; two candidates, or none, means no inheritance;
+> - the predecessor is open: no outcome-set event names it in the journal, and no debrief file for it is
+>   committed anywhere in the interval (a filed debrief is written without a journal event,
+>   packages/cli/src/debrief/derived.ts:267, and the runner appends debrief-filed only after clearance,
+>   packages/runner/src/gateJudge.ts:297, so both the journal and the committed files are read);
+> - every commit in the interval from the inherited start to HEAD is either a brief transition of this node's
+>   sessions, a commit carrying an Attempt trailer naming one of this node's sessions in the chain, or a merge
+>   whose first parent is in the interval; a commit of any other node, graph or closed attempt refuses
+>   inheritance with one line naming it.
+> The inherited start is the predecessor's own effective start, so a chain A then B then C keeps A's start while
+> A and B stay open. The session-started event records the inherited start and the predecessor's session id
+> (the event schema evolves additively; every existing event still reads), so the chain is walkable, and the
+> runner, not a fixture, writes it.
+> Tests in packages/cli/test/resumeRange.test.ts driving the real runner with a fixture runtime adapter on a
+> fixture repository and journal (no network):
+> - session A commits code with its Attempt trailer and stops without a debrief; session B resumes, writes its
+>   brief commit and files a derived debrief: its range starts at A's start, and verifyDebrief marks a decision
+>   that cites A's code rooted;
+> - a chain A, B, C keeps A's start in C's event and range;
+> - a predecessor with a committed debrief whose judgement was held is closed: B keeps its own start;
+> - a commit of another node in the interval, a worktree on another branch, and two candidate predecessors each
+>   refuse inheritance with their line, and B keeps its own start;
+> - a fresh session with no predecessor keeps today's range, and an existing session-started event without the
+>   new fields still reads.
 > Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
