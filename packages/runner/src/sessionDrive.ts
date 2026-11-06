@@ -16,7 +16,7 @@ import {
 import type { SubstrateClient } from "substrate";
 import { declaredGateIds, gateCommandTable } from "./gateCommand.ts";
 import { explainGateJudgeRefusal } from "./gateJudge.ts";
-import { createHerdrRuntime } from "./herdr/adapter.ts";
+import { createHerdrLaunchRuntime } from "./herdr/adapter.ts";
 import { HELD_REVISIT_MS, judgeWorktree } from "./judgeWorktree.ts";
 import { takeLease } from "./lease.ts";
 import type { LocalConfig } from "./localConfig.ts";
@@ -130,7 +130,39 @@ export interface DriveSessionRequest {
     session: string,
   ) => Promise<Result<BriefWriteOutcome, string>>;
   readonly beforeJudge?: (worktreePath: string) => Promise<Result<void, BeforeJudgeRefusal>>;
+  readonly beforeRuntime?: () => Promise<Result<void, string>>;
   readonly describeDone?: (kind: Outcome["kind"], narrate: (line: string) => void) => string;
+}
+
+type AbandonStepName =
+  | "brief"
+  | "worktree setup"
+  | "writable root"
+  | "runtime"
+  | "pane open"
+  | "agent start"
+  | "identity report"
+  | "startup"
+  | "prompt"
+  | "wait"
+  | "debrief prompt"
+  | "debrief wait"
+  | "graph"
+  | "worktree status"
+  | "gates";
+
+type CommitStepName = "brief commit" | "code commit" | "debrief commit";
+
+type RefusalStep =
+  | { readonly kind: "abandon"; readonly name: AbandonStepName }
+  | { readonly kind: "commit"; readonly name: CommitStepName };
+
+function abandon(name: AbandonStepName): RefusalStep {
+  return { kind: "abandon", name };
+}
+
+function commit(name: CommitStepName): RefusalStep {
+  return { kind: "commit", name };
 }
 
 export async function driveInteractiveSession(
@@ -155,6 +187,7 @@ export async function driveInteractiveSession(
     afterWorktree,
     composeBrief,
     beforeJudge,
+    beforeRuntime,
     describeDone,
   } = request;
   let narrate = request.narrate;
@@ -165,6 +198,34 @@ export async function driveInteractiveSession(
   let paneCustody: "runner" | "person" = "runner";
 
   try {
+    if (beforeRuntime !== undefined) {
+      const checked = await beforeRuntime();
+      if (isErr(checked)) {
+        narrate(checked.error);
+        return { exitCode: 1, message: checked.error };
+      }
+    }
+
+    const createdRuntime =
+      injectedRuntime === undefined ? await createHerdrLaunchRuntime() : ok(injectedRuntime);
+    if (isErr(createdRuntime)) {
+      const message =
+        createdRuntime.error.kind === "not-ready"
+          ? explainRuntimeRefusal(createdRuntime.error)
+          : `runtime preflight refused: ${explainRuntimeRefusal(createdRuntime.error)}`;
+      narrate(message);
+      return { exitCode: 1, message };
+    }
+    runtime = createdRuntime.value;
+    if (runtime.checkServer !== undefined) {
+      const checked = await runtime.checkServer();
+      if (isErr(checked)) {
+        const message = explainRuntimeRefusal(checked.error);
+        narrate(message);
+        return { exitCode: 1, message };
+      }
+    }
+
     const requestedGraphBaseSha = await currentCommitSha(repoRoot);
     const targetNode = { graph, id: node };
 
@@ -206,18 +267,14 @@ export async function driveInteractiveSession(
     const lease = takeLease(ledger, clock, targetNode, sessionId, localConfig.leaseMs);
     narrate(`leased ${node} (session ${sessionId}, expires ${isoOf(lease.expiry)})`);
 
-    const refuse = (
-      step: string,
-      explanation: string,
-      recordFailure = true,
-    ): DriveSessionOutcome => {
-      const line = `${step} refused: ${explanation}`;
+    const refuse = (step: RefusalStep, explanation: string): DriveSessionOutcome => {
+      const line = `${step.name} refused: ${explanation}`;
       narrate(line);
-      if (recordFailure && agentRuntime.commits === "runner") {
+      if (step.kind === "commit" && agentRuntime.commits === "runner") {
         ledger.append({
           kind: "outcome-set",
           node: targetNode,
-          outcome: outcome.failed([], step, "repair", line),
+          outcome: outcome.failed([], step.name, "repair", line),
         });
       }
       return { exitCode: 1, message: line };
@@ -243,7 +300,7 @@ export async function driveInteractiveSession(
 
     const briefWritten = await composeBrief(worktreePath, graphBaseSha, sessionId);
     if (isErr(briefWritten)) {
-      const result = refuse("brief", briefWritten.error);
+      const result = refuse(abandon("brief"), briefWritten.error);
       lease.stop();
       abandonLease();
       return result;
@@ -254,7 +311,7 @@ export async function driveInteractiveSession(
     const briefRelativePath = relative(worktreePath, briefWritten.value.path);
     const briefCommitted = commitBriefIfChanged(worktreePath, briefRelativePath, node, sessionId);
     if (isErr(briefCommitted)) {
-      const result = refuse("brief commit", explainWorktreeRefusal(briefCommitted.error));
+      const result = refuse(commit("brief commit"), explainWorktreeRefusal(briefCommitted.error));
       lease.stop();
       abandonLease();
       return result;
@@ -265,7 +322,7 @@ export async function driveInteractiveSession(
 
     const setUp = await runWorktreeSetup(localConfig.worktreeSetup, worktreePath, narrate);
     if (isErr(setUp)) {
-      const result = refuse("worktree setup", explainWorktreeSetupRefusal(setUp.error));
+      const result = refuse(abandon("worktree setup"), explainWorktreeSetupRefusal(setUp.error));
       lease.stop();
       abandonLease();
       return result;
@@ -273,25 +330,15 @@ export async function driveInteractiveSession(
 
     const launch = agentLaunch(agentRuntime, worktreePath);
     if (isErr(launch)) {
-      const result = refuse("writable root", explainWorktreeRefusal(launch.error));
+      const result = refuse(abandon("writable root"), explainWorktreeRefusal(launch.error));
       lease.stop();
       abandonLease();
       return result;
     }
-
-    const createdRuntime =
-      injectedRuntime === undefined ? await createHerdrRuntime() : ok(injectedRuntime);
-    if (isErr(createdRuntime)) {
-      const result = refuse("runtime", explainRuntimeRefusal(createdRuntime.error));
-      lease.stop();
-      abandonLease();
-      return result;
-    }
-    runtime = createdRuntime.value;
 
     const openedPane = await runtime.openPane(worktreePath);
     if (isErr(openedPane)) {
-      const result = refuse("pane open", explainRuntimeRefusal(openedPane.error));
+      const result = refuse(abandon("pane open"), explainRuntimeRefusal(openedPane.error));
       lease.stop();
       abandonLease();
       return result;
@@ -313,7 +360,7 @@ export async function driveInteractiveSession(
       node,
     );
     if (isErr(startedAgent)) {
-      const result = refuse("agent start", explainRuntimeRefusal(startedAgent.error));
+      const result = refuse(abandon("agent start"), explainRuntimeRefusal(startedAgent.error));
       lease.stop();
       abandonLease();
       return result;
@@ -326,7 +373,7 @@ export async function driveInteractiveSession(
       sessionId,
     });
     if (isErr(reported)) {
-      const result = refuse("identity report", explainRuntimeRefusal(reported.error));
+      const result = refuse(abandon("identity report"), explainRuntimeRefusal(reported.error));
       lease.stop();
       abandonLease();
       return result;
@@ -342,7 +389,7 @@ export async function driveInteractiveSession(
       if (startupStatus.value === "blocked") {
         const screen = await runtime.read(agent);
         if (isErr(screen)) {
-          const result = refuse("startup", explainRuntimeRefusal(screen.error));
+          const result = refuse(abandon("startup"), explainRuntimeRefusal(screen.error));
           lease.stop();
           abandonLease();
           return result;
@@ -358,7 +405,7 @@ export async function driveInteractiveSession(
         answered.add(candidate.index);
         const sent = await runtime.sendKeys(agent, candidate.answer.keys);
         if (isErr(sent)) {
-          const result = refuse("startup", explainRuntimeRefusal(sent.error));
+          const result = refuse(abandon("startup"), explainRuntimeRefusal(sent.error));
           lease.stop();
           abandonLease();
           return result;
@@ -372,7 +419,7 @@ export async function driveInteractiveSession(
         startupStatus.error.kind === "timeout"
           ? `agent not ready after ${startupStatus.error.timeoutMs}ms; last status ${startupStatus.error.status}`
           : explainRuntimeRefusal(startupStatus.error);
-      const result = refuse("startup", explanation);
+      const result = refuse(abandon("startup"), explanation);
       lease.stop();
       abandonLease();
       return result;
@@ -407,7 +454,7 @@ export async function driveInteractiveSession(
       startupAnswers: agentRuntime.startupAnswers,
     });
     if (isErr(delivered)) {
-      const result = refuse("prompt", explainRuntimeRefusal(delivered.error));
+      const result = refuse(abandon("prompt"), explainRuntimeRefusal(delivered.error));
       lease.stop();
       abandonLease();
       return result;
@@ -450,7 +497,7 @@ export async function driveInteractiveSession(
     );
     if (isErr(waited)) {
       lease.stop();
-      const result = refuse("wait", explainRuntimeRefusal(waited.error));
+      const result = refuse(abandon("wait"), explainRuntimeRefusal(waited.error));
       abandonLease();
       return result;
     }
@@ -468,7 +515,7 @@ export async function driveInteractiveSession(
       const code = commitRunnerCode(custody);
       if (isErr(code)) {
         lease.stop();
-        return refuse("code commit", code.error);
+        return refuse(commit("code commit"), code.error);
       }
       const sent = await runtime.prompt(
         agent,
@@ -478,7 +525,7 @@ export async function driveInteractiveSession(
       );
       if (isErr(sent)) {
         lease.stop();
-        return refuse("debrief prompt", explainRuntimeRefusal(sent.error));
+        return refuse(abandon("debrief prompt"), explainRuntimeRefusal(sent.error));
       }
       const taken = await runtime.waitUntil(
         agent,
@@ -487,7 +534,7 @@ export async function driveInteractiveSession(
       );
       if (isErr(taken)) {
         lease.stop();
-        return refuse("debrief prompt", explainRuntimeRefusal(taken.error));
+        return refuse(abandon("debrief prompt"), explainRuntimeRefusal(taken.error));
       }
       const filed = await waitForSession(
         runtime,
@@ -506,12 +553,12 @@ export async function driveInteractiveSession(
       );
       if (isErr(filed)) {
         lease.stop();
-        return refuse("debrief wait", explainRuntimeRefusal(filed.error));
+        return refuse(abandon("debrief wait"), explainRuntimeRefusal(filed.error));
       }
       const committed = await commitRunnerDebrief(custody, code.value);
       if (isErr(committed)) {
         lease.stop();
-        return refuse("debrief commit", committed.error);
+        return refuse(commit("debrief commit"), committed.error);
       }
       narrate(`debrief committed ${committed.value}`);
     }
@@ -546,7 +593,7 @@ export async function driveInteractiveSession(
           clock.now().wallMs + HELD_REVISIT_MS,
         );
         ledger.append({ kind: "outcome-set", node: targetNode, outcome: held });
-        const result = refuse("graph", preCheck.error.because, false);
+        const result = refuse(abandon("graph"), preCheck.error.because);
         abandonLease();
         return result;
       }
@@ -570,8 +617,8 @@ export async function driveInteractiveSession(
     if (isErr(judged)) {
       const result =
         judged.error.kind === "worktree-status"
-          ? refuse("worktree status", explainWorktreeRefusal(judged.error.refusal))
-          : refuse("gates", explainGateJudgeRefusal(judged.error.refusal));
+          ? refuse(abandon("worktree status"), explainWorktreeRefusal(judged.error.refusal))
+          : refuse(abandon("gates"), explainGateJudgeRefusal(judged.error.refusal));
       abandonLease();
       return result;
     }
