@@ -1033,9 +1033,13 @@ transcript@v0, one file per phase at <run dir>/transcript.jsonl, one JSON object
 
 ## Acceptance (verbatim from the graph)
 
-> A runtimes@v1 profile of kind exec (evolved additively: argv, a {prompt} or stdin prompt mode, a model, and an
-> optional read_only_argv) is started by the runner as a direct child with spawn, detached into its own process
-> group, cwd the node's worktree, env from the machine provider, stdin closed once the prompt is written. The
+> A runtimes@v1 profile of kind exec (evolved additively: argv, a {prompt} or stdin prompt mode, a model, an
+> optional read_only_argv, and an MCP allowlist: mcp_servers, the server names the machine's runtime may load;
+> mcp_allow, the ones this profile's sessions may use; and mcp_disable_argv, an argv template with {name} that the
+> runner appends once for every server in mcp_servers and not in mcp_allow) is started by the runner as a direct
+> child with spawn, detached into its own process group. Review sessions use an empty allowlist unless their
+> profile names one. The runner knows no server or flag by name; the templates live in the machine's
+> runtimes.yaml. The child runs with cwd the node's worktree, env from the machine provider, stdin closed once the prompt is written. The
 > phase, admission, containment, identity, dead-runner and transcript rules of this graph's read are implemented
 > exactly: the record is persisted before admit, nothing spawns on a refused admit, the pid is bound after spawn,
 > the state stays running until the group is confirmed gone, terminal states are monotonic, every signal is
@@ -1065,5 +1069,7 @@ transcript@v0, one file per phase at <run dir>/transcript.jsonl, one JSON object
 >   marks the tail lost, records the end, and only then leases the node again;
 > - a two-phase attempt: the work phase leaves code uncommitted, the runner commits it, the debrief phase files a
 >   valid debrief at the new head, and the node is judged; the debrief phase's parentId names the work phase;
-> - two callers in two linked worktrees list the same session.
+> - two callers in two linked worktrees list the same session;
+> - a profile with mcp_servers [a, b] and mcp_allow [a] passes the disable template for b only; a review session
+>   with no allowlist passes it for both.
 > Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
