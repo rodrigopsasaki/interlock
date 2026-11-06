@@ -65,6 +65,7 @@ export async function observeRuntime(runtime: Runtime): Promise<RuntimeObservati
 
 export type RuntimeRefusal =
   | { readonly kind: "no-socket"; readonly path: string }
+  | { readonly kind: "not-ready"; readonly message: string }
   | { readonly kind: "unknown-agent-kind"; readonly agentKind: string }
   | {
       readonly kind: "timeout";
@@ -96,6 +97,8 @@ export function explainRuntimeRefusal(refusal: RuntimeRefusal): string {
   switch (refusal.kind) {
     case "no-socket":
       return `${refusal.path}: no socket found; the runtime's server was not attached.`;
+    case "not-ready":
+      return refusal.message;
     case "unknown-agent-kind":
       return `"${refusal.agentKind}": not a kind this runtime's agent host accepts.`;
     case "timeout":
@@ -112,6 +115,7 @@ export function explainRuntimeRefusal(refusal: RuntimeRefusal): string {
 }
 
 export interface Runtime {
+  checkServer?(): Promise<Result<void, RuntimeRefusal>>;
   openPane(cwd: string): Promise<Result<Pane, RuntimeRefusal>>;
   startAgent(
     pane: Pane,

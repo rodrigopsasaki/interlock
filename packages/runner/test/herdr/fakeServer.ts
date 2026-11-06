@@ -21,6 +21,7 @@ export interface FakeWorkspaceState {
 export interface FakeHerdrServer {
   readonly socketPath: string;
   readonly calls: readonly RecordedCall[];
+  serverRunning: boolean;
   agentStatus: string;
   delayAgentWaitToRequestedTimeout: boolean;
   panes: readonly Record<string, unknown>[];
@@ -110,6 +111,7 @@ export function startFakeHerdrServer(socketPath: string): Promise<FakeHerdrServe
 
   const calls: RecordedCall[] = [];
   const state = {
+    serverRunning: true,
     agentStatus: "idle",
     delayAgentWaitToRequestedTimeout: false,
     panes: [] as readonly Record<string, unknown>[],
@@ -181,6 +183,9 @@ export function startFakeHerdrServer(socketPath: string): Promise<FakeHerdrServe
     }
 
     switch (method) {
+      case "server.status":
+        respond(socket, id, { status: state.serverRunning ? "running" : "stopped" });
+        return;
       case "workspace.create": {
         const label = prop(params, "label");
         const workspace: Workspace = {
@@ -326,6 +331,12 @@ export function startFakeHerdrServer(socketPath: string): Promise<FakeHerdrServe
         },
         set agentStatus(value: string) {
           state.agentStatus = value;
+        },
+        get serverRunning() {
+          return state.serverRunning;
+        },
+        set serverRunning(value: boolean) {
+          state.serverRunning = value;
         },
         get delayAgentWaitToRequestedTimeout() {
           return state.delayAgentWaitToRequestedTimeout;
