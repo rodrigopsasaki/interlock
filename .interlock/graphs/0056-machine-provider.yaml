@@ -64,8 +64,12 @@ nodes:
       pid from the runtime adapter (herdr pane process-info), refusing the launch if no pid is available; run admit
       with the holder "<graph>/<node> (<session id>)", the token "<session id>/<pane id>" and that pid, admit itself an
       outbox effect: its intent (the token and the pane) persisted in the ledger before dispatch, its delivery
-      recorded, and an admit whose outcome is lost to a crash recorded as uncertain and reconciled on the next start
-      by releasing that token (release is idempotent per token) unless its session is still running; start the
+      recorded, and an admit whose outcome is lost to a crash recorded as uncertain and reconciled on the next start:
+      the runner looks up the persisted pane and its process through the adapter; if the pane still exists it is an
+      orphan (the pane is opened before the agent starts, sessionDrive.ts:292 and :308), so the runner closes it
+      through the outbox like any close and releases the token only after that close is confirmed; if the pane is
+      confirmed gone it releases at once (release is idempotent per token); if the pane's state or the close is
+      uncertain, the hold is kept and reported, never released on a guess; start the
       agent only if admit exits zero. A non-zero admit refuses the launch: the runner narrates the provider's first
       output line verbatim and returns it as the exit message, closes the pane, abandons the lease with no outcome
       (refusals-stay-resettable), and starts no agent, so the same node runs again once the machine has room.
@@ -98,7 +102,9 @@ nodes:
         launch, env and gates unchanged and narrates no provider;
       - a crash after the close and before the release leaves an uncertain release that the next start re-sends
         once, and the provider sees one release per token;
-      - a crash right after a successful admit is reconciled on the next start by one release of that token;
+      - a crash right after a successful admit is reconciled on the next start: the orphan pane is closed through the
+        outbox and its token released once after the confirmed close; with a failing close the hold is kept and
+        reported, and nothing is released;
       - a backfill with a missing provider or a failing env refuses before any worktree is created;
       - admit runs after the pane opens and before the agent starts, with holder, token and pid; a non-zero admit
         refuses the launch with the provider's line, closes the pane, records no outcome and starts no agent, and
