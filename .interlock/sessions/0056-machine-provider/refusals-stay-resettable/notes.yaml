@@ -1,0 +1,32 @@
+interlock: notes@v0
+graph: 0056-machine-provider
+node: refusals-stay-resettable
+entries:
+  - kind: choice
+    at: "2026-11-06T21:00:00Z"
+    chose: classify refusal steps as a closed discriminated union
+    because: Only runner commit phases may append failed outcomes; every other refusal must abandon its lease without deciding the node.
+  - kind: choice
+    at: "2026-11-06T21:01:00Z"
+    chose: run runtime server preflight before worktree setup, leasing, or session-started
+    because: A stale socket must not cause any launch state to be written before the runtime adapter confirms a running server.
+  - kind: surprise
+    at: "2026-11-06T21:02:00Z"
+    expected: The focused commit-refusal suite would run with the brief's command.
+    observed: Vitest inherited conflicting VITEST_MAX_THREADS and VITEST_MAX_FORKS values; setting one worker explicitly let the suite pass.
+  - kind: choice
+    at: "2026-11-06T21:03:00Z"
+    chose: keep the herdr preflight sentence in the herdr adapter and pass it through a generic not-ready refusal
+    because: The runtime/session seam must not name a concrete multiplexer.
+  - kind: surprise
+    at: "2026-11-06T21:04:00Z"
+    expected: The fake herdr adapter test would bind its Unix socket.
+    observed: This sandbox rejected the fake server listen with EPERM, so that adapter test could not run here; the refusal and commit suites remained runnable.
+  - kind: surprise
+    at: "2026-11-06T21:05:00Z"
+    expected: The repository-wide test gate would complete after constraining Vitest to one worker.
+    observed: Substrate absorb tests timed out on unavailable network observations, and the schemas corpus also reported pre-existing unknown arcs@v0 and queue@v0 files; the run was stopped after those failures.
+  - kind: choice
+    at: "2026-11-06T21:06:00Z"
+    chose: leave all changes uncommitted and record one why-commit in commits.yaml
+    because: Rodrigo explicitly owns the signed commit step for this session.
