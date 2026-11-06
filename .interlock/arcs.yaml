@@ -51,7 +51,7 @@ arcs:
     ask: "nothing should run in 'not in an arc yet' because if I asked for something, the way in which I asked should be the arc, even if the arc has only one graph in it. Arcs are my language, graphs are the result of what the planner decided the work should be to satisfy my intent."
     source: 2026-11-06 18:34 UTC, project chat
     graphs:
-      - interlock/0053-graph-arc (to be drafted)
+      - interlock/0053-graph-arc
 
   - id: interlock-runs-any-runtime
     title: Interlock runs any runtime

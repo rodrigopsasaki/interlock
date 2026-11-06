@@ -1,0 +1,144 @@
+interlock: graph@v0
+id: 0053-graph-arc
+arc: every-ask-is-an-arc
+ask: Every graph belongs to an arc in the owner's own words, by construction, so schema validation, plan, approve and run each refuse a graph no arc holds, and the arcs and queue registries are read through the product.
+derivation:
+  kind: model
+  model: gilb (Claude)
+  prompt: graph-arc-2026-11-06
+authorization:
+  granted_by: Rodrigo Sasaki
+  mandate: loom-feed-2026-11-04  # "You're free to do changes on phyxius and interlock too", 23:25 UTC
+  approver: Rodrigo Sasaki; Gilb relays the recorded approval and coordinates cleared-node merges. The cross-vendor vet is advisory.
+read: >
+  Arc: every-ask-is-an-arc (.interlock/arcs.yaml). The owner, 2026-11-06 18:34 UTC: "nothing should run in 'not in
+  an arc yet' because if I asked for something, the way in which I asked should be the arc, even if the arc has only
+  one graph in it. Arcs are my language, graphs are the result of what the planner decided the work should be to
+  satisfy my intent." 22:20 UTC, after a registry still listed graphs under needs_his_words: "that's wrong, there
+  should never be a graph that has no arc, by construction. This is just a patch for graphs we already have that
+  don't respect that." His words carry their message ids in .interlock/arcs.yaml.
+
+  Today. arcs@v0 (schemas/arcs@v0.json) admits arcs with an ask string, an optional also_said list and graphs, and
+  a needs_his_words list for graphs without an arc. graph@v0 admits an optional `arc` key (graphs from 0058 on carry
+  one; earlier graphs do not). Nothing reads either registry: `interlock schema validate` checks shape only,
+  `interlock graph approve` (packages/cli/src/graph/approve.ts) and `interlock run` (packages/cli/src/run.ts) never
+  look for an arc, and `interlock plan` (packages/cli/src/plan.ts) drafts a graph without one. A substrate's app
+  that reads the registries (to show each running graph's arc) reads the YAML files directly. The registries of
+  three repositories on this machine use two shapes arcs@v0 does not admit: a `superseded` list on an arc (graphs
+  replaced by a reissue, each with its because), and an ask written as a list of dated messages; the second is
+  reshaped in its own repository to ask plus also_said, words verbatim, and this graph admits the first.
+
+  The rule. A graph's arc is resolved from the graph's own `arc` key, or else from the one arc in the repository's
+  .interlock/arcs.yaml whose graphs list "<repository>/<graph id>", where <repository> is the repository's name from
+  its origin (packages/cli/src/repositoryOrigin.ts). Both present must agree; two arcs listing one graph, an `arc`
+  key naming no arc, or no arc at all is a graph without an arc. needs_his_words does not exist in arcs@v1; an
+  arcs@v0 file that still carries a non-empty needs_his_words is read, and every graph it lists is a graph without an
+  arc.
+
+  Invariants. I8: readers accept every prior version; arcs@v0 stays readable. I9 is not touched: an arc is not a
+  convention that gates; a graph with no arc has no ask of the owner's behind it, so it is not a plan he asked for,
+  and refusing it is refusing to run work nobody asked for. I10: the owner's authority is never gated; the owner adds
+  an arc by editing arcs.yaml, never by a flag that skips the check. The wall: no substrate is named in code,
+  schemas or tests.
+  Order. Built after graph 0059 lands. Every attempt opens with: run one heavy command at a time, never several in
+  parallel or in the background; never clone the repository inside your worktree, use the worktree you were given.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: arcs-v1
+    role: implementer
+    depends_on: []
+    acceptance: |
+      schemas/arcs@v1.json: interlock "arcs@v1"; arcs, each with id (kebab case), title, ask (one string, the owner's
+      words), source, an optional also_said list of {words, source}, graphs (non-empty, unique "<repository>/<graph
+      id>" strings, an optional trailing note in parentheses kept as today), and an optional superseded list of
+      {graph, because}; no needs_his_words key at any level (additionalProperties false). arcs@v0 stays registered
+      and readable. This repository's .interlock/arcs.yaml moves to arcs@v1. docs/shapes.md is regenerated.
+      A reader (packages/schemas or the cli, beside the existing validators) parses either version into one typed
+      registry: arcs, and for v0 the needs_his_words graphs, which the resolver treats as graphs without an arc.
+      Tests in packages/schemas/test/arcs.test.ts:
+      - an arcs@v1 file with superseded entries validates; one with needs_his_words, an ask that is a list, an empty
+        graphs list or a duplicate graph is refused;
+      - an arcs@v0 file still validates and reads, and its needs_his_words graphs come back as graphs without an arc;
+      - this repository's .interlock/arcs.yaml validates as arcs@v1.
+      Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
+    gates:
+      - id: arcs-v1-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter schemas exec vitest run test/arcs.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: arc-required
+    role: implementer
+    depends_on: [arcs-v1]
+    acceptance: |
+      One resolver, in one module, implements this graph's rule and returns, for a graph, its arc or the one plain
+      reason it has none ("0099-x has no arc: no arc in .interlock/arcs.yaml lists interlock/0099-x, and the graph
+      carries no arc key"; "... lists it under two arcs, a and b"; "... its arc key names b, which arcs.yaml does not
+      hold"; "... its arc key says a but arcs.yaml lists it under b"). Every door that takes a graph uses it and
+      refuses a graph without an arc with that line, writing nothing:
+      - `interlock schema validate` on a graph file, beside the shape check;
+      - `interlock graph approve` (packages/cli/src/graph/approve.ts), before any receipt is written;
+      - `interlock run` (packages/cli/src/run.ts), before any lease, worktree or session;
+      - `interlock plan` (packages/cli/src/plan.ts): it takes `--arc <id>`, refuses an id arcs.yaml does not hold, and
+        writes `arc: <id>` into the drafted graph; a correction keeps the graph's arc.
+      A graph already approved before this lands and now without an arc is refused at run like any other: the owner
+      gives it an arc in arcs.yaml, and nothing else unblocks it. `interlock graph show` and the position name each
+      graph's arc.
+      Tests in packages/cli/test/arcRequired.test.ts on fixture repositories:
+      - a graph listed in arcs.yaml, one with a matching arc key, and one with both pass every door;
+      - no arc, two arcs, an arc key naming no arc, and a disagreeing arc key are each refused at schema validate,
+        approve, run and plan with their line, and nothing is written (no receipt, lease, worktree or session);
+      - plan without --arc, and with an unknown --arc, is refused; with a known one the drafted graph carries it;
+      - an arcs@v0 registry with needs_his_words: a graph it lists is refused at run;
+      - graph show and the position print the arc's id and title.
+      Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
+    gates:
+      - id: arc-required-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/arcRequired.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: registry-reads
+    role: implementer
+    depends_on: [arcs-v1]
+    acceptance: |
+      The registries are read through the product, so an app never parses the YAML itself.
+      `interlock arcs --json` prints {"interlock": "arcs-read@v0", "arcs": [{id, title, ask, source, also_said,
+      graphs: [{ref, repository, graph, local, approved}], superseded}], "unarced": [graph ids of this repository's
+      graphs that have no arc, each with the resolver's line]}, where local says the graph file is in this repository
+      and approved is its approved gate's state ("approved", "stale" or "not approved") for local graphs, null
+      otherwise; "unarced" is empty when the invariant holds.
+      `interlock queue --json` prints .interlock/queue.yaml as {"interlock": "queue-read@v0", "queue": [...]} with
+      each entry's arc resolved to {id, title} or null when the arc is not in this repository's arcs.yaml. Both are
+      registered as schemas with committed examples; docs/shapes.md is regenerated.
+      Tests in packages/cli/test/registryReads.test.ts on fixture repositories:
+      - arcs --json validates as arcs-read@v0, lists every arc with its graphs' approved state, and unarced is empty
+        when every graph has an arc and names each one that does not;
+      - queue --json validates as queue-read@v0 and resolves arcs, with null for an unknown one;
+      - a repository with no arcs.yaml prints an empty arcs list and every graph under unarced.
+      Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
+    gates:
+      - id: registry-reads-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/registryReads.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: briefs-before-approval
+    role: implementer
+    depends_on: [arc-required]
+    acceptance: |
+      `interlock graph approve` refuses a graph any of whose nodes has no brief at .interlock/sessions/<graph>/<node>/
+      brief.md that validates as a brief for that graph and node, naming each missing or invalid brief, and writes no
+      receipt. The runner already refuses to lease a node without a brief; this moves the refusal to the approval, so
+      an approved graph can always run.
+      Tests in packages/cli/test/briefsBeforeApproval.test.ts:
+      - a graph with a valid brief per node is approved;
+      - a missing brief, and a brief naming another node, are each refused with their line and no receipt.
+      Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
+    gates:
+      - id: briefs-before-approval-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/briefsBeforeApproval.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
