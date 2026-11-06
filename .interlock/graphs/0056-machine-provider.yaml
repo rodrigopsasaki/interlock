@@ -62,7 +62,10 @@ nodes:
       of string values refuses the launch before setup, naming why. Then run worktree setup through heavy; open the
       pane with no agent in it; read the pane's process
       pid from the runtime adapter (herdr pane process-info), refusing the launch if no pid is available; run admit
-      with the holder "<graph>/<node> (<session id>)", the token "<session id>/<pane id>" and that pid; start the
+      with the holder "<graph>/<node> (<session id>)", the token "<session id>/<pane id>" and that pid, admit itself an
+      outbox effect: its intent (the token and the pane) persisted in the ledger before dispatch, its delivery
+      recorded, and an admit whose outcome is lost to a crash recorded as uncertain and reconciled on the next start
+      by releasing that token (release is idempotent per token) unless its session is still running; start the
       agent only if admit exits zero. A non-zero admit refuses the launch: the runner narrates the provider's first
       output line verbatim and returns it as the exit message, closes the pane, abandons the lease with no outcome
       (refusals-stay-resettable), and starts no agent, so the same node runs again once the machine has room.
@@ -86,13 +89,17 @@ nodes:
       while env is configured, naming why (fail closed). The object is merged into the environment of every gate, worktree setup and backfill install.
       Heavy commands. When heavy is set, every gate command, worktree setup command and backfill install runs as
       heavy's argv followed by the command's argv, still without a shell (gateJudge.ts:131, worktreeSetup.ts:84,
-      backfill.ts:99), including gates run by a standalone `interlock judge` (packages/cli/src/judge.ts:169-182,
+      backfill.ts:99; backfill resolves the provider and runs env before createDetachedWorktree, backfill.ts:95-105, so a
+      missing or malformed provider or a failed env writes nothing), including gates run by a standalone
+      `interlock judge` (packages/cli/src/judge.ts:169-182,
       packages/runner/src/judgeWorktree.ts), which resolves the machine file the same way.
       Tests in packages/runner/test/machineProvider.test.ts with fixture provider scripts, no real provider:
       - no machine file refuses the launch with the line before writing anything; `provider: none` leaves setup,
         launch, env and gates unchanged and narrates no provider;
       - a crash after the close and before the release leaves an uncertain release that the next start re-sends
         once, and the provider sees one release per token;
+      - a crash right after a successful admit is reconciled on the next start by one release of that token;
+      - a backfill with a missing provider or a failing env refuses before any worktree is created;
       - admit runs after the pane opens and before the agent starts, with holder, token and pid; a non-zero admit
         refuses the launch with the provider's line, closes the pane, records no outcome and starts no agent, and
         a second run after the fixture provider admits succeeds;
@@ -137,8 +144,10 @@ nodes:
       Only those four record a failed outcome, with their failure, disposition and because as 0055 specified: a path
       outside the node's declared paths, a secret-looking path, an invalid commits.yaml, and a commit or signing
       failure. Every other refusal, on any profile, abandons the lease with no outcome, as before 0055: the runtime
-      or its server not attached, worktree or worktree setup, brief, pane or agent start, prompt delivery, and the
-      machine provider's admit or env from this graph. Make the split a closed type over the refusal steps, so a new
+      or its server not attached, worktree or worktree setup, brief, pane or agent start, prompt delivery, the
+      machine provider's admit or env from this graph, and a wait that times out with nothing judged (the third
+      burn, 2026-11-06 18:13Z: a codex attempt's 60-minute wait ran out because the runner has no live-work
+      evidence source for codex, and the refusal decided preston's 0032-3 for good). Make the split a closed type over the refusal steps, so a new
       step must say which side it is on.
       Launch preflight. Before writing anything for a launch (no lease, no worktree change, no brief commit, no
       ledger event), the runner asks the runtime adapter whether its server is running: for herdr, the server
@@ -151,7 +160,9 @@ nodes:
         nothing to refuse and a second `interlock run` proceeds;
       - a worktree setup refusal and an agent start refusal record no outcome, on runner and agent profiles;
       - each of the four commit refusals still records failed, as 0055's tests assert;
-      - every refusal step is classified (the type check fails for an unclassified step).
+      - every refusal step is classified (the type check fails for an unclassified step);
+      - a wait that times out with nothing judged, on a commits: runner profile, records no outcome and the node runs
+        again;
       - with a stale socket file and no server, `interlock run` refuses with the preflight line and leaves the ledger,
         the worktree and its branch exactly as they were (no lease, no brief commit).
     gates:
