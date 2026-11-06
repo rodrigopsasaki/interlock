@@ -1,6 +1,6 @@
 interlock: graph@v0
 id: 0056-machine-provider
-ask: The runner asks the machine before it starts agent work, so a configured provider can refuse a launch past the machine's limits, queue heavy gate commands, and set the limits environment of every agent it starts.
+ask: The runner asks the machine before it starts agent work, so a configured provider can refuse a launch past the machine's limits, queue heavy commands, and set the limits environment of every agent and gate it starts.
 derivation:
   kind: model
   model: gilb (Claude)
@@ -8,24 +8,27 @@ derivation:
 authorization:
   granted_by: Rodrigo Sasaki
   mandate: loom-feed-2026-11-04  # "You're free to do changes on phyxius and interlock too", 23:25 UTC
-  approver: Gilb for Rodrigo Sasaki, after a cross-vendor vet; the human merges
+  approver: Rodrigo Sasaki; Gilb relays the recorded approval and coordinates cleared-node merges. The cross-vendor vet is advisory.
 read: >
   Rodrigo's Mac froze on 2026-11-06 at 15:30 UTC under concurrent agent builds started by Interlock runners and he cut
   the power. Rodrigo, 15:43 UTC: "this has to be managed via Preston settings, I don't want you working around the
   product when doing this is also the purpose of the product." Preston graph 0034-machine-limits makes the limits a
   Preston setting and provides the commands; this graph is the minimal Interlock side: one generic hook, naming no
-  product.
+  product. Revised after a strict cross-vendor vet (codex sol, reject), its findings on this graph all folded.
 
-  Today the runner opens a pane and starts the agent with the profile's args (packages/runner/src/sessionDrive.ts:292,
-  308-314), spawns each gate without a shell (packages/runner/src/gateJudge.ts:131), and closes the pane when it has
-  custody or leaves it open for drilldown (sessionDrive.ts:586-593). Nothing asks the machine first.
+  Today the runner runs worktree setup before anything else (packages/runner/src/sessionDrive.ts:266, spawned
+  directly in worktreeSetup.ts:84), backfill runs `pnpm install` itself (backfill.ts:99), the runner opens a pane and
+  starts the agent through herdr's agent.start with the profile's args and no environment
+  (sessionDrive.ts:292, 308-314; herdr/adapter.ts:330-340), spawns each gate without a shell (gateJudge.ts:131), and
+  closes the pane when it has custody, ignoring the close's result, or leaves it open for drilldown
+  (sessionDrive.ts:586-593; adapter.ts:541-543). Nothing asks the machine first.
 
-  A pane left open counts as live work until it closes, so a session's release follows the pane's process, not the
-  runner's exit: the runner gives the provider the pid of the pane's process (herdr pane process-info), and the
-  provider reaps the session when that pid is gone.
+  A pane left open counts as live work until its close is confirmed, so a session's release follows the pane, not
+  the runner's exit: the provider holds the session under a stable token for the pane and reaps it when the pane's
+  process is gone.
 
   Out of scope: Interlock deciding any limit itself, reading memory, or knowing Preston. Without a machine file the
-  runner behaves exactly as today.
+  runner behaves exactly as today, and `interlock run` says once per launch that no machine provider is configured.
 gates:
   - id: approved
     kind: human
@@ -38,31 +41,40 @@ nodes:
       tests, like INTERLOCK_RUNTIMES), shape machine@v0 with a JSON schema and schema tests:
         interlock: machine@v0
         provider:
-          admit: [argv...]      # run before every launch; {holder} and {pid} are substituted
-          release: [argv...]    # run when the runner closes a pane it admitted; {pid}
-          env: [argv...]        # prints a JSON object of environment for agents and gates
-          heavy: [argv...]      # prefix for every gate command
-      Every key is optional; an absent file or key means today's behaviour for that step.
-      Admission. Before opening a pane, the runner runs admit with the holder "<graph>/<node> (<session id>)" and,
-      once the pane exists, the pid of the pane's process from the runtime adapter. Open the pane first, ask with its
-      pid, and close the pane at once if admit refuses. A non-zero admit refuses the launch: the runner records a
-      failed outcome whose because is the provider's first output line verbatim, closes the pane, and starts no agent.
-      When the runner closes a pane it admitted, it runs release with that pid; a pane left open for drilldown is
-      released by the provider when its pid is gone.
-      Environment. When env is set, the runner runs it once per attempt and passes the object to the agent: for a
-      codex profile as `-c shell_environment_policy.set.<KEY>="<value>"` arguments appended to the profile's args,
-      and for any other kind as the environment of the command that starts the agent in the pane. The same object
-      is merged into every gate's environment. An env that fails or prints anything but a JSON object of strings
-      refuses the launch naming why.
-      Heavy gates. When heavy is set, every gate command runs as heavy's argv followed by the gate's argv, still with
-      no shell (gateJudge.ts:131).
+          admit: [argv...]      # {holder}, {token} and {pid} are substituted
+          release: [argv...]    # {token}
+          env: [argv...]        # prints a JSON object of string values
+          heavy: [argv...]      # prefix for every heavy command
+      Each key is optional; an absent file or key means today's behaviour for that step, narrated once per launch.
+      The runner resolves the machine file before worktree setup.
+      Order of a launch. Run worktree setup through heavy; open the pane with no agent in it; read the pane's process
+      pid from the runtime adapter (herdr pane process-info), refusing the launch if no pid is available; run admit
+      with the holder "<graph>/<node> (<session id>)", the token "<session id>/<pane id>" and that pid; start the
+      agent only if admit exits zero. A non-zero admit refuses the launch: the runner records a failed outcome whose
+      because is the provider's first output line verbatim, closes the pane, and starts no agent.
+      Release. When the runner closes a pane it admitted and the close is confirmed (the adapter's close returns ok),
+      it runs release with the token. A close that fails or times out keeps the session held and is narrated; the
+      provider reaps it when the pane's process is gone. A pane left open for drilldown is never released by the
+      runner.
+      Environment. When env is set, the runner runs it once per attempt. For a codex profile it appends
+      `-c shell_environment_policy.set.<KEY>="<value>"` for each key, with TOML string quoting. For any other kind it
+      passes the object to herdr's agent start: measure herdr 0.9.5's agent.start for an environment parameter and
+      use it; if there is none, start the agent through `env KEY=value... <command>` in the pane with shell-safe
+      quoting, or, if herdr offers neither, refuse to launch a non-codex agent while env is configured, naming why
+      (fail closed). The object is merged into the environment of every gate, worktree setup and backfill install.
+      Heavy commands. When heavy is set, every gate command, worktree setup command and backfill install runs as
+      heavy's argv followed by the command's argv, still without a shell (gateJudge.ts:131, worktreeSetup.ts:84,
+      backfill.ts:99), including gates run by a standalone `interlock judge`.
       Tests in packages/runner/test/machineProvider.test.ts with fixture provider scripts, no real provider:
-      - no machine file: launch, env and gates are unchanged;
-      - an admit that exits non-zero refuses the launch, records the provider's line as the because, closes the
-        pane, and starts no agent;
-      - an accepted admit receives the holder and the pane's pid, and release runs when the runner closes the pane;
-      - env's object reaches a codex profile as -c flags and a gate's environment;
-      - heavy prefixes a gate's argv;
+      - no machine file: setup, launch, env and gates are unchanged, and the launch narrates no provider;
+      - admit runs after the pane opens and before the agent starts, with holder, token and pid; a non-zero admit
+        refuses the launch with the provider's line as the because, closes the pane and starts no agent;
+      - no pane pid refuses the launch;
+      - release runs with the token only after a confirmed close; a failed close keeps the session held;
+      - env reaches a codex profile as -c flags with quoting cases (spaces, quotes), a kimi-shaped fixture agent
+        reports the same values from its own environment, and a gate sees them;
+      - heavy prefixes a gate, the worktree setup and the backfill install, and two runners sharing one fixture
+        heavy prefix run their setup and gates one at a time;
       - a malformed machine.yaml is refused naming the field.
       Strict TypeScript, no type assertions, no non-null operators. Preserve every historical artifact. No push, no
       merge; the human merges.
