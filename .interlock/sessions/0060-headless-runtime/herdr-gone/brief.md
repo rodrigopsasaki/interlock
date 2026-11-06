@@ -994,10 +994,25 @@ edit it.
 
 > Interlock no longer depends on herdr or tmux. Removed: the herdr adapter (packages/runner/src/herdr/), the tmux
 > stub (packages/runner/src/tmux/), the cli's herdr status reader (packages/cli/src/herdrStatus.ts), prompt typing
-> and submit keys (packages/runner/src/promptDelivery.ts), startup answers and the pane drilldown, every herdr
-> status check (including any runtime preflight that asks herdr's server), any completion chime, and every
-> pane-close verb; their tests go with them, and the remaining tests pass without herdr installed. The Runtime
-> interface keeps only what exec needs. runtimes@v1 profiles of a pane kind are refused with one line saying to
-> move them to kind exec (no silent fallback), and the repository's own local.example.yaml and docs name exec
-> profiles only. A test asserts no source file under packages/ imports or names herdr or tmux.
+> and submit keys (packages/runner/src/promptDelivery.ts), startup answers and pane focus, every herdr status check
+> (including any runtime preflight that asks herdr's server), any completion chime, and every pane-close verb,
+> with their tests; the remaining tests pass without herdr installed. Drilldown keeps reading the journal.
+> Steering. `interlock session say` (packages/cli/src/session/say.ts:193) records the owner's words as today
+> (person-said evidence, an outbox intent) and delivers them as the opening of the next phase of that attempt
+> instead of typing into a pane: while a phase runs the words wait, recorded as pending; the next phase's prompt
+> carries them, and the outbox records delivery when that phase starts. A person who needs them read at once
+> stops the running phase (`interlock sessions stop`) and the next phase starts with them.
+> Docs. AGENTS.md's vocabulary changes session to "One agent process working one node, a child of the runner in
+> its own process group." and runner to drop "drives herdr"; the "What this repository is" paragraph no longer
+> says herdr owns terminals; the seams table's runtime and face rows no longer name a herdr pane. The design note
+> gains a bend-log row: what bent (sessions in herdr panes), against which decision, why (the owner's 21:52 and
+> 21:54 UTC words, by their message ids), and that the way back was kept (the runtime seam is unchanged).
+> Profiles. A runtimes@v1 profile of a pane kind is refused with one line saying to move it to kind exec (no
+> silent fallback); the repository's local.example.yaml and docs show exec profiles only, with placeholder
+> program names.
+> Tests in packages/runner/test/herdrGone.test.ts:
+> - no source file under packages/ imports or names herdr or tmux;
+> - a pane-kind profile is refused with its line;
+> - session say during a running phase records pending words, and the next phase's prompt carries them, with the
+>   outbox recording delivery at that phase's start.
 > Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.

@@ -993,48 +993,64 @@ edit it.
 ## The app's contract (verbatim from the graph read)
 
 ```
+The app's contract. The app reads sessions from Interlock, never from a runtime. The shapes below are fixed before the build and evolve additively (a reader already built against the first draft keeps working: fields are added, none removed or renamed, and the state set is unchanged).
 sessions@v0, printed by `interlock sessions --json` (all of this machine's sessions for the repository, newest first; `--live` keeps state running only):
   { "interlock": "sessions@v0", "sessions": [ {
       "id": session id (the ledger's session id),
+      "phase": "work" | "debrief" | "review",
+      "parentId": the phase this one follows, as "<id>/<phase>", or null,
       "kind": "node" | "review",
       "graph": graph id, "node": node id or null for a review, "lens": lens name or null for a node,
+      "subjectHash": for a review, the sha256 of the snapshot it reviewed; null for a node,
       "arc": the graph's arc id or null,
       "runtime": runtimes.yaml profile name, "model": the profile's model,
-      "pid": child pid, "pgid": its process group id,
+      "pid": child pid or null (never started), "pgid": its process group id or null,
       "startedAt": ISO 8601 UTC, "endedAt": ISO 8601 UTC or null,
       "state": "running" | "done" | "failed" | "killed",
       "exitCode": integer or null, "signal": signal name or null,
-      "reason": one plain line or null (why it failed or was killed: "run timeout 3h", "machine limit",
-                "stopped by <who>", "runner lost the process"),
-      "transcriptPath": absolute path of the session's transcript.jsonl } ] }
-  state: running while the process group is alive; done on exit 0; failed on a non-zero exit, or when the runner
-  finds the recorded pid gone with no exit recorded (exitCode null, reason "runner lost the process"); killed when
-  the runner signalled the group (reason names why).
+      "reason": one plain line or null ("run timeout 3h", "machine limit", "stopped by <who>", "runner lost the
+                process", "could not start: <code>", "ended by <signal> from outside the runner"),
+      "transcriptPath": absolute path of the phase's transcript.jsonl } ] }
+  state: running from spawn until the group's end is confirmed, including while a kill is in progress; done on
+  exit 0 with the group gone; failed on a non-zero exit, a spawn error (pid null, reason "could not start: <code>"),
+  a signal the runner did not send (signal set, reason "ended by <signal> from outside the runner"), or a lost
+  process; killed when the runner's own kill ended the group (reason names why). Terminal states are monotonic:
+  the first terminal transition recorded wins, and nothing moves a record out of a terminal state.
 
-transcript@v0, one file per session at .interlock/runs/<session id>/transcript.jsonl (gitignored, beside record.json), one JSON object per line, appended in arrival order, written only by the runner:
-  { "ts": ISO 8601 UTC with milliseconds, "stream": "stdout" | "stderr" | "runner", "text": one line without its
-    newline }
-  The runner splits each stream on newlines, keeps a trailing partial line until its newline or the stream's
-  end, and writes "runner" lines for start (argv with the prompt elided, cwd, pid), the exit or kill, and any
-  limit. Runtime output is never parsed for meaning; it is carried as text.
-`interlock sessions read <id> --json` prints the transcript's lines; with --follow it keeps printing new lines until the session leaves running, then exits 0. The app uses these two commands and never parses a runtime's raw output.
+transcript@v0, one file per phase at <run dir>/transcript.jsonl, one JSON object per line, written only by the runner:
+  { "interlock": "transcript@v0", "ts": ISO 8601 UTC with milliseconds, "stream": "stdout" | "stderr" |
+    "runner", "text": one line without its newline }
+  One writer per transcript serializes every append. The runner splits each stream on newlines and keeps a
+  trailing partial line until its newline or the stream's end. On the child's close (both streams ended, never
+  only its exit, as packages/runner/src/gateJudge.ts:143 already waits for), it flushes the partial lines, writes
+  the runner's end line, syncs the file, and only then publishes the terminal state. A line without its trailing
+  newline is incomplete: readers do not emit it until it is complete; after a crash the recovering runner cuts the
+  incomplete tail and appends a runner line saying the tail was lost. "runner" lines record start (argv with the
+  prompt elided, cwd, pid, and the containment note), each kill step, the end, and any lost tail. Runtime output
+  is never parsed for meaning.
+`interlock sessions read <id> [--phase <phase>] --json` prints a phase's lines (the latest phase by default); with --follow it keeps printing new lines until the record is terminal, then drains the file once more and exits 0. The app uses `interlock sessions --json` and `interlock sessions read` only.
 ```
 
 ## Acceptance (verbatim from the graph)
 
-> Each session's record, .interlock/runs/<session id>/record.json, holds every sessions@v0 field (the read's
-> shape) and is written at start and on every state change, atomically (write to a temporary file, then rename).
-> `interlock sessions --json` prints the sessions@v0 document from the records, with --live for running only;
-> `interlock sessions read <id> --json [--follow]` prints transcript@v0 lines, and with --follow stays until the
-> session leaves running and exits 0. sessions@v0 and transcript@v0 get schemas under schemas/ (validated by the
-> corpus and reference tests, docs/shapes.md regenerated) and are documented as the app's contract.
-> `interlock sessions stop <id> --by <who> --because <why>` kills a running session's group through the same
-> outbox kill as the timeout, reason "stopped by <who>". graph show and the face read live sessions from the
-> records instead of herdr (packages/cli/src/graph/show.ts:17, face/world.ts:19).
+> Each phase's record.json carries its own version tag, "interlock": "session@v0", and every sessions@v0 field
+> (this graph's read). Records change only under the session's lock (an exclusive lock file in the run
+> directory) with a generation number that every write checks and increments, so stop, natural exit and
+> recovery never race: the first terminal transition wins and the others are refused as already ended.
+> `interlock sessions --json [--live]` prints sessions@v0 from the records; `interlock sessions read <id>
+> [--phase <phase>] --json [--follow]` prints transcript@v0 lines with the read's completion and drain rules;
+> `interlock sessions stop <id> --by <who> --because <why>` kills through the same outbox kill as the timeout,
+> reason "stopped by <who>". sessions@v0, session@v0 and transcript@v0 get schemas under schemas/, each with a
+> committed valid example and invalid fixtures (a missing tag, an unknown state, a non-null pid on a never-started
+> record) that the corpus and reference tests count by shape, and docs/shapes.md is regenerated. graph show, the
+> face and the position (packages/cli/src/graph/show.ts:17, face/world.ts:19, position.ts:189) read sessions from
+> the records instead of the runtime, and drilldown keeps reading the journal.
 > Tests in packages/cli/test/sessions.test.ts on fixture records and transcripts:
-> - sessions --json validates as sessions@v0 and lists newest first; --live keeps running only;
-> - read --json prints the transcript lines validating as transcript@v0; --follow prints lines appended after it
->   started and exits 0 when the record leaves running;
-> - stop kills a running fixture child's group and the record reads killed with reason "stopped by <who>";
-> - graph show and the face count live sessions from records with herdr absent.
+> - sessions --json validates as sessions@v0, newest first; --live keeps running only;
+> - read --json validates each line as transcript@v0 and never emits an incomplete tail; --follow prints lines
+>   appended after it started, and lines written just before the terminal state, then exits 0;
+> - stop racing a natural exit, and two concurrent stops, leave one terminal transition and refuse the others;
+> - stop kills a fixture child's group and the record reads killed, "stopped by <who>";
+> - graph show, the face and the position count live sessions from records with no herdr installed;
+> - the corpus test counts at least one valid example of each new shape and refuses each invalid fixture.
 > Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.

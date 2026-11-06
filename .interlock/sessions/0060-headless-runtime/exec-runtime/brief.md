@@ -993,57 +993,77 @@ edit it.
 ## The app's contract (verbatim from the graph read)
 
 ```
+The app's contract. The app reads sessions from Interlock, never from a runtime. The shapes below are fixed before the build and evolve additively (a reader already built against the first draft keeps working: fields are added, none removed or renamed, and the state set is unchanged).
 sessions@v0, printed by `interlock sessions --json` (all of this machine's sessions for the repository, newest first; `--live` keeps state running only):
   { "interlock": "sessions@v0", "sessions": [ {
       "id": session id (the ledger's session id),
+      "phase": "work" | "debrief" | "review",
+      "parentId": the phase this one follows, as "<id>/<phase>", or null,
       "kind": "node" | "review",
       "graph": graph id, "node": node id or null for a review, "lens": lens name or null for a node,
+      "subjectHash": for a review, the sha256 of the snapshot it reviewed; null for a node,
       "arc": the graph's arc id or null,
       "runtime": runtimes.yaml profile name, "model": the profile's model,
-      "pid": child pid, "pgid": its process group id,
+      "pid": child pid or null (never started), "pgid": its process group id or null,
       "startedAt": ISO 8601 UTC, "endedAt": ISO 8601 UTC or null,
       "state": "running" | "done" | "failed" | "killed",
       "exitCode": integer or null, "signal": signal name or null,
-      "reason": one plain line or null (why it failed or was killed: "run timeout 3h", "machine limit",
-                "stopped by <who>", "runner lost the process"),
-      "transcriptPath": absolute path of the session's transcript.jsonl } ] }
-  state: running while the process group is alive; done on exit 0; failed on a non-zero exit, or when the runner
-  finds the recorded pid gone with no exit recorded (exitCode null, reason "runner lost the process"); killed when
-  the runner signalled the group (reason names why).
+      "reason": one plain line or null ("run timeout 3h", "machine limit", "stopped by <who>", "runner lost the
+                process", "could not start: <code>", "ended by <signal> from outside the runner"),
+      "transcriptPath": absolute path of the phase's transcript.jsonl } ] }
+  state: running from spawn until the group's end is confirmed, including while a kill is in progress; done on
+  exit 0 with the group gone; failed on a non-zero exit, a spawn error (pid null, reason "could not start: <code>"),
+  a signal the runner did not send (signal set, reason "ended by <signal> from outside the runner"), or a lost
+  process; killed when the runner's own kill ended the group (reason names why). Terminal states are monotonic:
+  the first terminal transition recorded wins, and nothing moves a record out of a terminal state.
 
-transcript@v0, one file per session at .interlock/runs/<session id>/transcript.jsonl (gitignored, beside record.json), one JSON object per line, appended in arrival order, written only by the runner:
-  { "ts": ISO 8601 UTC with milliseconds, "stream": "stdout" | "stderr" | "runner", "text": one line without its
-    newline }
-  The runner splits each stream on newlines, keeps a trailing partial line until its newline or the stream's
-  end, and writes "runner" lines for start (argv with the prompt elided, cwd, pid), the exit or kill, and any
-  limit. Runtime output is never parsed for meaning; it is carried as text.
-`interlock sessions read <id> --json` prints the transcript's lines; with --follow it keeps printing new lines until the session leaves running, then exits 0. The app uses these two commands and never parses a runtime's raw output.
+transcript@v0, one file per phase at <run dir>/transcript.jsonl, one JSON object per line, written only by the runner:
+  { "interlock": "transcript@v0", "ts": ISO 8601 UTC with milliseconds, "stream": "stdout" | "stderr" |
+    "runner", "text": one line without its newline }
+  One writer per transcript serializes every append. The runner splits each stream on newlines and keeps a
+  trailing partial line until its newline or the stream's end. On the child's close (both streams ended, never
+  only its exit, as packages/runner/src/gateJudge.ts:143 already waits for), it flushes the partial lines, writes
+  the runner's end line, syncs the file, and only then publishes the terminal state. A line without its trailing
+  newline is incomplete: readers do not emit it until it is complete; after a crash the recovering runner cuts the
+  incomplete tail and appends a runner line saying the tail was lost. "runner" lines record start (argv with the
+  prompt elided, cwd, pid, and the containment note), each kill step, the end, and any lost tail. Runtime output
+  is never parsed for meaning.
+`interlock sessions read <id> [--phase <phase>] --json` prints a phase's lines (the latest phase by default); with --follow it keeps printing new lines until the record is terminal, then drains the file once more and exits 0. The app uses `interlock sessions --json` and `interlock sessions read` only.
 ```
 
 ## Acceptance (verbatim from the graph)
 
-> A runtimes.yaml profile of kind exec (runtimes@v1 evolved additively: kind exec with argv, a {prompt} or
-> stdin prompt mode, and a model field) is started by the runner as a direct child process with spawn, detached
-> into its own process group, cwd the node's worktree, env the machine provider's environment, stdin closed after
-> the prompt is written when the prompt mode is stdin. The three profiles written in the machine catalogue are
-> codex exec, claude -p and kimi's print mode; the code knows none of them by name. Exit is done: the runner
-> waits for the child's exit, records exitCode and signal, and judges the node as for any finished agent, with
-> no live-work evidence source and no idle polling. stdout and stderr are written as transcript@v0 (the read's
-> shape) to .interlock/runs/<session id>/transcript.jsonl, and .interlock/runs/ is gitignored. The run timeout
-> (run_timeout_ms) and a machine refusal mid-run kill the process group: SIGTERM to -pgid, then SIGKILL after a
-> grace (kill_grace_ms, default 10s), the kill recorded as an outbox effect (I7) with its reason. When the agent
-> leaves its work uncommitted, the runner's commit custody applies as for any finished agent, so exec profiles
-> are commits: runner and no hand-commit flow is needed. A runner that exits while a child runs leaves the
-> child's record; the next runner start reconciles it (alive and still in its group: running, adopted for its
-> kill only; gone with no exit: failed, reason "runner lost the process").
-> Tests in packages/runner/test/execRuntime.test.ts with fixture executables (small node scripts under test/
-> fixtures, no real agent CLI):
-> - a child that prints to both streams and exits 0 yields state done and a transcript whose lines carry ts,
->   stream and text, with a partial last line kept whole and runner lines for start and exit;
-> - a non-zero exit yields failed with its exitCode;
-> - a child that outlives run_timeout_ms is killed with its whole group (a grandchild it spawned is gone too):
->   state killed, reason naming the timeout, the kill's intent recorded before the signal;
-> - a child that ignores SIGTERM is SIGKILLed after the grace;
-> - a record whose pid is gone with no exit reads failed with "runner lost the process" after a restart;
-> - the profile's prompt reaches the child in both prompt modes, and the code holds no runtime program name.
+> A runtimes@v1 profile of kind exec (evolved additively: argv, a {prompt} or stdin prompt mode, a model, and an
+> optional read_only_argv) is started by the runner as a direct child with spawn, detached into its own process
+> group, cwd the node's worktree, env from the machine provider, stdin closed once the prompt is written. The
+> phase, admission, containment, identity, dead-runner and transcript rules of this graph's read are implemented
+> exactly: the record is persisted before admit, nothing spawns on a refused admit, the pid is bound after spawn,
+> the state stays running until the group is confirmed gone, terminal states are monotonic, every signal is
+> preceded by an identity check and a persisted kill intent, and the transcript is drained and synced before the
+> terminal state is published. Records and transcripts live under <git-common-dir>/interlock/runs/. The
+> two-phase attempt replaces the second prompt of sessionDrive.ts:473: work phase, runner commit of the declared
+> paths, debrief phase at the new head, judgment. The machine provider's admit is adapted to a token-then-bind
+> protocol for exec, release on confirmed end.
+> Tests in packages/runner/test/execRuntime.test.ts with fixture executables (small node scripts under
+> test/fixtures; no real agent program) and a fixture provider and identity reader:
+> - a child writing to both streams and exiting 0 is done only after its group is gone; its transcript lines
+>   carry the interlock tag, ts, stream and text, with a partial last line kept whole and runner start and end
+>   lines, and the end line is in the file before the record reads done;
+> - a leader that exits first while a grandchild in its group keeps running stays running until the grandchild
+>   ends;
+> - run timeout: TERM to the group, then KILL after the grace for a TERM-ignoring child and grandchild; state
+>   stays running until the group is gone, then killed; a restart between TERM and KILL resumes at KILL from the
+>   persisted intent;
+> - a detached grandchild that starts its own session is outside the group; the record does not claim it, and
+>   the start line carries the containment note;
+> - a refused admit spawns nothing (the fixture executable writes a marker file on start; none exists) and the
+>   record ends failed, "machine limit", pid null;
+> - a spawn error (a missing executable) ends failed with "could not start: ENOENT" and pid null; a signal sent
+>   from outside ends failed with that signal;
+> - an identity mismatch on a reused pid sends no signal and ends failed with "runner lost the process";
+> - a runner killed while its child runs: the next runner start kills the orphaned group, confirms it gone,
+>   marks the tail lost, records the end, and only then leases the node again;
+> - a two-phase attempt: the work phase leaves code uncommitted, the runner commits it, the debrief phase files a
+>   valid debrief at the new head, and the node is judged; the debrief phase's parentId names the work phase;
+> - two callers in two linked worktrees list the same session.
 > Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.

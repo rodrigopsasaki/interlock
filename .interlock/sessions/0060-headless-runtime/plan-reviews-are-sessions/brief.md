@@ -23,6 +23,10 @@ gates:
   kind: command
   run: pnpm --fail-if-no-match --filter runner exec vitest run test/planReview.test.ts --passWithNoTests=false
   expect_output: Tests +[1-9][0-9]* passed
+- id: reviews-in-position-proof
+  kind: command
+  run: pnpm --fail-if-no-match --filter face exec vitest run test/reviewsInPosition.test.ts --passWithNoTests=false
+  expect_output: Tests +[1-9][0-9]* passed
 scope:
 - .gitignore
 - .interlock/config.yaml
@@ -993,15 +997,23 @@ edit it.
 ## Acceptance (verbatim from the graph)
 
 > Folded from graph 0057. `interlock review <graph> --lens <name> --runtime <profile> [--prompt-file <path>]`
-> runs a reviewer-role exec session on the graph file: leased under a review key (graph, lens, graph content
-> hash), admitted through the machine provider like any launch, with the profile's read-only argv (a profile key,
-> read_only_argv), listed by `interlock sessions` with kind review. Its output is saved as a versioned review
-> document beside the graph (.interlock/reviews/<graph>/<content hash>/<lens>-<session>.md) and recorded as a
-> receipt whose derivation names model, lens and runtime. A review is advisory and never moves the approved gate
-> or any node (laws I2, I9).
-> Tests in packages/runner/test/planReview.test.ts with a fixture executable and provider:
-> - a review is admitted, runs as a child, saves its document and receipt, and reads done;
+> runs a reviewer-role exec session (phase review). Before launch it snapshots, into the run directory, the
+> graph file's bytes, the resolved lens instruction (from the prompt file or a named lens in local.yaml) and the
+> reviewer role's opening; the prompt points at the snapshot, never the live file, and subjectHash is the
+> snapshot's sha256. It is leased under a review key (graph, lens, subjectHash), admitted like any launch, run
+> with the profile's read_only_argv, and listed by `interlock sessions` with kind review. Its output is saved as
+> a versioned review document (.interlock/reviews/<graph>/<subjectHash>/<lens>-<session>.md) and recorded as a
+> receipt whose derivation names model, lens and runtime and binds subjectHash. A review is advisory and never
+> moves the approved gate or any node (laws I2, I9). The position and the face show, for each drafted graph,
+> reviews in flight and done, and mark a review stale when the graph's current content hash differs from its
+> subjectHash.
+> Tests in packages/runner/test/planReview.test.ts with a fixture executable and provider, and in
+> packages/face/test/reviewsInPosition.test.ts:
+> - a review is admitted, runs as a child, saves its document and receipt bound to subjectHash, and reads done;
+> - editing the live graph after launch changes nothing the review saw: its document and receipt name the
+>   snapshot's hash, and the position then shows it stale;
 > - a refused admit starts nothing and records no outcome;
-> - a second review of the same graph content and lens while one runs is refused by the lease;
+> - a second review of the same subjectHash and lens while one runs is refused by the lease;
+> - the position lists an active, a completed and a stale review for a drafted graph;
 > - a review never changes the graph's approved gate or any node's state.
 > Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
