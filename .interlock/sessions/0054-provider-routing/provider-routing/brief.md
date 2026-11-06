@@ -89,6 +89,7 @@ scope:
   - .interlock/graphs/0051-no-detached-maintenance.yaml
   - .interlock/graphs/0052-count-tells-the-truth.yaml
   - .interlock/graphs/0054-provider-routing.yaml
+  - .interlock/graphs/0055-runner-commits.yaml
   - .interlock/graphs/readme-interlock-concept.yaml
   - .interlock/local.example.yaml
   - .interlock/sessions/0001-bootstrap/attempts/brief.md
@@ -387,6 +388,13 @@ scope:
   - .interlock/sessions/0052-count-tells-the-truth/landed/brief.md
   - .interlock/sessions/0052-count-tells-the-truth/retire/brief.md
   - .interlock/sessions/0054-provider-routing/provider-routing/brief.md
+  - .interlock/sessions/0055-runner-commits/runner-commits/brief.md
+  - .interlock/sessions/0055-runner-commits/runner-commits/candidate.yaml
+  - .interlock/sessions/0055-runner-commits/runner-commits/commits.yaml
+  - .interlock/sessions/0055-runner-commits/runner-commits/debrief.yaml
+  - .interlock/sessions/0055-runner-commits/runner-commits/fresh.candidate.yaml
+  - .interlock/sessions/0055-runner-commits/runner-commits/notes.yaml
+  - .interlock/sessions/0055-runner-commits/runner-commits/revisions/721431e59d00f4f6e78b1b89959725fe022f2f2c0e4981ee02f1ba234e9b068d.yaml
   - .interlock/sessions/readme-interlock-concept/readme/brief.md
   - .interlock/sessions/readme-interlock-concept/readme/debrief.yaml
   - .interlock/sessions/readme-interlock-concept/readme/notes.yaml
@@ -705,6 +713,7 @@ scope:
   - packages/runner/src/promptDelivery.ts
   - packages/runner/src/questionNotes.ts
   - packages/runner/src/roleShape.ts
+  - packages/runner/src/runnerCommits.ts
   - packages/runner/src/runtime.ts
   - packages/runner/src/runtimeCatalogue.ts
   - packages/runner/src/runtimeSelection.ts
@@ -755,6 +764,7 @@ scope:
   - packages/runner/test/openingPrompt.test.ts
   - packages/runner/test/promptDelivery.test.ts
   - packages/runner/test/questionNotes.test.ts
+  - packages/runner/test/runnerCommits.test.ts
   - packages/runner/test/runtimeSelection.test.ts
   - packages/runner/test/runtimes.test.ts
   - packages/runner/test/sessionBrief.test.ts
@@ -794,6 +804,7 @@ scope:
   - packages/schemas/src/validate.ts
   - packages/schemas/test/askedInWords.test.ts
   - packages/schemas/test/brief.test.ts
+  - packages/schemas/test/commits.test.ts
   - packages/schemas/test/corpus.files.test.ts
   - packages/schemas/test/corpus.guards.test.ts
   - packages/schemas/test/corpus.item.test.ts
@@ -871,6 +882,7 @@ scope:
   - runtimes.example.yaml
   - schemas/brief@v0.json
   - schemas/brief@v1.json
+  - schemas/commits@v0.json
   - schemas/config@v0.json
   - schemas/debrief@v0.json
   - schemas/debrief@v1.json
@@ -934,6 +946,7 @@ scope:
   - schemas/positions@v1.json
   - schemas/roles@v0.json
   - schemas/runtimes@v0.json
+  - schemas/runtimes@v1.json
   - schemas/session-facts@v0.json
   - schemas/substrate/absorb.request.json
   - schemas/substrate/absorb.response.json
@@ -973,7 +986,7 @@ walk:
   kind: none
   because: the substrate address is none, so there is nothing to ask
 graph_base_sha: 50bd9355afa54e21d90dc675696741f7ef72cad3
-session: 46cf1834-eacd-43a3-a70c-29466a188721
+session: 4b93f8aa-ddc2-47c6-b177-0efc9f7a399e
 ---
 
 # Brief · node `provider-routing` · graph `0054-provider-routing`
