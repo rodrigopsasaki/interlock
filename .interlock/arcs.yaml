@@ -192,3 +192,10 @@ arcs:
     source: 2026-09-16 14:35 UTC, his Codex desktop thread; quoted in interlock-notes/2026-09-16-m5-exit-find-shape.md:5; registered 2026-11-06 on his words at 22:06 UTC ("give these arcs please", cmsg_01BN1q6CYuBjcZAFT6C2pgFd6QJVvmV1AsDav1RxL4JYZo) and 22:20 UTC ("there should never be a graph that has no arc, by construction", cmsg_01BN1q6CYuBjcZAFT6C2pgFdXvbQKFuJRsF3aERh8Xna8M), as a best effort for old graphs on his 01:08 UTC 2026-11-07 word ("just do a best effort for the old arcs", cmsg_01BN1q6CYuBjcZAFT6C2pgFd626rxx4CbggdbQMyPPVeL3)
     graphs:
       - interlock/0041-citation-type-repair
+
+  - id: every-model-same-access
+    title: Every model has the same access
+    ask: "ok yes, that's obviously yes. Codex should be able to run postgres. There are no special models and no model should ask another one to do something due to permissions. This is not correct. All models have the same access to my machine, it's kind of the whole point"
+    source: 2026-11-07 15:54 UTC, project chat (cmsg_01BN1q6CYuBjcZAFT6C2pgFd5bnNWZaUhxvR6PTUp3SGxc)
+    graphs:
+      - interlock/0062-same-access

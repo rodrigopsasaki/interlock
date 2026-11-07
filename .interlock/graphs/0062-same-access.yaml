@@ -1,0 +1,65 @@
+interlock: graph@v0
+id: 0062-same-access
+arc: every-model-same-access
+ask: Every runtime Interlock launches has the same access to the owner's machine, and Interlock can show it, so work is never routed by which model's sandbox allows what.
+derivation:
+  kind: model
+  model: gilb (Claude)
+  prompt: same-access-2026-11-07
+authorization:
+  granted_by: Rodrigo Sasaki
+  mandate: loom-feed-2026-11-04  # "You're free to do changes on phyxius and interlock too", 23:25 UTC
+  approver: Rodrigo Sasaki; Gilb relays the recorded approval and coordinates cleared-node merges. The cross-vendor vet is advisory.
+read: >
+  Arc: every-model-same-access (.interlock/arcs.yaml). Rodrigo, 2026-11-07 15:54 UTC
+  (cmsg_01BN1q6CYuBjcZAFT6C2pgFd5bnNWZaUhxvR6PTUp3SGxc): "ok yes, that's obviously yes. Codex should be able to run
+  postgres. There are no special models and no model should ask another one to do something due to permissions. This
+  is not correct. All models have the same access to my machine, it's kind of the whole point".
+
+  What went wrong. A runtime's access lives in its profile's args in the machine's runtimes.yaml
+  (schemas/runtimes@v2.json; the runner passes them verbatim, packages/runner/src/runtime.ts). One kind of profile
+  carried its own sandbox, which denied SysV shared memory (every Postgres initdb failed with "shmget Operation not
+  permitted") and loopback listeners (a test suite's EPERM opening a local server), while the other kinds ran with the
+  owner's full access. Nothing in Interlock showed the difference: it surfaced as nodes that could not run their own
+  gates, and as an unwritten habit of routing database work to one runtime. The profile fix itself is machine
+  configuration, applied on the owner's machine outside this graph. This graph makes the rule visible and checked, so a
+  profile that loses access is caught by a probe, not discovered by a failed node.
+
+  The probe. A fixed, harmless check run through a runtime exactly as an agent's commands run under it: create and
+  remove a SysV shared memory segment, bind a TCP listener on 127.0.0.1 port 0 and close it, and create and remove a
+  file in the attempt's worktree. How a command runs "as the agent would" is the adapter's business (I6): each adapter
+  supplies its runtime kind's way to execute one command under the profile's own args, and Interlock names no product
+  outside adapters (the wall). A runtime kind whose adapter has no such way reports the probe as unavailable, never as
+  passed.
+
+  Every attempt opens with: run one heavy command at a time, never several in parallel or in the background; never
+  pipe a test runner into head or tail.
+
+gates:
+  - id: approved
+    kind: human
+
+nodes:
+  - id: access-probe
+    role: implementer
+    depends_on: []
+    acceptance: |
+      `interlock runtime probe <name> [--json]` runs the three checks (SysV shared memory create and remove, loopback
+      TCP listen on 127.0.0.1:0, worktree file create and remove) through the named runtime's adapter under that
+      profile's own args, and prints one line per check: passed, refused with the error text, or unavailable with the
+      reason. It exits 0 only when every check passed. `interlock runtime probe --all` probes every routable profile
+      and names each one that did not pass every check. `interlock runtime list` shows each profile's last probe
+      result and its time, read from the journal (one content-free event per probe: profile, check, result, time).
+      The probe never starts an agent conversation and spends no model tokens.
+      Tests in packages/cli/test/runtimeProbe.test.ts with fixture adapters (no real agent binary):
+      - an adapter whose command runner allows everything reports three passes and exit 0;
+      - an adapter whose runner refuses shmget reports that check refused with its error text and exits 1, the other
+        checks still reported;
+      - an adapter with no command runner reports unavailable for every check and exits 1, never passed;
+      - --all names every routable profile that did not pass;
+      - runtime list shows the last probe per profile, and a profile never probed reads "never probed".
+    gates:
+      - id: probe-tests
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/runtimeProbe.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
