@@ -53,3 +53,11 @@ entries:
       Root typecheck, lint and test each refused at their first workspace package because tsc,
       biome or vitest was not present in the root workspace environment. The comment gate passed;
       CLI-local typecheck, Biome and the focused publication proof passed.
+  - kind: choice
+    at: "2026-11-07T16:20:00Z"
+    chose: >-
+      Regenerate docs/shapes.md after adding arc to graph@v0 rather than hand-editing the generated
+      reference.
+    because: >-
+      The schema reference is the repository's public artifact inventory, and its generator keeps
+      the documented graph shape tied to the schema source.
