@@ -5,6 +5,7 @@ import { isErr } from "@phyxiusjs/fp";
 import { type BriefFrontMatter, type BriefRead, readBriefDocument } from "debrief";
 import { loadGraphDocumentText } from "face";
 import { journalPath, type LedgerEvent, parseLine } from "ledger";
+import { findInheritedSessionStart } from "runner";
 
 const GIT_BUFFER_PAST_EXEC_FILE_SYNC_ONE_MEGABYTE_DEFAULT = 512 * 1024 * 1024;
 
@@ -207,5 +208,19 @@ export async function deriveSessionStart(
     return { kind: "refusal", because: "requires one unambiguous brief transition" };
   if (!derived.bytes.equals(briefBytes))
     return { kind: "refusal", because: "local brief bytes changed after the session started" };
+  if (started.inheritedStartSha !== undefined && started.predecessorSession !== undefined) {
+    const inherited = findInheritedSessionStart(
+      repoRoot,
+      journalRead,
+      graph,
+      node,
+      runner.graphBaseSha,
+      head,
+      runner.session,
+      started,
+    );
+    if (inherited.kind === "inherited")
+      return { kind: "derived", sha: inherited.inheritedStartSha };
+  }
   return { kind: "derived", sha: derived.sha };
 }

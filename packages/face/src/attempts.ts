@@ -1,8 +1,10 @@
 import {
+  type ChosenBy,
   type LedgerProjection,
   leaseIsLive,
   nodeKey,
   type Outcome,
+  runtimeAttribution,
   type SessionRuntime,
 } from "ledger";
 import type { AgentStatus } from "./agentStatus.ts";
@@ -19,6 +21,8 @@ import { type AttemptSaid, type RunnerStep, runnerOf, saidOf } from "./said.ts";
 export interface PositionAttempt {
   readonly session: string;
   readonly runtime: SessionRuntime;
+  readonly provider?: string;
+  readonly chosenBy?: ChosenBy;
   readonly outcome?: Outcome;
   readonly leaseState: LeaseState;
   readonly agentStatus?: AgentStatus;
@@ -59,6 +63,7 @@ export function attemptsFor(
     attempts.push({
       session: session.session,
       runtime: session.runtime,
+      ...runtimeAttribution(session.runtime),
       ...(ownOutcome === undefined ? {} : { outcome: ownOutcome }),
       leaseState: leaseStateOf(session, nowWallMs),
       ...(agentStatus === undefined ? {} : { agentStatus }),

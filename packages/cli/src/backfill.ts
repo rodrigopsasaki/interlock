@@ -15,6 +15,7 @@ import {
   explainStandingGatesRefusal,
   loadLocalConfig,
   loadStandingGates,
+  resolveMachine,
 } from "runner";
 import type { CommandResult } from "./main.ts";
 
@@ -43,6 +44,9 @@ export async function runInterlockBackfill(
       message: `${cwd}: no .interlock directory found in this directory or any parent; expected to run inside an interlock repository.`,
     };
   }
+
+  const machine = await resolveMachine(repoRoot);
+  if (isErr(machine)) return { exitCode: 1, message: machine.error };
 
   const localConfig = await loadLocalConfig(repoRoot);
   if (isErr(localConfig)) {
@@ -83,6 +87,7 @@ export async function runInterlockBackfill(
 
   try {
     const backfilled = await backfillGraph({
+      machine: machine.value,
       repoRoot,
       mainBranch: options.mainBranch ?? "main",
       document: document.value,

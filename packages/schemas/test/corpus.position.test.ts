@@ -32,7 +32,7 @@ const document: GraphDocument = {
   ],
 };
 
-describe("corpus: position@v2, produced by the real positionOf", () => {
+describe("corpus: position@v3, produced by the real positionOf", () => {
   it("validates a real, code-produced position", () => {
     const projection = fold([
       { kind: "node-created", node: { graph: "g", id: "g" } },
@@ -54,7 +54,7 @@ describe("corpus: position@v2, produced by the real positionOf", () => {
     const position = positionOf(document, projection, "content-hash", Date.now());
     const registry = buildRegistry();
     const validate = registry.ajv.getSchema(
-      "https://github.com/rodrigopsasaki/interlock/schemas/position@v2.json",
+      "https://github.com/rodrigopsasaki/interlock/schemas/position@v3.json",
     );
     const valid = validate?.(position);
     expect(valid, JSON.stringify(validate?.errors)).toBe(true);
@@ -87,13 +87,15 @@ describe("corpus: position@v2, produced by the real positionOf", () => {
     const position = positionOf(document, projection, "content-hash", Date.now());
     const registry = buildRegistry();
     const validate = registry.ajv.getSchema(
-      "https://github.com/rodrigopsasaki/interlock/schemas/position@v2.json",
+      "https://github.com/rodrigopsasaki/interlock/schemas/position@v3.json",
     );
     const valid = validate?.(position);
     expect(valid, JSON.stringify(validate?.errors)).toBe(true);
     expect(position.nodes[0]?.attempts).toEqual([
       {
         session: "session-1",
+        provider: "unknown",
+        chosenBy: { kind: "unrecorded" },
         runtime: { name: "test-runtime", kind: "test-kind", model: "test-model" },
         leaseState: { kind: "none" },
         brief: {
@@ -142,7 +144,7 @@ describe("corpus: position@v2, produced by the real positionOf", () => {
     ]);
     const position = positionOf(document, projection, "content-hash", Date.now());
     const validate = buildRegistry().ajv.getSchema(
-      "https://github.com/rodrigopsasaki/interlock/schemas/position@v2.json",
+      "https://github.com/rodrigopsasaki/interlock/schemas/position@v3.json",
     );
     expect(validate?.(position), JSON.stringify(validate?.errors)).toBe(true);
     expect(position.nodes[0]?.attempts[0]?.debrief?.kinds).toEqual(["findings"]);
@@ -185,7 +187,7 @@ describe("corpus: position@v2, produced by the real positionOf", () => {
     };
     const position = positionOf(declared, projection, "content-hash", now, () => "blocked");
     const validate = buildRegistry().ajv.getSchema(
-      "https://github.com/rodrigopsasaki/interlock/schemas/position@v2.json",
+      "https://github.com/rodrigopsasaki/interlock/schemas/position@v3.json",
     );
     expect(validate?.(position), JSON.stringify(validate?.errors)).toBe(true);
     expect(position.line).toEqual({

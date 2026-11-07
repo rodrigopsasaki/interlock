@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/parts/session-runtime-v1.json",
+  "title": "session-runtime-v1",
+  "description": "Optional provider and chosenBy preserve the account and choice on an attempt. Absent fields mean unknown and unrecorded; historical records are never rewritten.",
+  "oneOf": [
+    {
+      "const": "unknown"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "chosenBy": {
+          "$ref": "chosen-by.json"
+        }
+      },
+      "required": [
+        "name",
+        "kind"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}

@@ -1,0 +1,259 @@
+interlock: notes@v0
+node: provider-routing
+entries:
+  - kind: surprise
+    at: "2026-11-05T14:18:36Z"
+    expected: >-
+      each vendor CLI would expose its remaining allowance the same way, so one
+      headroom adapter would fit all three
+    observed: >-
+      only codex keeps a local allowance record; kimi and claude expose nothing
+      read-only. codex 0.162.1 writes rollout files under
+      ~/.codex/sessions/<YYYY>/<MM>/<DD>/rollout-*.jsonl whose event_msg lines with
+      payload.type "token_count" carry payload.rate_limits: primary.used_percent (0-100 of
+      the primary window), primary.window_minutes, primary.resets_at (epoch seconds),
+      rate_limit_reached_type (null unless limited) and plan_type. kimi-code 2.5.1:
+      `kimi provider list --json` lists providers and models with no quota fields,
+      ~/.kimi-code/logs/kimi-code.log has no rate-limit lines, and session files
+      (~/.kimi-code/sessions/*/session_*/state.json, agents/main/wire.jsonl) record no
+      allowance; `kimi doctor` only validates config. claude 2.1.300:
+      ~/.claude/stats-cache.json is lifetime token/cost statistics, not allowance; usage
+      is fetched live by the TUI /usage command from GET /api/oauth/usage with the OAuth
+      credential (the binary's strings name that endpoint), and nothing is cached to
+      disk; there is no non-interactive subcommand. The harness reads the codex rollout
+      file and records kimi and claude headroom as unknown, each with its reason.
+  - kind: choice
+    at: "2026-11-05T14:18:36Z"
+    chose: >-
+      dispatch headroom readers on the routable profile's kind, never the provider
+      string; unknown kinds and providers read as unknown with a reason
+    because: >-
+      I6 keeps every runtime assumption inside its adapter; provider is an
+      account name the person chooses freely, while kind names the CLI whose local
+      artifacts we know how to read. Never estimating one provider's headroom from
+      another's falls out of this.
+  - kind: choice
+    at: "2026-11-05T14:18:36Z"
+    chose: >-
+      version runtimes@v0 to runtimes@v1 with provider and routable as additive
+      optional entry fields, and keep the loader reading both tags
+    because: >-
+      artifact evolution is additive; a catalogue without the new fields still
+      reads and its profiles are simply not routable. routable: true without provider,
+      and a second routable profile for one provider, refuse at load; the second refusal
+      names both profiles.
+  - kind: choice
+    at: "2026-11-05T14:18:36Z"
+    chose: >-
+      version local@v0 to local@v1 adding optional provider_order and last_resort
+      (default anthropic), loader reading both tags
+    because: >-
+      the acceptance versions every changed shape; both fields are optional so
+      every existing local.yaml still reads unchanged.
+  - kind: choice
+    at: "2026-11-05T14:18:36Z"
+    chose: >-
+      record provider and chosen_by on the session-started runtime record as
+      additive optional fields, and bump the journal envelope to event@v10 with an
+      upcast that refuses v9 lines carrying them
+    because: >-
+      derivation stays required and history replays; absent fields read as
+      provider unknown and chosen-by unrecorded, which is exactly what existing attempts
+      mean. The upcast follows the predates-person-said precedent so a new field never
+      masquerades as an old line.
+  - kind: choice
+    at: "2026-11-05T14:18:36Z"
+    chose: >-
+      one chooser for run and plan: explicit flag wins, else the router over
+      routable profiles, else today's resolution recorded as fallback with why
+    because: >-
+      every attempt must record its chosen-by, and plan sessions are attempts in
+      the same journal; sharing the chooser keeps the record honest and changes plan's
+      behavior only once a catalogue opts into routable profiles. The router needs the
+      ledger for round-robin, so selection moves after the ledger opens in both
+      commands.
+  - kind: choice
+    at: "2026-11-05T14:18:36Z"
+    chose: >-
+      known headroom beats unknown headroom among available non-last-resort
+      providers; round-robin breaks ties of equal highest known fraction and orders the
+      all-unknown pool
+    because: >-
+      "the highest known fraction wins" cannot hold if an unknown reading could
+      outrank a known one, and "ties, and providers whose headroom is unknown, go
+      round-robin" then reads as the two cases that fall to the ledger. With every
+      headroom unknown this round-robins every non-anthropic provider before anthropic,
+      which is the stated intent.
+  - kind: choice
+    at: "2026-11-06T15:00:00Z"
+    chose: >-
+      merge main 9e0f52c without committing, then extend its runtimes@v1 to runtimes@v2
+    because: >-
+      the person identified graph 0055's published commits field; preserving v0 and v1 readers avoids reusing an already published version. The runner owns the pending merge and all code commits; signing settings remain untouched.
+  - kind: choice
+    at: "2026-11-06T15:05:00Z"
+    chose: >-
+      refuse selection when every routable provider is known exhausted; retain all candidate readings on routed and last-resort records
+    because: >-
+      exhaustion makes a provider unavailable, including the configured last resort; a refusal preserves that fact instead of spending a known-unavailable account. Candidate readings explain both ordinary selection and why only the last resort remained.
+  - kind: choice
+    at: "2026-11-06T15:05:00Z"
+    chose: >-
+      use session-started insertion order in the ledger projection for each provider's last attempt, and expose explicit unknown/unrecorded attribution on position attempts
+    because: >-
+      historical sessions need no invented timestamps, and projection insertion order preserves the ledger's attempt order across process restarts. Older runtime records remain byte-identical while the current position states what was not recorded.
+  - kind: surprise
+    at: "2026-11-06T15:23:54Z"
+    expected: the inherited notes.yaml would already parse, and focused position tests would run in this sandbox
+    observed: >-
+      The schema corpus found unquoted colon-space text in inherited multi-line note values. I converted prose values to folded YAML scalars without changing their words. The position suite also hit listen EPERM when its existing fake runtime server tried to bind a Unix socket under packages/runner/test/.runs; this sandbox cannot run that case.
+  - kind: choice
+    at: "2026-11-06T15:23:54Z"
+    chose: >-
+      Read the newest reported local allowance across rollout files by report timestamp, with file modification time only when the report has no timestamp; scan backwards in chunks without a fixed tail cutoff, take the tightest unexpired window, and report expired-only data as unknown.
+    because: >-
+      Conversation appends can make a file newer without refreshing its allowance. A fixed tail can lose a still-valid report behind a long conversation. Expiry proves the old window ended, not how much of the new allowance remains, so inventing a reset balance would misroute work.
+  - kind: surprise
+    at: "2026-11-06T15:27:00Z"
+    expected: the standing suite would use the fixture Git adapter without invoking the forbidden git config command
+    observed: >-
+      test/support/gitFixture.ts:124 invokes git config maintenance.auto false inside newly initialized disposable test repositories. This inherited helper was discovered during the broader run, after several fixture suites had run. I stopped my broader tests and will not rerun tests that initialize Git fixtures under the person's prohibition. No worktree or signing configuration was changed by my commands. The stopped run had passed ledger 170 and debrief 98 tests; the face frame assertion needed the added historical attribution text and was corrected.
+  - kind: surprise
+    at: "2026-11-06T15:27:00Z"
+    expected: leaving main merged without a commit would be directly consumable by the runner's normal commit plan
+    observed: >-
+      packages/runner/src/worktree.ts:118-129 commits with git commit -S --only, which Git refuses during a pending merge. The main integration is staged with MERGE_HEAD present; it needs an ordinary signed merge commit outside this sandbox before the runner can execute the routing code's path-scoped commits.yaml. I have left that integration staged and have not signed, committed, or changed signing settings.
+  - kind: choice
+    at: "2026-11-06T15:29:03Z"
+    chose: >-
+      Publish runtimes@v2, local@v1, event@v10, position@v3 and positions@v2 while retaining every prior schema; keep the example catalogue unmarked for routing until a person selects one profile per provider.
+    because: >-
+      Graph 0055 already owns runtimes@v1. Fresh versions make the added account and selection evidence explicit without rewriting historical artifacts. Opt-in avoids choosing a model profile on a person's behalf merely because the example lists several.
+  - kind: choice
+    at: "2026-11-06T21:47:47Z"
+    chose: >-
+      Resume the existing diff at 9f64cc8, retain the person's signed main merges,
+      regenerate docs/shapes.md from the final schemas, and leave all work
+      uncommitted with the three ordered code entries in commits.yaml.
+    because: >-
+      The person finished the pending merge and explicitly prohibited commits,
+      git config, repository clones inside this worktree, and concurrent or
+      background heavy commands. A derived debrief needs the resulting code HEAD,
+      so its preparation and filing must follow the person's code commits.
+  - kind: surprise
+    at: "2026-11-06T21:47:47Z"
+    expected: mise exec with the pinned node version would also pin pnpm's child Node processes.
+    observed: >-
+      PATH put the machine's Node 26 before mise's Node 24.14.0. Prepending the
+      pinned Node bin directory selected a different Corepack pnpm, which attempted
+      dependency setup and refused its modules purge without a TTY. I removed its
+      newly created .pnpm-store with rm and retained the installed dependencies.
+      Using the existing pnpm 10.13.1 executable with the pinned Node bin directory
+      first made pnpm exec node report v24.14.0; subsequent checks used that command.
+  - kind: choice
+    at: "2026-11-06T21:47:47Z"
+    chose: >-
+      Run permitted checks in the foreground, with one Vitest worker, and leave
+      the full test gate and CLI position proof for the runner's environment.
+    because: >-
+      test/support/gitFixture.ts invokes git config during fixture initialization,
+      and suites in the full run clone repositories. The person's prohibitions
+      apply here too; changing shared fixture behavior to bypass them would expand
+      this routing task. No such tests were run in this resumed turn.
+  - kind: surprise
+    at: "2026-11-06T21:47:47Z"
+    expected: the interrupted implementation might require further source repair after main was merged.
+    observed: >-
+      The inherited source passes root typecheck, lint (with existing runnerCommits
+      warnings), and check:comments. On Node 24.14.0 the routing/catalogue/selection
+      and adapter-boundary suites pass 79 tests, ledger replay/runtime pass 64,
+      affected face suites pass 82, and all 1,142 schema tests pass, including the
+      regenerated reference. The CLI position proof remains unrun in this turn
+      because its repository helper invokes git config. These local checks are
+      reports, not runner gate receipts.
+  - kind: question
+    at: "2026-11-06T21:49:00Z"
+    asked: Will you commit the code using commits.yaml and resume this session at that HEAD so I can file the derived debrief?
+  - kind: surprise
+    at: "2026-11-06T22:00:00Z"
+    expected: the strict journal reader would lack support for event@v10, as the reported failures suggested.
+    observed: >-
+      sessionIdentity.ts already delegates to ledger parseLine, whose upcastTable
+      accepts event@v10. runnerCommits.test.ts:368 instead hardcodes event@v9
+      around a newly produced session-started event carrying provider attribution.
+      The v9 upcaster correctly refuses those v10 fields; loosening that guard
+      would mislabel new facts as historical lines.
+  - kind: choice
+    at: "2026-11-06T22:00:00Z"
+    chose: >-
+      Serialize the runner fixture's session-started through ledger envelopeFor
+      and exercise debrief prepare across the registered event versions, with
+      provider attribution present on the current version.
+    because: >-
+      The production reader already accepts what the ledger writes. Using its
+      writer prevents a fixture from inventing a mismatched tag, and a door-level
+      regression checks the strict reader without weakening historical validation.
+  - kind: question
+    at: "2026-11-06T22:06:06Z"
+    asked: May the requested tests run git config inside their disposable fixture repositories, while I leave this worktree's Git and signing configuration untouched?
+    options: [yes, no]
+  - kind: surprise
+    at: "2026-11-06T22:10:00Z"
+    expected: the requested suites could run without further clarification of the Git restriction.
+    observed: >-
+      runnerCommits.test.ts directly configures fixture identity and fake signing,
+      and derived.test.ts and recoverSessionStart.test.ts configure fixture identity;
+      their shared initialization helper also invokes git config. I have not run
+      these suites pending the person's answer. The code change passes root
+      typecheck, lint with the existing fixture warnings, check:comments and 13
+      schema/reference tests. pnpm interlock schema reference regenerated
+      docs/shapes.md. The updated commits.yaml covers all 52 changed code paths.
+  - kind: choice
+    at: "2026-11-07T01:44:51Z"
+    chose: >-
+      Keep exact session runtime assertions and add provider unknown plus the
+      explicit choice or the distinct default_runtime and legacy fallback reasons
+      to the three CLI runtime-selection tests.
+    because: >-
+      These profiles do not declare providers or opt into routing. Their records
+      must preserve the selected profile and model while explicitly recording
+      unknown provider attribution and why the existing selection path won.
+  - kind: choice
+    at: "2026-11-07T01:51:09Z"
+    chose: >-
+      Run the explicitly requested existing CLI suites with one worker, sequentially,
+      allowing their normal disposable-fixture Git operations without issuing
+      direct git config or commit commands against this project's worktree.
+    because: >-
+      The person repeated the request to run these exact suites after the earlier
+      fixture question. I interpreted that as authorizing their fixture operations,
+      including fixture config and commits, while retaining the restriction on
+      changing project Git configuration and committing the implementation.
+  - kind: surprise
+    at: "2026-11-07T01:51:09Z"
+    expected: the updated focused CLI file and full CLI suite would verify the three attribution assertions.
+    observed: >-
+      test/run.test.ts finished with 12 passed, 38 failed and three unhandled
+      listener errors. The sandbox denies access to the machine's GPG keybox daemon
+      and binding local TCP listeners; the three selection tests fail at exitCode
+      before reaching the updated runtime assertions. I then ran the full CLI
+      suite alone, which encountered the same restrictions and stopped progressing
+      in plan fixtures after a reported 300-second settling interval. I interrupted
+      that run with SIGINT (exit 130). I did not change signing settings or commit
+      the implementation. The full-suite log was scratch under packages/cli/test/.runs
+      and was removed with plain rm after inspection. These runs do not establish
+      passing verification in this sandbox.
+  - kind: question
+    at: "2026-11-07T01:52:00Z"
+    asked: Can you rerun the CLI checks outside this sandbox to verify the updated assertions?
+  - kind: choice
+    at: "2026-11-07T03:00:35Z"
+    chose: >-
+      Prepare and file the derived debrief at signed code HEAD f7e835b, keep the
+      person's successful standing-gate report separate from my earlier local
+      checks, and make no further source changes or test runs.
+    because: >-
+      The person committed the three code groups and reported every standing gate
+      passing, including runner 478/478, schemas 1142/1142 and CLI 418/418. The
+      debrief must describe that committed diff without inventing runner receipts
+      or treating my earlier sandbox failures as the final gate result.

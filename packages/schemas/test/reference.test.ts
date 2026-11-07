@@ -25,13 +25,16 @@ describe("reference: docs/shapes.md stays fresh against the schemas", () => {
   it("lists every artifact term this repository's vocabulary table has no row for", () => {
     const { missingVocabularyTerms } = generateReference({ repoRoot });
     expect(missingVocabularyTerms).toEqual([
+      "arcs",
       "commits",
       "config",
       "event",
       "item",
       "local",
+      "machine",
       "notes",
       "positions",
+      "queue",
       "roles",
       "runtimes",
     ]);

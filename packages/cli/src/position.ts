@@ -23,11 +23,14 @@ import {
   sharedJournalDirectory,
 } from "face";
 import {
+  type ChosenBy,
   explainScopeRefusal,
+  fileScope,
   type LedgerProjection,
   leaseIsLive,
   readReplay,
   receiptId,
+  runtimeAttribution,
   type SessionRuntime,
   type SessionStartedAt,
   type SessionView,
@@ -44,7 +47,7 @@ import {
 import type { CommandResult } from "./main.ts";
 import { gitOrigin, repositoryForOrigin } from "./repositoryOrigin.ts";
 
-export const POSITIONS_SHAPE = "positions@v1";
+export const POSITIONS_SHAPE = "positions@v2";
 export const POSITIONS_V0_SHAPE = "positions@v0";
 export const UNRECORDED_IN_V0 = "a positions@v0 read does not record this fact";
 
@@ -58,6 +61,8 @@ export interface LiveAttempt {
   readonly session: string;
   readonly role?: NodeRole;
   readonly runtime: SessionRuntime;
+  readonly provider?: string;
+  readonly chosenBy?: ChosenBy;
   readonly agentStatus: AgentStatus;
   readonly pane: PaneFact;
   readonly startedAt: SessionStartedAt;
@@ -127,6 +132,7 @@ export function upcastPositionsV0(read: PositionsV0): Positions {
             ...repository,
             live: repository.live.map((attempt) => ({
               ...attempt,
+              ...runtimeAttribution(attempt.runtime),
               pane: unrecorded,
               startedAt: unrecorded,
             })),
@@ -176,6 +182,7 @@ function liveAttemptOf(session: SessionView, observation: RuntimeObservation): L
     session: session.session,
     ...(isNodeRole(session.brief.role) ? { role: session.brief.role } : {}),
     runtime: session.runtime,
+    ...runtimeAttribution(session.runtime),
     agentStatus: observed.agentStatus,
     pane: observed.pane,
     startedAt: session.startedAt,
@@ -214,7 +221,7 @@ async function graphLoad(repoRoot: string, graphId: string): Promise<GraphLoad> 
   if (isErr(document)) {
     return { graph: graphId, state: "unreadable", because: explainGraphRefusal(document.error) };
   }
-  const contentHash = await receiptId(repoRoot, [relative(repoRoot, path)], "approved");
+  const contentHash = await receiptId(repoRoot, fileScope([relative(repoRoot, path)]), "approved");
   if (isErr(contentHash)) {
     return { graph: graphId, state: "unreadable", because: explainScopeRefusal(contentHash.error) };
   }

@@ -1,0 +1,28 @@
+interlock: notes@v0
+graph: 0059-submodule-receipts
+node: resume-keeps-range
+entries:
+  - kind: choice
+    at: "2026-11-07T08:31:45Z"
+    chose: Store resume provenance as optional fields on session-started events and validate it additively.
+    because: Existing event lines must continue to read, while the runner needs to leave a walkable predecessor and effective inherited start for later debrief derivation.
+  - kind: choice
+    at: "2026-11-07T08:34:00Z"
+    chose: Keep the inheritance proof in the runner package and let the CLI debrief derivation call the same proof.
+    because: The runner is the only writer of session-started provenance, while the CLI must independently recheck Git and journal facts before accepting an earlier range; one shared adapter keeps those checks aligned without making ledger own Git policy.
+  - kind: surprise
+    at: "2026-11-07T08:36:00Z"
+    expected: The shared brief reader would return a BriefRead directly, matching the existing session-identity helper's narrowed use.
+    observed: readBriefDocument returns a Result, so the first typecheck rejected the helper before checking the rest of the workspace.
+  - kind: choice
+    at: "2026-11-07T08:42:00Z"
+    chose: Separate predecessor-closure checks from full inherited-range commit checks.
+    because: The resumed session's own debrief commit is in its full range and must be permitted by its Attempt trailer, but it must not be mistaken for the predecessor's debrief; only commits before the resumed session's brief transition can close the predecessor through the shared node-level debrief path.
+  - kind: choice
+    at: "2026-11-07T08:43:00Z"
+    chose: Add a focused CLI fixture test that exercises both the runner-side pre-session decision and the debrief-side recheck.
+    because: The acceptance depends on the runner writing provenance and the CLI refusing to trust it without replaying the Git and journal proof; covering both call shapes makes that seam observable without network or a live agent.
+  - kind: surprise
+    at: "2026-11-07T08:44:00Z"
+    expected: The first fixture assertion could call the runner-side decision after the resumed brief had already been committed without changing the result.
+    observed: That call correctly refused because the already-committed resumed brief was not yet represented as the current session's allowed transition; the fixture was adjusted to test the runner before that commit and the CLI after it.

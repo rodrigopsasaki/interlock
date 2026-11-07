@@ -78,7 +78,7 @@ export function legacyLocalYaml(runtimeLines: readonly string[], setup: readonly
 
 // A canonical (symlink-free) repository with one commit, a local.yaml, and a script a worktree
 // setup step can run to break the worktree's .git file after the brief and before the launch.
-export function fixtureRepository(parent: string, localYaml: string): string {
+export function fixtureRepository(parent: string, localYaml: string, includeGraph = true): string {
   const repoRoot = realpathSync(mkdtempSync(join(parent, "repo ")));
   writeFileSync(join(repoRoot, "README.md"), "fixture\n");
   writeFileSync(
@@ -87,6 +87,10 @@ export function fixtureRepository(parent: string, localYaml: string): string {
   );
   mkdirSync(join(repoRoot, ".interlock"), { recursive: true });
   writeFileSync(join(repoRoot, ".interlock", "local.yaml"), localYaml);
+  if (includeGraph) {
+    mkdirSync(join(repoRoot, ".interlock", "graphs"), { recursive: true });
+    writeFileSync(join(repoRoot, ".interlock", "graphs", "g.yaml"), "graph fixture\n");
+  }
   gitInitFixtureWithContent(repoRoot);
   return repoRoot;
 }

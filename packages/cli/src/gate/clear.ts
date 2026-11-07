@@ -24,7 +24,7 @@ import {
   declaredGateIds,
   explainStandingGatesRefusal,
   gateCommandTable,
-  gitTrackedFiles,
+  gitScope,
   loadStandingGates,
 } from "runner";
 import { parseFlag } from "../flags.ts";
@@ -130,7 +130,7 @@ export async function runGateClear(
     const commitSha = await currentCommitSha(repoRoot);
     const receipt = await createReceipt(
       repoRoot,
-      gitTrackedFiles(repoRoot),
+      gitScope(repoRoot),
       gateId,
       commitSha,
       spend.none(),

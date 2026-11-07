@@ -6,7 +6,9 @@
   "type": "object",
   "properties": {
     "id": {
-      "type": "string"
+      "type": "string",
+      "pattern": "^[^\\u0000]*$",
+      "description": "The gate id. It may not contain a NUL byte, because a receipt id frames a scope that holds a gitlink behind a leading NUL."
     },
     "kind": {
       "type": "string"

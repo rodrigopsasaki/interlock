@@ -15,7 +15,7 @@ import { createControlledClock } from "@phyxiusjs/clock";
 import { isErr, ok, type Result } from "@phyxiusjs/fp";
 import { debriefFilePath, readDebriefFile } from "debrief";
 import { loadGraphDocumentText, renderOutcome, sharedJournalDirectory } from "face";
-import { readRawEvents } from "ledger";
+import { envelopeFor, readRawEvents } from "ledger";
 import { noneClient } from "substrate";
 import { verifyDebrief } from "verifier";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -363,10 +363,7 @@ async function driveFixture(
         if (started === undefined) throw new Error("missing fixture session event");
         const journal = await sharedJournalDirectory(worktree);
         mkdirSync(journal, { recursive: true });
-        writeFileSync(
-          join(journal, "journal.jsonl"),
-          `${JSON.stringify({ interlock: "event@v9", ...started })}\n`,
-        );
+        writeFileSync(join(journal, "journal.jsonl"), `${JSON.stringify(envelopeFor(started))}\n`);
         const candidate = join(worktree, sessionPath, "final.candidate.yaml");
         const prepared = await runDebriefPrepare(
           [

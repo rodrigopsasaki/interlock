@@ -749,3 +749,58 @@ describe("catalogue commit custody", () => {
     expect(isErr(result)).toBe(true);
   });
 });
+
+describe("provider catalogue versions", () => {
+  it.each(["runtimes@v0", "runtimes@v1", "runtimes@v2"])(
+    "reads %s with and without provider",
+    async (tag) => {
+      const loaded = await loadRuntimeCatalogue(
+        fixtureFile(
+          `interlock: ${tag}\nruntimes:\n  old:\n    kind: fake\n    model: m\n  routed:\n    kind: fake\n    model: m\n    provider: account\n    routable: true\n    commits: runner\n`,
+        ),
+      );
+      if (isErr(loaded)) throw new Error(explainRuntimeCatalogueRefusal(loaded.error));
+      expect(loaded.value.get("old")?.provider).toBeUndefined();
+      expect(loaded.value.get("old")?.routable).toBeUndefined();
+      expect(loaded.value.get("routed")).toMatchObject({
+        provider: "account",
+        routable: true,
+        commits: "runner",
+      });
+      const merged = mergeRuntimes(loaded.value, undefined);
+      if (isErr(merged)) throw new Error("merge refused");
+      expect(merged.value.runtimes.get("routed")).toMatchObject({
+        provider: "account",
+        routable: true,
+        commits: "runner",
+      });
+    },
+  );
+
+  it("refuses two routable profiles for one provider and names both", async () => {
+    const loaded = await loadRuntimeCatalogue(
+      fixtureFile(
+        "interlock: runtimes@v2\nruntimes:\n  first:\n    kind: fake\n    model: m\n    provider: account\n    routable: true\n  second:\n    kind: fake\n    model: m\n    provider: account\n    routable: true\n",
+      ),
+    );
+    expect(isErr(loaded)).toBe(true);
+    if (isErr(loaded))
+      expect(loaded.error).toMatchObject({
+        reason: expect.stringContaining('"first" and "second"'),
+      });
+  });
+
+  it.each([
+    "routable: true",
+    "provider: ''",
+    "provider: account\n    routable: false",
+    "provider: 1",
+  ])("refuses malformed attribution %s", async (fields) => {
+    const loaded = await loadRuntimeCatalogue(
+      fixtureFile(
+        `interlock: runtimes@v2\nruntimes:\n  worker:\n    kind: fake\n    model: m\n    ${fields}\n`,
+      ),
+    );
+    expect(isErr(loaded)).toBe(true);
+  });
+});

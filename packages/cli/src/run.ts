@@ -10,7 +10,7 @@ import {
   loadGraphDocument,
   sharedJournalDirectory,
 } from "face";
-import { createLedger, explainScopeRefusal, nodeKey, receiptId } from "ledger";
+import { createLedger, explainScopeRefusal, fileScope, nodeKey, receiptId } from "ledger";
 import {
   type BriefWriteOutcome,
   briefExists,
@@ -30,8 +30,10 @@ import {
   mergeRuntimes,
   type RoleShape,
   type Runtime,
+  reconcileMachineOnStart,
+  resolveMachine,
   roleShapeFor,
-  selectRuntime,
+  routeRuntime,
   unmetDependencies,
   writeBriefIntoWorktree,
 } from "runner";
@@ -72,6 +74,9 @@ export async function runInterlockRun(
     };
   }
 
+  const machine = await resolveMachine(repoRoot);
+  if (isErr(machine)) return { exitCode: 1, message: machine.error };
+
   const localConfig = await loadLocalConfig(repoRoot);
   if (isErr(localConfig)) {
     return {
@@ -101,13 +106,6 @@ export async function runInterlockRun(
     };
   }
   const requestedRuntime = parseFlag(args, "--runtime");
-  const agentRuntime = selectRuntime(mergedRuntimes.value, requestedRuntime);
-  if (isErr(agentRuntime)) {
-    return {
-      exitCode: 1,
-      message: explainRuntimeSelectionRefusal(agentRuntime.error),
-    };
-  }
 
   const graphPath = graphFilePath(repoRoot, graph);
   const document = await loadGraphDocument(graphPath);
@@ -159,7 +157,25 @@ export async function runInterlockRun(
   const ledger = opened.value;
 
   try {
-    const contentHash = await receiptId(repoRoot, [relative(repoRoot, graphPath)], "approved");
+    const recovered = await reconcileMachineOnStart(ledger, clock, narrate, options.runtime);
+    if (isErr(recovered)) return { exitCode: 1, message: recovered.error };
+    const agentRuntime = await routeRuntime(
+      mergedRuntimes.value,
+      requestedRuntime,
+      ledger.projection(),
+      localConfig.value,
+    );
+    if (isErr(agentRuntime)) {
+      return {
+        exitCode: 1,
+        message: explainRuntimeSelectionRefusal(agentRuntime.error),
+      };
+    }
+    const contentHash = await receiptId(
+      repoRoot,
+      fileScope([relative(repoRoot, graphPath)]),
+      "approved",
+    );
     if (isErr(contentHash)) {
       return { exitCode: 1, message: explainScopeRefusal(contentHash.error) };
     }
@@ -210,6 +226,7 @@ export async function runInterlockRun(
     };
 
     return await driveInteractiveSession({
+      machine: machine.value,
       repoRoot,
       graph,
       node,

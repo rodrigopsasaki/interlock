@@ -68,7 +68,7 @@ function readWith(landedFor: (head: string) => Landed): Position {
 
 const registry = buildRegistry();
 const v1 = validatorFor(registry, "position@v1");
-const v2 = validatorFor(registry, "position@v2");
+const v2 = validatorFor(registry, "position@v3");
 
 function validV1(value: unknown): boolean {
   if (v1 === undefined) throw new Error("no position@v1 validator");
@@ -76,7 +76,7 @@ function validV1(value: unknown): boolean {
 }
 
 function validV2(value: unknown): boolean {
-  if (v2 === undefined) throw new Error("no position@v2 validator");
+  if (v2 === undefined) throw new Error("no position@v3 validator");
   return v2(value) === true;
 }
 
@@ -91,11 +91,11 @@ const landedKinds: Array<[Landed["kind"], (head: string) => Landed]> = [
   ["unknown", () => ({ kind: "unknown", because: "main could not be read" })],
 ];
 
-describe("landed: code-produced position@v2", () => {
+describe("landed: code-produced position@v3", () => {
   for (const [kind, landedFor] of landedKinds) {
     it(`validates a latest position whose nodes land ${kind}`, () => {
       const position = readWith(landedFor);
-      expect(position.interlock).toBe("position@v2");
+      expect(position.interlock).toBe("position@v3");
       expect(position.nodes.map((node) => node.landed?.kind)).toEqual([kind, kind]);
       expect(validV2(position), JSON.stringify(v2?.errors)).toBe(true);
     });
@@ -189,11 +189,11 @@ describe("landed: retained position@v1", () => {
     expect(validV1(v1Fixture(partly))).toBe(false);
   });
 
-  it("accepts a fixed position@v1 and a code-produced position@v2 inside positions@v0", () => {
+  it("accepts a fixed position@v1 and a code-produced position@v3 inside positions@v0", () => {
     const produced = readWith((head) => ({ ...partly, head }));
     for (const position of [retainedV1["reverted-on-main"], produced]) {
       const read = {
-        interlock: "positions@v0",
+        interlock: "positions@v2",
         repositories: [
           {
             asked: "/repo",
@@ -206,12 +206,12 @@ describe("landed: retained position@v1", () => {
           },
         ],
       };
-      expect(judgeValue(registry, read)).toEqual({ kind: "valid", tag: "positions@v0" });
+      expect(judgeValue(registry, read)).toEqual({ kind: "valid", tag: "positions@v2" });
     }
   });
 });
 
-describe("landed: malformed partly-reverted-on-main evidence under position@v2", () => {
+describe("landed: malformed partly-reverted-on-main evidence under position@v3", () => {
   const { reverted: _reverted, ...withoutReverted } = partly;
   const { revertedBy: _revertedBy, ...withoutRevertedBy } = partly;
   const malformed: Record<string, object> = {

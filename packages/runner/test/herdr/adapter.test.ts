@@ -157,6 +157,16 @@ describe("herdr adapter", () => {
     if (isErr(created)) expect(created.error.kind).toBe("no-socket");
   });
 
+  it("checks liveness with ping, which herdr serves, instead of server.status", async () => {
+    const fake = await fixture();
+    const created = await createHerdrRuntime(fake.socketPath);
+    if (isErr(created)) throw new Error("expected a runtime");
+
+    const checked = await created.value.checkServer?.();
+    expect(checked).toEqual({ _tag: "Ok", value: undefined });
+    expect(fake.calls.map((call) => call.method)).toEqual(["ping"]);
+  });
+
   it("refuses to start an agent kind herdr does not accept", async () => {
     const fake = await fixture();
     const created = await createHerdrRuntime(fake.socketPath);

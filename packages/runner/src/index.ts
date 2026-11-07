@@ -66,6 +66,15 @@ export {
   loadLocalConfig,
   localConfigPath,
 } from "./localConfig.ts";
+export { reconcileMachineOnStart } from "./machineOutbox.ts";
+export type { MachineAttempt, MachineProvider } from "./machineProvider.ts";
+export {
+  loadMachine,
+  machinePath,
+  NO_MACHINE_PROVIDER,
+  parseMachine,
+  resolveMachine,
+} from "./machineProvider.ts";
 export { recordingNarrate } from "./narration.ts";
 export type { PriorWork, SessionRole } from "./openingPrompt.ts";
 export { buildOpeningPrompt } from "./openingPrompt.ts";
@@ -75,6 +84,8 @@ export type {
   PromptDeliveryRequest,
 } from "./promptDelivery.ts";
 export { deliverOpeningPrompt } from "./promptDelivery.ts";
+export type { RoutingOptions } from "./providerRouting.ts";
+export { routeRuntime } from "./providerRouting.ts";
 export type { RoleShape } from "./roleShape.ts";
 export { roleShapeFor } from "./roleShape.ts";
 export type {
@@ -118,7 +129,7 @@ export {
   explainRuntimeSelectionRefusal,
   selectRuntime,
 } from "./runtimeSelection.ts";
-export { gitTrackedFiles } from "./scope.ts";
+export { gitScope, gitTrackedFiles } from "./scope.ts";
 export type { BriefWriteOutcome, DeclaredNode, SessionBriefRefusal } from "./sessionBrief.ts";
 export {
   briefExists,
@@ -133,6 +144,8 @@ export type {
   DriveSessionRequest,
 } from "./sessionDrive.ts";
 export { driveInteractiveSession } from "./sessionDrive.ts";
+export type { SessionInheritance } from "./sessionRange.ts";
+export { findInheritedSessionStart } from "./sessionRange.ts";
 export {
   lastNonEmptyLine,
   screenPath,
@@ -157,6 +170,7 @@ export {
 export { renderWalkSection, withWalkSection } from "./walkSection.ts";
 export type { WorktreeOutcome, WorktreeRefusal } from "./worktree.ts";
 export {
+  baseHoldsGraph,
   commitBriefIfChanged,
   createDetachedWorktree,
   ensureNodeWorktree,
