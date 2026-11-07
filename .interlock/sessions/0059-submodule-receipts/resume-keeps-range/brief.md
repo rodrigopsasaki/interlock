@@ -1002,14 +1002,18 @@ edit it.
 >   name; it now verifies the checked-out branch and HEAD before any inheritance);
 > - the predecessor is the single latest earlier session of the same graph and node on the same graph base, on
 >   the ancestry path from the graph base to HEAD; two candidates, or none, means no inheritance;
-> - the predecessor is open: no outcome-set event names it in the journal, and no debrief file for it is
->   committed anywhere in the interval (a filed debrief is written without a journal event,
->   packages/cli/src/debrief/derived.ts:267, and the runner appends debrief-filed only after clearance,
->   packages/runner/src/gateJudge.ts:297, so both the journal and the committed files are read);
+> - the predecessor is open. An outcome-set event names only the node and the outcome, not a session
+>   (packages/ledger/src/event.ts:70), so outcomes are attributed by time, conservatively: any outcome-set event for
+>   this graph and node recorded after the predecessor's session-started event closes the predecessor, and an
+>   outcome whose order against it cannot be told from the journal also closes it (inheritance is refused, never
+>   guessed). A debrief file for the predecessor committed anywhere in the interval closes it too (a filed debrief is
+>   written without a journal event, packages/cli/src/debrief/derived.ts:267, and the runner can record a held
+>   outcome without a committed debrief, packages/runner/src/sessionDrive.ts:585, so both are read);
 > - every commit in the interval from the inherited start to HEAD is either a brief transition of this node's
->   sessions, a commit carrying an Attempt trailer naming one of this node's sessions in the chain, or a merge
->   whose first parent is in the interval; a commit of any other node, graph or closed attempt refuses
->   inheritance with one line naming it.
+>   sessions or a commit carrying an Attempt trailer naming one of this node's sessions in the chain. A merge
+>   commit anywhere in the interval refuses inheritance (its resolution and its other parents could bring in work
+>   no session of this node made), and so does a commit of any other node, graph or closed attempt, each with one
+>   line naming it; the resumed session then keeps its own start, as today.
 > The inherited start is the predecessor's own effective start, so a chain A then B then C keeps A's start while
 > A and B stay open. The session-started event records the inherited start and the predecessor's session id
 > (the event schema evolves additively; every existing event still reads), so the chain is walkable, and the
@@ -1021,6 +1025,10 @@ edit it.
 >   that cites A's code rooted;
 > - a chain A, B, C keeps A's start in C's event and range;
 > - a predecessor with a committed debrief whose judgement was held is closed: B keeps its own start;
+> - a predecessor closed only by an outcome-set event (held, with no committed debrief) is closed: B keeps its own
+>   start;
+> - a merge commit in the interval (main merged into the branch after A's code) refuses inheritance with its line,
+>   and B keeps its own start;
 > - a commit of another node in the interval, a worktree on another branch, and two candidate predecessors each
 >   refuse inheritance with their line, and B keeps its own start;
 > - a fresh session with no predecessor keeps today's range, and an existing session-started event without the

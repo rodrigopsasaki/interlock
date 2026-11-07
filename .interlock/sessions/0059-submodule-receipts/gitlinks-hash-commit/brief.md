@@ -995,10 +995,11 @@ edit it.
 > The scope reads `git ls-files -s` (packages/runner/src/scope.ts:6) and keeps each entry's mode and object id
 > beside its path. receiptId (packages/ledger/src/receipt.ts:79-87) hashes a mode 160000 entry (a gitlink) with
 > its own framing, never by reading the path from disk: the bytes "gitlink", a NUL, the path, a NUL and the 40-hex
-> commit id the index records, so a regular file at the same path whose content is that commit id hashes
-> differently. Every other entry is hashed exactly as today (gate, then each sorted path and its bytes), so every
-> receipt for a repository without submodules is byte-identical to today's (the receipt ids of existing receipts
-> do not change). A submodule bump changes the recorded commit id and so the
+> commit id the index records. When the scope holds any gitlink, the whole hash input starts with a single NUL
+> byte before the gate, which today's input never does (a gate id holds no NUL), so no scope of regular files,
+> whatever their names and bytes, can produce the same input as a scope with a gitlink. A scope of regular files
+> only is hashed exactly as today (gate, then each sorted path and its bytes), so every receipt for a repository
+> without submodules is byte-identical to today's (the receipt ids of existing receipts do not change). A submodule bump changes the recorded commit id and so the
 > receipt; a submodule whose checkout on disk differs from its recorded commit does not, since the index is the
 > truth the commit carries. A gitlink missing from disk, or a submodule never initialized, hashes the same way and
 > never throws. The scope type names the entry kind (file or gitlink) so no caller reads a gitlink as a file.
@@ -1010,6 +1011,8 @@ edit it.
 > - an uninitialized submodule hashes without throwing;
 > - a path that is a regular file containing a commit id, then replaced by a gitlink to that commit, yields two
 >   different receipt ids;
+> - the adversarial pair: a regular file named "gitlink" whose bytes are a NUL, "sub", a NUL and a commit id, and
+>   a gitlink "sub" at that commit, under the same gate, yield different receipt ids;
 > - a repository without submodules yields the same receipt id as before the change, for a fixed fixture whose
 >   expected id is written in the test.
 > Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
