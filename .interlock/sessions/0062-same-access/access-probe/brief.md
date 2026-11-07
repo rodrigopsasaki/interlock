@@ -23,6 +23,14 @@ gates:
   kind: command
   run: pnpm --fail-if-no-match --filter cli exec vitest run test/runtimeProbe.test.ts --passWithNoTests=false
   expect_output: 'Tests +[1-9][0-9]* passed'
+- id: probe-runner-tests
+  kind: command
+  run: pnpm --fail-if-no-match --filter runner exec vitest run test/runtimeProbe.test.ts test/openingPrompt.test.ts --passWithNoTests=false
+  expect_output: 'Tests +[1-9][0-9]* passed'
+- id: probe-event-tests
+  kind: command
+  run: pnpm --fail-if-no-match --filter ledger exec vitest run test/replay.test.ts --passWithNoTests=false
+  expect_output: 'Tests +[1-9][0-9]* passed'
 scope:
 - .gitignore
 - .interlock/config.yaml
@@ -998,18 +1006,74 @@ edit it.
 
 ## Acceptance (verbatim from the graph)
 
-> `interlock runtime probe <name> [--json]` runs the four checks (SysV shared memory create and remove, loopback
-> TCP listen on 127.0.0.1:0, worktree file create and remove, one signed commit in a scratch repository whose
-> signature verifies) through the named runtime's adapter under that
-> profile's own args, and prints one line per check: passed, refused with the error text, or unavailable with the
-> reason. It exits 0 only when every check passed. `interlock runtime probe --all` probes every routable profile
-> and names each one that did not pass every check. `interlock runtime list` shows each profile's last probe
-> result and its time, read from the journal (one content-free event per probe: profile, check, result, time).
+> Run one heavy command at a time, never several in parallel or in the background; never pipe a test runner
+> into head or tail.
+>
+> Shared launch preparation. sessionDrive's launch preparation (agentLaunch's writable-root expansion, the
+> adapter's environment arguments, the machine environment, and machine provider admission and release through
+> admitMachine) moves into one runner function that both an attempt and the probe call; sessionDrive's behavior
+> does not change. Tests in packages/runner/test/runtimeProbe.test.ts:
+> - for a profile with writable_root_args, the probe's prepared launch carries the same expanded roots, cwd,
+>   environment and environment arguments an attempt's launch carries for the same linked worktree;
+> - with a fixture machine provider, the probe's admission writes the same intent record before the admit
+>   command and the same delivery record after it as an attempt's, and releases afterwards; a failed admission
+>   reports every check unavailable with the admission's reason.
+>
+> Adapter probe path. The Runtime-side adapter contract gains an optional probe executor: given the prepared
+> launch and one fixed check, it builds the command for its kind's non-conversational execution path. Every
+> production adapter kind either implements it or reports unavailable with a reason naming what equivalence it
+> cannot show; the node's debrief lists each production kind and which of the two it chose, with the evidence.
+> An adapter that implements it must carry the profile's effective sandbox, approval and writable-root settings
+> into the executor, or report unavailable. No adapter falls back to an agent conversation or to a host shell.
+> Tests in packages/runner/test/runtimeProbe.test.ts, through injected process runners (no real agent binary):
+> - for each implementing adapter, the exact argv and environment its executor receives carry the profile's
+>   args, the expanded writable roots and the environment arguments;
+> - for a production kind that does not implement it, the probe reports every agent-side check unavailable with
+>   the adapter's reason, and no process runner and no agent start is called.
+>
+> The command. `interlock runtime probe <name> [--json]` runs, in a disposable linked worktree it creates and
+> removes, the checks: SysV shared memory create and remove, loopback TCP listen on 127.0.0.1:0, worktree file
+> create and remove, git metadata write (a commit in the linked worktree, unsigned), and signed commit through
+> the profile's commit custodian whose signature verifies. Under `commits: agent` all five run through the
+> adapter; under `commits: runner` the signed commit runs as the runner's custody does, and the agent's signing
+> may be shown separately as a diagnostic that does not decide the exit code. It prints one line per check:
+> passed, refused with the error text, or unavailable with the reason. It exits 0 only when every deciding check
+> passed. `interlock runtime probe --all` probes every launchable profile of the merged catalogue, routable or
+> not, including the one named by default_runtime and the legacy "default" profile, and names each one that did
+> not pass every deciding check; with no profiles at all it says so and exits 1, never succeeding vacuously.
 > The probe never starts an agent conversation and spends no model tokens.
+>
+> The record. Each probe appends one `probe` event through a new journal event version, `event@v11`
+> (schemas/event@v11.json, its guard, replay and projection support, EVENT_SHAPE moving to event@v11), with
+> `event@v1` through `event@v10` still replaying unchanged. The event carries a probe id, the profile name, an
+> effective configuration fingerprint (a digest over the merged profile entry and the machine's environment and
+> provider configuration, not over per-attempt paths), the probe implementation version, every check's outcome
+> with its error text or reason, its derivation, and its time. `interlock runtime list` shows each profile's last
+> probe result and time; when that result's fingerprint or probe version differs from the profile's current one
+> it reads as historical ("probed under an earlier configuration"), and a profile never probed reads
+> "never probed". `runtime list` never runs a probe.
+>
+> The opening instruction. The opening prompt every attempt receives (packages/runner/src/openingPrompt.ts)
+> carries the sentence "Run one heavy command at a time, never several in parallel or in the background; never
+> pipe a test runner into head or tail." for every role.
+>
+> Tests in packages/ledger/test/replay.test.ts:
+> - a journal mixing event@v1 through event@v10 entries with event@v11 probe events replays, and the probe
+>   projection reads back every field;
+> - an event@v10 journal carrying a probe kind is still refused.
+> Tests in packages/runner/test/openingPrompt.test.ts:
+> - the opening prompt carries the heavy-command sentence for every role.
 > Tests in packages/cli/test/runtimeProbe.test.ts with fixture adapters (no real agent binary):
-> - an adapter whose command runner allows everything reports four passes and exit 0;
+> - an adapter whose command runner allows everything reports every check passed and exit 0;
 > - an adapter whose runner refuses shmget reports that check refused with its error text and exits 1, the other
 >   checks still reported;
-> - an adapter with no command runner reports unavailable for every check and exits 1, never passed;
-> - --all names every routable profile that did not pass;
-> - runtime list shows the last probe per profile, and a profile never probed reads "never probed".
+> - an adapter with no probe executor reports unavailable for every agent-side check and exits 1, never passed;
+> - a runner that lets files be created inside the linked worktree but refuses writes under its per-worktree or
+>   common git directory reports file create passed and the git metadata check refused, exit 1;
+> - a `commits: runner` profile whose agent cannot sign but whose runner custody signs exits 0, with the agent's
+>   signing shown as a diagnostic; the same agent under `commits: agent` exits 1;
+> - --all probes a non-routable profile, the default_runtime profile and a legacy "default" profile, and names
+>   every one that did not pass; an empty catalogue exits 1 with a sentence;
+> - runtime list shows the last probe per profile; a profile never probed reads "never probed"; after the
+>   profile's args change under the same name, its earlier pass reads as historical; and runtime list calls no
+>   process runner.
