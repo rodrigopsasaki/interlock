@@ -44,3 +44,12 @@ entries:
       Existing position and judge fixtures timed out on loopback-dependent runtime or absorb
       worktrees; the run stopped without reaching a final summary. The owned output is retained
       under packages/cli/test/.runs, while the focused plan-publish suite completed 9 tests.
+  - kind: surprise
+    at: "2026-11-07T16:12:00Z"
+    expected: >-
+      The standing workspace gates would resolve their executables from the installed workspace
+      dependencies.
+    observed: >-
+      Root typecheck, lint and test each refused at their first workspace package because tsc,
+      biome or vitest was not present in the root workspace environment. The comment gate passed;
+      CLI-local typecheck, Biome and the focused publication proof passed.
