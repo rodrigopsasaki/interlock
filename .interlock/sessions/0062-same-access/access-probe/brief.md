@@ -998,15 +998,16 @@ edit it.
 
 ## Acceptance (verbatim from the graph)
 
-> `interlock runtime probe <name> [--json]` runs the three checks (SysV shared memory create and remove, loopback
-> TCP listen on 127.0.0.1:0, worktree file create and remove) through the named runtime's adapter under that
+> `interlock runtime probe <name> [--json]` runs the four checks (SysV shared memory create and remove, loopback
+> TCP listen on 127.0.0.1:0, worktree file create and remove, one signed commit in a scratch repository whose
+> signature verifies) through the named runtime's adapter under that
 > profile's own args, and prints one line per check: passed, refused with the error text, or unavailable with the
 > reason. It exits 0 only when every check passed. `interlock runtime probe --all` probes every routable profile
 > and names each one that did not pass every check. `interlock runtime list` shows each profile's last probe
 > result and its time, read from the journal (one content-free event per probe: profile, check, result, time).
 > The probe never starts an agent conversation and spends no model tokens.
 > Tests in packages/cli/test/runtimeProbe.test.ts with fixture adapters (no real agent binary):
-> - an adapter whose command runner allows everything reports three passes and exit 0;
+> - an adapter whose command runner allows everything reports four passes and exit 0;
 > - an adapter whose runner refuses shmget reports that check refused with its error text and exits 1, the other
 >   checks still reported;
 > - an adapter with no command runner reports unavailable for every check and exits 1, never passed;
