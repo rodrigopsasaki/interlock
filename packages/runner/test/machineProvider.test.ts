@@ -43,6 +43,7 @@ vi.mock("../src/worktree.ts", async (original) => ({
   removeWorktree: () => ok(undefined),
   commitBriefIfChanged: () => ok(undefined),
   uncommittedPaths: () => ok([]),
+  baseHoldsGraph: () => ok(undefined),
 }));
 
 const runs = join(import.meta.dirname, ".runs");
@@ -109,7 +110,7 @@ if (op === 'release') { const file = ${JSON.stringify(join(root, "released"))}; 
         process.execPath,
         script(
           "heavy.cjs",
-          `const fs=require('node:fs'); const {spawnSync}=require('node:child_process'); fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify(['heavy',...process.argv.slice(2)])+'\\n'); if (process.argv.at(-2)==='pnpm' && process.argv.at(-1)==='install') { fs.writeFileSync(${JSON.stringify(join(root, "install-env"))}, JSON.stringify({LIMIT:process.env.LIMIT})); process.exit(0); } const r=spawnSync(process.argv[2],process.argv.slice(3),{stdio:'inherit',env:process.env}); process.exit(r.status ?? 1);`,
+          `const fs=require('node:fs'); const {spawnSync}=require('node:child_process'); fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify(['heavy',...process.argv.slice(2)])+'\\n'); if (process.argv.at(-3)==='pnpm' && process.argv.at(-2)==='install') { fs.writeFileSync(${JSON.stringify(join(root, "install-env"))}, JSON.stringify({LIMIT:process.env.LIMIT})); process.exit(0); } const r=spawnSync(process.argv[2],process.argv.slice(3),{stdio:'inherit',env:process.env}); process.exit(r.status ?? 1);`,
         ),
       ],
     },
@@ -689,7 +690,15 @@ describe("machine provider", () => {
       worktreeRoot: relative(repoRoot, join(root, "worktrees")),
     };
     unwrap(await backfillGraph(options));
-    expect(lines()).toContainEqual(["heavy", "mise", "exec", "--", "pnpm", "install"]);
+    expect(lines()).toContainEqual([
+      "heavy",
+      "mise",
+      "exec",
+      "--",
+      "pnpm",
+      "install",
+      "--config.confirmModulesPurge=false",
+    ]);
     expect(JSON.parse(readFileSync(join(root, "install-env"), "utf8"))).toEqual({
       LIMIT: 'space and "quote"',
     });
