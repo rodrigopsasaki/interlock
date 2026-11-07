@@ -14,3 +14,11 @@ entries:
     at: "2026-11-07T08:36:00Z"
     expected: The shared brief reader would return a BriefRead directly, matching the existing session-identity helper's narrowed use.
     observed: readBriefDocument returns a Result, so the first typecheck rejected the helper before checking the rest of the workspace.
+  - kind: choice
+    at: "2026-11-07T08:42:00Z"
+    chose: Separate predecessor-closure checks from full inherited-range commit checks.
+    because: The resumed session's own debrief commit is in its full range and must be permitted by its Attempt trailer, but it must not be mistaken for the predecessor's debrief; only commits before the resumed session's brief transition can close the predecessor through the shared node-level debrief path.
+  - kind: choice
+    at: "2026-11-07T08:43:00Z"
+    chose: Add a focused CLI fixture test that exercises both the runner-side pre-session decision and the debrief-side recheck.
+    because: The acceptance depends on the runner writing provenance and the CLI refusing to trust it without replaying the Git and journal proof; covering both call shapes makes that seam observable without network or a live agent.

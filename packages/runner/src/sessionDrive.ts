@@ -48,6 +48,7 @@ import {
 import type { ResolvedRuntime } from "./runtimeCatalogue.ts";
 import { gitTrackedFiles } from "./scope.ts";
 import { type BriefWriteOutcome, buildBrief } from "./sessionBrief.ts";
+import { findInheritedSessionStart, type SessionInheritance } from "./sessionRange.ts";
 import { lastNonEmptyLine, writeScreenSnapshot } from "./sessionScreen.ts";
 import { type UnfinishedWork, waitForSession } from "./sessionWait.ts";
 import type { StandingGate } from "./standingGates.ts";
@@ -62,12 +63,11 @@ import {
   uncommittedPaths,
   type WorktreeOutcome,
   type WorktreeRefusal,
-  worktreeHead,
   worktreeGitLayout,
+  worktreeHead,
 } from "./worktree.ts";
 import { explainWorktreeSetupRefusal, runWorktreeSetup } from "./worktreeSetup.ts";
 import { expandWritableRootArgs } from "./writableRootArgs.ts";
-import { findInheritedSessionStart } from "./sessionRange.ts";
 
 function isoOf(wallMs: number): string {
   return new Date(wallMs).toISOString();
@@ -280,7 +280,11 @@ export async function driveInteractiveSession(
     const sessionId = randomUUID();
     const worktreeHeadSha = worktreeHead(worktreePath);
     const journalEvents = await readRawEvents(await sharedJournalDirectory(repoRoot));
-    const inherited =
+    const inheritedFallback: SessionInheritance = {
+      kind: "none",
+      because: "could not inspect the resumed worktree",
+    };
+    const inherited: SessionInheritance =
       isOk(worktreeHeadSha) && isOk(journalEvents)
         ? findInheritedSessionStart(
             worktreePath,
@@ -291,7 +295,7 @@ export async function driveInteractiveSession(
             worktreeHeadSha.value,
             sessionId,
           )
-        : { kind: "none" as const, because: "could not inspect the resumed worktree" };
+        : inheritedFallback;
 
     if (role !== "interpreter") {
       const graphAtBase = baseHoldsGraph(repoRoot, graphBaseSha, graph, node);

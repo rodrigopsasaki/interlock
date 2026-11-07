@@ -208,10 +208,7 @@ export async function deriveSessionStart(
     return { kind: "refusal", because: "requires one unambiguous brief transition" };
   if (!derived.bytes.equals(briefBytes))
     return { kind: "refusal", because: "local brief bytes changed after the session started" };
-  if (
-    started.inheritedStartSha !== undefined &&
-    started.predecessorSession !== undefined
-  ) {
+  if (started.inheritedStartSha !== undefined && started.predecessorSession !== undefined) {
     const inherited = findInheritedSessionStart(
       repoRoot,
       journalRead,
@@ -222,7 +219,8 @@ export async function deriveSessionStart(
       runner.session,
       started,
     );
-    if (inherited.kind === "inherited") return { kind: "derived", sha: inherited.inheritedStartSha };
+    if (inherited.kind === "inherited")
+      return { kind: "derived", sha: inherited.inheritedStartSha };
   }
   return { kind: "derived", sha: derived.sha };
 }

@@ -144,6 +144,8 @@ export type {
   DriveSessionRequest,
 } from "./sessionDrive.ts";
 export { driveInteractiveSession } from "./sessionDrive.ts";
+export type { SessionInheritance } from "./sessionRange.ts";
+export { findInheritedSessionStart } from "./sessionRange.ts";
 export {
   lastNonEmptyLine,
   screenPath,
@@ -151,8 +153,6 @@ export {
 } from "./sessionScreen.ts";
 export type { UnfinishedWork } from "./sessionWait.ts";
 export { waitForSession } from "./sessionWait.ts";
-export type { SessionInheritance } from "./sessionRange.ts";
-export { findInheritedSessionStart } from "./sessionRange.ts";
 export type { StandingGate, StandingGatesRefusal } from "./standingGates.ts";
 export {
   configPath,

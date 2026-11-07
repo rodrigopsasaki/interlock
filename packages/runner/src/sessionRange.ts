@@ -44,11 +44,7 @@ function briefPath(event: SessionStartedEvent): string {
   return `.interlock/sessions/${event.session.node.graph}/${event.session.node.id}/brief.md`;
 }
 
-function briefMatches(
-  repoRoot: string,
-  sha: string,
-  event: SessionStartedEvent,
-): boolean {
+function briefMatches(repoRoot: string, sha: string, event: SessionStartedEvent): boolean {
   if (event.graphBaseSha === undefined) return false;
   const raw = gitText(repoRoot, ["show", `${sha}:${briefPath(event)}`]);
   if (raw === undefined) return false;
@@ -112,12 +108,10 @@ function commitParents(repoRoot: string, commit: string): readonly string[] | un
 function attemptSessions(repoRoot: string, commit: string): readonly string[] {
   const message = gitText(repoRoot, ["show", "-s", "--format=%B", commit]);
   if (message === undefined) return [];
-  return message
-    .split("\n")
-    .flatMap((line) => {
-      const match = /^Attempt: (.+)$/.exec(line);
-      return match === null || match[1] === undefined ? [] : [match[1]];
-    });
+  return message.split("\n").flatMap((line) => {
+    const match = /^Attempt: (.+)$/.exec(line);
+    return match === null || match[1] === undefined ? [] : [match[1]];
+  });
 }
 
 function recordFor(
@@ -175,16 +169,19 @@ function chainOf(
     chain.push(current);
     const predecessor = current.event.predecessorSession;
     if (predecessor === undefined) break;
-    current = recordForSession(records, predecessor);
+    const predecessorRecord = recordForSession(records, predecessor);
+    if (
+      predecessorRecord === undefined ||
+      current.effectiveStart !== predecessorRecord.effectiveStart
+    )
+      return undefined;
+    current = predecessorRecord;
   }
   const last = chain[chain.length - 1];
   return last?.event.predecessorSession === undefined ? chain : undefined;
 }
 
-function currentIndex(
-  events: readonly LedgerEvent[],
-  currentSession: string,
-): number | undefined {
+function currentIndex(events: readonly LedgerEvent[], currentSession: string): number | undefined {
   const indexes = events.flatMap((event, index) =>
     event.kind === "session-started" && event.session.id === currentSession ? [index] : [],
   );
@@ -195,11 +192,7 @@ function debriefPath(graph: string, node: string): string {
   return `.interlock/sessions/${graph}/${node}/debrief.yaml`;
 }
 
-function rangeCommits(
-  repoRoot: string,
-  start: string,
-  head: string,
-): readonly string[] {
+function rangeCommits(repoRoot: string, start: string, head: string): readonly string[] {
   const raw = gitText(repoRoot, ["rev-list", "--reverse", "--ancestry-path", `${start}..${head}`]);
   return raw === undefined ? [] : raw.split("\n").filter((value) => value.length > 0);
 }
@@ -227,7 +220,10 @@ export function findInheritedSessionStart(
   if (currentEvent !== undefined) {
     if (currentJournalIndex === undefined)
       return { kind: "none", because: "current session-started event is not unique" };
-    if (currentEvent.inheritedStartSha === undefined || currentEvent.predecessorSession === undefined)
+    if (
+      currentEvent.inheritedStartSha === undefined ||
+      currentEvent.predecessorSession === undefined
+    )
       return { kind: "none", because: "current session carries no inherited range" };
   }
 
@@ -240,7 +236,8 @@ export function findInheritedSessionStart(
   });
   const onAncestry = candidateRecords.filter(
     (record) =>
-      gitText(repoRoot, ["merge-base", "--is-ancestor", graphBaseSha, record.ownStart]) !== undefined &&
+      gitText(repoRoot, ["merge-base", "--is-ancestor", graphBaseSha, record.ownStart]) !==
+        undefined &&
       gitText(repoRoot, ["merge-base", "--is-ancestor", record.ownStart, head]) !== undefined,
   );
   if (onAncestry.length === 0)
@@ -284,13 +281,26 @@ export function findInheritedSessionStart(
     ...chain.map((record) => record.event.session.id),
   ]);
 
-  const cutoff = currentEvent === undefined
-    ? head
-    : (() => {
-        const currentRecord = records.find((record) => record.event.session.id === currentSession);
-        return currentRecord?.transition ?? head;
-      })();
-  const interval = rangeCommits(repoRoot, candidate.effectiveStart, cutoff);
+  const cutoff =
+    currentEvent === undefined
+      ? head
+      : (() => {
+          const currentRecord = records.find(
+            (record) => record.event.session.id === currentSession,
+          );
+          return currentRecord?.transition ?? head;
+        })();
+  const predecessorInterval = rangeCommits(repoRoot, candidate.effectiveStart, cutoff);
+  if (
+    predecessorInterval.some((commit) =>
+      commitPaths(repoRoot, commit).includes(debriefPath(graph, node)),
+    )
+  )
+    return { kind: "none", because: "predecessor debrief is committed in the inherited interval" };
+
+  const currentRecord = records.find((record) => record.event.session.id === currentSession);
+  const recognizedTransitions = [...chain, ...(currentRecord === undefined ? [] : [currentRecord])];
+  const interval = rangeCommits(repoRoot, candidate.effectiveStart, head);
   for (const commit of interval) {
     const parents = commitParents(repoRoot, commit);
     if (parents === undefined)
@@ -299,20 +309,17 @@ export function findInheritedSessionStart(
       return { kind: "none", because: `merge commit ${commit} is in the inherited range` };
     const attempt = attemptSessions(repoRoot, commit);
     const permittedAttempt = attempt.some((session) => allowedSessions.has(session));
-    const briefTransition = chain.some((record) => record.transition === commit);
+    const briefTransition = recognizedTransitions.some((record) => record.transition === commit);
     if (!permittedAttempt && !briefTransition)
       return {
         kind: "none",
         because: `commit ${commit} has no Attempt trailer for this session chain`,
       };
-    if (commitPaths(repoRoot, commit).includes(debriefPath(graph, node)))
-      return { kind: "none", because: `predecessor debrief is committed in ${commit}` };
   }
 
   const outcomeAfterStart = events.some(
     (event, index) =>
       index > candidate.journalIndex &&
-      (currentJournalIndex === undefined || index < currentJournalIndex) &&
       event.kind === "outcome-set" &&
       event.node.graph === graph &&
       event.node.id === node,
@@ -322,19 +329,20 @@ export function findInheritedSessionStart(
   const filedAfterStart = events.some(
     (event, index) =>
       index > candidate.journalIndex &&
-      (currentJournalIndex === undefined || index < currentJournalIndex) &&
       event.kind === "debrief-filed" &&
       event.session === candidate.event.session.id,
   );
-  if (filedAfterStart)
-    return { kind: "none", because: "predecessor has a filed debrief" };
+  if (filedAfterStart) return { kind: "none", because: "predecessor has a filed debrief" };
 
   if (currentEvent !== undefined) {
     if (
       currentEvent.inheritedStartSha !== candidate.effectiveStart ||
       currentEvent.predecessorSession !== candidate.event.session.id
     )
-      return { kind: "none", because: "current session inheritance does not match its predecessor" };
+      return {
+        kind: "none",
+        because: "current session inheritance does not match its predecessor",
+      };
   }
   return {
     kind: "inherited",
