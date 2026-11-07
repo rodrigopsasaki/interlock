@@ -36,3 +36,11 @@ entries:
       A publication is an outward act with durable provenance even though it does not clear a
       gate; the same citation must not authorize a later approval, clearance, or different
       publication target.
+  - kind: surprise
+    at: "2026-11-07T16:05:00Z"
+    expected: >-
+      The full CLI package suite would complete after the focused publication tests passed.
+    observed: >-
+      Existing position and judge fixtures timed out on loopback-dependent runtime or absorb
+      worktrees; the run stopped without reaching a final summary. The owned output is retained
+      under packages/cli/test/.runs, while the focused plan-publish suite completed 9 tests.
