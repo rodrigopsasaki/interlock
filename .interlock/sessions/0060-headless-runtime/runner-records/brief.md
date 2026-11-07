@@ -22,7 +22,7 @@ gates:
 - id: sessions-proof
   kind: command
   run: pnpm --fail-if-no-match --filter cli exec vitest run test/sessions.test.ts --passWithNoTests=false
-  expect_output: Tests +[1-9][0-9]* passed
+  expect_output: 'Tests +[1-9][0-9]* passed'
 scope:
 - .gitignore
 - .interlock/config.yaml

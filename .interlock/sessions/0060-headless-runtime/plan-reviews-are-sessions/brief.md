@@ -22,11 +22,11 @@ gates:
 - id: plan-review-proof
   kind: command
   run: pnpm --fail-if-no-match --filter runner exec vitest run test/planReview.test.ts --passWithNoTests=false
-  expect_output: Tests +[1-9][0-9]* passed
+  expect_output: 'Tests +[1-9][0-9]* passed'
 - id: reviews-in-position-proof
   kind: command
   run: pnpm --fail-if-no-match --filter face exec vitest run test/reviewsInPosition.test.ts --passWithNoTests=false
-  expect_output: Tests +[1-9][0-9]* passed
+  expect_output: 'Tests +[1-9][0-9]* passed'
 scope:
 - .gitignore
 - .interlock/config.yaml

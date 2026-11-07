@@ -22,7 +22,7 @@ gates:
 - id: herdr-gone-proof
   kind: command
   run: pnpm --fail-if-no-match --filter runner exec vitest run test/herdrGone.test.ts --passWithNoTests=false
-  expect_output: Tests +[1-9][0-9]* passed
+  expect_output: 'Tests +[1-9][0-9]* passed'
 scope:
 - .gitignore
 - .interlock/config.yaml

@@ -45,7 +45,12 @@ read: >
   agent starts (0056-machine-provider.yaml:63). For exec the order is: persist the session's record (no pid yet)
   under a stable token, the session id and phase; ask the provider to admit that token; only on admit spawn the
   child, then bind its pid to the token; release only after the group's end is confirmed. A refused admit spawns
-  nothing and the record ends failed with reason "machine limit" and a null pid. Revoking a running child is not
+  nothing and the record ends failed with reason "machine limit" and a null pid. The provider cannot tell an unbound
+  token's spawn outcome on its own, so the runner always reports it: a spawn error releases the token with pid null;
+  a bind that fails or is refused makes the runner kill the group it spawned, confirm it empty, and only then
+  release; a runner that dies between spawn and bind leaves the token held until the next runner finds the record,
+  kills and confirms its group, and releases it. A provider never frees an unbound token by age alone (preston
+  0035 headless-admission holds it overdue until one of these reports). Revoking a running child is not
   promised: the machine limits launches; the run timeout and a person's stop bound a running child.
 
   Containment. The guarantee is the process group: the runner signals -pgid and waits until no process remains in
@@ -172,6 +177,9 @@ nodes:
         persisted intent;
       - a detached grandchild that starts its own session is outside the group; the record does not claim it, and
         the start line carries the containment note;
+      - a bind the provider refuses after spawn makes the runner kill and confirm the group before release, and a
+        runner killed between spawn and bind leaves the token held until the next runner releases it after confirming
+        the group empty;
       - a refused admit spawns nothing (the fixture executable writes a marker file on start; none exists) and the
         record ends failed, "machine limit", pid null;
       - a spawn error (a missing executable) ends failed with "could not start: ENOENT" and pid null; a signal sent

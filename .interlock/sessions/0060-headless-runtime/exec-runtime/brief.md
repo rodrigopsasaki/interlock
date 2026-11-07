@@ -22,7 +22,7 @@ gates:
 - id: exec-runtime-proof
   kind: command
   run: pnpm --fail-if-no-match --filter runner exec vitest run test/execRuntime.test.ts --passWithNoTests=false
-  expect_output: Tests +[1-9][0-9]* passed
+  expect_output: 'Tests +[1-9][0-9]* passed'
 scope:
 - .gitignore
 - .interlock/config.yaml
@@ -1066,6 +1066,9 @@ transcript@v0, one file per phase at <run dir>/transcript.jsonl, one JSON object
 >   persisted intent;
 > - a detached grandchild that starts its own session is outside the group; the record does not claim it, and
 >   the start line carries the containment note;
+> - a bind the provider refuses after spawn makes the runner kill and confirm the group before release, and a
+>   runner killed between spawn and bind leaves the token held until the next runner releases it after confirming
+>   the group empty;
 > - a refused admit spawns nothing (the fixture executable writes a marker file on start; none exists) and the
 >   record ends failed, "machine limit", pid null;
 > - a spawn error (a missing executable) ends failed with "could not start: ENOENT" and pid null; a signal sent
