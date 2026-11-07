@@ -42,6 +42,8 @@ export type LedgerEvent =
       readonly session: Session;
       readonly brief: Brief;
       readonly graphBaseSha?: string;
+      readonly inheritedStartSha?: string;
+      readonly predecessorSession?: string;
       readonly walk?: Walk;
       readonly startedAt?: number;
     }
@@ -122,12 +124,16 @@ export function isLedgerEvent(value: unknown): value is LedgerEvent {
       return isNode(prop(value, "node")) && isString(prop(value, "session"));
     case "session-started": {
       const graphBaseSha = prop(value, "graphBaseSha");
+      const inheritedStartSha = prop(value, "inheritedStartSha");
+      const predecessorSession = prop(value, "predecessorSession");
       const walk = prop(value, "walk");
       const startedAt = prop(value, "startedAt");
       return (
         isSession(prop(value, "session")) &&
         isBrief(prop(value, "brief")) &&
         (graphBaseSha === undefined || isString(graphBaseSha)) &&
+        (inheritedStartSha === undefined || isString(inheritedStartSha)) &&
+        (predecessorSession === undefined || isString(predecessorSession)) &&
         (walk === undefined || isWalk(walk)) &&
         (startedAt === undefined || isEpochMs(startedAt))
       );
@@ -185,8 +191,12 @@ export function upcastSessionStarted(raw: unknown): LedgerEvent | undefined {
   const session = prop(raw, "session");
   const brief = prop(raw, "brief");
   const graphBaseSha = prop(raw, "graphBaseSha");
+  const inheritedStartSha = prop(raw, "inheritedStartSha");
+  const predecessorSession = prop(raw, "predecessorSession");
   if (!isLegacySessionRecord(session) || !isBrief(brief)) return undefined;
   if (graphBaseSha !== undefined && !isString(graphBaseSha)) return undefined;
+  if (inheritedStartSha !== undefined && !isString(inheritedStartSha)) return undefined;
+  if (predecessorSession !== undefined && !isString(predecessorSession)) return undefined;
   const runtimeField = prop(session, "runtime");
   const runtime = isSessionRuntime(runtimeField) ? runtimeField : sessionRuntime.unknown();
   return {
@@ -194,6 +204,8 @@ export function upcastSessionStarted(raw: unknown): LedgerEvent | undefined {
     session: { id: session.id, node: session.node, runtime },
     brief,
     ...(graphBaseSha === undefined ? {} : { graphBaseSha }),
+    ...(inheritedStartSha === undefined ? {} : { inheritedStartSha }),
+    ...(predecessorSession === undefined ? {} : { predecessorSession }),
   };
 }
 

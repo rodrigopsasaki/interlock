@@ -144,6 +144,8 @@ export type {
   DriveSessionRequest,
 } from "./sessionDrive.ts";
 export { driveInteractiveSession } from "./sessionDrive.ts";
+export type { SessionInheritance } from "./sessionRange.ts";
+export { findInheritedSessionStart } from "./sessionRange.ts";
 export {
   lastNonEmptyLine,
   screenPath,

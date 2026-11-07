@@ -48,6 +48,7 @@ import {
 import type { ResolvedRuntime } from "./runtimeCatalogue.ts";
 import { gitTrackedFiles } from "./scope.ts";
 import { type BriefWriteOutcome, buildBrief } from "./sessionBrief.ts";
+import { findInheritedSessionStart, type SessionInheritance } from "./sessionRange.ts";
 import { lastNonEmptyLine, writeScreenSnapshot } from "./sessionScreen.ts";
 import { type UnfinishedWork, waitForSession } from "./sessionWait.ts";
 import type { StandingGate } from "./standingGates.ts";
@@ -63,6 +64,7 @@ import {
   type WorktreeOutcome,
   type WorktreeRefusal,
   worktreeGitLayout,
+  worktreeHead,
 } from "./worktree.ts";
 import { explainWorktreeSetupRefusal, runWorktreeSetup } from "./worktreeSetup.ts";
 import { expandWritableRootArgs } from "./writableRootArgs.ts";
@@ -275,6 +277,25 @@ export async function driveInteractiveSession(
       };
     }
     const graphBaseSha = worktree.value.base;
+    const sessionId = randomUUID();
+    const worktreeHeadSha = worktreeHead(worktreePath);
+    const journalEvents = await readRawEvents(ledger.directory());
+    const inheritedFallback: SessionInheritance = {
+      kind: "none",
+      because: "could not inspect the resumed worktree",
+    };
+    const inherited: SessionInheritance =
+      isOk(worktreeHeadSha) && isOk(journalEvents)
+        ? findInheritedSessionStart(
+            worktreePath,
+            journalEvents.value,
+            graph,
+            node,
+            graphBaseSha,
+            worktreeHeadSha.value,
+            sessionId,
+          )
+        : inheritedFallback;
 
     if (role !== "interpreter") {
       const graphAtBase = baseHoldsGraph(repoRoot, graphBaseSha, graph, node);
@@ -293,7 +314,6 @@ export async function driveInteractiveSession(
     }
 
     const gateIds = declaredGateIds(standingGates, nodeGates);
-    const sessionId = randomUUID();
     const brief = buildBrief(graph, node, acceptance, gateIds, gitTrackedFiles(repoRoot), role);
     ledger.append({
       kind: "session-started",
@@ -307,6 +327,12 @@ export async function driveInteractiveSession(
       },
       brief,
       graphBaseSha,
+      ...(inherited.kind === "inherited"
+        ? {
+            inheritedStartSha: inherited.inheritedStartSha,
+            predecessorSession: inherited.predecessorSession,
+          }
+        : {}),
       ...(shape === undefined ? {} : { walk: shape.walk }),
       startedAt: clock.now().wallMs,
     });
