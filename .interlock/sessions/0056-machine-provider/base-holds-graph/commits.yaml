@@ -1,0 +1,11 @@
+interlock: commits@v0
+entries:
+  - message: "fix(runner): guard stale bases for existing graph sessions"
+    paths:
+      - packages/runner/src/index.ts
+      - packages/runner/src/sessionDrive.ts
+      - packages/runner/src/worktree.ts
+      - packages/runner/test/baseHoldsGraph.test.ts
+      - packages/runner/test/support/driveFixture.ts
+      - .interlock/sessions/0056-machine-provider/base-holds-graph/notes.yaml
+co_authored_by: GPT-5 <noreply@openai.com>

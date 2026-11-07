@@ -73,6 +73,25 @@ export interface BackfillOptions {
   readonly narrate?: (line: string) => void;
 }
 
+function installDependencies(worktreePath: string): void {
+  try {
+    execFileSync("mise", ["exec", "--", "pnpm", "install", "--config.confirmModulesPurge=false"], {
+      cwd: worktreePath,
+      stdio: ["ignore", "pipe", "pipe"],
+      encoding: "utf-8",
+    });
+  } catch (cause) {
+    const said = (key: "stderr" | "stdout"): string =>
+      typeof cause === "object" && cause !== null && key in cause
+        ? String(Reflect.get(cause, key))
+        : "";
+    const output = `${said("stderr")}\n${said("stdout")}`.trim().slice(-4000);
+    throw new Error(`pnpm install failed in ${worktreePath}: ${output || String(cause)}`, {
+      cause,
+    });
+  }
+}
+
 export async function backfillGraph(
   options: BackfillOptions,
 ): Promise<Result<readonly BackfillNodeResult[], BackfillRefusal>> {
@@ -96,10 +115,7 @@ export async function backfillGraph(
   const created = createDetachedWorktree(repoRoot, worktreePath, mainSha);
   if (isErr(created)) return err({ kind: "worktree", refusal: created.error });
 
-  execFileSync("mise", ["exec", "--", "pnpm", "install"], {
-    cwd: worktreePath,
-    stdio: "ignore",
-  });
+  installDependencies(worktreePath);
 
   const env = withAutoMaintenanceDisabled(process.env);
   const setUp = await runWorktreeSetup(worktreeSetup, worktreePath, narrate, env);
