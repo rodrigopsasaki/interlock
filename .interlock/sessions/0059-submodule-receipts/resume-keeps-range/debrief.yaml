@@ -4,7 +4,7 @@ node: resume-keeps-range
 role: implementer
 graph_base_sha: 729fbbe18eaeb7a666a3a6920c1c6067b8d5db28
 session_start_sha: c00a1fbe0ba5eb529e0c789df876339b3cd61135
-head_sha: 6d386e5dff476a0df55748904d088c2aaaa28cdd
+head_sha: e428c670172df1761cb57cbd136d5e845825e424
 derivation:
   kind: agent
   runtime: codex
@@ -63,6 +63,20 @@ decisions:
       - "0059-submodule-receipts/resume-keeps-range Deliverable 2"
     hunks:
       - ".interlock/sessions/0059-submodule-receipts/resume-keeps-range/notes.yaml:1-24"
+  - id: inheritance-reads-the-open-ledger
+    what: >-
+      Read the session events for inheritance from the ledger driveInteractiveSession already holds
+      (ledger.directory()), not by resolving the shared journal directory again (commit at the head, made
+      after the agent's session by Gilb's orchestrating session).
+    because: >-
+      sharedJournalDirectory runs git rev-parse --git-common-dir; the writable-root launch tests prove a
+      launch without writable_root_args resolves no git dir, and three failed. The open ledger was created on
+      that same directory, so the events are identical and no git call is made.
+    rests_on:
+      - packages/runner/src/sessionDrive.ts
+      - packages/runner/test/writableRootLaunch.test.ts
+    hunks:
+      - packages/runner/src/sessionDrive.ts
 gates_run_by_agent:
   - id: typecheck
     result: pass
