@@ -1,6 +1,6 @@
 interlock: graph@v0
 id: 0062-same-access
-arc: every-model-same-access
+arc: agents-set-up-as-one
 ask: Every runtime Interlock launches has the same access to the owner's machine, and Interlock can show it, so work is never routed by which model's sandbox allows what.
 derivation:
   kind: model
@@ -11,7 +11,11 @@ authorization:
   mandate: loom-feed-2026-11-04  # "You're free to do changes on phyxius and interlock too", 23:25 UTC
   approver: Rodrigo Sasaki; Gilb relays the recorded approval and coordinates cleared-node merges. The cross-vendor vet is advisory.
 read: >
-  Arc: every-model-same-access (.interlock/arcs.yaml). Rodrigo, 2026-11-07 15:54 UTC
+  Arc: agents-set-up-as-one (.interlock/arcs.yaml, shared with preston graph 0042-agents-as-one, whose setup runs this
+  graph's probe before it counts as done). Rodrigo, 2026-11-07 16:05 UTC
+  (cmsg_01BN1q6CYuBjcZAFT6C2pgFd4iBikfQH3F2s2VqUMcFUzN): "this should all be part of Preston's setup by the way.
+  Requesting access for all its agents as one thing, even the interface we use to communicate with them should be
+  shared in a way. This needs to happen by design and by construction". Earlier, 15:54 UTC
   (cmsg_01BN1q6CYuBjcZAFT6C2pgFd5bnNWZaUhxvR6PTUp3SGxc): "ok yes, that's obviously yes. Codex should be able to run
   postgres. There are no special models and no model should ask another one to do something due to permissions. This
   is not correct. All models have the same access to my machine, it's kind of the whole point".

@@ -193,9 +193,13 @@ arcs:
     graphs:
       - interlock/0041-citation-type-repair
 
-  - id: every-model-same-access
-    title: Every model has the same access
-    ask: "ok yes, that's obviously yes. Codex should be able to run postgres. There are no special models and no model should ask another one to do something due to permissions. This is not correct. All models have the same access to my machine, it's kind of the whole point"
-    source: 2026-11-07 15:54 UTC, project chat (cmsg_01BN1q6CYuBjcZAFT6C2pgFd5bnNWZaUhxvR6PTUp3SGxc)
+  - id: agents-set-up-as-one
+    title: Preston sets up all its agents as one
+    ask: "this should all be part of Preston's setup by the way. Requesting access for all its agents as one thing, even the interface we use to communicate with them should be shared in a way. This needs to happen by design and by construction"
+    source: 2026-11-07 16:05 UTC, project chat (cmsg_01BN1q6CYuBjcZAFT6C2pgFd4iBikfQH3F2s2VqUMcFUzN)
+    also_said:
+      - words: "ok yes, that's obviously yes. Codex should be able to run postgres. There are no special models and no model should ask another one to do something due to permissions. This is not correct. All models have the same access to my machine, it's kind of the whole point"
+        source: 2026-11-07 15:54 UTC, project chat (cmsg_01BN1q6CYuBjcZAFT6C2pgFd5bnNWZaUhxvR6PTUp3SGxc)
     graphs:
       - interlock/0062-same-access
+      - preston/0042-agents-as-one
