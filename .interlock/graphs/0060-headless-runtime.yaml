@@ -62,6 +62,13 @@ read: >
   by pid alone, naming the group and its live processes; the refusal ends once the runner has killed and confirmed
   them.
 
+  Asks are seen at once. On 2026-11-07 a preston limits-setting session sat an hour on one question it had written
+  into its notes ("May I create the incremental why-commits ...?"), unseen, until the runner's wait timed out. An
+  agent's ask is a record, not a line in a file someone has to go and read: the runner reads each question an
+  attempt records (a notes@v0 entry of kind question) as it is written, and the session's record carries it at
+  once, so the app shows it the moment it is asked and the person or the orchestrator answers it there. Briefs say
+  the brief's own permissions are the answer, so an agent does not ask for what its brief already grants.
+
   Identity. A pid and a pgid can be reused. Each record keeps the child's birth identity (its start time as the
   operating system reports it, and the machine's boot identity) read through one injectable reader. Before any
   signal, and before reading a record's process as alive, the runner verifies that identity; a mismatch means the
@@ -196,6 +203,11 @@ nodes:
       (this graph's read). Records change only under the session's lock (an exclusive lock file in the run
       directory) with a generation number that every write checks and increments, so stop, natural exit and
       recovery never race: the first terminal transition wins and the others are refused as already ended.
+      Each record carries `asks`, additive to sessions@v0: every question the attempt has recorded in its notes, as
+      { at, asked, options or null, answered: { at, by, words } or null }, read by the runner as each is written and
+      published in the record within one heartbeat, and answered through `interlock session say`, which records the
+      answer against the ask it answers. A session with an unanswered ask is listed with state running and
+      `waitingOnAsk: true`.
       `interlock sessions --json [--live]` prints sessions@v0 from the records; `interlock sessions read <id>
       [--phase <phase>] --json [--follow]` prints transcript@v0 lines with the read's completion and drain rules;
       `interlock sessions stop <id> --by <who> --because <why>` kills through the same outbox kill as the timeout,
@@ -210,6 +222,10 @@ nodes:
         appended after it started, and lines written just before the terminal state, then exits 0;
       - stop racing a natural exit, and two concurrent stops, leave one terminal transition and refuse the others;
       - stop kills a fixture child's group and the record reads killed, "stopped by <who>";
+      - a fixture child that writes a question into its notes appears in `sessions --json` with that ask and
+        `waitingOnAsk: true` within one heartbeat; `interlock session say` answers it, and the record then carries the
+        answer with who and when, and `waitingOnAsk: false`;
+      - a sessions@v0 reader that predates `asks` parses the new output unchanged;
       - graph show, the face and the position count live sessions from records with no herdr installed;
       - the corpus test counts at least one valid example of each new shape and refuses each invalid fixture.
       Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.

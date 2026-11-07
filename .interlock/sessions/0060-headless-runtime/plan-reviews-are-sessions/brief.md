@@ -983,6 +983,12 @@ edit it.
 - Conventional Commits, why-subjects, bodies. Commit on this branch. **Do not push.** End
   every commit message with a `Co-Authored-By:` line naming the model you are.
 - No files outside this worktree. No `/tmp`. No `rm -rf`. Never start or stop herdr.
+- Never pipe a test runner, build or install into `head`, `tail` or anything that can exit before it
+  does: an early exit breaks the pipe and leaves test workers running with no owner. Write the output
+  to a file under the package's ignored `test/.runs/` folder and read that file instead.
+- This brief's permissions are the answer: do not ask for a permission it already grants. It grants
+  committing on this branch in this worktree and filing the debrief as the last commit; do that without
+  asking. Ask only about something the brief does not settle.
 - Before you file the debrief, stop every background shell or Bash call you started.
 
 ## Deliverable

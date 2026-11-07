@@ -979,6 +979,12 @@ edit it.
 - Conventional Commits, why-subjects, bodies. Commit on this branch. **Do not push.** End
   every commit message with a `Co-Authored-By:` line naming the model you are.
 - No files outside this worktree. No `/tmp`. No `rm -rf`. Never start or stop herdr.
+- Never pipe a test runner, build or install into `head`, `tail` or anything that can exit before it
+  does: an early exit breaks the pipe and leaves test workers running with no owner. Write the output
+  to a file under the package's ignored `test/.runs/` folder and read that file instead.
+- This brief's permissions are the answer: do not ask for a permission it already grants. It grants
+  committing on this branch in this worktree and filing the debrief as the last commit; do that without
+  asking. Ask only about something the brief does not settle.
 - Before you file the debrief, stop every background shell or Bash call you started.
 
 ## Deliverable
@@ -1037,6 +1043,11 @@ transcript@v0, one file per phase at <run dir>/transcript.jsonl, one JSON object
 > (this graph's read). Records change only under the session's lock (an exclusive lock file in the run
 > directory) with a generation number that every write checks and increments, so stop, natural exit and
 > recovery never race: the first terminal transition wins and the others are refused as already ended.
+> Each record carries `asks`, additive to sessions@v0: every question the attempt has recorded in its notes, as
+> { at, asked, options or null, answered: { at, by, words } or null }, read by the runner as each is written and
+> published in the record within one heartbeat, and answered through `interlock session say`, which records the
+> answer against the ask it answers. A session with an unanswered ask is listed with state running and
+> `waitingOnAsk: true`.
 > `interlock sessions --json [--live]` prints sessions@v0 from the records; `interlock sessions read <id>
 > [--phase <phase>] --json [--follow]` prints transcript@v0 lines with the read's completion and drain rules;
 > `interlock sessions stop <id> --by <who> --because <why>` kills through the same outbox kill as the timeout,
@@ -1051,6 +1062,10 @@ transcript@v0, one file per phase at <run dir>/transcript.jsonl, one JSON object
 >   appended after it started, and lines written just before the terminal state, then exits 0;
 > - stop racing a natural exit, and two concurrent stops, leave one terminal transition and refuse the others;
 > - stop kills a fixture child's group and the record reads killed, "stopped by <who>";
+> - a fixture child that writes a question into its notes appears in `sessions --json` with that ask and
+>   `waitingOnAsk: true` within one heartbeat; `interlock session say` answers it, and the record then carries the
+>   answer with who and when, and `waitingOnAsk: false`;
+> - a sessions@v0 reader that predates `asks` parses the new output unchanged;
 > - graph show, the face and the position count live sessions from records with no herdr installed;
 > - the corpus test counts at least one valid example of each new shape and refuses each invalid fixture.
 > Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
