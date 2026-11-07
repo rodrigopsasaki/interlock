@@ -33,3 +33,7 @@ entries:
     at: "2026-11-07T15:24:00Z"
     expected: The receipt-history projection change would preserve the legacy NodeView contract.
     observed: Existing gate-judge tests require embedded human receipts to remain out of NodeView.receipts; the projection change was reverted, while active-gate scanning and journal history retain delegated provenance and cite consumption.
+  - kind: surprise
+    at: "2026-11-07T15:31:00Z"
+    expected: The standing recursive test gate would be able to run all workspace fixtures.
+    observed: Substrate loopback fixtures failed with listen EPERM on 127.0.0.1 in this sandbox; the owned test process was stopped after the failure, while implementation-focused tests and all non-loopback workspace suites completed before it.
