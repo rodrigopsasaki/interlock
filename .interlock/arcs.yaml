@@ -54,6 +54,17 @@ arcs:
     graphs:
       - interlock/0053-graph-arc (to be drafted)
 
+  - id: talk-to-gilb-from-anywhere
+    title: Talk to Gilb from anywhere
+    ask: >-
+      Yeah, if that is the gap, let's bridge that gap. I want to start working with you from my own interfaces soon.
+      There's no rush, but I want to see this product suite start coming together. In a way, Gilb could be the thing I
+      take with me anywhere while it knows how to talk to my "host machine" (this is a future thing, obviously), just
+      notice the seams
+    source: 2026-11-06 17:42 UTC, project chat (cmsg_01BN1q6CYuBjcZAFT6C2pgFd87DS8F9HFYHKcF8eXAyG2u; the arc's full words are in gilb's .interlock/arcs.yaml)
+    graphs:
+      - interlock/0059-submodule-receipts
+
   - id: interlock-runs-any-runtime
     title: Interlock runs any runtime
     ask: "I want you to be able to invoke sessions of any of the available models I have… orchestrate lunas or kimi 3.0s. Plan the work."
