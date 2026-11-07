@@ -1,0 +1,59 @@
+interlock: notes@v0
+node: base-holds-graph
+entries:
+  - kind: choice
+    at: "2026-11-06T22:26:58Z"
+    chose: Check the reusable worktree base with git cat-file before appending session-started or writing the brief.
+    because: The brief pins the base SHA as immutable session context, so the check must validate that exact commit before any session artifact or lease exists; a merge-base check alone does not prove the graph file is present at that commit.
+    rejected:
+      - checking only the current main commit, which would miss a kept worktree whose own base predates the graph
+      - checking after brief composition, which would already violate the no-brief refusal requirement
+  - kind: surprise
+    at: "2026-11-06T19:28:32-03:00"
+    expected: The focused fixture test would import fixtureGit from the runner test support module.
+    observed: That module exports commitAll and headSha only; fixtureGit is exported by the shared test support module, so the first focused run failed before exercising the implementation.
+  - kind: surprise
+    at: "2026-11-06T19:28:32-03:00"
+    expected: mise exec would select the repository's pinned Node 24.14.0.
+    observed: mise warned that the command was running with Node 26.13.0; the focused run still reached Vitest.
+  - kind: surprise
+    at: "2026-11-06T19:28:48-03:00"
+    expected: A kept worktree created at the graphless base would remain on that base for the preflight check.
+    observed: The existing worktree reuse path reset a clean branch to current main; adding a prior commit is necessary to model a kept session branch whose merge-base stays at the old base.
+  - kind: choice
+    at: "2026-11-06T19:29:30-03:00"
+    chose: Put a minimal tracked g.yaml in the shared drive fixture by default, with an opt-out for the graphless-base proof.
+    because: The launch invariant applies to every drive, so existing drive fixtures must model a repository whose declared graph exists; the proof needs one fixture repository that deliberately creates the graph in a later commit.
+    rejected:
+      - weakening the production check for tests, which would leave normal launches able to start without a self-holding base
+      - updating each existing drive test independently, which would duplicate the same fixture precondition
+  - kind: surprise
+    at: "2026-11-06T19:29:30-03:00"
+    expected: The existing runner regression suites would pass once their fixture graph was present.
+    observed: The session-start regression was blocked by the intentionally missing graph, while worktree commit tests also hit the sandbox's existing GPG temporary-file and keybox restrictions.
+  - kind: surprise
+    at: "2026-11-06T19:30:34-03:00"
+    expected: The graphless-base focused refusal would emit only the required refusal line.
+    observed: The first check used the shared Git helper, whose unsuppressed stderr exposed Git's missing-path fatal before the test result; the check needs a silent cat-file adapter to preserve the plain-line refusal.
+  - kind: choice
+    at: "2026-11-06T19:35:00-03:00"
+    chose: Leave the implementation and session artifacts uncommitted and record one intended why-commit in commits.yaml.
+    because: The handoff instruction explicitly transfers commit creation to the runner while preserving a conventional subject, complete path manifest, and model trailer for the eventual commit.
+  - kind: choice
+    at: "2026-11-06T22:36:41Z"
+    chose: Correct the authored debrief's artifact line ranges and select the correction through debrief revise.
+    because: The final notes and commits manifests grew after the first filing, so their decision hunks must name the complete authored ranges.
+  - kind: surprise
+    at: "2026-11-06T22:45:00Z"
+    expected: The base-holds-graph preflight would preserve the existing plan test behavior.
+    observed: Planner sessions use a draft graph that is intentionally absent from their base, so the unconditional preflight refused plan before its brief and agent could start.
+  - kind: choice
+    at: "2026-11-06T22:46:00Z"
+    chose: Apply the base-holds-graph preflight only when the session role is not interpreter.
+    because: The planner is the only session using the interpreter role, while persisted graph nodes use the closed NodeRole set; this preserves the acceptance refusal for existing graph node sessions and allows a planner to draft a graph that does not yet exist.
+    rejected:
+      - weakening the preflight for all sessions, which would allow existing node sessions to start from graphless bases
+  - kind: surprise
+    at: "2026-11-07T01:20:32Z"
+    expected: The focused plan suite would complete after planner sessions were allowed past the base preflight.
+    observed: The suite reached the planner flow and passed 14 tests, but the sandbox rejected its localhost listeners with EPERM, producing 18 timeout/error failures; the runner proof still passed all 3 tests.

@@ -157,6 +157,7 @@ export {
 export { renderWalkSection, withWalkSection } from "./walkSection.ts";
 export type { WorktreeOutcome, WorktreeRefusal } from "./worktree.ts";
 export {
+  baseHoldsGraph,
   commitBriefIfChanged,
   createDetachedWorktree,
   ensureNodeWorktree,
