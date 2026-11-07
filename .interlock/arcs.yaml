@@ -51,8 +51,12 @@ arcs:
     title: Every ask is an arc
     ask: "nothing should run in 'not in an arc yet' because if I asked for something, the way in which I asked should be the arc, even if the arc has only one graph in it. Arcs are my language, graphs are the result of what the planner decided the work should be to satisfy my intent."
     source: 2026-11-06 18:34 UTC, project chat
+    also_said:
+      - words: "why am I being asked to do these? ... This is exactly the type of thing I don't want to have to do."
+        source: 2026-11-06 19:28 UTC, project chat, after being handed pull-request and commit lines to paste
     graphs:
-      - interlock/0053-graph-arc (to be drafted)
+      - interlock/0053-graph-arc
+      - interlock/0058-cited-delegation
 
   - id: talk-to-gilb-from-anywhere
     title: Talk to Gilb from anywhere
