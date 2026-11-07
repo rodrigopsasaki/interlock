@@ -4,7 +4,7 @@ node: gitlinks-hash-commit
 role: implementer
 graph_base_sha: 5aec5b90ed0c4c30ede20bf1bf4920fb1cce4848
 session_start_sha: 06e19fcd3f936d17801216311a1f543516a40716
-head_sha: 8efd80379a2e92e623703f62e57934b981f98147
+head_sha: 67fd9049afa512b3350120b9643e1e52da950ded
 derivation:
   kind: agent
   runtime: codex
@@ -95,7 +95,8 @@ decisions:
   - id: scope-mock-offers-gitscope
     what: >-
       Give the machine-provider test's scope.ts mock a gitScope export beside gitTrackedFiles
-      (commit 8efd803, made after the agent's session by Gilb's orchestrating session).
+      and the standalone judge test's scope mock the same (commits 8efd803 and the head, made after
+      the agent's session by Gilb's orchestrating session).
     because: >-
       backfill now reads the scope through gitScope, and the mock offered only gitTrackedFiles, so
       the standing test gate held the node on that one fixture while the node's own proof gate
@@ -105,6 +106,7 @@ decisions:
       - packages/runner/src/backfill.ts
     hunks:
       - packages/runner/test/machineProvider.test.ts
+      - packages/cli/test/judgeProvider.test.ts
 gates_run_by_agent:
   - id: typecheck
     result: pass
