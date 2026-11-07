@@ -66,6 +66,15 @@ export {
   loadLocalConfig,
   localConfigPath,
 } from "./localConfig.ts";
+export { reconcileMachineOnStart } from "./machineOutbox.ts";
+export type { MachineAttempt, MachineProvider } from "./machineProvider.ts";
+export {
+  loadMachine,
+  machinePath,
+  NO_MACHINE_PROVIDER,
+  parseMachine,
+  resolveMachine,
+} from "./machineProvider.ts";
 export { recordingNarrate } from "./narration.ts";
 export type { PriorWork, SessionRole } from "./openingPrompt.ts";
 export { buildOpeningPrompt } from "./openingPrompt.ts";

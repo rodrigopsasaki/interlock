@@ -4,6 +4,7 @@ export type AgentStatus = "idle" | "working" | "blocked" | "done" | "unknown";
 
 export interface Pane {
   readonly id: string;
+  readonly workspace?: string | undefined;
 }
 
 export interface Agent {
@@ -116,7 +117,19 @@ export function explainRuntimeRefusal(refusal: RuntimeRefusal): string {
 
 export interface Runtime {
   checkServer?(): Promise<Result<void, RuntimeRefusal>>;
-  openPane(cwd: string): Promise<Result<Pane, RuntimeRefusal>>;
+  readonly paneEnvironment?: boolean;
+  paneProcess?(
+    pane: Pane,
+  ): Promise<
+    Result<
+      { readonly state: "present"; readonly pid: number | undefined } | { readonly state: "gone" },
+      RuntimeRefusal
+    >
+  >;
+  openPane(
+    cwd: string,
+    env?: Readonly<Record<string, string>>,
+  ): Promise<Result<Pane, RuntimeRefusal>>;
   startAgent(
     pane: Pane,
     kind: string,
