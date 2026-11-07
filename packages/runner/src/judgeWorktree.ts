@@ -6,7 +6,7 @@ import type { SubstrateClient } from "substrate";
 import type { GateCommand } from "./gateCommand.ts";
 import { explainGateJudgeRefusal, type GateJudgeRefusal, judgeGates } from "./gateJudge.ts";
 import { type MachineAttempt, resolveMachine } from "./machineProvider.ts";
-import { gitTrackedFiles } from "./scope.ts";
+import { gitScope } from "./scope.ts";
 import { explainWorktreeRefusal, uncommittedPaths, type WorktreeRefusal } from "./worktree.ts";
 
 export const HELD_REVISIT_MS = 24 * 60 * 60 * 1000;
@@ -98,7 +98,7 @@ export async function judgeWorktree(
     commandFor,
     worktree,
     scopeRoot: worktree,
-    scopePaths: gitTrackedFiles(worktree),
+    scopePaths: gitScope(worktree),
     commitSha,
     runnerId,
     holdMs,

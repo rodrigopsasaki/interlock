@@ -29,7 +29,7 @@ vi.mock("face", async (original) => ({
   currentCommitSha: async () => "a".repeat(40),
   sharedJournalDirectory: async (root: string) => join(root, "journal"),
 }));
-vi.mock("../src/scope.ts", () => ({ gitTrackedFiles: () => [] }));
+vi.mock("../src/scope.ts", () => ({ gitScope: () => [], gitTrackedFiles: () => [] }));
 vi.mock("../src/worktree.ts", async (original) => ({
   ...(await original<typeof import("../src/worktree.ts")>()),
   ensureNodeWorktree: (_root: string, path: string, base: string) => {

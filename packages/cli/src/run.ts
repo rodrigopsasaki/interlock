@@ -10,7 +10,7 @@ import {
   loadGraphDocument,
   sharedJournalDirectory,
 } from "face";
-import { createLedger, explainScopeRefusal, nodeKey, receiptId } from "ledger";
+import { createLedger, explainScopeRefusal, fileScope, nodeKey, receiptId } from "ledger";
 import {
   type BriefWriteOutcome,
   briefExists,
@@ -171,7 +171,11 @@ export async function runInterlockRun(
         message: explainRuntimeSelectionRefusal(agentRuntime.error),
       };
     }
-    const contentHash = await receiptId(repoRoot, [relative(repoRoot, graphPath)], "approved");
+    const contentHash = await receiptId(
+      repoRoot,
+      fileScope([relative(repoRoot, graphPath)]),
+      "approved",
+    );
     if (isErr(contentHash)) {
       return { exitCode: 1, message: explainScopeRefusal(contentHash.error) };
     }

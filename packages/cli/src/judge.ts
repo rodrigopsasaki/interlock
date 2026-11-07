@@ -10,7 +10,14 @@ import {
   loadGraphDocument,
   sharedJournalDirectory,
 } from "face";
-import { createLedger, explainScopeRefusal, nodeKey, readRawEvents, receiptId } from "ledger";
+import {
+  createLedger,
+  explainScopeRefusal,
+  fileScope,
+  nodeKey,
+  readRawEvents,
+  receiptId,
+} from "ledger";
 import {
   declaredGateIds,
   explainJudgeWorktreeRefusal,
@@ -119,7 +126,11 @@ export async function runInterlockJudge(
   const ledger = opened.value;
 
   try {
-    const contentHash = await receiptId(repoRoot, [relative(repoRoot, graphPath)], "approved");
+    const contentHash = await receiptId(
+      repoRoot,
+      fileScope([relative(repoRoot, graphPath)]),
+      "approved",
+    );
     if (isErr(contentHash)) {
       return { exitCode: 1, message: explainScopeRefusal(contentHash.error) };
     }

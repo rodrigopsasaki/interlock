@@ -112,15 +112,19 @@ export {
   isInterrupted,
   leaseIsLive,
 } from "./projection.ts";
-export type { Duration, Receipt, ScopeRefusal, Stale } from "./receipt.ts";
+export type { Duration, Receipt, ScopeEntry, ScopeInput, ScopeRefusal, Stale } from "./receipt.ts";
 export {
   checkStale,
   createReceipt,
   duration,
+  explainGateIdNul,
   explainScopeRefusal,
+  fileScope,
+  gateIdHasNul,
   isDuration,
   isReceipt,
   receiptId,
+  scopeEntry,
 } from "./receipt.ts";
 export type { ParsedLine, ReplayRefusal } from "./replay.ts";
 export {

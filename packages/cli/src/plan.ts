@@ -16,6 +16,7 @@ import {
 import {
   createLedger,
   explainScopeRefusal,
+  fileScope,
   heldOn,
   type Ledger,
   nodeKey,
@@ -124,7 +125,7 @@ async function refuseIfGraphApproved(
 ): Promise<Result<void, string>> {
   const path = graphFilePath(repoRoot, graph);
   if (!existsSync(path)) return ok(undefined);
-  const contentHash = await receiptId(repoRoot, [relative(repoRoot, path)], "approved");
+  const contentHash = await receiptId(repoRoot, fileScope([relative(repoRoot, path)]), "approved");
   if (isErr(contentHash)) return err(explainScopeRefusal(contentHash.error));
   const graphNode = { graph, id: graph };
   const approvalGate = ledger.projection().nodes.get(nodeKey(graphNode))?.gates.get("approved");

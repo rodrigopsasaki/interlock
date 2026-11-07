@@ -1,0 +1,15 @@
+interlock: debrief@v2
+graph: 0059-submodule-receipts-2
+node: gitlinks-hash-commit
+role: implementer
+graph_base_sha: 5aec5b90ed0c4c30ede20bf1bf4920fb1cce4848
+session_start_sha: 06e19fcd3f936d17801216311a1f543516a40716
+head_sha: 1fbb9c4ef6de3da5426858a795da542b6566e52e
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries: []
+decisions: []
+gates_run_by_agent: []
+open: []

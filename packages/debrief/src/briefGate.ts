@@ -1,4 +1,5 @@
 import { err, ok, type Result } from "@phyxiusjs/fp";
+import { explainGateIdNul, gateIdHasNul } from "ledger";
 import { isRecord, isString, prop } from "./validate.ts";
 
 export interface BriefGate {
@@ -13,6 +14,8 @@ export function parseBriefGate(raw: unknown, index: number): Result<BriefGate, s
 
   const id = prop(raw, "id");
   if (!isString(id)) return err(`gates[${index}]: "id" is missing or not a string`);
+
+  if (gateIdHasNul(id)) return err(`gates[${index}]: ${explainGateIdNul(id)}`);
 
   const kind = prop(raw, "kind");
   if (!isString(kind)) return err(`gates "${id}": "kind" is missing or not a string`);
