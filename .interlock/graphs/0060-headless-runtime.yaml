@@ -52,6 +52,16 @@ read: >
   it (kill(-pgid, 0) answering ESRCH). A descendant that starts its own session or group leaves the guarantee; it is
   named here as outside it, and the transcript's start line says so, rather than claimed to be contained.
 
+  No survivors, by construction. On 2026-11-07 at 03:40 UTC the owner's Mac reached 17.6 GB of swap: a Sonnet
+  session's agent had run a package test suite with 16 vitest workers, and 10 more workers from an earlier test run
+  in the same worktree were still alive with parent pid 1, their pnpm gone and nothing owning them. So every process
+  the runner starts for a session (the agent, and every setup, gate and backfill command it runs) lives in a process
+  group the runner owns, and the runner kills that group and confirms it empty on every exit path: success, failure,
+  timeout, a person's stop and the runner's own death (found on the next start, as below). And admission refuses a
+  new session while any process of an earlier runner-owned group is still alive, matched by its birth identity, never
+  by pid alone, naming the group and its live processes; the refusal ends once the runner has killed and confirmed
+  them.
+
   Identity. A pid and a pgid can be reused. Each record keeps the child's birth identity (its start time as the
   operating system reports it, and the machine's boot identity) read through one injectable reader. Before any
   signal, and before reading a record's process as alive, the runner verifies that identity; a mismatch means the
@@ -162,6 +172,10 @@ nodes:
       - an identity mismatch on a reused pid sends no signal and ends failed with "runner lost the process";
       - a runner killed while its child runs: the next runner start kills the orphaned group, confirms it gone,
         marks the tail lost, records the end, and only then leases the node again;
+      - a child that exits 0 while a grandchild in its group still runs (the fixture forks a sleeper): the runner
+        kills the group and confirms it empty before it records done;
+      - while a process of an earlier runner-owned group is alive (same birth identity), admission refuses the next
+        session and names the group; once the runner has killed and confirmed it, admission passes;
       - a two-phase attempt: the work phase leaves code uncommitted, the runner commits it, the debrief phase files a
         valid debrief at the new head, and the node is judged; the debrief phase's parentId names the work phase;
       - two callers in two linked worktrees list the same session;

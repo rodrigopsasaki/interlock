@@ -990,47 +990,6 @@ edit it.
    commit, a because on every decision, decisions a manifest of the diff, `open` carrying
    anything the acceptance did not foresee.
 
-## The app's contract (verbatim from the graph read)
-
-```
-The app's contract. The app reads sessions from Interlock, never from a runtime. The shapes below are fixed before the build and evolve additively (a reader already built against the first draft keeps working: fields are added, none removed or renamed, and the state set is unchanged).
-sessions@v0, printed by `interlock sessions --json` (all of this machine's sessions for the repository, newest first; `--live` keeps state running only):
-  { "interlock": "sessions@v0", "sessions": [ {
-      "id": session id (the ledger's session id),
-      "phase": "work" | "debrief" | "review",
-      "parentId": the phase this one follows, as "<id>/<phase>", or null,
-      "kind": "node" | "review",
-      "graph": graph id, "node": node id or null for a review, "lens": lens name or null for a node,
-      "subjectHash": for a review, the sha256 of the snapshot it reviewed; null for a node,
-      "arc": the graph's arc id or null,
-      "runtime": runtimes.yaml profile name, "model": the profile's model,
-      "pid": child pid or null (never started), "pgid": its process group id or null,
-      "startedAt": ISO 8601 UTC, "endedAt": ISO 8601 UTC or null,
-      "state": "running" | "done" | "failed" | "killed",
-      "exitCode": integer or null, "signal": signal name or null,
-      "reason": one plain line or null ("run timeout 3h", "machine limit", "stopped by <who>", "runner lost the
-                process", "could not start: <code>", "ended by <signal> from outside the runner"),
-      "transcriptPath": absolute path of the phase's transcript.jsonl } ] }
-  state: running from spawn until the group's end is confirmed, including while a kill is in progress; done on
-  exit 0 with the group gone; failed on a non-zero exit, a spawn error (pid null, reason "could not start: <code>"),
-  a signal the runner did not send (signal set, reason "ended by <signal> from outside the runner"), or a lost
-  process; killed when the runner's own kill ended the group (reason names why). Terminal states are monotonic:
-  the first terminal transition recorded wins, and nothing moves a record out of a terminal state.
-
-transcript@v0, one file per phase at <run dir>/transcript.jsonl, one JSON object per line, written only by the runner:
-  { "interlock": "transcript@v0", "ts": ISO 8601 UTC with milliseconds, "stream": "stdout" | "stderr" |
-    "runner", "text": one line without its newline }
-  One writer per transcript serializes every append. The runner splits each stream on newlines and keeps a
-  trailing partial line until its newline or the stream's end. On the child's close (both streams ended, never
-  only its exit, as packages/runner/src/gateJudge.ts:143 already waits for), it flushes the partial lines, writes
-  the runner's end line, syncs the file, and only then publishes the terminal state. A line without its trailing
-  newline is incomplete: readers do not emit it until it is complete; after a crash the recovering runner cuts the
-  incomplete tail and appends a runner line saying the tail was lost. "runner" lines record start (argv with the
-  prompt elided, cwd, pid, and the containment note), each kill step, the end, and any lost tail. Runtime output
-  is never parsed for meaning.
-`interlock sessions read <id> [--phase <phase>] --json` prints a phase's lines (the latest phase by default); with --follow it keeps printing new lines until the record is terminal, then drains the file once more and exits 0. The app uses `interlock sessions --json` and `interlock sessions read` only.
-```
-
 ## Acceptance (verbatim from the graph)
 
 > A runtimes@v1 profile of kind exec (evolved additively: argv, a {prompt} or stdin prompt mode, a model, an
@@ -1067,6 +1026,10 @@ transcript@v0, one file per phase at <run dir>/transcript.jsonl, one JSON object
 > - an identity mismatch on a reused pid sends no signal and ends failed with "runner lost the process";
 > - a runner killed while its child runs: the next runner start kills the orphaned group, confirms it gone,
 >   marks the tail lost, records the end, and only then leases the node again;
+> - a child that exits 0 while a grandchild in its group still runs (the fixture forks a sleeper): the runner
+>   kills the group and confirms it empty before it records done;
+> - while a process of an earlier runner-owned group is alive (same birth identity), admission refuses the next
+>   session and names the group; once the runner has killed and confirmed it, admission passes;
 > - a two-phase attempt: the work phase leaves code uncommitted, the runner commits it, the debrief phase files a
 >   valid debrief at the new head, and the node is judged; the debrief phase's parentId names the work phase;
 > - two callers in two linked worktrees list the same session;
