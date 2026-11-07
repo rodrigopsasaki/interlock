@@ -21,8 +21,7 @@ read: >
   gitlink's directory throws, from createReceipt in judgeGates (packages/runner/src/gateJudge.ts:243). A gitlink's
   content, as git itself records it, is the commit id it points at.
 
-  The range. In the hand-commit flow (codex profiles are commits: agent until a codex live-work evidence source
-  exists), the runner's session commits the agent's code signed, and a resumed session writes a new brief commit
+  The range. In the hand-commit flow (profiles without a live-work evidence source use commits: agent), the runner's session commits the agent's code signed, and a resumed session writes a new brief commit
   after it (packages/runner/src/sessionDrive.ts:255, commitBriefIfChanged). deriveSessionStart selects the session's
   own session-started event (packages/cli/src/debrief/sessionIdentity.ts:138-142) and derives the start sha from the
   unique Git commit where the brief takes this session's identity, comparing its bytes with the local brief
