@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, type Hash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
@@ -39,7 +39,23 @@ export interface Receipt {
   readonly proof: Readonly<Record<string, unknown>>;
 }
 
+export type ScopeEntry =
+  | { readonly kind: "file"; readonly path: string }
+  | { readonly kind: "gitlink"; readonly path: string; readonly commit: string };
+
+export type ScopeInput = readonly ScopeEntry[] | readonly string[];
+
+export const scopeEntry = {
+  file: (path: string): ScopeEntry => ({ kind: "file", path }),
+  gitlink: (path: string, commit: string): ScopeEntry => ({ kind: "gitlink", path, commit }),
+};
+
+export function fileScope(paths: readonly string[]): readonly ScopeEntry[] {
+  return paths.map(scopeEntry.file);
+}
+
 export type ScopeRefusal =
+  | { readonly kind: "gate-contains-nul"; readonly gate: string }
   | { readonly kind: "absolute-path"; readonly path: string }
   | {
       readonly kind: "escapes-root";
@@ -49,6 +65,8 @@ export type ScopeRefusal =
 
 export function explainScopeRefusal(refusal: ScopeRefusal): string {
   switch (refusal.kind) {
+    case "gate-contains-nul":
+      return explainGateIdNul(refusal.gate);
     case "absolute-path":
       return `${refusal.path}: scope paths are relative to the repository root, never absolute.`;
     case "escapes-root":
@@ -70,25 +88,71 @@ function resolveScopePath(root: string, path: string): Result<string, ScopeRefus
   return ok(resolved);
 }
 
+export function explainGateIdNul(gate: string): string {
+  return `${JSON.stringify(gate)}: a gate id may not contain a NUL byte.`;
+}
+
+export function gateIdHasNul(gate: string): boolean {
+  return gate.includes("\u0000");
+}
+
+function frameLength(length: number): Buffer {
+  const framed = Buffer.alloc(8);
+  framed.writeBigUInt64BE(BigInt(length));
+  return framed;
+}
+
+function updateFramed(hash: Hash, content: Uint8Array): void {
+  hash.update(frameLength(content.length));
+  hash.update(content);
+}
+
+function byPath(left: ScopeEntry, right: ScopeEntry): number {
+  if (left.path < right.path) return -1;
+  return left.path > right.path ? 1 : 0;
+}
+
+function scopeEntries(input: ScopeInput): readonly ScopeEntry[] {
+  return input.map((entry) => (typeof entry === "string" ? scopeEntry.file(entry) : entry));
+}
+
 export async function receiptId(
   root: string,
-  paths: readonly string[],
+  input: ScopeInput,
   gate: string,
 ): Promise<Result<string, ScopeRefusal>> {
+  if (gateIdHasNul(gate)) return err({ kind: "gate-contains-nul", gate });
+  const entries = scopeEntries(input);
+  const sorted = [...entries].sort(byPath);
   const hash = createHash("sha256");
-  hash.update(gate);
-  for (const path of [...paths].sort()) {
-    const resolved = resolveScopePath(root, path);
+  const framed = sorted.some((entry) => entry.kind === "gitlink");
+  if (framed) {
+    hash.update(Buffer.from([0]));
+    updateFramed(hash, Buffer.from(gate));
+  } else {
+    hash.update(gate);
+  }
+  for (const entry of sorted) {
+    const resolved = resolveScopePath(root, entry.path);
     if (isErr(resolved)) return resolved;
-    hash.update(toPosixPath(path));
-    hash.update(await readFile(resolved.value));
+    const path = Buffer.from(toPosixPath(entry.path));
+    if (!framed) {
+      hash.update(path);
+      hash.update(await readFile(resolved.value));
+      continue;
+    }
+    const content =
+      entry.kind === "gitlink" ? Buffer.from(entry.commit) : await readFile(resolved.value);
+    hash.update(Buffer.from(entry.kind === "gitlink" ? "g" : "f"));
+    updateFramed(hash, path);
+    updateFramed(hash, content);
   }
   return ok(hash.digest("hex"));
 }
 
 export async function createReceipt(
   root: string,
-  paths: readonly string[],
+  entries: ScopeInput,
   gate: string,
   commitSha: string,
   spend: Spend,
@@ -96,7 +160,7 @@ export async function createReceipt(
   derivation: Derivation,
   proof: Readonly<Record<string, unknown>>,
 ): Promise<Result<Receipt, ScopeRefusal>> {
-  const id = await receiptId(root, paths, gate);
+  const id = await receiptId(root, entries, gate);
   if (isErr(id)) return id;
   return ok({
     id: id.value,
@@ -130,9 +194,9 @@ export interface Stale {
 export async function checkStale(
   receipt: Receipt,
   root: string,
-  paths: readonly string[],
+  entries: ScopeInput,
 ): Promise<Result<Stale | undefined, ScopeRefusal>> {
-  const recomputedId = await receiptId(root, paths, receipt.gate);
+  const recomputedId = await receiptId(root, entries, receipt.gate);
   if (isErr(recomputedId)) return recomputedId;
   return ok(
     recomputedId.value === receipt.id ? undefined : { receipt, recomputedId: recomputedId.value },

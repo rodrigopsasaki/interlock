@@ -7,12 +7,12 @@ import { buildRegistry, validatorFor } from "../src/registry.ts";
 const repoRoot = join(import.meta.dirname, "..", "..", "..");
 
 describe("runtimes.example.yaml", () => {
-  it("validates every example entry against runtimes@v1", () => {
+  it("validates every example entry against runtimes@v2", () => {
     const document: unknown = parseYaml(
       readFileSync(join(repoRoot, "runtimes.example.yaml"), "utf8"),
     );
-    const validate = validatorFor(buildRegistry(), "runtimes@v1");
-    if (validate === undefined) throw new Error("runtimes@v1 schema is unavailable");
+    const validate = validatorFor(buildRegistry(), "runtimes@v2");
+    if (validate === undefined) throw new Error("runtimes@v2 schema is unavailable");
 
     expect(validate(document)).toBe(true);
   });

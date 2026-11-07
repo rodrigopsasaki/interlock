@@ -6,6 +6,7 @@ import {
 } from "./runtimeCatalogue.ts";
 
 export type RuntimeSelectionRefusal =
+  | { readonly kind: "providers-exhausted"; readonly known: readonly string[] }
   | {
       readonly kind: "unknown-runtime";
       readonly requested: string;
@@ -19,6 +20,8 @@ export type RuntimeSelectionRefusal =
 export function explainRuntimeSelectionRefusal(refusal: RuntimeSelectionRefusal): string {
   const known = refusal.known.length === 0 ? "(none)" : refusal.known.join(", ");
   switch (refusal.kind) {
+    case "providers-exhausted":
+      return `all routable providers are known exhausted: ${known}.`;
     case "unknown-runtime":
       return `"${refusal.requested}" is not a known runtime; known runtimes are ${known}.`;
     case "no-runtime-resolvable":

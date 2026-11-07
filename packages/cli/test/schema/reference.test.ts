@@ -13,6 +13,6 @@ describe("runSchemaReference", () => {
 
   it("--check names the artifact terms missing from the vocabulary table", async () => {
     const result = await runSchemaReference(["--check"], { cwd: repoRoot });
-    expect(result.message).toContain("config, event, item, local, notes");
+    expect(result.message).toContain("config, event, item, local, machine, notes");
   });
 });

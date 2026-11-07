@@ -39,6 +39,7 @@ import {
   proposeGateMove,
   type Receipt,
   retainOutboxArtifact,
+  type ScopeInput,
   type ScopeRefusal,
   spend,
 } from "ledger";
@@ -93,13 +94,14 @@ export interface GateJudgeRequest {
   readonly commandFor: ReadonlyMap<string, GateCommand>;
   readonly worktree: string;
   readonly scopeRoot: string;
-  readonly scopePaths: readonly string[];
+  readonly scopePaths: ScopeInput;
   readonly commitSha: string;
   readonly runnerId: string;
   readonly holdMs: number;
   readonly substrate: SubstrateClient;
   readonly personEvents?: readonly LedgerEvent[];
   readonly env?: NodeJS.ProcessEnv;
+  readonly heavy?: readonly string[];
   readonly narrate: (line: string) => void;
 }
 
@@ -139,6 +141,10 @@ function spawnGateCommand(
     child.stderr.on("data", (chunk: Buffer) => {
       output += legacyOutputForChunk(chunk);
       stderr.push(chunk);
+    });
+    child.on("error", (error) => {
+      output += error.message;
+      stderr.push(Buffer.from(error.message));
     });
     child.on("close", (code) =>
       resolve({
@@ -192,6 +198,7 @@ export async function judgeGates(
     substrate,
     personEvents = [],
     env = process.env,
+    heavy = [],
     narrate,
   } = request;
 
@@ -218,7 +225,7 @@ export async function judgeGates(
 
     const before = clock.now().monoMs;
     const { exitCode, output, stdout, stderr } = await spawnGateCommand(
-      ["mise", "exec", "--", ...tokenize(substituted.value)],
+      [...heavy, "mise", "exec", "--", ...tokenize(substituted.value)],
       worktree,
       env,
     );

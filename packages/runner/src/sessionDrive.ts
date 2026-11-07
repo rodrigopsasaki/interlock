@@ -2,24 +2,36 @@ import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { join, relative } from "node:path";
 import { type Clock, deadlineFrom, ms } from "@phyxiusjs/clock";
-import { isErr, isOk, ok, type Result } from "@phyxiusjs/fp";
+import { err, isErr, isOk, ok, type Result } from "@phyxiusjs/fp";
 import { debriefFilePath } from "debrief";
 import { currentCommitSha, type GateDeclaration, sharedJournalDirectory } from "face";
 import {
   type HeldOn,
+  heldOn,
   type Ledger,
+  nodeKey,
   type Outcome,
   outcome,
   readRawEvents,
   sessionRuntime,
 } from "ledger";
 import type { SubstrateClient } from "substrate";
+import { agentEnvironmentArgs, needsPaneEnvironment } from "./codex/environment.ts";
 import { declaredGateIds, gateCommandTable } from "./gateCommand.ts";
 import { explainGateJudgeRefusal } from "./gateJudge.ts";
 import { createHerdrLaunchRuntime } from "./herdr/adapter.ts";
 import { HELD_REVISIT_MS, judgeWorktree } from "./judgeWorktree.ts";
 import { takeLease } from "./lease.ts";
 import type { LocalConfig } from "./localConfig.ts";
+import {
+  admitMachine,
+  closeMachinePane,
+  type MachineHold,
+  machineDelivery,
+  machineIntent,
+  reconcileMachine,
+} from "./machineOutbox.ts";
+import { type MachineAttempt, providerArgv, resolveMachine } from "./machineProvider.ts";
 import { recordingNarrate } from "./narration.ts";
 import { buildOpeningPrompt, type PriorWork, type SessionRole } from "./openingPrompt.ts";
 import { deliverOpeningPrompt } from "./promptDelivery.ts";
@@ -36,11 +48,13 @@ import {
 import type { ResolvedRuntime } from "./runtimeCatalogue.ts";
 import { gitTrackedFiles } from "./scope.ts";
 import { type BriefWriteOutcome, buildBrief } from "./sessionBrief.ts";
+import { findInheritedSessionStart, type SessionInheritance } from "./sessionRange.ts";
 import { lastNonEmptyLine, writeScreenSnapshot } from "./sessionScreen.ts";
 import { type UnfinishedWork, waitForSession } from "./sessionWait.ts";
 import type { StandingGate } from "./standingGates.ts";
 import { matchesScreen } from "./startupAnswers.ts";
 import {
+  baseHoldsGraph,
   commitBriefIfChanged,
   ensureNodeWorktree,
   explainWorktreeRefusal,
@@ -50,6 +64,7 @@ import {
   type WorktreeOutcome,
   type WorktreeRefusal,
   worktreeGitLayout,
+  worktreeHead,
 } from "./worktree.ts";
 import { explainWorktreeSetupRefusal, runWorktreeSetup } from "./worktreeSetup.ts";
 import { expandWritableRootArgs } from "./writableRootArgs.ts";
@@ -106,6 +121,7 @@ export interface DriveSessionOutcome {
 }
 
 export interface DriveSessionRequest {
+  readonly machine?: MachineAttempt;
   readonly paths?: readonly string[];
   readonly repoRoot: string;
   readonly graph: string;
@@ -140,6 +156,7 @@ type AbandonStepName =
   | "writable root"
   | "runtime"
   | "pane open"
+  | "pane pid"
   | "agent start"
   | "identity report"
   | "startup"
@@ -195,9 +212,17 @@ export async function driveInteractiveSession(
   let pane: Pane | undefined;
   let agent: Agent | undefined;
   let runtime: Runtime | undefined;
+  let cleanup: { readonly session: string; readonly hold: MachineHold } | undefined;
+  let stopLease: (() => void) | undefined;
   let paneCustody: "runner" | "person" = "runner";
 
-  try {
+  const drive = async (): Promise<DriveSessionOutcome> => {
+    const machine =
+      request.machine === undefined ? await resolveMachine(repoRoot) : ok(request.machine);
+    if (isErr(machine)) {
+      narrate(machine.error);
+      return { exitCode: 1, message: machine.error };
+    }
     if (beforeRuntime !== undefined) {
       const checked = await beforeRuntime();
       if (isErr(checked)) {
@@ -226,6 +251,19 @@ export async function driveInteractiveSession(
       }
     }
 
+    if (
+      machine.value.provider !== "none" &&
+      needsPaneEnvironment(agentRuntime.kind) &&
+      runtime.paneEnvironment !== true
+    ) {
+      const message =
+        "machine.provider.env cannot reach this agent: runtime offers no pane environment";
+      narrate(message);
+      return { exitCode: 1, message };
+    }
+    const recovered = await reconcileMachine(ledger, runtime, narrate, clock);
+    if (isErr(recovered)) return { exitCode: 1, message: recovered.error };
+
     const requestedGraphBaseSha = await currentCommitSha(repoRoot);
     const targetNode = { graph, id: node };
 
@@ -239,6 +277,34 @@ export async function driveInteractiveSession(
       };
     }
     const graphBaseSha = worktree.value.base;
+    const sessionId = randomUUID();
+    const worktreeHeadSha = worktreeHead(worktreePath);
+    const journalEvents = await readRawEvents(ledger.directory());
+    const inheritedFallback: SessionInheritance = {
+      kind: "none",
+      because: "could not inspect the resumed worktree",
+    };
+    const inherited: SessionInheritance =
+      isOk(worktreeHeadSha) && isOk(journalEvents)
+        ? findInheritedSessionStart(
+            worktreePath,
+            journalEvents.value,
+            graph,
+            node,
+            graphBaseSha,
+            worktreeHeadSha.value,
+            sessionId,
+          )
+        : inheritedFallback;
+
+    if (role !== "interpreter") {
+      const graphAtBase = baseHoldsGraph(repoRoot, graphBaseSha, graph, node);
+      if (isErr(graphAtBase)) {
+        const message = explainWorktreeRefusal(graphAtBase.error);
+        narrate(message);
+        return { exitCode: 1, message };
+      }
+    }
 
     if (afterWorktree !== undefined) {
       const checked = await afterWorktree(worktreePath);
@@ -248,24 +314,34 @@ export async function driveInteractiveSession(
     }
 
     const gateIds = declaredGateIds(standingGates, nodeGates);
-    const sessionId = randomUUID();
     const brief = buildBrief(graph, node, acceptance, gateIds, gitTrackedFiles(repoRoot), role);
     ledger.append({
       kind: "session-started",
       session: {
         id: sessionId,
         node: targetNode,
-        runtime: sessionRuntime.declared(agentRuntime.name, agentRuntime.kind, agentRuntime.model),
+        runtime: sessionRuntime.declared(agentRuntime.name, agentRuntime.kind, agentRuntime.model, {
+          provider: agentRuntime.provider ?? "unknown",
+          ...(agentRuntime.chosenBy === undefined ? {} : { chosenBy: agentRuntime.chosenBy }),
+        }),
       },
       brief,
       graphBaseSha,
+      ...(inherited.kind === "inherited"
+        ? {
+            inheritedStartSha: inherited.inheritedStartSha,
+            predecessorSession: inherited.predecessorSession,
+          }
+        : {}),
       ...(shape === undefined ? {} : { walk: shape.walk }),
       startedAt: clock.now().wallMs,
     });
     narrate = recordingNarrate(ledger, clock, sessionId, narrate);
 
     const lease = takeLease(ledger, clock, targetNode, sessionId, localConfig.leaseMs);
+    stopLease = () => lease.stop();
     narrate(`leased ${node} (session ${sessionId}, expires ${isoOf(lease.expiry)})`);
+    if (machine.value.provider === "none") narrate("no machine provider (provider: none)");
 
     const refuse = (step: RefusalStep, explanation: string): DriveSessionOutcome => {
       const line = `${step.name} refused: ${explanation}`;
@@ -320,7 +396,13 @@ export async function driveInteractiveSession(
       narrate(`brief committed ${briefCommitted.value}`);
     }
 
-    const setUp = await runWorktreeSetup(localConfig.worktreeSetup, worktreePath, narrate);
+    const setUp = await runWorktreeSetup(
+      localConfig.worktreeSetup,
+      worktreePath,
+      narrate,
+      { ...process.env, ...machine.value.env },
+      machine.value.heavy,
+    );
     if (isErr(setUp)) {
       const result = refuse(abandon("worktree setup"), explainWorktreeSetupRefusal(setUp.error));
       lease.stop();
@@ -336,7 +418,10 @@ export async function driveInteractiveSession(
       return result;
     }
 
-    const openedPane = await runtime.openPane(worktreePath);
+    const openedPane = await runtime.openPane(
+      worktreePath,
+      machine.value.provider === "none" ? undefined : machine.value.env,
+    );
     if (isErr(openedPane)) {
       const result = refuse(abandon("pane open"), explainRuntimeRefusal(openedPane.error));
       lease.stop();
@@ -344,6 +429,60 @@ export async function driveInteractiveSession(
       return result;
     }
     pane = openedPane.value;
+    cleanup = {
+      session: sessionId,
+      hold: {
+        token: `${sessionId}/${pane.id}`,
+        pane: pane.id,
+        cwd: worktreePath,
+        release: [],
+        env: machine.value.env,
+      },
+    };
+    if (machine.value.provider !== "none") {
+      const inspected = await runtime.paneProcess?.(pane);
+      if (
+        inspected === undefined ||
+        isErr(inspected) ||
+        inspected.value.state === "gone" ||
+        inspected.value.pid === undefined
+      ) {
+        lease.stop();
+        return refuse(
+          abandon("pane pid"),
+          inspected !== undefined && isErr(inspected)
+            ? explainRuntimeRefusal(inspected.error)
+            : "no pane process pid is available",
+        );
+      }
+      const values = {
+        holder: `${graph}/${node} (${sessionId})`,
+        token: cleanup.hold.token,
+        pid: String(inspected.value.pid),
+        pane: pane.id,
+        workspace: pane.workspace ?? "",
+        agent: agentRuntime.name,
+        worktree: worktreePath,
+        attempt: sessionId,
+      };
+      cleanup = {
+        session: sessionId,
+        hold: { ...cleanup.hold, release: providerArgv(machine.value.provider.release, values) },
+      };
+      const admitted = await admitMachine(
+        ledger,
+        targetNode,
+        sessionId,
+        cleanup.hold,
+        providerArgv(machine.value.provider.admit, values),
+      );
+      if (isErr(admitted)) {
+        lease.stop();
+        abandonLease();
+        narrate(admitted.error);
+        return { exitCode: 1, message: admitted.error };
+      }
+    }
     narrate(`pane ${pane.id} opened`);
     narrate(
       `runtime ${agentRuntime.name} (${agentRuntime.kind}, ${agentRuntime.model ?? "model undeclared"})`,
@@ -352,10 +491,19 @@ export async function driveInteractiveSession(
       narrate(`writable root ${root} supplied to runtime ${agentRuntime.name}`);
     }
 
+    const agentIntent =
+      machine.value.provider === "none"
+        ? undefined
+        : machineIntent(ledger, targetNode, sessionId, "agent", cleanup.hold);
+    if (agentIntent !== undefined && isErr(agentIntent)) {
+      lease.stop();
+      return refuse(abandon("agent start"), agentIntent.error);
+    }
+    const args = agentEnvironmentArgs(agentRuntime.kind, launch.value.args, machine.value.env);
     const startedAgent = await runtime.startAgent(
       pane,
       agentRuntime.kind,
-      launch.value.args,
+      args,
       () => narrate("waiting for the pane's shell"),
       node,
     );
@@ -366,8 +514,15 @@ export async function driveInteractiveSession(
       return result;
     }
     agent = startedAgent.value;
+    if (agentIntent !== undefined && isOk(agentIntent)) {
+      const saved = machineDelivery(ledger, agentIntent.value, ok({ agent: agent.id }));
+      if (isErr(saved)) {
+        lease.stop();
+        return refuse(abandon("agent start"), saved.error);
+      }
+    }
     narrate(`agent ${agent.id} started (${agentRuntime.kind})`);
-    narrate(`agent argv ${JSON.stringify(launch.value.args)}`);
+    narrate(`agent argv ${JSON.stringify(args)}`);
 
     const reported = await runtime.reportIdentity(agent, graph, node, {
       sessionId,
@@ -600,6 +755,7 @@ export async function driveInteractiveSession(
     }
 
     const judged = await judgeWorktree({
+      machine: machine.value,
       ledger,
       clock,
       node: targetNode,
@@ -618,7 +774,9 @@ export async function driveInteractiveSession(
       const result =
         judged.error.kind === "worktree-status"
           ? refuse(abandon("worktree status"), explainWorktreeRefusal(judged.error.refusal))
-          : refuse(abandon("gates"), explainGateJudgeRefusal(judged.error.refusal));
+          : judged.error.kind === "machine"
+            ? refuse(abandon("gates"), judged.error.because)
+            : refuse(abandon("gates"), explainGateJudgeRefusal(judged.error.refusal));
       abandonLease();
       return result;
     }
@@ -631,13 +789,49 @@ export async function driveInteractiveSession(
       exitCode: 0,
       message: suffix === undefined ? `${base}.` : `${base}; ${suffix}`,
     };
+  };
+  let result: DriveSessionOutcome;
+  let closeFailure: DriveSessionOutcome | undefined;
+  try {
+    result = await drive();
   } finally {
+    stopLease?.();
     if (pane !== undefined && runtime !== undefined) {
       if (paneCustody === "runner") {
-        await runtime.closePane(pane);
+        const closed =
+          cleanup === undefined || cleanup.hold.release.length === 0
+            ? await closeWithoutProvider(runtime, pane)
+            : await closeMachinePane(
+                ledger,
+                runtime,
+                { graph, id: node },
+                cleanup.session,
+                cleanup.hold,
+              );
+        if (isErr(closed)) {
+          const because = `pane ${pane.id} close or machine release unconfirmed; hold kept: ${closed.error}`;
+          narrate(because);
+          ledger.append({
+            kind: "outcome-set",
+            node: { graph, id: node },
+            outcome: outcome.held(
+              ledger.projection().nodes.get(nodeKey({ graph, id: node }))?.receipts ?? [],
+              heldOn.gateFailure("pane close", "hold"),
+              because,
+              clock.now().wallMs + HELD_REVISIT_MS,
+            ),
+          });
+          closeFailure = { exitCode: 1, message: because };
+        }
       } else {
         narrate(`pane ${pane.id} left open for drilldown`);
       }
     }
   }
+  return closeFailure ?? result;
+}
+
+async function closeWithoutProvider(runtime: Runtime, pane: Pane): Promise<Result<void, string>> {
+  const closed = await runtime.closePane(pane);
+  return isErr(closed) ? err(explainRuntimeRefusal(closed.error)) : closed;
 }

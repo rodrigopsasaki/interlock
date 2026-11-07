@@ -26,10 +26,17 @@ describe("corpus: the schema registry", () => {
       "event@v7",
       "event@v8",
       "event@v9",
+      "event@v10",
       "config@v0",
       "local@v0",
+      "local@v1",
+      "runtimes@v0",
+      "runtimes@v1",
+      "runtimes@v2",
+      "positions@v2",
       "position@v1",
       "position@v2",
+      "position@v3",
       "item@v1",
     ];
     for (const tag of expected) {

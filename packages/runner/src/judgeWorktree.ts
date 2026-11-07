@@ -5,12 +5,14 @@ import { heldOn, type Ledger, type LedgerEvent, type Node, type Outcome, outcome
 import type { SubstrateClient } from "substrate";
 import type { GateCommand } from "./gateCommand.ts";
 import { explainGateJudgeRefusal, type GateJudgeRefusal, judgeGates } from "./gateJudge.ts";
-import { gitTrackedFiles } from "./scope.ts";
+import { type MachineAttempt, resolveMachine } from "./machineProvider.ts";
+import { gitScope } from "./scope.ts";
 import { explainWorktreeRefusal, uncommittedPaths, type WorktreeRefusal } from "./worktree.ts";
 
 export const HELD_REVISIT_MS = 24 * 60 * 60 * 1000;
 
 export interface JudgeWorktreeRequest {
+  readonly machine?: MachineAttempt;
   readonly ledger: Ledger;
   readonly clock: Clock;
   readonly node: Node;
@@ -27,11 +29,14 @@ export interface JudgeWorktreeRequest {
 }
 
 export type JudgeWorktreeRefusal =
+  | { readonly kind: "machine"; readonly because: string }
   | { readonly kind: "worktree-status"; readonly refusal: WorktreeRefusal }
   | { readonly kind: "gates"; readonly refusal: GateJudgeRefusal };
 
 export function explainJudgeWorktreeRefusal(refusal: JudgeWorktreeRefusal): string {
   switch (refusal.kind) {
+    case "machine":
+      return refusal.because;
     case "worktree-status":
       return explainWorktreeRefusal(refusal.refusal);
     case "gates":
@@ -57,6 +62,10 @@ export async function judgeWorktree(
     personEvents = [],
     onWorktreeRead,
   } = request;
+
+  const machine =
+    request.machine === undefined ? await resolveMachine(worktree) : ok(request.machine);
+  if (isErr(machine)) return err({ kind: "machine", because: machine.error });
 
   const dirty = uncommittedPaths(worktree);
   if (isErr(dirty)) {
@@ -89,12 +98,14 @@ export async function judgeWorktree(
     commandFor,
     worktree,
     scopeRoot: worktree,
-    scopePaths: gitTrackedFiles(worktree),
+    scopePaths: gitScope(worktree),
     commitSha,
     runnerId,
     holdMs,
     substrate,
     personEvents,
+    env: { ...process.env, ...machine.value.env },
+    heavy: machine.value.heavy,
     narrate,
   });
   return isErr(judged) ? err({ kind: "gates", refusal: judged.error }) : ok(judged.value);

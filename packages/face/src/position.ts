@@ -14,7 +14,7 @@ import type { NodeRole } from "./role.ts";
 import { topologicalOrder } from "./topology.ts";
 import { nodeWeight } from "./weight.ts";
 
-export const POSITION_SHAPE = "position@v2";
+export const POSITION_SHAPE = "position@v3";
 
 export type ApprovalState = "approved" | "stale" | "not-approved";
 

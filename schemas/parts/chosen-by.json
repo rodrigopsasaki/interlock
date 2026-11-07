@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/parts/chosen-by.json",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "explicit",
+            "unrecorded"
+          ]
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "routed",
+            "last-resort"
+          ]
+        },
+        "because": {
+          "type": "string"
+        },
+        "candidates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "provider": {
+                "type": "string"
+              },
+              "headroom": {
+                "$ref": "provider-headroom.json"
+              }
+            },
+            "required": [
+              "provider",
+              "headroom"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "kind",
+        "because",
+        "candidates"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "fallback"
+        },
+        "because": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "because"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}

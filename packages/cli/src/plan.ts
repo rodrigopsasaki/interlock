@@ -16,6 +16,7 @@ import {
 import {
   createLedger,
   explainScopeRefusal,
+  fileScope,
   heldOn,
   type Ledger,
   nodeKey,
@@ -41,9 +42,11 @@ import {
   loadStandingGates,
   mergeRuntimes,
   type Runtime,
+  reconcileMachineOnStart,
   renderBriefFile,
   renderOpeningView,
-  selectRuntime,
+  resolveMachine,
+  routeRuntime,
 } from "runner";
 import { narrateContext } from "substrate";
 import { parseFlag } from "./flags.ts";
@@ -122,7 +125,7 @@ async function refuseIfGraphApproved(
 ): Promise<Result<void, string>> {
   const path = graphFilePath(repoRoot, graph);
   if (!existsSync(path)) return ok(undefined);
-  const contentHash = await receiptId(repoRoot, [relative(repoRoot, path)], "approved");
+  const contentHash = await receiptId(repoRoot, fileScope([relative(repoRoot, path)]), "approved");
   if (isErr(contentHash)) return err(explainScopeRefusal(contentHash.error));
   const graphNode = { graph, id: graph };
   const approvalGate = ledger.projection().nodes.get(nodeKey(graphNode))?.gates.get("approved");
@@ -173,6 +176,9 @@ export async function runInterlockPlan(
     };
   }
 
+  const machine = await resolveMachine(repoRoot);
+  if (isErr(machine)) return { exitCode: 1, message: machine.error };
+
   const localConfig = await loadLocalConfig(repoRoot);
   if (isErr(localConfig)) {
     return {
@@ -210,13 +216,6 @@ export async function runInterlockPlan(
     };
   }
   const requestedRuntime = parseFlag(args, "--runtime");
-  const agentRuntime = selectRuntime(mergedRuntimes.value, requestedRuntime);
-  if (isErr(agentRuntime)) {
-    return {
-      exitCode: 1,
-      message: explainRuntimeSelectionRefusal(agentRuntime.error),
-    };
-  }
 
   const node = `plan/${graph}`;
   const targetNode = { graph, id: node };
@@ -234,6 +233,20 @@ export async function runInterlockPlan(
   const ledger = opened.value;
 
   try {
+    const recovered = await reconcileMachineOnStart(ledger, clock, narrate, options.runtime);
+    if (isErr(recovered)) return { exitCode: 1, message: recovered.error };
+    const agentRuntime = await routeRuntime(
+      mergedRuntimes.value,
+      requestedRuntime,
+      ledger.projection(),
+      localConfig.value,
+    );
+    if (isErr(agentRuntime)) {
+      return {
+        exitCode: 1,
+        message: explainRuntimeSelectionRefusal(agentRuntime.error),
+      };
+    }
     const approvalRefusal = await refuseIfGraphApproved(repoRoot, graph, ledger);
     if (isErr(approvalRefusal)) {
       return { exitCode: 1, message: approvalRefusal.error };
@@ -419,6 +432,7 @@ export async function runInterlockPlan(
       "and a debrief; never lease or run a node of the graph.";
 
     return await driveInteractiveSession({
+      machine: machine.value,
       repoRoot,
       graph,
       node,

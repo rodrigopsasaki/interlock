@@ -1,0 +1,87 @@
+interlock: debrief@v2
+graph: 0059-submodule-receipts
+node: resume-keeps-range
+role: implementer
+graph_base_sha: 729fbbe18eaeb7a666a3a6920c1c6067b8d5db28
+session_start_sha: c00a1fbe0ba5eb529e0c789df876339b3cd61135
+head_sha: 6d386e5dff476a0df55748904d088c2aaaa28cdd
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries: []
+decisions:
+  - id: c1
+    what: Added one shared inheritance proof that checks the node branch, commit ancestry, the latest predecessor's effective start, predecessor chain, journal closure, and every commit in the inherited interval before returning a prior start.
+    because: The acceptance requires the runner and debrief derivation to make the same conservative decision, while merge commits, unrelated commits, closed attempts, and ambiguous predecessors must all keep the current session's own start.
+    applies_to: { kind: repository }
+    rests_on:
+      - "0059-submodule-receipts/resume-keeps-range acceptance"
+      - "notes.yaml:10-14"
+    hunks:
+      - "packages/runner/src/sessionRange.ts:1-352"
+      - "packages/runner/src/index.ts:147-149"
+  - id: c2
+    what: Added optional inheritedStartSha and predecessorSession fields to session-started events and SessionView, with additive validation and legacy upcasting that preserves existing event lines.
+    because: The resumed range needs a walkable runner-produced predecessor link, and the event schema must evolve without invalidating historical journal records.
+    applies_to: { kind: repository }
+    rests_on:
+      - "0059-submodule-receipts/resume-keeps-range acceptance"
+      - "notes.yaml:1-6"
+    hunks:
+      - "packages/ledger/src/event.ts:41-48"
+      - "packages/ledger/src/event.ts:123-137"
+      - "packages/ledger/src/event.ts:185-209"
+      - "packages/ledger/src/projection.ts:36-43"
+      - "packages/ledger/src/projection.ts:169-180"
+  - id: c3
+    what: Made the runner compute inheritance from the reused worktree before writing the new session event, and made deriveSessionStart retain every existing identity and graph-base check before accepting the recorded inherited start.
+    because: The runner is the source of session provenance, but a debrief must independently reject stale or tampered provenance and fall back to the current session's own brief transition.
+    applies_to: { kind: repository }
+    rests_on:
+      - "0059-submodule-receipts/resume-keeps-range acceptance"
+      - "notes.yaml:7-10"
+    hunks:
+      - "packages/runner/src/sessionDrive.ts:279-298"
+      - "packages/runner/src/sessionDrive.ts:318-335"
+      - "packages/cli/src/debrief/sessionIdentity.ts:8"
+      - "packages/cli/src/debrief/sessionIdentity.ts:211-224"
+  - id: c4
+    what: Added a no-network resumeRange fixture covering runner-side pre-session inheritance, a resumed debrief range, a three-session chain, predecessor debrief closure, and outcome-set closure.
+    because: These cases exercise the shared proof at both the pre-event runner boundary and the post-brief debrief boundary, including the distinction between the predecessor interval and the resumed session's full range.
+    applies_to: { kind: path, path: packages/cli/test/resumeRange.test.ts }
+    rests_on:
+      - "0059-submodule-receipts/resume-keeps-range acceptance"
+      - "notes.yaml:11-24"
+    hunks:
+      - "packages/cli/test/resumeRange.test.ts:1-249"
+  - id: c5
+    what: Appended notes@v0 choices and surprises for the additive event design, shared proof seam, range-boundary correction, focused fixture coverage, and the first strict typecheck and fixture discoveries.
+    because: The session brief requires every choice and surprise to remain as a receipt beside the final debrief.
+    applies_to: { kind: path, path: .interlock/sessions/0059-submodule-receipts/resume-keeps-range/notes.yaml }
+    rests_on:
+      - "0059-submodule-receipts/resume-keeps-range Deliverable 2"
+    hunks:
+      - ".interlock/sessions/0059-submodule-receipts/resume-keeps-range/notes.yaml:1-24"
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: "mise exec -- pnpm typecheck"
+  - id: lint
+    result: pass
+    invocation: "mise exec -- pnpm lint"
+    note: Exited zero with two pre-existing warnings in packages/runner/test/runnerCommits.test.ts.
+  - id: comments
+    result: pass
+    invocation: "mise exec -- pnpm check:comments"
+  - id: test
+    result: fail
+    invocation: "mise exec -- pnpm test"
+    note: The substrate suite could not bind 127.0.0.1 in this sandbox; 24 tests timed out or failed with listen EPERM, while earlier packages passed.
+  - id: resume-range-proof
+    result: pass
+    invocation: "mise exec -- pnpm --fail-if-no-match --filter cli exec vitest run test/resumeRange.test.ts --passWithNoTests=false"
+    note: 4 tests passed.
+open:
+  - The full test gate is blocked by the sandbox refusing substrate fixture listeners on 127.0.0.1; the implementation's focused proof, typecheck, comments check, and lint all pass.
+  - The focused resumeRange fixture exercises the shared runner-side decision and real debrief preparation, but does not drive the complete driveInteractiveSession lifecycle; an end-to-end runner fixture remains useful follow-up coverage.

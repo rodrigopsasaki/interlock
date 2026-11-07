@@ -872,6 +872,7 @@ describe("interlock run", () => {
     expect(briefCommitLine).toMatch(/^brief committed [0-9a-f]+$/);
     expect(rest).toEqual([
       `leased a (session ${sessionId}, expires 1970-01-01T00:01:00.000Z)`,
+      "no machine provider (provider: none)",
       `worktree at ${join(cwd, ".worktrees", "a")} on ${headSha(cwd)}`,
       "brief written",
       "context none: no substrate addressed",
@@ -918,6 +919,7 @@ describe("interlock run", () => {
     expect(briefCommitLine).toMatch(/^brief committed [0-9a-f]+$/);
     expect(rest).toEqual([
       `leased a (session ${sessionId}, expires 1970-01-01T00:01:00.000Z)`,
+      "no machine provider (provider: none)",
       `worktree at ${join(cwd, ".worktrees", "a")} on ${headSha(cwd)}`,
       "brief written",
       "context none: no substrate addressed",
@@ -1073,9 +1075,10 @@ describe("interlock run", () => {
     expect(result.message).toBe("agent start refused: agent CLI crashed");
     const { rest, briefCommitLine } = extractBriefCommitLine(lines);
     expect(briefCommitLine).toMatch(/^brief committed [0-9a-f]+$/);
-    expect(rest).toHaveLength(8);
+    expect(rest).toHaveLength(9);
     expect(rest[0]).toMatch(/^leased a \(session .+, expires 1970-01-01T00:01:00\.000Z\)$/);
     expect(rest.slice(1)).toEqual([
+      "no machine provider (provider: none)",
       `worktree at ${join(cwd, ".worktrees", "a")} on ${headSha(cwd)}`,
       "brief written",
       "context none: no substrate addressed",
@@ -1737,6 +1740,8 @@ describe("interlock run: --runtime selection", () => {
       name: "luna",
       kind: "codex",
       model: "luna-model",
+      provider: "unknown",
+      chosenBy: { kind: "explicit" },
     });
   }, 30_000);
 
@@ -1803,6 +1808,11 @@ describe("interlock run: --runtime selection", () => {
       name: "luna",
       kind: "codex",
       model: "luna-model",
+      provider: "unknown",
+      chosenBy: {
+        kind: "fallback",
+        because: 'no routable profile; used default_runtime "luna"',
+      },
     });
   }, 30_000);
 
@@ -1828,6 +1838,11 @@ describe("interlock run: --runtime selection", () => {
       name: "default",
       kind: "claude",
       model: undefined,
+      provider: "unknown",
+      chosenBy: {
+        kind: "fallback",
+        because: "no routable profile; used the legacy default resolution",
+      },
     });
   }, 30_000);
 });

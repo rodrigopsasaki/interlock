@@ -112,15 +112,19 @@ export {
   isInterrupted,
   leaseIsLive,
 } from "./projection.ts";
-export type { Duration, Receipt, ScopeRefusal, Stale } from "./receipt.ts";
+export type { Duration, Receipt, ScopeEntry, ScopeInput, ScopeRefusal, Stale } from "./receipt.ts";
 export {
   checkStale,
   createReceipt,
   duration,
+  explainGateIdNul,
   explainScopeRefusal,
+  fileScope,
+  gateIdHasNul,
   isDuration,
   isReceipt,
   receiptId,
+  scopeEntry,
 } from "./receipt.ts";
 export type { ParsedLine, ReplayRefusal } from "./replay.ts";
 export {
@@ -131,11 +135,21 @@ export {
 } from "./replay.ts";
 export type { NodeRole } from "./role.ts";
 export { isNodeRole, NODE_ROLES, parseNodeRole } from "./role.ts";
-export type { Session, SessionRuntime, SessionStartedAt } from "./session.ts";
+export type {
+  CandidateReading,
+  ChosenBy,
+  ProviderHeadroom,
+  Session,
+  SessionRuntime,
+  SessionStartedAt,
+} from "./session.ts";
 export {
+  isChosenBy,
   isEpochMs,
+  isProviderHeadroom,
   isSession,
   isSessionRuntime,
+  runtimeAttribution,
   sessionRuntime,
   sessionStartedAt,
   UNRECORDED_START,

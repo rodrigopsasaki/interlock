@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
+import type { ChosenBy } from "ledger";
 import { parse as parseYaml, YAMLParseError } from "yaml";
 import { AGENT_NAME_SHAPE_DESCRIPTION, isCompliantAgentName } from "./agentName.ts";
 import {
@@ -15,7 +16,7 @@ import { parseStartupAnswers, type StartupAnswer } from "./startupAnswers.ts";
 import { isNonNegativeInteger, isRecord, isString, isStringArray, prop } from "./validate.ts";
 import { parseWritableRootArgs, type WritableRootTemplate } from "./writableRootArgs.ts";
 
-export const RUNTIME_CATALOGUE_SHAPE = "runtimes@v1";
+export const RUNTIME_CATALOGUE_SHAPE = "runtimes@v2";
 
 export const DEFAULT_RUNTIME_NAME = "default";
 
@@ -23,6 +24,8 @@ export type CommitMode = "runner" | "agent";
 
 export interface CatalogueRuntime {
   readonly commits: CommitMode;
+  readonly provider?: string;
+  readonly routable?: true;
   readonly kind: string;
   readonly args: readonly string[];
   readonly model: string;
@@ -68,6 +71,8 @@ export function runtimeCataloguePath(): string {
 
 const KNOWN_ENTRY_KEYS: ReadonlySet<string> = new Set([
   "commits",
+  "provider",
+  "routable",
   "kind",
   "args",
   "model",
@@ -103,6 +108,26 @@ function parseEntry(
         reason: `"runtimes.${name}" has an unknown key "${key}"`,
       });
     }
+  }
+
+  const provider = prop(value, "provider");
+  const routable = prop(value, "routable");
+  if (provider !== undefined && (!isString(provider) || provider.trim() === "")) {
+    return err({
+      kind: "malformed",
+      path,
+      reason: `"runtimes.${name}.provider" must be a nonempty string`,
+    });
+  }
+  if (routable !== undefined && routable !== true) {
+    return err({
+      kind: "malformed",
+      path,
+      reason: `"runtimes.${name}.routable" must be true when present`,
+    });
+  }
+  if (routable === true && provider === undefined) {
+    return err({ kind: "malformed", path, reason: `"runtimes.${name}.routable" needs provider` });
   }
 
   const commitsField = prop(value, "commits");
@@ -195,6 +220,8 @@ function parseEntry(
   }
 
   return ok({
+    ...(provider === undefined ? {} : { provider }),
+    ...(routable === true ? { routable } : {}),
     commits,
     kind,
     args: args ?? [],
@@ -220,7 +247,7 @@ function parseDocument(
     });
   }
   const tag = prop(parsed, "interlock");
-  if (tag !== "runtimes@v0" && tag !== RUNTIME_CATALOGUE_SHAPE) {
+  if (tag !== "runtimes@v0" && tag !== "runtimes@v1" && tag !== RUNTIME_CATALOGUE_SHAPE) {
     return err({
       kind: "malformed",
       path,
@@ -239,6 +266,7 @@ function parseDocument(
   }
 
   const runtimes = new Map<string, CatalogueRuntime>();
+  const routableProviders = new Map<string, string>();
   for (const [name, value] of Object.entries(runtimesField)) {
     if (!isCompliantAgentName(name)) {
       return err({
@@ -249,6 +277,17 @@ function parseDocument(
     }
     const entry = parseEntry(name, value, path);
     if (isErr(entry)) return entry;
+    if (entry.value.routable === true && entry.value.provider !== undefined) {
+      const previous = routableProviders.get(entry.value.provider);
+      if (previous !== undefined) {
+        return err({
+          kind: "malformed",
+          path,
+          reason: `provider "${entry.value.provider}" has two routable profiles: "${previous}" and "${name}"`,
+        });
+      }
+      routableProviders.set(entry.value.provider, name);
+    }
     runtimes.set(name, entry.value);
   }
   return ok(runtimes);
@@ -284,6 +323,8 @@ function isNodeError(error: unknown): error is NodeJS.ErrnoException {
 export interface ResolvedRuntime {
   readonly commits: CommitMode;
   readonly name: string;
+  readonly provider?: string;
+  readonly routable?: true;
   readonly kind: string;
   readonly args: readonly string[];
   readonly model: string | undefined;
@@ -294,6 +335,7 @@ export interface ResolvedRuntime {
   readonly promptRetries: number;
   readonly writableRootArgs: WritableRootTemplate | undefined;
   readonly source: "catalogue" | "local.yaml";
+  readonly chosenBy?: ChosenBy;
 }
 
 export type MergeRuntimesRefusal =
@@ -328,6 +370,8 @@ export function mergeRuntimes(
   for (const [name, entry] of catalogue) {
     runtimes.set(name, {
       name,
+      ...(entry.provider === undefined ? {} : { provider: entry.provider }),
+      ...(entry.routable === undefined ? {} : { routable: entry.routable }),
       commits: entry.commits,
       kind: entry.kind,
       args: entry.args,

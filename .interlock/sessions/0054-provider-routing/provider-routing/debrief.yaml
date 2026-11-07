@@ -1,0 +1,238 @@
+interlock: debrief@v2
+graph: 0054-provider-routing
+node: provider-routing
+role: implementer
+graph_base_sha: ca21061149d5085ca7bae8bdbcb9b20df31d9f5d
+session_start_sha: 9f64cc844acad540099b80fb7fb6388cee85a074
+head_sha: f7e835bc3574a62ad4ac899f52858510c2088375
+derivation:
+  kind: agent
+  runtime: sol
+  model: gpt-6.1-sol
+discoveries: []
+decisions:
+  - id: opt-in-catalogue
+    what: >-
+      Add provider attribution and one explicitly routable profile per provider,
+      refuse duplicate routable profiles by naming both, and retain the existing
+      commit custody setting. Publish runtimes@v2 and local@v1 while keeping their
+      earlier versions readable. Leave the example profiles unmarked for routing.
+    because: >-
+      Existing catalogues must preserve their selection behavior until a person
+      opts in. runtimes@v1 already publishes runner commit custody, so extending
+      it under a fresh version preserves that contract instead of reusing its tag.
+      Optional provider_order and last_resort settings let a repository state its
+      ordering without requiring changes to older local configuration.
+    rests_on:
+      - .interlock/graphs/0054-provider-routing.yaml (Catalogue and Selection acceptance)
+      - schemas/runtimes@v1.json (published commits field)
+    hunks:
+      - packages/runner/src/runtimeCatalogue.ts
+      - packages/runner/src/localConfig.ts
+      - packages/runner/test/runtimes.test.ts
+      - schemas/runtimes@v2.json
+      - schemas/local@v1.json
+      - runtimes.example.yaml
+  - id: ledger-based-selection
+    what: >-
+      Route both run and plan after opening the ledger. An explicit profile wins
+      without reading headroom; otherwise choose the largest known available
+      fraction, use ledger attempt order for ties and unknown readings, and keep
+      the configured last resort last. Refuse when every candidate is exhausted.
+      With no routable profile, retain the previous default resolution and record why.
+    because: >-
+      Selection must survive process restarts and account for each provider's own
+      allowance. Session insertion order supplies the ledger's last-attempt order
+      without inventing timestamps for historical attempts. Exhaustion also applies
+      to the last resort; it is not permission to spend an unavailable account.
+    rests_on:
+      - .interlock/graphs/0054-provider-routing.yaml (Selection acceptance)
+      - packages/ledger/src/projection.ts (sessions projected from journal facts)
+    hunks:
+      - packages/runner/src/providerRouting.ts
+      - packages/runner/src/runtimeSelection.ts
+      - packages/runner/src/index.ts
+      - packages/cli/src/run.ts
+      - packages/cli/src/plan.ts
+      - packages/runner/test/providerRouting.test.ts
+  - id: runtime-owned-headroom
+    what: >-
+      Dispatch allowance readers by runtime kind behind one adapter. Read the most
+      recent local allowance report across rollout files, use the tightest active
+      window, and retain the raw percentage, unit and source path. Scan backwards
+      without a fixed tail cutoff and return unknown for expired or missing data.
+      The other two investigated runtime adapters return unknown with their reasons.
+    because: >-
+      A provider name identifies an account, while runtime kind identifies the
+      local CLI format its adapter understands. A conversation append is not a
+      newer allowance reading, and an expired window does not reveal the new
+      balance. Keeping these distinctions avoids manufacturing headroom or borrowing
+      another provider's allowance. Each selection obtains fresh readings.
+    rests_on:
+      - .interlock/graphs/0054-provider-routing.yaml (Headroom acceptance)
+      - docs/design/0001-interlock.md (I6 runtime assumptions stay inside adapters)
+    hunks:
+      - packages/runner/src/headroom/adapter.ts
+      - packages/runner/src/codex/headroom.ts
+      - packages/runner/src/claude/headroom.ts
+      - packages/runner/src/kimi/headroom.ts
+  - id: durable-attempt-attribution
+    what: >-
+      Record provider and chosenBy on session-started, including candidate readings
+      for routed and last-resort choices. Publish event@v10 and a distinct runtime
+      schema, retain earlier event readers, and reject provider attribution under
+      tags that predate it. Project missing historical attribution as unknown and
+      unrecorded without rewriting the stored runtime record.
+    because: >-
+      The account spent and the reason for choosing it belong to the attempt's
+      durable record. New fields must not masquerade as historical events, and
+      history cannot acquire facts that were never recorded.
+    rests_on:
+      - .interlock/graphs/0054-provider-routing.yaml (Record acceptance)
+      - docs/design/0001-interlock.md (I8 every compression keeps the way back)
+    hunks:
+      - packages/ledger/src/session.ts
+      - packages/ledger/src/envelope.ts
+      - packages/ledger/src/upcast/v9.ts
+      - packages/ledger/src/index.ts
+      - packages/ledger/test/replay.test.ts
+      - packages/runner/src/sessionDrive.ts
+      - schemas/event@v10.json
+      - schemas/parts/session-runtime-v1.json
+      - schemas/parts/chosen-by.json
+      - schemas/parts/provider-headroom.json
+  - id: visible-attempt-attribution
+    what: >-
+      Emit position@v3 and positions@v2 with provider and chosenBy on live and node
+      attempts. Render the selected profile, model, provider and choice in the
+      shared runtime line and the face's node rows. Preserve the older position
+      schemas and enrich the existing positions@v0 upcast with honest attribution.
+    because: >-
+      A person should be able to see which account a session spends and why from
+      the current position. Sharing the runtime text keeps the CLI live view and
+      face consistent; unknown and unrecorded remain explicit for older attempts.
+    rests_on:
+      - .interlock/graphs/0054-provider-routing.yaml (Record acceptance)
+      - docs/design/0001-interlock.md (D2 the face owns zero state)
+    hunks:
+      - packages/cli/src/position.ts
+      - packages/face/src/attempts.ts
+      - packages/face/src/position.ts
+      - packages/face/src/frameRender.ts
+      - packages/face/src/runtimeLine.ts
+      - packages/cli/test/position.test.ts
+      - packages/cli/test/graph/show.test.ts
+      - packages/face/test/position.test.ts
+      - packages/face/test/frameRender.test.ts
+      - packages/face/test/faceReducer.test.ts
+      - schemas/position@v3.json
+      - schemas/positions@v2.json
+  - id: schema-compatibility-proof
+    what: >-
+      Add schema coverage for the new catalogue, configuration, event and position
+      versions; update current producer fixtures to their emitted versions while
+      retaining historical schemas and journal fixtures. Select the new catalogue
+      example explicitly and regenerate docs/shapes.md from the schema registry.
+    because: >-
+      Current outputs and retained artifacts need separate compatibility checks.
+      Updating a producer assertion must not relabel old evidence or weaken the
+      historical readers. Generating the reference from its declared sources keeps
+      the documentation reproducible after the merged schema additions.
+    rests_on:
+      - .interlock/graphs/0054-provider-routing.yaml (Record and Tests acceptance)
+      - AGENTS.md (artifacts are the public API)
+    hunks:
+      - packages/schemas/test/providerRouting.test.ts
+      - packages/schemas/test/registry.test.ts
+      - packages/schemas/test/corpus.guards.test.ts
+      - packages/schemas/test/corpus.position.test.ts
+      - packages/schemas/test/corpus.positions.test.ts
+      - packages/schemas/test/askedInWords.test.ts
+      - packages/schemas/test/graphRole.test.ts
+      - packages/schemas/test/landed.test.ts
+      - packages/schemas/test/sayIntoPane.test.ts
+      - packages/schemas/test/runtimesExample.test.ts
+      - packages/schemas/src/reference/corpus.ts
+      - docs/shapes.md
+  - id: writer-reader-handoff
+    what: >-
+      Serialize the runner's handoff fixture through envelopeFor instead of
+      hardcoding event@v9, and exercise debrief prepare against every registered
+      journal version, including a current session-started record with provider
+      attribution beside an older event.
+    because: >-
+      The strict reader already accepts the ledger's current envelope. The failing
+      fixture had mislabeled new attribution as v9; fixing the writer preserves
+      the reader's refusal of incorrectly tagged history. The preparation tests
+      also check that reading mixed history leaves its bytes unchanged.
+    rests_on:
+      - packages/cli/src/debrief/sessionIdentity.ts (readStrictJournal delegates to parseLine)
+      - packages/ledger/src/envelope.ts (current envelope and registered readers)
+    hunks:
+      - packages/runner/test/runnerCommits.test.ts
+      - packages/cli/test/debrief/derived.test.ts
+  - id: exact-selection-records
+    what: >-
+      Keep exact CLI runtime-record assertions and include provider unknown plus
+      explicit chosenBy for --runtime, or fallback chosenBy with distinct reasons
+      for default_runtime and the legacy default profile.
+    because: >-
+      Attribution is deliberate output. The tests must prove that the original
+      precedence still selects the same profile while its recorded reason names
+      the actual path, rather than dropping the new fields from comparison.
+    rests_on:
+      - .interlock/graphs/0054-provider-routing.yaml (explicit selection and fallback acceptance)
+      - packages/runner/src/providerRouting.ts (chosenBy construction)
+    hunks:
+      - packages/cli/test/run.test.ts
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: Historical local run on Node 24.14.0 before the signed code commits; not rerun during this filing.
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: Historical local run with existing runnerCommits fixture warnings; not rerun during this filing.
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+    note: Historical local run; packages/*/src had no comments. Not rerun during this filing.
+  - id: focused-runner
+    result: pass
+    invocation: pnpm --filter runner exec vitest run test/providerRouting.test.ts test/runtimes.test.ts test/runtimeSelection.test.ts test/adapterBoundary.test.ts --passWithNoTests=false --maxWorkers=1 --minWorkers=1
+    note: Historical local run on Node 24.14.0; 79 tests passed before signing.
+  - id: focused-ledger
+    result: pass
+    invocation: pnpm --filter ledger exec vitest run test/replay.test.ts test/runtime.test.ts --maxWorkers=1 --minWorkers=1
+    note: Historical local run on Node 24.14.0; 64 tests passed before signing.
+  - id: focused-face
+    result: pass
+    invocation: pnpm --filter face exec vitest run test/position.test.ts test/frameRender.test.ts test/faceReducer.test.ts --maxWorkers=1 --minWorkers=1
+    note: Historical local run on Node 24.14.0; 82 tests passed before signing.
+  - id: schema-proof
+    result: pass
+    invocation: pnpm --filter schemas exec vitest run --passWithNoTests=false --maxWorkers=1 --minWorkers=1
+    note: Historical local run on Node 24.14.0; 1142 tests passed before signing.
+  - id: cli-run-file
+    result: fail
+    invocation: pnpm --filter cli exec vitest run test/run.test.ts --maxWorkers=1 --minWorkers=1
+    note: Historical sandbox run; 12 passed, 38 failed and three listener errors. GPG and listener denials prevented the updated selection assertions from being reached.
+  - id: cli-suite
+    result: fail
+    invocation: pnpm --filter cli exec vitest run --maxWorkers=1 --minWorkers=1
+    note: Historical sandbox run encountered GPG and listener restrictions, then stopped progressing in plan fixtures. Interrupted with SIGINT, exit 130; no passing full-suite result was claimed.
+open:
+  - >-
+    The acceptance requested runtimes@v1, but that version was already published
+    for runner commit custody when main was integrated. This change uses runtimes@v2
+    and keeps v0 and v1 readable rather than reassigning v1.
+  - >-
+    The investigated local sources for two runtime kinds do not expose an allowance
+    to divide by; those adapters report unknown with reasons. A future usable source
+    belongs behind the same runtime adapter and must not be estimated from another account.
+  - >-
+    Rodrigo reports all standing gates passing on the signed code, including runner
+    478/478, schemas 1142/1142 and CLI 418/418. I ran no tests while preparing this
+    debrief. The historical local runs above describe earlier dirty worktree checks;
+    they do not replace runner gate receipts for the committed HEAD.
