@@ -1095,7 +1095,9 @@ edit it.
 > <repository> of every reference this repository's graphs carry); arcs, each with id (kebab case), title, ask
 > (one string), an optional ask_form ("verbatim", the default, or "placeholder": the ask cites where the owner's
 > words are held instead of quoting them), source, an optional also_said list of {words, source}, graphs
-> (non-empty, unique "<repository>/<graph id>" strings, an optional trailing note in parentheses kept as today),
+> (unique "<repository>/<graph id>" strings, an optional trailing note in parentheses kept as today; empty only
+> when the arc lists at least one context entry, so a context-only arc keeps its ask and source and owns no
+> graph),
 > an optional superseded list of {graph, because}, an optional context list of {graph, because} (a graph another
 > arc owns that this arc relates to), and the optional arc fields adopters already write: version (string),
 > approved {words, source}, passed (line), authorized_by {words, source}. No needs_his_words key at any level
@@ -1120,7 +1122,8 @@ edit it.
 > the flag or else origin's name (neither: refused); an empty needs_his_words dropped; a non-empty one refused
 > naming its graphs; a graph string repeated within one arc kept once; a graph listed under two arcs where
 > exactly one listing carries a trailing "(shared with <the other arc's id>)" note moves that listing to its
-> arc's context with the note as because, and any other graph under two arcs refuses migration naming the graph
+> arc's context with the note as because (an arc left with no graphs keeps its ask, source and context and is
+> written with `graphs: []`, never deleted), and any other graph under two arcs refuses migration naming the graph
 > and both arcs, so the owner chooses by editing arcs.yaml. It never sets ask_form and never rewords an ask.
 > Running it on an arcs@v1 file changes nothing.
 > This repository's .interlock/arcs.yaml moves to arcs@v1 through the verb (repository: interlock), then the
@@ -1128,7 +1131,8 @@ edit it.
 > unchanged; no ask is reworded and no words are invented.
 > Tests in packages/schemas/test/arcs.test.ts:
 > - an arcs@v1 file with superseded, context, placeholder and the four optional arc fields validates; one with
->   needs_his_words, no repository, an ask that is a list, an empty graphs list or a duplicate graph is refused;
+>   needs_his_words, no repository, an ask that is a list, an empty graphs list with no context or a duplicate graph is
+>   refused; a context-only arc (`graphs: []` with a context entry) validates;
 > - an arcs@v0 file still validates; graph@v0 with and without an arc key validates, and every graph file in
 >   this repository still validates;
 > - this repository's .interlock/arcs.yaml validates as arcs@v1, and its nine placeholder arcs carry ask_form
@@ -1142,6 +1146,7 @@ edit it.
 >   to its arc by history; a context listing is not membership; the loader keeps the arc key, including a
 >   key-only graph and a key that conflicts with the registry;
 > - migrate on each drift above: lossless round trip with comments kept, duplicate collapsed, shared-with
->   listing moved to context, an ambiguous two-arc listing refused, a non-empty needs_his_words refused, no
+>   listing moved to context, a generic arc whose sole member is the shared listing migrated to a context-only
+>   arc that keeps its ask and source and whose output validates as arcs@v1, an ambiguous two-arc listing refused, a non-empty needs_his_words refused, no
 >   origin and no --repository refused, a v1 file unchanged.
 > Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.

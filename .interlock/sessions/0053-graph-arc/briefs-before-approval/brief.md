@@ -1095,6 +1095,11 @@ edit it.
 > refuses a graph with any failing brief, naming each one and its line, and writes no receipt.
 > The claim is narrow: at approval every brief was run-compatible; a brief edited or a context path untracked
 > after approval is still refused at run, by the same preflight, before any session or lease.
+> Every existing positive approval fixture and shared helper writes a valid brief@v1 per node beside its graph
+> (at least the fixture helper in packages/cli/test/graph/approve.test.ts and its positive cases, and the
+> approvals in packages/cli/test/judge.test.ts, plan.test.ts, run.test.ts, packages/face/test/verb.test.ts,
+> packages/runner/test/runnerCommits.test.ts, and graph 0058's citedApproval.test.ts and planPublish.test.ts);
+> a missing or malformed brief survives only as a separate negative case.
 > Tests in packages/cli/test/briefsBeforeApproval.test.ts:
 > - a graph with a valid brief@v1 per node is approved;
 > - a missing brief, a brief@v0 brief, a brief naming another node or graph, and a brief whose context_scope names

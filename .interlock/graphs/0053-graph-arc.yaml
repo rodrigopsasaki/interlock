@@ -43,7 +43,8 @@ read: >
   from origin; the other carries a `superseded` list on an arc (graphs replaced by a reissue, each with its because,
   which have no arc key and keep their approval receipts), one graph string written twice under one arc, and one
   graph listed under two arcs, the second listing noted "(shared with <the first arc>)", the graph's own header
-  citing the first arc's ask. Both carry `needs_his_words: []`. Interlock cannot edit those repositories from its own
+  citing the first arc's ask; that second arc lists nothing else, so after migration it keeps its ask and source and
+  holds the graph only as context. Both carry `needs_his_words: []`. Interlock cannot edit those repositories from its own
   nodes, so this graph ships a reader that keeps arcs@v0 as written in the field readable and an `interlock arcs
   migrate` verb that each adopter runs in its own repository.
 
@@ -63,7 +64,8 @@ read: >
   so a replaced graph keeps its arc for every read of what happened. Parsing a graph never refuses for its arc;
   admission is a separate step that turns a parsed graph into an admitted one carrying its resolved arc, and only
   the doors that start new work demand an admitted graph: schema validate on a graph file, graph approve, run (and
-  the runner's exported entry points that create a worktree or session), plan, judge and backfill. Node cancel,
+  the runner's exported entry points that create a worktree, session, gate run or outcome), plan (which admits the
+  selected arc before the graph exists and the authored graph after), plan publish, judge and backfill. Node cancel,
   node reset, gate waive, gate clear, the debrief's session-identity reads of a graph at its base sha, graph status,
   graph show, the position and the face never refuse for a missing arc; graph show, the position and the face say
   which graph has none and why.
@@ -96,7 +98,9 @@ nodes:
       <repository> of every reference this repository's graphs carry); arcs, each with id (kebab case), title, ask
       (one string), an optional ask_form ("verbatim", the default, or "placeholder": the ask cites where the owner's
       words are held instead of quoting them), source, an optional also_said list of {words, source}, graphs
-      (non-empty, unique "<repository>/<graph id>" strings, an optional trailing note in parentheses kept as today),
+      (unique "<repository>/<graph id>" strings, an optional trailing note in parentheses kept as today; empty only
+      when the arc lists at least one context entry, so a context-only arc keeps its ask and source and owns no
+      graph),
       an optional superseded list of {graph, because}, an optional context list of {graph, because} (a graph another
       arc owns that this arc relates to), and the optional arc fields adopters already write: version (string),
       approved {words, source}, passed (line), authorized_by {words, source}. No needs_his_words key at any level
@@ -121,7 +125,8 @@ nodes:
       the flag or else origin's name (neither: refused); an empty needs_his_words dropped; a non-empty one refused
       naming its graphs; a graph string repeated within one arc kept once; a graph listed under two arcs where
       exactly one listing carries a trailing "(shared with <the other arc's id>)" note moves that listing to its
-      arc's context with the note as because, and any other graph under two arcs refuses migration naming the graph
+      arc's context with the note as because (an arc left with no graphs keeps its ask, source and context and is
+      written with `graphs: []`, never deleted), and any other graph under two arcs refuses migration naming the graph
       and both arcs, so the owner chooses by editing arcs.yaml. It never sets ask_form and never rewords an ask.
       Running it on an arcs@v1 file changes nothing.
       This repository's .interlock/arcs.yaml moves to arcs@v1 through the verb (repository: interlock), then the
@@ -129,7 +134,8 @@ nodes:
       unchanged; no ask is reworded and no words are invented.
       Tests in packages/schemas/test/arcs.test.ts:
       - an arcs@v1 file with superseded, context, placeholder and the four optional arc fields validates; one with
-        needs_his_words, no repository, an ask that is a list, an empty graphs list or a duplicate graph is refused;
+        needs_his_words, no repository, an ask that is a list, an empty graphs list with no context or a duplicate graph is
+        refused; a context-only arc (`graphs: []` with a context entry) validates;
       - an arcs@v0 file still validates; graph@v0 with and without an arc key validates, and every graph file in
         this repository still validates;
       - this repository's .interlock/arcs.yaml validates as arcs@v1, and its nine placeholder arcs carry ask_form
@@ -143,7 +149,8 @@ nodes:
         to its arc by history; a context listing is not membership; the loader keeps the arc key, including a
         key-only graph and a key that conflicts with the registry;
       - migrate on each drift above: lossless round trip with comments kept, duplicate collapsed, shared-with
-        listing moved to context, an ambiguous two-arc listing refused, a non-empty needs_his_words refused, no
+        listing moved to context, a generic arc whose sole member is the shared listing migrated to a context-only
+        arc that keeps its ask and source and whose output validates as arcs@v1, an ambiguous two-arc listing refused, a non-empty needs_his_words refused, no
         origin and no --repository refused, a v1 file unchanged.
       Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
     gates:
@@ -168,14 +175,28 @@ nodes:
       - `interlock run` (packages/cli/src/run.ts), before any lease, worktree or session;
       - `interlock judge` (packages/cli/src/judge.ts), before any gate runs or receipt is written;
       - `interlock backfill` (packages/cli/src/backfill.ts), before any worktree is created;
-      - the runner's exported entry points that create a worktree or session from a graph, backfillGraph
-        (packages/runner/src/backfill.ts, which today takes a bare GraphDocument and creates a worktree first) and
-        driveInteractiveSession (packages/runner/src/sessionDrive.ts, which takes a bare graph id), take an
-        AdmittedGraph so an unadmitted graph cannot reach them;
+      - the runner's exported entry points that create a worktree, session, gate run or outcome from a graph:
+        backfillGraph (packages/runner/src/backfill.ts, which today takes a bare GraphDocument and creates a worktree
+        first) takes an AdmittedGraph; judgeWorktree (packages/runner/src/judgeWorktree.ts, whose exported request
+        takes a bare Node and then runs gates and writes outcomes) takes an AdmittedGraph and a node id of it, or
+        becomes private behind an exported wrapper that does; driveInteractiveSession
+        (packages/runner/src/sessionDrive.ts, which takes a bare graph id) takes a session admission that is exactly
+        one of an AdmittedGraph (run) or a PlanningAdmission (plan), so an unadmitted graph cannot reach any of them;
       - `interlock plan` (packages/cli/src/plan.ts): it takes `--arc <id>`, refuses an id arcs.yaml does not hold,
-        and tells the planner the arc. After the runtime writes the graph, beforeJudge requires the drafted graph's
+        and tells the planner the arc. The graph does not exist yet when the planner's session starts
+        (plan.ts drives the session before beforeJudge reads the authored file), so plan constructs a
+        PlanningAdmission, a separate type holding the graph id and the selected known arc (on a correction, the
+        existing graph admitted with its arc), and only that reaches driveInteractiveSession; no graph is
+        fabricated. After the runtime writes the graph, beforeJudge admits the authored document and requires the drafted graph's
         `arc` to equal the selected arc (on a correction, the original graph's arc; a correction with a different
         --arc is refused): a graph that omits it or names another valid arc is held with the line, never accepted.
+      - `interlock plan publish` (graph 0058's plan-publish node, which lands before this graph is built): it admits
+        the graph through the same admission reading before publication's outbox intent is recorded, and the pull
+        request's arc line ("Arc: <arc id> (<source>)") derives from the resolved arc, not from the graph's own key
+        alone; so a registry-only graph publishes, and conflicting membership, a disagreeing key and a
+        superseded-only graph are refused with the resolver's line and no intent, push or pull request. 0058's
+        checks stay as they are: the cite rule, the graph id pattern and equality, and the tracked bytes at the
+        persisted sha.
       Node cancel, node reset, gate waive, gate clear, the debrief's session-identity read
       (packages/cli/src/debrief/sessionIdentity.ts), graph status, graph show, the position and the face keep
       parsing without admission and never refuse for a missing arc.
@@ -195,6 +216,12 @@ nodes:
       - plan without --arc, and with an unknown --arc, is refused; with a known one, a stub runtime that keeps the
         arc passes, one that omits it and one that substitutes another valid arc are held; a correction keeps the
         original arc;
+      - judgeWorktree reached with a graph without an arc is refused (through its admitted entry) before any gate
+        runs or outcome is written; plan reaches driveInteractiveSession with a PlanningAdmission and no graph file,
+        and the authored graph is admitted afterward;
+      - plan publish: a registry-only graph publishes with the arc line from the registry; conflicting membership,
+        a disagreeing arc key and a superseded-only graph are each refused with no outbox intent, push or pull
+        request; 0058's planPublish.test.ts cases still pass with their fixtures given an arc;
       - an arcs@v0 registry with needs_his_words: a graph it lists is refused at run;
       - for a graph without an arc, node cancel, node reset, gate waive and gate clear still act, and the
         session-identity read and graph status still read.
@@ -254,6 +281,11 @@ nodes:
       refuses a graph with any failing brief, naming each one and its line, and writes no receipt.
       The claim is narrow: at approval every brief was run-compatible; a brief edited or a context path untracked
       after approval is still refused at run, by the same preflight, before any session or lease.
+      Every existing positive approval fixture and shared helper writes a valid brief@v1 per node beside its graph
+      (at least the fixture helper in packages/cli/test/graph/approve.test.ts and its positive cases, and the
+      approvals in packages/cli/test/judge.test.ts, plan.test.ts, run.test.ts, packages/face/test/verb.test.ts,
+      packages/runner/test/runnerCommits.test.ts, and graph 0058's citedApproval.test.ts and planPublish.test.ts);
+      a missing or malformed brief survives only as a separate negative case.
       Tests in packages/cli/test/briefsBeforeApproval.test.ts:
       - a graph with a valid brief@v1 per node is approved;
       - a missing brief, a brief@v0 brief, a brief naming another node or graph, and a brief whose context_scope names

@@ -1094,14 +1094,28 @@ edit it.
 > - `interlock run` (packages/cli/src/run.ts), before any lease, worktree or session;
 > - `interlock judge` (packages/cli/src/judge.ts), before any gate runs or receipt is written;
 > - `interlock backfill` (packages/cli/src/backfill.ts), before any worktree is created;
-> - the runner's exported entry points that create a worktree or session from a graph, backfillGraph
->   (packages/runner/src/backfill.ts, which today takes a bare GraphDocument and creates a worktree first) and
->   driveInteractiveSession (packages/runner/src/sessionDrive.ts, which takes a bare graph id), take an
->   AdmittedGraph so an unadmitted graph cannot reach them;
+> - the runner's exported entry points that create a worktree, session, gate run or outcome from a graph:
+>   backfillGraph (packages/runner/src/backfill.ts, which today takes a bare GraphDocument and creates a worktree
+>   first) takes an AdmittedGraph; judgeWorktree (packages/runner/src/judgeWorktree.ts, whose exported request
+>   takes a bare Node and then runs gates and writes outcomes) takes an AdmittedGraph and a node id of it, or
+>   becomes private behind an exported wrapper that does; driveInteractiveSession
+>   (packages/runner/src/sessionDrive.ts, which takes a bare graph id) takes a session admission that is exactly
+>   one of an AdmittedGraph (run) or a PlanningAdmission (plan), so an unadmitted graph cannot reach any of them;
 > - `interlock plan` (packages/cli/src/plan.ts): it takes `--arc <id>`, refuses an id arcs.yaml does not hold,
->   and tells the planner the arc. After the runtime writes the graph, beforeJudge requires the drafted graph's
+>   and tells the planner the arc. The graph does not exist yet when the planner's session starts
+>   (plan.ts drives the session before beforeJudge reads the authored file), so plan constructs a
+>   PlanningAdmission, a separate type holding the graph id and the selected known arc (on a correction, the
+>   existing graph admitted with its arc), and only that reaches driveInteractiveSession; no graph is
+>   fabricated. After the runtime writes the graph, beforeJudge admits the authored document and requires the drafted graph's
 >   `arc` to equal the selected arc (on a correction, the original graph's arc; a correction with a different
 >   --arc is refused): a graph that omits it or names another valid arc is held with the line, never accepted.
+> - `interlock plan publish` (graph 0058's plan-publish node, which lands before this graph is built): it admits
+>   the graph through the same admission reading before publication's outbox intent is recorded, and the pull
+>   request's arc line ("Arc: <arc id> (<source>)") derives from the resolved arc, not from the graph's own key
+>   alone; so a registry-only graph publishes, and conflicting membership, a disagreeing key and a
+>   superseded-only graph are refused with the resolver's line and no intent, push or pull request. 0058's
+>   checks stay as they are: the cite rule, the graph id pattern and equality, and the tracked bytes at the
+>   persisted sha.
 > Node cancel, node reset, gate waive, gate clear, the debrief's session-identity read
 > (packages/cli/src/debrief/sessionIdentity.ts), graph status, graph show, the position and the face keep
 > parsing without admission and never refuse for a missing arc.
@@ -1121,6 +1135,12 @@ edit it.
 > - plan without --arc, and with an unknown --arc, is refused; with a known one, a stub runtime that keeps the
 >   arc passes, one that omits it and one that substitutes another valid arc are held; a correction keeps the
 >   original arc;
+> - judgeWorktree reached with a graph without an arc is refused (through its admitted entry) before any gate
+>   runs or outcome is written; plan reaches driveInteractiveSession with a PlanningAdmission and no graph file,
+>   and the authored graph is admitted afterward;
+> - plan publish: a registry-only graph publishes with the arc line from the registry; conflicting membership,
+>   a disagreeing arc key and a superseded-only graph are each refused with no outbox intent, push or pull
+>   request; 0058's planPublish.test.ts cases still pass with their fixtures given an arc;
 > - an arcs@v0 registry with needs_his_words: a graph it lists is refused at run;
 > - for a graph without an arc, node cancel, node reset, gate waive and gate clear still act, and the
 >   session-identity read and graph status still read.
