@@ -1,0 +1,39 @@
+interlock: notes@v0
+node: approve-for-the-owner
+entries:
+  - kind: choice
+    at: "2026-11-07T15:03:54Z"
+    chose: Reuse the existing machine-provider, ledger, and human-gate seams, adding delegation as typed receipt provenance and append-only ledger state.
+    because: The acceptance extends graph 0056 and the current approval and clearance commands; keeping verification at the machine and git-host adapters preserves the runtime and host boundaries while older receipts continue through the existing readers.
+  - kind: surprise
+    at: "2026-11-07T15:07:00Z"
+    expected: mise exec would select the repository's pinned Node 24 toolchain.
+    observed: The first typecheck ran with Node 26.13.0 and emitted an unsupported-engine warning; the command still reached TypeScript and exposed only source contract errors, so subsequent checks will retain the literal mise invocation and report the toolchain mismatch.
+  - kind: choice
+    at: "2026-11-07T15:16:16Z"
+    chose: Make gate-moved receipts part of the projected receipt history and scan both that history and active gate state when checking cite consumption.
+    because: Approval and manual clearance embed their receipts in gate-moved events rather than writing a separate receipt event, while retraction must keep the consumed receipt visible after the gate returns to pending.
+  - kind: surprise
+    at: "2026-11-07T15:15:30Z"
+    expected: The current event schema would remain valid after the additive retraction event was inserted.
+    observed: The first focused test load found a malformed event@v10 JSON condition; the schema was repaired before any test assertions ran.
+  - kind: surprise
+    at: "2026-11-07T15:16:00Z"
+    expected: Receipt retract's first three arguments would remain positional after flags.
+    observed: The command parser initially treated --by and its value as node and gate; it now stops positional parsing at the first option and the focused retraction test passes.
+  - kind: surprise
+    at: "2026-11-07T15:20:36Z"
+    expected: The existing runner gate-judge fixture would retain only its declared command output bytes under the pinned invocation.
+    observed: mise emitted an operation-not-permitted cache warning into gate stderr in this sandbox, so one legacy output assertion failed for environment noise while the new delegated-staleness test and the other 28 gate-judge tests passed.
+  - kind: choice
+    at: "2026-11-07T15:22:29Z"
+    chose: Keep stale delegated clearance invalidation as a pending gate-moved event and leave ordinary embedded human receipts out of NodeView.receipts.
+    because: This preserves the existing projection contract while making the stale delegated gate observable as pending; the journal still retains the old gate receipt and cite for provenance and one-use checks.
+  - kind: surprise
+    at: "2026-11-07T15:24:00Z"
+    expected: The receipt-history projection change would preserve the legacy NodeView contract.
+    observed: Existing gate-judge tests require embedded human receipts to remain out of NodeView.receipts; the projection change was reverted, while active-gate scanning and journal history retain delegated provenance and cite consumption.
+  - kind: surprise
+    at: "2026-11-07T15:31:00Z"
+    expected: The standing recursive test gate would be able to run all workspace fixtures.
+    observed: Substrate loopback fixtures failed with listen EPERM on 127.0.0.1 in this sandbox; the owned test process was stopped after the failure, while implementation-focused tests and all non-loopback workspace suites completed before it.

@@ -46,6 +46,11 @@ describe("machine@v0", () => {
   it("accepts empty arguments after a nonempty executable", () => {
     expect(valid({ ...provider, env: ["bin", ""] })).toBe(true);
   });
+  it("accepts the optional cite command", () => {
+    const cited = { ...provider, cite: ["cite", "{kind}", "{id}"] };
+    expect(valid(cited)).toBe(true);
+    expect(isErr(parseMachine({ interlock: "machine@v0", provider: cited }))).toBe(false);
+  });
   it("refuses a missing or unknown shape version", () => {
     if (schema === undefined) throw new Error("missing schema");
     expect(schema({ provider: "none" })).toBe(false);

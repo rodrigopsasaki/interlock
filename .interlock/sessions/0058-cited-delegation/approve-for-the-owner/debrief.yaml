@@ -1,0 +1,122 @@
+interlock: debrief@v2
+graph: 0058-cited-delegation
+node: approve-for-the-owner
+role: implementer
+graph_base_sha: f194e6961154dbac808911ec519e607f2f0667aa
+session_start_sha: 7b10d6e92acdf5dde4915733810056f11677c4f3
+head_sha: 2ee047307361ae160cf32ec52da0225b8b3f5517
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: strict-citation-flags
+    what: Added typed present-value parsing for --for, --cites, and --reading, with exact citation parsing for said, msg, and GitHub comment URLs and refusal of missing, empty, option-following, padded, or malformed values.
+    because: A present flag must never be silently reinterpreted as absent or as another option, and the accepted citation identity must be unambiguous before it can authorize an act.
+    rests_on:
+      - .interlock/graphs/0058-cited-delegation.yaml
+      - packages/cli/src/flags.ts
+      - packages/cli/src/delegation.ts
+    applies_to: { kind: path, path: packages/cli/src/flags.ts }
+    hunks:
+      - packages/cli/src/flags.ts
+      - packages/cli/src/delegation.ts
+      - packages/cli/test/citedApproval.test.ts
+  - id: adapter-bound-citation-verification
+    what: Extended machine@v0 and local@v1 additively with the cite provider and owner login, sending citation kind and id as separate provider arguments and keeping GitHub comment verification behind the git-host adapter.
+    because: Citation verification needs provider-specific and host-specific behavior without leaking runtime or host assumptions into the command flows; older machine and local artifacts remain readable.
+    rests_on:
+      - .interlock/graphs/0058-cited-delegation.yaml
+      - packages/runner/src/machineProvider.ts
+      - packages/runner/src/localConfig.ts
+      - schemas/machine@v0.json
+      - schemas/local@v1.json
+    applies_to: { kind: path, path: packages/runner/src/machineProvider.ts }
+    hunks:
+      - packages/runner/src/machineProvider.ts
+      - packages/runner/src/localConfig.ts
+      - packages/cli/src/gitHostAdapter.ts
+      - packages/cli/src/delegation.ts
+      - schemas/machine@v0.json
+      - schemas/local@v1.json
+      - packages/schemas/test/machine.test.ts
+  - id: delegated-receipt-provenance
+    what: Represented delegated human receipts with verified author, owner words, driver reading, canonical cite identity, action target, and graph content hash; added additive event schema support, one-use cite checks, and owner-only append-only retraction.
+    because: The ledger must distinguish delegated authority from the owner's own receipt, bind one cite to one exact act and content, and preserve consumed provenance after retraction without changing existing human receipt readers.
+    rests_on:
+      - .interlock/graphs/0058-cited-delegation.yaml
+      - packages/ledger/src/derivation.ts
+      - packages/ledger/src/event.ts
+      - packages/ledger/src/projection.ts
+      - packages/cli/src/receipt/retract.ts
+    applies_to: { kind: path, path: packages/ledger/src/derivation.ts }
+    hunks:
+      - packages/ledger/src/derivation.ts
+      - packages/ledger/src/event.ts
+      - packages/ledger/src/projection.ts
+      - packages/cli/src/graph/approve.ts
+      - packages/cli/src/gate/clear.ts
+      - packages/cli/src/receipt/retract.ts
+      - schemas/parts/derivation.json
+      - schemas/event@v10.json
+      - packages/cli/test/citedApproval.test.ts
+  - id: content-bound-clearance
+    what: Made a delegated human clearance stop counting when the current graph file hash differs from the receipt's bound hash, emitting a pending gate-moved state while retaining the old receipt and allowing a fresh cite-bound clearance.
+    because: A clearance authorizes the graph content that was cited, so an edited graph must be held rather than treating the old delegated approval as current; the append-only journal remains the provenance path.
+    rests_on:
+      - .interlock/graphs/0058-cited-delegation.yaml
+      - packages/runner/src/gateJudge.ts
+      - packages/runner/test/gateJudge.test.ts
+    applies_to: { kind: path, path: packages/runner/src/gateJudge.ts }
+    hunks:
+      - packages/runner/src/gateJudge.ts
+      - packages/runner/test/gateJudge.test.ts
+      - packages/ledger/src/projection.ts
+  - id: public-shape-reference
+    what: Regenerated docs/shapes.md for the additive local, machine, and event shape changes and covered delegated and existing human receipts in the schema test.
+    because: Published artifact descriptions must match the schemas that accept both new delegated receipts and every existing human receipt.
+    rests_on:
+      - docs/shapes.md
+      - schemas/parts/derivation.json
+      - schemas/event@v10.json
+    applies_to: { kind: path, path: docs/shapes.md }
+    hunks:
+      - docs/shapes.md
+      - packages/cli/test/citedApproval.test.ts
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: All workspace TypeScript projects passed; mise and pnpm reported the sandbox Node 26.13.0 versus the declared Node 24.14.0 engine.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Biome completed without diagnostics.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+    note: No comments were reported in packages/*/src.
+  - id: test
+    result: fail
+    invocation: mise exec -- pnpm test
+    note: Ledger, debrief, verifier, and face suites completed; 24 substrate tests failed because the sandbox denied loopback listen on 127.0.0.1 with EPERM. The owned process was stopped after that environment failure.
+  - id: debrief-valid
+    result: fail
+    invocation: mise exec -- pnpm interlock debrief validate 0058-cited-delegation approve-for-the-owner
+    note: The pre-filing check had no selected debrief yet; validation must be rerun after this candidate is filed.
+  - id: cited-approval-proof
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter cli exec vitest run test/citedApproval.test.ts --passWithNoTests=false
+    note: Six cited-delegation tests passed, including exact citation forms, delegated approval and clearance, malformed flags, one-use consumption, retraction, and both human derivation schema branches.
+  - id: machine-schema-proof
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter schemas exec vitest run test/machine.test.ts --passWithNoTests=false
+    note: Eighteen machine schema tests passed, including the optional cite provider.
+  - id: runner-gateJudge-focused
+    result: pass
+    invocation: MISE_CACHE_DIR=/Users/rodrigosasaki/dev/private/interlock/.worktrees/approve-for-the-owner/packages/runner/test/.runs/mise-cache mise exec -- pnpm --filter runner exec vitest run test/gateJudge.test.ts --passWithNoTests=false
+    note: Twenty-nine gate-judge tests passed, including delegated clearance staleness after a graph edit.
+open:
+  - The standing pnpm test gate needs a runner receipt outside this sandbox because substrate loopback fixtures cannot listen on 127.0.0.1 here.
+  - The standing debrief-valid command was intentionally run before filing and therefore needs its normal post-filing runner receipt; the candidate itself is authored against head 2ee047307361ae160cf32ec52da0225b8b3f5517.

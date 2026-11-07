@@ -212,6 +212,16 @@ export function applyEvent(projection: LedgerProjection, event: LedgerEvent): Le
         ...view,
         said: [...view.said, { said: event.said, delivery: undefined }],
       }));
+    case "receipt-retracted":
+      return withNode(projection, event.node, (view) => {
+        const current = view.gates.get(event.gate);
+        if (current?.kind !== "satisfied" || current.receipt.id !== event.receiptId) {
+          return view;
+        }
+        const gates = new Map(view.gates);
+        gates.set(event.gate, { kind: "pending" });
+        return { ...view, gates };
+      });
     case "debrief-filed":
       return withSession(projection, event.session, (view) => ({
         ...view,

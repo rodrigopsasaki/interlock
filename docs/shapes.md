@@ -875,14 +875,14 @@ No vocabulary entry for `event`.
 - `event@v7`: retyped `kind`.
 - `event@v8`: no field changes from the previous version.
 - `event@v9`: retyped `kind`.
-- `event@v10`: no field changes from the previous version.
+- `event@v10`: retyped `kind`.
 
 ### Fields (`event@v10`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
 | `interlock` | the literal `"event@v10"` | yes |  |
-| `kind` | one of `"node-created"`, `"lease-taken"`, `"lease-renewed"`, `"lease-expired"`, `"session-started"`, `"note-appended"`, `"debrief-filed"`, `"gate-moved"`, `"receipt-written"`, `"outcome-set"`, `"outbox-intent-recorded"`, `"outbox-delivery-recorded"`, `"session-narrated"`, `"session-facts-observed"`, `"person-said"` | yes |  |
+| `kind` | one of `"node-created"`, `"lease-taken"`, `"lease-renewed"`, `"lease-expired"`, `"session-started"`, `"note-appended"`, `"debrief-filed"`, `"gate-moved"`, `"receipt-written"`, `"outcome-set"`, `"outbox-intent-recorded"`, `"outbox-delivery-recorded"`, `"session-narrated"`, `"session-facts-observed"`, `"person-said"`, `"receipt-retracted"` | yes |  |
 
 ### Examples
 
@@ -952,6 +952,7 @@ The directed acyclic graph of nodes produced from one ask.
 | --- | --- | --- | --- |
 | `interlock` | the literal `"graph@v0"` | yes |  |
 | `id` | string | yes |  |
+| `arc` | string | no | Optional arc registry key. Publication requires it to resolve in .interlock/arcs.yaml. |
 | `ask` | string | no | The ask the graph was produced from. Optional; when present the loader requires a string and the position carries it verbatim. |
 | `gates` | array of gate-declaration | no | A gate as declared on a graph node, a graph, or a brief's front matter: an id, a kind, and an optional command and output check. A human gate carries no run. |
 | `nodes` | array of object | yes | fields: id (string, required); role (one of `"scout"`, `"planner"`, `"implementer"`, `"tester"`, `"reviewer"`, `"verifier"`, optional); acceptance (string, optional); depends_on (array of string, optional); gates (array of gate-declaration, optional); paths (array of string, optional) |
@@ -1034,7 +1035,7 @@ No vocabulary entry for `local`.
 ### Versions
 
 - `local@v0`: the first version.
-- `local@v1`: added `provider_order` (optional); added `last_resort` (optional).
+- `local@v1`: added `owner_login` (optional); added `provider_order` (optional); added `last_resort` (optional).
 
 ### Fields (`local@v1`)
 
@@ -1048,6 +1049,7 @@ No vocabulary entry for `local`.
 | `lease_ms` | number | yes |  |
 | `run_timeout_ms` | number | yes |  |
 | `answer_grace_ms` | number | no |  |
+| `owner_login` | string matching `\S` | no |  |
 | `substrate` | object | yes | fields: address (string, required); handle (string, optional); key_file (string, optional); send_repository (boolean, optional) |
 | `provider_order` | array of string matching `\S` | no |  |
 | `last_resort` | string matching `\S` | no |  |
@@ -1093,6 +1095,9 @@ runtime:
 # The catalogue is per machine and lives outside the repository. This repository starts sonnet
 # by default; "default" remains available for the legacy runtime: block above.
 default_runtime: sonnet
+
+# Optional. The GitHub login whose comment URLs may be used as owner citations.
+# owner_login: rodrigopsasaki
 
 # Where the runner creates a node's git worktree, relative to the repository root.
 worktree_root: .worktrees
@@ -1142,7 +1147,7 @@ No vocabulary entry for `machine`.
 | field | type | required | description |
 | --- | --- | --- | --- |
 | `interlock` | the literal `"machine@v0"` | yes |  |
-| `provider` | one of `?`, `?` | yes | `?`: no fields beyond `kind`; `?`: admit, release, env, heavy |
+| `provider` | one of `?`, `?` | yes | `?`: no fields beyond `kind`; `?`: admit, release, env, heavy, cite (optional) |
 
 ### Examples
 

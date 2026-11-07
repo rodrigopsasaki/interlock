@@ -34,6 +34,7 @@ export interface LocalConfig {
   readonly leaseMs: number;
   readonly runTimeoutMs: number;
   readonly answerGraceMs: number;
+  readonly ownerLogin?: string;
   readonly substrateAddress: string;
   readonly substrateKeyFile?: string;
   readonly substrateSendRepository: boolean;
@@ -252,6 +253,15 @@ function parseShape(parsed: unknown, path: string): Result<LocalConfig, LocalCon
   }
   const answerGraceMs = answerGraceMsField ?? DEFAULT_ANSWER_GRACE_MS;
 
+  const ownerLogin = prop(parsed, "owner_login");
+  if (ownerLogin !== undefined && (!isString(ownerLogin) || ownerLogin.trim() === "")) {
+    return err({
+      kind: "malformed",
+      path,
+      reason: '"owner_login" must be a nonempty string',
+    });
+  }
+
   const substrate = prop(parsed, "substrate");
   const substrateAddress = isRecord(substrate) ? prop(substrate, "address") : undefined;
   if (!isString(substrateAddress)) {
@@ -308,6 +318,7 @@ function parseShape(parsed: unknown, path: string): Result<LocalConfig, LocalCon
     leaseMs,
     runTimeoutMs,
     answerGraceMs,
+    ...(ownerLogin === undefined ? {} : { ownerLogin }),
     substrateAddress,
     substrateSendRepository: substrateSendRepository ?? false,
     ...(substrateKeyFile === undefined ? {} : { substrateKeyFile }),

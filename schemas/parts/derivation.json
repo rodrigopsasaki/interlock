@@ -34,6 +34,47 @@
       },
       "required": ["kind", "who"],
       "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "human" },
+        "who": { "type": "string" },
+        "for": { "type": "string" },
+        "cite": { "type": "string" },
+        "citeKey": { "type": "string" },
+        "author": { "type": "string" },
+        "words": { "type": "string" },
+        "at": { "oneOf": [{ "type": "string" }, { "type": "number" }] },
+        "reading": { "type": "string" },
+        "action": { "enum": ["approve", "clear", "publish"] },
+        "target": {
+          "type": "object",
+          "properties": {
+            "graph": { "type": "string" },
+            "node": { "type": "string" },
+            "gate": { "type": "string" }
+          },
+          "required": ["graph"],
+          "additionalProperties": false
+        },
+        "contentHash": { "type": "string" }
+      },
+      "required": [
+        "kind",
+        "who",
+        "for",
+        "cite",
+        "citeKey",
+        "author",
+        "words",
+        "at",
+        "reading",
+        "action",
+        "target",
+        "contentHash"
+      ],
+      "additionalProperties": false
     }
   ]
 }

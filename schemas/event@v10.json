@@ -24,7 +24,8 @@
         "outbox-delivery-recorded",
         "session-narrated",
         "session-facts-observed",
-        "person-said"
+        "person-said",
+        "receipt-retracted"
       ]
     }
   },
@@ -169,6 +170,25 @@
           "session",
           "said"
         ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "receipt-retracted"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "node": { "$ref": "parts/node.json" },
+          "gate": { "type": "string" },
+          "receiptId": { "type": "string" },
+          "by": { "type": "string" },
+          "because": { "type": "string" }
+        },
+        "required": ["node", "gate", "receiptId", "by", "because"]
       }
     },
     {

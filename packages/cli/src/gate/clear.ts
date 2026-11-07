@@ -27,12 +27,32 @@ import {
   gitScope,
   loadStandingGates,
 } from "runner";
-import { parseFlag } from "../flags.ts";
+import {
+  contentHash,
+  type DelegationOptions,
+  delegatedDerivation,
+  delegatedReceipt,
+  type VerifiedCitation,
+  verifyCitation,
+} from "../delegation.ts";
+import { parseFlag, parseFlagValue } from "../flags.ts";
 import type { CommandResult } from "../main.ts";
+
+function missingDelegationValue(flag: string): CommandResult {
+  return {
+    exitCode: 1,
+    message: `interlock gate clear: ${flag} must carry a value when present.`,
+  };
+}
 
 export async function runGateClear(
   args: readonly string[],
-  options: { readonly cwd?: string; readonly clock?: Clock } = {},
+  options: {
+    readonly cwd?: string;
+    readonly clock?: Clock;
+    readonly gitHost?: DelegationOptions["gitHost"];
+    readonly machinePath?: string;
+  } = {},
 ): Promise<CommandResult> {
   const [graph, node, gateId] = args;
   if (graph === undefined || node === undefined || gateId === undefined) {
@@ -57,6 +77,22 @@ export async function runGateClear(
       exitCode: 1,
       message: "interlock gate clear: refuses without --by; every clearance records who.",
     };
+  }
+
+  const forFlag = parseFlagValue(args, "--for");
+  const citesFlag = parseFlagValue(args, "--cites");
+  const readingFlag = parseFlagValue(args, "--reading");
+  if (forFlag.kind === "invalid") return missingDelegationValue("--for");
+  if (citesFlag.kind === "invalid") return missingDelegationValue("--cites");
+  if (readingFlag.kind === "invalid") return missingDelegationValue("--reading");
+  if (forFlag.kind === "absent" && citesFlag.kind !== "absent") {
+    return { exitCode: 1, message: "interlock gate clear: --cites requires --for." };
+  }
+  if (forFlag.kind === "value" && citesFlag.kind === "absent") {
+    return { exitCode: 1, message: "interlock gate clear: --for requires --cites." };
+  }
+  if (forFlag.kind === "value" && readingFlag.kind !== "value") {
+    return { exitCode: 1, message: "interlock gate clear: --for requires --reading." };
   }
 
   const cwd = options.cwd ?? process.cwd();
@@ -105,6 +141,18 @@ export async function runGateClear(
     };
   }
 
+  let verified: VerifiedCitation | undefined;
+  let hash: string | undefined;
+  if (forFlag.kind === "value" && citesFlag.kind === "value" && readingFlag.kind === "value") {
+    const checked = await verifyCitation(repoRoot, forFlag.value, by, citesFlag.value, "clear", {
+      ...(options.gitHost === undefined ? {} : { gitHost: options.gitHost }),
+      ...(options.machinePath === undefined ? {} : { machinePath: options.machinePath }),
+    });
+    if (isErr(checked)) return { exitCode: 1, message: checked.error };
+    verified = checked.value;
+    hash = await contentHash(graphPath);
+  }
+
   const journal = await sharedJournalDirectory(repoRoot);
   const clock = options.clock ?? createSystemClock();
   const opened = await createLedger({ clock, directory: journal });
@@ -118,16 +166,48 @@ export async function runGateClear(
 
   try {
     const targetNode: Node = { graph, id: node };
+    if (verified !== undefined && hash !== undefined) {
+      const used = delegatedReceipt(ledger.projection(), verified.key);
+      if (used !== undefined) {
+        return {
+          exitCode: 1,
+          message: `interlock gate clear: this cite already authorized ${used.action} for ${used.target.graph}${used.target.node === undefined ? "" : `/${used.target.node}`}${used.target.gate === undefined ? "" : `/${used.target.gate}`}.`,
+        };
+      }
+    }
     const current =
       ledger.projection().nodes.get(nodeKey(targetNode))?.gates.get(gateId) ?? gate.pending();
     if (current.kind === "satisfied" || current.kind === "waived") {
-      return {
-        exitCode: 1,
-        message: `${node}/${gateId}: cannot move from ${current.kind}, which is terminal.`,
-      };
+      const staleDelegated =
+        hash !== undefined &&
+        current.kind === "satisfied" &&
+        current.receipt.derivation.kind === "human" &&
+        "contentHash" in current.receipt.derivation &&
+        current.receipt.derivation.contentHash !== hash;
+      if (!staleDelegated) {
+        return {
+          exitCode: 1,
+          message: `${node}/${gateId}: cannot move from ${current.kind}, which is terminal.`,
+        };
+      }
     }
 
     const commitSha = await currentCommitSha(repoRoot);
+    const receiptDerivation =
+      verified === undefined ||
+      hash === undefined ||
+      forFlag.kind !== "value" ||
+      readingFlag.kind !== "value"
+        ? derivation.human(by)
+        : delegatedDerivation(
+            by,
+            forFlag.value,
+            verified,
+            readingFlag.value,
+            "clear",
+            { graph, node, gate: gateId },
+            hash,
+          );
     const receipt = await createReceipt(
       repoRoot,
       gitScope(repoRoot),
@@ -135,7 +215,7 @@ export async function runGateClear(
       commitSha,
       spend.none(),
       duration.unknown(),
-      derivation.human(by),
+      receiptDerivation,
       { because },
     );
     if (isErr(receipt)) {

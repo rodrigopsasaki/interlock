@@ -104,6 +104,14 @@ export type LedgerEvent =
       readonly kind: "person-said";
       readonly session: string;
       readonly said: PersonSaid;
+    }
+  | {
+      readonly kind: "receipt-retracted";
+      readonly node: Node;
+      readonly gate: string;
+      readonly receiptId: string;
+      readonly by: string;
+      readonly because: string;
     };
 
 export function isLedgerEvent(value: unknown): value is LedgerEvent {
@@ -174,6 +182,14 @@ export function isLedgerEvent(value: unknown): value is LedgerEvent {
       return isString(prop(value, "session")) && isSessionFacts(prop(value, "facts"));
     case "person-said":
       return isString(prop(value, "session")) && isPersonSaid(prop(value, "said"));
+    case "receipt-retracted":
+      return (
+        isNode(prop(value, "node")) &&
+        isString(prop(value, "gate")) &&
+        isString(prop(value, "receiptId")) &&
+        isString(prop(value, "by")) &&
+        isString(prop(value, "because"))
+      );
     default:
       return false;
   }

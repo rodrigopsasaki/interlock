@@ -1,0 +1,299 @@
+interlock: graph@v0
+id: 0053-graph-arc
+arc: every-ask-is-an-arc
+ask: Every graph belongs to an arc in the owner's own words, by construction, so every door that starts new work refuses a graph no arc holds while records of what happened and the owner's own acts never refuse, and the arcs and queue registries are read through the product.
+derivation:
+  kind: model
+  model: gilb (Claude)
+  prompt: graph-arc-2026-11-06
+authorization:
+  granted_by: Rodrigo Sasaki
+  mandate: loom-feed-2026-11-04  # "You're free to do changes on phyxius and interlock too", 23:25 UTC
+  approver: Rodrigo Sasaki; Gilb relays the recorded approval and coordinates cleared-node merges. The cross-vendor vet is advisory.
+read: >
+  Arc: every-ask-is-an-arc (.interlock/arcs.yaml). The owner, 2026-11-06 18:34 UTC: "nothing should run in 'not in
+  an arc yet' because if I asked for something, the way in which I asked should be the arc, even if the arc has only
+  one graph in it. Arcs are my language, graphs are the result of what the planner decided the work should be to
+  satisfy my intent." 22:20 UTC, after a registry still listed graphs under needs_his_words: "that's wrong, there
+  should never be a graph that has no arc, by construction. This is just a patch for graphs we already have that
+  don't respect that." His words carry their message ids in .interlock/arcs.yaml.
+
+  Today (main at a13456f). arcs@v0 (schemas/arcs@v0.json, additionalProperties false at every level) admits arcs
+  with id, title, an ask string, source, an optional also_said list and graphs, and a needs_his_words list.
+  graph@v0 (schemas/graph@v0.json) declares no `arc` key; it only tolerates one through additionalProperties true,
+  and the graph loader (packages/face/src/document.ts, parseShape) rebuilds GraphDocument without it, so the key is
+  dropped on read. This repository holds 53 graph files on main (54 with this one). Only 0058-cited-delegation,
+  0059-submodule-receipts and 0059-submodule-receipts-2 carry an `arc` key (and this graph); the other 50 (every
+  extant graph in 0001-0015, 0018-0026, 0028-0029, 0031-0041, 0043-0044, 0046-0052, 0054-0056, plus
+  readme-interlock-concept) are each listed under exactly one arc in .interlock/arcs.yaml, so under the rule below
+  zero graphs here lack an arc. None of the 50 graph files is rewritten: keeping their bytes keeps their approval
+  receipts' content hashes. This repository's arcs.yaml has no needs_his_words; nine of its arcs (the-ultimate-harness,
+  shapes-precise-enough-for-docs, a-translator-for-sessions, interlock-the-concept, orchestrate-the-plan,
+  the-first-six-graphs, another-six-graphs, evolve-from-current-reality, show-what-is-now-possible) carry a historical
+  placeholder ask, "(his own typed words at <time> in <where>; held locally, not in this repository)", registered on
+  his 01:08 UTC 2026-11-07 word "just do a best effort for the old arcs": the words themselves are not here.
+
+  Nothing reads either registry: `interlock schema validate` checks shape only; approve, run, plan, judge and
+  backfill never look for an arc; `interlock plan` drafts a graph without one. A substrate's app that shows each
+  running graph's arc reads the YAML files directly.
+
+  The two adopter registries on this machine (read only for this plan) drift from arcs@v0 in ways a strict reader
+  refuses: one carries per-arc `version`, `approved` {words, source}, `passed` and `authorized_by` {words, source}
+  and has no `origin` remote at all, only a local remote under another name, so its repository identity cannot come
+  from origin; the other carries a `superseded` list on an arc (graphs replaced by a reissue, each with its because,
+  which have no arc key and keep their approval receipts), one graph string written twice under one arc, and one
+  graph listed under two arcs, the second listing noted "(shared with <the first arc>)", the graph's own header
+  citing the first arc's ask; that second arc lists nothing else, so after migration it keeps its ask and source and
+  holds the graph only as context. Both carry `needs_his_words: []`. Interlock cannot edit those repositories from its own
+  nodes, so this graph ships a reader that keeps arcs@v0 as written in the field readable and an `interlock arcs
+  migrate` verb that each adopter runs in its own repository.
+
+  The rule. A repository's identity is the `repository` an arcs@v1 file declares; for an arcs@v0 file it is the name
+  from origin (packages/cli/src/repositoryOrigin.ts) when there is one, and otherwise the repository has no identity
+  and the resolver says so, naming the migrate verb. A graph's arc is resolved from the graph's own `arc` key, or
+  else from the one arc in the repository's .interlock/arcs.yaml whose graphs list "<repository>/<graph id>" (a
+  trailing note in parentheses is not part of the reference). Both present must agree; two arcs listing one graph, an
+  `arc` key naming no arc, or no arc at all is a graph without an arc. A graph an arc lists under `context` belongs to
+  the arc that lists it under `graphs`; context is shown, never membership. needs_his_words does not exist in arcs@v1;
+  an arcs@v0 file that still carries a non-empty needs_his_words is read, and every graph it lists is a graph without
+  an arc.
+
+  Admission and history are two readings. Admission is what new work asks: a graph listed only under an arc's
+  `superseded` has no admitted arc (it was replaced; its terminal outcomes stand as today) and is refused as
+  superseded, naming the arc and the because. History is what records ask: it also resolves through `superseded`,
+  so a replaced graph keeps its arc for every read of what happened. Parsing a graph never refuses for its arc;
+  admission is a separate step that turns a parsed graph into an admitted one carrying its resolved arc, and only
+  the doors that start new work demand an admitted graph: schema validate on a graph file, graph approve, run (and
+  the runner's exported entry points that create a worktree, session, gate run or outcome), plan (which admits the
+  selected arc before the graph exists and the authored graph after), plan publish, judge and backfill. Node cancel,
+  node reset, gate waive, gate clear, the debrief's session-identity reads of a graph at its base sha, graph status,
+  graph show, the position and the face never refuse for a missing arc; graph show, the position and the face say
+  which graph has none and why.
+
+  Invariants. AGENTS.md conventions: artifacts are the public API, readers accept every prior version forever,
+  evolution is additive, and records of what happened are never gated, only plans are; arcs@v0 stays readable, as
+  written in the field. I8: every compression keeps the way back; no receipt, brief or history read is lost to
+  this rule. I9 is not touched: an arc is not a convention that gates; a graph with no arc has no ask of the owner's
+  behind it, so it is not a plan he asked for, and refusing it is refusing to start work nobody asked for. I10: the
+  owner's authority is never gated; cancel, reset, waive and clear never consult the arc, and the owner adds an arc
+  by editing arcs.yaml, never by a flag that skips the check. The wall: no substrate or adopter is named in code,
+  schemas, tests or fixtures; fixtures use generic repository names.
+
+  Order. Built after graphs 0058 and 0059 land (0058 also edits packages/cli/src/graph/approve.ts and gate clear).
+  arcs-v1 lands first and ships the migrate verb; before a build carrying arc-required is installed for the
+  adopters, the coordinator runs `interlock arcs migrate --repository <name>` in each adopter repository and lands
+  the result through that repository's own review, so enforcement never meets an unmigrated adopter. Every attempt
+  opens with: run one heavy command at a time, never several in parallel or in the background; never clone the
+  repository inside your worktree, use the worktree you were given.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: arcs-v1
+    role: implementer
+    depends_on: []
+    acceptance: |
+      The registry, its identity, its one reading and its migration.
+      schemas/arcs@v1.json: interlock "arcs@v1"; a required top-level `repository` (the repository's name, the
+      <repository> of every reference this repository's graphs carry); arcs, each with id (kebab case), title, ask
+      (one string), an optional ask_form ("verbatim", the default, or "placeholder": the ask cites where the owner's
+      words are held instead of quoting them), source, an optional also_said list of {words, source}, graphs
+      (unique "<repository>/<graph id>" strings, an optional trailing note in parentheses kept as today; empty only
+      when the arc lists at least one context entry, so a context-only arc keeps its ask and source and owns no
+      graph),
+      an optional superseded list of {graph, because}, an optional context list of {graph, because} (a graph another
+      arc owns that this arc relates to), and the optional arc fields adopters already write: version (string),
+      approved {words, source}, passed (line), authorized_by {words, source}. No needs_his_words key at any level
+      (additionalProperties false). arcs@v0 stays registered and readable. docs/shapes.md is regenerated.
+      graph@v0 declares its optional `arc` key (kebab id), additively: every graph file on main still validates.
+      A reader in packages/cli/src/arcs/ parses either version into one typed registry. arcs@v0 is read as written in
+      the field: strict v0 plus superseded, the four optional arc fields above and a graph string repeated within one
+      arc (read once); a v0 needs_his_words graph comes back as a graph without an arc.
+      Repository identity (packages/cli/src/arcs/): arcs@v1's `repository`; for arcs@v0, origin's name through
+      repositoryOrigin.ts; neither is a refusal naming `interlock arcs migrate --repository <name>`. Origin is never
+      required when the registry declares the repository.
+      The resolver, in one module beside the reader, implements the graph's rule in two readings, admission and
+      history, and returns, for a graph, its arc or the one plain reason it has none ("0099-x has no arc: no arc in
+      .interlock/arcs.yaml lists example/0099-x, and the graph carries no arc key"; "... lists it under two arcs, a
+      and b"; "... its arc key names b, which arcs.yaml does not hold"; "... its arc key says a but arcs.yaml lists
+      it under b"; "... it was superseded in arc a: <because>" for admission only). It reads the graph's raw `arc`
+      key, which the face loader now keeps on GraphDocument as an optional field (parsing still never refuses for a
+      missing arc), and returns an AdmittedGraph type (the document plus its resolved arc, the arc required) that
+      only admission constructs.
+      `interlock arcs migrate [--repository <name>]` rewrites .interlock/arcs.yaml from arcs@v0 to arcs@v1 in place,
+      losslessly: comments, key order and every ask, words and source byte for byte; the tag line; `repository` from
+      the flag or else origin's name (neither: refused); an empty needs_his_words dropped; a non-empty one refused
+      naming its graphs; a graph string repeated within one arc kept once; a graph listed under two arcs where
+      exactly one listing carries a trailing "(shared with <the other arc's id>)" note moves that listing to its
+      arc's context with the note as because (an arc left with no graphs keeps its ask, source and context and is
+      written with `graphs: []`, never deleted), and any other graph under two arcs refuses migration naming the graph
+      and both arcs, so the owner chooses by editing arcs.yaml. It never sets ask_form and never rewords an ask.
+      Running it on an arcs@v1 file changes nothing.
+      This repository's .interlock/arcs.yaml moves to arcs@v1 through the verb (repository: interlock), then the
+      nine historical placeholder asks named in the graph's read get `ask_form: placeholder` with their ask strings
+      unchanged; no ask is reworded and no words are invented.
+      Tests in packages/schemas/test/arcs.test.ts:
+      - an arcs@v1 file with superseded, context, placeholder and the four optional arc fields validates; one with
+        needs_his_words, no repository, an ask that is a list, an empty graphs list with no context or a duplicate graph is
+        refused; a context-only arc (`graphs: []` with a context entry) validates;
+      - an arcs@v0 file still validates; graph@v0 with and without an arc key validates, and every graph file in
+        this repository still validates;
+      - this repository's .interlock/arcs.yaml validates as arcs@v1, and its nine placeholder arcs carry ask_form
+        placeholder.
+      Tests in packages/cli/test/arcs/ (resolve.test.ts, migrate.test.ts) on generic fixture repositories:
+      - the reader reads an arcs@v0 file carrying superseded, the four optional arc fields, a repeated graph string
+        and needs_his_words, and its needs_his_words graphs come back without an arc;
+      - identity: a v1 registry in a repository with no origin remote (only another remote) resolves its graphs; a
+        v0 registry with no origin is refused with the migrate line;
+      - the resolver's every line, in both readings; a superseded-only graph is refused by admission and resolves
+        to its arc by history; a context listing is not membership; the loader keeps the arc key, including a
+        key-only graph and a key that conflicts with the registry;
+      - migrate on each drift above: lossless round trip with comments kept, duplicate collapsed, shared-with
+        listing moved to context, a generic arc whose sole member is the shared listing migrated to a context-only
+        arc that keeps its ask and source and whose output validates as arcs@v1, an ambiguous two-arc listing refused, a non-empty needs_his_words refused, no
+        origin and no --repository refused, a v1 file unchanged.
+      Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
+    gates:
+      - id: arcs-v1-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter schemas exec vitest run test/arcs.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: arc-resolver-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/arcs/ --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: arc-required
+    role: implementer
+    depends_on: [arcs-v1]
+    acceptance: |
+      Every door that starts new work admits the graph through the resolver's admission reading before any effect,
+      and refuses a graph without an arc with the resolver's line, writing nothing (no receipt, lease, worktree,
+      session or journal line):
+      - `interlock schema validate` on a graph file, beside the shape check;
+      - `interlock graph approve` (packages/cli/src/graph/approve.ts), before any receipt is written;
+      - `interlock run` (packages/cli/src/run.ts), before any lease, worktree or session;
+      - `interlock judge` (packages/cli/src/judge.ts), before any gate runs or receipt is written;
+      - `interlock backfill` (packages/cli/src/backfill.ts), before any worktree is created;
+      - the runner's exported entry points that create a worktree, session, gate run or outcome from a graph:
+        backfillGraph (packages/runner/src/backfill.ts, which today takes a bare GraphDocument and creates a worktree
+        first) takes an AdmittedGraph; judgeWorktree (packages/runner/src/judgeWorktree.ts, whose exported request
+        takes a bare Node and then runs gates and writes outcomes) takes an AdmittedGraph and a node id of it, or
+        becomes private behind an exported wrapper that does; driveInteractiveSession
+        (packages/runner/src/sessionDrive.ts, which takes a bare graph id) takes a session admission that is exactly
+        one of an AdmittedGraph (run) or a PlanningAdmission (plan), so an unadmitted graph cannot reach any of them;
+      - `interlock plan` (packages/cli/src/plan.ts): it takes `--arc <id>`, refuses an id arcs.yaml does not hold,
+        and tells the planner the arc. The graph does not exist yet when the planner's session starts
+        (plan.ts drives the session before beforeJudge reads the authored file), so plan constructs a
+        PlanningAdmission, a separate type holding the graph id and the selected known arc (on a correction, the
+        existing graph admitted with its arc), and only that reaches driveInteractiveSession; no graph is
+        fabricated. After the runtime writes the graph, beforeJudge admits the authored document and requires the drafted graph's
+        `arc` to equal the selected arc (on a correction, the original graph's arc; a correction with a different
+        --arc is refused): a graph that omits it or names another valid arc is held with the line, never accepted.
+      - `interlock plan publish` (graph 0058's plan-publish node, which lands before this graph is built): it admits
+        the graph through the same admission reading before publication's outbox intent is recorded, and the pull
+        request's arc line ("Arc: <arc id> (<source>)") derives from the resolved arc, not from the graph's own key
+        alone; so a registry-only graph publishes, and conflicting membership, a disagreeing key and a
+        superseded-only graph are refused with the resolver's line and no intent, push or pull request. 0058's
+        checks stay as they are: the cite rule, the graph id pattern and equality, and the tracked bytes at the
+        persisted sha.
+      Node cancel, node reset, gate waive, gate clear, the debrief's session-identity read
+      (packages/cli/src/debrief/sessionIdentity.ts), graph status, graph show, the position and the face keep
+      parsing without admission and never refuse for a missing arc.
+      A graph already approved before this lands and now without an arc is refused at run like any other: the owner
+      gives it an arc in arcs.yaml, and nothing else unblocks it.
+      Every existing positive test of these doors gives its fixture repository an arcs@v1 registry holding the resolved arc (a matching arc key on the graph is optional; a key alone never resolves),
+      and every existing plan call passes --arc (at least packages/cli/test/graph/approve.test.ts, run.test.ts,
+      plan.test.ts, judge.test.ts, judgeProvider.test.ts, backfill.test.ts, schema/validate.test.ts and
+      packages/runner/test/backfill.test.ts, backfillMaintenance.test.ts, machineProvider.test.ts,
+      runnerCommits.test.ts, writableRootLaunch.test.ts, support/driveFixture.ts); a no-arc graph survives only as
+      a separate negative case.
+      Tests in packages/cli/test/arcRequired.test.ts on generic fixture repositories:
+      - a graph listed in arcs.yaml, one with a matching arc key, and one with both pass every new-work door;
+      - no arc, two arcs, an arc key naming no arc, a disagreeing arc key and a superseded-only graph are each
+        refused at schema validate, approve, run, judge and backfill with their line, and nothing is written (no
+        receipt, lease, worktree, session or journal line);
+      - plan without --arc, and with an unknown --arc, is refused; with a known one, a stub runtime that keeps the
+        arc passes, one that omits it and one that substitutes another valid arc are held; a correction keeps the
+        original arc;
+      - judgeWorktree reached with a graph without an arc is refused (through its admitted entry) before any gate
+        runs or outcome is written; plan reaches driveInteractiveSession with a PlanningAdmission and no graph file,
+        and the authored graph is admitted afterward;
+      - plan publish: a registry-only graph publishes with the arc line from the registry; conflicting membership,
+        a disagreeing arc key and a superseded-only graph are each refused with no outbox intent, push or pull
+        request; 0058's planPublish.test.ts cases still pass with their fixtures given an arc;
+      - an arcs@v0 registry with needs_his_words: a graph it lists is refused at run;
+      - for a graph without an arc, node cancel, node reset, gate waive and gate clear still act, and the
+        session-identity read and graph status still read.
+      Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
+    gates:
+      - id: arc-required-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/arcRequired.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: registry-reads
+    role: implementer
+    depends_on: [arcs-v1]
+    acceptance: |
+      The registries and each graph's arc are read through the product, so an app never parses the YAML itself.
+      All reads use the resolver's history reading, so a superseded graph shows its arc.
+      `interlock arcs --json` prints {"interlock": "arcs-read@v0", "repository", "arcs": [{id, title, ask, ask_form,
+      source, also_said, graphs: [{ref, repository, graph, local, approved}], superseded, context}], "unarced":
+      [graph ids of this repository's graphs that have no arc, each with the resolver's line]}, where local says the
+      graph file is in this repository and approved is its approved gate's state ("approved", "stale" or "not
+      approved") for local graphs, null otherwise; "unarced" is empty when the invariant holds.
+      `interlock queue --json` prints .interlock/queue.yaml as {"interlock": "queue-read@v0", "queue": [...]} with
+      each entry's arc resolved to {id, title} or null when the arc is not in this repository's arcs.yaml. Both are
+      registered as schemas with committed examples; docs/shapes.md is regenerated.
+      `interlock graph show` and `interlock position` name each graph's arc id and title, or say it has none with the
+      resolver's line; they never refuse for it. Their JSON gains the field additively through new versions,
+      position@v4 (graph show --json) and positions@v3 (position --json), with the producer types updated, the prior
+      versions kept registered and readable, and committed examples. The face (packages/cli/src/face/world.ts and its
+      screen and focus views) shows each graph's arc, and a graph without one stays listed with the resolver's line
+      rather than being dropped.
+      Tests in packages/cli/test/registryReads.test.ts on generic fixture repositories:
+      - arcs --json validates as arcs-read@v0, lists every arc with its graphs' approved state, superseded and
+        context, and unarced is empty when every graph has an arc and names each one that does not;
+      - queue --json validates as queue-read@v0 and resolves arcs, with null for an unknown one;
+      - a repository with no arcs.yaml prints an empty arcs list and every graph under unarced;
+      - the actual output of graph show --json validates as position@v4 and of position --json as positions@v3,
+        each carrying the arc id and title, and a superseded graph's arc; position@v3 and positions@v2 examples still
+        validate;
+      - for a graph without an arc, graph show, position and the face world still list it with the line.
+      Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
+    gates:
+      - id: registry-reads-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/registryReads.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: briefs-before-approval
+    role: implementer
+    depends_on: [arc-required]
+    acceptance: |
+      One run-compatible brief preflight, exported from the runner beside writeBriefIntoWorktree
+      (packages/runner/src/sessionBrief.ts), checks a node's brief at .interlock/sessions/<graph>/<node>/brief.md the
+      way a run will: it exists, reads as brief@v1 (a brief@v0 brief is refused, as the runner refuses it
+      today), names this graph and node, and every context_scope path is an exact tracked path.
+      writeBriefIntoWorktree uses it. `interlock run` calls it before any session or lease is created (today the
+      legacy and context-scope refusals come after both). `interlock graph approve` calls it for every node and
+      refuses a graph with any failing brief, naming each one and its line, and writes no receipt.
+      The claim is narrow: at approval every brief was run-compatible; a brief edited or a context path untracked
+      after approval is still refused at run, by the same preflight, before any session or lease.
+      Every existing positive approval fixture and shared helper writes a valid brief@v1 per node beside its graph
+      (at least the fixture helper in packages/cli/test/graph/approve.test.ts and its positive cases, and the
+      approvals in packages/cli/test/judge.test.ts, plan.test.ts, run.test.ts, packages/face/test/verb.test.ts,
+      packages/runner/test/runnerCommits.test.ts, and graph 0058's citedApproval.test.ts and planPublish.test.ts);
+      a missing or malformed brief survives only as a separate negative case.
+      Tests in packages/cli/test/briefsBeforeApproval.test.ts:
+      - a graph with a valid brief@v1 per node is approved;
+      - a missing brief, a brief@v0 brief, a brief naming another node or graph, and a brief whose context_scope names
+        an untracked path are each refused at approve with their line and no receipt;
+      - the same brief broken after approval is refused at run with no session, lease or worktree.
+      Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
+    gates:
+      - id: briefs-before-approval-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/briefsBeforeApproval.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'

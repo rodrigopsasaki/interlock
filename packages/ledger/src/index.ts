@@ -28,7 +28,7 @@ export {
 } from "./debrief.ts";
 export type { DebriefKind } from "./debriefKind.ts";
 export { DEBRIEF_KINDS, debriefKindsPresent, isDebriefKind } from "./debriefKind.ts";
-export type { Derivation } from "./derivation.ts";
+export type { DelegatedDerivation, Derivation } from "./derivation.ts";
 export { derivation, isDerivation } from "./derivation.ts";
 export type { Disposition } from "./disposition.ts";
 export { isDisposition } from "./disposition.ts";
