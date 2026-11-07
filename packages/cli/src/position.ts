@@ -25,6 +25,7 @@ import {
 import {
   type ChosenBy,
   explainScopeRefusal,
+  fileScope,
   type LedgerProjection,
   leaseIsLive,
   readReplay,
@@ -220,7 +221,7 @@ async function graphLoad(repoRoot: string, graphId: string): Promise<GraphLoad> 
   if (isErr(document)) {
     return { graph: graphId, state: "unreadable", because: explainGraphRefusal(document.error) };
   }
-  const contentHash = await receiptId(repoRoot, [relative(repoRoot, path)], "approved");
+  const contentHash = await receiptId(repoRoot, fileScope([relative(repoRoot, path)]), "approved");
   if (isErr(contentHash)) {
     return { graph: graphId, state: "unreadable", because: explainScopeRefusal(contentHash.error) };
   }

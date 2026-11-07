@@ -39,6 +39,7 @@ import {
   proposeGateMove,
   type Receipt,
   retainOutboxArtifact,
+  type ScopeInput,
   type ScopeRefusal,
   spend,
 } from "ledger";
@@ -93,7 +94,7 @@ export interface GateJudgeRequest {
   readonly commandFor: ReadonlyMap<string, GateCommand>;
   readonly worktree: string;
   readonly scopeRoot: string;
-  readonly scopePaths: readonly string[];
+  readonly scopePaths: ScopeInput;
   readonly commitSha: string;
   readonly runnerId: string;
   readonly holdMs: number;

@@ -15,6 +15,7 @@ import {
   derivation,
   duration,
   explainScopeRefusal,
+  fileScope,
   gate,
   type Node,
   nodeKey,
@@ -90,7 +91,7 @@ export async function runGraphApprove(
   const commitSha = await currentCommitSha(repoRoot);
   const receipt = await createReceipt(
     repoRoot,
-    [relative(repoRoot, path)],
+    fileScope([relative(repoRoot, path)]),
     "approved",
     commitSha,
     spend.none(),

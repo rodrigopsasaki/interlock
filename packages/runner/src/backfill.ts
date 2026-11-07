@@ -11,7 +11,7 @@ import { noneClient } from "substrate";
 import { declaredGateIds, gateCommandTable } from "./gateCommand.ts";
 import { explainGateJudgeRefusal, type GateJudgeRefusal, judgeGates } from "./gateJudge.ts";
 import { type MachineAttempt, resolveMachine } from "./machineProvider.ts";
-import { gitTrackedFiles } from "./scope.ts";
+import { gitScope } from "./scope.ts";
 import { buildBrief } from "./sessionBrief.ts";
 import type { StandingGate } from "./standingGates.ts";
 import {
@@ -130,7 +130,8 @@ export async function backfillGraph(
   }
 
   const runnerId = `backfill-${randomUUID()}`;
-  const scopePaths = gitTrackedFiles(worktreePath);
+  const scope = gitScope(worktreePath);
+  const scopePaths = scope.map((entry) => entry.path);
   const ordered = topologicalOrder(document.nodes);
   const candidates: readonly NodeDeclaration[] = isOk(ordered) ? ordered.value : document.nodes;
 
@@ -182,7 +183,7 @@ export async function backfillGraph(
       commandFor: gateCommandTable(standingGates, declaration.gates),
       worktree: worktreePath,
       scopeRoot: worktreePath,
-      scopePaths,
+      scopePaths: scope,
       commitSha: mainSha,
       runnerId,
       holdMs: HOLD_MS,

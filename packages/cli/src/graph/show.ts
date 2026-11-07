@@ -12,7 +12,7 @@ import {
   renderPosition,
   sharedJournalDirectory,
 } from "face";
-import { explainScopeRefusal, readReplay, receiptId } from "ledger";
+import { explainScopeRefusal, fileScope, readReplay, receiptId } from "ledger";
 import type { Runtime } from "runner";
 import { liveSessionsOf, resolveAgentStatuses } from "../herdrStatus.ts";
 import type { CommandResult } from "../main.ts";
@@ -58,7 +58,7 @@ export async function runGraphShow(
     };
   }
 
-  const contentHash = await receiptId(repoRoot, [relative(repoRoot, path)], "approved");
+  const contentHash = await receiptId(repoRoot, fileScope([relative(repoRoot, path)]), "approved");
   if (isErr(contentHash)) {
     return { exitCode: 1, message: explainScopeRefusal(contentHash.error) };
   }
