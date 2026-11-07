@@ -1,0 +1,392 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/positions@v2.json",
+  "title": "positions@v2",
+  "description": "Adds account provider and chosenBy to live attempts and accepts position@v3 node attempts. Earlier versions retain their schemas; historical attribution reads unknown and unrecorded.",
+  "type": "object",
+  "properties": {
+    "interlock": {
+      "const": "positions@v2"
+    },
+    "repositories": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/repository"
+      }
+    }
+  },
+  "required": [
+    "interlock",
+    "repositories"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "repository": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "asked": {
+              "type": "string"
+            },
+            "state": {
+              "const": "found"
+            },
+            "root": {
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/origin"
+            },
+            "journal": {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "const": "read"
+                }
+              },
+              "required": [
+                "state"
+              ],
+              "additionalProperties": false
+            },
+            "graphs": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/graph"
+              }
+            },
+            "live": {
+              "description": "Every session across all graphs whose lease is live, so a face can show who is in a pane without a second read.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/liveAttempt"
+              }
+            }
+          },
+          "required": [
+            "asked",
+            "state",
+            "root",
+            "journal",
+            "graphs",
+            "live"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "asked": {
+              "type": "string"
+            },
+            "state": {
+              "const": "found"
+            },
+            "root": {
+              "type": "string"
+            },
+            "origin": {
+              "$ref": "#/$defs/origin"
+            },
+            "journal": {
+              "description": "The journal did not read. line is the journal line that failed, absent when the file itself could not be read.",
+              "type": "object",
+              "properties": {
+                "state": {
+                  "const": "unreadable"
+                },
+                "line": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "because": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "state",
+                "because"
+              ],
+              "additionalProperties": false
+            },
+            "graphs": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/graph"
+              }
+            }
+          },
+          "required": [
+            "asked",
+            "state",
+            "root",
+            "journal",
+            "graphs"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "asked": {
+              "type": "string"
+            },
+            "state": {
+              "const": "not-found"
+            },
+            "because": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "asked",
+            "state",
+            "because"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "origin": {
+      "description": "Absent when the repository sets no origin. Identified carries the origin with any credentials stripped; unidentified says why it could not be named.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "const": "identified"
+            },
+            "url": {
+              "type": "string"
+            },
+            "owner": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "state",
+            "url",
+            "owner",
+            "name"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "const": "unidentified"
+            },
+            "because": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "state",
+            "because"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "graph": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "graph": {
+              "type": "string"
+            },
+            "state": {
+              "const": "read"
+            },
+            "position": {
+              "description": "Additive within positions@v0: a read emits position@v2 since landed gained partly-reverted-on-main; a read produced before that carries position@v1, which still validates here.",
+              "oneOf": [
+                {
+                  "$ref": "https://github.com/rodrigopsasaki/interlock/schemas/position@v1.json"
+                },
+                {
+                  "$ref": "https://github.com/rodrigopsasaki/interlock/schemas/position@v2.json"
+                },
+                {
+                  "$ref": "https://github.com/rodrigopsasaki/interlock/schemas/position@v3.json"
+                }
+              ]
+            }
+          },
+          "required": [
+            "graph",
+            "state",
+            "position"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "graph": {
+              "type": "string"
+            },
+            "state": {
+              "const": "unreadable"
+            },
+            "because": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "graph",
+            "state",
+            "because"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "liveAttempt": {
+      "type": "object",
+      "properties": {
+        "graph": {
+          "type": "string"
+        },
+        "node": {
+          "type": "string"
+        },
+        "session": {
+          "type": "string"
+        },
+        "role": {
+          "description": "The role the session was briefed with; absent when its brief named none of the closed set.",
+          "enum": [
+            "scout",
+            "planner",
+            "implementer",
+            "tester",
+            "reviewer",
+            "verifier"
+          ]
+        },
+        "runtime": {
+          "$ref": "parts/session-runtime-v1.json"
+        },
+        "agentStatus": {
+          "description": "What the runtime reports for the session's pane; unknown when it reported nothing.",
+          "enum": [
+            "idle",
+            "working",
+            "blocked",
+            "done",
+            "unknown"
+          ]
+        },
+        "pane": {
+          "$ref": "#/$defs/pane"
+        },
+        "startedAt": {
+          "$ref": "#/$defs/startedAt"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "chosenBy": {
+          "$ref": "parts/chosen-by.json"
+        }
+      },
+      "required": [
+        "graph",
+        "node",
+        "session",
+        "runtime",
+        "agentStatus",
+        "pane",
+        "startedAt",
+        "provider",
+        "chosenBy"
+      ],
+      "additionalProperties": false
+    },
+    "pane": {
+      "description": "Where the runtime shows the session. The address is opaque: no reader parses it. Unknown when the runtime offers no observation, the observation failed, or it lists no agent or no pane for the session.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "const": "known"
+            },
+            "address": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "state",
+            "address"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "const": "unknown"
+            },
+            "because": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "state",
+            "because"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "startedAt": {
+      "description": "The runner clock's epoch-millisecond wall time when it appended session-started. Unknown for historical and backfilled sessions, which recorded none; never inferred from a lease, narration or a file time, and kept when the runtime is unavailable.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "const": "known"
+            },
+            "epochMs": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "state",
+            "epochMs"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "const": "unknown"
+            },
+            "because": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "state",
+            "because"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}
