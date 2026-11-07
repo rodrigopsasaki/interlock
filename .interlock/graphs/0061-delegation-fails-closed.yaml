@@ -1,0 +1,63 @@
+interlock: graph@v0
+id: 0061-delegation-fails-closed
+arc: every-ask-is-an-arc
+ask: A delegated clearance stops counting whenever Interlock cannot show that its graph content is unchanged, and the delegation refusals name the owner instead of assuming a pronoun.
+derivation:
+  kind: model
+  model: gilb (Claude)
+  prompt: delegation-fails-closed-2026-11-07
+authorization:
+  granted_by: Rodrigo Sasaki
+  mandate: loom-feed-2026-11-04  # "You're free to do changes on phyxius and interlock too", 23:25 UTC
+  approver: Rodrigo Sasaki; Gilb relays the recorded approval and coordinates cleared-node merges. The cross-vendor vet is advisory.
+read: >
+  Arc: every-ask-is-an-arc (.interlock/arcs.yaml). Rodrigo, 2026-11-06 19:28 UTC, after being handed pull-request and
+  commit lines to paste: "why am I being asked to do these? ... This is exactly the type of thing I don't want to have
+  to do." Graph 0058-cited-delegation answered it; its node approve-for-the-owner landed on main as interlock #109
+  (45374e2). Reading that landing showed two defects this graph closes.
+
+  1. Fail-open stale check. packages/runner/src/gateJudge.ts:208-215 hashes the graph file to compare a delegated
+  clearance's bound contentHash with the current graph; when that read fails it sets currentGraphHash to undefined,
+  and both stale checks (gateJudge.ts:223-228 and the final view at :312-324) are skipped when it is undefined. A
+  delegated clearance therefore keeps counting exactly when Interlock cannot show its content is unchanged. A cite is
+  bound to one act on one content (0058's acceptance), so an unreadable graph must hold the delegated clearance, never
+  keep it. A clearance with no contentHash (an owner's own clearance, not delegated) is unaffected.
+
+  2. Gendered refusal. packages/cli/src/delegation.ts:99, :115, :152 and :167 word refusals as "only on his own
+  words" and "this cite is not his". Interlock is vendor- and person-neutral (AGENTS.md, the wall): the refusal
+  names the configured owner instead, e.g. "only on <owner>'s own words; this cite is not <owner>'s", using the
+  owner string these functions already receive.
+
+  Every attempt opens with: run one heavy command at a time, never several in parallel or in the background; never
+  pipe a test runner into head or tail.
+
+gates:
+  - id: approved
+    kind: human
+
+nodes:
+  - id: fails-closed
+    role: implementer
+    depends_on: []
+    acceptance: |
+      gateJudge holds every delegated human clearance (a satisfied human gate whose receipt derivation carries a
+      contentHash) when the current graph file cannot be read or hashed: the gate moves back to pending with the same
+      move and narration a stale clearance gets today, and the final view reports it pending. A readable graph keeps
+      today's behavior exactly (equal hash counts, different hash holds), and a clearance without a contentHash is
+      never held by this rule. The refusal lines in packages/cli/src/delegation.ts name the owner they are given and
+      carry no gendered pronoun; no "his", "her", "him" or "she"/"he" remains in any delegation refusal.
+      Tests:
+      - packages/runner/test/gateJudge.test.ts: a delegated clearance with the graph file removed (and, separately,
+        unreadable) is held pending with the stale narration; the same clearance with an unchanged graph still counts;
+        an owner's own clearance (no contentHash) still counts with the graph file removed;
+      - packages/cli/test/citedApproval.test.ts: each refusal names the configured owner and matches no gendered
+        pronoun.
+    gates:
+      - id: fail-closed-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/gateJudge.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: neutral-refusal-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/citedApproval.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
