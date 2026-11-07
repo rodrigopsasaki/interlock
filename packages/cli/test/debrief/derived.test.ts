@@ -10,6 +10,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
+import { EVENT_SHAPE, envelopeFor, sessionRuntime, upcastTable } from "ledger";
 import { afterEach, describe, expect, it } from "vitest";
 import { fixtureGit, initFixtureRepository } from "../../../../test/support/gitFixture.ts";
 import { runDebriefFileDerived, runDebriefPrepare } from "../../src/debrief/derived.ts";
@@ -117,6 +118,42 @@ function prepareArgs(candidate: string, nodeId = node): readonly string[] {
 }
 
 describe("interlock debrief derived handoff", () => {
+  it.each([...upcastTable.keys()])("prepares from a session-started line at %s", async (tag) => {
+    const source = fixture();
+    const candidate = join(source.sessionPath, "candidate.yaml");
+    const start = {
+      session: {
+        id: session,
+        node: { graph, id: node },
+        runtime: sessionRuntime.declared("profile", "fake", "model", {
+          provider: "account",
+          chosenBy: { kind: "explicit" },
+        }),
+      },
+      brief: { graph, node, role: "worker", acceptance: "work", gates: [], scope: [] },
+      graphBaseSha: source.base,
+    };
+    const current = envelopeFor({ kind: "session-started", ...start });
+    const line =
+      tag === EVENT_SHAPE
+        ? current
+        : {
+            ...current,
+            interlock: tag,
+            session: { ...start.session, runtime: "unknown" },
+          };
+    const journal = join(source.root, ".interlock", "ledger", "journal.jsonl");
+    const bytes = `${JSON.stringify({ interlock: "event@v1", kind: "node-created", node: { graph, id: node } })}\n${JSON.stringify(line)}\n`;
+    writeFileSync(journal, bytes);
+
+    const prepared = await runDebriefPrepare(prepareArgs(candidate), { cwd: source.root });
+
+    expect(prepared.exitCode, prepared.message).toBe(0);
+    expect(readFileSync(candidate, "utf-8")).toContain(`session_start_sha: ${source.start}`);
+    expect(readFileSync(candidate, "utf-8")).toContain(`head_sha: ${source.start}`);
+    expect(readFileSync(journal, "utf-8")).toBe(bytes);
+  });
+
   it("derives the first candidate and files it without an archive", async () => {
     const source = fixture();
     const candidate = join(source.sessionPath, "candidate.yaml");

@@ -67,7 +67,7 @@ function nodeIn(position: Position, id: string): PositionNode {
 describe("positionOf", () => {
   it("names the shape on every value it produces", () => {
     const position = positionOf(document, fold([]), "some-hash", Date.now());
-    expect(position.interlock).toBe("position@v2");
+    expect(position.interlock).toBe("position@v3");
   });
 
   it("shows a node with no upstream state as ready, and pending gates, when the projection knows nothing", () => {
@@ -905,7 +905,7 @@ describe("the line: where a graph stands, in one sentence and one voice", () => 
       const schema: unknown = JSON.parse(readFileSync(join(repoRoot, "schemas", path), "utf-8"));
       collect(schema);
     };
-    collectFile("position@v2.json");
+    collectFile("position@v3.json");
     const known = new Set([
       ...acceptedForms(harnessVocabulary(repoRoot)),
       ...positionWords,

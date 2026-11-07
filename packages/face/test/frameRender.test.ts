@@ -171,7 +171,7 @@ describe("frames over the real bootstrap graph", () => {
       "  receipt-idempotent — pending",
       "",
       "attempts:",
-      `  ${LIVE_SESSION} — runtime unknown, outcome no outcome yet, live lease, agent working`,
+      `  ${LIVE_SESSION} — runtime unknown, provider unknown, chosen-by unrecorded, outcome no outcome yet, live lease, agent working`,
     ]);
 
     const onAttempt = renderNodeFrame(runner, 2);

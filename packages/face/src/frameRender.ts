@@ -1,4 +1,4 @@
-import type { PositionAttempt } from "./attempts.ts";
+import { liveOrLatestAttempt, type PositionAttempt } from "./attempts.ts";
 import { HELP_TEXT } from "./helpText.ts";
 import { renderAgo } from "./leaseState.ts";
 import { renderLine } from "./line.ts";
@@ -74,6 +74,9 @@ export function renderGraphFrame(position: Position, index: number): string {
         ? "gates: none declared"
         : `gates: ${node.gates.map((entry) => `${entry.id} ${entry.state.kind}`).join(", ")}`;
     lines.push(`      ${gateLine}`);
+    const attempt = liveOrLatestAttempt(node.attempts, isLiveAttempt);
+    if (attempt !== undefined)
+      lines.push(`      runtime: ${renderSessionRuntime(attempt.runtime)}`);
     if (node.float.kind === "measured") {
       lines.push(`      float: ${Math.round(node.float.ms)}ms`);
     }

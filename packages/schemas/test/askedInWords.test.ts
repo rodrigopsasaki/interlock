@@ -44,7 +44,7 @@ describe("notes@v0: question", () => {
   });
 });
 
-describe("position@v2: asking, produced by the real positionOf", () => {
+describe("position@v3: asking, produced by the real positionOf", () => {
   const document = unwrap(
     loadGraphDocumentText(
       ["interlock: graph@v0", "id: g", "nodes:", "  - id: a", ""].join("\n"),
@@ -80,8 +80,8 @@ describe("position@v2: asking, produced by the real positionOf", () => {
     const silent = positionOf(document, fold(events()), "h", now, () => "blocked");
     expect(asked.nodes[0]?.attempts[0]?.asking?.asked).toBe("Merge now?");
     expect(silent.nodes[0]?.attempts[0]?.asking?.asked).toBeNull();
-    expect(valid("position@v2", asked)).toBe(true);
-    expect(valid("position@v2", silent)).toBe(true);
+    expect(valid("position@v3", asked)).toBe(true);
+    expect(valid("position@v3", silent)).toBe(true);
   });
 
   it("refuses asking on an attempt that is not blocked", () => {
@@ -102,7 +102,7 @@ describe("position@v2: asking, produced by the real positionOf", () => {
     const [attempt] = first?.attempts ?? [];
     if (first === undefined || attempt === undefined) throw new Error("no attempt");
     expect(
-      valid("position@v2", {
+      valid("position@v3", {
         ...position,
         nodes: [{ ...first, attempts: [{ ...attempt, agentStatus: "working" }] }],
       }),

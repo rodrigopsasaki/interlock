@@ -1740,6 +1740,8 @@ describe("interlock run: --runtime selection", () => {
       name: "luna",
       kind: "codex",
       model: "luna-model",
+      provider: "unknown",
+      chosenBy: { kind: "explicit" },
     });
   }, 30_000);
 
@@ -1806,6 +1808,11 @@ describe("interlock run: --runtime selection", () => {
       name: "luna",
       kind: "codex",
       model: "luna-model",
+      provider: "unknown",
+      chosenBy: {
+        kind: "fallback",
+        because: 'no routable profile; used default_runtime "luna"',
+      },
     });
   }, 30_000);
 
@@ -1831,6 +1838,11 @@ describe("interlock run: --runtime selection", () => {
       name: "default",
       kind: "claude",
       model: undefined,
+      provider: "unknown",
+      chosenBy: {
+        kind: "fallback",
+        because: "no routable profile; used the legacy default resolution",
+      },
     });
   }, 30_000);
 });

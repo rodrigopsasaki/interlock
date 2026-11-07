@@ -875,12 +875,13 @@ No vocabulary entry for `event`.
 - `event@v7`: retyped `kind`.
 - `event@v8`: no field changes from the previous version.
 - `event@v9`: retyped `kind`.
+- `event@v10`: no field changes from the previous version.
 
-### Fields (`event@v9`)
+### Fields (`event@v10`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `interlock` | the literal `"event@v9"` | yes |  |
+| `interlock` | the literal `"event@v10"` | yes |  |
 | `kind` | one of `"node-created"`, `"lease-taken"`, `"lease-renewed"`, `"lease-expired"`, `"session-started"`, `"note-appended"`, `"debrief-filed"`, `"gate-moved"`, `"receipt-written"`, `"outcome-set"`, `"outbox-intent-recorded"`, `"outbox-delivery-recorded"`, `"session-narrated"`, `"session-facts-observed"`, `"person-said"` | yes |  |
 
 ### Examples
@@ -932,6 +933,10 @@ _No example of `event@v8` was found in the corpus._
 #### `event@v9`
 
 _No example of `event@v9` was found in the corpus._
+
+#### `event@v10`
+
+_No example of `event@v10` was found in the corpus._
 
 ## graph
 
@@ -1029,12 +1034,13 @@ No vocabulary entry for `local`.
 ### Versions
 
 - `local@v0`: the first version.
+- `local@v1`: added `provider_order` (optional); added `last_resort` (optional).
 
-### Fields (`local@v0`)
+### Fields (`local@v1`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `interlock` | the literal `"local@v0"` | yes |  |
+| `interlock` | the literal `"local@v1"` | yes |  |
 | `runtime` | object | yes | fields: kind (string, required); args (array of string, optional); startup_answers (array of startup-answer, optional); startup_timeout_ms (number, optional); prompt_taken_timeout_ms (number, optional); ready_settle_ms (number, optional); prompt_retries (number, optional); writable_root_args (writable-root-args, optional) |
 | `default_runtime` | string | no |  |
 | `worktree_root` | string | yes |  |
@@ -1043,6 +1049,8 @@ No vocabulary entry for `local`.
 | `run_timeout_ms` | number | yes |  |
 | `answer_grace_ms` | number | no |  |
 | `substrate` | object | yes | fields: address (string, required); handle (string, optional); key_file (string, optional); send_repository (boolean, optional) |
+| `provider_order` | array of string matching `\S` | no |  |
+| `last_resort` | string matching `\S` | no |  |
 
 ### Examples
 
@@ -1117,6 +1125,10 @@ substrate:
   # send_repository: false
 ```
 
+#### `local@v1`
+
+_No example of `local@v1` was found in the corpus._
+
 ## machine
 
 No vocabulary entry for `machine`.
@@ -1190,12 +1202,13 @@ The current read of a graph, composed above the stream.
 
 - `position@v1`: the first version.
 - `position@v2`: retyped `done`.
+- `position@v3`: no field changes from the previous version.
 
-### Fields (`position@v2`)
+### Fields (`position@v3`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `interlock` | the literal `"position@v2"` | yes |  |
+| `interlock` | the literal `"position@v3"` | yes |  |
 | `graph` | string | yes |  |
 | `ask` | string | no | Additive within position@v1: the graph file's ask, verbatim, so no face reads the graph file beside the position. Absent when the graph declares none. |
 | `approval` | one of `"approved"`, `"stale"`, `"not-approved"` | yes |  |
@@ -1216,6 +1229,10 @@ _No example of `position@v1` was found in the corpus._
 
 _No example of `position@v2` was found in the corpus._
 
+#### `position@v3`
+
+_No example of `position@v3` was found in the corpus._
+
 ## positions
 
 No vocabulary entry for `positions`.
@@ -1224,12 +1241,13 @@ No vocabulary entry for `positions`.
 
 - `positions@v0`: the first version.
 - `positions@v1`: no field changes from the previous version.
+- `positions@v2`: no field changes from the previous version.
 
-### Fields (`positions@v1`)
+### Fields (`positions@v2`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `interlock` | the literal `"positions@v1"` | yes |  |
+| `interlock` | the literal `"positions@v2"` | yes |  |
 | `repositories` | array of repository | yes | `?`: asked, state, root, origin (optional), journal, graphs, live; `?`: asked, state, root, origin (optional), journal, graphs; `?`: asked, state, because |
 
 ### Examples
@@ -1241,6 +1259,10 @@ _No example of `positions@v0` was found in the corpus._
 #### `positions@v1`
 
 _No example of `positions@v1` was found in the corpus._
+
+#### `positions@v2`
+
+_No example of `positions@v2` was found in the corpus._
 
 ## queue
 
@@ -1292,12 +1314,13 @@ No vocabulary entry for `runtimes`.
 
 - `runtimes@v0`: the first version.
 - `runtimes@v1`: retyped `runtimes`.
+- `runtimes@v2`: retyped `runtimes`.
 
-### Fields (`runtimes@v1`)
+### Fields (`runtimes@v2`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `interlock` | the literal `"runtimes@v1"` | yes |  |
+| `interlock` | the literal `"runtimes@v2"` | yes |  |
 | `runtimes` | object | no |  |
 
 ### Examples
@@ -1307,6 +1330,10 @@ No vocabulary entry for `runtimes`.
 _No example of `runtimes@v0` was found in the corpus._
 
 #### `runtimes@v1`
+
+_No example of `runtimes@v1` was found in the corpus._
+
+#### `runtimes@v2`
 
 Source: `runtimes.example.yaml`
 
@@ -1325,13 +1352,16 @@ Source: `runtimes.example.yaml`
 # used unchanged.
 # For example: writable_root_args: ["--your-writable-root-flag", "{path}"]
 
-interlock: runtimes@v1
+# Set routable: true on one profile per provider to opt into provider routing.
+# Leaving all profiles unmarked preserves default_runtime and the legacy runtime choice.
+interlock: runtimes@v2
 
 runtimes:
   # A name matches ^[a-z][a-z0-9_-]{0,31}$, the same shape herdr accepts for an agent name.
   # Claude Code 2.1.282: these are the repository's recorded unattended flags, with each model
   # label swapped into --model. The startup answer is the trust choice from local.example.yaml.
   sonnet:
+    provider: anthropic
     kind: claude
     args: [--dangerously-skip-permissions, --model, claude-sonnet-5, --strict-mcp-config]
     model: claude-sonnet-5
@@ -1341,6 +1371,7 @@ runtimes:
     startup_timeout_ms: 90000
 
   opus:
+    provider: anthropic
     kind: claude
     args: [--dangerously-skip-permissions, --model, claude-opus-5-5, --strict-mcp-config]
     model: claude-opus-5-5
@@ -1350,6 +1381,7 @@ runtimes:
     startup_timeout_ms: 90000
 
   fable:
+    provider: anthropic
     kind: claude
     args: [--dangerously-skip-permissions, --model, claude-fable-5-1, --strict-mcp-config]
     model: claude-fable-5-1
@@ -1367,6 +1399,7 @@ runtimes:
   # writable_root_args hands codex each directory per attempt, as its own --add-dir, instead of a
   # hard-coded path.
   astra:
+    provider: openai
     kind: codex
     commits: runner
     # Session observation: a hooks-review modal needed SessionStart trust before the opening prompt
@@ -1395,6 +1428,7 @@ runtimes:
     startup_timeout_ms: 90000
 
   terra:
+    provider: openai
     kind: codex
     commits: runner
     # Session observation: a hooks-review modal needed SessionStart trust before the opening prompt
@@ -1423,6 +1457,7 @@ runtimes:
     startup_timeout_ms: 90000
 
   luna:
+    provider: openai
     kind: codex
     commits: runner
     # Session observation: a hooks-review modal needed SessionStart trust before the opening prompt
@@ -1461,6 +1496,7 @@ runtimes:
   # A person restarted the agent in a new pane and re-sent the prompt; --auto does not skip
   # the trust prompt, so the startup answer stays for genuinely fresh roots.
   k3:
+    provider: moonshot
     kind: kimi
     args: [--auto, --model, kimi-code/k3]
     model: kimi-code/k3

@@ -45,7 +45,7 @@ import {
   renderBriefFile,
   renderOpeningView,
   resolveMachine,
-  selectRuntime,
+  routeRuntime,
 } from "runner";
 import { narrateContext } from "substrate";
 import { parseFlag } from "./flags.ts";
@@ -215,13 +215,6 @@ export async function runInterlockPlan(
     };
   }
   const requestedRuntime = parseFlag(args, "--runtime");
-  const agentRuntime = selectRuntime(mergedRuntimes.value, requestedRuntime);
-  if (isErr(agentRuntime)) {
-    return {
-      exitCode: 1,
-      message: explainRuntimeSelectionRefusal(agentRuntime.error),
-    };
-  }
 
   const node = `plan/${graph}`;
   const targetNode = { graph, id: node };
@@ -241,6 +234,18 @@ export async function runInterlockPlan(
   try {
     const recovered = await reconcileMachineOnStart(ledger, clock, narrate, options.runtime);
     if (isErr(recovered)) return { exitCode: 1, message: recovered.error };
+    const agentRuntime = await routeRuntime(
+      mergedRuntimes.value,
+      requestedRuntime,
+      ledger.projection(),
+      localConfig.value,
+    );
+    if (isErr(agentRuntime)) {
+      return {
+        exitCode: 1,
+        message: explainRuntimeSelectionRefusal(agentRuntime.error),
+      };
+    }
     const approvalRefusal = await refuseIfGraphApproved(repoRoot, graph, ledger);
     if (isErr(approvalRefusal)) {
       return { exitCode: 1, message: approvalRefusal.error };

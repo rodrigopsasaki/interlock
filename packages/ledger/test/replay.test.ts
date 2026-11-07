@@ -654,8 +654,8 @@ describe("replay: a person's words enter the journal at event@v9", () => {
     },
   };
 
-  it("names event@v9 as the current shape", () => {
-    expect(EVENT_SHAPE).toBe("event@v9");
+  it("names event@v10 as the current shape", () => {
+    expect(EVENT_SHAPE).toBe("event@v10");
   });
 
   it("derives the same outbox identity from the same words, and a new one from new words", () => {
@@ -697,7 +697,7 @@ describe("replay: a person's words enter the journal at event@v9", () => {
     await ledger.close();
 
     const raw = readFileSync(join(directory, "journal.jsonl"), "utf-8");
-    expect(raw).toContain('"interlock":"event@v9","kind":"person-said"');
+    expect(raw).toContain(`"interlock":"${EVENT_SHAPE}","kind":"person-said"`);
     const replayed = replayFromRaw(raw);
     expect(replayed._tag).toBe("Ok");
     if (replayed._tag !== "Ok") return;

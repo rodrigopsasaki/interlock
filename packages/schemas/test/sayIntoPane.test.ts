@@ -37,7 +37,7 @@ const answered = personSaid({
 });
 const bare = personSaid({ session: "s", by: "Rodrigo Sasaki", text: "go on", at: now });
 
-describe("isPersonSaid / parts/person-said.json (the event@v9 person-said)", () => {
+describe("isPersonSaid / parts/person-said.json (the event@v10 person-said)", () => {
   it("agree on a said with and without the question it answers", () => {
     for (const value of [answered, bare]) {
       expect(isPersonSaid(value)).toBe(true);
@@ -54,14 +54,14 @@ describe("isPersonSaid / parts/person-said.json (the event@v9 person-said)", () 
     }
   });
 
-  it("validate a person-said line at event@v9 and refuse it tagged event@v8", () => {
+  it("validate a person-said line at event@v10 and refuse it tagged event@v8", () => {
     const line: LedgerEvent = { kind: "person-said", session: "s", said: answered };
     expect(isLedgerEvent(envelopeFor(line))).toBe(true);
-    expect(valid("event@v9", envelopeFor(line))).toBe(true);
+    expect(valid("event@v10", envelopeFor(line))).toBe(true);
     expect(valid("event@v8", { ...line, interlock: "event@v8" })).toBe(false);
   });
 
-  it("validate a delivery recorded under a said's outbox identity at event@v9", () => {
+  it("validate a delivery recorded under a said's outbox identity at event@v10", () => {
     const delivery: LedgerEvent = {
       kind: "outbox-delivery-recorded",
       delivery: {
@@ -71,11 +71,11 @@ describe("isPersonSaid / parts/person-said.json (the event@v9 person-said)", () 
         derivation: derivation.gate("outbox", "runner@0", "interlock session say"),
       },
     };
-    expect(valid("event@v9", envelopeFor(delivery))).toBe(true);
+    expect(valid("event@v10", envelopeFor(delivery))).toBe(true);
   });
 });
 
-describe("position@v2: heard and an open question's because, produced by the real positionOf", () => {
+describe("position@v3: heard and an open question's because, produced by the real positionOf", () => {
   const document = unwrap(
     loadGraphDocumentText(
       ["interlock: graph@v0", "id: g", "nodes:", "  - id: a", ""].join("\n"),
@@ -122,7 +122,7 @@ describe("position@v2: heard and an open question's because, produced by the rea
     const attempt = position.nodes[0]?.attempts[0];
     expect(attempt?.heard).toEqual({ by: "Rodrigo Sasaki", text: "yes", at: now });
     expect(attempt?.asking?.asked).toBeNull();
-    expect(valid("position@v2", position)).toBe(true);
+    expect(valid("position@v3", position)).toBe(true);
   });
 
   it("validates an open question that says its answer's delivery is uncertain", () => {
@@ -131,6 +131,6 @@ describe("position@v2: heard and an open question's because, produced by the rea
     expect(attempt).not.toHaveProperty("heard");
     expect(attempt?.asking?.asked).toBe("Merge now?");
     expect(attempt?.asking?.because).toContain("is not known to have reached the pane");
-    expect(valid("position@v2", position)).toBe(true);
+    expect(valid("position@v3", position)).toBe(true);
   });
 });

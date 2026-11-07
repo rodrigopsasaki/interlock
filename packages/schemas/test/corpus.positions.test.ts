@@ -11,7 +11,10 @@ const document: GraphDocument = {
   nodes: [{ id: "a", dependsOn: [], gates: [] }],
 };
 
-const position = positionOf(document, emptyProjection(), "content-hash", Date.now());
+const position = {
+  ...positionOf(document, emptyProjection(), "content-hash", Date.now()),
+  interlock: "position@v2",
+};
 
 const readRepository = {
   asked: "/repo",

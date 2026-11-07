@@ -131,11 +131,21 @@ export {
 } from "./replay.ts";
 export type { NodeRole } from "./role.ts";
 export { isNodeRole, NODE_ROLES, parseNodeRole } from "./role.ts";
-export type { Session, SessionRuntime, SessionStartedAt } from "./session.ts";
+export type {
+  CandidateReading,
+  ChosenBy,
+  ProviderHeadroom,
+  Session,
+  SessionRuntime,
+  SessionStartedAt,
+} from "./session.ts";
 export {
+  isChosenBy,
   isEpochMs,
+  isProviderHeadroom,
   isSession,
   isSessionRuntime,
+  runtimeAttribution,
   sessionRuntime,
   sessionStartedAt,
   UNRECORDED_START,
