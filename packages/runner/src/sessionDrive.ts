@@ -53,6 +53,7 @@ import { type UnfinishedWork, waitForSession } from "./sessionWait.ts";
 import type { StandingGate } from "./standingGates.ts";
 import { matchesScreen } from "./startupAnswers.ts";
 import {
+  baseHoldsGraph,
   commitBriefIfChanged,
   ensureNodeWorktree,
   explainWorktreeRefusal,
@@ -274,6 +275,15 @@ export async function driveInteractiveSession(
       };
     }
     const graphBaseSha = worktree.value.base;
+
+    if (role !== "interpreter") {
+      const graphAtBase = baseHoldsGraph(repoRoot, graphBaseSha, graph, node);
+      if (isErr(graphAtBase)) {
+        const message = explainWorktreeRefusal(graphAtBase.error);
+        narrate(message);
+        return { exitCode: 1, message };
+      }
+    }
 
     if (afterWorktree !== undefined) {
       const checked = await afterWorktree(worktreePath);

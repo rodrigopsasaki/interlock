@@ -13,6 +13,12 @@ export type WorktreeRefusal =
       readonly kind: "dirty-behind-base";
       readonly branch: string;
       readonly paths: number;
+    }
+  | {
+      readonly kind: "base-predates-graph";
+      readonly base: string;
+      readonly graph: string;
+      readonly node: string;
     };
 
 export function explainWorktreeRefusal(refusal: WorktreeRefusal): string {
@@ -21,6 +27,8 @@ export function explainWorktreeRefusal(refusal: WorktreeRefusal): string {
       return `git ${refusal.command.join(" ")}: ${refusal.because}`;
     case "dirty-behind-base":
       return `branch "${refusal.branch}" is behind its base with ${refusal.paths} uncommitted path(s); refusing to reset over them.`;
+    case "base-predates-graph":
+      return `this worktree's base (${refusal.base.slice(0, 7)}) predates graph ${refusal.graph}; merge main into graph/${refusal.graph}/${refusal.node} and run again`;
   }
 }
 
@@ -51,6 +59,18 @@ function git(cwd: string, args: readonly string[]): Result<string, WorktreeRefus
       command: args,
       because: error instanceof Error ? error.message : String(error),
     });
+  }
+}
+
+function gitPathExistsAtCommit(repoRoot: string, path: string): boolean {
+  try {
+    execFileSync("git", ["cat-file", "-e", path], {
+      cwd: repoRoot,
+      stdio: ["ignore", "ignore", "ignore"],
+    });
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -98,6 +118,18 @@ export function uncommittedPaths(
 export function worktreeHead(worktree: string): Result<string, WorktreeRefusal> {
   const head = git(worktree, ["rev-parse", "HEAD"]);
   return isErr(head) ? head : ok(head.value.trim());
+}
+
+export function baseHoldsGraph(
+  repoRoot: string,
+  base: string,
+  graph: string,
+  node: string,
+): Result<void, WorktreeRefusal> {
+  const graphPath = `${base}:.interlock/graphs/${graph}.yaml`;
+  return gitPathExistsAtCommit(repoRoot, graphPath)
+    ? ok(undefined)
+    : err({ kind: "base-predates-graph", base, graph, node });
 }
 
 export function resetCommits(worktree: string, head: string): Result<string, WorktreeRefusal> {

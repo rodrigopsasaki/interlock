@@ -107,7 +107,12 @@ export async function backfillGraph(
   const created = createDetachedWorktree(repoRoot, worktreePath, mainSha);
   if (isErr(created)) return err({ kind: "worktree", refusal: created.error });
 
-  const installed = await runSetupCommand("pnpm install", worktreePath, env, machine.value.heavy);
+  const installed = await runSetupCommand(
+    "pnpm install --config.confirmModulesPurge=false",
+    worktreePath,
+    env,
+    machine.value.heavy,
+  );
   if (isErr(installed)) {
     removeWorktree(repoRoot, worktreePath);
     return err({ kind: "worktree-setup", refusal: installed.error });
