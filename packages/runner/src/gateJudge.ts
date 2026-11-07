@@ -226,6 +226,10 @@ export async function judgeGates(
         current.receipt.derivation.kind === "human" &&
         "contentHash" in current.receipt.derivation &&
         current.receipt.derivation.contentHash !== currentGraphHash;
+      if (staleDelegated) {
+        const moved = proposeGateMove(declaredGateIds, gateId, current, gate.pending());
+        if (isOk(moved)) ledger.append({ kind: "gate-moved", node, gate: gateId, to: moved.value });
+      }
       if (staleDelegated || (current.kind !== "satisfied" && current.kind !== "waived")) {
         narrate(`${gateId}: awaits a person`);
       }

@@ -21,3 +21,11 @@ entries:
     at: "2026-11-07T15:16:00Z"
     expected: Receipt retract's first three arguments would remain positional after flags.
     observed: The command parser initially treated --by and its value as node and gate; it now stops positional parsing at the first option and the focused retraction test passes.
+  - kind: surprise
+    at: "2026-11-07T15:20:36Z"
+    expected: The existing runner gate-judge fixture would retain only its declared command output bytes under the pinned invocation.
+    observed: mise emitted an operation-not-permitted cache warning into gate stderr in this sandbox, so one legacy output assertion failed for environment noise while the new delegated-staleness test and the other 28 gate-judge tests passed.
+  - kind: choice
+    at: "2026-11-07T15:22:29Z"
+    chose: Keep stale delegated clearance invalidation as a pending gate-moved event and leave ordinary embedded human receipts out of NodeView.receipts.
+    because: This preserves the existing projection contract while making the stale delegated gate observable as pending; the journal still retains the old gate receipt and cite for provenance and one-use checks.

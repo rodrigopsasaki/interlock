@@ -233,15 +233,7 @@ export function applyEvent(projection: LedgerProjection, event: LedgerEvent): Le
       return withNode(projection, event.node, (view) => {
         const gates = new Map(view.gates);
         gates.set(event.gate, event.to);
-        const receipt =
-          event.to.kind === "satisfied" || event.to.kind === "waived"
-            ? event.to.receipt
-            : undefined;
-        const receipts =
-          receipt === undefined || view.receipts.some((candidate) => candidate.id === receipt.id)
-            ? view.receipts
-            : [...view.receipts, receipt];
-        return { ...view, gates, receipts };
+        return { ...view, gates };
       });
     case "receipt-written":
       return withNode(projection, event.node, (view) => ({
