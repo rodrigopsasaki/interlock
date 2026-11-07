@@ -13,20 +13,32 @@ function parseIndexRecord(record: string): ScopeEntry | undefined {
   return mode === GITLINK_MODE ? scopeEntry.gitlink(path, objectId) : scopeEntry.file(path);
 }
 
-export function gitScope(root: string): readonly ScopeEntry[] {
+export function scopeFromIndex(root: string, index: string): readonly ScopeEntry[] {
   const seen = new Set<string>();
   const entries: ScopeEntry[] = [];
-  for (const record of execFileSync("git", ["ls-files", "-s", "-z"], {
-    cwd: root,
-    encoding: "utf-8",
-    maxBuffer: GIT_BUFFER_PAST_EXEC_FILE_SYNC_ONE_MEGABYTE_DEFAULT,
-  }).split("\0")) {
+  for (const record of index.split("\0")) {
+    if (record === "") continue;
     const entry = parseIndexRecord(record);
-    if (entry === undefined || seen.has(entry.path)) continue;
+    if (entry === undefined)
+      throw new Error(
+        `${root}: git ls-files -s printed an index record interlock cannot read, so the scope is refused rather than read without it: ${JSON.stringify(record)}`,
+      );
+    if (seen.has(entry.path)) continue;
     seen.add(entry.path);
     entries.push(entry);
   }
   return entries;
+}
+
+export function gitScope(root: string): readonly ScopeEntry[] {
+  return scopeFromIndex(
+    root,
+    execFileSync("git", ["ls-files", "-s", "-z"], {
+      cwd: root,
+      encoding: "utf-8",
+      maxBuffer: GIT_BUFFER_PAST_EXEC_FILE_SYNC_ONE_MEGABYTE_DEFAULT,
+    }),
+  );
 }
 
 export function gitTrackedFiles(root: string): readonly string[] {
