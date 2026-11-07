@@ -62,10 +62,12 @@ import {
   uncommittedPaths,
   type WorktreeOutcome,
   type WorktreeRefusal,
+  worktreeHead,
   worktreeGitLayout,
 } from "./worktree.ts";
 import { explainWorktreeSetupRefusal, runWorktreeSetup } from "./worktreeSetup.ts";
 import { expandWritableRootArgs } from "./writableRootArgs.ts";
+import { findInheritedSessionStart } from "./sessionRange.ts";
 
 function isoOf(wallMs: number): string {
   return new Date(wallMs).toISOString();
@@ -275,6 +277,21 @@ export async function driveInteractiveSession(
       };
     }
     const graphBaseSha = worktree.value.base;
+    const sessionId = randomUUID();
+    const worktreeHeadSha = worktreeHead(worktreePath);
+    const journalEvents = await readRawEvents(await sharedJournalDirectory(repoRoot));
+    const inherited =
+      isOk(worktreeHeadSha) && isOk(journalEvents)
+        ? findInheritedSessionStart(
+            worktreePath,
+            journalEvents.value,
+            graph,
+            node,
+            graphBaseSha,
+            worktreeHeadSha.value,
+            sessionId,
+          )
+        : { kind: "none" as const, because: "could not inspect the resumed worktree" };
 
     if (role !== "interpreter") {
       const graphAtBase = baseHoldsGraph(repoRoot, graphBaseSha, graph, node);
@@ -293,7 +310,6 @@ export async function driveInteractiveSession(
     }
 
     const gateIds = declaredGateIds(standingGates, nodeGates);
-    const sessionId = randomUUID();
     const brief = buildBrief(graph, node, acceptance, gateIds, gitTrackedFiles(repoRoot), role);
     ledger.append({
       kind: "session-started",
@@ -307,6 +323,12 @@ export async function driveInteractiveSession(
       },
       brief,
       graphBaseSha,
+      ...(inherited.kind === "inherited"
+        ? {
+            inheritedStartSha: inherited.inheritedStartSha,
+            predecessorSession: inherited.predecessorSession,
+          }
+        : {}),
       ...(shape === undefined ? {} : { walk: shape.walk }),
       startedAt: clock.now().wallMs,
     });

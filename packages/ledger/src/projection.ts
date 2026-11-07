@@ -38,6 +38,8 @@ export interface SessionView {
   readonly node: Node;
   readonly brief: Brief;
   readonly graphBaseSha: string | undefined;
+  readonly inheritedStartSha: string | undefined;
+  readonly predecessorSession: string | undefined;
   readonly runtime: SessionRuntime;
   readonly startedAt: SessionStartedAt;
   readonly facts: SessionFacts;
@@ -172,6 +174,8 @@ export function applyEvent(projection: LedgerProjection, event: LedgerEvent): Le
         node: event.session.node,
         brief: event.brief,
         graphBaseSha: event.graphBaseSha,
+        inheritedStartSha: event.inheritedStartSha,
+        predecessorSession: event.predecessorSession,
         runtime: event.session.runtime,
         startedAt: sessionStartedAt(event.startedAt),
         facts: sessionFacts.unknown(),

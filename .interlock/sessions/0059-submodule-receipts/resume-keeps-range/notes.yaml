@@ -1,0 +1,16 @@
+interlock: notes@v0
+graph: 0059-submodule-receipts
+node: resume-keeps-range
+entries:
+  - kind: choice
+    at: "2026-11-07T08:31:45Z"
+    chose: Store resume provenance as optional fields on session-started events and validate it additively.
+    because: Existing event lines must continue to read, while the runner needs to leave a walkable predecessor and effective inherited start for later debrief derivation.
+  - kind: choice
+    at: "2026-11-07T08:34:00Z"
+    chose: Keep the inheritance proof in the runner package and let the CLI debrief derivation call the same proof.
+    because: The runner is the only writer of session-started provenance, while the CLI must independently recheck Git and journal facts before accepting an earlier range; one shared adapter keeps those checks aligned without making ledger own Git policy.
+  - kind: surprise
+    at: "2026-11-07T08:36:00Z"
+    expected: The shared brief reader would return a BriefRead directly, matching the existing session-identity helper's narrowed use.
+    observed: readBriefDocument returns a Result, so the first typecheck rejected the helper before checking the rest of the workspace.
