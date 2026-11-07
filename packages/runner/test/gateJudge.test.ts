@@ -330,6 +330,69 @@ describe("human gates", () => {
     expect(view?.gates.get("witnessed")?.kind).toBe("satisfied");
     expect(view?.receipts.find((receipt) => receipt.gate === "witnessed")).toBeUndefined();
   });
+
+  it("moves a delegated human gate back to pending when its graph content changes", async () => {
+    const root = fixture();
+    const ledger = memoryLedger();
+    const graphPath = join(root, ".interlock", "graphs", "fixture.yaml");
+    mkdirSync(join(root, ".interlock", "graphs"), { recursive: true });
+    writeFileSync(graphPath, "original\n");
+    const boundHash = createHash("sha256").update(readFileSync(graphPath)).digest("hex");
+    const receipt: Receipt = {
+      id: "delegated-clearance",
+      gate: "witnessed",
+      commitSha: "deadbeef",
+      spend: { kind: "none" },
+      duration: { kind: "unknown" },
+      derivation: {
+        kind: "human",
+        who: "Gilb for Rodrigo Sasaki",
+        for: "Rodrigo Sasaki",
+        cite: "said:clear-1",
+        citeKey: "said:clear-1",
+        author: "Rodrigo Sasaki",
+        words: "clear witnessed",
+        at: "2026-11-07T15:00:00Z",
+        reading: "I read the words as clearance",
+        action: "clear",
+        target: { graph: "fixture", node: "n1", gate: "witnessed" },
+        contentHash: boundHash,
+      },
+      proof: {},
+    };
+    ledger.append({ kind: "receipt-written", node, receipt });
+    ledger.append({
+      kind: "gate-moved",
+      node,
+      gate: "witnessed",
+      to: { kind: "satisfied", receipt },
+    });
+    writeFileSync(graphPath, "edited\n");
+
+    const judged = await judgeGates({
+      ledger,
+      clock: createControlledClock(),
+      node,
+      session: "s1",
+      declaredGateIds: ["witnessed"],
+      commandFor: new Map([["witnessed", { kind: "human", run: failCommand }]]),
+      worktree: root,
+      scopeRoot: root,
+      scopePaths: ["content.txt"],
+      commitSha: "deadbeef",
+      runnerId: "run-1",
+      holdMs: 60_000,
+      substrate,
+      narrate: () => {},
+    });
+
+    if (isErr(judged)) throw new Error("expected an outcome");
+    expect(judged.value.kind).toBe("held");
+    expect(ledger.projection().nodes.get(nodeKey(node))?.gates.get("witnessed")).toEqual({
+      kind: "pending",
+    });
+    expect(ledger.projection().nodes.get(nodeKey(node))?.receipts).toContainEqual(receipt);
+  });
 });
 
 describe("gate command placeholders", () => {

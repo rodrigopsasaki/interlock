@@ -11,6 +11,7 @@ export interface MachineProvider {
   readonly release: readonly string[];
   readonly env: readonly string[];
   readonly heavy: readonly string[];
+  readonly cite?: readonly string[];
 }
 
 export interface MachineAttempt {
@@ -50,11 +51,14 @@ export function parseMachine(value: unknown): Result<MachineProvider | "none", s
   const release = prop(provider, "release");
   const env = prop(provider, "env");
   const heavy = prop(provider, "heavy");
+  const cite = prop(provider, "cite");
   if (!argv(admit)) return err("machine.provider.admit must be a nonempty argv of strings");
   if (!argv(release)) return err("machine.provider.release must be a nonempty argv of strings");
   if (!argv(env)) return err("machine.provider.env must be a nonempty argv of strings");
   if (!argv(heavy)) return err("machine.provider.heavy must be a nonempty argv of strings");
-  return ok({ admit, release, env, heavy });
+  if (cite !== undefined && !argv(cite))
+    return err("machine.provider.cite must be a nonempty argv of strings");
+  return ok({ admit, release, env, heavy, ...(cite === undefined ? {} : { cite }) });
 }
 
 export async function loadMachine(
@@ -157,7 +161,7 @@ export function providerArgv(
 ): readonly string[] {
   return command.map((part) =>
     part.replace(
-      /\{(holder|token|pid|pane|workspace|agent|worktree|attempt)\}/g,
+      /\{(holder|token|pid|pane|workspace|agent|worktree|attempt|kind|id)\}/g,
       (match, name: string) => values[name] ?? match,
     ),
   );

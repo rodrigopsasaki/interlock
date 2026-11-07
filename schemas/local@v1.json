@@ -68,6 +68,11 @@
     "answer_grace_ms": {
       "type": "number"
     },
+    "owner_login": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
     "substrate": {
       "type": "object",
       "properties": {

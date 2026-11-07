@@ -16,6 +16,7 @@ import { runNodeCancel } from "./node/cancel.ts";
 import { runNodeReset } from "./node/reset.ts";
 import { runInterlockPlan } from "./plan.ts";
 import { runInterlockPosition } from "./position.ts";
+import { runReceiptRetract } from "./receipt/retract.ts";
 import { runInterlockRun } from "./run.ts";
 import { runRuntimeList } from "./runtime/list.ts";
 import { runSchemaReference } from "./schema/reference.ts";
@@ -91,6 +92,10 @@ export async function run(argv: readonly string[]): Promise<CommandResult> {
 
   if (group === "gate" && action === "clear") {
     return runGateClear(argv.slice(2));
+  }
+
+  if (group === "receipt" && action === "retract") {
+    return runReceiptRetract(argv.slice(2));
   }
 
   if (group === "runtime" && action === "list") {
