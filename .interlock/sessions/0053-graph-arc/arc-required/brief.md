@@ -1121,7 +1121,7 @@ edit it.
 > parsing without admission and never refuse for a missing arc.
 > A graph already approved before this lands and now without an arc is refused at run like any other: the owner
 > gives it an arc in arcs.yaml, and nothing else unblocks it.
-> Every existing positive test of these doors gives its fixture repository an arcs@v1 registry or an arc key,
+> Every existing positive test of these doors gives its fixture repository an arcs@v1 registry holding the resolved arc (a matching arc key on the graph is optional; a key alone never resolves),
 > and every existing plan call passes --arc (at least packages/cli/test/graph/approve.test.ts, run.test.ts,
 > plan.test.ts, judge.test.ts, judgeProvider.test.ts, backfill.test.ts, schema/validate.test.ts and
 > packages/runner/test/backfill.test.ts, backfillMaintenance.test.ts, machineProvider.test.ts,
