@@ -7,7 +7,7 @@ import { parseStartupAnswers, type StartupAnswer } from "./startupAnswers.ts";
 import { isNonNegativeInteger, isRecord, isString, isStringArray, prop } from "./validate.ts";
 import { parseWritableRootArgs, type WritableRootTemplate } from "./writableRootArgs.ts";
 
-export const LOCAL_CONFIG_SHAPE = "local@v0";
+export const LOCAL_CONFIG_SHAPE = "local@v1";
 
 export const DEFAULT_STARTUP_TIMEOUT_MS = 60_000;
 export const DEFAULT_PROMPT_TAKEN_TIMEOUT_MS = 20_000;
@@ -27,6 +27,8 @@ export interface LocalConfig {
     readonly writableRootArgs: WritableRootTemplate | undefined;
   };
   readonly defaultRuntime?: string;
+  readonly providerOrder?: readonly string[];
+  readonly lastResort?: string;
   readonly worktreeRoot: string;
   readonly worktreeSetup: readonly string[];
   readonly leaseMs: number;
@@ -93,7 +95,7 @@ function parseShape(parsed: unknown, path: string): Result<LocalConfig, LocalCon
     });
   }
   const tag = prop(parsed, "interlock");
-  if (tag !== LOCAL_CONFIG_SHAPE) {
+  if (tag !== "local@v0" && tag !== LOCAL_CONFIG_SHAPE) {
     return err({
       kind: "malformed",
       path,
@@ -183,6 +185,24 @@ function parseShape(parsed: unknown, path: string): Result<LocalConfig, LocalCon
       path,
       reason: '"default_runtime" must be a string',
     });
+  }
+
+  const providerOrder = prop(parsed, "provider_order");
+  if (
+    providerOrder !== undefined &&
+    (!isStringArray(providerOrder) ||
+      providerOrder.some((name) => name.trim() === "") ||
+      new Set(providerOrder).size !== providerOrder.length)
+  ) {
+    return err({
+      kind: "malformed",
+      path,
+      reason: '"provider_order" must be a list of distinct nonempty strings',
+    });
+  }
+  const lastResort = prop(parsed, "last_resort");
+  if (lastResort !== undefined && (!isString(lastResort) || lastResort.trim() === "")) {
+    return err({ kind: "malformed", path, reason: '"last_resort" must be a nonempty string' });
   }
 
   const worktreeRoot = prop(parsed, "worktree_root");
@@ -281,6 +301,8 @@ function parseShape(parsed: unknown, path: string): Result<LocalConfig, LocalCon
       writableRootArgs: writableRootArgs.value,
     },
     ...(defaultRuntimeField === undefined ? {} : { defaultRuntime: defaultRuntimeField }),
+    ...(providerOrder === undefined ? {} : { providerOrder }),
+    ...(lastResort === undefined ? {} : { lastResort }),
     worktreeRoot,
     worktreeSetup,
     leaseMs,

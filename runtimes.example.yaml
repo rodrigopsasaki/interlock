@@ -12,13 +12,16 @@
 # used unchanged.
 # For example: writable_root_args: ["--your-writable-root-flag", "{path}"]
 
-interlock: runtimes@v1
+# Set routable: true on one profile per provider to opt into provider routing.
+# Leaving all profiles unmarked preserves default_runtime and the legacy runtime choice.
+interlock: runtimes@v2
 
 runtimes:
   # A name matches ^[a-z][a-z0-9_-]{0,31}$, the same shape herdr accepts for an agent name.
   # Claude Code 2.1.282: these are the repository's recorded unattended flags, with each model
   # label swapped into --model. The startup answer is the trust choice from local.example.yaml.
   sonnet:
+    provider: anthropic
     kind: claude
     args: [--dangerously-skip-permissions, --model, claude-sonnet-5, --strict-mcp-config]
     model: claude-sonnet-5
@@ -28,6 +31,7 @@ runtimes:
     startup_timeout_ms: 90000
 
   opus:
+    provider: anthropic
     kind: claude
     args: [--dangerously-skip-permissions, --model, claude-opus-5-5, --strict-mcp-config]
     model: claude-opus-5-5
@@ -37,6 +41,7 @@ runtimes:
     startup_timeout_ms: 90000
 
   fable:
+    provider: anthropic
     kind: claude
     args: [--dangerously-skip-permissions, --model, claude-fable-5-1, --strict-mcp-config]
     model: claude-fable-5-1
@@ -54,6 +59,7 @@ runtimes:
   # writable_root_args hands codex each directory per attempt, as its own --add-dir, instead of a
   # hard-coded path.
   astra:
+    provider: openai
     kind: codex
     commits: runner
     # Session observation: a hooks-review modal needed SessionStart trust before the opening prompt
@@ -82,6 +88,7 @@ runtimes:
     startup_timeout_ms: 90000
 
   terra:
+    provider: openai
     kind: codex
     commits: runner
     # Session observation: a hooks-review modal needed SessionStart trust before the opening prompt
@@ -110,6 +117,7 @@ runtimes:
     startup_timeout_ms: 90000
 
   luna:
+    provider: openai
     kind: codex
     commits: runner
     # Session observation: a hooks-review modal needed SessionStart trust before the opening prompt
@@ -148,6 +156,7 @@ runtimes:
   # A person restarted the agent in a new pane and re-sent the prompt; --auto does not skip
   # the trust prompt, so the startup answer stays for genuinely fresh roots.
   k3:
+    provider: moonshot
     kind: kimi
     args: [--auto, --model, kimi-code/k3]
     model: kimi-code/k3

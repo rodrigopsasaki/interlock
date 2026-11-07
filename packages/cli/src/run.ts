@@ -31,7 +31,7 @@ import {
   type RoleShape,
   type Runtime,
   roleShapeFor,
-  selectRuntime,
+  routeRuntime,
   unmetDependencies,
   writeBriefIntoWorktree,
 } from "runner";
@@ -101,13 +101,6 @@ export async function runInterlockRun(
     };
   }
   const requestedRuntime = parseFlag(args, "--runtime");
-  const agentRuntime = selectRuntime(mergedRuntimes.value, requestedRuntime);
-  if (isErr(agentRuntime)) {
-    return {
-      exitCode: 1,
-      message: explainRuntimeSelectionRefusal(agentRuntime.error),
-    };
-  }
 
   const graphPath = graphFilePath(repoRoot, graph);
   const document = await loadGraphDocument(graphPath);
@@ -159,6 +152,18 @@ export async function runInterlockRun(
   const ledger = opened.value;
 
   try {
+    const agentRuntime = await routeRuntime(
+      mergedRuntimes.value,
+      requestedRuntime,
+      ledger.projection(),
+      localConfig.value,
+    );
+    if (isErr(agentRuntime)) {
+      return {
+        exitCode: 1,
+        message: explainRuntimeSelectionRefusal(agentRuntime.error),
+      };
+    }
     const contentHash = await receiptId(repoRoot, [relative(repoRoot, graphPath)], "approved");
     if (isErr(contentHash)) {
       return { exitCode: 1, message: explainScopeRefusal(contentHash.error) };

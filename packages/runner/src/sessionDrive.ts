@@ -194,7 +194,10 @@ export async function driveInteractiveSession(
       session: {
         id: sessionId,
         node: targetNode,
-        runtime: sessionRuntime.declared(agentRuntime.name, agentRuntime.kind, agentRuntime.model),
+        runtime: sessionRuntime.declared(agentRuntime.name, agentRuntime.kind, agentRuntime.model, {
+          provider: agentRuntime.provider ?? "unknown",
+          ...(agentRuntime.chosenBy === undefined ? {} : { chosenBy: agentRuntime.chosenBy }),
+        }),
       },
       brief,
       graphBaseSha,
