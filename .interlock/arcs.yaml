@@ -64,6 +64,7 @@ arcs:
     source: 2026-11-06 17:42 UTC, project chat (cmsg_01BN1q6CYuBjcZAFT6C2pgFd87DS8F9HFYHKcF8eXAyG2u; the arc's full words are in gilb's .interlock/arcs.yaml)
     graphs:
       - interlock/0059-submodule-receipts
+      - interlock/0059-submodule-receipts-2 (re-plan of its gitlinks-hash-commit node after a cancel, 2026-11-07)
 
   - id: interlock-runs-any-runtime
     title: Interlock runs any runtime
