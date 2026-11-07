@@ -23,8 +23,13 @@ gates:
   kind: command
   run: pnpm --fail-if-no-match --filter schemas exec vitest run test/arcs.test.ts --passWithNoTests=false
   expect_output: Tests +[1-9][0-9]* passed
+- id: arc-resolver-proof
+  kind: command
+  run: pnpm --fail-if-no-match --filter cli exec vitest run test/arcs/ --passWithNoTests=false
+  expect_output: Tests +[1-9][0-9]* passed
 scope:
 - .gitignore
+- .interlock/arcs.yaml
 - .interlock/config.yaml
 - .interlock/graphs/0001-bootstrap.yaml
 - .interlock/graphs/0002-shapes.yaml
@@ -72,9 +77,16 @@ scope:
 - .interlock/graphs/0050-verifier-fixture-writer.yaml
 - .interlock/graphs/0051-no-detached-maintenance.yaml
 - .interlock/graphs/0052-count-tells-the-truth.yaml
+- .interlock/graphs/0053-graph-arc.yaml
 - .interlock/graphs/0054-provider-routing.yaml
+- .interlock/graphs/0055-runner-commits.yaml
+- .interlock/graphs/0056-machine-provider.yaml
+- .interlock/graphs/0058-cited-delegation.yaml
+- .interlock/graphs/0059-submodule-receipts-2.yaml
+- .interlock/graphs/0059-submodule-receipts.yaml
 - .interlock/graphs/readme-interlock-concept.yaml
 - .interlock/local.example.yaml
+- .interlock/queue.yaml
 - .interlock/sessions/0001-bootstrap/attempts/brief.md
 - .interlock/sessions/0001-bootstrap/attempts/debrief.yaml
 - .interlock/sessions/0001-bootstrap/attempts/notes.yaml
@@ -370,7 +382,55 @@ scope:
 - .interlock/sessions/0051-no-detached-maintenance/worktree-maintenance/notes.yaml
 - .interlock/sessions/0052-count-tells-the-truth/landed/brief.md
 - .interlock/sessions/0052-count-tells-the-truth/retire/brief.md
+- .interlock/sessions/0053-graph-arc/arc-required/brief.md
+- .interlock/sessions/0053-graph-arc/arcs-v1/brief.md
+- .interlock/sessions/0053-graph-arc/briefs-before-approval/brief.md
+- .interlock/sessions/0053-graph-arc/registry-reads/brief.md
 - .interlock/sessions/0054-provider-routing/provider-routing/brief.md
+- .interlock/sessions/0054-provider-routing/provider-routing/commits.yaml
+- .interlock/sessions/0054-provider-routing/provider-routing/debrief.candidate.yaml
+- .interlock/sessions/0054-provider-routing/provider-routing/debrief.yaml
+- .interlock/sessions/0054-provider-routing/provider-routing/notes.yaml
+- .interlock/sessions/0055-runner-commits/runner-commits/brief.md
+- .interlock/sessions/0055-runner-commits/runner-commits/candidate.yaml
+- .interlock/sessions/0055-runner-commits/runner-commits/commits.yaml
+- .interlock/sessions/0055-runner-commits/runner-commits/debrief.yaml
+- .interlock/sessions/0055-runner-commits/runner-commits/fresh.candidate.yaml
+- .interlock/sessions/0055-runner-commits/runner-commits/notes.yaml
+- .interlock/sessions/0055-runner-commits/runner-commits/revisions/721431e59d00f4f6e78b1b89959725fe022f2f2c0e4981ee02f1ba234e9b068d.yaml
+- .interlock/sessions/0056-machine-provider/base-holds-graph/brief.md
+- .interlock/sessions/0056-machine-provider/base-holds-graph/commits.yaml
+- .interlock/sessions/0056-machine-provider/base-holds-graph/debrief.candidate.yaml
+- .interlock/sessions/0056-machine-provider/base-holds-graph/debrief.yaml
+- .interlock/sessions/0056-machine-provider/base-holds-graph/notes.yaml
+- .interlock/sessions/0056-machine-provider/machine-provider/brief.md
+- .interlock/sessions/0056-machine-provider/machine-provider/commits.yaml
+- .interlock/sessions/0056-machine-provider/machine-provider/debrief.candidate.yaml
+- .interlock/sessions/0056-machine-provider/machine-provider/debrief.yaml
+- .interlock/sessions/0056-machine-provider/machine-provider/notes.yaml
+- .interlock/sessions/0056-machine-provider/refusals-stay-resettable/brief.md
+- .interlock/sessions/0056-machine-provider/refusals-stay-resettable/commits.yaml
+- .interlock/sessions/0056-machine-provider/refusals-stay-resettable/debrief.candidate-815a56b.yaml
+- .interlock/sessions/0056-machine-provider/refusals-stay-resettable/debrief.candidate.yaml
+- .interlock/sessions/0056-machine-provider/refusals-stay-resettable/debrief.yaml
+- .interlock/sessions/0056-machine-provider/refusals-stay-resettable/notes.yaml
+- .interlock/sessions/0056-machine-provider/refusals-stay-resettable/revisions/068edc83c62543edcb6ce1f8dc69905d9f6bfda350a3c4a699a6f4642736dd18.yaml
+- .interlock/sessions/0059-submodule-receipts-2/gitlinks-hash-commit/brief.md
+- .interlock/sessions/0059-submodule-receipts-2/gitlinks-hash-commit/debrief-candidate-2.yaml
+- .interlock/sessions/0059-submodule-receipts-2/gitlinks-hash-commit/debrief-candidate.yaml
+- .interlock/sessions/0059-submodule-receipts-2/gitlinks-hash-commit/debrief.revision-candidate.yaml
+- .interlock/sessions/0059-submodule-receipts-2/gitlinks-hash-commit/debrief.yaml
+- .interlock/sessions/0059-submodule-receipts-2/gitlinks-hash-commit/notes.yaml
+- .interlock/sessions/0059-submodule-receipts-2/gitlinks-hash-commit/revisions/a929bb4fb06105f5276ecc9c18d99d2389f4ef59944c419f0e103506f7b5047c.yaml
+- .interlock/sessions/0059-submodule-receipts-2/gitlinks-hash-commit/revisions/d6550e9eca9e01007c7807faec13b85201ea1b1e77cd31786f364660ad626429.yaml
+- .interlock/sessions/0059-submodule-receipts/gitlinks-hash-commit/brief.md
+- .interlock/sessions/0059-submodule-receipts/resume-keeps-range/brief.md
+- .interlock/sessions/0059-submodule-receipts/resume-keeps-range/debrief-candidate.yaml
+- .interlock/sessions/0059-submodule-receipts/resume-keeps-range/debrief.revision-candidate.yaml
+- .interlock/sessions/0059-submodule-receipts/resume-keeps-range/debrief.yaml
+- .interlock/sessions/0059-submodule-receipts/resume-keeps-range/notes.yaml
+- .interlock/sessions/0059-submodule-receipts/resume-keeps-range/revisions/3708d457dd183b86d278497a6e7f53142315a2fecc9c05a7cd4512e37fcf8034.yaml
+- .interlock/sessions/0059-submodule-receipts/resume-keeps-range/revisions/f8052a9f854f5e0b182b7c3d30680fb458bdb9a6d7bb82a840e9cb731ec873f3.yaml
 - .interlock/sessions/readme-interlock-concept/readme/brief.md
 - .interlock/sessions/readme-interlock-concept/readme/debrief.yaml
 - .interlock/sessions/readme-interlock-concept/readme/notes.yaml
@@ -498,6 +558,7 @@ scope:
 - packages/cli/test/graph/status.test.ts
 - packages/cli/test/herdrStatus.test.ts
 - packages/cli/test/judge.test.ts
+- packages/cli/test/judgeProvider.test.ts
 - packages/cli/test/main.test.ts
 - packages/cli/test/noComments.test.ts
 - packages/cli/test/noComments/fixtures/biomeIgnoreOnly.ts
@@ -507,6 +568,7 @@ scope:
 - packages/cli/test/plan.test.ts
 - packages/cli/test/position.test.ts
 - packages/cli/test/repositoryOrigin.test.ts
+- packages/cli/test/resumeRange.test.ts
 - packages/cli/test/run.test.ts
 - packages/cli/test/runtime.test.ts
 - packages/cli/test/schema/reference.test.ts
@@ -639,6 +701,7 @@ scope:
 - packages/ledger/src/upcast/v6.ts
 - packages/ledger/src/upcast/v7.ts
 - packages/ledger/src/upcast/v8.ts
+- packages/ledger/src/upcast/v9.ts
 - packages/ledger/src/validate.ts
 - packages/ledger/src/walk.ts
 - packages/ledger/test/applicability.test.ts
@@ -669,7 +732,10 @@ scope:
 - packages/runner/src/agentName.ts
 - packages/runner/src/backfill.ts
 - packages/runner/src/briefRewrite.ts
+- packages/runner/src/claude/headroom.ts
 - packages/runner/src/claude/liveWork.ts
+- packages/runner/src/codex/environment.ts
+- packages/runner/src/codex/headroom.ts
 - packages/runner/src/contextSlice.ts
 - packages/runner/src/debriefAuthoringGuidance.ts
 - packages/runner/src/decidedNode.ts
@@ -677,24 +743,31 @@ scope:
 - packages/runner/src/gateCommand.ts
 - packages/runner/src/gateJudge.ts
 - packages/runner/src/gateOutput.ts
+- packages/runner/src/headroom/adapter.ts
 - packages/runner/src/herdr/adapter.ts
 - packages/runner/src/index.ts
 - packages/runner/src/interpreterBrief.ts
 - packages/runner/src/judgeWorktree.ts
+- packages/runner/src/kimi/headroom.ts
 - packages/runner/src/lease.ts
 - packages/runner/src/localConfig.ts
+- packages/runner/src/machineOutbox.ts
+- packages/runner/src/machineProvider.ts
 - packages/runner/src/narration.ts
 - packages/runner/src/openingPrompt.ts
 - packages/runner/src/openingView.ts
 - packages/runner/src/promptDelivery.ts
+- packages/runner/src/providerRouting.ts
 - packages/runner/src/questionNotes.ts
 - packages/runner/src/roleShape.ts
+- packages/runner/src/runnerCommits.ts
 - packages/runner/src/runtime.ts
 - packages/runner/src/runtimeCatalogue.ts
 - packages/runner/src/runtimeSelection.ts
 - packages/runner/src/scope.ts
 - packages/runner/src/sessionBrief.ts
 - packages/runner/src/sessionDrive.ts
+- packages/runner/src/sessionRange.ts
 - packages/runner/src/sessionScreen.ts
 - packages/runner/src/sessionWait.ts
 - packages/runner/src/standingGates.ts
@@ -712,6 +785,7 @@ scope:
 - packages/runner/test/adapterBoundary.test.ts
 - packages/runner/test/backfill.test.ts
 - packages/runner/test/backfillMaintenance.test.ts
+- packages/runner/test/baseHoldsGraph.test.ts
 - packages/runner/test/briefRewrite.test.ts
 - packages/runner/test/debriefAuthoringGuidance.test.ts
 - packages/runner/test/fixtures/claude/repo-worktrees-node/completed.jsonl
@@ -735,18 +809,24 @@ scope:
 - packages/runner/test/lease.test.ts
 - packages/runner/test/liveSmoke.test.ts
 - packages/runner/test/localConfig.test.ts
+- packages/runner/test/machineProvider.test.ts
 - packages/runner/test/narration.test.ts
 - packages/runner/test/openingPrompt.test.ts
 - packages/runner/test/promptDelivery.test.ts
+- packages/runner/test/providerRouting.test.ts
 - packages/runner/test/questionNotes.test.ts
+- packages/runner/test/refusalOutcomes.test.ts
+- packages/runner/test/runnerCommits.test.ts
 - packages/runner/test/runtimeSelection.test.ts
 - packages/runner/test/runtimes.test.ts
+- packages/runner/test/scopeRefusal.test.ts
 - packages/runner/test/sessionBrief.test.ts
 - packages/runner/test/sessionScreen.test.ts
 - packages/runner/test/sessionStart.test.ts
 - packages/runner/test/sessionWait.test.ts
 - packages/runner/test/settled.test.ts
 - packages/runner/test/standingGates.test.ts
+- packages/runner/test/submoduleReceipts.test.ts
 - packages/runner/test/support/driveFixture.ts
 - packages/runner/test/support/gitFixture.ts
 - packages/runner/test/support/memoryLedger.ts
@@ -778,6 +858,7 @@ scope:
 - packages/schemas/src/validate.ts
 - packages/schemas/test/askedInWords.test.ts
 - packages/schemas/test/brief.test.ts
+- packages/schemas/test/commits.test.ts
 - packages/schemas/test/corpus.files.test.ts
 - packages/schemas/test/corpus.guards.test.ts
 - packages/schemas/test/corpus.item.test.ts
@@ -785,8 +866,11 @@ scope:
 - packages/schemas/test/corpus.position.test.ts
 - packages/schemas/test/corpus.positions.test.ts
 - packages/schemas/test/corpus.substrate.test.ts
+- packages/schemas/test/gateDeclaration.test.ts
 - packages/schemas/test/graphRole.test.ts
 - packages/schemas/test/landed.test.ts
+- packages/schemas/test/machine.test.ts
+- packages/schemas/test/providerRouting.test.ts
 - packages/schemas/test/reference.test.ts
 - packages/schemas/test/reference/corpus.test.ts
 - packages/schemas/test/registry.test.ts
@@ -853,13 +937,16 @@ scope:
 - pnpm-lock.yaml
 - pnpm-workspace.yaml
 - runtimes.example.yaml
+- schemas/arcs@v0.json
 - schemas/brief@v0.json
 - schemas/brief@v1.json
+- schemas/commits@v0.json
 - schemas/config@v0.json
 - schemas/debrief@v0.json
 - schemas/debrief@v1.json
 - schemas/debrief@v2.json
 - schemas/event@v1.json
+- schemas/event@v10.json
 - schemas/event@v2.json
 - schemas/event@v3.json
 - schemas/event@v4.json
@@ -871,8 +958,11 @@ scope:
 - schemas/graph@v0.json
 - schemas/item@v1.json
 - schemas/local@v0.json
+- schemas/local@v1.json
+- schemas/machine@v0.json
 - schemas/notes@v0.json
 - schemas/parts/applies-to.json
+- schemas/parts/chosen-by.json
 - schemas/parts/debrief-derivation.json
 - schemas/parts/debrief-event.json
 - schemas/parts/decision.json
@@ -899,12 +989,14 @@ scope:
 - schemas/parts/outcome-v1.json
 - schemas/parts/outcome.json
 - schemas/parts/person-said.json
+- schemas/parts/provider-headroom.json
 - schemas/parts/question-note.json
 - schemas/parts/receipt-v1.json
 - schemas/parts/receipt.json
 - schemas/parts/repository.json
 - schemas/parts/session-brief.json
 - schemas/parts/session-facts.json
+- schemas/parts/session-runtime-v1.json
 - schemas/parts/session-runtime.json
 - schemas/parts/session.json
 - schemas/parts/spend.json
@@ -914,10 +1006,15 @@ scope:
 - schemas/parts/writable-root-args.json
 - schemas/position@v1.json
 - schemas/position@v2.json
+- schemas/position@v3.json
 - schemas/positions@v0.json
 - schemas/positions@v1.json
+- schemas/positions@v2.json
+- schemas/queue@v0.json
 - schemas/roles@v0.json
 - schemas/runtimes@v0.json
+- schemas/runtimes@v1.json
+- schemas/runtimes@v2.json
 - schemas/session-facts@v0.json
 - schemas/substrate/absorb.request.json
 - schemas/substrate/absorb.response.json
@@ -947,6 +1044,7 @@ scope:
 - scripts/check-readme.ts
 - scripts/noComments.ts
 - scripts/warmPosition.ts
+- test/fixtures/machine-none.yaml
 - test/support/gitFixture.ts
 - tsconfig.json
 - vitest.config.base.ts
@@ -992,16 +1090,58 @@ edit it.
 
 ## Acceptance (verbatim from the graph)
 
-> schemas/arcs@v1.json: interlock "arcs@v1"; arcs, each with id (kebab case), title, ask (one string, the owner's
-> words), source, an optional also_said list of {words, source}, graphs (non-empty, unique "<repository>/<graph
-> id>" strings, an optional trailing note in parentheses kept as today), and an optional superseded list of
-> {graph, because}; no needs_his_words key at any level (additionalProperties false). arcs@v0 stays registered
-> and readable. This repository's .interlock/arcs.yaml moves to arcs@v1. docs/shapes.md is regenerated.
-> A reader (packages/schemas or the cli, beside the existing validators) parses either version into one typed
-> registry: arcs, and for v0 the needs_his_words graphs, which the resolver treats as graphs without an arc.
+> The registry, its identity, its one reading and its migration.
+> schemas/arcs@v1.json: interlock "arcs@v1"; a required top-level `repository` (the repository's name, the
+> <repository> of every reference this repository's graphs carry); arcs, each with id (kebab case), title, ask
+> (one string), an optional ask_form ("verbatim", the default, or "placeholder": the ask cites where the owner's
+> words are held instead of quoting them), source, an optional also_said list of {words, source}, graphs
+> (non-empty, unique "<repository>/<graph id>" strings, an optional trailing note in parentheses kept as today),
+> an optional superseded list of {graph, because}, an optional context list of {graph, because} (a graph another
+> arc owns that this arc relates to), and the optional arc fields adopters already write: version (string),
+> approved {words, source}, passed (line), authorized_by {words, source}. No needs_his_words key at any level
+> (additionalProperties false). arcs@v0 stays registered and readable. docs/shapes.md is regenerated.
+> graph@v0 declares its optional `arc` key (kebab id), additively: every graph file on main still validates.
+> A reader in packages/cli/src/arcs/ parses either version into one typed registry. arcs@v0 is read as written in
+> the field: strict v0 plus superseded, the four optional arc fields above and a graph string repeated within one
+> arc (read once); a v0 needs_his_words graph comes back as a graph without an arc.
+> Repository identity (packages/cli/src/arcs/): arcs@v1's `repository`; for arcs@v0, origin's name through
+> repositoryOrigin.ts; neither is a refusal naming `interlock arcs migrate --repository <name>`. Origin is never
+> required when the registry declares the repository.
+> The resolver, in one module beside the reader, implements the graph's rule in two readings, admission and
+> history, and returns, for a graph, its arc or the one plain reason it has none ("0099-x has no arc: no arc in
+> .interlock/arcs.yaml lists example/0099-x, and the graph carries no arc key"; "... lists it under two arcs, a
+> and b"; "... its arc key names b, which arcs.yaml does not hold"; "... its arc key says a but arcs.yaml lists
+> it under b"; "... it was superseded in arc a: <because>" for admission only). It reads the graph's raw `arc`
+> key, which the face loader now keeps on GraphDocument as an optional field (parsing still never refuses for a
+> missing arc), and returns an AdmittedGraph type (the document plus its resolved arc, the arc required) that
+> only admission constructs.
+> `interlock arcs migrate [--repository <name>]` rewrites .interlock/arcs.yaml from arcs@v0 to arcs@v1 in place,
+> losslessly: comments, key order and every ask, words and source byte for byte; the tag line; `repository` from
+> the flag or else origin's name (neither: refused); an empty needs_his_words dropped; a non-empty one refused
+> naming its graphs; a graph string repeated within one arc kept once; a graph listed under two arcs where
+> exactly one listing carries a trailing "(shared with <the other arc's id>)" note moves that listing to its
+> arc's context with the note as because, and any other graph under two arcs refuses migration naming the graph
+> and both arcs, so the owner chooses by editing arcs.yaml. It never sets ask_form and never rewords an ask.
+> Running it on an arcs@v1 file changes nothing.
+> This repository's .interlock/arcs.yaml moves to arcs@v1 through the verb (repository: interlock), then the
+> nine historical placeholder asks named in the graph's read get `ask_form: placeholder` with their ask strings
+> unchanged; no ask is reworded and no words are invented.
 > Tests in packages/schemas/test/arcs.test.ts:
-> - an arcs@v1 file with superseded entries validates; one with needs_his_words, an ask that is a list, an empty
->   graphs list or a duplicate graph is refused;
-> - an arcs@v0 file still validates and reads, and its needs_his_words graphs come back as graphs without an arc;
-> - this repository's .interlock/arcs.yaml validates as arcs@v1.
+> - an arcs@v1 file with superseded, context, placeholder and the four optional arc fields validates; one with
+>   needs_his_words, no repository, an ask that is a list, an empty graphs list or a duplicate graph is refused;
+> - an arcs@v0 file still validates; graph@v0 with and without an arc key validates, and every graph file in
+>   this repository still validates;
+> - this repository's .interlock/arcs.yaml validates as arcs@v1, and its nine placeholder arcs carry ask_form
+>   placeholder.
+> Tests in packages/cli/test/arcs/ (resolve.test.ts, migrate.test.ts) on generic fixture repositories:
+> - the reader reads an arcs@v0 file carrying superseded, the four optional arc fields, a repeated graph string
+>   and needs_his_words, and its needs_his_words graphs come back without an arc;
+> - identity: a v1 registry in a repository with no origin remote (only another remote) resolves its graphs; a
+>   v0 registry with no origin is refused with the migrate line;
+> - the resolver's every line, in both readings; a superseded-only graph is refused by admission and resolves
+>   to its arc by history; a context listing is not membership; the loader keeps the arc key, including a
+>   key-only graph and a key that conflicts with the registry;
+> - migrate on each drift above: lossless round trip with comments kept, duplicate collapsed, shared-with
+>   listing moved to context, an ambiguous two-arc listing refused, a non-empty needs_his_words refused, no
+>   origin and no --repository refused, a v1 file unchanged.
 > Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.

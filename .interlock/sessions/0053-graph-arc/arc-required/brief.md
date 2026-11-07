@@ -25,6 +25,7 @@ gates:
   expect_output: Tests +[1-9][0-9]* passed
 scope:
 - .gitignore
+- .interlock/arcs.yaml
 - .interlock/config.yaml
 - .interlock/graphs/0001-bootstrap.yaml
 - .interlock/graphs/0002-shapes.yaml
@@ -72,9 +73,16 @@ scope:
 - .interlock/graphs/0050-verifier-fixture-writer.yaml
 - .interlock/graphs/0051-no-detached-maintenance.yaml
 - .interlock/graphs/0052-count-tells-the-truth.yaml
+- .interlock/graphs/0053-graph-arc.yaml
 - .interlock/graphs/0054-provider-routing.yaml
+- .interlock/graphs/0055-runner-commits.yaml
+- .interlock/graphs/0056-machine-provider.yaml
+- .interlock/graphs/0058-cited-delegation.yaml
+- .interlock/graphs/0059-submodule-receipts-2.yaml
+- .interlock/graphs/0059-submodule-receipts.yaml
 - .interlock/graphs/readme-interlock-concept.yaml
 - .interlock/local.example.yaml
+- .interlock/queue.yaml
 - .interlock/sessions/0001-bootstrap/attempts/brief.md
 - .interlock/sessions/0001-bootstrap/attempts/debrief.yaml
 - .interlock/sessions/0001-bootstrap/attempts/notes.yaml
@@ -370,7 +378,55 @@ scope:
 - .interlock/sessions/0051-no-detached-maintenance/worktree-maintenance/notes.yaml
 - .interlock/sessions/0052-count-tells-the-truth/landed/brief.md
 - .interlock/sessions/0052-count-tells-the-truth/retire/brief.md
+- .interlock/sessions/0053-graph-arc/arc-required/brief.md
+- .interlock/sessions/0053-graph-arc/arcs-v1/brief.md
+- .interlock/sessions/0053-graph-arc/briefs-before-approval/brief.md
+- .interlock/sessions/0053-graph-arc/registry-reads/brief.md
 - .interlock/sessions/0054-provider-routing/provider-routing/brief.md
+- .interlock/sessions/0054-provider-routing/provider-routing/commits.yaml
+- .interlock/sessions/0054-provider-routing/provider-routing/debrief.candidate.yaml
+- .interlock/sessions/0054-provider-routing/provider-routing/debrief.yaml
+- .interlock/sessions/0054-provider-routing/provider-routing/notes.yaml
+- .interlock/sessions/0055-runner-commits/runner-commits/brief.md
+- .interlock/sessions/0055-runner-commits/runner-commits/candidate.yaml
+- .interlock/sessions/0055-runner-commits/runner-commits/commits.yaml
+- .interlock/sessions/0055-runner-commits/runner-commits/debrief.yaml
+- .interlock/sessions/0055-runner-commits/runner-commits/fresh.candidate.yaml
+- .interlock/sessions/0055-runner-commits/runner-commits/notes.yaml
+- .interlock/sessions/0055-runner-commits/runner-commits/revisions/721431e59d00f4f6e78b1b89959725fe022f2f2c0e4981ee02f1ba234e9b068d.yaml
+- .interlock/sessions/0056-machine-provider/base-holds-graph/brief.md
+- .interlock/sessions/0056-machine-provider/base-holds-graph/commits.yaml
+- .interlock/sessions/0056-machine-provider/base-holds-graph/debrief.candidate.yaml
+- .interlock/sessions/0056-machine-provider/base-holds-graph/debrief.yaml
+- .interlock/sessions/0056-machine-provider/base-holds-graph/notes.yaml
+- .interlock/sessions/0056-machine-provider/machine-provider/brief.md
+- .interlock/sessions/0056-machine-provider/machine-provider/commits.yaml
+- .interlock/sessions/0056-machine-provider/machine-provider/debrief.candidate.yaml
+- .interlock/sessions/0056-machine-provider/machine-provider/debrief.yaml
+- .interlock/sessions/0056-machine-provider/machine-provider/notes.yaml
+- .interlock/sessions/0056-machine-provider/refusals-stay-resettable/brief.md
+- .interlock/sessions/0056-machine-provider/refusals-stay-resettable/commits.yaml
+- .interlock/sessions/0056-machine-provider/refusals-stay-resettable/debrief.candidate-815a56b.yaml
+- .interlock/sessions/0056-machine-provider/refusals-stay-resettable/debrief.candidate.yaml
+- .interlock/sessions/0056-machine-provider/refusals-stay-resettable/debrief.yaml
+- .interlock/sessions/0056-machine-provider/refusals-stay-resettable/notes.yaml
+- .interlock/sessions/0056-machine-provider/refusals-stay-resettable/revisions/068edc83c62543edcb6ce1f8dc69905d9f6bfda350a3c4a699a6f4642736dd18.yaml
+- .interlock/sessions/0059-submodule-receipts-2/gitlinks-hash-commit/brief.md
+- .interlock/sessions/0059-submodule-receipts-2/gitlinks-hash-commit/debrief-candidate-2.yaml
+- .interlock/sessions/0059-submodule-receipts-2/gitlinks-hash-commit/debrief-candidate.yaml
+- .interlock/sessions/0059-submodule-receipts-2/gitlinks-hash-commit/debrief.revision-candidate.yaml
+- .interlock/sessions/0059-submodule-receipts-2/gitlinks-hash-commit/debrief.yaml
+- .interlock/sessions/0059-submodule-receipts-2/gitlinks-hash-commit/notes.yaml
+- .interlock/sessions/0059-submodule-receipts-2/gitlinks-hash-commit/revisions/a929bb4fb06105f5276ecc9c18d99d2389f4ef59944c419f0e103506f7b5047c.yaml
+- .interlock/sessions/0059-submodule-receipts-2/gitlinks-hash-commit/revisions/d6550e9eca9e01007c7807faec13b85201ea1b1e77cd31786f364660ad626429.yaml
+- .interlock/sessions/0059-submodule-receipts/gitlinks-hash-commit/brief.md
+- .interlock/sessions/0059-submodule-receipts/resume-keeps-range/brief.md
+- .interlock/sessions/0059-submodule-receipts/resume-keeps-range/debrief-candidate.yaml
+- .interlock/sessions/0059-submodule-receipts/resume-keeps-range/debrief.revision-candidate.yaml
+- .interlock/sessions/0059-submodule-receipts/resume-keeps-range/debrief.yaml
+- .interlock/sessions/0059-submodule-receipts/resume-keeps-range/notes.yaml
+- .interlock/sessions/0059-submodule-receipts/resume-keeps-range/revisions/3708d457dd183b86d278497a6e7f53142315a2fecc9c05a7cd4512e37fcf8034.yaml
+- .interlock/sessions/0059-submodule-receipts/resume-keeps-range/revisions/f8052a9f854f5e0b182b7c3d30680fb458bdb9a6d7bb82a840e9cb731ec873f3.yaml
 - .interlock/sessions/readme-interlock-concept/readme/brief.md
 - .interlock/sessions/readme-interlock-concept/readme/debrief.yaml
 - .interlock/sessions/readme-interlock-concept/readme/notes.yaml
@@ -498,6 +554,7 @@ scope:
 - packages/cli/test/graph/status.test.ts
 - packages/cli/test/herdrStatus.test.ts
 - packages/cli/test/judge.test.ts
+- packages/cli/test/judgeProvider.test.ts
 - packages/cli/test/main.test.ts
 - packages/cli/test/noComments.test.ts
 - packages/cli/test/noComments/fixtures/biomeIgnoreOnly.ts
@@ -507,6 +564,7 @@ scope:
 - packages/cli/test/plan.test.ts
 - packages/cli/test/position.test.ts
 - packages/cli/test/repositoryOrigin.test.ts
+- packages/cli/test/resumeRange.test.ts
 - packages/cli/test/run.test.ts
 - packages/cli/test/runtime.test.ts
 - packages/cli/test/schema/reference.test.ts
@@ -639,6 +697,7 @@ scope:
 - packages/ledger/src/upcast/v6.ts
 - packages/ledger/src/upcast/v7.ts
 - packages/ledger/src/upcast/v8.ts
+- packages/ledger/src/upcast/v9.ts
 - packages/ledger/src/validate.ts
 - packages/ledger/src/walk.ts
 - packages/ledger/test/applicability.test.ts
@@ -669,7 +728,10 @@ scope:
 - packages/runner/src/agentName.ts
 - packages/runner/src/backfill.ts
 - packages/runner/src/briefRewrite.ts
+- packages/runner/src/claude/headroom.ts
 - packages/runner/src/claude/liveWork.ts
+- packages/runner/src/codex/environment.ts
+- packages/runner/src/codex/headroom.ts
 - packages/runner/src/contextSlice.ts
 - packages/runner/src/debriefAuthoringGuidance.ts
 - packages/runner/src/decidedNode.ts
@@ -677,24 +739,31 @@ scope:
 - packages/runner/src/gateCommand.ts
 - packages/runner/src/gateJudge.ts
 - packages/runner/src/gateOutput.ts
+- packages/runner/src/headroom/adapter.ts
 - packages/runner/src/herdr/adapter.ts
 - packages/runner/src/index.ts
 - packages/runner/src/interpreterBrief.ts
 - packages/runner/src/judgeWorktree.ts
+- packages/runner/src/kimi/headroom.ts
 - packages/runner/src/lease.ts
 - packages/runner/src/localConfig.ts
+- packages/runner/src/machineOutbox.ts
+- packages/runner/src/machineProvider.ts
 - packages/runner/src/narration.ts
 - packages/runner/src/openingPrompt.ts
 - packages/runner/src/openingView.ts
 - packages/runner/src/promptDelivery.ts
+- packages/runner/src/providerRouting.ts
 - packages/runner/src/questionNotes.ts
 - packages/runner/src/roleShape.ts
+- packages/runner/src/runnerCommits.ts
 - packages/runner/src/runtime.ts
 - packages/runner/src/runtimeCatalogue.ts
 - packages/runner/src/runtimeSelection.ts
 - packages/runner/src/scope.ts
 - packages/runner/src/sessionBrief.ts
 - packages/runner/src/sessionDrive.ts
+- packages/runner/src/sessionRange.ts
 - packages/runner/src/sessionScreen.ts
 - packages/runner/src/sessionWait.ts
 - packages/runner/src/standingGates.ts
@@ -712,6 +781,7 @@ scope:
 - packages/runner/test/adapterBoundary.test.ts
 - packages/runner/test/backfill.test.ts
 - packages/runner/test/backfillMaintenance.test.ts
+- packages/runner/test/baseHoldsGraph.test.ts
 - packages/runner/test/briefRewrite.test.ts
 - packages/runner/test/debriefAuthoringGuidance.test.ts
 - packages/runner/test/fixtures/claude/repo-worktrees-node/completed.jsonl
@@ -735,18 +805,24 @@ scope:
 - packages/runner/test/lease.test.ts
 - packages/runner/test/liveSmoke.test.ts
 - packages/runner/test/localConfig.test.ts
+- packages/runner/test/machineProvider.test.ts
 - packages/runner/test/narration.test.ts
 - packages/runner/test/openingPrompt.test.ts
 - packages/runner/test/promptDelivery.test.ts
+- packages/runner/test/providerRouting.test.ts
 - packages/runner/test/questionNotes.test.ts
+- packages/runner/test/refusalOutcomes.test.ts
+- packages/runner/test/runnerCommits.test.ts
 - packages/runner/test/runtimeSelection.test.ts
 - packages/runner/test/runtimes.test.ts
+- packages/runner/test/scopeRefusal.test.ts
 - packages/runner/test/sessionBrief.test.ts
 - packages/runner/test/sessionScreen.test.ts
 - packages/runner/test/sessionStart.test.ts
 - packages/runner/test/sessionWait.test.ts
 - packages/runner/test/settled.test.ts
 - packages/runner/test/standingGates.test.ts
+- packages/runner/test/submoduleReceipts.test.ts
 - packages/runner/test/support/driveFixture.ts
 - packages/runner/test/support/gitFixture.ts
 - packages/runner/test/support/memoryLedger.ts
@@ -778,6 +854,7 @@ scope:
 - packages/schemas/src/validate.ts
 - packages/schemas/test/askedInWords.test.ts
 - packages/schemas/test/brief.test.ts
+- packages/schemas/test/commits.test.ts
 - packages/schemas/test/corpus.files.test.ts
 - packages/schemas/test/corpus.guards.test.ts
 - packages/schemas/test/corpus.item.test.ts
@@ -785,8 +862,11 @@ scope:
 - packages/schemas/test/corpus.position.test.ts
 - packages/schemas/test/corpus.positions.test.ts
 - packages/schemas/test/corpus.substrate.test.ts
+- packages/schemas/test/gateDeclaration.test.ts
 - packages/schemas/test/graphRole.test.ts
 - packages/schemas/test/landed.test.ts
+- packages/schemas/test/machine.test.ts
+- packages/schemas/test/providerRouting.test.ts
 - packages/schemas/test/reference.test.ts
 - packages/schemas/test/reference/corpus.test.ts
 - packages/schemas/test/registry.test.ts
@@ -853,13 +933,16 @@ scope:
 - pnpm-lock.yaml
 - pnpm-workspace.yaml
 - runtimes.example.yaml
+- schemas/arcs@v0.json
 - schemas/brief@v0.json
 - schemas/brief@v1.json
+- schemas/commits@v0.json
 - schemas/config@v0.json
 - schemas/debrief@v0.json
 - schemas/debrief@v1.json
 - schemas/debrief@v2.json
 - schemas/event@v1.json
+- schemas/event@v10.json
 - schemas/event@v2.json
 - schemas/event@v3.json
 - schemas/event@v4.json
@@ -871,8 +954,11 @@ scope:
 - schemas/graph@v0.json
 - schemas/item@v1.json
 - schemas/local@v0.json
+- schemas/local@v1.json
+- schemas/machine@v0.json
 - schemas/notes@v0.json
 - schemas/parts/applies-to.json
+- schemas/parts/chosen-by.json
 - schemas/parts/debrief-derivation.json
 - schemas/parts/debrief-event.json
 - schemas/parts/decision.json
@@ -899,12 +985,14 @@ scope:
 - schemas/parts/outcome-v1.json
 - schemas/parts/outcome.json
 - schemas/parts/person-said.json
+- schemas/parts/provider-headroom.json
 - schemas/parts/question-note.json
 - schemas/parts/receipt-v1.json
 - schemas/parts/receipt.json
 - schemas/parts/repository.json
 - schemas/parts/session-brief.json
 - schemas/parts/session-facts.json
+- schemas/parts/session-runtime-v1.json
 - schemas/parts/session-runtime.json
 - schemas/parts/session.json
 - schemas/parts/spend.json
@@ -914,10 +1002,15 @@ scope:
 - schemas/parts/writable-root-args.json
 - schemas/position@v1.json
 - schemas/position@v2.json
+- schemas/position@v3.json
 - schemas/positions@v0.json
 - schemas/positions@v1.json
+- schemas/positions@v2.json
+- schemas/queue@v0.json
 - schemas/roles@v0.json
 - schemas/runtimes@v0.json
+- schemas/runtimes@v1.json
+- schemas/runtimes@v2.json
 - schemas/session-facts@v0.json
 - schemas/substrate/absorb.request.json
 - schemas/substrate/absorb.response.json
@@ -947,6 +1040,7 @@ scope:
 - scripts/check-readme.ts
 - scripts/noComments.ts
 - scripts/warmPosition.ts
+- test/fixtures/machine-none.yaml
 - test/support/gitFixture.ts
 - tsconfig.json
 - vitest.config.base.ts
@@ -992,24 +1086,42 @@ edit it.
 
 ## Acceptance (verbatim from the graph)
 
-> One resolver, in one module, implements this graph's rule and returns, for a graph, its arc or the one plain
-> reason it has none ("0099-x has no arc: no arc in .interlock/arcs.yaml lists interlock/0099-x, and the graph
-> carries no arc key"; "... lists it under two arcs, a and b"; "... its arc key names b, which arcs.yaml does not
-> hold"; "... its arc key says a but arcs.yaml lists it under b"). Every door that takes a graph uses it and
-> refuses a graph without an arc with that line, writing nothing:
+> Every door that starts new work admits the graph through the resolver's admission reading before any effect,
+> and refuses a graph without an arc with the resolver's line, writing nothing (no receipt, lease, worktree,
+> session or journal line):
 > - `interlock schema validate` on a graph file, beside the shape check;
 > - `interlock graph approve` (packages/cli/src/graph/approve.ts), before any receipt is written;
 > - `interlock run` (packages/cli/src/run.ts), before any lease, worktree or session;
-> - `interlock plan` (packages/cli/src/plan.ts): it takes `--arc <id>`, refuses an id arcs.yaml does not hold, and
->   writes `arc: <id>` into the drafted graph; a correction keeps the graph's arc.
+> - `interlock judge` (packages/cli/src/judge.ts), before any gate runs or receipt is written;
+> - `interlock backfill` (packages/cli/src/backfill.ts), before any worktree is created;
+> - the runner's exported entry points that create a worktree or session from a graph, backfillGraph
+>   (packages/runner/src/backfill.ts, which today takes a bare GraphDocument and creates a worktree first) and
+>   driveInteractiveSession (packages/runner/src/sessionDrive.ts, which takes a bare graph id), take an
+>   AdmittedGraph so an unadmitted graph cannot reach them;
+> - `interlock plan` (packages/cli/src/plan.ts): it takes `--arc <id>`, refuses an id arcs.yaml does not hold,
+>   and tells the planner the arc. After the runtime writes the graph, beforeJudge requires the drafted graph's
+>   `arc` to equal the selected arc (on a correction, the original graph's arc; a correction with a different
+>   --arc is refused): a graph that omits it or names another valid arc is held with the line, never accepted.
+> Node cancel, node reset, gate waive, gate clear, the debrief's session-identity read
+> (packages/cli/src/debrief/sessionIdentity.ts), graph status, graph show, the position and the face keep
+> parsing without admission and never refuse for a missing arc.
 > A graph already approved before this lands and now without an arc is refused at run like any other: the owner
-> gives it an arc in arcs.yaml, and nothing else unblocks it. `interlock graph show` and the position name each
-> graph's arc.
-> Tests in packages/cli/test/arcRequired.test.ts on fixture repositories:
-> - a graph listed in arcs.yaml, one with a matching arc key, and one with both pass every door;
-> - no arc, two arcs, an arc key naming no arc, and a disagreeing arc key are each refused at schema validate,
->   approve, run and plan with their line, and nothing is written (no receipt, lease, worktree or session);
-> - plan without --arc, and with an unknown --arc, is refused; with a known one the drafted graph carries it;
+> gives it an arc in arcs.yaml, and nothing else unblocks it.
+> Every existing positive test of these doors gives its fixture repository an arcs@v1 registry or an arc key,
+> and every existing plan call passes --arc (at least packages/cli/test/graph/approve.test.ts, run.test.ts,
+> plan.test.ts, judge.test.ts, judgeProvider.test.ts, backfill.test.ts, schema/validate.test.ts and
+> packages/runner/test/backfill.test.ts, backfillMaintenance.test.ts, machineProvider.test.ts,
+> runnerCommits.test.ts, writableRootLaunch.test.ts, support/driveFixture.ts); a no-arc graph survives only as
+> a separate negative case.
+> Tests in packages/cli/test/arcRequired.test.ts on generic fixture repositories:
+> - a graph listed in arcs.yaml, one with a matching arc key, and one with both pass every new-work door;
+> - no arc, two arcs, an arc key naming no arc, a disagreeing arc key and a superseded-only graph are each
+>   refused at schema validate, approve, run, judge and backfill with their line, and nothing is written (no
+>   receipt, lease, worktree, session or journal line);
+> - plan without --arc, and with an unknown --arc, is refused; with a known one, a stub runtime that keeps the
+>   arc passes, one that omits it and one that substitutes another valid arc are held; a correction keeps the
+>   original arc;
 > - an arcs@v0 registry with needs_his_words: a graph it lists is refused at run;
-> - graph show and the position print the arc's id and title.
+> - for a graph without an arc, node cancel, node reset, gate waive and gate clear still act, and the
+>   session-identity read and graph status still read.
 > Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
