@@ -1025,7 +1025,16 @@ edit it.
 > cannot show; the node's debrief lists each production kind and which of the two it chose, with the evidence.
 > An adapter that implements it must carry the profile's effective sandbox, approval and writable-root settings
 > into the executor, or report unavailable. No adapter falls back to an agent conversation or to a host shell.
+> A profile that declares `exec` uses it as its probe executor, ahead of any adapter executor: schemas/runtimes@v2.json
+> gains `exec` as an optional profile property, an argv template in which exactly one whole element is
+> `{command}` (validated like writable_root_args' `{path}`), and the runner expands `{command}` as one argument
+> with no shell in between, inserting the prepared launch's writable-root and environment arguments before that
+> element. A profile without `exec` and without an adapter executor still reports unavailable.
 > Tests in packages/runner/test/runtimeProbe.test.ts, through injected process runners (no real agent binary):
+> - a profile declaring `exec` runs each check through exactly the expanded template, with the writable roots
+>   and environment arguments before the `{command}` element, and starts no agent;
+> - a catalogue whose `exec` has no `{command}` element, or two, is refused at load with a sentence naming the
+>   profile;
 > - for each implementing adapter, the exact argv and environment its executor receives carry the profile's
 >   args, the expanded writable roots and the environment arguments;
 > - for a production kind that does not implement it, the probe reports every agent-side check unavailable with
@@ -1037,7 +1046,8 @@ edit it.
 > the profile's commit custodian whose signature verifies. Under `commits: agent` all five run through the
 > adapter; under `commits: runner` the signed commit runs as the runner's custody does, and the agent's signing
 > may be shown separately as a diagnostic that does not decide the exit code. It prints one line per check:
-> passed, refused with the error text, or unavailable with the reason. It exits 0 only when every deciding check
+> passed, refused with the error text, or unavailable with the reason; the signed-commit line also names the
+> fingerprint of the key whose signature verified. It exits 0 only when every deciding check
 > passed. `interlock runtime probe --all` probes every launchable profile of the merged catalogue, routable or
 > not, including the one named by default_runtime and the legacy "default" profile, and names each one that did
 > not pass every deciding check; with no profiles at all it says so and exits 1, never succeeding vacuously.
@@ -1048,7 +1058,7 @@ edit it.
 > `event@v1` through `event@v10` still replaying unchanged. The event carries a probe id, the profile name, an
 > effective configuration fingerprint (a digest over the merged profile entry and the machine's environment and
 > provider configuration, not over per-attempt paths), the probe implementation version, every check's outcome
-> with its error text or reason, its derivation, and its time. `interlock runtime list` shows each profile's last
+> with its error text or reason, the signed commit's verifying key fingerprint, its derivation, and its time. `interlock runtime list` shows each profile's last
 > probe result and time; when that result's fingerprint or probe version differs from the profile's current one
 > it reads as historical ("probed under an earlier configuration"), and a profile never probed reads
 > "never probed". `runtime list` never runs a probe.
@@ -1072,6 +1082,8 @@ edit it.
 >   common git directory reports file create passed and the git metadata check refused, exit 1;
 > - a `commits: runner` profile whose agent cannot sign but whose runner custody signs exits 0, with the agent's
 >   signing shown as a diagnostic; the same agent under `commits: agent` exits 1;
+> - with two fixture signing keys, a commit signed by each verifies and its line and probe event name that key's
+>   fingerprint, and the two fingerprints differ;
 > - --all probes a non-routable profile, the default_runtime profile and a legacy "default" profile, and names
 >   every one that did not pass; an empty catalogue exits 1 with a sentence;
 > - runtime list shows the last probe per profile; a profile never probed reads "never probed"; after the
