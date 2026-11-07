@@ -279,7 +279,7 @@ export async function driveInteractiveSession(
     const graphBaseSha = worktree.value.base;
     const sessionId = randomUUID();
     const worktreeHeadSha = worktreeHead(worktreePath);
-    const journalEvents = await readRawEvents(await sharedJournalDirectory(repoRoot));
+    const journalEvents = await readRawEvents(ledger.directory());
     const inheritedFallback: SessionInheritance = {
       kind: "none",
       because: "could not inspect the resumed worktree",
