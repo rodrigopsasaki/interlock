@@ -15,16 +15,19 @@ read: >
   herdr was there to see sessions, the substrate now has its own interface (an app, a server, an MCP and a store),
   and the owner wants its install as lean as possible. A companion graph in the substrate's repository,
   0038-lean-install, takes herdr out of that install; this graph takes it out of the runner. Revised after a strict
-  cross-vendor vet (reject, sixteen findings), all folded.
+  cross-vendor vet (reject, sixteen findings), all folded, and again after its re-vet (reject, fourteen findings),
+  all folded: the launch handshake and group anchor, bounded draining, atomic records under a reclaimable lock,
+  debriefs for unchanged code, continuation phases, handoff evidence, ask identity, lifecycle-only state, the pane
+  cutover, command-path proofs, the review hash domain, and the wall.
 
   Today the runner opens a herdr pane and starts the agent in it (packages/runner/src/herdr/adapter.ts, behind the
   Runtime interface in packages/runner/src/runtime.ts; a tmux stub in packages/runner/src/tmux/adapter.ts), types
   the prompt and a submit key into it (packages/runner/src/promptDelivery.ts:8), and decides an agent is finished
   from herdr's agent status plus a live-work evidence source, which some runtimes lack, so their runs never read as
   finished and are hand-committed (their profiles are commits: agent). After committing an agent's code the runner
-  prompts the same agent again to file its debrief against the new head (packages/runner/src/sessionDrive.ts:473).
+  prompts the same agent again to file its debrief against the new head (packages/runner/src/sessionDrive.ts:675).
   The cli reads live sessions from herdr (packages/cli/src/herdrStatus.ts, used by graph/show.ts:17 and
-  face/world.ts:19; packages/cli/src/position.ts:189 observes the runtime too), and `interlock session say` delivers
+  face/world.ts:19; packages/cli/src/position.ts:196 observes the runtime too), and `interlock session say` delivers
   the owner's recorded words to a live agent through runtime.prompt (packages/cli/src/session/say.ts:193). Panes
   outlive the runner, were restored by herdr after the 15:30 UTC freeze (59 panes, about 16 GB idle), and had to be
   closed by hand.
@@ -35,57 +38,117 @@ read: >
   children, and plan reviews become exec sessions with everything 0057 asked of them (lens resolution, a snapshot of
   what was reviewed, reviews in flight and done in the position).
 
-  Phases. An exec child cannot be prompted again, so one node attempt runs as up to two exec phases of the same
-  profile, each its own child and its own transcript, both under the attempt's one session id: the work phase, and,
-  when the work phase leaves uncommitted code, the runner commits it (commits: runner, the runner's existing
-  custody) and starts the debrief phase, whose prompt asks only for the debrief at the new head. A phase is
-  identified by the session id and its phase name; the debrief phase records the work phase as its parent.
+  Phases. An exec child cannot be prompted again, so one node attempt runs as a sequence of exec phases of the same
+  profile, each its own child, its own transcript and its own admission, all under the attempt's one session id.
+  A phase has a kind (`phase`: work, debrief or review) and an identity unique within its session (`phaseId`):
+  work for the first work phase, continue-1, continue-2 and on for continuations (Steering, below; their kind is
+  work), debrief for the first debrief phase and debrief-2, debrief-3 and on for later ones, review for a plan
+  review. Each phase records the phase it follows as its parent. Under the runner's commit custody (commits:
+  runner) every work-kind phase that exits 0 is followed by a debrief phase, whether or not it changed code: the
+  runner commits the declared paths when code changed, and when nothing changed it commits nothing and keeps HEAD
+  (a commits.yaml is then not required), because the opening prompt forbids a runner-custody agent to file its
+  debrief before it is given HEAD (packages/runner/src/openingPrompt.ts:35) and the runner asks for that filing
+  whatever the code did (packages/runner/src/sessionDrive.ts:675). The debrief phase's prompt asks only for the
+  debrief at that HEAD; a later debrief phase files through `interlock debrief revise`, so an earlier filing is
+  versioned, never overwritten.
 
-  Machine admission. Graph 0056's machine provider was written for panes: it admits an inert pane's pid before the
-  agent starts (0056-machine-provider.yaml:63). For exec the order is: persist the session's record (no pid yet)
-  under a stable token, the session id and phase; ask the provider to admit that token; only on admit spawn the
-  child, then bind its pid to the token; release only after the group's end is confirmed. A refused admit spawns
-  nothing and the record ends failed with reason "machine limit" and a null pid. The provider cannot tell an unbound
-  token's spawn outcome on its own, so the runner always reports it: a spawn error releases the token with pid null;
-  a bind that fails or is refused makes the runner kill the group it spawned, confirm it empty, and only then
-  release; a runner that dies between spawn and bind leaves the token held until the next runner finds the record,
-  kills and confirms its group, and releases it. A provider never frees an unbound token by age alone (preston
-  0035 headless-admission holds it overdue until one of these reports). Revoking a running child is not
-  promised: the machine limits launches; the run timeout and a person's stop bound a running child.
+  Machine admission and launch. Graph 0056's machine provider was written for panes: it admits an inert pane's pid
+  before the agent starts (0056-machine-provider.yaml:64). For exec the order is: persist the phase's record (no
+  pid yet) under the stable token "<session id>/<phaseId>"; ask the provider to admit that token; only on admit
+  spawn the phase's launcher; read the identity the launcher publishes; bind that identity to the token; and only
+  once the bind is acknowledged tell the launcher to start the program. Release follows only the group's
+  confirmed end. A refused admit spawns nothing and the record ends failed with reason "machine limit" and a null
+  pid. The provider cannot tell an unbound token's spawn outcome on its own, so the runner always reports it, and a
+  provider never frees an unbound token by age alone (the companion machine-provider graph holds it overdue until a
+  report): a spawn error releases the token with pid null; a bind that fails, is refused, or whose acknowledgment
+  is lost makes the runner end the launcher's group (which has started nothing, since go follows the bind),
+  confirm it empty, and only then release; it never sends the bind again. Release is idempotent per token
+  (0056-machine-provider.yaml:71), so a release whose acknowledgment is lost is sent again with the same identity.
+  Revoking a running child is not promised: the machine limits launches; the run timeout and a person's stop bound
+  a running child.
+
+  The launcher. The runner never spawns a runtime program directly. It spawns Interlock's own launcher, a small
+  script of the runner package run with the runner's own node executable, detached so that the launcher leads a
+  new process group, with the phase's run directory and a control pipe. The launcher first publishes its identity
+  (its pid, which is the group's id, its birth identity and the machine's boot identity) to <run dir>/anchor.json by
+  writing a temporary file, syncing it and renaming it into place, then blocks on the control pipe. It starts the
+  profile's program, as its own child in the same group, only when the runner writes go; if the pipe ends before go
+  (the runner died), it exits having started nothing. So a crash anywhere between spawn and bind can leave only a
+  launcher that never starts work: the next runner, finding an unbound token whose anchor.json is absent or whose
+  anchor no longer verifies, reports the spawn as never started (pid null) and releases the token; finding one
+  whose launcher still verifies, it ends that group, confirms it empty, and releases. The launcher hands the
+  program its prompt (as an argument, or by writing every byte to the program's stdin and closing it), then writes
+  <run dir>/handoff.json (same atomic write); an EPIPE before the last byte is not a handoff. The program's stdout
+  and stderr are the launcher's, which are the runner's pipes. On the program's end the launcher writes its exit
+  code or signal to <run dir>/exit.json and stays alive as the group's anchor until the runner ends it: it ignores
+  TERM and HUP, so a TERM to the group reaches the program and its descendants but never the anchor, and it exits
+  when the runner writes end on the control pipe or by the group's KILL. If the control pipe ends after go (the
+  runner died), the launcher keeps waiting, so the anchor survives for the next runner.
 
   Containment. The guarantee is the process group: the runner signals -pgid and waits until no process remains in
   it (kill(-pgid, 0) answering ESRCH). A descendant that starts its own session or group leaves the guarantee; it is
   named here as outside it, and the transcript's start line says so, rather than claimed to be contained.
 
-  No survivors, by construction. On 2026-11-07 at 03:40 UTC the owner's Mac reached 17.6 GB of swap: a Sonnet
-  session's agent had run a package test suite with 16 vitest workers, and 10 more workers from an earlier test run
-  in the same worktree were still alive with parent pid 1, their pnpm gone and nothing owning them. So every process
-  the runner starts for a session (the agent, and every setup, gate and backfill command it runs) lives in a process
-  group the runner owns, and the runner kills that group and confirms it empty on every exit path: success, failure,
-  timeout, a person's stop and the runner's own death (found on the next start, as below). And admission refuses a
-  new session while any process of an earlier runner-owned group is still alive, matched by its birth identity, never
-  by pid alone, naming the group and its live processes; the refusal ends once the runner has killed and confirmed
-  them.
+  Identity and the group anchor. A pid and a pgid can be reused, but a process group's id is not reused while any
+  process remains in that group, and the anchor remains in it until the runner ends it. So the anchor's birth
+  identity (its start time as the operating system reports it, and the machine's boot identity), read through one
+  injectable process reader, is the group's ownership: before any signal to -pgid, and before reading a group as
+  alive, the runner verifies the anchor; a mismatch means the group is not ours, nothing is signalled, and the
+  record ends failed with reason "runner lost the process". The same reader lists a group's members with their
+  birth identities; while the anchor verifies, the runner samples the members into the record on every heartbeat.
+  If the anchor is gone before the runner ended it (killed from outside), the runner never signals the numeric
+  pgid: it signals individually each sampled member whose own birth identity still verifies, records the phase
+  failed with reason "group anchor ended from outside the runner", and names any member it could not verify.
+  Ending a group: once exit.json is written (or on a timeout or a stop), the runner verifies the anchor, lists the
+  members other than the anchor, and if any remain sends TERM to -pgid, then, if any still remain after the
+  grace, KILL to -pgid; once none but the anchor remain it writes end to the anchor; then it confirms the group gone.
+  A record is done when the program exited 0 and the group was then confirmed empty, even when the runner had to
+  kill leftover descendants to empty it (a runner line names each, and the record's `reaped` counts them); it is
+  killed only when a timeout or a person's stop ended the program itself.
 
-  Asks are seen at once. On 2026-11-07 a preston limits-setting session sat an hour on one question it had written
-  into its notes ("May I create the incremental why-commits ...?"), unseen, until the runner's wait timed out. An
-  agent's ask is a record, not a line in a file someone has to go and read: the runner reads each question an
-  attempt records (a notes@v0 entry of kind question) as it is written, and the session's record carries it at
-  once, so the app shows it the moment it is asked and the person or the orchestrator answers it there. Briefs say
+  No survivors, by construction. On 2026-11-07 at 03:40 UTC the owner's machine reached 17.6 GB of swap: an agent
+  session had run a package test suite with 16 vitest workers, and 10 more workers from an earlier test run in the
+  same worktree were still alive with parent pid 1, their pnpm gone and nothing owning them. So every process the
+  runner starts for a node runs under a launcher in a process group the runner owns: the agent's phases, worktree
+  setup (packages/runner/src/worktreeSetup.ts:86), gate commands (packages/runner/src/gateJudge.ts:133, which also
+  serves the standalone `interlock judge`) and backfill, which reaches setup and gates through the same two
+  functions (packages/runner/src/backfill.ts). A command's launcher publishes its anchor under
+  <git-common-dir>/interlock/runs/commands/<command id>/, removed only after its group is confirmed empty. The
+  runner ends that group and confirms it empty on every exit path: success, failure, timeout, a person's stop and
+  the runner's own death (found on the next start, as below). And admission refuses a new session while any
+  process of an earlier runner-owned group is still alive, matched by its anchor's or its sampled member's birth
+  identity, never by pid alone, naming the group and its live processes; the refusal ends once the runner has
+  killed and confirmed them.
+
+  Asks are seen at once. On 2026-11-07 a limits-setting session sat an hour on one question it had written into its
+  notes ("May I create the incremental why-commits ...?"), unseen, until the runner's wait timed out. An agent's ask
+  is a record, not a line in a file someone has to go and read: the runner reads each question an attempt records
+  (a notes@v0 entry of kind question) as it is written, and the session's record carries it at once, so the app
+  shows it the moment it is asked and the person or the orchestrator answers it there. An ask's identity is the
+  sha256 of its notes entry's canonical JSON, so the same question read again by a heartbeat or by recovery is the
+  same ask and is listed once (the runner already deduplicates question notes by content,
+  packages/runner/src/questionNotes.ts:6). An answer names the ask it answers; it never falls to the latest
+  question (packages/face/src/asking.ts:40 picks the latest today), so words written to one ask are never attached
+  to a later one. A session's state comes from its process lifecycle alone; an ask never changes it. Briefs say
   the brief's own permissions are the answer, so an agent does not ask for what its brief already grants.
 
-  Identity. A pid and a pgid can be reused. Each record keeps the child's birth identity (its start time as the
-  operating system reports it, and the machine's boot identity) read through one injectable reader. Before any
-  signal, and before reading a record's process as alive, the runner verifies that identity; a mismatch means the
-  process is not ours, nothing is signalled, and the record ends failed with reason "runner lost the process".
-
   The runner that dies. A child whose runner died is never adopted: its pipes cannot be reconnected and its lease
-  lapses. On its next start a runner finds running records with no live runner, verifies identity, kills the group
-  (TERM, then KILL after the grace), confirms it gone, and only then records the end and lets the node be leased
-  again, with the transcript's tail marked lost.
+  lapses. On its next start a runner finds running records with no live runner, verifies each anchor, ends the
+  group (TERM, then KILL after the grace), confirms it gone, and only then records the end and lets the node be
+  leased again, with the transcript's tail marked lost. It does the same for every command anchor it finds.
+
+  Records. A phase's record.json changes only under the phase's lock: <run dir>/record.lock, created exclusively
+  and holding its owner's pid, birth identity and boot identity. The lock is held across one read, check and
+  publish, never across a signal or a wait, so a person's stop waits at most one publish (I10). Under the lock the
+  writer reads the current generation, checks it, and publishes the next by writing a temporary file, syncing it
+  and renaming it over record.json (the pattern of packages/face/src/landedCache.ts:214), so a reader without the
+  lock always reads a complete generation and a crash mid-publish leaves the last complete one. A lock whose
+  owner's identity no longer verifies (gone, a reused pid, another boot) is reclaimed by renaming it aside to a
+  unique name, which only one contender's rename can do; the reclaimer then takes the lock and rereads the
+  generation before it writes.
 
   Where sessions live. Records and transcripts live under the repository's common Git directory,
-  <git-common-dir>/interlock/runs/<session id>/<phase>/, resolved the way the ledger already is
+  <git-common-dir>/interlock/runs/<session id>/<phaseId>/, resolved the way the ledger already is
   (packages/face/src/root.ts:28), so every linked worktree and the main checkout see the same sessions.
 
   The app's contract. The app reads sessions from Interlock, never from a runtime. The shapes below are fixed
@@ -96,47 +159,79 @@ read: >
   first; `--live` keeps state running only):
     { "interlock": "sessions@v0", "sessions": [ {
         "id": session id (the ledger's session id),
-        "phase": "work" | "debrief" | "review",
-        "parentId": the phase this one follows, as "<id>/<phase>", or null,
+        "phase": "work" | "debrief" | "review" (the phase's kind),
+        "phaseId": the phase's identity within the session ("work", "continue-1", "debrief", "debrief-2", "review"),
+        "parentId": the phase this one follows, as "<id>/<phaseId>", or null,
         "kind": "node" | "review",
         "graph": graph id, "node": node id or null for a review, "lens": lens name or null for a node,
-        "subjectHash": for a review, the sha256 of the snapshot it reviewed; null for a node,
+        "subjectHash": for a review, the sha256 of the graph file's bytes it reviewed; null for a node,
+        "snapshotHash": for a review, the sha256 of its whole snapshot (graph, lens, opening); null for a node,
         "arc": the graph's arc id or null,
         "runtime": runtimes.yaml profile name, "model": the profile's model,
-        "pid": child pid or null (never started), "pgid": its process group id or null,
+        "pid": the launcher's pid or null (never started), "pgid": its process group id (equal to pid) or null,
         "startedAt": ISO 8601 UTC, "endedAt": ISO 8601 UTC or null,
         "state": "running" | "done" | "failed" | "killed",
         "exitCode": integer or null, "signal": signal name or null,
         "reason": one plain line or null ("run timeout 3h", "machine limit", "stopped by <who>", "runner lost the
-                  process", "could not start: <code>", "ended by <signal> from outside the runner"),
+                  process", "could not start: <code>", "never started: runner ended before launch", "ended by
+                  <signal> from outside the runner", "group anchor ended from outside the runner"),
+        "reaped": how many leftover group members the runner killed to confirm the group empty,
+        "captureComplete": false when output was still held by a process outside the group at the drain grace,
+        "asks": [ { "id": the ask's sha256, "at", "asked", "options" or null,
+                    "answered": { "at", "by", "words" } or null } ],
+        "waitingOnAsk": true only while state is running and an ask is unanswered,
         "transcriptPath": absolute path of the phase's transcript.jsonl } ] }
-    state: running from spawn until the group's end is confirmed, including while a kill is in progress; done on
-    exit 0 with the group gone; failed on a non-zero exit, a spawn error (pid null, reason "could not start: <code>"),
-    a signal the runner did not send (signal set, reason "ended by <signal> from outside the runner"), or a lost
-    process; killed when the runner's own kill ended the group (reason names why). Terminal states are monotonic:
-    the first terminal transition recorded wins, and nothing moves a record out of a terminal state.
+    state: from the process lifecycle alone. running from spawn until the group's end is confirmed, including while
+    a kill is in progress; done on exit 0 with the group then confirmed empty; failed on a non-zero exit, a spawn
+    error (pid null, reason "could not start: <code>"), a launcher that never got go (pid null), a signal the runner
+    did not send (signal set, reason "ended by <signal> from outside the runner"), a lost process or a lost anchor;
+    killed when a timeout or a person's stop ended the program itself (reason names why). Terminal states are
+    monotonic: the first terminal transition recorded wins, and nothing moves a record out of a terminal state. A
+    record that ends with an ask unanswered keeps it in asks, answered null, as history, and reads waitingOnAsk false.
 
   transcript@v0, one file per phase at <run dir>/transcript.jsonl, one JSON object per line, written only by the
   runner:
     { "interlock": "transcript@v0", "ts": ISO 8601 UTC with milliseconds, "stream": "stdout" | "stderr" |
       "runner", "text": one line without its newline }
     One writer per transcript serializes every append. The runner splits each stream on newlines and keeps a
-    trailing partial line until its newline or the stream's end. On the child's close (both streams ended, never
-    only its exit, as packages/runner/src/gateJudge.ts:143 already waits for), it flushes the partial lines, writes
-    the runner's end line, syncs the file, and only then publishes the terminal state. A line without its trailing
+    trailing partial line until its newline or the stream's end. After the program's end and the group's confirmed
+    end, it waits for both streams to end (never only the exit, as packages/runner/src/gateJudge.ts:149 already
+    waits for close) for at most the drain grace (local.yaml drain_grace_ms, default 5000); a stream still open
+    then is held by a process outside the group, so the runner destroys its readers, writes a runner line saying
+    the capture is incomplete, and sets captureComplete false. Then it flushes the partial lines, writes the
+    runner's end line, syncs the file, and only then publishes the terminal state. A line without its trailing
     newline is incomplete: readers do not emit it until it is complete; after a crash the recovering runner cuts the
     incomplete tail and appends a runner line saying the tail was lost. "runner" lines record start (argv with the
-    prompt elided, cwd, pid, and the containment note), each kill step, the end, and any lost tail. Runtime output
-    is never parsed for meaning.
-  `interlock sessions read <id> [--phase <phase>] --json` prints a phase's lines (the latest phase by default);
+    prompt elided, cwd, pid, and the containment note), each kill step, each reaped member, the end, an incomplete
+    capture and any lost tail. Runtime output is never parsed for meaning.
+  `interlock sessions read <id> [--phase <phaseId>] --json` prints a phase's lines (the latest phase by default);
   with --follow it keeps printing new lines until the record is terminal, then drains the file once more and exits
   0. The app uses `interlock sessions --json` and `interlock sessions read` only.
 
+  Steering. `interlock session say` records the owner's words as today (person-said evidence, an outbox intent)
+  and, instead of typing into a pane, binds them to a phase launch. While a phase runs the words wait, recorded as
+  pending on the attempt. When a phase ends, in any terminal state, with words pending while the attempt still
+  holds its lease, the runner starts a continuation phase (continue-<n>, admitted like any launch; a refused
+  admission keeps the words pending and holds the node with reason "machine limit"). An exec child cannot resume
+  its predecessor's conversation, so a continuation's prompt is a fresh opening carrying the brief, the parent
+  phase's identity, outcome and transcript path, and the pending words, each with its said identity. Under runner
+  custody a continuation is work: the commit and a debrief phase follow it as above. A person who needs the words
+  read at once stops the running phase (`interlock sessions stop`), and the continuation starts with them; a stop
+  with no pending words starts nothing. Words said after the attempt's lease is released are refused with one
+  line, nothing recorded. Delivery evidence: before spawn, the runner persists in the phase's record the identities
+  of the words its prompt carries, so pending words are bound to exactly one launch; only the launcher's
+  handoff.json acknowledges their outbox intents. A runner that dies after binding and before reading the handoff
+  leaves the delivery uncertain (I7), reconciled on its next start: handoff.json present means delivered; absent
+  with the launcher never having had go means not delivered, and the words return to pending; absent after go is
+  recorded as uncertain, and the words are carried again in the next continuation marked as possibly already seen.
+
   Invariants. I6: no runtime program, flag or model is named in this graph's prose, code, tests or schemas outside
   an adapter; the machine's exec profiles live in the machine's runtimes.yaml, written by the machine's owner, and
-  the tests use fixture executables. I7: a kill is an outbox effect: its intent (session, phase, step, deadline) is
-  persisted before each signal, and a restart between TERM and KILL resumes the escalation from the persisted step.
-  I8: a review keeps its snapshot. I10: a person's stop is never gated.
+  the tests use fixture executables. I7: a kill is an outbox effect: its intent (session, phaseId, step, deadline)
+  is persisted before each signal, and a restart between TERM and KILL resumes the escalation from the persisted
+  step; bind, release and word delivery are outbox effects too, with lost acknowledgments recorded as uncertain.
+  I8: a review keeps its snapshot. I10: a person's stop is never gated, and neither is a person's release of a
+  pane-era hold.
   Order. Built after graph 0059 and graph 0056's machine-provider node; exec-runtime adapts that provider's admit to
   exec as described above. Every attempt opens with: run one heavy command at a time, never several in parallel or
   in the background; never clone the repository inside your worktree, use the worktree you were given. Out of
@@ -150,50 +245,71 @@ nodes:
     role: implementer
     depends_on: []
     acceptance: |
-      A runtimes@v1 profile of kind exec (evolved additively: argv, a {prompt} or stdin prompt mode, a model, an
-      optional read_only_argv, and an MCP allowlist: mcp_servers, the server names the machine's runtime may load;
-      mcp_allow, the ones this profile's sessions may use; and mcp_disable_argv, an argv template with {name} that the
-      runner appends once for every server in mcp_servers and not in mcp_allow) is started by the runner as a direct
-      child with spawn, detached into its own process group. Review sessions use an empty allowlist unless their
-      profile names one. The runner knows no server or flag by name; the templates live in the machine's
-      runtimes.yaml. The child runs with cwd the node's worktree, env from the machine provider, stdin closed once the prompt is written. The
-      phase, admission, containment, identity, dead-runner and transcript rules of this graph's read are implemented
-      exactly: the record is persisted before admit, nothing spawns on a refused admit, the pid is bound after spawn,
-      the state stays running until the group is confirmed gone, terminal states are monotonic, every signal is
-      preceded by an identity check and a persisted kill intent, and the transcript is drained and synced before the
-      terminal state is published. Records and transcripts live under <git-common-dir>/interlock/runs/. The
-      two-phase attempt replaces the second prompt of sessionDrive.ts:473: work phase, runner commit of the declared
-      paths, debrief phase at the new head, judgment. The machine provider's admit is adapted to a token-then-bind
-      protocol for exec, release on confirmed end.
+      A runtimes@v2 profile (schemas/runtimes@v2.json) of kind exec, keeping v2's provider and routable fields and
+      the catalogue's rule that only one profile per provider is routable. The exec fields are added to the v2
+      profile as optional properties (the profile object already admits additional properties), and the reference
+      corpus counts an exec example: args, v2's existing field, holds the program and its arguments, with a
+      {prompt} argument or prompt: stdin; a model; an optional read_only_args; and an MCP allowlist: mcp_servers,
+      the server names the machine's runtime may load; mcp_allow, the ones this profile's sessions may use; and
+      mcp_disable_args, an argument template with {name} that the runner appends once for every server in
+      mcp_servers and not in mcp_allow. Review sessions use an empty allowlist unless their profile names one. The
+      runner knows no server or flag by name; the templates live in the machine's runtimes.yaml. Each phase runs
+      under Interlock's own launcher, detached into its own process group, with cwd the node's worktree, env from
+      the machine provider, and the prompt handed over as the read says. The phase, launcher, admission,
+      containment, identity and group anchor, dead-runner and transcript rules of this graph's read are implemented
+      exactly: the record is persisted before admit, nothing spawns on a refused admit, the launcher's identity is
+      bound after spawn and go follows the acknowledged bind, the state stays running until the group is confirmed
+      gone, terminal states are monotonic, every signal is preceded by an anchor check and a persisted kill intent,
+      and the transcript is drained (bounded by the drain grace) and synced before the terminal state is published.
+      Records and transcripts live under <git-common-dir>/interlock/runs/. The phase sequence replaces the second
+      prompt of sessionDrive.ts:675: work phase, runner commit of the declared paths (or none, HEAD kept, when
+      nothing changed), debrief phase at that HEAD, judgment. The machine provider's admit is adapted to a
+      token-then-bind protocol for exec, release on confirmed end. Worktree setup (worktreeSetup.ts:86) and gate
+      commands (gateJudge.ts:133), and through them `interlock judge` and backfill, run under the same launcher
+      and group rules, with command anchors under <git-common-dir>/interlock/runs/commands/.
       Tests in packages/runner/test/execRuntime.test.ts with fixture executables (small node scripts under
-      test/fixtures; no real agent program) and a fixture provider and identity reader:
+      test/fixtures; no real agent program) and a fixture provider and process reader:
       - a child writing to both streams and exiting 0 is done only after its group is gone; its transcript lines
         carry the interlock tag, ts, stream and text, with a partial last line kept whole and runner start and end
         lines, and the end line is in the file before the record reads done;
-      - a leader that exits first while a grandchild in its group keeps running stays running until the grandchild
-        ends;
+      - a program that exits first while a grandchild in its group keeps running: the anchor stays, the runner
+        kills the grandchild, confirms the group empty, and the record reads done with reaped 1, never killed;
       - run timeout: TERM to the group, then KILL after the grace for a TERM-ignoring child and grandchild; state
         stays running until the group is gone, then killed; a restart between TERM and KILL resumes at KILL from the
         persisted intent;
       - a detached grandchild that starts its own session is outside the group; the record does not claim it, and
         the start line carries the containment note;
-      - a bind the provider refuses after spawn makes the runner kill and confirm the group before release, and a
-        runner killed between spawn and bind leaves the token held until the next runner releases it after confirming
-        the group empty;
-      - a refused admit spawns nothing (the fixture executable writes a marker file on start; none exists) and the
-        record ends failed, "machine limit", pid null;
-      - a spawn error (a missing executable) ends failed with "could not start: ENOENT" and pid null; a signal sent
-        from outside ends failed with that signal;
-      - an identity mismatch on a reused pid sends no signal and ends failed with "runner lost the process";
-      - a runner killed while its child runs: the next runner start kills the orphaned group, confirms it gone,
-        marks the tail lost, records the end, and only then leases the node again;
-      - a child that exits 0 while a grandchild in its group still runs (the fixture forks a sleeper): the runner
-        kills the group and confirms it empty before it records done;
+      - an escaped grandchild that keeps the inherited stdout and stderr open after the group is empty: the record
+        turns terminal within the drain grace, captureComplete false, with the incomplete-capture runner line, and
+        no reader is left open;
+      - launch handshake: the fixture program writes a marker file on start; a runner killed after spawn and before
+        the anchor is published, and one killed after it is published and before bind, each leave no marker; the
+        next runner reports never started with pid null (anchor absent or gone) or ends and confirms the launcher's
+        group (launcher alive), and only then releases the token;
+      - a bind the provider refuses, and a bind whose acknowledgment is lost (the provider applied it, the runner
+        died before recording it), each make the runner end the launcher's group, confirm it empty, and release,
+        with no marker and no second bind; a release whose acknowledgment is lost is sent again with the same token;
+      - a refused admit spawns nothing (no marker) and the record ends failed, "machine limit", pid null;
+      - a spawn error (a missing launcher program) ends failed with "could not start: ENOENT" and pid null; a signal
+        sent from outside to the program ends failed with that signal;
+      - an anchor identity mismatch on a reused pid sends no signal and ends failed with "runner lost the process";
+      - the anchor killed from outside while a sampled member runs: no signal goes to the numeric pgid, the member
+        is signalled only after its own identity verifies, and the record ends failed, "group anchor ended from
+        outside the runner"; the same after the runner also dies and the anchor's pid is reused;
+      - a runner killed while its program runs: the next runner start verifies the anchor, kills the orphaned
+        group, confirms it gone, marks the tail lost, records the end, and only then leases the node again;
       - while a process of an earlier runner-owned group is alive (same birth identity), admission refuses the next
         session and names the group; once the runner has killed and confirmed it, admission passes;
+      - a worktree setup command, a gate run by `interlock judge`, and a backfill, each through a fixture command
+        that forks a sleeper: after success, after failure, and after the runner dies mid-command, the sleeper's
+        group is confirmed empty (on the next start for the last) before admission passes again;
       - a two-phase attempt: the work phase leaves code uncommitted, the runner commits it, the debrief phase files a
         valid debrief at the new head, and the node is judged; the debrief phase's parentId names the work phase;
+      - an empty-code attempt under runner custody: the work phase changes nothing and leaves no commits.yaml, the
+        runner commits nothing, and the debrief phase still runs and files at the unchanged HEAD;
       - two callers in two linked worktrees list the same session;
+      - a v2 exec profile with provider and routable loads, and a second routable profile for that provider is
+        refused as today;
       - a profile with mcp_servers [a, b] and mcp_allow [a] passes the disable template for b only; a review session
         with no allowlist passes it for both.
       Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
@@ -207,22 +323,26 @@ nodes:
     role: implementer
     depends_on: [exec-runtime]
     acceptance: |
-      Each phase's record.json carries its own version tag, "interlock": "session@v0", and every sessions@v0 field
-      (this graph's read). Records change only under the session's lock (an exclusive lock file in the run
-      directory) with a generation number that every write checks and increments, so stop, natural exit and
+      Each phase's record.json carries its own version tag, "interlock": "session@v0", every sessions@v0 field
+      (this graph's read), the anchor's identity and the sampled members. Records change only under the phase's
+      lock with a generation number that every write checks and increments, published by temporary write, sync and
+      rename, with a dead owner's lock reclaimed by rename as the read's Records says, so stop, natural exit and
       recovery never race: the first terminal transition wins and the others are refused as already ended.
       Each record carries `asks`, additive to sessions@v0: every question the attempt has recorded in its notes, as
-      { at, asked, options or null, answered: { at, by, words } or null }, read by the runner as each is written and
-      published in the record within one heartbeat, and answered through `interlock session say`, which records the
-      answer against the ask it answers. A session with an unanswered ask is listed with state running and
-      `waitingOnAsk: true`.
+      { id, at, asked, options or null, answered: { at, by, words } or null }, id the sha256 of the notes entry's
+      canonical JSON, read by the runner as each is written and published in the record within one heartbeat,
+      listed once however often it is read. `interlock session say <graph> <node> <words> --by <who> --answers <ask
+      id>` records the answer against that ask; without --answers it answers the one open ask, and with several
+      open it refuses with one line naming their ids; an --answers naming an ask that is answered or unknown is
+      refused with one line naming the open asks, nothing recorded. State comes from the process lifecycle alone;
+      `waitingOnAsk` is true only while the state is running and an ask is unanswered.
       `interlock sessions --json [--live]` prints sessions@v0 from the records; `interlock sessions read <id>
-      [--phase <phase>] --json [--follow]` prints transcript@v0 lines with the read's completion and drain rules;
+      [--phase <phaseId>] --json [--follow]` prints transcript@v0 lines with the read's completion and drain rules;
       `interlock sessions stop <id> --by <who> --because <why>` kills through the same outbox kill as the timeout,
       reason "stopped by <who>". sessions@v0, session@v0 and transcript@v0 get schemas under schemas/, each with a
       committed valid example and invalid fixtures (a missing tag, an unknown state, a non-null pid on a never-started
       record) that the corpus and reference tests count by shape, and docs/shapes.md is regenerated. graph show, the
-      face and the position (packages/cli/src/graph/show.ts:17, face/world.ts:19, position.ts:189) read sessions from
+      face and the position (packages/cli/src/graph/show.ts:17, face/world.ts:19, position.ts:196) read sessions from
       the records instead of the runtime, and drilldown keeps reading the journal.
       Tests in packages/cli/test/sessions.test.ts on fixture records and transcripts:
       - sessions --json validates as sessions@v0, newest first; --live keeps running only;
@@ -230,10 +350,21 @@ nodes:
         appended after it started, and lines written just before the terminal state, then exits 0;
       - stop racing a natural exit, and two concurrent stops, leave one terminal transition and refuse the others;
       - stop kills a fixture child's group and the record reads killed, "stopped by <who>";
-      - a fixture child that writes a question into its notes appears in `sessions --json` with that ask and
-        `waitingOnAsk: true` within one heartbeat; `interlock session say` answers it, and the record then carries the
-        answer with who and when, and `waitingOnAsk: false`;
-      - a sessions@v0 reader that predates `asks` parses the new output unchanged;
+      - a reader polling record.json while a writer publishes many generations never reads a partial record; a
+        writer killed mid-publish leaves the last complete generation readable;
+      - a writer killed while holding the lock: a stop and a recovery competing for it both complete, exactly one
+        reclaims it, and each rereads the generation before it writes;
+      - a fixture child that writes a question into its notes appears in `sessions --json` with that ask, its id,
+        and `waitingOnAsk: true` within one heartbeat, and only once after several heartbeats and a recovery read;
+        `interlock session say --answers <id>` answers it, and the record then carries the answer with who and when,
+        and `waitingOnAsk: false`;
+      - a second question arriving after the first was listed and before the reply: a reply naming the first ask is
+        recorded against the first, never the second; a reply naming an answered ask is refused; a reply without
+        --answers while both are open is refused, naming both;
+      - a question then exit, a question then stop, and a question then recovery each leave the record terminal
+        (done, killed, failed) with the ask unanswered in asks and `waitingOnAsk: false`;
+      - a sessions@v0 reader that predates `asks`, `phaseId`, `reaped` and `captureComplete` parses the new output
+        unchanged;
       - graph show, the face and the position count live sessions from records with no herdr installed;
       - the corpus test counts at least one valid example of each new shape and refuses each invalid fixture.
       Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
@@ -250,19 +381,24 @@ nodes:
       Folded from graph 0057. `interlock review <graph> --lens <name> --runtime <profile> [--prompt-file <path>]`
       runs a reviewer-role exec session (phase review). Before launch it snapshots, into the run directory, the
       graph file's bytes, the resolved lens instruction (from the prompt file or a named lens in local.yaml) and the
-      reviewer role's opening; the prompt points at the snapshot, never the live file, and subjectHash is the
-      snapshot's sha256. It is leased under a review key (graph, lens, subjectHash), admitted like any launch, run
-      with the profile's read_only_argv, and listed by `interlock sessions` with kind review. Its output is saved as
-      a versioned review document (.interlock/reviews/<graph>/<subjectHash>/<lens>-<session>.md) and recorded as a
-      receipt whose derivation names model, lens and runtime and binds subjectHash. A review is advisory and never
-      moves the approved gate or any node (laws I2, I9). The position and the face show, for each drafted graph,
-      reviews in flight and done, and mark a review stale when the graph's current content hash differs from its
-      subjectHash.
+      reviewer role's opening; the prompt points at the snapshot, never the live file. Two hashes, two domains:
+      subjectHash is the sha256 of the graph file's bytes alone, exactly as snapshotted, and snapshotHash is the
+      sha256 of the whole snapshot (graph bytes, lens instruction, opening). It is leased under a review key (graph,
+      lens, subjectHash), admitted like any launch, run with the profile's read_only_args, and listed by
+      `interlock sessions` with kind review. Its output is saved as a versioned review document
+      (.interlock/reviews/<graph>/<subjectHash>/<lens>-<session>.md) and recorded as a receipt whose derivation
+      names model, lens and runtime and binds subjectHash and snapshotHash. A review is advisory and never moves the
+      approved gate or any node (laws I2, I9). The position and the face show, for each drafted graph, reviews in
+      flight and done, and mark a review stale when the sha256 of the live graph file's bytes differs from its
+      subjectHash (the same function on both sides; never the approval's receipt id, whose domain differs).
       Tests in packages/runner/test/planReview.test.ts with a fixture executable and provider, and in
       packages/face/test/reviewsInPosition.test.ts:
-      - a review is admitted, runs as a child, saves its document and receipt bound to subjectHash, and reads done;
+      - a review is admitted, runs as a child, saves its document and receipt bound to subjectHash and
+        snapshotHash, and reads done;
+      - subjectHash equals the sha256 of the graph file's bytes, and differs from snapshotHash;
+      - a review of an unchanged graph stays current in the position after it ends;
       - editing the live graph after launch changes nothing the review saw: its document and receipt name the
-        snapshot's hash, and the position then shows it stale;
+        snapshot's hashes, and the position then shows it stale;
       - a refused admit starts nothing and records no outcome;
       - a second review of the same subjectHash and lens while one runs is refused by the lease;
       - the position lists an active, a completed and a stale review for a drafted graph;
@@ -287,24 +423,47 @@ nodes:
       and submit keys (packages/runner/src/promptDelivery.ts), startup answers and pane focus, every herdr status check
       (including any runtime preflight that asks herdr's server), any completion chime, and every pane-close verb,
       with their tests; the remaining tests pass without herdr installed. Drilldown keeps reading the journal.
-      Steering. `interlock session say` (packages/cli/src/session/say.ts:193) records the owner's words as today
-      (person-said evidence, an outbox intent) and delivers them as the opening of the next phase of that attempt
-      instead of typing into a pane: while a phase runs the words wait, recorded as pending; the next phase's prompt
-      carries them, and the outbox records delivery when that phase starts. A person who needs them read at once
-      stops the running phase (`interlock sessions stop`) and the next phase starts with them.
+      Cutover. The ledger may still hold pane-era machine intents (machine-provider/admit or machine-provider/close
+      whose retained hold names a pane, reconciled today through the pane adapter in
+      packages/runner/src/machineOutbox.ts:225). They stay obligations, never dropped: on start the runner lists
+      each unresolved pane-era hold and refuses new admissions, naming each token and pane and the two ways to drain
+      it: run the prior release once (its start reconciles them), or, after closing the pane by hand, `interlock
+      machine release <token> --by <who> --because <why>`, a person's act (I10, never gated) that persists a release
+      intent with the hold's own identity, dispatches the hold's retained release argv through the outbox, and
+      records the close as that person's word. Holds already closed and released need nothing. Every read and a
+      person's stop stay available while admissions are refused.
+      Steering, as this graph's read says: `interlock session say` (packages/cli/src/session/say.ts:193) records the
+      words as today and binds them to a launch instead of typing into a pane; pending words start a continuation
+      phase when the running phase ends while the attempt holds its lease; a stop with pending words starts the
+      continuation, a stop without them starts nothing; words after the lease is released are refused; only the
+      launcher's handoff acknowledges delivery, and a crash between binding and the handoff is reconciled as the
+      read says, uncertain where it cannot be told.
       Docs. AGENTS.md's vocabulary changes session to "One agent process working one node, a child of the runner in
       its own process group." and runner to drop "drives herdr"; the "What this repository is" paragraph no longer
       says herdr owns terminals; the seams table's runtime and face rows no longer name a herdr pane. The design note
       gains a bend-log row: what bent (sessions in herdr panes), against which decision, why (the owner's 21:52 and
       21:54 UTC words, by their message ids), and that the way back was kept (the runtime seam is unchanged).
-      Profiles. A runtimes@v1 profile of a pane kind is refused with one line saying to move it to kind exec (no
-      silent fallback); the repository's local.example.yaml and docs show exec profiles only, with placeholder
-      program names.
+      Profiles. A profile of a pane kind, in any runtimes version (v0, v1 or v2), is refused with one line saying to
+      move it to kind exec (no silent fallback); the repository's local.example.yaml and docs show runtimes@v2 exec
+      profiles only, with placeholder program names.
       Tests in packages/runner/test/herdrGone.test.ts:
       - no source file under packages/ imports or names herdr or tmux;
-      - a pane-kind profile is refused with its line;
-      - session say during a running phase records pending words, and the next phase's prompt carries them, with the
-        outbox recording delivery at that phase's start.
+      - a pane-kind profile is refused with its line, for v0, v1 and v2 files;
+      - a pre-0060 ledger with an uncertain pane close and an unreleased token: admission is refused naming the
+        token and pane, a stop and the reads still work, `interlock machine release` by a person dispatches the
+        retained release once and records the close, and admission then passes; a lost acknowledgment of that
+        release is recorded uncertain and sent again with the same identity;
+      - say during a running phase records pending words; when the phase ends, a continuation phase (continue-1,
+        parentId the ended phase) is admitted and its prompt carries them, and the outbox records delivery only at
+        the launcher's handoff;
+      - words said during a debrief phase, the attempt's last phase, start a continuation after it, followed by a
+        commit and a debrief-2 phase under runner custody;
+      - stop with pending words, then the continuation, then delivery; stop without pending words starts nothing;
+        say after the lease is released is refused and records nothing;
+      - a runner killed after binding words to a launch and before go: the words return to pending; killed after go
+        and before handoff.json: delivery is recorded uncertain and the next continuation carries the words marked
+        as possibly already seen; killed after handoff.json and before the acknowledgment: the next start records
+        delivery from handoff.json.
       Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
     gates:
       - id: herdr-gone-proof

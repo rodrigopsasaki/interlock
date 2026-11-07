@@ -1005,19 +1005,24 @@ edit it.
 > Folded from graph 0057. `interlock review <graph> --lens <name> --runtime <profile> [--prompt-file <path>]`
 > runs a reviewer-role exec session (phase review). Before launch it snapshots, into the run directory, the
 > graph file's bytes, the resolved lens instruction (from the prompt file or a named lens in local.yaml) and the
-> reviewer role's opening; the prompt points at the snapshot, never the live file, and subjectHash is the
-> snapshot's sha256. It is leased under a review key (graph, lens, subjectHash), admitted like any launch, run
-> with the profile's read_only_argv, and listed by `interlock sessions` with kind review. Its output is saved as
-> a versioned review document (.interlock/reviews/<graph>/<subjectHash>/<lens>-<session>.md) and recorded as a
-> receipt whose derivation names model, lens and runtime and binds subjectHash. A review is advisory and never
-> moves the approved gate or any node (laws I2, I9). The position and the face show, for each drafted graph,
-> reviews in flight and done, and mark a review stale when the graph's current content hash differs from its
-> subjectHash.
+> reviewer role's opening; the prompt points at the snapshot, never the live file. Two hashes, two domains:
+> subjectHash is the sha256 of the graph file's bytes alone, exactly as snapshotted, and snapshotHash is the
+> sha256 of the whole snapshot (graph bytes, lens instruction, opening). It is leased under a review key (graph,
+> lens, subjectHash), admitted like any launch, run with the profile's read_only_args, and listed by
+> `interlock sessions` with kind review. Its output is saved as a versioned review document
+> (.interlock/reviews/<graph>/<subjectHash>/<lens>-<session>.md) and recorded as a receipt whose derivation
+> names model, lens and runtime and binds subjectHash and snapshotHash. A review is advisory and never moves the
+> approved gate or any node (laws I2, I9). The position and the face show, for each drafted graph, reviews in
+> flight and done, and mark a review stale when the sha256 of the live graph file's bytes differs from its
+> subjectHash (the same function on both sides; never the approval's receipt id, whose domain differs).
 > Tests in packages/runner/test/planReview.test.ts with a fixture executable and provider, and in
 > packages/face/test/reviewsInPosition.test.ts:
-> - a review is admitted, runs as a child, saves its document and receipt bound to subjectHash, and reads done;
+> - a review is admitted, runs as a child, saves its document and receipt bound to subjectHash and
+>   snapshotHash, and reads done;
+> - subjectHash equals the sha256 of the graph file's bytes, and differs from snapshotHash;
+> - a review of an unchanged graph stays current in the position after it ends;
 > - editing the live graph after launch changes nothing the review saw: its document and receipt name the
->   snapshot's hash, and the position then shows it stale;
+>   snapshot's hashes, and the position then shows it stale;
 > - a refused admit starts nothing and records no outcome;
 > - a second review of the same subjectHash and lens while one runs is refused by the lease;
 > - the position lists an active, a completed and a stale review for a drafted graph;

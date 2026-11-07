@@ -1003,22 +1003,45 @@ edit it.
 > and submit keys (packages/runner/src/promptDelivery.ts), startup answers and pane focus, every herdr status check
 > (including any runtime preflight that asks herdr's server), any completion chime, and every pane-close verb,
 > with their tests; the remaining tests pass without herdr installed. Drilldown keeps reading the journal.
-> Steering. `interlock session say` (packages/cli/src/session/say.ts:193) records the owner's words as today
-> (person-said evidence, an outbox intent) and delivers them as the opening of the next phase of that attempt
-> instead of typing into a pane: while a phase runs the words wait, recorded as pending; the next phase's prompt
-> carries them, and the outbox records delivery when that phase starts. A person who needs them read at once
-> stops the running phase (`interlock sessions stop`) and the next phase starts with them.
+> Cutover. The ledger may still hold pane-era machine intents (machine-provider/admit or machine-provider/close
+> whose retained hold names a pane, reconciled today through the pane adapter in
+> packages/runner/src/machineOutbox.ts:225). They stay obligations, never dropped: on start the runner lists
+> each unresolved pane-era hold and refuses new admissions, naming each token and pane and the two ways to drain
+> it: run the prior release once (its start reconciles them), or, after closing the pane by hand, `interlock
+> machine release <token> --by <who> --because <why>`, a person's act (I10, never gated) that persists a release
+> intent with the hold's own identity, dispatches the hold's retained release argv through the outbox, and
+> records the close as that person's word. Holds already closed and released need nothing. Every read and a
+> person's stop stay available while admissions are refused.
+> Steering, as this graph's read says: `interlock session say` (packages/cli/src/session/say.ts:193) records the
+> words as today and binds them to a launch instead of typing into a pane; pending words start a continuation
+> phase when the running phase ends while the attempt holds its lease; a stop with pending words starts the
+> continuation, a stop without them starts nothing; words after the lease is released are refused; only the
+> launcher's handoff acknowledges delivery, and a crash between binding and the handoff is reconciled as the
+> read says, uncertain where it cannot be told.
 > Docs. AGENTS.md's vocabulary changes session to "One agent process working one node, a child of the runner in
 > its own process group." and runner to drop "drives herdr"; the "What this repository is" paragraph no longer
 > says herdr owns terminals; the seams table's runtime and face rows no longer name a herdr pane. The design note
 > gains a bend-log row: what bent (sessions in herdr panes), against which decision, why (the owner's 21:52 and
 > 21:54 UTC words, by their message ids), and that the way back was kept (the runtime seam is unchanged).
-> Profiles. A runtimes@v1 profile of a pane kind is refused with one line saying to move it to kind exec (no
-> silent fallback); the repository's local.example.yaml and docs show exec profiles only, with placeholder
-> program names.
+> Profiles. A profile of a pane kind, in any runtimes version (v0, v1 or v2), is refused with one line saying to
+> move it to kind exec (no silent fallback); the repository's local.example.yaml and docs show runtimes@v2 exec
+> profiles only, with placeholder program names.
 > Tests in packages/runner/test/herdrGone.test.ts:
 > - no source file under packages/ imports or names herdr or tmux;
-> - a pane-kind profile is refused with its line;
-> - session say during a running phase records pending words, and the next phase's prompt carries them, with the
->   outbox recording delivery at that phase's start.
+> - a pane-kind profile is refused with its line, for v0, v1 and v2 files;
+> - a pre-0060 ledger with an uncertain pane close and an unreleased token: admission is refused naming the
+>   token and pane, a stop and the reads still work, `interlock machine release` by a person dispatches the
+>   retained release once and records the close, and admission then passes; a lost acknowledgment of that
+>   release is recorded uncertain and sent again with the same identity;
+> - say during a running phase records pending words; when the phase ends, a continuation phase (continue-1,
+>   parentId the ended phase) is admitted and its prompt carries them, and the outbox records delivery only at
+>   the launcher's handoff;
+> - words said during a debrief phase, the attempt's last phase, start a continuation after it, followed by a
+>   commit and a debrief-2 phase under runner custody;
+> - stop with pending words, then the continuation, then delivery; stop without pending words starts nothing;
+>   say after the lease is released is refused and records nothing;
+> - a runner killed after binding words to a launch and before go: the words return to pending; killed after go
+>   and before handoff.json: delivery is recorded uncertain and the next continuation carries the words marked
+>   as possibly already seen; killed after handoff.json and before the acknowledgment: the next start records
+>   delivery from handoff.json.
 > Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.

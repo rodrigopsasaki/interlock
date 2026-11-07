@@ -1003,58 +1003,75 @@ The app's contract. The app reads sessions from Interlock, never from a runtime.
 sessions@v0, printed by `interlock sessions --json` (all of this machine's sessions for the repository, newest first; `--live` keeps state running only):
   { "interlock": "sessions@v0", "sessions": [ {
       "id": session id (the ledger's session id),
-      "phase": "work" | "debrief" | "review",
-      "parentId": the phase this one follows, as "<id>/<phase>", or null,
+      "phase": "work" | "debrief" | "review" (the phase's kind),
+      "phaseId": the phase's identity within the session ("work", "continue-1", "debrief", "debrief-2", "review"),
+      "parentId": the phase this one follows, as "<id>/<phaseId>", or null,
       "kind": "node" | "review",
       "graph": graph id, "node": node id or null for a review, "lens": lens name or null for a node,
-      "subjectHash": for a review, the sha256 of the snapshot it reviewed; null for a node,
+      "subjectHash": for a review, the sha256 of the graph file's bytes it reviewed; null for a node,
+      "snapshotHash": for a review, the sha256 of its whole snapshot (graph, lens, opening); null for a node,
       "arc": the graph's arc id or null,
       "runtime": runtimes.yaml profile name, "model": the profile's model,
-      "pid": child pid or null (never started), "pgid": its process group id or null,
+      "pid": the launcher's pid or null (never started), "pgid": its process group id (equal to pid) or null,
       "startedAt": ISO 8601 UTC, "endedAt": ISO 8601 UTC or null,
       "state": "running" | "done" | "failed" | "killed",
       "exitCode": integer or null, "signal": signal name or null,
       "reason": one plain line or null ("run timeout 3h", "machine limit", "stopped by <who>", "runner lost the
-                process", "could not start: <code>", "ended by <signal> from outside the runner"),
+                process", "could not start: <code>", "never started: runner ended before launch", "ended by
+                <signal> from outside the runner", "group anchor ended from outside the runner"),
+      "reaped": how many leftover group members the runner killed to confirm the group empty,
+      "captureComplete": false when output was still held by a process outside the group at the drain grace,
+      "asks": [ { "id": the ask's sha256, "at", "asked", "options" or null,
+                  "answered": { "at", "by", "words" } or null } ],
+      "waitingOnAsk": true only while state is running and an ask is unanswered,
       "transcriptPath": absolute path of the phase's transcript.jsonl } ] }
-  state: running from spawn until the group's end is confirmed, including while a kill is in progress; done on
-  exit 0 with the group gone; failed on a non-zero exit, a spawn error (pid null, reason "could not start: <code>"),
-  a signal the runner did not send (signal set, reason "ended by <signal> from outside the runner"), or a lost
-  process; killed when the runner's own kill ended the group (reason names why). Terminal states are monotonic:
-  the first terminal transition recorded wins, and nothing moves a record out of a terminal state.
+  state: from the process lifecycle alone. running from spawn until the group's end is confirmed, including while
+  a kill is in progress; done on exit 0 with the group then confirmed empty; failed on a non-zero exit, a spawn
+  error (pid null, reason "could not start: <code>"), a launcher that never got go (pid null), a signal the runner
+  did not send (signal set, reason "ended by <signal> from outside the runner"), a lost process or a lost anchor;
+  killed when a timeout or a person's stop ended the program itself (reason names why). Terminal states are
+  monotonic: the first terminal transition recorded wins, and nothing moves a record out of a terminal state. A
+  record that ends with an ask unanswered keeps it in asks, answered null, as history, and reads waitingOnAsk false.
 
 transcript@v0, one file per phase at <run dir>/transcript.jsonl, one JSON object per line, written only by the runner:
   { "interlock": "transcript@v0", "ts": ISO 8601 UTC with milliseconds, "stream": "stdout" | "stderr" |
     "runner", "text": one line without its newline }
   One writer per transcript serializes every append. The runner splits each stream on newlines and keeps a
-  trailing partial line until its newline or the stream's end. On the child's close (both streams ended, never
-  only its exit, as packages/runner/src/gateJudge.ts:143 already waits for), it flushes the partial lines, writes
-  the runner's end line, syncs the file, and only then publishes the terminal state. A line without its trailing
+  trailing partial line until its newline or the stream's end. After the program's end and the group's confirmed
+  end, it waits for both streams to end (never only the exit, as packages/runner/src/gateJudge.ts:149 already
+  waits for close) for at most the drain grace (local.yaml drain_grace_ms, default 5000); a stream still open
+  then is held by a process outside the group, so the runner destroys its readers, writes a runner line saying
+  the capture is incomplete, and sets captureComplete false. Then it flushes the partial lines, writes the
+  runner's end line, syncs the file, and only then publishes the terminal state. A line without its trailing
   newline is incomplete: readers do not emit it until it is complete; after a crash the recovering runner cuts the
   incomplete tail and appends a runner line saying the tail was lost. "runner" lines record start (argv with the
-  prompt elided, cwd, pid, and the containment note), each kill step, the end, and any lost tail. Runtime output
-  is never parsed for meaning.
-`interlock sessions read <id> [--phase <phase>] --json` prints a phase's lines (the latest phase by default); with --follow it keeps printing new lines until the record is terminal, then drains the file once more and exits 0. The app uses `interlock sessions --json` and `interlock sessions read` only.
+  prompt elided, cwd, pid, and the containment note), each kill step, each reaped member, the end, an incomplete
+  capture and any lost tail. Runtime output is never parsed for meaning.
+`interlock sessions read <id> [--phase <phaseId>] --json` prints a phase's lines (the latest phase by default); with --follow it keeps printing new lines until the record is terminal, then drains the file once more and exits 0. The app uses `interlock sessions --json` and `interlock sessions read` only.
 ```
 
 ## Acceptance (verbatim from the graph)
 
-> Each phase's record.json carries its own version tag, "interlock": "session@v0", and every sessions@v0 field
-> (this graph's read). Records change only under the session's lock (an exclusive lock file in the run
-> directory) with a generation number that every write checks and increments, so stop, natural exit and
+> Each phase's record.json carries its own version tag, "interlock": "session@v0", every sessions@v0 field
+> (this graph's read), the anchor's identity and the sampled members. Records change only under the phase's
+> lock with a generation number that every write checks and increments, published by temporary write, sync and
+> rename, with a dead owner's lock reclaimed by rename as the read's Records says, so stop, natural exit and
 > recovery never race: the first terminal transition wins and the others are refused as already ended.
 > Each record carries `asks`, additive to sessions@v0: every question the attempt has recorded in its notes, as
-> { at, asked, options or null, answered: { at, by, words } or null }, read by the runner as each is written and
-> published in the record within one heartbeat, and answered through `interlock session say`, which records the
-> answer against the ask it answers. A session with an unanswered ask is listed with state running and
-> `waitingOnAsk: true`.
+> { id, at, asked, options or null, answered: { at, by, words } or null }, id the sha256 of the notes entry's
+> canonical JSON, read by the runner as each is written and published in the record within one heartbeat,
+> listed once however often it is read. `interlock session say <graph> <node> <words> --by <who> --answers <ask
+> id>` records the answer against that ask; without --answers it answers the one open ask, and with several
+> open it refuses with one line naming their ids; an --answers naming an ask that is answered or unknown is
+> refused with one line naming the open asks, nothing recorded. State comes from the process lifecycle alone;
+> `waitingOnAsk` is true only while the state is running and an ask is unanswered.
 > `interlock sessions --json [--live]` prints sessions@v0 from the records; `interlock sessions read <id>
-> [--phase <phase>] --json [--follow]` prints transcript@v0 lines with the read's completion and drain rules;
+> [--phase <phaseId>] --json [--follow]` prints transcript@v0 lines with the read's completion and drain rules;
 > `interlock sessions stop <id> --by <who> --because <why>` kills through the same outbox kill as the timeout,
 > reason "stopped by <who>". sessions@v0, session@v0 and transcript@v0 get schemas under schemas/, each with a
 > committed valid example and invalid fixtures (a missing tag, an unknown state, a non-null pid on a never-started
 > record) that the corpus and reference tests count by shape, and docs/shapes.md is regenerated. graph show, the
-> face and the position (packages/cli/src/graph/show.ts:17, face/world.ts:19, position.ts:189) read sessions from
+> face and the position (packages/cli/src/graph/show.ts:17, face/world.ts:19, position.ts:196) read sessions from
 > the records instead of the runtime, and drilldown keeps reading the journal.
 > Tests in packages/cli/test/sessions.test.ts on fixture records and transcripts:
 > - sessions --json validates as sessions@v0, newest first; --live keeps running only;
@@ -1062,10 +1079,21 @@ transcript@v0, one file per phase at <run dir>/transcript.jsonl, one JSON object
 >   appended after it started, and lines written just before the terminal state, then exits 0;
 > - stop racing a natural exit, and two concurrent stops, leave one terminal transition and refuse the others;
 > - stop kills a fixture child's group and the record reads killed, "stopped by <who>";
-> - a fixture child that writes a question into its notes appears in `sessions --json` with that ask and
->   `waitingOnAsk: true` within one heartbeat; `interlock session say` answers it, and the record then carries the
->   answer with who and when, and `waitingOnAsk: false`;
-> - a sessions@v0 reader that predates `asks` parses the new output unchanged;
+> - a reader polling record.json while a writer publishes many generations never reads a partial record; a
+>   writer killed mid-publish leaves the last complete generation readable;
+> - a writer killed while holding the lock: a stop and a recovery competing for it both complete, exactly one
+>   reclaims it, and each rereads the generation before it writes;
+> - a fixture child that writes a question into its notes appears in `sessions --json` with that ask, its id,
+>   and `waitingOnAsk: true` within one heartbeat, and only once after several heartbeats and a recovery read;
+>   `interlock session say --answers <id>` answers it, and the record then carries the answer with who and when,
+>   and `waitingOnAsk: false`;
+> - a second question arriving after the first was listed and before the reply: a reply naming the first ask is
+>   recorded against the first, never the second; a reply naming an answered ask is refused; a reply without
+>   --answers while both are open is refused, naming both;
+> - a question then exit, a question then stop, and a question then recovery each leave the record terminal
+>   (done, killed, failed) with the ask unanswered in asks and `waitingOnAsk: false`;
+> - a sessions@v0 reader that predates `asks`, `phaseId`, `reaped` and `captureComplete` parses the new output
+>   unchanged;
 > - graph show, the face and the position count live sessions from records with no herdr installed;
 > - the corpus test counts at least one valid example of each new shape and refuses each invalid fixture.
 > Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
