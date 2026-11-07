@@ -41,8 +41,10 @@ import {
   loadStandingGates,
   mergeRuntimes,
   type Runtime,
+  reconcileMachineOnStart,
   renderBriefFile,
   renderOpeningView,
+  resolveMachine,
   selectRuntime,
 } from "runner";
 import { narrateContext } from "substrate";
@@ -173,6 +175,9 @@ export async function runInterlockPlan(
     };
   }
 
+  const machine = await resolveMachine(repoRoot);
+  if (isErr(machine)) return { exitCode: 1, message: machine.error };
+
   const localConfig = await loadLocalConfig(repoRoot);
   if (isErr(localConfig)) {
     return {
@@ -234,6 +239,8 @@ export async function runInterlockPlan(
   const ledger = opened.value;
 
   try {
+    const recovered = await reconcileMachineOnStart(ledger, clock, narrate, options.runtime);
+    if (isErr(recovered)) return { exitCode: 1, message: recovered.error };
     const approvalRefusal = await refuseIfGraphApproved(repoRoot, graph, ledger);
     if (isErr(approvalRefusal)) {
       return { exitCode: 1, message: approvalRefusal.error };
@@ -419,6 +426,7 @@ export async function runInterlockPlan(
       "and a debrief; never lease or run a node of the graph.";
 
     return await driveInteractiveSession({
+      machine: machine.value,
       repoRoot,
       graph,
       node,

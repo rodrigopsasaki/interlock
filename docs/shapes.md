@@ -1117,6 +1117,27 @@ substrate:
   # send_repository: false
 ```
 
+## machine
+
+No vocabulary entry for `machine`.
+
+### Versions
+
+- `machine@v0`: the first version.
+
+### Fields (`machine@v0`)
+
+| field | type | required | description |
+| --- | --- | --- | --- |
+| `interlock` | the literal `"machine@v0"` | yes |  |
+| `provider` | one of `?`, `?` | yes | `?`: no fields beyond `kind`; `?`: admit, release, env, heavy |
+
+### Examples
+
+#### `machine@v0`
+
+_No example of `machine@v0` was found in the corpus._
+
 ## notes
 
 No vocabulary entry for `notes`.

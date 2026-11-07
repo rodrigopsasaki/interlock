@@ -31,6 +31,7 @@ describe("reference: docs/shapes.md stays fresh against the schemas", () => {
       "event",
       "item",
       "local",
+      "machine",
       "notes",
       "positions",
       "queue",
