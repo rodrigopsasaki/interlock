@@ -1,0 +1,176 @@
+interlock: graph@v0
+id: 0058-cited-delegation
+arc: every-ask-is-an-arc
+ask: The owner's driver approves graphs, clears human gates and publishes plan graphs on the owner's cited word, recorded as acting for the owner, so the owner is never handed an approve, clear, push or pull-request line to run.
+derivation:
+  kind: model
+  model: gilb (Claude)
+  prompt: cited-delegation-2026-11-06
+authorization:
+  granted_by: Rodrigo Sasaki
+  mandate: loom-feed-2026-11-04  # "You're free to do changes on phyxius and interlock too", 23:25 UTC
+  approver: Rodrigo Sasaki; Gilb relays the recorded approval and coordinates cleared-node merges. The cross-vendor vet is advisory.
+read: >
+  Arc: every-ask-is-an-arc (.interlock/arcs.yaml). Rodrigo, 2026-11-06 19:28 UTC, after being handed pull-request and
+  commit lines to paste: "why am I being asked to do these? ... This is exactly the type of thing I don't want to have
+  to do." The companion driver graph in the substrate's repository gives the owner's driver cited delegation over the substrate's owner acts; this
+  graph gives Interlock the same for its own: the approved gate, human gate clearances, and publishing a plan graph
+  as a pull request.
+
+  Today `interlock graph approve <graph> --by <who> --because <why>` and `interlock gate clear <graph> <node> <gate>
+  --by --because` record whoever --by names (packages/cli/src/graph/approve.ts:36-52, packages/cli/src/gate/clear.ts:
+  42-58), so "Gilb for Rodrigo Sasaki" is a free-text claim with nothing behind it. There is no product path to push
+  a plan branch or open its pull request: those were hand commands, and when a host's safety check refused them they
+  went to the owner as pastes.
+
+  Cite grammar (cite@v0), one literal grammar that the companion driver graph adopts word for word, so a cite means
+  the same in both. A cite is exactly one of three forms, matched whole:
+    said:<id>   an owner-voice record the substrate holds; <id> is [A-Za-z0-9_-]{1,128}
+    msg:<id>    a message in the driver's conversation; <id> is [A-Za-z0-9_-]{1,128}
+    https://github.com/<owner>/<repo>/(issues|pull)/<n>#issuecomment-<id>, <owner> and <repo> GitHub names, <n> and
+                <id> decimal
+  The prefix is stripped before the id is passed on; a bare id, a prefix with an empty or malformed id, extra
+  whitespace or any other string is refused. Accepted examples, identical in both graphs: `said:b-7f3c19`,
+  `msg:cmsg_01BN1q6CYuBjcZAFT6C2pgFdW7ADPkTH7KHoD9BQemQLYK`,
+  `https://github.com/acme/widgets/pull/4#issuecomment-6690704055`. Interlock names no product (the wall in
+  AGENTS.md): it verifies a `said:` or `msg:` cite through a machine provider command, `cite`, in
+  ~/.config/interlock/machine.yaml beside graph 0056's provider commands, given the cite's kind and id as separate
+  arguments ({kind} is said or msg, {id} the stripped id), so the provider answers from that source only; it prints
+  {verified, author, words, at} or exits non-zero; which program answers is local configuration. A GitHub comment
+  URL is verified through the git-host adapter below.
+
+  Authorship is not authorization. Verifying a cite proves the owner wrote those words; it cannot prove the words
+  mean "do this act". Interlock does not read meaning, so the receipt keeps the two apart: the owner's words, verified
+  and verbatim, and the driver's reading of them, recorded as the driver's own, never as the owner's. One cite
+  authorizes one act: the receipt binds the cite to the action (approve, clear or publish), its target (graph,
+  node and gate) and the graph's content hash, and the same cite offered for any other action, target or content is
+  refused naming the act it already authorized. A cite is bound by its canonical source identity, never by the
+  string offered: `said:` and `msg:` by kind and id, a GitHub comment by the stable id the git host returns for it
+  (its node id), so a differently cased or otherwise aliased URL for the same comment is the same cite. An edited
+  graph stales its approval (D20), and the stale approval's cite cannot approve the edit; a delegated gate clearance
+  counts only while the graph's content hash equals the one it was bound to, so an edited graph holds the gate until
+  it is cleared again. A delegated receipt the owner disputes is retracted by the owner, append-only: the receipt and
+  its consumed cite stay in the ledger, and from the retraction on the act it authorized no longer counts.
+
+  Invariants. I2: nothing merges on an agent's opinion; publishing opens a pull request and never merges one. I7:
+  pushes and pull-request opens are outbox effects. I10: the owner's own authority is never gated; the owner's own
+  --by keeps working exactly as today. I6: gh is called only inside its adapter.
+
+  Order. This graph is vetted one vet at a time after the core vet. Its build starts after graph 0056 lands, since
+  approve-for-the-owner extends 0056's machine@v0 file and its schema, and it reads .interlock/arcs.yaml, which is on
+  main since 2026-11-06 (pull request #90). Every
+  attempt opens with: run one heavy command at a time, never several in parallel or in the background; never clone
+  the repository inside your worktree, use the worktree you were given.
+gates:
+  - id: approved
+    kind: human
+nodes:
+  - id: approve-for-the-owner
+    role: implementer
+    depends_on: []
+    acceptance: |
+      `interlock graph approve` and `interlock gate clear` accept `--for <owner name> --cites <cite> --reading <text>`
+      beside --by and --because. A flag that is present must carry a value: `--for` or `--cites` given last, given an empty value, or
+      followed directly by another option is refused with one plain line and writes nothing, never read as absent
+      (today parseFlag, packages/cli/src/flags.ts:3, returns undefined for a flag given last, "" for an empty value
+      and the next option's token for a flag followed by another option, so flags.ts gains a parse that refuses all
+      three as present-but-invalid). `--cites` without `--for`, or `--for` without `--cites`, is refused the same
+      way. When --for is given, --by names the driver acting for the owner, and the call is allowed only when
+      the cite verifies as the owner's own words: a `said:` or `msg:` cite through the machine provider's `cite`
+      command, a GitHub comment URL through the git-host adapter (its author must be the owner's login, configured in
+      local.yaml as owner_login). The receipt records "<by> for <owner>" (for Rodrigo: "Gilb for Rodrigo Sasaki"), the
+      cite string, the verified author, words and time, and the driver's reading (`--reading <text>`, required with
+      --for, recorded as the driver's), as part of its derivation, so it is told apart from an approval the owner made
+      himself. One cite authorizes one act: the ledger keeps each delegated receipt's cite bound to its action,
+      target (graph, and node and gate for a clearance) and graph content hash, and a cite already bound is refused
+      for any other action, target or content, naming the act it authorized. The binding key is the cite's canonical
+      identity: kind and id for said: and msg:, and for a comment URL the comment's node id as the git-host adapter
+      returns it, while the literal cite is kept for provenance. The gate judge (packages/runner/src/gateJudge.ts:205
+      today accepts any satisfied human gate) counts a delegated clearance only while the graph's current content
+      hash equals its bound hash; otherwise the gate reads held until cleared again, and a fresh clearance is allowed
+      (packages/cli/src/gate/clear.ts:123 refuses re-clearing a satisfied gate today; it allows it when the standing
+      clearance is a delegated one gone stale). The owner retracts a delegated receipt with `interlock receipt retract
+      <graph> [<node> <gate>] --by <owner> --because <why>`, never with --for: an append-only ledger event naming the
+      receipt, which stays with its consumed cite; from that event on, a retracted approval reads unapproved and a
+      retracted clearance reads held, and the cite stays consumed. The owner's own receipts are untouched (I10). The
+      human derivation (packages/ledger/src/derivation.ts:16, today kind and who,
+      and schemas/parts/derivation.json:36, which refuses other fields) evolves additively: a delegated form carrying
+      for, cite, the verified author, words and at, the reading, and the bound action, target and content hash, with
+      its schema and a reader that keeps accepting every receipt already written. A call with --for and no --cites, an empty cite, a cite in no known form, a cite
+      that does not verify, or one whose author is not the owner is refused with one plain line naming why, e.g.
+      "Gilb can approve for Rodrigo Sasaki only on his own words; this cite is not his." The owner's own call, without
+      --for, works exactly as today (I10).
+      machine.yaml gains the optional provider key `cite: [argv...]` ({kind} and {id} substituted as separate
+      arguments, never the joined cite), with graph 0056's schema rules (machine@v0 extended additively, its schema and
+      tests updated).
+      Tests in packages/cli/test/citedApproval.test.ts with fixture provider and git-host adapters:
+      - approve and gate clear with --for and a verifying said:, msg: and comment-URL cite succeed and record "Gilb
+        for Rodrigo Sasaki" with the cite in the receipt;
+      - no cite, an empty cite, a malformed cite, a cite that does not verify, and a comment by someone else are each
+        refused with their line and record nothing;
+      - the owner's own approve without --for is unchanged;
+      - with no cite provider configured, a said: or msg: cite is refused naming the missing command;
+      - `--for` or `--cites` given last, empty, or followed by another option is refused and writes nothing;
+      - each of the three accepted example cites parses to its kind and id, and a bare id, an empty id and a padded
+        cite are refused;
+      - `said:x` and `msg:x` with the same id reach the provider as different kinds, and a fixture whose two sources
+        give that id different authors verifies only the owner's;
+      - a cite that approved one graph is refused for another graph, for the same graph's edited content, and for a
+        gate clearance, each naming the act it already authorized; --for without --reading is refused;
+      - the receipt keeps the owner's words and the driver's reading in separate fields;
+      - a comment URL whose owner and repository differ only in case from one already bound resolves to the same
+        node id and is refused as already used;
+      - a delegated clearance of gate H on graph content H1 stops counting once the graph is edited to H2: the gate
+        reads held, a fresh delegated clearance with a new cite is accepted, and the old receipt stays in the ledger;
+      - the owner retracts a delegated approval and a delegated clearance: replaying the ledger shows the graph
+        unapproved and the gate held, both receipts and their cites still present and consumed; a retract with --for
+        is refused;
+      - a delegated receipt is reopened from the ledger and validates against the evolved schema with for, cite,
+        author, words and at inside its derivation, while an existing human receipt still reads.
+      Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
+    gates:
+      - id: cited-approval-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/citedApproval.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: machine-schema-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter schemas exec vitest run test/machine.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: plan-publish
+    role: implementer
+    depends_on: [approve-for-the-owner]
+    acceptance: |
+      `interlock plan publish <graph> --for <owner> --cites <cite> --by <driver>` publishes a drafted plan graph
+      through the product: it pushes the graph's plan branch to the repository's origin and opens its pull request
+      against main, both as outbox effects (I7) with stable identities (the branch and the graph content hash). The
+      graph id is validated first against ^[0-9]{4}-[a-z0-9-]+$ and must equal the graph file's id; anything else is
+      refused. The push names its destination literally, `<source sha>:refs/heads/plan/<id>`, with the source sha
+      resolved once and persisted in the effect's intent, never a shorthand ref and never force; recovery re-sends that
+      same sha, so a branch tip that moved after the intent is never pushed under the old identity. The graph that
+      names the publication is read from that sha (`git show <sha>:.interlock/graphs/<id>.yaml`), and its bytes must
+      equal the graph file in the worktree; a graph untracked, uncommitted or different at that sha is refused before
+      any intent is recorded, so the content hash always names the bytes that are pushed. Publishing twice
+      opens one pull request and an interrupted publish reconciles on the next run. The pull request body's first line is the arc line, "Arc: <arc id> (<source>)", read
+      from .interlock/arcs.yaml by the graph's `arc` key; a graph whose arc is not in arcs.yaml is refused naming it.
+      The rest of the body is the graph's ask and the cite, with the owner's attribution block. It never merges (I2).
+      The same cite rule as approve-for-the-owner applies; the owner may publish without --for. Pushing and opening
+      the pull request go through a git-host adapter, the only file that calls gh (I6), with an injectable runner for
+      tests.
+      Tests in packages/cli/test/planPublish.test.ts with fixture git and git-host adapters:
+      - publish pushes plan/<graph> and opens one pull request whose body starts with the arc line;
+      - publishing again opens nothing new; an interrupted publish reconciles to one pull request;
+      - a graph with no arc, or an arc missing from arcs.yaml, is refused naming it;
+      - a missing or unverified cite is refused, as for approve;
+      - nothing pushes to main, uses force, or merges;
+      - a hostile graph id such as `x:refs/heads/main` is refused before any push, and the push argv is the literal
+        `<sha>:refs/heads/plan/<id>` refspec;
+      - recovery after the branch tip moves re-sends the persisted sha, not the new tip;
+      - an untracked graph, and a graph whose worktree bytes differ from the sha's, are each refused with no effect
+        recorded.
+    gates:
+      - id: plan-publish-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/planPublish.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
