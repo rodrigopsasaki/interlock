@@ -1,0 +1,133 @@
+interlock: debrief@v2
+graph: 0058-cited-delegation
+node: plan-publish
+role: implementer
+graph_base_sha: 45374e20eec7a674c048cb075950233027d15934
+session_start_sha: 016ead71fef8b8edab73aa51e41cf9dd14724fb1
+head_sha: 45d9fe2a24eb2732aa2942db0d7845a1090b39df
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: durable-plan-publication
+    what: >-
+      Added planPublish.ts's plan publish command. It validates the graph id and graph document,
+      resolves the arc registry entry, requires the graph path to be tracked and byte-identical to
+      the resolved HEAD, verifies delegated citations, records deterministic push and pull-request
+      outbox intents with retained payloads, dispatches through the injected git-host adapter, and
+      records acknowledged or uncertain deliveries. Recovery reads the persisted payload, so a
+      moved branch tip does not change the source sha or refspec; pull-request lookup reconciles
+      an interrupted create before opening another request.
+    because: >-
+      The acceptance requires I7 intent-before-dispatch, stable branch and graph-content identity,
+      exact committed graph bytes, literal plan refspecs, one pull request across retries, and no
+      merge. Keeping validation before ledger creation and dispatch behind the adapter preserves
+      those boundaries.
+    rests_on:
+      - .interlock/graphs/0058-cited-delegation.yaml
+      - docs/design/0001-interlock.md:142-147
+      - docs/design/0001-interlock.md:259-262
+    hunks:
+      - packages/cli/src/planPublish.ts:1-613
+  - id: host-adapter-publication
+    what: >-
+      Extended gitHostAdapter.ts with injectable branch-push and pull-request query/create
+      operations. The default adapter calls git for the literal push refspec and gh only for
+      GitHub pull-request lookup and creation, keeping host effects behind one adapter.
+    because: >-
+      I6 keeps runtime and host assumptions at adapters, while the fixture adapter must observe
+      exact argv-level publication requests without requiring a live host.
+    rests_on:
+      - AGENTS.md
+      - packages/cli/src/gitHostAdapter.ts:5-19
+    hunks:
+      - packages/cli/src/gitHostAdapter.ts:1-200
+  - id: arc-and-citation-boundaries
+    applies_to: { kind: repository }
+    what: >-
+      Added optional arc parsing to GraphDocument and graph@v0's schema, regenerated docs/shapes.md,
+      and included publication outbox intents in delegated cite-consumption checks. The CLI dispatch
+      now recognizes interlock plan publish.
+    because: >-
+      Publication needs the graph's arc key and a closed graph artifact contract, and a citation
+      authorizes one act even when that act is represented by an outbox intent rather than a gate
+      receipt.
+    rests_on:
+      - .interlock/arcs.yaml:1-18
+      - schemas/graph@v0.json:8-20
+      - docs/shapes.md:949-958
+    hunks:
+      - packages/face/src/document.ts:27-33
+      - packages/face/src/document.ts:124-132
+      - packages/face/src/document.ts:181-187
+      - schemas/graph@v0.json:14-17
+      - docs/shapes.md:949-958
+      - packages/cli/src/delegation.ts:230-235
+      - packages/cli/src/main.ts:122-127
+  - id: publication-proof
+    what: >-
+      Added planPublish.test.ts fixture coverage for literal plan refspecs, arc-first body lines,
+      idempotent publication, interrupted pull-request reconciliation, persisted-sha recovery after
+      a branch-tip move, missing or unknown arcs, hostile graph ids, untracked or divergent graph
+      bytes, and cited-owner refusal before effects.
+    because: >-
+      These tests exercise each acceptance refusal and recovery boundary through fixture git and
+      git-host adapters, including the proof that no push or ledger is created before graph bytes
+      are trusted.
+    rests_on:
+      - packages/cli/src/planPublish.ts:180-237
+      - packages/cli/src/planPublish.ts:323-425
+    hunks:
+      - packages/cli/test/planPublish.test.ts:1-271
+  - id: session-record
+    what: >-
+      Recorded the session's implementation choices, fixture correction, full-suite timeout, and
+      standing-gate environment boundary in notes.yaml.
+    because: >-
+      The session contract requires every choice and surprise to retain its way back beside the
+      implementation.
+    rests_on:
+      - .interlock/sessions/0058-cited-delegation/plan-publish/brief.md
+    hunks:
+      - .interlock/sessions/0058-cited-delegation/plan-publish/notes.yaml:1-63
+gates_run_by_agent:
+  - id: typecheck
+    result: fail
+    invocation: mise exec -- pnpm typecheck
+    note: >-
+      The root recursive gate stopped in packages/ledger because tsc was not linked in the
+      workspace environment. CLI-local typecheck passed on the changed code.
+  - id: lint
+    result: fail
+    invocation: mise exec -- pnpm lint
+    note: The root gate stopped because biome was not linked in the workspace environment; targeted Biome passed.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+  - id: test
+    result: fail
+    invocation: mise exec -- pnpm test
+    note: >-
+      The root gate stopped in packages/ledger because vitest was not linked; the full CLI suite
+      also timed out in existing loopback-dependent position and judge fixtures. The focused plan
+      publication proof passed 9 tests.
+  - id: plan-publish-proof
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter cli exec vitest run test/planPublish.test.ts --passWithNoTests=false
+    note: 9 tests passed.
+  - id: debrief-valid
+    result: pass
+    invocation: mise exec -- pnpm interlock debrief validate 0058-cited-delegation plan-publish
+    note: Canonical debrief and notes validated before the final artifact commit.
+open:
+  - >-
+    The production default git-host adapter was not exercised against a live remote. The focused
+    proof injects a fixture adapter and verifies the exact branch, refspec, body, reconciliation,
+    and persisted-sha calls; the runner should supply the live host receipts when this runs with
+    a configured origin and gh.
+  - >-
+    The required root typecheck, lint and test gates remain blocked by missing workspace executable
+    links in this environment. check:comments, targeted CLI typecheck, targeted Biome, schema
+    reference generation, and the 9-test plan-publish proof passed.

@@ -952,6 +952,7 @@ The directed acyclic graph of nodes produced from one ask.
 | --- | --- | --- | --- |
 | `interlock` | the literal `"graph@v0"` | yes |  |
 | `id` | string | yes |  |
+| `arc` | string | no | Optional arc registry key. Publication requires it to resolve in .interlock/arcs.yaml. |
 | `ask` | string | no | The ask the graph was produced from. Optional; when present the loader requires a string and the position carries it verbatim. |
 | `gates` | array of gate-declaration | no | A gate as declared on a graph node, a graph, or a brief's front matter: an id, a kind, and an optional command and output check. A human gate carries no run. |
 | `nodes` | array of object | yes | fields: id (string, required); role (one of `"scout"`, `"planner"`, `"implementer"`, `"tester"`, `"reviewer"`, `"verifier"`, optional); acceptance (string, optional); depends_on (array of string, optional); gates (array of gate-declaration, optional); paths (array of string, optional) |

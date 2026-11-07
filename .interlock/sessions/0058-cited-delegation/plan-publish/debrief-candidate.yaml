@@ -1,0 +1,15 @@
+interlock: debrief@v2
+graph: 0058-cited-delegation
+node: plan-publish
+role: implementer
+graph_base_sha: 45374e20eec7a674c048cb075950233027d15934
+session_start_sha: 016ead71fef8b8edab73aa51e41cf9dd14724fb1
+head_sha: cf5c59102e89e9f3b1c986ede8c336e585cff53d
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions: []
+gates_run_by_agent: []
+open: []

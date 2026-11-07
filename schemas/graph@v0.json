@@ -11,6 +11,10 @@
     "id": {
       "type": "string"
     },
+    "arc": {
+      "description": "Optional arc registry key. Publication requires it to resolve in .interlock/arcs.yaml.",
+      "type": "string"
+    },
     "ask": {
       "description": "The ask the graph was produced from. Optional; when present the loader requires a string and the position carries it verbatim.",
       "type": "string"
