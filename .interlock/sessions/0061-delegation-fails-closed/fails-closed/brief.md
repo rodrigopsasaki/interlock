@@ -21,11 +21,7 @@ gates:
   run: pnpm interlock debrief validate {graph} {node}
 - id: fail-closed-proof
   kind: command
-  run: pnpm --fail-if-no-match --filter runner exec vitest run test/gateJudge.test.ts --passWithNoTests=false
-  expect_output: 'Tests +[1-9][0-9]* passed'
-- id: neutral-refusal-proof
-  kind: command
-  run: pnpm --fail-if-no-match --filter cli exec vitest run test/citedApproval.test.ts --passWithNoTests=false
+  run: pnpm --fail-if-no-match --filter runner exec vitest run test/delegatedFailsClosed.test.ts --passWithNoTests=false
   expect_output: 'Tests +[1-9][0-9]* passed'
 scope:
 - .gitignore
@@ -1002,15 +998,22 @@ edit it.
 
 ## Acceptance (verbatim from the graph)
 
-> gateJudge holds every delegated human clearance (a satisfied human gate whose receipt derivation carries a
-> contentHash) when the current graph file cannot be read or hashed: the gate moves back to pending with the same
-> move and narration a stale clearance gets today, and the final view reports it pending. A readable graph keeps
-> today's behavior exactly (equal hash counts, different hash holds), and a clearance without a contentHash is
-> never held by this rule. The refusal lines in packages/cli/src/delegation.ts name the owner they are given and
-> carry no gendered pronoun; no "his", "her", "him" or "she"/"he" remains in any delegation refusal.
+> A delegated human clearance (a satisfied human gate whose receipt derivation carries a contentHash) counts only
+> while Interlock can show its graph content is unchanged. judgeGates, and judgeWorktree which forwards to it,
+> take the authoritative graph path as a required field, and every caller supplies it: packages/cli/src/judge.ts and packages/runner/src/sessionDrive.ts
+> the root graph file, packages/runner/src/backfill.ts the root graph file whose declarations it judges. A
+> delegated clearance stands only when both the authoritative copy and the judged worktree copy are readable and
+> both hash to its bound contentHash. Otherwise (either copy missing or unreadable, or either hash different) the
+> gate moves back to pending with the same move and narration a stale clearance gets today. The final view reads
+> both copies again after the command gates have run and applies the same rule, so a gate command that changes or
+> removes the graph leaves the delegated clearance pending in the resolved outcome. A clearance without a
+> contentHash is never held by this rule. Because the cite stays consumed (cite-stays-consumed), the hold never
+> frees it. Restoring the graph to the bound content, or the owner's own clearance, clears the gate again.
 > Tests:
-> - packages/runner/test/gateJudge.test.ts: a delegated clearance with the graph file removed (and, separately,
->   unreadable) is held pending with the stale narration; the same clearance with an unchanged graph still counts;
->   an owner's own clearance (no contentHash) still counts with the graph file removed;
-> - packages/cli/test/citedApproval.test.ts: each refusal names the configured owner and matches no gendered
->   pronoun.
+> - packages/runner/test/delegatedFailsClosed.test.ts: a delegated clearance is held pending with the stale
+>   narration when the worktree graph is removed, when it is a directory, and when the authoritative graph is
+>   removed; it is held when the root copy is H2 and the worktree copy is H1 (bound to H1), for a judge-shaped and
+>   a backfill-shaped call; it is held when a passing gate command removes the graph during judgment, and when
+>   one rewrites it; with both copies unchanged it still counts; an owner's own clearance (no contentHash) still
+>   counts with the graph removed; after a hold, restoring the bound graph clears the node again, and so does the
+>   owner's own clearance.
