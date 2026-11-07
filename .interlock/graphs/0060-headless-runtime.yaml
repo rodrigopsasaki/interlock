@@ -18,7 +18,13 @@ read: >
   cross-vendor vet (reject, sixteen findings), all folded, and again after its re-vet (reject, fourteen findings),
   all folded: the launch handshake and group anchor, bounded draining, atomic records under a reclaimable lock,
   debriefs for unchanged code, continuation phases, handoff evidence, ask identity, lifecycle-only state, the pane
-  cutover, command-path proofs, the review hash domain, and the wall.
+  cutover, command-path proofs, the review hash domain, and the wall. Revised again after a third vet (reject,
+  fourteen findings), all folded: records publish by exclusive generation instead of a reclaimable lock, the anchor
+  signals its own group, an anchor lost from outside leaves a held cleanup obligation instead of a numeric signal,
+  launchers are found by a launch nonce, go is an outbox effect with the launcher's start evidence, the machine
+  provider's wire contract is written out, git and provider commands run owned, steering words outlive a dead
+  attempt, a whole-attempt stop, a verified pane drain beside the person's override, three distinct launch
+  failures, admission refused only by orphans and obligations, and session and phase named apart.
 
   Today the runner opens a herdr pane and starts the agent in it (packages/runner/src/herdr/adapter.ts, behind the
   Runtime interface in packages/runner/src/runtime.ts; a tmux stub in packages/runner/src/tmux/adapter.ts), types
@@ -67,41 +73,104 @@ read: >
   Revoking a running child is not promised: the machine limits launches; the run timeout and a person's stop bound
   a running child.
 
-  The launcher. The runner never spawns a runtime program directly. It spawns Interlock's own launcher, a small
-  script of the runner package run with the runner's own node executable, detached so that the launcher leads a
-  new process group, with the phase's run directory and a control pipe. The launcher first publishes its identity
-  (its pid, which is the group's id, its birth identity and the machine's boot identity) to <run dir>/anchor.json by
-  writing a temporary file, syncing it and renaming it into place, then blocks on the control pipe. It starts the
-  profile's program, as its own child in the same group, only when the runner writes go; if the pipe ends before go
-  (the runner died), it exits having started nothing. So a crash anywhere between spawn and bind can leave only a
-  launcher that never starts work: the next runner, finding an unbound token whose anchor.json is absent or whose
-  anchor no longer verifies, reports the spawn as never started (pid null) and releases the token; finding one
-  whose launcher still verifies, it ends that group, confirms it empty, and releases. The launcher hands the
-  program its prompt (as an argument, or by writing every byte to the program's stdin and closing it), then writes
-  <run dir>/handoff.json (same atomic write); an EPIPE before the last byte is not a handoff. The program's stdout
-  and stderr are the launcher's, which are the runner's pipes. On the program's end the launcher writes its exit
-  code or signal to <run dir>/exit.json and stays alive as the group's anchor until the runner ends it: it ignores
-  TERM and HUP, so a TERM to the group reaches the program and its descendants but never the anchor, and it exits
-  when the runner writes end on the control pipe or by the group's KILL. If the control pipe ends after go (the
-  runner died), the launcher keeps waiting, so the anchor survives for the next runner.
+  The machine provider's wire contract for exec. machine@v0 (packages/runner/src/machineProvider.ts) gains one
+  optional argv, `bind`, and providerArgv gains the placeholders {session}, {phase}, {pgid}, {birth}, {boot} and
+  {outcome}; nothing is removed or renamed, and a machine.yaml without `bind` keeps working for every command
+  that is not an exec phase. An exec phase under a provider whose machine.yaml has no `bind`, or whose `admit`
+  names {pid} or {pane} (neither exists at admit for exec), is refused with one line naming the missing or
+  impossible field; nothing is spawned, nothing falls back. The three calls, each run as an owned command (No
+  survivors, below), each an outbox effect whose intent carries its argv, and each acknowledged by its exit code
+  and output retained as today (machineOutbox.ts):
+    admit, with {token} "<session id>/<phaseId>", {session}, {phase} (the phaseId), {holder}, {agent},
+      {worktree}, {attempt} and {kind} "exec": exit 0 admits; any other exit refuses, its first output line the
+      reason. The provider records session and phase beside the token.
+    bind, with {token}, {pid} and {pgid} (both the launcher's pid), {birth} (the launcher's birth identity) and
+      {boot} (the machine's boot identity): exit 0 binds; any other exit refuses the bind. Sent at most once per
+      token.
+    release, with {token}, {outcome} and {pgid}: {outcome} is "never-started" (no launcher process for the token
+      exists or ever started a program, {pgid} empty) or "group-empty" (the token's group was confirmed empty,
+      {pgid} its id). Release is the runner's report of the spawn's outcome; it is idempotent per token, valid
+      for a bound or an unbound token, and sent again with the same arguments when its acknowledgment is lost.
+  A provider never frees an unbound token by age alone. The fixture provider in the tests is a small script that
+  appends each call's argv to a file, so every test asserts the exact sequence (admit, bind, release with its
+  outcome) a real provider would see.
 
-  Containment. The guarantee is the process group: the runner signals -pgid and waits until no process remains in
-  it (kill(-pgid, 0) answering ESRCH). A descendant that starts its own session or group leaves the guarantee; it is
+  The launcher. The runner never spawns a runtime program directly. It spawns Interlock's own launcher, a small
+  script of the runner package run with the runner's own node executable, with `detached: true` so that the
+  launcher leads a new session and process group, with the phase's run directory, a control pipe on its stdin,
+  and a launch nonce: a random value the runner persists in the phase's record before the spawn and passes on the
+  launcher's argv, so any launcher for a token can be found by its argv through the process reader even before it
+  has published anything. The launcher first publishes its identity (its pid, which is the group's id, its birth
+  identity and the machine's boot identity) to <run dir>/anchor.json by writing a temporary file, syncing it and
+  renaming it into place, opens its control socket (below), then blocks on the control pipe. It starts the
+  profile's program only when the runner writes go, spawned without `detached` so the program inherits the
+  launcher's group; just before that spawn it writes <run dir>/started.json (same atomic write), so a program
+  never runs without started.json. If the pipe ends before go (the runner died), it exits having started
+  nothing. The launcher hands the program its prompt (as an argument, or by writing every byte to the program's
+  stdin and closing it), then writes <run dir>/handoff.json; an EPIPE before the last byte is not a handoff. The
+  program's stdout and stderr are the launcher's, which are the runner's pipes. On the program's end the launcher
+  writes its exit code or signal to <run dir>/exit.json and stays alive as the group's anchor until the runner
+  ends it: it ignores TERM and HUP, and if the control pipe ends after go (the runner died) it keeps waiting, so
+  the anchor survives for the next runner.
+  The anchor's control socket. The pipe cannot be reconnected by a later runner, so the anchor also listens on
+  <run dir>/control.sock, a socket created mode 0600 in the runner's own run directory; every request carries the
+  phase's control secret, a random value persisted in the record before the spawn and handed to the launcher on
+  its control pipe, never on its argv. Requests: signal <TERM|KILL> (the anchor calls kill on its own process
+  group from inside it, so the group cannot have been reused when the signal is sent: its sender is a live
+  member), members (the anchor lists the group's other members with their birth identities through the same
+  reader), and end (the anchor exits; honoured only when no other member remains). An anchor that verifies but
+  does not answer its socket within the grace is treated as an anchor lost (Identity, below).
+  Three launch failures, told apart. The OS refuses the launcher (the runner's node executable cannot be run:
+  ENOENT, EACCES, EMFILE and the like): no process exists, the record ends failed with pid null and reason "could
+  not start: <code>", and the token is released never-started. The launcher starts and exits before publishing
+  its anchor (its script is missing or fails to load): the process existed, so the record keeps its pid, ends
+  failed with reason "launcher failed before its anchor: exit <code>", and the token is released group-empty
+  once the reader confirms the group gone. The launcher is up and the program cannot be spawned (the profile's
+  program is missing): the launcher writes exit.json with the spawn error before any handoff, the record ends
+  failed with reason "program could not start: <code>" and the launcher's pid, the words it carried return to
+  pending (no program ever ran, so delivery is definitely not done), and the group is ended and released
+  group-empty as usual.
+  So a crash anywhere between spawn and bind can leave only a launcher that never starts work. The next runner,
+  for an unbound token: if its anchor verifies, it asks the anchor to end (the anchor has no other member before
+  go), confirms the group gone, and releases group-empty; if no anchor verifies, it lists processes carrying the
+  token's launch nonce, and while any lives (a launcher still initializing, or stopped) the token stays held and
+  each heartbeat looks again, the runner line naming the pid; only once none lives is the spawn reported
+  never-started and the token released. A launcher found by nonce is never signalled by number: one that resumes
+  reads its ended pipe and exits by itself.
+
+  Containment. The guarantee is the process group: the anchor signals its group and the runner waits until no
+  process remains in it (kill(-pgid, 0) answering ESRCH; a probe sends nothing). A descendant that starts its own session or group leaves the guarantee; it is
   named here as outside it, and the transcript's start line says so, rather than claimed to be contained.
 
   Identity and the group anchor. A pid and a pgid can be reused, but a process group's id is not reused while any
   process remains in that group, and the anchor remains in it until the runner ends it. So the anchor's birth
   identity (its start time as the operating system reports it, and the machine's boot identity), read through one
-  injectable process reader, is the group's ownership: before any signal to -pgid, and before reading a group as
-  alive, the runner verifies the anchor; a mismatch means the group is not ours, nothing is signalled, and the
-  record ends failed with reason "runner lost the process". The same reader lists a group's members with their
-  birth identities; while the anchor verifies, the runner samples the members into the record on every heartbeat.
-  If the anchor is gone before the runner ended it (killed from outside), the runner never signals the numeric
-  pgid: it signals individually each sampled member whose own birth identity still verifies, records the phase
-  failed with reason "group anchor ended from outside the runner", and names any member it could not verify.
-  Ending a group: once exit.json is written (or on a timeout or a stop), the runner verifies the anchor, lists the
-  members other than the anchor, and if any remain sends TERM to -pgid, then, if any still remain after the
-  grace, KILL to -pgid; once none but the anchor remain it writes end to the anchor; then it confirms the group gone.
+  injectable process reader, is the group's ownership: before any request to the anchor, and before reading a
+  group as alive, the runner verifies the anchor; a mismatch means the group is not ours, nothing is signalled,
+  and the record ends failed with reason "runner lost the process". The runner itself never sends a signal to a
+  numeric pgid or to a member's pid: a verify followed by a kill is two calls, and the last member could die and
+  the id be reused between them. Every group signal is sent by the anchor from inside the group, over its control
+  socket. While the anchor verifies, the runner samples the members (the anchor's members answer) into the record
+  on every heartbeat, as evidence only.
+  An anchor lost from outside. If the anchor is gone before the runner ended it (killed from outside, or not
+  answering its socket), nothing is signalled by anyone but a person. The record ends failed with reason "group
+  anchor ended from outside the runner", and the runner records a cleanup obligation on the group: its pgid, every
+  process the reader lists in that group at that moment (sampled or not, so a child forked after the last
+  heartbeat is listed too), and the sampled members whose identity still verifies. While any sampled member
+  verifies and remains in the group, the group cannot have been reused, so every listed member is named as ours;
+  otherwise the listing is recorded as unverified. The obligation holds admission (No survivors, below) and is
+  rechecked on every heartbeat; it clears itself only when kill(-pgid, 0) answers ESRCH. A person's stop of that
+  phase (I10) is the only signal: it sends TERM, then KILL after the grace, to each listed member whose birth
+  identity verifies at that moment, records the act as that person's word, and names the residual race it
+  accepts; the obligation still clears only on ESRCH. A person may also release the obligation outright
+  (`interlock sessions stop <id> --release-obligation --by <who> --because <why>`), recorded as an override with
+  the listing unresolved, never as proof of cleanup.
+  Ending a group: once exit.json is written (or on a timeout or a stop), the runner verifies the anchor, asks it
+  for its members, and if any remain asks it to signal TERM, then, if any still remain after the grace, KILL
+  (which ends the anchor with them, in the same kernel call); once none but the anchor remain it asks the anchor
+  to end. The group is then confirmed gone when kill(-pgid, 0) answers ESRCH, or when every process the reader
+  lists in that group was born after the anchor's end was observed (the id reused by a new group); any other
+  answer keeps the record running and is looked at again each heartbeat.
   A record is done when the program exited 0 and the group was then confirmed empty, even when the runner had to
   kill leftover descendants to empty it (a runner line names each, and the record's `reaped` counts them); it is
   killed only when a timeout or a person's stop ended the program itself.
@@ -109,16 +178,29 @@ read: >
   No survivors, by construction. On 2026-11-07 at 03:40 UTC the owner's machine reached 17.6 GB of swap: an agent
   session had run a package test suite with 16 vitest workers, and 10 more workers from an earlier test run in the
   same worktree were still alive with parent pid 1, their pnpm gone and nothing owning them. So every process the
-  runner starts for a node runs under a launcher in a process group the runner owns: the agent's phases, worktree
-  setup (packages/runner/src/worktreeSetup.ts:86), gate commands (packages/runner/src/gateJudge.ts:133, which also
-  serves the standalone `interlock judge`) and backfill, which reaches setup and gates through the same two
-  functions (packages/runner/src/backfill.ts). A command's launcher publishes its anchor under
-  <git-common-dir>/interlock/runs/commands/<command id>/, removed only after its group is confirmed empty. The
-  runner ends that group and confirms it empty on every exit path: success, failure, timeout, a person's stop and
-  the runner's own death (found on the next start, as below). And admission refuses a new session while any
-  process of an earlier runner-owned group is still alive, matched by its anchor's or its sampled member's birth
-  identity, never by pid alone, naming the group and its live processes; the refusal ends once the runner has
-  killed and confirmed them.
+  runner starts for a node that can run code other than git's own plumbing runs under a launcher in a process
+  group the runner owns, through one owned-command function: the agent's phases; worktree setup
+  (packages/runner/src/worktreeSetup.ts:86); gate commands (packages/runner/src/gateJudge.ts:133, which also
+  serves the standalone `interlock judge`); backfill, which reaches setup and gates through the same two
+  functions (packages/runner/src/backfill.ts); the machine provider's commands (machineProvider.ts:105, the
+  owner's own program); and every git invocation that can run a hook or a signer: commit (worktree.ts:150, signed,
+  so its pre-commit and commit-msg hooks and the signing program run), worktree add and checkout (post-checkout),
+  merge, and any other subcommand outside the read-only allowlist. Git's read-only plumbing (status, rev-parse,
+  diff, log, show, ls-files, cat-file, for-each-ref, merge-base) runs no hook and no signer and stays a direct
+  call, through one module that accepts only those subcommands; this is the guarantee's one named narrowing. A
+  daemon git or a signer starts by the machine's configuration (a signing agent, a file-system monitor) starts its
+  own session and is outside the guarantee by the containment rule, as intended for a daemon meant to outlive
+  the command. A command's launcher publishes its anchor under <git-common-dir>/interlock/runs/commands/<command
+  id>/, removed only after its group is confirmed empty. The runner ends that group and confirms it empty on
+  every exit path: success, failure, timeout, a person's stop and the runner's own death (found on the next
+  start, as below).
+  Admission refuses a new session only while an orphan or an obligation is outstanding: a runner-owned group
+  whose record is terminal or whose owning runner no longer verifies (the record carries the runner's pid, birth
+  and boot identity) and whose anchor or a sampled member still verifies; a command anchor with no live runner; an
+  anchor-lost cleanup obligation; an unbound token whose launcher is still found by its nonce; or a pane-era hold
+  (herdr-gone). It names each and its live processes, matched by birth identity, never by pid alone, and the
+  refusal ends once each is confirmed gone or released by a person. Healthy phases of live runners never refuse
+  admission: concurrency is the machine provider's limit, not this rule's.
 
   Asks are seen at once. On 2026-11-07 a limits-setting session sat an hour on one question it had written into its
   notes ("May I create the incremental why-commits ...?"), unseen, until the runner's wait timed out. An agent's ask
@@ -133,19 +215,25 @@ read: >
   the brief's own permissions are the answer, so an agent does not ask for what its brief already grants.
 
   The runner that dies. A child whose runner died is never adopted: its pipes cannot be reconnected and its lease
-  lapses. On its next start a runner finds running records with no live runner, verifies each anchor, ends the
-  group (TERM, then KILL after the grace), confirms it gone, and only then records the end and lets the node be
-  leased again, with the transcript's tail marked lost. It does the same for every command anchor it finds.
+  lapses. On its next start a runner finds running records whose owning runner no longer verifies, verifies each
+  anchor, ends the group through the anchor's control socket (TERM, then KILL after the grace), confirms it gone,
+  and only then records the end and lets the node be leased again, with the transcript's tail marked lost; an
+  anchor that does not verify or answer leaves the cleanup obligation above. It does the same for every command
+  anchor it finds. Steering words the dead attempt still held pending or uncertain stay bound to the node and
+  open its next attempt (Steering, below).
 
-  Records. A phase's record.json changes only under the phase's lock: <run dir>/record.lock, created exclusively
-  and holding its owner's pid, birth identity and boot identity. The lock is held across one read, check and
-  publish, never across a signal or a wait, so a person's stop waits at most one publish (I10). Under the lock the
-  writer reads the current generation, checks it, and publishes the next by writing a temporary file, syncing it
-  and renaming it over record.json (the pattern of packages/face/src/landedCache.ts:214), so a reader without the
-  lock always reads a complete generation and a crash mid-publish leaves the last complete one. A lock whose
-  owner's identity no longer verifies (gone, a reused pid, another boot) is reclaimed by renaming it aside to a
-  unique name, which only one contender's rename can do; the reclaimer then takes the lock and rereads the
-  generation before it writes.
+  Records. A phase's record is a sequence of complete generations, <run dir>/record/<n>.json, each a whole
+  session@v0 document, and publishing generation n is creating that file exclusively: the writer reads the
+  highest generation n-1, checks its transition against it, writes the next document to a temporary file of its
+  own, syncs it, and links it to record/<n>.json, which fails if n already exists. Exactly one writer can create
+  n; a writer whose link fails rereads the new highest generation and either retries its transition on it or is
+  refused as already ended. There is no lock, so nothing can be held by a dead writer, nothing is reclaimed, and
+  no interleaving lets two writers both publish n; a person's stop never waits on another writer's liveness, only
+  retries past concurrent publishes (I10). Readers list record/ and read the highest generation; a temporary file
+  is never read, and one left by a writer that died is removed by the recovering runner. The winner of n may
+  remove generations below n-1, and a reader that meets a removed file lists again. This replaces the
+  lock-and-rename publish of the re-vet (whose reclaim could move a live replacement lock); the temporary write
+  and sync still follow packages/face/src/landedCache.ts:214.
 
   Where sessions live. Records and transcripts live under the repository's common Git directory,
   <git-common-dir>/interlock/runs/<session id>/<phaseId>/, resolved the way the ledger already is
@@ -157,8 +245,11 @@ read: >
 
   sessions@v0, printed by `interlock sessions --json` (all of this machine's sessions for the repository, newest
   first; `--live` keeps state running only):
+    A session is one node attempt (or one review); a phase is one process group within it. Every phase of a
+    session repeats the session's id, so a reader identifies a phase by (id, phaseId) and a session by id; at
+    most one phase of a session is running at a time.
     { "interlock": "sessions@v0", "sessions": [ {
-        "id": session id (the ledger's session id),
+        "id": session id (the ledger's session id), shared by all of the session's phases,
         "phase": "work" | "debrief" | "review" (the phase's kind),
         "phaseId": the phase's identity within the session ("work", "continue-1", "debrief", "debrief-2", "review"),
         "parentId": the phase this one follows, as "<id>/<phaseId>", or null,
@@ -168,13 +259,16 @@ read: >
         "snapshotHash": for a review, the sha256 of its whole snapshot (graph, lens, opening); null for a node,
         "arc": the graph's arc id or null,
         "runtime": runtimes.yaml profile name, "model": the profile's model,
-        "pid": the launcher's pid or null (never started), "pgid": its process group id (equal to pid) or null,
+        "pid": the launcher's pid, or null when no launcher process ever existed, "pgid": its process group id
+               (equal to pid) or null,
         "startedAt": ISO 8601 UTC, "endedAt": ISO 8601 UTC or null,
         "state": "running" | "done" | "failed" | "killed",
         "exitCode": integer or null, "signal": signal name or null,
         "reason": one plain line or null ("run timeout 3h", "machine limit", "stopped by <who>", "runner lost the
-                  process", "could not start: <code>", "never started: runner ended before launch", "ended by
-                  <signal> from outside the runner", "group anchor ended from outside the runner"),
+                  process", "could not start: <code>", "launcher failed before its anchor: exit <code>",
+                  "program could not start: <code>", "never started: runner ended before launch", "ended by
+                  <signal> from outside the runner", "group anchor ended from outside the runner", "attempt
+                  stopped by <who>"),
         "reaped": how many leftover group members the runner killed to confirm the group empty,
         "captureComplete": false when output was still held by a process outside the group at the drain grace,
         "asks": [ { "id": the ask's sha256, "at", "asked", "options" or null,
@@ -183,7 +277,8 @@ read: >
         "transcriptPath": absolute path of the phase's transcript.jsonl } ] }
     state: from the process lifecycle alone. running from spawn until the group's end is confirmed, including while
     a kill is in progress; done on exit 0 with the group then confirmed empty; failed on a non-zero exit, a spawn
-    error (pid null, reason "could not start: <code>"), a launcher that never got go (pid null), a signal the runner
+    error (pid null, reason "could not start: <code>"), a launcher that failed before its anchor or could not
+    start its program (pid set), a launcher that never got go, a signal the runner
     did not send (signal set, reason "ended by <signal> from outside the runner"), a lost process or a lost anchor;
     killed when a timeout or a person's stop ended the program itself (reason names why). Terminal states are
     monotonic: the first terminal transition recorded wins, and nothing moves a record out of a terminal state. A
@@ -216,22 +311,45 @@ read: >
   its predecessor's conversation, so a continuation's prompt is a fresh opening carrying the brief, the parent
   phase's identity, outcome and transcript path, and the pending words, each with its said identity. Under runner
   custody a continuation is work: the commit and a debrief phase follow it as above. A person who needs the words
-  read at once stops the running phase (`interlock sessions stop`), and the continuation starts with them; a stop
-  with no pending words starts nothing. Words said after the attempt's lease is released are refused with one
-  line, nothing recorded. Delivery evidence: before spawn, the runner persists in the phase's record the identities
-  of the words its prompt carries, so pending words are bound to exactly one launch; only the launcher's
-  handoff.json acknowledges their outbox intents. A runner that dies after binding and before reading the handoff
-  leaves the delivery uncertain (I7), reconciled on its next start: handoff.json present means delivered; absent
-  with the launcher never having had go means not delivered, and the words return to pending; absent after go is
-  recorded as uncertain, and the words are carried again in the next continuation marked as possibly already seen.
+  read at once stops the running phase (`interlock sessions stop <id>`), and the continuation starts with them; a
+  phase stop with no pending words starts nothing. A person who wants the work over stops the whole attempt
+  (`interlock sessions stop <id> --attempt --by <who> --because <why>`): the running phase is ended as by a stop,
+  no continuation, commit or debrief phase follows, the phase reads killed with reason "attempt stopped by
+  <who>", the lease is released, and words still pending stay bound to the node as below; this is the stop a
+  companion app's close calls. Words said after the attempt's lease is released are refused with one line, nothing
+  recorded.
+  Words addressed to a session. `interlock session say <graph> <node> <words> --session <id>` names the session the
+  words are for. Say refuses with one line, nothing recorded, when the live attempt of that graph and node is not
+  that session (say.ts:164 picks the latest live attempt), checked against the ledger reread immediately before
+  the append. The ledger has no cross-process conditional append (packages/ledger/src/ledger.ts appends to the
+  journal file with no lock), so the guarantee that cannot be raced is carried by the record itself: the
+  person-said event names that session, and the runner binds such words only to a phase of that session, never
+  to another attempt. If the session ends between the check and the append, the words are recorded and then
+  marked not delivered, "session <id> ended" (uncertain instead when a launch carrying them had already got go);
+  they never reach a replacement. Words said without --session are addressed to the node's live attempt, as
+  today.
+  Delivery evidence: before spawn, the runner persists in the phase's record the identities of the words its
+  prompt carries, so pending words are bound to exactly one launch. Go is an outbox effect: the runner persists a
+  go intent in the record before it writes go to the pipe. Only the launcher's handoff.json acknowledges the
+  words' outbox intents. A runner that dies after binding and before reading the handoff leaves the delivery to
+  be reconciled on the next start, once the launcher's group is confirmed gone: handoff.json present means
+  delivered; started.json absent means the program never ran, so not delivered (whether or not the go intent was
+  persisted or go written), and the words return to pending; started.json present without handoff.json is
+  recorded uncertain (I7), and the words are carried again marked as possibly already seen.
+  Words outlive a dead attempt. Words addressed to the node that are pending or uncertain when its attempt ends
+  without a continuation (its runner died and the lease lapsed, or a person stopped the whole attempt) stay bound
+  to the node, never to the dead attempt's lease: the node's next attempt, under any runner, opens its first work
+  phase with them, each with its said identity and its provenance (pending, or possibly already seen), and only
+  that phase's handoff acknowledges them. Words addressed to a session are never carried this way.
 
   Invariants. I6: no runtime program, flag or model is named in this graph's prose, code, tests or schemas outside
   an adapter; the machine's exec profiles live in the machine's runtimes.yaml, written by the machine's owner, and
   the tests use fixture executables. I7: a kill is an outbox effect: its intent (session, phaseId, step, deadline)
   is persisted before each signal, and a restart between TERM and KILL resumes the escalation from the persisted
   step; bind, release and word delivery are outbox effects too, with lost acknowledgments recorded as uncertain.
-  I8: a review keeps its snapshot. I10: a person's stop is never gated, and neither is a person's release of a
-  pane-era hold.
+  I8: a review keeps its snapshot. I10: a person's stop (of a phase or of a whole attempt) is never gated, and
+  neither is a person's release of a pane-era hold or of a cleanup obligation; a release is recorded as that
+  person's override, never as proof that anything ended.
   Order. Built after graph 0059 and graph 0056's machine-provider node; exec-runtime adapts that provider's admit to
   exec as described above. Every attempt opens with: run one heavy command at a time, never several in parallel or
   in the background; never clone the repository inside your worktree, use the worktree you were given. Out of
@@ -253,20 +371,31 @@ nodes:
       the server names the machine's runtime may load; mcp_allow, the ones this profile's sessions may use; and
       mcp_disable_args, an argument template with {name} that the runner appends once for every server in
       mcp_servers and not in mcp_allow. Review sessions use an empty allowlist unless their profile names one. The
+      profile's optional `exec` field (an argv template in which exactly one whole element is `{command}`) belongs
+      to graph 0062, which adds it to schemas/runtimes@v2.json; this node adds its own fields beside it additively,
+      names none of them `exec`, and loads a profile carrying 0062's field unchanged. The
       runner knows no server or flag by name; the templates live in the machine's runtimes.yaml. Each phase runs
       under Interlock's own launcher, detached into its own process group, with cwd the node's worktree, env from
       the machine provider, and the prompt handed over as the read says. The phase, launcher, admission,
       containment, identity and group anchor, dead-runner and transcript rules of this graph's read are implemented
       exactly: the record is persisted before admit, nothing spawns on a refused admit, the launcher's identity is
       bound after spawn and go follows the acknowledged bind, the state stays running until the group is confirmed
-      gone, terminal states are monotonic, every signal is preceded by an anchor check and a persisted kill intent,
-      and the transcript is drained (bounded by the drain grace) and synced before the terminal state is published.
+      gone, terminal states are monotonic, every group signal is sent by the anchor from inside its group over its
+      control socket after an anchor check and a persisted kill intent, the runner never signals a numeric pgid or
+      pid, and the transcript is drained (bounded by the drain grace) and synced before the terminal state is
+      published. The launcher is spawned with detached: true and a launch nonce on its argv, writes started.json
+      before it spawns the program without detached, and go is a persisted outbox intent before the pipe write.
       Records and transcripts live under <git-common-dir>/interlock/runs/. The phase sequence replaces the second
       prompt of sessionDrive.ts:675: work phase, runner commit of the declared paths (or none, HEAD kept, when
-      nothing changed), debrief phase at that HEAD, judgment. The machine provider's admit is adapted to a
-      token-then-bind protocol for exec, release on confirmed end. Worktree setup (worktreeSetup.ts:86) and gate
-      commands (gateJudge.ts:133), and through them `interlock judge` and backfill, run under the same launcher
-      and group rules, with command anchors under <git-common-dir>/interlock/runs/commands/.
+      nothing changed), debrief phase at that HEAD, judgment. The machine provider follows the read's wire contract
+      for exec: machine@v0's optional bind argv (MachineProvider in machineProvider.ts gains it), the new
+      placeholders, release carrying its outcome, and the refusal of an exec phase under a provider without bind or
+      with {pid} or {pane} in admit. Worktree setup (worktreeSetup.ts:86), gate commands (gateJudge.ts:133), and
+      through them `interlock judge` and backfill, the machine provider's commands (machineProvider.ts:105) and
+      every git invocation outside the read-only allowlist (worktree.ts:47, including the signed commit at
+      worktree.ts:150) run through one owned-command function under the same launcher and group rules, with
+      command anchors under <git-common-dir>/interlock/runs/commands/; read-only git goes through one module that
+      accepts only the allowlisted subcommands. Admission refuses only on the read's orphans and obligations.
       Tests in packages/runner/test/execRuntime.test.ts with fixture executables (small node scripts under
       test/fixtures; no real agent program) and a fixture provider and process reader:
       - a child writing to both streams and exiting 0 is done only after its group is gone; its transcript lines
@@ -284,32 +413,62 @@ nodes:
         no reader is left open;
       - launch handshake: the fixture program writes a marker file on start; a runner killed after spawn and before
         the anchor is published, and one killed after it is published and before bind, each leave no marker; the
-        next runner reports never started with pid null (anchor absent or gone) or ends and confirms the launcher's
-        group (launcher alive), and only then releases the token;
+        next runner ends a verifying anchor through its socket and confirms the group gone, or, with no verifying
+        anchor, finds no process carrying the launch nonce, and only then releases the token;
+      - a launcher stopped (SIGSTOP) before it publishes its anchor, then its runner killed: the next runner finds
+        it by its launch nonce, keeps the token held (no release call in the fixture provider's log) and sends it
+        no signal while it lives; once the fixture continues it, the launcher reads its ended pipe and exits, the
+        next heartbeat finds no nonce process, the token is released never-started, and no marker ever appears;
+      - the wire contract: the fixture provider's log reads exactly admit (token "<id>/work", session, phase "work",
+        kind "exec"), bind (token, pid, pgid equal to pid, birth, boot), release (token, outcome group-empty, pgid)
+        for a done phase; a refused admit logs admit only; an OS spawn failure logs admit then release with outcome
+        never-started; an exec phase under a machine.yaml with no bind, and one whose admit names {pid}, are each
+        refused with their line and log nothing; a pane-era command with no bind still runs as today;
       - a bind the provider refuses, and a bind whose acknowledgment is lost (the provider applied it, the runner
         died before recording it), each make the runner end the launcher's group, confirm it empty, and release,
-        with no marker and no second bind; a release whose acknowledgment is lost is sent again with the same token;
+        with no marker and no second bind; a release whose acknowledgment is lost is sent again with the same
+        arguments;
       - a refused admit spawns nothing (no marker) and the record ends failed, "machine limit", pid null;
-      - a spawn error (a missing launcher program) ends failed with "could not start: ENOENT" and pid null; a signal
-        sent from outside to the program ends failed with that signal;
+      - three launch failures: a runner whose node executable path is missing ends failed, "could not start:
+        ENOENT", pid null; a missing launcher script ends failed, "launcher failed before its anchor: exit <code>",
+        with the launcher's pid, released group-empty after the reader confirms it gone; a missing profile program
+        ends failed, "program could not start: ENOENT", with the launcher's pid, no handoff, and the words it
+        carried back to pending; a signal sent from outside to the program ends failed with that signal;
       - an anchor identity mismatch on a reused pid sends no signal and ends failed with "runner lost the process";
-      - the anchor killed from outside while a sampled member runs: no signal goes to the numeric pgid, the member
-        is signalled only after its own identity verifies, and the record ends failed, "group anchor ended from
-        outside the runner"; the same after the runner also dies and the anchor's pid is reused;
-      - a runner killed while its program runs: the next runner start verifies the anchor, kills the orphaned
-        group, confirms it gone, marks the tail lost, records the end, and only then leases the node again;
-      - while a process of an earlier runner-owned group is alive (same birth identity), admission refuses the next
-        session and names the group; once the runner has killed and confirmed it, admission passes;
-      - a worktree setup command, a gate run by `interlock judge`, and a backfill, each through a fixture command
-        that forks a sleeper: after success, after failure, and after the runner dies mid-command, the sleeper's
-        group is confirmed empty (on the next start for the last) before admission passes again;
+      - group signals: a fixture process reader and kill seam record every signal sent; across a run timeout, a
+        stop and a reaped grandchild, every TERM and KILL is sent by the anchor's own process to its own group and
+        the runner process sends none;
+      - the anchor killed from outside while a sampled member runs and after the program forked a child that no
+        heartbeat sampled: no process sends any signal, the record ends failed, "group anchor ended from outside
+        the runner", the obligation lists both the sampled member and the unsampled child, admission is refused
+        naming them, and it passes only after both exit and the pgid answers ESRCH; the same after the runner
+        also dies; a person's stop then signals each listed member whose identity verifies and records the act
+        as theirs; a person's --release-obligation lets admission pass and records the listing unresolved;
+      - a runner killed while its program runs: the next runner start verifies the anchor, ends the orphaned
+        group through its socket, confirms it gone, marks the tail lost, records the end, and only then leases the
+        node again;
+      - admission: while a group whose runner is dead still has a live process (same birth identity), admission
+        refuses the next session and names the group, and passes once the runner has ended and confirmed it; two
+        healthy concurrent sessions of a live runner under a fixture provider limit of two are both admitted and
+        run at once;
+      - a worktree setup command, a gate run by `interlock judge`, a backfill, a machine provider admit command, a
+        signed commit whose fixture pre-commit hook forks a sleeper, and one whose fixture signing program (set as
+        the worktree's signing program) forks a sleeper: after success, after failure, and after the runner dies
+        mid-command, each sleeper's group is confirmed empty (on the next start for the last) before admission
+        passes again; a static check finds every child_process import under packages/runner/src in the launcher,
+        the owned-command function or the read-only git module, and that module refuses a subcommand outside its
+        allowlist;
       - a two-phase attempt: the work phase leaves code uncommitted, the runner commits it, the debrief phase files a
         valid debrief at the new head, and the node is judged; the debrief phase's parentId names the work phase;
       - an empty-code attempt under runner custody: the work phase changes nothing and leaves no commits.yaml, the
         runner commits nothing, and the debrief phase still runs and files at the unchanged HEAD;
       - two callers in two linked worktrees list the same session;
       - a v2 exec profile with provider and routable loads, and a second routable profile for that provider is
-        refused as today;
+        refused as today; the same profile also carrying an `exec` field of 0062's shape loads, its value
+        untouched;
+      - one live phase per session: while a session's phase runs, the runner refuses to start another phase of
+        that session (a continuation waits for the running phase's confirmed end), and the two phases list with
+        the same id and distinct phaseIds;
       - a profile with mcp_servers [a, b] and mcp_allow [a] passes the disable template for b only; a review session
         with no allowlist passes it for both.
       Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
@@ -323,11 +482,12 @@ nodes:
     role: implementer
     depends_on: [exec-runtime]
     acceptance: |
-      Each phase's record.json carries its own version tag, "interlock": "session@v0", every sessions@v0 field
-      (this graph's read), the anchor's identity and the sampled members. Records change only under the phase's
-      lock with a generation number that every write checks and increments, published by temporary write, sync and
-      rename, with a dead owner's lock reclaimed by rename as the read's Records says, so stop, natural exit and
-      recovery never race: the first terminal transition wins and the others are refused as already ended.
+      Each phase's record generation (<run dir>/record/<n>.json) carries its own version tag, "interlock":
+      "session@v0", every sessions@v0 field (this graph's read), the anchor's identity, the owning runner's
+      identity, the launch nonce, the control secret, the go intent and the sampled members. A generation is
+      published only by creating its file exclusively from a synced temporary file, as the read's Records says,
+      with no lock, so stop, natural exit and recovery never race: the first terminal transition wins and the
+      others are refused as already ended.
       Each record carries `asks`, additive to sessions@v0: every question the attempt has recorded in its notes, as
       { id, at, asked, options or null, answered: { at, by, words } or null }, id the sha256 of the notes entry's
       canonical JSON, read by the runner as each is written and published in the record within one heartbeat,
@@ -338,8 +498,18 @@ nodes:
       `waitingOnAsk` is true only while the state is running and an ask is unanswered.
       `interlock sessions --json [--live]` prints sessions@v0 from the records; `interlock sessions read <id>
       [--phase <phaseId>] --json [--follow]` prints transcript@v0 lines with the read's completion and drain rules;
-      `interlock sessions stop <id> --by <who> --because <why>` kills through the same outbox kill as the timeout,
-      reason "stopped by <who>". sessions@v0, session@v0 and transcript@v0 get schemas under schemas/, each with a
+      `interlock sessions stop <id> --by <who> --because <why>` ends the running phase through the same outbox kill
+      as the timeout, reason "stopped by <who>"; with --attempt it ends the whole attempt as the read's Steering
+      says (no continuation, commit or debrief phase; reason "attempt stopped by <who>"; lease released); with
+      --release-obligation it releases an anchor-lost cleanup obligation as the person's override. The control
+      secret never appears in any printed output. `interlock machine drain --by <who> --because <why>` is the
+      verified pane drain herdr-gone's cutover names: through the existing pane adapter and closeMachinePane
+      (packages/runner/src/machineOutbox.ts:174) it persists a close intent for every unresolved pane-era hold,
+      including the holds reconciliation skips today because the agent's start was acknowledged and no close was
+      intended (machineOutbox.ts:254, the panes sessionDrive.ts:826 leaves open for a person), closes each pane,
+      and releases each token only after the pane's close is confirmed; a pane it cannot close keeps its hold and
+      is named. It ships here, while the pane adapter still exists, and herdr-gone removes it with the adapter.
+      sessions@v0, session@v0 and transcript@v0 get schemas under schemas/, each with a
       committed valid example and invalid fixtures (a missing tag, an unknown state, a non-null pid on a never-started
       record) that the corpus and reference tests count by shape, and docs/shapes.md is regenerated. graph show, the
       face and the position (packages/cli/src/graph/show.ts:17, face/world.ts:19, position.ts:196) read sessions from
@@ -350,10 +520,21 @@ nodes:
         appended after it started, and lines written just before the terminal state, then exits 0;
       - stop racing a natural exit, and two concurrent stops, leave one terminal transition and refuse the others;
       - stop kills a fixture child's group and the record reads killed, "stopped by <who>";
-      - a reader polling record.json while a writer publishes many generations never reads a partial record; a
-        writer killed mid-publish leaves the last complete generation readable;
-      - a writer killed while holding the lock: a stop and a recovery competing for it both complete, exactly one
-        reclaims it, and each rereads the generation before it writes;
+      - a reader polling the record while a writer publishes and prunes many generations never reads a partial
+        record and always reads the highest published one, listing again when a pruned file is gone;
+      - the lock-steal interleaving cannot recur: writers A and B both read generation n; A is paused by a fixture
+        seam between its read and its link while B publishes n+1; A's link of n+1 fails, A rereads n+1 and its
+        stop either publishes n+2 or is refused as already ended; exactly one document ever exists at each
+        generation; a writer killed between its temporary write and its link leaves n+1 absent, n readable, and its
+        temporary file removed by the next recovery and never read;
+      - stop --attempt with words pending: the phase reads killed, "attempt stopped by <who>", no continuation,
+        commit or debrief phase starts, and the lease is released; a phase stop with the same words pending starts
+        the continuation;
+      - `interlock machine drain` with a fixture pane adapter and a pre-0060 ledger holding a closing hold and an
+        agent-acknowledged hold with no close intent: both panes are closed, each token is released only after its
+        confirmed close, and a pane the fixture refuses to close keeps its hold and is named;
+      - sessions --json lists two phases of one session with the same id and distinct phaseIds, and never prints
+        the control secret;
       - a fixture child that writes a question into its notes appears in `sessions --json` with that ask, its id,
         and `waitingOnAsk: true` within one heartbeat, and only once after several heartbeats and a recovery read;
         `interlock session say --answers <id>` answers it, and the record then carries the answer with who and when,
@@ -421,25 +602,37 @@ nodes:
       Interlock no longer depends on herdr or tmux. Removed: the herdr adapter (packages/runner/src/herdr/), the tmux
       stub (packages/runner/src/tmux/), the cli's herdr status reader (packages/cli/src/herdrStatus.ts), prompt typing
       and submit keys (packages/runner/src/promptDelivery.ts), startup answers and pane focus, every herdr status check
-      (including any runtime preflight that asks herdr's server), any completion chime, and every pane-close verb,
-      with their tests; the remaining tests pass without herdr installed. Drilldown keeps reading the journal.
+      (including any runtime preflight that asks herdr's server), any completion chime, and every pane-close verb
+      (runner-records' `interlock machine drain` among them), with their tests; the remaining tests pass without herdr installed. Drilldown keeps reading the journal.
       Cutover. The ledger may still hold pane-era machine intents (machine-provider/admit or machine-provider/close
       whose retained hold names a pane, reconciled today through the pane adapter in
-      packages/runner/src/machineOutbox.ts:225). They stay obligations, never dropped: on start the runner lists
-      each unresolved pane-era hold and refuses new admissions, naming each token and pane and the two ways to drain
-      it: run the prior release once (its start reconciles them), or, after closing the pane by hand, `interlock
-      machine release <token> --by <who> --because <why>`, a person's act (I10, never gated) that persists a release
-      intent with the hold's own identity, dispatches the hold's retained release argv through the outbox, and
-      records the close as that person's word. Holds already closed and released need nothing. Every read and a
-      person's stop stay available while admissions are refused.
+      packages/runner/src/machineOutbox.ts:225), including holds with an acknowledged agent start and no close
+      intent, which today's reconciliation skips (machineOutbox.ts:254). They stay obligations, never dropped: on
+      start the runner lists each unresolved pane-era hold, whatever its kind, and refuses new admissions, naming
+      each token and pane and the two ways to drain it. The verified drain: run `interlock machine drain` from the
+      prior release (runner-records ships it with the pane adapter; it closes each pane and releases only on a
+      confirmed close, today's pane guarantee and no more). The person's override, when the prior release cannot run:
+      `interlock machine release <token> --by <who> --because <why>`, a person's act (I10, never gated) that
+      persists a release intent with the hold's own identity, dispatches the hold's retained release argv through
+      the outbox, and records an override by that person with the pane's liveness unresolved: this release
+      observes neither the pane nor its descendants, so it never records the pane closed, and the position keeps
+      naming the hold as released by override, liveness unverified. Admission passes once every hold is drained or
+      overridden. Holds already closed and released need nothing. Every read and a person's stop stay available
+      while admissions are refused.
       Steering, as this graph's read says: `interlock session say` (packages/cli/src/session/say.ts:193) records the
       words as today and binds them to a launch instead of typing into a pane; pending words start a continuation
-      phase when the running phase ends while the attempt holds its lease; a stop with pending words starts the
-      continuation, a stop without them starts nothing; words after the lease is released are refused; only the
-      launcher's handoff acknowledges delivery, and a crash between binding and the handoff is reconciled as the
-      read says, uncertain where it cannot be told.
-      Docs. AGENTS.md's vocabulary changes session to "One agent process working one node, a child of the runner in
-      its own process group." and runner to drop "drives herdr"; the "What this repository is" paragraph no longer
+      phase when the running phase ends while the attempt holds its lease; a phase stop with pending words starts
+      the continuation, a phase stop without them starts nothing; a whole-attempt stop starts nothing; words after
+      the lease is released are refused; go is a persisted outbox intent and the launcher's started.json and
+      handoff.json decide delivery as the read says, uncertain only where the program may have run; words addressed
+      to the node that a dead or stopped attempt held pending or uncertain open the node's next attempt with their
+      provenance. `--session <id>` addresses words to one session: say refuses with one line, nothing recorded,
+      when the live attempt is not that session, and words so addressed are bound only to that session's phases,
+      never carried to another attempt, recorded not delivered (or uncertain) if it ends first.
+      Docs. AGENTS.md's vocabulary changes session to "One agent attempt at one node: a sequence of phases, at most
+      one running at a time, all under one session id." and adds phase, "One process group of a session: the
+      launcher anchoring one run of the agent's program (work, continuation, debrief or review), with its own
+      transcript and admission; identified by its session id and phaseId."; runner drops "drives herdr"; the "What this repository is" paragraph no longer
       says herdr owns terminals; the seams table's runtime and face rows no longer name a herdr pane. The design note
       gains a bend-log row: what bent (sessions in herdr panes), against which decision, why (the owner's 21:52 and
       21:54 UTC words, by their message ids), and that the way back was kept (the runtime seam is unchanged).
@@ -449,10 +642,14 @@ nodes:
       Tests in packages/runner/test/herdrGone.test.ts:
       - no source file under packages/ imports or names herdr or tmux;
       - a pane-kind profile is refused with its line, for v0, v1 and v2 files;
-      - a pre-0060 ledger with an uncertain pane close and an unreleased token: admission is refused naming the
-        token and pane, a stop and the reads still work, `interlock machine release` by a person dispatches the
-        retained release once and records the close, and admission then passes; a lost acknowledgment of that
-        release is recorded uncertain and sent again with the same identity;
+      - a pre-0060 ledger with an uncertain pane close and an unreleased token, and one with an acknowledged agent
+        start and no close intent: admission is refused naming both tokens and panes, and a stop and the reads still
+        work; `interlock machine release` by a person on each dispatches the retained release once and records an
+        override by that person with liveness unresolved, never a close, and admission then passes; a lost
+        acknowledgment of that release is recorded uncertain and sent again with the same identity;
+      - the override with a live pane process and with a surviving child of a pane (fixture processes recorded
+        for the hold): both are still alive after the release, the record names the hold released by override with
+        liveness unverified, and nothing in the record, the position or sessions --json reads the pane as closed;
       - say during a running phase records pending words; when the phase ends, a continuation phase (continue-1,
         parentId the ended phase) is admitted and its prompt carries them, and the outbox records delivery only at
         the launcher's handoff;
@@ -460,10 +657,22 @@ nodes:
         commit and a debrief-2 phase under runner custody;
       - stop with pending words, then the continuation, then delivery; stop without pending words starts nothing;
         say after the lease is released is refused and records nothing;
-      - a runner killed after binding words to a launch and before go: the words return to pending; killed after go
-        and before handoff.json: delivery is recorded uncertain and the next continuation carries the words marked
+      - the go boundary, each with the runner killed and the launcher's group confirmed gone by the next start:
+        killed after binding words and before the go intent, after the go intent and before the pipe write, and
+        after the pipe write and before started.json: the words return to pending each time; killed after
+        started.json and before handoff.json: delivery is recorded uncertain and the words are carried again marked
         as possibly already seen; killed after handoff.json and before the acknowledgment: the next start records
-        delivery from handoff.json.
+        delivery from handoff.json;
+      - words outlive a dead attempt: words pending when the runner dies, then the lease expires, then another
+        runner leases the node: the replacement attempt's first work phase prompt carries them with their said
+        identities and provenance (pending, and possibly already seen for an uncertain one), and only that phase's
+        handoff acknowledges them; the same after a whole-attempt stop;
+      - say --session: with the named session live, the words are recorded against it and delivered to its next
+        phase; naming a session that is not the live attempt (an ended one whose node has a replacement) is
+        refused with its line and records nothing; a race fixture that ends the session and leases a replacement
+        between say's check and its append leaves the words recorded against the old session, marked not delivered
+        "session <id> ended", and never in any prompt of the replacement;
+      - AGENTS.md's vocabulary rows for session and phase read as written above, and runner no longer names herdr.
       Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
     gates:
       - id: herdr-gone-proof

@@ -1001,25 +1001,37 @@ edit it.
 > Interlock no longer depends on herdr or tmux. Removed: the herdr adapter (packages/runner/src/herdr/), the tmux
 > stub (packages/runner/src/tmux/), the cli's herdr status reader (packages/cli/src/herdrStatus.ts), prompt typing
 > and submit keys (packages/runner/src/promptDelivery.ts), startup answers and pane focus, every herdr status check
-> (including any runtime preflight that asks herdr's server), any completion chime, and every pane-close verb,
-> with their tests; the remaining tests pass without herdr installed. Drilldown keeps reading the journal.
+> (including any runtime preflight that asks herdr's server), any completion chime, and every pane-close verb
+> (runner-records' `interlock machine drain` among them), with their tests; the remaining tests pass without herdr installed. Drilldown keeps reading the journal.
 > Cutover. The ledger may still hold pane-era machine intents (machine-provider/admit or machine-provider/close
 > whose retained hold names a pane, reconciled today through the pane adapter in
-> packages/runner/src/machineOutbox.ts:225). They stay obligations, never dropped: on start the runner lists
-> each unresolved pane-era hold and refuses new admissions, naming each token and pane and the two ways to drain
-> it: run the prior release once (its start reconciles them), or, after closing the pane by hand, `interlock
-> machine release <token> --by <who> --because <why>`, a person's act (I10, never gated) that persists a release
-> intent with the hold's own identity, dispatches the hold's retained release argv through the outbox, and
-> records the close as that person's word. Holds already closed and released need nothing. Every read and a
-> person's stop stay available while admissions are refused.
+> packages/runner/src/machineOutbox.ts:225), including holds with an acknowledged agent start and no close
+> intent, which today's reconciliation skips (machineOutbox.ts:254). They stay obligations, never dropped: on
+> start the runner lists each unresolved pane-era hold, whatever its kind, and refuses new admissions, naming
+> each token and pane and the two ways to drain it. The verified drain: run `interlock machine drain` from the
+> prior release (runner-records ships it with the pane adapter; it closes each pane and releases only on a
+> confirmed close, today's pane guarantee and no more). The person's override, when the prior release cannot run:
+> `interlock machine release <token> --by <who> --because <why>`, a person's act (I10, never gated) that
+> persists a release intent with the hold's own identity, dispatches the hold's retained release argv through
+> the outbox, and records an override by that person with the pane's liveness unresolved: this release
+> observes neither the pane nor its descendants, so it never records the pane closed, and the position keeps
+> naming the hold as released by override, liveness unverified. Admission passes once every hold is drained or
+> overridden. Holds already closed and released need nothing. Every read and a person's stop stay available
+> while admissions are refused.
 > Steering, as this graph's read says: `interlock session say` (packages/cli/src/session/say.ts:193) records the
 > words as today and binds them to a launch instead of typing into a pane; pending words start a continuation
-> phase when the running phase ends while the attempt holds its lease; a stop with pending words starts the
-> continuation, a stop without them starts nothing; words after the lease is released are refused; only the
-> launcher's handoff acknowledges delivery, and a crash between binding and the handoff is reconciled as the
-> read says, uncertain where it cannot be told.
-> Docs. AGENTS.md's vocabulary changes session to "One agent process working one node, a child of the runner in
-> its own process group." and runner to drop "drives herdr"; the "What this repository is" paragraph no longer
+> phase when the running phase ends while the attempt holds its lease; a phase stop with pending words starts
+> the continuation, a phase stop without them starts nothing; a whole-attempt stop starts nothing; words after
+> the lease is released are refused; go is a persisted outbox intent and the launcher's started.json and
+> handoff.json decide delivery as the read says, uncertain only where the program may have run; words addressed
+> to the node that a dead or stopped attempt held pending or uncertain open the node's next attempt with their
+> provenance. `--session <id>` addresses words to one session: say refuses with one line, nothing recorded,
+> when the live attempt is not that session, and words so addressed are bound only to that session's phases,
+> never carried to another attempt, recorded not delivered (or uncertain) if it ends first.
+> Docs. AGENTS.md's vocabulary changes session to "One agent attempt at one node: a sequence of phases, at most
+> one running at a time, all under one session id." and adds phase, "One process group of a session: the
+> launcher anchoring one run of the agent's program (work, continuation, debrief or review), with its own
+> transcript and admission; identified by its session id and phaseId."; runner drops "drives herdr"; the "What this repository is" paragraph no longer
 > says herdr owns terminals; the seams table's runtime and face rows no longer name a herdr pane. The design note
 > gains a bend-log row: what bent (sessions in herdr panes), against which decision, why (the owner's 21:52 and
 > 21:54 UTC words, by their message ids), and that the way back was kept (the runtime seam is unchanged).
@@ -1029,10 +1041,14 @@ edit it.
 > Tests in packages/runner/test/herdrGone.test.ts:
 > - no source file under packages/ imports or names herdr or tmux;
 > - a pane-kind profile is refused with its line, for v0, v1 and v2 files;
-> - a pre-0060 ledger with an uncertain pane close and an unreleased token: admission is refused naming the
->   token and pane, a stop and the reads still work, `interlock machine release` by a person dispatches the
->   retained release once and records the close, and admission then passes; a lost acknowledgment of that
->   release is recorded uncertain and sent again with the same identity;
+> - a pre-0060 ledger with an uncertain pane close and an unreleased token, and one with an acknowledged agent
+>   start and no close intent: admission is refused naming both tokens and panes, and a stop and the reads still
+>   work; `interlock machine release` by a person on each dispatches the retained release once and records an
+>   override by that person with liveness unresolved, never a close, and admission then passes; a lost
+>   acknowledgment of that release is recorded uncertain and sent again with the same identity;
+> - the override with a live pane process and with a surviving child of a pane (fixture processes recorded
+>   for the hold): both are still alive after the release, the record names the hold released by override with
+>   liveness unverified, and nothing in the record, the position or sessions --json reads the pane as closed;
 > - say during a running phase records pending words; when the phase ends, a continuation phase (continue-1,
 >   parentId the ended phase) is admitted and its prompt carries them, and the outbox records delivery only at
 >   the launcher's handoff;
@@ -1040,8 +1056,20 @@ edit it.
 >   commit and a debrief-2 phase under runner custody;
 > - stop with pending words, then the continuation, then delivery; stop without pending words starts nothing;
 >   say after the lease is released is refused and records nothing;
-> - a runner killed after binding words to a launch and before go: the words return to pending; killed after go
->   and before handoff.json: delivery is recorded uncertain and the next continuation carries the words marked
+> - the go boundary, each with the runner killed and the launcher's group confirmed gone by the next start:
+>   killed after binding words and before the go intent, after the go intent and before the pipe write, and
+>   after the pipe write and before started.json: the words return to pending each time; killed after
+>   started.json and before handoff.json: delivery is recorded uncertain and the words are carried again marked
 >   as possibly already seen; killed after handoff.json and before the acknowledgment: the next start records
->   delivery from handoff.json.
+>   delivery from handoff.json;
+> - words outlive a dead attempt: words pending when the runner dies, then the lease expires, then another
+>   runner leases the node: the replacement attempt's first work phase prompt carries them with their said
+>   identities and provenance (pending, and possibly already seen for an uncertain one), and only that phase's
+>   handoff acknowledges them; the same after a whole-attempt stop;
+> - say --session: with the named session live, the words are recorded against it and delivered to its next
+>   phase; naming a session that is not the live attempt (an ended one whose node has a replacement) is
+>   refused with its line and records nothing; a race fixture that ends the session and leases a replacement
+>   between say's check and its append leaves the words recorded against the old session, marked not delivered
+>   "session <id> ended", and never in any prompt of the replacement;
+> - AGENTS.md's vocabulary rows for session and phase read as written above, and runner no longer names herdr.
 > Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.

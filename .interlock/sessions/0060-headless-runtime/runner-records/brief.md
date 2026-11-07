@@ -1001,8 +1001,11 @@ edit it.
 ```
 The app's contract. The app reads sessions from Interlock, never from a runtime. The shapes below are fixed before the build and evolve additively (a reader already built against the first draft keeps working: fields are added, none removed or renamed, and the state set is unchanged).
 sessions@v0, printed by `interlock sessions --json` (all of this machine's sessions for the repository, newest first; `--live` keeps state running only):
+  A session is one node attempt (or one review); a phase is one process group within it. Every phase of a
+  session repeats the session's id, so a reader identifies a phase by (id, phaseId) and a session by id; at
+  most one phase of a session is running at a time.
   { "interlock": "sessions@v0", "sessions": [ {
-      "id": session id (the ledger's session id),
+      "id": session id (the ledger's session id), shared by all of the session's phases,
       "phase": "work" | "debrief" | "review" (the phase's kind),
       "phaseId": the phase's identity within the session ("work", "continue-1", "debrief", "debrief-2", "review"),
       "parentId": the phase this one follows, as "<id>/<phaseId>", or null,
@@ -1012,13 +1015,16 @@ sessions@v0, printed by `interlock sessions --json` (all of this machine's sessi
       "snapshotHash": for a review, the sha256 of its whole snapshot (graph, lens, opening); null for a node,
       "arc": the graph's arc id or null,
       "runtime": runtimes.yaml profile name, "model": the profile's model,
-      "pid": the launcher's pid or null (never started), "pgid": its process group id (equal to pid) or null,
+      "pid": the launcher's pid, or null when no launcher process ever existed, "pgid": its process group id
+             (equal to pid) or null,
       "startedAt": ISO 8601 UTC, "endedAt": ISO 8601 UTC or null,
       "state": "running" | "done" | "failed" | "killed",
       "exitCode": integer or null, "signal": signal name or null,
       "reason": one plain line or null ("run timeout 3h", "machine limit", "stopped by <who>", "runner lost the
-                process", "could not start: <code>", "never started: runner ended before launch", "ended by
-                <signal> from outside the runner", "group anchor ended from outside the runner"),
+                process", "could not start: <code>", "launcher failed before its anchor: exit <code>",
+                "program could not start: <code>", "never started: runner ended before launch", "ended by
+                <signal> from outside the runner", "group anchor ended from outside the runner", "attempt
+                stopped by <who>"),
       "reaped": how many leftover group members the runner killed to confirm the group empty,
       "captureComplete": false when output was still held by a process outside the group at the drain grace,
       "asks": [ { "id": the ask's sha256, "at", "asked", "options" or null,
@@ -1027,7 +1033,8 @@ sessions@v0, printed by `interlock sessions --json` (all of this machine's sessi
       "transcriptPath": absolute path of the phase's transcript.jsonl } ] }
   state: from the process lifecycle alone. running from spawn until the group's end is confirmed, including while
   a kill is in progress; done on exit 0 with the group then confirmed empty; failed on a non-zero exit, a spawn
-  error (pid null, reason "could not start: <code>"), a launcher that never got go (pid null), a signal the runner
+  error (pid null, reason "could not start: <code>"), a launcher that failed before its anchor or could not
+  start its program (pid set), a launcher that never got go, a signal the runner
   did not send (signal set, reason "ended by <signal> from outside the runner"), a lost process or a lost anchor;
   killed when a timeout or a person's stop ended the program itself (reason names why). Terminal states are
   monotonic: the first terminal transition recorded wins, and nothing moves a record out of a terminal state. A
@@ -1052,11 +1059,12 @@ transcript@v0, one file per phase at <run dir>/transcript.jsonl, one JSON object
 
 ## Acceptance (verbatim from the graph)
 
-> Each phase's record.json carries its own version tag, "interlock": "session@v0", every sessions@v0 field
-> (this graph's read), the anchor's identity and the sampled members. Records change only under the phase's
-> lock with a generation number that every write checks and increments, published by temporary write, sync and
-> rename, with a dead owner's lock reclaimed by rename as the read's Records says, so stop, natural exit and
-> recovery never race: the first terminal transition wins and the others are refused as already ended.
+> Each phase's record generation (<run dir>/record/<n>.json) carries its own version tag, "interlock":
+> "session@v0", every sessions@v0 field (this graph's read), the anchor's identity, the owning runner's
+> identity, the launch nonce, the control secret, the go intent and the sampled members. A generation is
+> published only by creating its file exclusively from a synced temporary file, as the read's Records says,
+> with no lock, so stop, natural exit and recovery never race: the first terminal transition wins and the
+> others are refused as already ended.
 > Each record carries `asks`, additive to sessions@v0: every question the attempt has recorded in its notes, as
 > { id, at, asked, options or null, answered: { at, by, words } or null }, id the sha256 of the notes entry's
 > canonical JSON, read by the runner as each is written and published in the record within one heartbeat,
@@ -1067,8 +1075,18 @@ transcript@v0, one file per phase at <run dir>/transcript.jsonl, one JSON object
 > `waitingOnAsk` is true only while the state is running and an ask is unanswered.
 > `interlock sessions --json [--live]` prints sessions@v0 from the records; `interlock sessions read <id>
 > [--phase <phaseId>] --json [--follow]` prints transcript@v0 lines with the read's completion and drain rules;
-> `interlock sessions stop <id> --by <who> --because <why>` kills through the same outbox kill as the timeout,
-> reason "stopped by <who>". sessions@v0, session@v0 and transcript@v0 get schemas under schemas/, each with a
+> `interlock sessions stop <id> --by <who> --because <why>` ends the running phase through the same outbox kill
+> as the timeout, reason "stopped by <who>"; with --attempt it ends the whole attempt as the read's Steering
+> says (no continuation, commit or debrief phase; reason "attempt stopped by <who>"; lease released); with
+> --release-obligation it releases an anchor-lost cleanup obligation as the person's override. The control
+> secret never appears in any printed output. `interlock machine drain --by <who> --because <why>` is the
+> verified pane drain herdr-gone's cutover names: through the existing pane adapter and closeMachinePane
+> (packages/runner/src/machineOutbox.ts:174) it persists a close intent for every unresolved pane-era hold,
+> including the holds reconciliation skips today because the agent's start was acknowledged and no close was
+> intended (machineOutbox.ts:254, the panes sessionDrive.ts:826 leaves open for a person), closes each pane,
+> and releases each token only after the pane's close is confirmed; a pane it cannot close keeps its hold and
+> is named. It ships here, while the pane adapter still exists, and herdr-gone removes it with the adapter.
+> sessions@v0, session@v0 and transcript@v0 get schemas under schemas/, each with a
 > committed valid example and invalid fixtures (a missing tag, an unknown state, a non-null pid on a never-started
 > record) that the corpus and reference tests count by shape, and docs/shapes.md is regenerated. graph show, the
 > face and the position (packages/cli/src/graph/show.ts:17, face/world.ts:19, position.ts:196) read sessions from
@@ -1079,10 +1097,21 @@ transcript@v0, one file per phase at <run dir>/transcript.jsonl, one JSON object
 >   appended after it started, and lines written just before the terminal state, then exits 0;
 > - stop racing a natural exit, and two concurrent stops, leave one terminal transition and refuse the others;
 > - stop kills a fixture child's group and the record reads killed, "stopped by <who>";
-> - a reader polling record.json while a writer publishes many generations never reads a partial record; a
->   writer killed mid-publish leaves the last complete generation readable;
-> - a writer killed while holding the lock: a stop and a recovery competing for it both complete, exactly one
->   reclaims it, and each rereads the generation before it writes;
+> - a reader polling the record while a writer publishes and prunes many generations never reads a partial
+>   record and always reads the highest published one, listing again when a pruned file is gone;
+> - the lock-steal interleaving cannot recur: writers A and B both read generation n; A is paused by a fixture
+>   seam between its read and its link while B publishes n+1; A's link of n+1 fails, A rereads n+1 and its
+>   stop either publishes n+2 or is refused as already ended; exactly one document ever exists at each
+>   generation; a writer killed between its temporary write and its link leaves n+1 absent, n readable, and its
+>   temporary file removed by the next recovery and never read;
+> - stop --attempt with words pending: the phase reads killed, "attempt stopped by <who>", no continuation,
+>   commit or debrief phase starts, and the lease is released; a phase stop with the same words pending starts
+>   the continuation;
+> - `interlock machine drain` with a fixture pane adapter and a pre-0060 ledger holding a closing hold and an
+>   agent-acknowledged hold with no close intent: both panes are closed, each token is released only after its
+>   confirmed close, and a pane the fixture refuses to close keeps its hold and is named;
+> - sessions --json lists two phases of one session with the same id and distinct phaseIds, and never prints
+>   the control secret;
 > - a fixture child that writes a question into its notes appears in `sessions --json` with that ask, its id,
 >   and `waitingOnAsk: true` within one heartbeat, and only once after several heartbeats and a recovery read;
 >   `interlock session say --answers <id>` answers it, and the record then carries the answer with who and when,
