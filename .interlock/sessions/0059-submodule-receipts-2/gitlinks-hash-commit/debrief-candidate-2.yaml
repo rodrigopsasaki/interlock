@@ -1,0 +1,131 @@
+interlock: debrief@v2
+graph: 0059-submodule-receipts-2
+node: gitlinks-hash-commit
+role: implementer
+graph_base_sha: 5aec5b90ed0c4c30ede20bf1bf4920fb1cce4848
+session_start_sha: 06e19fcd3f936d17801216311a1f543516a40716
+head_sha: 901cc1163ac1d408c852a3cf96c949f177834809
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-terra
+discoveries: []
+decisions:
+  - id: typed-git-index-scope
+    what: >-
+      Carry Git index entries as typed file or gitlink scope entries, retaining the recorded
+      gitlink commit and preserving the path-only projection for existing context consumers.
+    because: >-
+      A mode 160000 index entry names a commit rather than a readable file. Reading the index with
+      NUL-delimited records makes that distinction independent of the checkout and keeps paths
+      containing line breaks intact.
+    rests_on:
+      - packages/runner/src/scope.ts
+      - packages/ledger/src/receipt.ts
+      - .interlock/sessions/0059-submodule-receipts-2/gitlinks-hash-commit/notes.yaml
+    hunks:
+      - packages/runner/src/scope.ts
+      - packages/ledger/src/receipt.ts
+      - packages/runner/src/index.ts
+      - packages/cli/src/plan.ts
+  - id: framed-gitlink-receipts
+    what: >-
+      Keep the legacy gate-path-bytes file hashing stream for file-only scopes and use a leading
+      NUL plus eight-byte big-endian length framing for every gate, path and content in scopes
+      containing a gitlink.
+    because: >-
+      Existing file-only receipts must remain byte-identical, while kind bytes and explicit lengths
+      keep mixed scopes and adversarial file/gitlink pairs unambiguous. Gitlink content comes from
+      the index commit id, so checkout edits, missing directories and uninitialized submodules do
+      not change the receipt.
+    rests_on:
+      - packages/ledger/src/receipt.ts
+      - packages/runner/test/submoduleReceipts.test.ts
+    hunks:
+      - packages/ledger/src/receipt.ts
+      - packages/runner/src/gateJudge.ts
+      - packages/runner/src/backfill.ts
+      - packages/runner/src/judgeWorktree.ts
+      - packages/cli/src/gate/clear.ts
+      - packages/runner/test/submoduleReceipts.test.ts
+  - id: refuse-nul-gates
+    what: >-
+      Reject gate ids containing NUL at receipt hashing, graph loading, brief gate parsing and the
+      gate-declaration schema with one readable refusal line.
+    because: >-
+      The framed receipt encoding begins with NUL, so allowing that byte in a gate id would make
+      the legacy and framed encodings ambiguous. The shared predicate and explanation keep the
+      three runtime boundaries aligned, and the schema rejects the persisted declaration too.
+    rests_on:
+      - packages/ledger/src/receipt.ts
+      - packages/face/src/document.ts
+      - packages/debrief/src/briefGate.ts
+      - schemas/parts/gate-declaration.json
+      - packages/runner/test/submoduleReceipts.test.ts
+      - packages/schemas/test/gateDeclaration.test.ts
+    hunks:
+      - packages/ledger/src/receipt.ts
+      - packages/face/src/document.ts
+      - packages/debrief/src/briefGate.ts
+      - schemas/parts/gate-declaration.json
+      - packages/schemas/test/gateDeclaration.test.ts
+  - id: real-submodule-proof
+    what: >-
+      Add a real local-submodule fixture proof covering judging, recorded-commit changes, working
+      checkout changes, uninitialized and missing submodules, file/gitlink collisions, mixed
+      framing, ordering and the fixed file-only receipt id.
+    because: >-
+      The acceptance depends on Git index truth and on framing boundaries that synthetic path
+      inputs alone cannot establish; the fixture exercises those conditions through local Git
+      repositories without network access.
+    rests_on:
+      - packages/runner/test/submoduleReceipts.test.ts
+      - packages/schemas/test/gateDeclaration.test.ts
+    hunks:
+      - packages/runner/test/submoduleReceipts.test.ts
+      - packages/schemas/test/gateDeclaration.test.ts
+      - packages/cli/src/face/world.ts
+      - packages/cli/src/graph/approve.ts
+      - packages/cli/src/graph/show.ts
+      - packages/cli/src/judge.ts
+      - packages/cli/src/position.ts
+      - packages/cli/src/run.ts
+      - packages/cli/src/plan.ts
+      - packages/ledger/src/index.ts
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: >-
+      All eight workspace packages typechecked successfully through mise exec after the committed
+      implementation.
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: >-
+      Biome exited successfully; it reported two existing warnings in
+      packages/runner/test/runnerCommits.test.ts and made no changes.
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+    note: packages/*/src contains no comments.
+  - id: submodule-receipts-proof
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/submoduleReceipts.test.ts --passWithNoTests=false
+    note: 12 tests passed, including the real local submodule fixture and fixed file-only receipt id.
+  - id: test
+    result: fail
+    invocation: pnpm test
+    note: >-
+      The recursive run reached substrate tests, whose local HTTP fixtures were denied
+      listen(127.0.0.1) with EPERM; 24 tests timed out and the command stopped before runner.
+open:
+  - >-
+    The feature-focused runner proof, ledger receipt suite, face graph-loader suite and schema
+    suite pass. The full workspace test gate remains unresolved in this sandbox because substrate
+    cannot bind its local HTTP fixtures; obtain the binding runner receipt in an environment that
+    permits those listeners.
+  - >-
+    mise exec was used for every command, but this environment selected Node 26.13.0 while
+    reporting the repository's Node 24.14.0 engine requirement; repeat the standing gates with
+    the pinned Node toolchain when it is available.

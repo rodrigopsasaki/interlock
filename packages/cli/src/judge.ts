@@ -10,7 +10,14 @@ import {
   loadGraphDocument,
   sharedJournalDirectory,
 } from "face";
-import { createLedger, explainScopeRefusal, nodeKey, readRawEvents, receiptId } from "ledger";
+import {
+  createLedger,
+  explainScopeRefusal,
+  fileScope,
+  nodeKey,
+  readRawEvents,
+  receiptId,
+} from "ledger";
 import {
   declaredGateIds,
   explainJudgeWorktreeRefusal,
@@ -22,6 +29,7 @@ import {
   loadLocalConfig,
   loadStandingGates,
   recordingNarrate,
+  resolveMachine,
 } from "runner";
 import type { CommandResult } from "./main.ts";
 import { substrateClientForRepository } from "./repositoryOrigin.ts";
@@ -66,6 +74,9 @@ export async function runInterlockJudge(
       message: `${cwd}: no .interlock directory found in this directory or any parent; expected to run inside an interlock repository.`,
     };
   }
+
+  const machine = await resolveMachine(repoRoot);
+  if (isErr(machine)) return { exitCode: 1, message: machine.error };
 
   const localConfig = await loadLocalConfig(repoRoot);
   if (isErr(localConfig)) {
@@ -115,7 +126,11 @@ export async function runInterlockJudge(
   const ledger = opened.value;
 
   try {
-    const contentHash = await receiptId(repoRoot, [relative(repoRoot, graphPath)], "approved");
+    const contentHash = await receiptId(
+      repoRoot,
+      fileScope([relative(repoRoot, graphPath)]),
+      "approved",
+    );
     if (isErr(contentHash)) {
       return { exitCode: 1, message: explainScopeRefusal(contentHash.error) };
     }
@@ -167,6 +182,7 @@ export async function runInterlockJudge(
     const gateIds = declaredGateIds(standingGates.value, declaration.gates);
     const personEventsRead = await readRawEvents(journal);
     const judged = await judgeWorktree({
+      machine: machine.value,
       ledger,
       clock,
       node: targetNode,

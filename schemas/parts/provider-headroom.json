@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/parts/provider-headroom.json",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "state": {
+          "const": "known"
+        },
+        "fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "raw": {
+          "type": "number"
+        },
+        "unit": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "rateLimited": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "state",
+        "fraction",
+        "raw",
+        "unit",
+        "source"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "state": {
+          "const": "unknown"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "rateLimited": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "state",
+        "reason"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}

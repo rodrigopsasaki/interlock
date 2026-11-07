@@ -1,0 +1,38 @@
+interlock: notes@v0
+node: gitlinks-hash-commit
+entries:
+  - kind: choice
+    at: '2026-11-07T07:00:00Z'
+    chose: >-
+      Represent the authoritative Git scope as typed file or gitlink entries, expose a path-only
+      projection for context and brief consumers, and keep receipt hashing responsible for the
+      legacy-versus-framed encoding choice.
+    because: >-
+      The index records a gitlink's commit independently of its checkout, so callers must not
+      treat every tracked path as a readable file; keeping the path projection preserves existing
+      context APIs while the ledger receives the recorded object id.
+  - kind: choice
+    at: '2026-11-07T07:12:00Z'
+    chose: >-
+      Accept the pre-existing string-path scope input as a file-only compatibility form while
+      making runner-produced scopes typed entries.
+    because: >-
+      Historical receipt callers and tests pass regular-file paths directly; normalizing that
+      form to file entries preserves their byte-identical identities without allowing a gitlink
+      to be read through the legacy path form.
+  - kind: surprise
+    at: '2026-11-07T07:36:00Z'
+    expected: >-
+      The standing workspace test would reach all packages after the focused submodule proof
+      passed.
+    observed: >-
+      The substrate HTTP fixtures could not listen on 127.0.0.1 in this sandbox, so 24 substrate
+      tests timed out with EPERM and the recursive test command stopped before runner tests.
+      The focused runner proof, ledger receipt suite, face document suite, and schema suite passed.
+  - kind: surprise
+    at: '2026-11-07T07:38:00Z'
+    expected: mise exec would select the repository's pinned Node version.
+    observed: >-
+      mise exec ran with Node 26.13.0 and pnpm 10.13.1 while reporting the repository's Node
+      24.14.0 engine requirement; the requested mise boundary was used, but the local toolchain
+      did not resolve the pinned Node.

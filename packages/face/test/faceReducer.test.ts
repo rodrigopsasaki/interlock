@@ -11,7 +11,7 @@ const brief: AttemptBrief = {
 };
 
 const position: Position = {
-  interlock: "position@v2",
+  interlock: "position@v3",
   graph: "g1",
   approval: "approved",
   nodes: [

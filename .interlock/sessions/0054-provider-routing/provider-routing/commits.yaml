@@ -1,0 +1,81 @@
+interlock: commits@v0
+entries:
+  - message: |
+      feat(ledger): retain why each provider was attempted
+
+      Record provider attribution and the candidate allowance readings on session-started.
+      Publish event@v10 and keep historical lines readable without inventing attribution.
+      Exercise strict debrief preparation across every readable journal version and
+      serialize runner handoff fixtures through the ledger's current envelope writer.
+    paths:
+      - packages/ledger/src/envelope.ts
+      - packages/ledger/src/index.ts
+      - packages/ledger/src/session.ts
+      - packages/ledger/src/upcast/v9.ts
+      - packages/ledger/test/replay.test.ts
+      - packages/cli/test/debrief/derived.test.ts
+      - packages/runner/test/runnerCommits.test.ts
+      - schemas/event@v10.json
+      - schemas/parts/chosen-by.json
+      - schemas/parts/provider-headroom.json
+      - schemas/parts/session-runtime-v1.json
+  - message: |
+      feat(runner): spread attempts across available provider allowances
+
+      Route opted-in profiles by their own remaining fraction and ledger attempt order,
+      keeping the configured last resort last. Preserve explicit selection, fallback,
+      and the published runner commit mode across catalogue versions.
+      Assert the explicit, configured-default and legacy-default selection evidence
+      in CLI session records alongside the selected profile and model.
+    paths:
+      - packages/cli/src/plan.ts
+      - packages/cli/src/run.ts
+      - packages/cli/test/run.test.ts
+      - packages/runner/src/claude/headroom.ts
+      - packages/runner/src/codex/headroom.ts
+      - packages/runner/src/headroom/adapter.ts
+      - packages/runner/src/index.ts
+      - packages/runner/src/kimi/headroom.ts
+      - packages/runner/src/localConfig.ts
+      - packages/runner/src/providerRouting.ts
+      - packages/runner/src/runtimeCatalogue.ts
+      - packages/runner/src/runtimeSelection.ts
+      - packages/runner/src/sessionDrive.ts
+      - packages/runner/test/providerRouting.test.ts
+      - packages/runner/test/runtimes.test.ts
+      - runtimes.example.yaml
+      - schemas/local@v1.json
+      - schemas/runtimes@v2.json
+  - message: |
+      feat(face): show the provider choice on every attempt
+
+      Expose attribution in current position shapes and text, including honest
+      unknown and unrecorded readings for historical attempts. Keep prior schemas
+      and update the generated shape reference and producer proofs.
+    paths:
+      - docs/shapes.md
+      - packages/cli/src/position.ts
+      - packages/cli/test/graph/show.test.ts
+      - packages/cli/test/position.test.ts
+      - packages/face/src/attempts.ts
+      - packages/face/src/frameRender.ts
+      - packages/face/src/position.ts
+      - packages/face/src/runtimeLine.ts
+      - packages/face/test/faceReducer.test.ts
+      - packages/face/test/frameRender.test.ts
+      - packages/face/test/position.test.ts
+      - packages/schemas/src/reference/corpus.ts
+      - packages/schemas/test/askedInWords.test.ts
+      - packages/schemas/test/corpus.guards.test.ts
+      - packages/schemas/test/corpus.position.test.ts
+      - packages/schemas/test/corpus.positions.test.ts
+      - packages/schemas/test/graphRole.test.ts
+      - packages/schemas/test/landed.test.ts
+      - packages/schemas/test/providerRouting.test.ts
+      - packages/schemas/test/registry.test.ts
+      - packages/schemas/test/runtimesExample.test.ts
+      - packages/schemas/test/sayIntoPane.test.ts
+      - schemas/position@v3.json
+      - schemas/positions@v2.json
+fallback_subject: "chore: preserve remaining provider-routing changes"
+co_authored_by: "GPT-6 (Codex)"

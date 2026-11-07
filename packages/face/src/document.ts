@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
-import { parseExpectOutput } from "ledger";
+import { explainGateIdNul, gateIdHasNul, parseExpectOutput } from "ledger";
 import { parse as parseYaml, YAMLParseError } from "yaml";
 import { type NodeRole, parseNodeRole } from "./role.ts";
 import { topologicalOrder } from "./topology.ts";
@@ -89,6 +89,8 @@ function parseGateDeclarations(
     ) {
       return err(malformedGates(context));
     }
+
+    if (gateIdHasNul(id)) return err(`${context}gate ${explainGateIdNul(id)}`);
 
     if (expectOutputSource === undefined) {
       declarations.push({ id, kind, ...(run === undefined ? {} : { run }) });

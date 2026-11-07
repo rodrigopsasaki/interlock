@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/runtimes@v2.json",
+  "title": "runtimes@v2",
+  "description": "Adds optional account provider and routable opt-in to the published commits mode. v0 and v1 remain readable; only one profile per provider may be routable, checked by the catalogue loader.",
+  "type": "object",
+  "properties": {
+    "interlock": {
+      "const": "runtimes@v2"
+    },
+    "runtimes": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_-]{0,31}$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "args": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "model": {
+            "type": "string"
+          },
+          "startup_answers": {
+            "type": "array",
+            "items": {
+              "$ref": "parts/startup-answer.json"
+            }
+          },
+          "startup_timeout_ms": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "prompt_taken_timeout_ms": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "ready_settle_ms": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "prompt_retries": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "writable_root_args": {
+            "$ref": "parts/writable-root-args.json"
+          },
+          "commits": {
+            "enum": [
+              "runner",
+              "agent"
+            ],
+            "default": "agent",
+            "description": "Who commits attempt changes. Runner mode keeps signing outside the agent sandbox and commits code before the debrief."
+          },
+          "provider": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "routable": {
+            "const": true
+          }
+        },
+        "required": [
+          "kind",
+          "model"
+        ],
+        "additionalProperties": true,
+        "dependentRequired": {
+          "routable": [
+            "provider"
+          ]
+        }
+      }
+    }
+  },
+  "required": [
+    "interlock"
+  ],
+  "additionalProperties": true
+}

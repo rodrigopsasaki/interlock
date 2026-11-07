@@ -14,13 +14,13 @@ import {
   renderSessionColumns,
   sharedJournalDirectory,
 } from "face";
-import { emptyProjection, nodeKey, readReplay, receiptId } from "ledger";
+import { emptyProjection, fileScope, nodeKey, readReplay, receiptId } from "ledger";
 import type { Runtime } from "runner";
 import { liveSessionsOf, resolveAgentStatuses } from "../herdrStatus.ts";
 import { legacyDebriefLine } from "../legacyDebriefLine.ts";
 
 async function contentHashOf(repoRoot: string, path: string): Promise<string | undefined> {
-  const hashed = await receiptId(repoRoot, [relative(repoRoot, path)], "approved");
+  const hashed = await receiptId(repoRoot, fileScope([relative(repoRoot, path)]), "approved");
   return isOk(hashed) ? hashed.value : undefined;
 }
 

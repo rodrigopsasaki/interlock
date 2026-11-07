@@ -120,7 +120,7 @@ async function positionsJson(args: readonly string[], cwd: string, runtime?: Run
   expect(result.exitCode).toBe(0);
   const parsed: unknown = JSON.parse(result.message);
   const outcome = judgeValue(buildRegistry(), parsed);
-  expect(outcome, JSON.stringify(outcome)).toEqual({ kind: "valid", tag: "positions@v1" });
+  expect(outcome, JSON.stringify(outcome)).toEqual({ kind: "valid", tag: "positions@v2" });
   return JSON.parse(result.message);
 }
 
@@ -134,7 +134,7 @@ describe("interlock position --json", () => {
 
     const parsed = await positionsJson(["--repo", first, "--repo", second], first);
 
-    expect(parsed.interlock).toBe("positions@v1");
+    expect(parsed.interlock).toBe("positions@v2");
     expect(parsed.repositories).toHaveLength(2);
     const [one, two] = parsed.repositories;
     expect(one).toMatchObject({
@@ -147,7 +147,7 @@ describe("interlock position --json", () => {
     expect(one.graphs.map((graph: { graph: string }) => graph.graph)).toEqual(["alpha", "beta"]);
     expect(one.graphs[0]).toMatchObject({
       state: "read",
-      position: { interlock: "position@v2", graph: "alpha" },
+      position: { interlock: "position@v3", graph: "alpha" },
     });
     expect(two).toMatchObject({
       root: second,
@@ -231,6 +231,8 @@ describe("interlock position --json", () => {
         node: "a",
         session: "session-a",
         role: "implementer",
+        provider: "unknown",
+        chosenBy: { kind: "unrecorded" },
         runtime: { name: "test-runtime", kind: "test-kind", model: "test-model" },
         agentStatus: "blocked",
         pane: { state: "known", address: "w1:p2" },
@@ -240,6 +242,8 @@ describe("interlock position --json", () => {
         graph: "beta",
         node: "b",
         session: "session-b",
+        provider: "unknown",
+        chosenBy: { kind: "unrecorded" },
         runtime: { name: "test-runtime", kind: "test-kind", model: "test-model" },
         agentStatus: "unknown",
         pane: { state: "unknown", because: "the runtime lists no agent for session-b" },
@@ -382,7 +386,7 @@ describe("interlock position --json: a partly reverted node", () => {
     const parsed = await positionsJson(["--repo", root], root);
     const [repository] = parsed.repositories;
     expect(repository.graphs[0].position).toMatchObject({
-      interlock: "position@v2",
+      interlock: "position@v3",
       done: false,
       nodes: [
         {
@@ -433,7 +437,7 @@ describe("positions@v0 reads", () => {
     expect(JSON.stringify(v0)).toBe(before);
     expect(judgeValue(registry, JSON.parse(JSON.stringify(read)))).toEqual({
       kind: "valid",
-      tag: "positions@v1",
+      tag: "positions@v2",
     });
     const [found] = read.repositories;
     expect(found !== undefined && "live" in found ? found.live : []).toEqual([
@@ -443,9 +447,90 @@ describe("positions@v0 reads", () => {
         session: "s",
         runtime: { name: "r", kind: "k", model: "m" },
         agentStatus: "idle",
+        provider: "unknown",
+        chosenBy: { kind: "unrecorded" },
         pane: { state: "unknown", because: UNRECORDED_IN_V0 },
         startedAt: { state: "unknown", because: UNRECORDED_IN_V0 },
       },
     ]);
+  });
+});
+
+describe("attempt provider attribution", () => {
+  it("carries account, profile, model and selection evidence on live and node attempts in JSON and text", async () => {
+    const root = repository({ routed: graphYaml("routed", ["n"]) });
+    const chosenBy = {
+      kind: "routed",
+      because: "highest allowance fraction",
+      candidates: [
+        {
+          provider: "account",
+          headroom: {
+            state: "known",
+            fraction: 0.75,
+            raw: 25,
+            unit: "percent used",
+            source: "fixture",
+          },
+        },
+      ],
+    };
+    writeJournal(root, [
+      {
+        interlock: "event@v10",
+        kind: "session-started",
+        session: {
+          id: "routed-session",
+          node: { graph: "routed", id: "n" },
+          runtime: { name: "profile", kind: "fake", model: "m", provider: "account", chosenBy },
+        },
+        brief: {
+          graph: "routed",
+          node: "n",
+          role: "implementer",
+          acceptance: "x",
+          gates: [],
+          scope: [],
+        },
+      },
+      {
+        interlock: "event@v10",
+        kind: "lease-taken",
+        node: { graph: "routed", id: "n" },
+        session: "routed-session",
+        expiry: 9_999_999_999_999,
+      },
+    ]);
+    const parsed = await positionsJson(["--repo", root], root, stubRuntime());
+    const [read] = parsed.repositories;
+    expect(read.live[0]).toMatchObject({
+      provider: "account",
+      chosenBy,
+      runtime: { name: "profile", model: "m" },
+    });
+    expect(read.graphs[0].position.nodes[0].attempts[0]).toMatchObject({
+      provider: "account",
+      chosenBy,
+      runtime: { name: "profile", model: "m" },
+    });
+    const text = await runInterlockPosition(["--repo", root], {
+      cwd: root,
+      runtime: stubRuntime(),
+    });
+    expect(text.message).toContain(
+      "profile (fake, m), provider account, chosen-by routed (highest allowance fraction)",
+    );
+  });
+
+  it("projects historical attempts as provider unknown and chosen-by unrecorded", async () => {
+    const root = repository({ old: graphYaml("old", ["n"]) });
+    writeJournal(root, liveSession("old", "n", "old-session", "implementer"));
+    const parsed = await positionsJson(["--repo", root], root, stubRuntime());
+    const [read] = parsed.repositories;
+    expect(read.live[0]).toMatchObject({ provider: "unknown", chosenBy: { kind: "unrecorded" } });
+    expect(read.graphs[0].position.nodes[0].attempts[0]).toMatchObject({
+      provider: "unknown",
+      chosenBy: { kind: "unrecorded" },
+    });
   });
 });
