@@ -227,5 +227,11 @@ export function delegatedReceipt(
       }
     }
   }
+  for (const view of projection.outbox.values()) {
+    const candidate = view.intent.derivation;
+    if (candidate.kind === "human" && "citeKey" in candidate && candidate.citeKey === key) {
+      return { derivation: candidate, action: candidate.action, target: candidate.target };
+    }
+  }
   return undefined;
 }

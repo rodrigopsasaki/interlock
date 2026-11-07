@@ -1,0 +1,38 @@
+interlock: notes@v0
+node: plan-publish
+entries:
+  - kind: choice
+    at: "2026-11-07T15:25:00Z"
+    chose: >-
+      Build plan publication on the existing typed outbox and delegated-citation seams, with one
+      durable intent for the branch push and one for the pull-request effect.
+    because: >-
+      I7 requires intent before dispatch, stable identities, and honest uncertainty; reusing the
+      ledger projection lets a restarted command distinguish acknowledged work from work that must
+      be reconciled without inventing a second journal protocol.
+  - kind: choice
+    at: "2026-11-07T15:25:01Z"
+    chose: >-
+      Treat the graph content bytes as the publication identity and validate them against the
+      current HEAD before recording either intent.
+    because: >-
+      The acceptance requires the branch to carry exactly the committed graph named by its hash,
+      and refuses untracked or worktree-divergent files before any outbox effect exists.
+  - kind: surprise
+    at: "2026-11-07T15:55:00Z"
+    expected: >-
+      The focused fixtures would distinguish a graph without an arc and an untracked graph using
+      the existing graph loader and git path lookup.
+    observed: >-
+      A default parameter accidentally supplied the arc in the missing-arc fixture, and
+      git ls-files continued to list a deleted-and-recreated path as tracked. The fixture now
+      passes an explicit no-arc value, and publication checks porcelain status for an untracked
+      path before comparing committed bytes.
+  - kind: choice
+    at: "2026-11-07T15:56:00Z"
+    chose: >-
+      Count a delegated publication intent as cite consumption alongside delegated receipts.
+    because: >-
+      A publication is an outward act with durable provenance even though it does not clear a
+      gate; the same citation must not authorize a later approval, clearance, or different
+      publication target.
