@@ -16,7 +16,7 @@ vi.mock("../../runner/src/worktree.ts", async (original) => ({
   ...(await original<typeof import("../../runner/src/worktree.ts")>()),
   uncommittedPaths: () => ok([]),
 }));
-vi.mock("../../runner/src/scope.ts", () => ({ gitTrackedFiles: () => [] }));
+vi.mock("../../runner/src/scope.ts", () => ({ gitScope: () => [], gitTrackedFiles: () => [] }));
 
 const clock = createControlledClock({ initialTime: 0 });
 let root = "";
