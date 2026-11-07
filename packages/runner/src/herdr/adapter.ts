@@ -326,6 +326,15 @@ export async function createHerdrRuntime(
     timeoutMs: number = defaultCallTimeoutMs,
   ) => callHerdr(socketPath, method, params, timeoutMs);
 
+  return ok(herdrRuntime(call, paneReadyTimeoutMs, waitSliceMs, liveWorkSources));
+}
+
+export function herdrRuntime(
+  call: HerdrCall,
+  paneReadyTimeoutMs: number = AGENT_START_TIMEOUT_MS,
+  waitSliceMs: number = WAIT_SLICE_MS,
+  liveWorkSources: Readonly<Record<string, LiveWorkSource>> = DEFAULT_LIVE_WORK_SOURCES,
+): Runtime {
   const attemptStartAgent = async (
     name: string,
     pane: Pane,
@@ -372,6 +381,7 @@ export async function createHerdrRuntime(
   const paneFromCreated = (
     result: Record<string, unknown>,
     method: string,
+    knownWorkspace?: string,
   ): Result<Pane, RuntimeRefusal> => {
     const paneId = stringAt(result, "root_pane", "pane_id");
     const tabId = stringAt(result, "tab", "tab_id");
@@ -382,11 +392,41 @@ export async function createHerdrRuntime(
       });
     }
     paneTabs.set(paneId, tabId);
-    return ok({ id: paneId });
+    return ok({
+      id: paneId,
+      workspace: stringAt(result, "workspace", "workspace_id") ?? knownWorkspace,
+    });
   };
 
-  return ok({
-    async openPane(cwd) {
+  return {
+    async checkServer() {
+      const pinged = await call("ping", {});
+      return isErr(pinged) ? pinged : ok(undefined);
+    },
+    paneEnvironment: true,
+    async paneProcess(pane) {
+      const listed = await call("pane.list", {});
+      if (isErr(listed)) return listed;
+      const panes = prop(listed.value, "panes");
+      if (
+        !Array.isArray(panes) ||
+        !panes.every((item) => isRecord(item) && typeof prop(item, "pane_id") === "string")
+      )
+        return err({ kind: "transport", because: "pane.list: missing or malformed panes" });
+      if (!panes.some((item) => isRecord(item) && prop(item, "pane_id") === pane.id))
+        return ok({ state: "gone" });
+      const listedPane = panes.find((item) => isRecord(item) && prop(item, "pane_id") === pane.id);
+      const tabId = stringAt(listedPane, "tab_id");
+      if (tabId !== undefined) paneTabs.set(pane.id, tabId);
+      const inspected = await call("pane.process_info", { pane_id: pane.id });
+      if (isErr(inspected)) return inspected;
+      const pid = numberAt(inspected.value, "process_info", "shell_pid");
+      return ok({
+        state: "present",
+        pid: pid !== undefined && Number.isInteger(pid) && pid > 0 ? pid : undefined,
+      });
+    },
+    async openPane(cwd, env) {
       const label = repositoryLabel(cwd);
       const listed = await call("workspace.list", {});
       if (isErr(listed)) return listed;
@@ -407,14 +447,16 @@ export async function createHerdrRuntime(
           workspace_id: workspaceId,
           cwd,
           focus: false,
+          ...(env === undefined ? {} : { env }),
         });
-        return isErr(opened) ? opened : paneFromCreated(opened.value, "tab.create");
+        return isErr(opened) ? opened : paneFromCreated(opened.value, "tab.create", workspaceId);
       }
 
       const created = await call("workspace.create", {
         cwd,
         focus: false,
         label,
+        ...(env === undefined ? {} : { env }),
       });
       return isErr(created) ? created : paneFromCreated(created.value, "workspace.create");
     },
@@ -543,14 +585,18 @@ export async function createHerdrRuntime(
       if (isErr(closed)) return closed;
 
       const tabId = paneTabs.get(pane.id);
-      paneTabs.delete(pane.id);
       if (tabId === undefined) return ok(undefined);
 
       const tab = await call("tab.get", { tab_id: tabId });
-      if (isErr(tab)) return ok(undefined);
-      if (numberAt(tab.value, "tab", "pane_count") === 0) {
-        await call("tab.close", { tab_id: tabId });
+      if (isErr(tab)) return tab;
+      const count = numberAt(tab.value, "tab", "pane_count");
+      if (count === undefined || !Number.isInteger(count) || count < 0)
+        return err({ kind: "transport", because: "tab.get: missing or invalid pane_count" });
+      if (count === 0) {
+        const closedTab = await call("tab.close", { tab_id: tabId });
+        if (isErr(closedTab)) return closedTab;
       }
+      paneTabs.delete(pane.id);
       return ok(undefined);
     },
 
@@ -590,5 +636,16 @@ export async function createHerdrRuntime(
       const listed = await listAgents(call);
       return isErr(listed) ? listed : ok(observationOf(listed.value, liveWorkSources));
     },
-  });
+  };
+}
+
+export async function createHerdrLaunchRuntime(): Promise<Result<Runtime, RuntimeRefusal>> {
+  const created = await createHerdrRuntime();
+  if (isErr(created) && created.error.kind === "no-socket") {
+    return err({
+      kind: "not-ready",
+      message: "herdr's server is not running; open herdr and run again",
+    });
+  }
+  return created;
 }

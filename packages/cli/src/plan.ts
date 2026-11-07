@@ -41,8 +41,10 @@ import {
   loadStandingGates,
   mergeRuntimes,
   type Runtime,
+  reconcileMachineOnStart,
   renderBriefFile,
   renderOpeningView,
+  resolveMachine,
   routeRuntime,
 } from "runner";
 import { narrateContext } from "substrate";
@@ -173,6 +175,9 @@ export async function runInterlockPlan(
     };
   }
 
+  const machine = await resolveMachine(repoRoot);
+  if (isErr(machine)) return { exitCode: 1, message: machine.error };
+
   const localConfig = await loadLocalConfig(repoRoot);
   if (isErr(localConfig)) {
     return {
@@ -213,6 +218,7 @@ export async function runInterlockPlan(
 
   const node = `plan/${graph}`;
   const targetNode = { graph, id: node };
+  const targetWorktreePath = join(repoRoot, localConfig.value.worktreeRoot, node);
 
   const journal = await sharedJournalDirectory(repoRoot);
   const clock = options.clock ?? createSystemClock();
@@ -226,6 +232,8 @@ export async function runInterlockPlan(
   const ledger = opened.value;
 
   try {
+    const recovered = await reconcileMachineOnStart(ledger, clock, narrate, options.runtime);
+    if (isErr(recovered)) return { exitCode: 1, message: recovered.error };
     const agentRuntime = await routeRuntime(
       mergedRuntimes.value,
       requestedRuntime,
@@ -260,19 +268,21 @@ export async function runInterlockPlan(
     let selectedContextScope = parsedContextScope.value;
     let correction: InterpreterCorrection | undefined;
 
-    const afterWorktree = async (worktreePath: string): Promise<Result<void, string>> => {
-      const worktreeGraphPath = graphFilePath(worktreePath, graph);
-      const previousGraphYaml = await readIfExists(worktreeGraphPath);
+    const beforeRuntime = async (): Promise<Result<void, string>> => {
+      const statePath = existsSync(targetWorktreePath)
+        ? graphFilePath(targetWorktreePath, graph)
+        : graphFilePath(repoRoot, graph);
+      const previousGraphYaml = await readIfExists(statePath);
       if (isErr(previousGraphYaml)) return err(previousGraphYaml.error);
 
       if (previousGraphYaml.value === undefined && correctionReason !== undefined) {
         return err(
-          `${worktreeGraphPath}: no such file; --correction reopens an existing graph, not a new one.`,
+          `${statePath}: no such file; --correction reopens an existing graph, not a new one.`,
         );
       }
       if (previousGraphYaml.value !== undefined && correctionReason === undefined) {
         return err(
-          `${worktreeGraphPath}: a graph already exists for "${graph}"; use --correction "<reason>" to reopen it.`,
+          `${statePath}: a graph already exists for "${graph}"; use --correction "<reason>" to reopen it.`,
         );
       }
       if (correctionReason !== undefined && previousGraphYaml.value !== undefined) {
@@ -281,7 +291,10 @@ export async function runInterlockPlan(
           previousGraphYaml: previousGraphYaml.value,
         };
       }
+      return ok(undefined);
+    };
 
+    const afterWorktree = async (worktreePath: string): Promise<Result<void, string>> => {
       if (resolvedAsk === undefined) {
         const previousBriefPath = join(
           worktreePath,
@@ -418,6 +431,7 @@ export async function runInterlockPlan(
       "and a debrief; never lease or run a node of the graph.";
 
     return await driveInteractiveSession({
+      machine: machine.value,
       repoRoot,
       graph,
       node,
@@ -433,6 +447,7 @@ export async function runInterlockPlan(
       narrate,
       ...(options.runtime === undefined ? {} : { runtime: options.runtime }),
       runnerIdPrefix: "plan",
+      beforeRuntime,
       afterWorktree,
       composeBrief,
       beforeJudge,

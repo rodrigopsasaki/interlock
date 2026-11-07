@@ -1,0 +1,160 @@
+interlock: debrief@v2
+graph: 0056-machine-provider
+node: machine-provider
+role: implementer
+graph_base_sha: 19e42fcadc6b2ab8c51dbce4c16cc01ab418e932
+session_start_sha: cbc05a1e4981aae65a4160ccbb58628463d900a8
+head_sha: a8ffc8854e032a369053d2b8dbe127136ff4e49d
+derivation:
+  kind: agent
+  runtime: sol
+  model: gpt-6.1-sol
+discoveries: []
+decisions:
+  - id: "explicit-machine-contract"
+    what: "Publish machine@v0 with an all-or-nothing provider mapping, an explicit none opt-out, strict argv/environment parsing, schema coverage and the generated artifact reference. Keep machine visible as a missing vocabulary term."
+    because: "A missing or malformed machine file must not silently bypass shared capacity, and publishing this configuration must not rename or invalidate any existing artifact."
+    rests_on:
+      - ".interlock/graphs/0056-machine-provider.yaml (acceptance: Machine file)"
+      - "docs/design/0001-interlock.md (I3 and artifact compatibility)"
+    hunks:
+      - "packages/runner/src/machineProvider.ts:1-164"
+      - "schemas/machine@v0.json:1-60"
+      - "packages/schemas/test/machine.test.ts:1-54"
+      - "docs/shapes.md:1120-1140"
+      - "packages/schemas/test/reference.test.ts:34"
+      - "packages/cli/test/schema/reference.test.ts:16"
+  - id: "preflight-one-attempt"
+    what: "Resolve the machine and obtain env before CLI ledger creation or runner worktree setup. Pass the resolved attempt through run, plan, backfill and standalone judge, and expose the provider entry points from the runner package."
+    because: "Configuration and env failures must refuse without creating work, while a successful env result must be reused throughout one attempt rather than independently sampled by each consumer."
+    rests_on:
+      - ".interlock/graphs/0056-machine-provider.yaml (acceptance: Environment and backfill preflight)"
+    hunks:
+      - "packages/cli/src/run.ts:77-79"
+      - "packages/cli/src/plan.ts:178-180"
+      - "packages/cli/src/backfill.ts:48-50"
+      - "packages/cli/src/judge.ts:71-73"
+      - "packages/runner/src/sessionDrive.ts:216-222"
+      - "packages/runner/src/judgeWorktree.ts:66-69"
+      - "packages/runner/src/index.ts:69-77"
+  - id: "heavy-command-boundaries"
+    what: "Prefix gate, worktree setup and backfill install argv with heavy, merge the attempt environment into their process environments, and retain spawn failures as command output. Route the backfill install through the existing setup command runner."
+    because: "The provider must control the expensive process itself, including a standalone judge, without adding shell parsing or a separate install path that escapes the provider."
+    rests_on:
+      - ".interlock/graphs/0056-machine-provider.yaml (acceptance: Heavy commands)"
+      - "packages/runner/src/judgeWorktree.ts:107-108"
+    hunks:
+      - "packages/runner/src/gateJudge.ts:103"
+      - "packages/runner/src/gateJudge.ts:144-147"
+      - "packages/runner/src/gateJudge.ts:227"
+      - "packages/runner/src/worktreeSetup.ts:85-89"
+      - "packages/runner/src/worktreeSetup.ts:131-135"
+      - "packages/runner/src/backfill.ts:97-121"
+      - "packages/runner/src/backfill.ts:185"
+      - "packages/runner/src/judgeWorktree.ts:107-108"
+      - "packages/runner/src/sessionDrive.ts:360-366"
+  - id: "runtime-owned-environment-and-observation"
+    what: "Keep host-specific environment delivery, shell PID observation and close confirmation inside the runtime adapters. Supply TOML-quoted environment settings for the Codex profile, forward env to pane creation, expose generic capabilities, and propagate failed tab inspection or tab close."
+    because: "The runner needs reliable PID and close facts and must refuse environment delivery it cannot support; host methods and profile flags belong behind their adapters rather than in orchestration code."
+    rests_on:
+      - "docs/design/0001-interlock.md (I6)"
+      - ".interlock/graphs/0056-machine-provider.yaml (acceptance: Environment and Confirmation)"
+    hunks:
+      - "packages/runner/src/codex/environment.ts:1-18"
+      - "packages/runner/src/runtime.ts:120-132"
+      - "packages/runner/src/herdr/adapter.ts:329-337"
+      - "packages/runner/src/herdr/adapter.ts:406-429"
+      - "packages/runner/src/herdr/adapter.ts:450"
+      - "packages/runner/src/herdr/adapter.ts:459"
+      - "packages/runner/src/herdr/adapter.ts:591-599"
+      - "packages/runner/src/sessionDrive.ts:251-260"
+  - id: "admission-before-agent"
+    what: "Open the pane without an agent, inspect its PID, expand holder/token/pane/workspace/profile/worktree/attempt arguments and admit before starting the agent. Refuse a missing PID; return a confirmed provider refusal line verbatim without starting an agent or setting a normal node outcome."
+    because: "Capacity must be attached to the actual pane process and stable session token before agent work begins, and lack of capacity must leave the node able to run again."
+    rests_on:
+      - ".interlock/graphs/0056-machine-provider.yaml (acceptance: Order of a launch and refusals-stay-resettable)"
+    hunks:
+      - "packages/runner/src/sessionDrive.ts:382-446"
+      - "packages/runner/src/sessionDrive.ts:455-484"
+  - id: "durable-pane-holds"
+    what: "Retain stable admission, agent-start, close and release intents in the existing evidence-backed outbox. Persist release intent before closing, release only after close is confirmed, recover orphan shells and uncertain releases on startup, and retain holds when observations or close are uncertain. Distinguish a confirmed rejected admission from an uncertain one, and leave a started pane open for drilldown until a close is requested."
+    because: "A crash must not lose a provider hold or cause release on a guess. Retaining the original release recipe supports reconciliation after configuration changes; the agent-start acknowledgment separates an orphan shell from retained agent work."
+    rests_on:
+      - "docs/design/0001-interlock.md:142-149"
+      - ".interlock/graphs/0056-machine-provider.yaml (acceptance: Release and crash reconciliation)"
+    hunks:
+      - "packages/runner/src/machineOutbox.ts:1-344"
+      - "packages/runner/src/sessionDrive.ts:478-484"
+      - "packages/runner/src/sessionDrive.ts:753-797"
+      - "packages/cli/src/run.ts:167-168"
+      - "packages/cli/src/plan.ts:242-243"
+  - id: "fixture-provider-proof"
+    what: "Add fixture provider commands and fixture agents for launch ordering, refusals, environment quoting and delivery, heavy setup/gates/install, shared serialization, persistence failures and crash reconciliation. Exercise standalone judge with a provider and the adapter with an injected transport; use the existing repository HEAD for the backfill fixture while mocking worktree mutations."
+    because: "The acceptance needs observable command behavior without consuming real provider capacity or starting real agent sessions. Keeping process starts readable preserves the existing fixture guard instead of introducing an exception for interception."
+    rests_on:
+      - ".interlock/graphs/0056-machine-provider.yaml (acceptance: Tests)"
+      - "packages/cli/test/fixtureGuard.test.ts"
+    hunks:
+      - "packages/runner/test/machineProvider.test.ts:1-775"
+      - "packages/cli/test/judgeProvider.test.ts:1-126"
+      - "packages/runner/src/herdr/adapter.ts:329-337"
+  - id: "explicit-test-opt-out"
+    what: "Use a checked-in machine@v0 provider-none fixture as the test process machine path."
+    because: "Existing tests need an explicit opt-out and must not accidentally execute the developer machine provider; dedicated provider tests override this path with their own fixtures."
+    rests_on:
+      - ".interlock/graphs/0056-machine-provider.yaml (acceptance: provider none and fixture-only tests)"
+    hunks:
+      - "test/fixtures/machine-none.yaml:1-2"
+      - "vitest.setup.ts:4-9"
+  - id: "record-opt-out-narration"
+    what: "Emit the provider-none line once immediately after the recorded lease and update the CLI ordered narration expectations. Assert that the provider-none fixture records every line its caller receives."
+    because: "The required opt-out narration is a deliberate added line. It must enter the session ledger as well as stdout, rather than weakening the existing every-line recording contract to accommodate a pre-session utterance."
+    rests_on:
+      - ".interlock/graphs/0056-machine-provider.yaml (acceptance: provider none is narrated once per launch)"
+      - "packages/cli/test/run.test.ts:454-481"
+    hunks:
+      - "packages/runner/src/sessionDrive.ts:305"
+      - "packages/cli/test/run.test.ts:875"
+      - "packages/cli/test/run.test.ts:922"
+      - "packages/cli/test/run.test.ts:1078-1081"
+      - "packages/runner/test/machineProvider.test.ts:271-284"
+gates_run_by_agent:
+  - id: "typecheck"
+    result: "pass"
+    invocation: "mise exec node@24.14.0 -- pnpm typecheck"
+    note: "Earlier agent run on the final implementation, before the human code commit; npm_config_workspace_concurrency=1 serialized workspace checks. No tests or checks were rerun during debrief authoring."
+  - id: "lint"
+    result: "pass"
+    invocation: "mise exec node@24.14.0 -- pnpm lint"
+    note: "Earlier agent run; exit zero with the existing runnerCommits.test.ts warning and information message."
+  - id: "comments"
+    result: "pass"
+    invocation: "mise exec node@24.14.0 -- pnpm check:comments"
+    note: "Earlier agent run; no comments found in packages/*/src."
+  - id: "provider-proof"
+    result: "pass"
+    invocation: "mise exec node@24.14.0 -- pnpm --filter runner exec vitest run test/machineProvider.test.ts --maxWorkers=1 --no-file-parallelism"
+    note: "Earlier agent run after narration and fixture-guard corrections; 31 tests passed."
+  - id: "judge-proof"
+    result: "pass"
+    invocation: "mise exec node@24.14.0 -- pnpm --filter cli exec vitest run test/judgeProvider.test.ts --maxWorkers=1 --no-file-parallelism"
+    note: "Earlier agent run in a separate CLI invocation; 4 tests passed."
+  - id: "schema-proof"
+    result: "pass"
+    invocation: "mise exec node@24.14.0 -- pnpm --fail-if-no-match --filter schemas exec vitest run --passWithNoTests=false --maxWorkers=1 --no-file-parallelism"
+    note: "Earlier agent schema run; 1155 tests passed including the 17 machine schema tests. The later human report contains 1156 schema tests."
+  - id: "cli-fixture-guard"
+    result: "pass"
+    invocation: "mise exec node@24.14.0 -- pnpm --filter cli exec vitest run test/fixtureGuard.test.ts --maxWorkers=1 --no-file-parallelism"
+    note: "Earlier agent run after removing the child_process mock; 69 tests passed."
+  - id: "cli-schema-reference"
+    result: "pass"
+    invocation: "mise exec node@24.14.0 -- pnpm --filter cli exec vitest run test/schema/reference.test.ts --maxWorkers=1 --no-file-parallelism"
+    note: "Earlier separate CLI invocation; 2 tests passed."
+  - id: "cli-run"
+    result: "fail"
+    invocation: "mise exec node@24.14.0 -- pnpm --filter cli exec vitest run test/run.test.ts --maxWorkers=1 --no-file-parallelism"
+    note: "Earlier agent attempt was interrupted with exit 130 after fixture brief commits repeatedly failed on sandbox-denied GPG access. This entry is not a failure observed on the signed code HEAD; the human later reported the full CLI suite passing."
+open:
+  - "At this debrief handoff Rodrigo reported all standing gates passing on signed commit a8ffc8854e032a369053d2b8dbe127136ff4e49d: lint, typecheck, comments and the full test run with runner 491/491, schemas 1156/1156 and CLI 410/410. These are human-reported results, not checks I ran in this turn or entries in gates_run_by_agent. The harness receipts remain binding proof."
+  - "The human performed the signed code commit. This debrief and the session notes are deliberately left uncommitted for custody; no tests, signing changes, git config, push or merge were performed during debrief authoring."

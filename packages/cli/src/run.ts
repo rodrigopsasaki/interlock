@@ -30,6 +30,8 @@ import {
   mergeRuntimes,
   type RoleShape,
   type Runtime,
+  reconcileMachineOnStart,
+  resolveMachine,
   roleShapeFor,
   routeRuntime,
   unmetDependencies,
@@ -71,6 +73,9 @@ export async function runInterlockRun(
       message: `${cwd}: no .interlock directory found in this directory or any parent; expected to run inside an interlock repository.`,
     };
   }
+
+  const machine = await resolveMachine(repoRoot);
+  if (isErr(machine)) return { exitCode: 1, message: machine.error };
 
   const localConfig = await loadLocalConfig(repoRoot);
   if (isErr(localConfig)) {
@@ -152,6 +157,8 @@ export async function runInterlockRun(
   const ledger = opened.value;
 
   try {
+    const recovered = await reconcileMachineOnStart(ledger, clock, narrate, options.runtime);
+    if (isErr(recovered)) return { exitCode: 1, message: recovered.error };
     const agentRuntime = await routeRuntime(
       mergedRuntimes.value,
       requestedRuntime,
@@ -215,6 +222,7 @@ export async function runInterlockRun(
     };
 
     return await driveInteractiveSession({
+      machine: machine.value,
       repoRoot,
       graph,
       node,

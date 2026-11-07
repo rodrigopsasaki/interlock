@@ -1,0 +1,75 @@
+interlock: debrief@v2
+graph: 0056-machine-provider
+node: refusals-stay-resettable
+role: implementer
+graph_base_sha: ca21061149d5085ca7bae8bdbcb9b20df31d9f5d
+session_start_sha: 7b4e8986b195d68b7ab2df6383fab6e4654f8be5
+head_sha: 815a56bae3e2c42c38f949b0cc90a06857878697
+derivation:
+  kind: agent
+  runtime: luna
+  model: gpt-5.6-luna
+discoveries: []
+decisions:
+  - id: probe-herdr-with-ping
+    what: Make the herdr adapter probe liveness with ping, normalize a missing launch socket to the not-ready refusal, and make the fake server reject unsupported methods with herdr's invalid_request unknown-variant shape.
+    because: The real herdr server serves ping but not server.status; matching the fake's unknown-method response to the real protocol prevents tests from accepting an unavailable method.
+    rests_on:
+      - packages/runner/src/herdr/adapter.ts:388-392
+      - packages/runner/src/herdr/adapter.ts:600-608
+      - packages/runner/test/herdr/fakeServer.ts:183-186
+      - packages/runner/test/herdr/fakeServer.ts:317-318
+    hunks:
+      - packages/runner/src/herdr/adapter.ts:388-392
+      - packages/runner/test/herdr/fakeServer.ts:183-186
+      - packages/runner/test/herdr/fakeServer.ts:317-318
+      - packages/runner/test/herdr/adapter.test.ts:160-168
+    produces:
+      - packages/runner/src/herdr/adapter.ts
+      - packages/runner/test/herdr/fakeServer.ts
+      - packages/runner/test/herdr/adapter.test.ts
+  - id: validate-plan-state-before-runtime
+    what: Run existing-graph and missing-correction state checks through driveInteractiveSession's beforeRuntime hook, while leaving graph authoring in the afterWorktree hook.
+    because: Planning refusals determined from command arguments and graph state must return their own messages without creating or contacting a runtime, while the runtime hook must still run before launch effects.
+    rests_on:
+      - packages/runner/src/sessionDrive.ts:133-133
+      - packages/runner/src/sessionDrive.ts:190-227
+      - packages/cli/src/plan.ts:259-283
+      - packages/cli/src/plan.ts:435-439
+      - packages/cli/test/plan.test.ts:455-476
+      - packages/cli/test/plan.test.ts:852-860
+    hunks:
+      - packages/runner/src/sessionDrive.ts:133-133
+      - packages/runner/src/sessionDrive.ts:190-227
+      - packages/cli/src/plan.ts:259-283
+      - packages/cli/src/plan.ts:435-439
+      - packages/cli/test/plan.test.ts:455-476
+    produces:
+      - packages/cli/src/plan.ts
+      - packages/cli/test/plan.test.ts
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: Standing gate reported passing on signed head 815a56b; not rerun during this filing step.
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: Standing gate reported passing on signed head 815a56b; not rerun during this filing step.
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+    note: Standing gate reported passing on signed head 815a56b; not rerun during this filing step.
+  - id: test
+    result: pass
+    invocation: pnpm test
+    note: Full standing test reported passing on signed head 815a56b, including cli 406/406; not rerun during this filing step.
+  - id: refusal-proof
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/refusalOutcomes.test.ts --passWithNoTests=false
+    note: Standing gate reported passing on signed head 815a56b; not rerun during this filing step.
+  - id: commit-refusals-still-fail
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/runnerCommits.test.ts --passWithNoTests=false
+    note: Standing gate reported passing on signed head 815a56b; not rerun during this filing step.
+open: []

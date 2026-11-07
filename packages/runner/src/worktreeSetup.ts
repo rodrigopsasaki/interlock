@@ -79,9 +79,14 @@ function spawnSetupCommand(
   tokens: readonly string[],
   cwd: string,
   env: NodeJS.ProcessEnv,
+  heavy: readonly string[],
 ): Promise<{ readonly exit: WorktreeSetupExit; readonly tail: Buffer }> {
   return new Promise((resolve) => {
-    const child = spawn("mise", ["exec", "--", ...tokens], { cwd, env });
+    const [bin, ...args] = [...heavy, "mise", "exec", "--", ...tokens];
+    const child = spawn(bin ?? "mise", args, { cwd, env });
+    child.on("error", (error) => {
+      tail = appendTail(tail, Buffer.from(error.message));
+    });
     let tail: Buffer = Buffer.alloc(0);
     const onData = (chunk: Buffer) => {
       tail = appendTail(tail, chunk);
@@ -100,12 +105,13 @@ export async function runSetupCommand(
   command: string,
   cwd: string,
   env: NodeJS.ProcessEnv = process.env,
+  heavy: readonly string[] = [],
 ): Promise<Result<void, WorktreeSetupRefusal>> {
   const tokens = tokenize(command);
   if (tokens.length === 0) {
     return err({ kind: "command-failed", command, exit: { kind: "exit", code: -1 }, tail: "" });
   }
-  const { exit, tail } = await spawnSetupCommand(tokens, cwd, env);
+  const { exit, tail } = await spawnSetupCommand(tokens, cwd, env, heavy);
   if (exit.kind === "exit" && exit.code === 0) return ok(undefined);
   const logPath = await retainSetupLog(cwd, tail);
   return err({
@@ -122,10 +128,11 @@ export async function runWorktreeSetup(
   worktreePath: string,
   narrate: (line: string) => void,
   env: NodeJS.ProcessEnv = process.env,
+  heavy: readonly string[] = [],
 ): Promise<Result<void, WorktreeSetupRefusal>> {
   for (const command of commands) {
     narrate(`worktree setup: ${command}`);
-    const setup = await runSetupCommand(command, worktreePath, env);
+    const setup = await runSetupCommand(command, worktreePath, env, heavy);
     if (isErr(setup)) return setup;
   }
   return ok(undefined);

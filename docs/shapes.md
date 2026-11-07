@@ -15,7 +15,7 @@ No vocabulary entry for `arcs`.
 | field | type | required | description |
 | --- | --- | --- | --- |
 | `interlock` | the literal `"arcs@v0"` | yes |  |
-| `arcs` | array of object | yes | fields: id (string matching `^[a-z0-9]+(?:-[a-z0-9]+)*$`, required); title (line, required); ask (line, required); source (line, required); graphs (array of line, required) |
+| `arcs` | array of object | yes | fields: id (string matching `^[a-z0-9]+(?:-[a-z0-9]+)*$`, required); title (line, required); ask (line, required); source (line, required); also_said (array of object, optional); graphs (array of line, required) |
 | `needs_his_words` | array of object | no | fields: graph (line, required); found (line, required) |
 
 ### Examples
@@ -1128,6 +1128,27 @@ substrate:
 #### `local@v1`
 
 _No example of `local@v1` was found in the corpus._
+
+## machine
+
+No vocabulary entry for `machine`.
+
+### Versions
+
+- `machine@v0`: the first version.
+
+### Fields (`machine@v0`)
+
+| field | type | required | description |
+| --- | --- | --- | --- |
+| `interlock` | the literal `"machine@v0"` | yes |  |
+| `provider` | one of `?`, `?` | yes | `?`: no fields beyond `kind`; `?`: admit, release, env, heavy |
+
+### Examples
+
+#### `machine@v0`
+
+_No example of `machine@v0` was found in the corpus._
 
 ## notes
 

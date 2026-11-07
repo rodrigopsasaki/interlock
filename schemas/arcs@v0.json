@@ -28,6 +28,25 @@
           "source": {
             "$ref": "#/$defs/line"
           },
+          "also_said": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "words": {
+                  "$ref": "#/$defs/line"
+                },
+                "source": {
+                  "$ref": "#/$defs/line"
+                }
+              },
+              "required": [
+                "words",
+                "source"
+              ]
+            }
+          },
           "graphs": {
             "type": "array",
             "minItems": 1,

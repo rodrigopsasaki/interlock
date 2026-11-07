@@ -1,0 +1,47 @@
+interlock: debrief@v2
+graph: 0056-machine-provider
+node: base-holds-graph
+role: implementer
+graph_base_sha: ca21061149d5085ca7bae8bdbcb9b20df31d9f5d
+session_start_sha: 02275aa410644d7340722f3ea858d04c73e735c0
+head_sha: 921c12481bc3b13950a1a073add893277e83ef4b
+derivation:
+  kind: agent
+  runtime: luna
+  model: gpt-5.6-luna
+discoveries: []
+decisions:
+  - id: check-the-pinned-base-for-the-graph
+    what: Add a reusable base-holds-graph preflight that checks the exact pinned commit for .interlock/graphs/<graph>.yaml and emits the required plain refusal when it is absent.
+    because: A session brief pins its graph base immutably, so a kept worktree must prove that its own base contains the graph before the session can proceed; suppressing cat-file output preserves the single refusal line.
+    rests_on:
+      - packages/runner/src/worktree.ts:18-31
+      - packages/runner/src/worktree.ts:65-75
+      - packages/runner/src/worktree.ts:123-133
+    hunks:
+      - packages/runner/src/worktree.ts:18-31
+      - packages/runner/src/worktree.ts:65-75
+      - packages/runner/src/worktree.ts:123-133
+      - packages/runner/src/index.ts:158-168
+    applies_to: { kind: path, path: packages/runner/src/worktree.ts }
+  - id: refuse-before-session-state
+    what: Run the base-holds-graph preflight after worktree selection but before afterWorktree, session-started, lease, brief, or agent launch for every non-interpreter session.
+    because: Existing graph-node sessions cannot safely begin from a base that lacks their graph, while the interpreter planner intentionally creates a graph that does not exist on its base yet and must remain able to draft it.
+    rests_on:
+      - packages/runner/src/sessionDrive.ts:233-258
+      - packages/runner/src/openingPrompt.ts:5-13
+      - packages/ledger/src/role.ts:4-13
+    hunks:
+      - packages/runner/src/sessionDrive.ts:242-258
+  - id: prove_stale_base_recovery_paths
+    what: Extend the drive fixture with a graph-present default and add focused coverage for refusal on a stale kept branch, successful continuation after merging main, and successful launch from a fresh graph-holding worktree.
+    because: The acceptance distinguishes all three worktree states, and the shared fixture must model a repository whose declared graph already exists without weakening the deliberate graphless-base refusal case.
+    rests_on:
+      - packages/runner/test/support/driveFixture.ts:81-95
+      - packages/runner/test/baseHoldsGraph.test.ts:74-151
+    hunks:
+      - packages/runner/test/support/driveFixture.ts:81-95
+      - packages/runner/test/baseHoldsGraph.test.ts:74-151
+    applies_to: { kind: path, path: packages/runner/test/baseHoldsGraph.test.ts }
+gates_run_by_agent: []
+open: []

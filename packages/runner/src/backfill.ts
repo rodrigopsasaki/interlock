@@ -10,6 +10,7 @@ import { type Ledger, type Node, type Outcome, sessionRuntime } from "ledger";
 import { noneClient } from "substrate";
 import { declaredGateIds, gateCommandTable } from "./gateCommand.ts";
 import { explainGateJudgeRefusal, type GateJudgeRefusal, judgeGates } from "./gateJudge.ts";
+import { type MachineAttempt, resolveMachine } from "./machineProvider.ts";
 import { gitTrackedFiles } from "./scope.ts";
 import { buildBrief } from "./sessionBrief.ts";
 import type { StandingGate } from "./standingGates.ts";
@@ -22,6 +23,7 @@ import {
 } from "./worktree.ts";
 import {
   explainWorktreeSetupRefusal,
+  runSetupCommand,
   runWorktreeSetup,
   type WorktreeSetupRefusal,
 } from "./worktreeSetup.ts";
@@ -34,6 +36,7 @@ export interface BackfillNodeResult {
 }
 
 export type BackfillRefusal =
+  | { readonly kind: "machine"; readonly because: string }
   | { readonly kind: "worktree"; readonly refusal: WorktreeRefusal }
   | { readonly kind: "worktree-setup"; readonly refusal: WorktreeSetupRefusal }
   | {
@@ -44,6 +47,8 @@ export type BackfillRefusal =
 
 export function explainBackfillRefusal(refusal: BackfillRefusal): string {
   switch (refusal.kind) {
+    case "machine":
+      return refusal.because;
     case "worktree":
       return explainWorktreeRefusal(refusal.refusal);
     case "worktree-setup":
@@ -62,6 +67,7 @@ export function backfillSessionId(graph: string, nodeId: string): string {
 }
 
 export interface BackfillOptions {
+  readonly machine?: MachineAttempt;
   readonly repoRoot: string;
   readonly mainBranch: string;
   readonly document: GraphDocument;
@@ -88,6 +94,11 @@ export async function backfillGraph(
     narrate = () => {},
   } = options;
 
+  const machine =
+    options.machine === undefined ? await resolveMachine(repoRoot) : ok(options.machine);
+  if (isErr(machine)) return err({ kind: "machine", because: machine.error });
+  const env = withAutoMaintenanceDisabled({ ...process.env, ...machine.value.env });
+
   const mainSha = execFileSync("git", ["rev-parse", mainBranch], {
     cwd: repoRoot,
     encoding: "utf-8",
@@ -96,13 +107,23 @@ export async function backfillGraph(
   const created = createDetachedWorktree(repoRoot, worktreePath, mainSha);
   if (isErr(created)) return err({ kind: "worktree", refusal: created.error });
 
-  execFileSync("mise", ["exec", "--", "pnpm", "install"], {
-    cwd: worktreePath,
-    stdio: "ignore",
-  });
-
-  const env = withAutoMaintenanceDisabled(process.env);
-  const setUp = await runWorktreeSetup(worktreeSetup, worktreePath, narrate, env);
+  const installed = await runSetupCommand(
+    "pnpm install --config.confirmModulesPurge=false",
+    worktreePath,
+    env,
+    machine.value.heavy,
+  );
+  if (isErr(installed)) {
+    removeWorktree(repoRoot, worktreePath);
+    return err({ kind: "worktree-setup", refusal: installed.error });
+  }
+  const setUp = await runWorktreeSetup(
+    worktreeSetup,
+    worktreePath,
+    narrate,
+    env,
+    machine.value.heavy,
+  );
   if (isErr(setUp)) {
     removeWorktree(repoRoot, worktreePath);
     return err({ kind: "worktree-setup", refusal: setUp.error });
@@ -166,6 +187,7 @@ export async function backfillGraph(
       runnerId,
       holdMs: HOLD_MS,
       env,
+      heavy: machine.value.heavy,
       substrate: noneClient(),
       narrate: () => {},
     });

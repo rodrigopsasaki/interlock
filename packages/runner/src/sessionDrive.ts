@@ -2,24 +2,36 @@ import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { join, relative } from "node:path";
 import { type Clock, deadlineFrom, ms } from "@phyxiusjs/clock";
-import { isErr, isOk, ok, type Result } from "@phyxiusjs/fp";
+import { err, isErr, isOk, ok, type Result } from "@phyxiusjs/fp";
 import { debriefFilePath } from "debrief";
 import { currentCommitSha, type GateDeclaration, sharedJournalDirectory } from "face";
 import {
   type HeldOn,
+  heldOn,
   type Ledger,
+  nodeKey,
   type Outcome,
   outcome,
   readRawEvents,
   sessionRuntime,
 } from "ledger";
 import type { SubstrateClient } from "substrate";
+import { agentEnvironmentArgs, needsPaneEnvironment } from "./codex/environment.ts";
 import { declaredGateIds, gateCommandTable } from "./gateCommand.ts";
 import { explainGateJudgeRefusal } from "./gateJudge.ts";
-import { createHerdrRuntime } from "./herdr/adapter.ts";
+import { createHerdrLaunchRuntime } from "./herdr/adapter.ts";
 import { HELD_REVISIT_MS, judgeWorktree } from "./judgeWorktree.ts";
 import { takeLease } from "./lease.ts";
 import type { LocalConfig } from "./localConfig.ts";
+import {
+  admitMachine,
+  closeMachinePane,
+  type MachineHold,
+  machineDelivery,
+  machineIntent,
+  reconcileMachine,
+} from "./machineOutbox.ts";
+import { type MachineAttempt, providerArgv, resolveMachine } from "./machineProvider.ts";
 import { recordingNarrate } from "./narration.ts";
 import { buildOpeningPrompt, type PriorWork, type SessionRole } from "./openingPrompt.ts";
 import { deliverOpeningPrompt } from "./promptDelivery.ts";
@@ -41,6 +53,7 @@ import { type UnfinishedWork, waitForSession } from "./sessionWait.ts";
 import type { StandingGate } from "./standingGates.ts";
 import { matchesScreen } from "./startupAnswers.ts";
 import {
+  baseHoldsGraph,
   commitBriefIfChanged,
   ensureNodeWorktree,
   explainWorktreeRefusal,
@@ -106,6 +119,7 @@ export interface DriveSessionOutcome {
 }
 
 export interface DriveSessionRequest {
+  readonly machine?: MachineAttempt;
   readonly paths?: readonly string[];
   readonly repoRoot: string;
   readonly graph: string;
@@ -130,7 +144,40 @@ export interface DriveSessionRequest {
     session: string,
   ) => Promise<Result<BriefWriteOutcome, string>>;
   readonly beforeJudge?: (worktreePath: string) => Promise<Result<void, BeforeJudgeRefusal>>;
+  readonly beforeRuntime?: () => Promise<Result<void, string>>;
   readonly describeDone?: (kind: Outcome["kind"], narrate: (line: string) => void) => string;
+}
+
+type AbandonStepName =
+  | "brief"
+  | "worktree setup"
+  | "writable root"
+  | "runtime"
+  | "pane open"
+  | "pane pid"
+  | "agent start"
+  | "identity report"
+  | "startup"
+  | "prompt"
+  | "wait"
+  | "debrief prompt"
+  | "debrief wait"
+  | "graph"
+  | "worktree status"
+  | "gates";
+
+type CommitStepName = "brief commit" | "code commit" | "debrief commit";
+
+type RefusalStep =
+  | { readonly kind: "abandon"; readonly name: AbandonStepName }
+  | { readonly kind: "commit"; readonly name: CommitStepName };
+
+function abandon(name: AbandonStepName): RefusalStep {
+  return { kind: "abandon", name };
+}
+
+function commit(name: CommitStepName): RefusalStep {
+  return { kind: "commit", name };
 }
 
 export async function driveInteractiveSession(
@@ -155,6 +202,7 @@ export async function driveInteractiveSession(
     afterWorktree,
     composeBrief,
     beforeJudge,
+    beforeRuntime,
     describeDone,
   } = request;
   let narrate = request.narrate;
@@ -162,9 +210,58 @@ export async function driveInteractiveSession(
   let pane: Pane | undefined;
   let agent: Agent | undefined;
   let runtime: Runtime | undefined;
+  let cleanup: { readonly session: string; readonly hold: MachineHold } | undefined;
+  let stopLease: (() => void) | undefined;
   let paneCustody: "runner" | "person" = "runner";
 
-  try {
+  const drive = async (): Promise<DriveSessionOutcome> => {
+    const machine =
+      request.machine === undefined ? await resolveMachine(repoRoot) : ok(request.machine);
+    if (isErr(machine)) {
+      narrate(machine.error);
+      return { exitCode: 1, message: machine.error };
+    }
+    if (beforeRuntime !== undefined) {
+      const checked = await beforeRuntime();
+      if (isErr(checked)) {
+        narrate(checked.error);
+        return { exitCode: 1, message: checked.error };
+      }
+    }
+
+    const createdRuntime =
+      injectedRuntime === undefined ? await createHerdrLaunchRuntime() : ok(injectedRuntime);
+    if (isErr(createdRuntime)) {
+      const message =
+        createdRuntime.error.kind === "not-ready"
+          ? explainRuntimeRefusal(createdRuntime.error)
+          : `runtime preflight refused: ${explainRuntimeRefusal(createdRuntime.error)}`;
+      narrate(message);
+      return { exitCode: 1, message };
+    }
+    runtime = createdRuntime.value;
+    if (runtime.checkServer !== undefined) {
+      const checked = await runtime.checkServer();
+      if (isErr(checked)) {
+        const message = explainRuntimeRefusal(checked.error);
+        narrate(message);
+        return { exitCode: 1, message };
+      }
+    }
+
+    if (
+      machine.value.provider !== "none" &&
+      needsPaneEnvironment(agentRuntime.kind) &&
+      runtime.paneEnvironment !== true
+    ) {
+      const message =
+        "machine.provider.env cannot reach this agent: runtime offers no pane environment";
+      narrate(message);
+      return { exitCode: 1, message };
+    }
+    const recovered = await reconcileMachine(ledger, runtime, narrate, clock);
+    if (isErr(recovered)) return { exitCode: 1, message: recovered.error };
+
     const requestedGraphBaseSha = await currentCommitSha(repoRoot);
     const targetNode = { graph, id: node };
 
@@ -178,6 +275,15 @@ export async function driveInteractiveSession(
       };
     }
     const graphBaseSha = worktree.value.base;
+
+    if (role !== "interpreter") {
+      const graphAtBase = baseHoldsGraph(repoRoot, graphBaseSha, graph, node);
+      if (isErr(graphAtBase)) {
+        const message = explainWorktreeRefusal(graphAtBase.error);
+        narrate(message);
+        return { exitCode: 1, message };
+      }
+    }
 
     if (afterWorktree !== undefined) {
       const checked = await afterWorktree(worktreePath);
@@ -207,20 +313,18 @@ export async function driveInteractiveSession(
     narrate = recordingNarrate(ledger, clock, sessionId, narrate);
 
     const lease = takeLease(ledger, clock, targetNode, sessionId, localConfig.leaseMs);
+    stopLease = () => lease.stop();
     narrate(`leased ${node} (session ${sessionId}, expires ${isoOf(lease.expiry)})`);
+    if (machine.value.provider === "none") narrate("no machine provider (provider: none)");
 
-    const refuse = (
-      step: string,
-      explanation: string,
-      recordFailure = true,
-    ): DriveSessionOutcome => {
-      const line = `${step} refused: ${explanation}`;
+    const refuse = (step: RefusalStep, explanation: string): DriveSessionOutcome => {
+      const line = `${step.name} refused: ${explanation}`;
       narrate(line);
-      if (recordFailure && agentRuntime.commits === "runner") {
+      if (step.kind === "commit" && agentRuntime.commits === "runner") {
         ledger.append({
           kind: "outcome-set",
           node: targetNode,
-          outcome: outcome.failed([], step, "repair", line),
+          outcome: outcome.failed([], step.name, "repair", line),
         });
       }
       return { exitCode: 1, message: line };
@@ -246,7 +350,7 @@ export async function driveInteractiveSession(
 
     const briefWritten = await composeBrief(worktreePath, graphBaseSha, sessionId);
     if (isErr(briefWritten)) {
-      const result = refuse("brief", briefWritten.error);
+      const result = refuse(abandon("brief"), briefWritten.error);
       lease.stop();
       abandonLease();
       return result;
@@ -257,7 +361,7 @@ export async function driveInteractiveSession(
     const briefRelativePath = relative(worktreePath, briefWritten.value.path);
     const briefCommitted = commitBriefIfChanged(worktreePath, briefRelativePath, node, sessionId);
     if (isErr(briefCommitted)) {
-      const result = refuse("brief commit", explainWorktreeRefusal(briefCommitted.error));
+      const result = refuse(commit("brief commit"), explainWorktreeRefusal(briefCommitted.error));
       lease.stop();
       abandonLease();
       return result;
@@ -266,9 +370,15 @@ export async function driveInteractiveSession(
       narrate(`brief committed ${briefCommitted.value}`);
     }
 
-    const setUp = await runWorktreeSetup(localConfig.worktreeSetup, worktreePath, narrate);
+    const setUp = await runWorktreeSetup(
+      localConfig.worktreeSetup,
+      worktreePath,
+      narrate,
+      { ...process.env, ...machine.value.env },
+      machine.value.heavy,
+    );
     if (isErr(setUp)) {
-      const result = refuse("worktree setup", explainWorktreeSetupRefusal(setUp.error));
+      const result = refuse(abandon("worktree setup"), explainWorktreeSetupRefusal(setUp.error));
       lease.stop();
       abandonLease();
       return result;
@@ -276,30 +386,77 @@ export async function driveInteractiveSession(
 
     const launch = agentLaunch(agentRuntime, worktreePath);
     if (isErr(launch)) {
-      const result = refuse("writable root", explainWorktreeRefusal(launch.error));
+      const result = refuse(abandon("writable root"), explainWorktreeRefusal(launch.error));
       lease.stop();
       abandonLease();
       return result;
     }
 
-    const createdRuntime =
-      injectedRuntime === undefined ? await createHerdrRuntime() : ok(injectedRuntime);
-    if (isErr(createdRuntime)) {
-      const result = refuse("runtime", explainRuntimeRefusal(createdRuntime.error));
-      lease.stop();
-      abandonLease();
-      return result;
-    }
-    runtime = createdRuntime.value;
-
-    const openedPane = await runtime.openPane(worktreePath);
+    const openedPane = await runtime.openPane(
+      worktreePath,
+      machine.value.provider === "none" ? undefined : machine.value.env,
+    );
     if (isErr(openedPane)) {
-      const result = refuse("pane open", explainRuntimeRefusal(openedPane.error));
+      const result = refuse(abandon("pane open"), explainRuntimeRefusal(openedPane.error));
       lease.stop();
       abandonLease();
       return result;
     }
     pane = openedPane.value;
+    cleanup = {
+      session: sessionId,
+      hold: {
+        token: `${sessionId}/${pane.id}`,
+        pane: pane.id,
+        cwd: worktreePath,
+        release: [],
+        env: machine.value.env,
+      },
+    };
+    if (machine.value.provider !== "none") {
+      const inspected = await runtime.paneProcess?.(pane);
+      if (
+        inspected === undefined ||
+        isErr(inspected) ||
+        inspected.value.state === "gone" ||
+        inspected.value.pid === undefined
+      ) {
+        lease.stop();
+        return refuse(
+          abandon("pane pid"),
+          inspected !== undefined && isErr(inspected)
+            ? explainRuntimeRefusal(inspected.error)
+            : "no pane process pid is available",
+        );
+      }
+      const values = {
+        holder: `${graph}/${node} (${sessionId})`,
+        token: cleanup.hold.token,
+        pid: String(inspected.value.pid),
+        pane: pane.id,
+        workspace: pane.workspace ?? "",
+        agent: agentRuntime.name,
+        worktree: worktreePath,
+        attempt: sessionId,
+      };
+      cleanup = {
+        session: sessionId,
+        hold: { ...cleanup.hold, release: providerArgv(machine.value.provider.release, values) },
+      };
+      const admitted = await admitMachine(
+        ledger,
+        targetNode,
+        sessionId,
+        cleanup.hold,
+        providerArgv(machine.value.provider.admit, values),
+      );
+      if (isErr(admitted)) {
+        lease.stop();
+        abandonLease();
+        narrate(admitted.error);
+        return { exitCode: 1, message: admitted.error };
+      }
+    }
     narrate(`pane ${pane.id} opened`);
     narrate(
       `runtime ${agentRuntime.name} (${agentRuntime.kind}, ${agentRuntime.model ?? "model undeclared"})`,
@@ -308,28 +465,44 @@ export async function driveInteractiveSession(
       narrate(`writable root ${root} supplied to runtime ${agentRuntime.name}`);
     }
 
+    const agentIntent =
+      machine.value.provider === "none"
+        ? undefined
+        : machineIntent(ledger, targetNode, sessionId, "agent", cleanup.hold);
+    if (agentIntent !== undefined && isErr(agentIntent)) {
+      lease.stop();
+      return refuse(abandon("agent start"), agentIntent.error);
+    }
+    const args = agentEnvironmentArgs(agentRuntime.kind, launch.value.args, machine.value.env);
     const startedAgent = await runtime.startAgent(
       pane,
       agentRuntime.kind,
-      launch.value.args,
+      args,
       () => narrate("waiting for the pane's shell"),
       node,
     );
     if (isErr(startedAgent)) {
-      const result = refuse("agent start", explainRuntimeRefusal(startedAgent.error));
+      const result = refuse(abandon("agent start"), explainRuntimeRefusal(startedAgent.error));
       lease.stop();
       abandonLease();
       return result;
     }
     agent = startedAgent.value;
+    if (agentIntent !== undefined && isOk(agentIntent)) {
+      const saved = machineDelivery(ledger, agentIntent.value, ok({ agent: agent.id }));
+      if (isErr(saved)) {
+        lease.stop();
+        return refuse(abandon("agent start"), saved.error);
+      }
+    }
     narrate(`agent ${agent.id} started (${agentRuntime.kind})`);
-    narrate(`agent argv ${JSON.stringify(launch.value.args)}`);
+    narrate(`agent argv ${JSON.stringify(args)}`);
 
     const reported = await runtime.reportIdentity(agent, graph, node, {
       sessionId,
     });
     if (isErr(reported)) {
-      const result = refuse("identity report", explainRuntimeRefusal(reported.error));
+      const result = refuse(abandon("identity report"), explainRuntimeRefusal(reported.error));
       lease.stop();
       abandonLease();
       return result;
@@ -345,7 +518,7 @@ export async function driveInteractiveSession(
       if (startupStatus.value === "blocked") {
         const screen = await runtime.read(agent);
         if (isErr(screen)) {
-          const result = refuse("startup", explainRuntimeRefusal(screen.error));
+          const result = refuse(abandon("startup"), explainRuntimeRefusal(screen.error));
           lease.stop();
           abandonLease();
           return result;
@@ -361,7 +534,7 @@ export async function driveInteractiveSession(
         answered.add(candidate.index);
         const sent = await runtime.sendKeys(agent, candidate.answer.keys);
         if (isErr(sent)) {
-          const result = refuse("startup", explainRuntimeRefusal(sent.error));
+          const result = refuse(abandon("startup"), explainRuntimeRefusal(sent.error));
           lease.stop();
           abandonLease();
           return result;
@@ -375,7 +548,7 @@ export async function driveInteractiveSession(
         startupStatus.error.kind === "timeout"
           ? `agent not ready after ${startupStatus.error.timeoutMs}ms; last status ${startupStatus.error.status}`
           : explainRuntimeRefusal(startupStatus.error);
-      const result = refuse("startup", explanation);
+      const result = refuse(abandon("startup"), explanation);
       lease.stop();
       abandonLease();
       return result;
@@ -410,7 +583,7 @@ export async function driveInteractiveSession(
       startupAnswers: agentRuntime.startupAnswers,
     });
     if (isErr(delivered)) {
-      const result = refuse("prompt", explainRuntimeRefusal(delivered.error));
+      const result = refuse(abandon("prompt"), explainRuntimeRefusal(delivered.error));
       lease.stop();
       abandonLease();
       return result;
@@ -453,7 +626,7 @@ export async function driveInteractiveSession(
     );
     if (isErr(waited)) {
       lease.stop();
-      const result = refuse("wait", explainRuntimeRefusal(waited.error));
+      const result = refuse(abandon("wait"), explainRuntimeRefusal(waited.error));
       abandonLease();
       return result;
     }
@@ -471,7 +644,7 @@ export async function driveInteractiveSession(
       const code = commitRunnerCode(custody);
       if (isErr(code)) {
         lease.stop();
-        return refuse("code commit", code.error);
+        return refuse(commit("code commit"), code.error);
       }
       const sent = await runtime.prompt(
         agent,
@@ -481,7 +654,7 @@ export async function driveInteractiveSession(
       );
       if (isErr(sent)) {
         lease.stop();
-        return refuse("debrief prompt", explainRuntimeRefusal(sent.error));
+        return refuse(abandon("debrief prompt"), explainRuntimeRefusal(sent.error));
       }
       const taken = await runtime.waitUntil(
         agent,
@@ -490,7 +663,7 @@ export async function driveInteractiveSession(
       );
       if (isErr(taken)) {
         lease.stop();
-        return refuse("debrief prompt", explainRuntimeRefusal(taken.error));
+        return refuse(abandon("debrief prompt"), explainRuntimeRefusal(taken.error));
       }
       const filed = await waitForSession(
         runtime,
@@ -509,12 +682,12 @@ export async function driveInteractiveSession(
       );
       if (isErr(filed)) {
         lease.stop();
-        return refuse("debrief wait", explainRuntimeRefusal(filed.error));
+        return refuse(abandon("debrief wait"), explainRuntimeRefusal(filed.error));
       }
       const committed = await commitRunnerDebrief(custody, code.value);
       if (isErr(committed)) {
         lease.stop();
-        return refuse("debrief commit", committed.error);
+        return refuse(commit("debrief commit"), committed.error);
       }
       narrate(`debrief committed ${committed.value}`);
     }
@@ -549,13 +722,14 @@ export async function driveInteractiveSession(
           clock.now().wallMs + HELD_REVISIT_MS,
         );
         ledger.append({ kind: "outcome-set", node: targetNode, outcome: held });
-        const result = refuse("graph", preCheck.error.because, false);
+        const result = refuse(abandon("graph"), preCheck.error.because);
         abandonLease();
         return result;
       }
     }
 
     const judged = await judgeWorktree({
+      machine: machine.value,
       ledger,
       clock,
       node: targetNode,
@@ -573,8 +747,10 @@ export async function driveInteractiveSession(
     if (isErr(judged)) {
       const result =
         judged.error.kind === "worktree-status"
-          ? refuse("worktree status", explainWorktreeRefusal(judged.error.refusal))
-          : refuse("gates", explainGateJudgeRefusal(judged.error.refusal));
+          ? refuse(abandon("worktree status"), explainWorktreeRefusal(judged.error.refusal))
+          : judged.error.kind === "machine"
+            ? refuse(abandon("gates"), judged.error.because)
+            : refuse(abandon("gates"), explainGateJudgeRefusal(judged.error.refusal));
       abandonLease();
       return result;
     }
@@ -587,13 +763,49 @@ export async function driveInteractiveSession(
       exitCode: 0,
       message: suffix === undefined ? `${base}.` : `${base}; ${suffix}`,
     };
+  };
+  let result: DriveSessionOutcome;
+  let closeFailure: DriveSessionOutcome | undefined;
+  try {
+    result = await drive();
   } finally {
+    stopLease?.();
     if (pane !== undefined && runtime !== undefined) {
       if (paneCustody === "runner") {
-        await runtime.closePane(pane);
+        const closed =
+          cleanup === undefined || cleanup.hold.release.length === 0
+            ? await closeWithoutProvider(runtime, pane)
+            : await closeMachinePane(
+                ledger,
+                runtime,
+                { graph, id: node },
+                cleanup.session,
+                cleanup.hold,
+              );
+        if (isErr(closed)) {
+          const because = `pane ${pane.id} close or machine release unconfirmed; hold kept: ${closed.error}`;
+          narrate(because);
+          ledger.append({
+            kind: "outcome-set",
+            node: { graph, id: node },
+            outcome: outcome.held(
+              ledger.projection().nodes.get(nodeKey({ graph, id: node }))?.receipts ?? [],
+              heldOn.gateFailure("pane close", "hold"),
+              because,
+              clock.now().wallMs + HELD_REVISIT_MS,
+            ),
+          });
+          closeFailure = { exitCode: 1, message: because };
+        }
       } else {
         narrate(`pane ${pane.id} left open for drilldown`);
       }
     }
   }
+  return closeFailure ?? result;
+}
+
+async function closeWithoutProvider(runtime: Runtime, pane: Pane): Promise<Result<void, string>> {
+  const closed = await runtime.closePane(pane);
+  return isErr(closed) ? err(explainRuntimeRefusal(closed.error)) : closed;
 }

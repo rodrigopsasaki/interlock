@@ -1,0 +1,47 @@
+interlock: commits@v0
+entries:
+  - message: |
+      feat(runner): honor machine capacity before starting work
+
+      Refuse unconfigured or malformed machine providers before setup and resolve
+      the attempt environment once. Carry heavy prefixes and environment through
+      setup, gates, backfill installs and standalone judge.
+
+      Persist admission, close and release effects with stable identities and
+      retained evidence. Reconcile orphan panes and uncertain releases on startup,
+      keep holds when close is uncertain, and preserve resettable refusals.
+
+      Add machine@v0, adapter environment and process inspection, and fixture proof
+      for launch ordering, crash recovery, environment propagation and shared heavy
+      serialization. Historical artifacts remain readable without version changes.
+
+      Record the explicit provider-none line after the lease so stdout and the
+      session ledger agree; update ordered narration and schema expectations,
+      and keep fixture commands auditable without child_process interception.
+    paths:
+      - docs/shapes.md
+      - packages/cli/src/backfill.ts
+      - packages/cli/src/judge.ts
+      - packages/cli/src/plan.ts
+      - packages/cli/src/run.ts
+      - packages/cli/test/judgeProvider.test.ts
+      - packages/cli/test/run.test.ts
+      - packages/cli/test/schema/reference.test.ts
+      - packages/runner/src/backfill.ts
+      - packages/runner/src/codex/environment.ts
+      - packages/runner/src/gateJudge.ts
+      - packages/runner/src/herdr/adapter.ts
+      - packages/runner/src/index.ts
+      - packages/runner/src/judgeWorktree.ts
+      - packages/runner/src/machineOutbox.ts
+      - packages/runner/src/machineProvider.ts
+      - packages/runner/src/runtime.ts
+      - packages/runner/src/sessionDrive.ts
+      - packages/runner/src/worktreeSetup.ts
+      - packages/runner/test/machineProvider.test.ts
+      - packages/schemas/test/machine.test.ts
+      - packages/schemas/test/reference.test.ts
+      - schemas/machine@v0.json
+      - test/fixtures/machine-none.yaml
+      - vitest.setup.ts
+co_authored_by: GPT-6 (Codex) <noreply@openai.com>
