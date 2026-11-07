@@ -73,7 +73,9 @@ export {
   machinePath,
   NO_MACHINE_PROVIDER,
   parseMachine,
+  providerArgv,
   resolveMachine,
+  runProviderCommand,
 } from "./machineProvider.ts";
 export { recordingNarrate } from "./narration.ts";
 export type { PriorWork, SessionRole } from "./openingPrompt.ts";

@@ -1,5 +1,7 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import type { Clock } from "@phyxiusjs/clock";
 import { elapsedSince } from "@phyxiusjs/clock";
@@ -203,6 +205,14 @@ export async function judgeGates(
   } = request;
 
   const gateMovedThisRun: LedgerEvent[] = [];
+  let currentGraphHash: string | undefined;
+  try {
+    currentGraphHash = createHash("sha256")
+      .update(await readFile(join(worktree, ".interlock", "graphs", `${node.graph}.yaml`)))
+      .digest("hex");
+  } catch {
+    currentGraphHash = undefined;
+  }
 
   for (const gateId of declaredGateIds) {
     const view = ledger.projection().nodes.get(nodeKey(node));
@@ -210,7 +220,13 @@ export async function judgeGates(
     const gateCommand = commandFor.get(gateId);
 
     if (gateCommand?.kind === "human") {
-      if (current.kind !== "satisfied" && current.kind !== "waived") {
+      const staleDelegated =
+        currentGraphHash !== undefined &&
+        current.kind === "satisfied" &&
+        current.receipt.derivation.kind === "human" &&
+        "contentHash" in current.receipt.derivation &&
+        current.receipt.derivation.contentHash !== currentGraphHash;
+      if (staleDelegated || (current.kind !== "satisfied" && current.kind !== "waived")) {
         narrate(`${gateId}: awaits a person`);
       }
       continue;
@@ -289,7 +305,20 @@ export async function judgeGates(
   }
 
   const finalView = ledger.projection().nodes.get(nodeKey(node));
-  const gates: ReadonlyMap<string, Gate> = finalView?.gates ?? new Map();
+  const gates = new Map(finalView?.gates ?? new Map<string, Gate>());
+  if (currentGraphHash !== undefined) {
+    for (const gateId of declaredGateIds) {
+      const current = gates.get(gateId);
+      if (
+        current?.kind === "satisfied" &&
+        current.receipt.derivation.kind === "human" &&
+        "contentHash" in current.receipt.derivation &&
+        current.receipt.derivation.contentHash !== currentGraphHash
+      ) {
+        gates.set(gateId, gate.pending());
+      }
+    }
+  }
   const receipts = finalView?.receipts ?? [];
   const cleared = buildCleared(declaredGateIds, gates);
   const resolved: Outcome = isOk(cleared)

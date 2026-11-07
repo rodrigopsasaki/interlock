@@ -1,0 +1,23 @@
+interlock: notes@v0
+node: approve-for-the-owner
+entries:
+  - kind: choice
+    at: "2026-11-07T15:03:54Z"
+    chose: Reuse the existing machine-provider, ledger, and human-gate seams, adding delegation as typed receipt provenance and append-only ledger state.
+    because: The acceptance extends graph 0056 and the current approval and clearance commands; keeping verification at the machine and git-host adapters preserves the runtime and host boundaries while older receipts continue through the existing readers.
+  - kind: surprise
+    at: "2026-11-07T15:07:00Z"
+    expected: mise exec would select the repository's pinned Node 24 toolchain.
+    observed: The first typecheck ran with Node 26.13.0 and emitted an unsupported-engine warning; the command still reached TypeScript and exposed only source contract errors, so subsequent checks will retain the literal mise invocation and report the toolchain mismatch.
+  - kind: choice
+    at: "2026-11-07T15:16:16Z"
+    chose: Make gate-moved receipts part of the projected receipt history and scan both that history and active gate state when checking cite consumption.
+    because: Approval and manual clearance embed their receipts in gate-moved events rather than writing a separate receipt event, while retraction must keep the consumed receipt visible after the gate returns to pending.
+  - kind: surprise
+    at: "2026-11-07T15:15:30Z"
+    expected: The current event schema would remain valid after the additive retraction event was inserted.
+    observed: The first focused test load found a malformed event@v10 JSON condition; the schema was repaired before any test assertions ran.
+  - kind: surprise
+    at: "2026-11-07T15:16:00Z"
+    expected: Receipt retract's first three arguments would remain positional after flags.
+    observed: The command parser initially treated --by and its value as node and gate; it now stops positional parsing at the first option and the focused retraction test passes.
