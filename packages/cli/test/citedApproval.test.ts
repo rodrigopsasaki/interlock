@@ -1,6 +1,8 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { ok } from "@phyxiusjs/fp";
+import { envelopeFor } from "ledger";
+import { buildRegistry, validatorFor } from "schemas";
 import { afterEach, describe, expect, it } from "vitest";
 import { parseCitation } from "../src/delegation.ts";
 import { runGateClear } from "../src/gate/clear.ts";
@@ -249,5 +251,62 @@ describe("cited delegation", () => {
     );
     expect(retracted.exitCode).toBe(0);
     expect(JSON.stringify(journal(cwd))).toContain("receipt-retracted");
+  });
+
+  it("validates a delegated receipt beside an existing human receipt", () => {
+    const schema = validatorFor(buildRegistry(), "event@v10");
+    if (schema === undefined) throw new Error("missing event@v10 schema");
+    const delegated = envelopeFor({
+      kind: "gate-moved",
+      node: { graph: "demo", id: "a" },
+      gate: "witnessed",
+      to: {
+        kind: "satisfied",
+        receipt: {
+          id: "delegated",
+          gate: "witnessed",
+          commitSha: "deadbeef",
+          spend: { kind: "none" },
+          duration: { kind: "unknown" },
+          derivation: {
+            kind: "human",
+            who: "Gilb for Rodrigo Sasaki",
+            for: "Rodrigo Sasaki",
+            cite: "said:one",
+            citeKey: "said:one",
+            author: "Rodrigo Sasaki",
+            words: "clear it",
+            at: "2026-11-07T15:00:00Z",
+            reading: "clear witnessed",
+            action: "clear",
+            target: { graph: "demo", node: "a", gate: "witnessed" },
+            contentHash: "hash",
+          },
+          proof: { because: "why" },
+        },
+      },
+    });
+    expect(schema(delegated)).toBe(true);
+    expect(
+      schema(
+        envelopeFor({
+          kind: "gate-moved",
+          node: { graph: "demo", id: "a" },
+          gate: "witnessed",
+          to: {
+            kind: "satisfied",
+            receipt: {
+              id: "human",
+              gate: "witnessed",
+              commitSha: "deadbeef",
+              spend: { kind: "none" },
+              duration: { kind: "unknown" },
+              derivation: { kind: "human", who: "Rodrigo Sasaki" },
+              proof: { because: "why" },
+            },
+          },
+        }),
+      ),
+    ).toBe(true);
   });
 });

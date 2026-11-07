@@ -29,3 +29,7 @@ entries:
     at: "2026-11-07T15:22:29Z"
     chose: Keep stale delegated clearance invalidation as a pending gate-moved event and leave ordinary embedded human receipts out of NodeView.receipts.
     because: This preserves the existing projection contract while making the stale delegated gate observable as pending; the journal still retains the old gate receipt and cite for provenance and one-use checks.
+  - kind: surprise
+    at: "2026-11-07T15:24:00Z"
+    expected: The receipt-history projection change would preserve the legacy NodeView contract.
+    observed: Existing gate-judge tests require embedded human receipts to remain out of NodeView.receipts; the projection change was reverted, while active-gate scanning and journal history retain delegated provenance and cite consumption.
