@@ -1,0 +1,100 @@
+interlock: notes@v0
+node: machine-provider
+entries:
+  - kind: choice
+    at: "2026-11-06T22:30:00Z"
+    chose: Leave code uncommitted and supply commits@v0 for runner custody.
+    because: Rodrigo's session hand flow supersedes the brief's instruction to commit; signing and git configuration stay untouched.
+  - kind: choice
+    at: "2026-11-06T22:31:00Z"
+    chose: Resolve the machine and its environment before setup, and carry one attempt environment through setup, gates and the pane.
+    because: Missing configuration and failed environment commands must refuse without creating a worktree or recording a session.
+  - kind: choice
+    at: "2026-11-06T22:32:00Z"
+    chose: Reuse the existing evidence-backed outbox for admission, pane close and release, retaining the release recipe with admission.
+    because: Recovery must use the original token and provider even if machine configuration changes, and must retain uncertainty until close is confirmed.
+  - kind: surprise
+    at: "2026-11-06T22:33:00Z"
+    expected: The agent start method might accept environment overrides directly.
+    observed: Installed herdr agent start help and api schema show no environment parameter; tab and workspace creation both accept an env mapping. Pane process-info exposes shell_pid.
+  - kind: surprise
+    at: "2026-11-06T22:34:00Z"
+    expected: A retained request reconstructed from its JSON would compare equal during recovery.
+    observed: The recovered hold had a different property insertion order, so byte comparison refused a matching release. Machine request serialization now fixes field order; restart tests pass.
+  - kind: choice
+    at: "2026-11-06T22:35:00Z"
+    chose: Persist release intent before close dispatch, then acknowledge close before dispatching release.
+    because: A crash in either gap must leave replayable uncertainty, and provider idempotency is the only valid way to reconcile a lost release acknowledgment.
+  - kind: surprise
+    at: "2026-11-06T22:36:00Z"
+    expected: The socket fixture could bind a Unix socket under the package test runs directory.
+    observed: The sandbox rejects listen with EPERM. The adapter now exposes its existing transport seam so focused tests exercise close failures and environment payloads without opening sockets.
+  - kind: choice
+    at: "2026-11-06T22:37:00Z"
+    chose: Test admission and judge through fixture scripts with mocked repository mutations, and test two requests with a fixture heavy prefix that serializes its child commands.
+    because: These tests verify ordering, environment and recovery without committing, configuring signing, cloning a repository, starting herdr or spending real provider capacity.
+  - kind: choice
+    at: "2026-11-06T22:38:00Z"
+    chose: Keep the agent-start acknowledgment separate from admission, and reconcile pending machine effects before a CLI run returns for a terminal node.
+    because: Recovery must distinguish an orphan shell from an agent left for drilldown, and a cleared node must not strand a release lost after close.
+  - kind: choice
+    at: "2026-11-06T22:39:00Z"
+    chose: Resolve machine env in CLI preflight and pass the resolved attempt through the runner; opt existing tests out with an explicit machine-none fixture.
+    because: A failed env must precede ledger creation, env runs once per attempt, and unit tests must never invoke the real machine provider.
+  - kind: surprise
+    at: "2026-11-06T22:43:00Z"
+    expected: The existing setup refusal test would observe empty command output for false.
+    observed: Mise permission warnings about cache and state writes appeared on stderr. Redirecting its cache and state into runner test scratch made that test pass; an interrupted run while testing the scratch location was stopped.
+  - kind: choice
+    at: "2026-11-06T22:46:00Z"
+    chose: Determine release from retained admission evidence; a confirmed refusal closes without releasing, while uncertain admission still requires reconciliation and release.
+    because: A rejected admission acquired no token, and a release failure must not turn a resettable refusal into an outcome. Lost admission acknowledgments cannot be treated as refusals.
+  - kind: choice
+    at: "2026-11-06T22:47:00Z"
+    chose: Run serial typecheck, lint, comments, focused runner and judge coverage, and the complete schema corpus; leave the full workspace test gate for runner custody.
+    because: Legacy workspace test fixtures commit, run git config, change fixture signing settings and clone under their test directories, which conflicts with this session's explicit hand flow. The replacement provider and judge fixtures mock repository mutations and use real fixture provider commands.
+  - kind: choice
+    at: "2026-11-06T22:48:00Z"
+    chose: Hand off one code commit manifest and defer debrief prepare and file-derived until the runner supplies the committed code HEAD.
+    because: The authored debrief must point at the actual code commit; the agent is forbidden to commit and must not file a claim against an unchanged HEAD.
+  - kind: choice
+    at: "2026-11-06T22:49:00Z"
+    chose: Report typecheck, lint, comments and diff whitespace checks as passed; report 142 selected runner tests (31 provider tests), 4 CLI provider tests and all 1155 schema tests as passed. Both notes@v0 and commits@v0 validate.
+    because: These are agent-run checks, not binding runner receipts. The full workspace test gate and debrief-valid remain pending; code is uncommitted at baseline cbc05a1e4981aae65a4160ccbb58628463d900a8, and the debrief requires the runner's next code HEAD.
+  - kind: surprise
+    at: "2026-11-07T01:42:18Z"
+    expected: The explicit provider-none narration and fixture provider tests would preserve the existing CLI contracts.
+    observed: >-
+      The human's standing gates found six CLI failures: the fixture guard rejects the new child_process mock, three ordered narration expectations omit the new opt-out line, the session narration count excludes that pre-session line, and the CLI schema reference expectation omits machine.
+  - kind: choice
+    at: "2026-11-07T01:42:18Z"
+    chose: Narrate provider none once immediately after the recorded lease, update the ordered expectations, and retain the contract that every session narration line is persisted.
+    because: The opt-out is a required deliberate addition. It must reach the ledger as well as stdout; weakening the event count would hide the mismatch.
+  - kind: choice
+    at: "2026-11-07T01:42:18Z"
+    chose: Remove the child_process mock and use this repository's HEAD as the backfill fixture's read-only base, with worktree mutations still mocked.
+    because: The fixture guard must keep rejecting unaudited process interception. Reading the existing HEAD requires no fixture repository creation or Git mutation.
+  - kind: surprise
+    at: "2026-11-07T01:45:25Z"
+    expected: The requested CLI run.test.ts file could validate the corrected narration expectations.
+    observed: Its temporary fixture brief commits repeatedly failed because the sandbox denies access to the owner's GPG daemon and key database. The test command was interrupted with exit 130; signing settings were not changed, and this file is not reported as passing.
+  - kind: choice
+    at: "2026-11-07T01:45:25Z"
+    chose: Keep the CLI narration contract intact and add a signing-free assertion to the provider-none fixture that its recorded session narration equals every line the caller received.
+    because: This directly verifies the missing receipt without weakening the fixture guard, bypassing signing or claiming that the interrupted CLI file passed.
+  - kind: choice
+    at: "2026-11-07T01:45:25Z"
+    chose: Hand off the correction uncommitted with updated CLI test paths in commits.yaml. Report fixtureGuard 69/69, schema/reference 2/2 and judgeProvider 4/4 from separate CLI invocations, machineProvider 31/31, and passing typecheck, lint and comments.
+    because: Checks ran one file at a time. The outstanding run.test.ts verification requires GPG access unavailable in this sandbox, and the repository HEAD remains cbc05a1e4981aae65a4160ccbb58628463d900a8.
+  - kind: choice
+    at: "2026-11-07T02:58:52Z"
+    chose: Prepare the first debrief against signed code HEAD a8ffc8854e032a369053d2b8dbe127136ff4e49d with runtime sol and model gpt-6.1-sol, and file it without committing or running tests.
+    because: The human supplied the code HEAD and reported all standing gates passing; the debrief must use that actual commit and the requested authorship rather than the prior uncommitted baseline.
+  - kind: choice
+    at: "2026-11-07T02:58:52Z"
+    chose: Return a manifest of implementation decisions with added-hunk citations, no invented discoveries or applicability claims, and separate earlier agent check reports from the human's passing full-suite report.
+    because: Every changed file needs an explained decision, while externally reported checks must not become agent-run proof or unobserved receipts.
+  - kind: choice
+    at: "2026-11-07T03:00:00Z"
+    chose: File the authored candidate after its read-only preview rooted every decision citation and accounted for all 25 changed files.
+    because: The debrief is a manifest of this session's diff, not a claim that an agent's report or a rooted location is binding proof. Earlier agent checks and the human's full passing gate report retain their separate attribution.
