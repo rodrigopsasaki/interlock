@@ -46,12 +46,16 @@ nodes:
     acceptance: |
       The scope reads `git ls-files -s` (packages/runner/src/scope.ts:6) and keeps each entry's mode and object id
       beside its path. receiptId (packages/ledger/src/receipt.ts:79-87) hashes a mode 160000 entry (a gitlink) with
-      its own framing, never by reading the path from disk: the bytes "gitlink", a NUL, the path, a NUL and the 40-hex
-      commit id the index records. When the scope holds any gitlink, the whole hash input starts with a single NUL
-      byte before the gate, which today's input never does (a gate id holds no NUL), so no scope of regular files,
-      whatever their names and bytes, can produce the same input as a scope with a gitlink. A scope of regular files
-      only is hashed exactly as today (gate, then each sorted path and its bytes), so every receipt for a repository
-      without submodules is byte-identical to today's (the receipt ids of existing receipts do not change). A submodule bump changes the recorded commit id and so the
+      its own framing, never by reading the path from disk. A scope of regular files only is hashed exactly as today
+      (gate, then each sorted path and its bytes), so every receipt for a repository without submodules is
+      byte-identical to today's (the receipt ids of existing receipts do not change). A scope that holds any gitlink
+      is hashed in a framed encoding instead, unambiguous for every entry: one NUL byte, then the gate as its byte
+      length (8 bytes, big-endian) and its bytes, then for each sorted entry its kind byte ("f" for a file, "g" for a
+      gitlink), its path as length and bytes, and its content as length and bytes (a file's bytes, or the 40-hex
+      commit id the index records for a gitlink). The leading NUL separates the two encodings because a gate id may
+      not contain NUL: graph loading and gate-declaration validation now refuse a gate id with a NUL (today neither
+      does, packages/face/src/document.ts:80, schemas/parts/gate-declaration.json:8), with one line naming it, and
+      receiptId refuses one too; historical receipts keep reading. A submodule bump changes the recorded commit id and so the
       receipt; a submodule whose checkout on disk differs from its recorded commit does not, since the index is the
       truth the commit carries. A gitlink missing from disk, or a submodule never initialized, hashes the same way and
       never throws. The scope type names the entry kind (file or gitlink) so no caller reads a gitlink as a file.
@@ -65,6 +69,10 @@ nodes:
         different receipt ids;
       - the adversarial pair: a regular file named "gitlink" whose bytes are a NUL, "sub", a NUL and a commit id, and
         a gitlink "sub" at that commit, under the same gate, yield different receipt ids;
+      - the mixed-scope pair: scope A (regular file "gitlink" with bytes NUL "sub" NUL <oid>, and gitlink "z" at
+        <zoid>) and scope B (gitlink "sub" at <oid>, and gitlink "z" at <zoid>) yield different receipt ids;
+      - a gate id containing NUL is refused at graph loading, at gate-declaration validation and by receiptId, each
+        with its line;
       - a repository without submodules yields the same receipt id as before the change, for a fixed fixture whose
         expected id is written in the test.
       Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
