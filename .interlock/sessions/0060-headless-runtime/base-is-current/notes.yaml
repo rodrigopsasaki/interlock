@@ -46,3 +46,7 @@ entries:
     at: "2026-11-08T17:38:00Z"
     chose: Run the focused CLI proof with HOME, CODEX_HOME, and Git configuration all under packages/runner/test/.runs.
     because: The judging rule requires product-home isolation, and the temporary Git configuration keeps the proof self-contained while preserving real fixture commits.
+  - kind: surprise
+    at: "2026-11-08T17:40:00Z"
+    expected: A temporary HOME would remain a self-contained fixture while the pinned toolchain was already on PATH.
+    observed: Invoking mise while that HOME was active populated it with symlinks to owner paths; the scratch HOME and the session-local Codex overlay were removed immediately, and later checks will resolve the pinned toolchain before assigning temporary HOME.
