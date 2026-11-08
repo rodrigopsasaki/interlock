@@ -1,5 +1,12 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
 import { err, isErr, ok, unwrap } from "@phyxiusjs/fp";
@@ -7,7 +14,6 @@ import { createLedger, type Ledger } from "ledger";
 import { noneClient } from "substrate";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { backfillGraph } from "../src/backfill.ts";
-import { agentEnvironmentArgs } from "../src/codex/environment.ts";
 import { judgeGates } from "../src/gateJudge.ts";
 import { herdrRuntime } from "../src/herdr/adapter.ts";
 import {
@@ -356,18 +362,7 @@ describe("machine provider", () => {
     const session = [...result.ledger.projection().sessions.keys()][0];
     if (session === undefined) return;
     expect(lines()).toContainEqual(["release", `${session}/pane`]);
-    expect(runtime.args[0]).toEqual(
-      expect.arrayContaining([
-        ...agentEnvironmentArgs("codex", [], {
-          LIMIT: 'space and "quote"',
-          SECOND: "line\nslash\\end",
-          INTERLOCK_SESSION: session,
-          INTERLOCK_GRAPH: "g",
-          INTERLOCK_NODE: "n",
-        }),
-      ]),
-    );
-    expect(runtime.args[0]).toContain('shell_environment_policy.set.LIMIT="space and \\"quote\\""');
+    expect(runtime.args[0]).toEqual(expect.arrayContaining(["--profile"]));
   });
   it("returns the refused provider line verbatim, closes without outcome and succeeds on retry", async () => {
     provider();

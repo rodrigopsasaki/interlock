@@ -25,3 +25,7 @@ entries:
     at: "2026-11-08T14:07:00Z"
     expected: The foreground typecheck command could be polled by matching its process name.
     observed: The polling shell matched its own command text, so it was stopped after the typecheck log showed every workspace package completed successfully.
+  - kind: choice
+    at: "2026-11-08T14:11:40Z"
+    chose: Update the machine-provider fixture to assert the overflow profile selection instead of requiring shell policy overrides on argv.
+    because: The fixture intentionally supplies a long environment and now exercises the overlay path; the line-fit suite owns the profile-content proof while this fixture needs only the launch contract.
