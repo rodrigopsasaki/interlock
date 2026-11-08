@@ -4,7 +4,7 @@ node: home-on-main
 role: implementer
 graph_base_sha: 70bcce800291c2dae52343f653e175fa440f32fb
 session_start_sha: 72132ef3771e5197047def85eee65c30ae178942
-head_sha: 43d9cd87ab8f8d51cf42aeb8417fd5aed59c470a
+head_sha: 632e852e937ada2007e0f192c2ef078de4a0581b
 derivation:
   kind: agent
   runtime: codex
@@ -75,6 +75,14 @@ decisions:
       - packages/runner/test/markerConfiguredServers.test.ts:1-140
     hunks:
       - packages/runner/test/markerConfiguredServers.test.ts:1-140
+  - id: configured-marker-test-format
+    what: Apply the repository formatter to the configured marker-server test's prepareLaunch call.
+    because: The judge identified one formatting error in this file; formatting only that file made the lint gate pass without changing unrelated warnings.
+    rests_on:
+      - notes:choice-2026-11-08T19:35:00Z
+      - packages/runner/test/markerConfiguredServers.test.ts:124-127
+    hunks:
+      - packages/runner/test/markerConfiguredServers.test.ts:124-127
 gates_run_by_agent:
   - id: typecheck
     result: pass
@@ -83,7 +91,7 @@ gates_run_by_agent:
   - id: lint
     result: pass
     invocation: pnpm lint
-    note: Biome exited 0; it retained one pre-existing warning and one info in packages/runner/test/runnerCommits.test.ts.
+    note: Biome exited 0 after formatting the configured marker-server test; it retained one pre-existing warning and one info in packages/runner/test/runnerCommits.test.ts.
   - id: comments
     result: pass
     invocation: pnpm check:comments
