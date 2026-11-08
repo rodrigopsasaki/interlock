@@ -1062,7 +1062,7 @@ No vocabulary entry for `local`.
 | `lease_ms` | number | yes |  |
 | `run_timeout_ms` | number | yes |  |
 | `answer_grace_ms` | number | no |  |
-| `watch_paths` | array of string matching `^/` | no |  |
+| `watch_paths` | array of one of `?`, `?` | no | `?`: no fields beyond `kind`; `?`: path, exclude |
 | `owner_login` | string matching `\S` | no |  |
 | `substrate` | object | yes | fields: address (string, required); handle (string, optional); key_file (string, optional); send_repository (boolean, optional) |
 | `provider_order` | array of string matching `\S` | no |  |
