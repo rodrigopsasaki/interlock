@@ -145,3 +145,9 @@ entries:
       The full suite reached 659 of 660 runner tests before the live-link scan test saw an escaping
       link during concurrent fixture activity; the focused proof and the two previously failing files
       remained green.
+  - kind: surprise
+    at: '2026-11-08T21:09:00Z'
+    expected: Debrief prepare would refresh the prior candidate path after the new code commit.
+    observed: >-
+      The command refuses an existing candidate path, so the fresh candidate is being prepared at a
+      new session-local path instead of overwriting the previous authored artifact.
