@@ -1,0 +1,11 @@
+interlock: notes@v0
+node: cite-stays-consumed
+entries:
+  - kind: choice
+    at: "2026-11-08T03:39:53Z"
+    chose: Add consumed cites as an append-only projection map populated from every event carrying a delegated derivation, then make the three spending commands use one shared journal lock around fresh replay, checking, and authorization effects.
+    because: The acceptance requires cite lifetime to survive gate replacement and retraction, while concurrent callers must not both pass a stale projection check.
+  - kind: choice
+    at: "2026-11-08T03:45:00Z"
+    chose: Keep the exclusive cite lock in the CLI adapter and leave verification and receipt preparation outside it, while opening the ledger and performing the reuse check and append inside it.
+    because: The brief explicitly bounds the lock to shared-journal spending and permits pre-lock verification; this preserves the existing adapters and makes the fresh replay the authority for each spend.

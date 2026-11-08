@@ -29,6 +29,7 @@ import {
   verifyCitation,
 } from "./delegation.ts";
 import { parseFlag, parseFlagValue } from "./flags.ts";
+import { pauseAfterDelegationCheck, withDelegationLock } from "./delegationLock.ts";
 import {
   type GitHostAdapter,
   type GitHostPullRequest,
@@ -487,18 +488,19 @@ export async function runPlanPublish(
   if (isErr(repository))
     return { exitCode: 1, message: `interlock plan publish: ${repository.error}.` };
   const journal = await sharedJournalDirectory(repoRoot);
-  const opened = await createLedger({
-    clock: options.clock ?? createSystemClock(),
-    directory: journal,
-  });
-  if (isErr(opened)) {
-    return {
-      exitCode: 1,
-      message: `${journal}: line ${opened.error.line} has an unrecognized ledger shape.`,
-    };
-  }
-  const ledger = opened.value;
-  try {
+  return withDelegationLock(journal, async () => {
+    const opened = await createLedger({
+      clock: options.clock ?? createSystemClock(),
+      directory: journal,
+    });
+    if (isErr(opened)) {
+      return {
+        exitCode: 1,
+        message: `${journal}: line ${opened.error.line} has an unrecognized ledger shape.`,
+      };
+    }
+    const ledger = opened.value;
+    try {
     if (verified !== undefined) {
       const used = delegatedReceipt(ledger.projection(), verified.key);
       if (
@@ -514,6 +516,7 @@ export async function runPlanPublish(
           message: `interlock plan publish: this cite already authorized ${used.action} for ${used.target.graph}.`,
         };
       }
+      await pauseAfterDelegationCheck();
     }
     const node: Node = { graph, id: NODE_ID };
     const source = publicationDerivation(
@@ -607,7 +610,8 @@ export async function runPlanPublish(
       exitCode: 0,
       message: `${graph}: plan ${reconciliation}; branch ${branch}; pull request ${pullRequest.value.key}.`,
     };
-  } finally {
-    await ledger.close();
-  }
+    } finally {
+      await ledger.close();
+    }
+  });
 }

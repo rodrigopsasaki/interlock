@@ -31,6 +31,7 @@ import {
   verifyCitation,
 } from "../delegation.ts";
 import { parseFlag, parseFlagValue } from "../flags.ts";
+import { pauseAfterDelegationCheck, withDelegationLock } from "../delegationLock.ts";
 import type { CommandResult } from "../main.ts";
 
 function missingDelegationValue(flag: string): CommandResult {
@@ -126,86 +127,89 @@ export async function runGraphApprove(
   }
 
   const journal = await sharedJournalDirectory(repoRoot);
-  const clock = createSystemClock();
-  const opened = await createLedger({ clock, directory: journal });
-  if (isErr(opened)) {
-    return {
-      exitCode: 1,
-      message: `${journal}: line ${opened.error.line} has shape tag "${opened.error.tag}", which this build does not recognize.`,
-    };
-  }
-  const ledger = opened.value;
-
-  const node: Node = { graph: id, id };
-  if (verified !== undefined && hash !== undefined) {
-    const used = delegatedReceipt(ledger.projection(), verified.key);
-    if (used !== undefined) {
-      await ledger.close();
+  return withDelegationLock(journal, async () => {
+    const clock = createSystemClock();
+    const opened = await createLedger({ clock, directory: journal });
+    if (isErr(opened)) {
       return {
         exitCode: 1,
-        message: `interlock graph approve: this cite already authorized ${used.action} for ${used.target.graph}${used.target.node === undefined ? "" : `/${used.target.node}`}${used.target.gate === undefined ? "" : `/${used.target.gate}`}.`,
+        message: `${journal}: line ${opened.error.line} has shape tag "${opened.error.tag}", which this build does not recognize.`,
       };
     }
-  }
-  if (ledger.projection().nodes.get(nodeKey(node)) === undefined) {
-    ledger.append({ kind: "node-created", node });
-  }
+    const ledger = opened.value;
 
-  const declaredGates = document.value.gates.map((declared) => declared.id);
-  const current =
-    ledger.projection().nodes.get(nodeKey(node))?.gates.get("approved") ?? gate.pending();
-  const commitSha = await currentCommitSha(repoRoot);
-  const receiptDerivation =
-    verified === undefined ||
-    hash === undefined ||
-    forFlag.kind !== "value" ||
-    readingFlag.kind !== "value"
-      ? derivation.human(by)
-      : delegatedDerivation(
-          by,
-          forFlag.value,
-          verified,
-          readingFlag.value,
-          "approve",
-          { graph: id },
-          hash,
-        );
-  const receipt = await createReceipt(
-    repoRoot,
-    fileScope([relative(repoRoot, path)]),
-    "approved",
-    commitSha,
-    spend.none(),
-    duration.unknown(),
-    receiptDerivation,
-    { because },
-  );
-  if (isErr(receipt)) {
+    const node: Node = { graph: id, id };
+    if (verified !== undefined && hash !== undefined) {
+      const used = delegatedReceipt(ledger.projection(), verified.key);
+      if (used !== undefined) {
+        await ledger.close();
+        return {
+          exitCode: 1,
+          message: `interlock graph approve: this cite already authorized ${used.action} for ${used.target.graph}${used.target.node === undefined ? "" : `/${used.target.node}`}${used.target.gate === undefined ? "" : `/${used.target.gate}`}.`,
+        };
+      }
+      await pauseAfterDelegationCheck();
+    }
+    if (ledger.projection().nodes.get(nodeKey(node)) === undefined) {
+      ledger.append({ kind: "node-created", node });
+    }
+
+    const declaredGates = document.value.gates.map((declared) => declared.id);
+    const current =
+      ledger.projection().nodes.get(nodeKey(node))?.gates.get("approved") ?? gate.pending();
+    const commitSha = await currentCommitSha(repoRoot);
+    const receiptDerivation =
+      verified === undefined ||
+      hash === undefined ||
+      forFlag.kind !== "value" ||
+      readingFlag.kind !== "value"
+        ? derivation.human(by)
+        : delegatedDerivation(
+            by,
+            forFlag.value,
+            verified,
+            readingFlag.value,
+            "approve",
+            { graph: id },
+            hash,
+          );
+    const receipt = await createReceipt(
+      repoRoot,
+      fileScope([relative(repoRoot, path)]),
+      "approved",
+      commitSha,
+      spend.none(),
+      duration.unknown(),
+      receiptDerivation,
+      { because },
+    );
+    if (isErr(receipt)) {
+      await ledger.close();
+      return { exitCode: 1, message: explainScopeRefusal(receipt.error) };
+    }
+
+    const moved = proposeGateMove(declaredGates, "approved", current, gate.satisfied(receipt.value));
+    if (isErr(moved)) {
+      await ledger.close();
+      const refusal = moved.error;
+      const message =
+        refusal.kind === "undeclared-gate"
+          ? `${path}: gate "approved" is not declared on this graph; declared gates are ${refusal.declared.join(", ") || "(none)"}.`
+          : `${path}: gate "approved" cannot move from ${refusal.from}, which is terminal.`;
+      return { exitCode: 1, message };
+    }
+
+    ledger.append({
+      kind: "gate-moved",
+      node,
+      gate: "approved",
+      to: moved.value,
+    });
     await ledger.close();
-    return { exitCode: 1, message: explainScopeRefusal(receipt.error) };
-  }
 
-  const moved = proposeGateMove(declaredGates, "approved", current, gate.satisfied(receipt.value));
-  if (isErr(moved)) {
-    await ledger.close();
-    const refusal = moved.error;
-    const message =
-      refusal.kind === "undeclared-gate"
-        ? `${path}: gate "approved" is not declared on this graph; declared gates are ${refusal.declared.join(", ") || "(none)"}.`
-        : `${path}: gate "approved" cannot move from ${refusal.from}, which is terminal.`;
-    return { exitCode: 1, message };
-  }
-
-  ledger.append({
-    kind: "gate-moved",
-    node,
-    gate: "approved",
-    to: moved.value,
+    return {
+      exitCode: 0,
+      message: `${id}: approved (receipt ${receipt.value.id}).`,
+    };
   });
-  await ledger.close();
-
-  return {
-    exitCode: 0,
-    message: `${id}: approved (receipt ${receipt.value.id}).`,
-  };
 }

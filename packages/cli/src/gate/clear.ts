@@ -36,6 +36,7 @@ import {
   verifyCitation,
 } from "../delegation.ts";
 import { parseFlag, parseFlagValue } from "../flags.ts";
+import { pauseAfterDelegationCheck, withDelegationLock } from "../delegationLock.ts";
 import type { CommandResult } from "../main.ts";
 
 function missingDelegationValue(flag: string): CommandResult {
@@ -154,17 +155,17 @@ export async function runGateClear(
   }
 
   const journal = await sharedJournalDirectory(repoRoot);
-  const clock = options.clock ?? createSystemClock();
-  const opened = await createLedger({ clock, directory: journal });
-  if (isErr(opened)) {
-    return {
-      exitCode: 1,
-      message: `${journal}: line ${opened.error.line} has shape tag "${opened.error.tag}", which this build does not recognize.`,
-    };
-  }
-  const ledger = opened.value;
-
-  try {
+  return withDelegationLock(journal, async () => {
+    const clock = options.clock ?? createSystemClock();
+    const opened = await createLedger({ clock, directory: journal });
+    if (isErr(opened)) {
+      return {
+        exitCode: 1,
+        message: `${journal}: line ${opened.error.line} has shape tag "${opened.error.tag}", which this build does not recognize.`,
+      };
+    }
+    const ledger = opened.value;
+    try {
     const targetNode: Node = { graph, id: node };
     if (verified !== undefined && hash !== undefined) {
       const used = delegatedReceipt(ledger.projection(), verified.key);
@@ -174,6 +175,7 @@ export async function runGateClear(
           message: `interlock gate clear: this cite already authorized ${used.action} for ${used.target.graph}${used.target.node === undefined ? "" : `/${used.target.node}`}${used.target.gate === undefined ? "" : `/${used.target.gate}`}.`,
         };
       }
+      await pauseAfterDelegationCheck();
     }
     const current =
       ledger.projection().nodes.get(nodeKey(targetNode))?.gates.get(gateId) ?? gate.pending();
@@ -242,7 +244,8 @@ export async function runGateClear(
       exitCode: 0,
       message: `${node}/${gateId}: cleared by ${by} (receipt ${receipt.value.id}).`,
     };
-  } finally {
-    await ledger.close();
-  }
+    } finally {
+      await ledger.close();
+    }
+  });
 }
