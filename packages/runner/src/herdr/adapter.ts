@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { connect } from "node:net";
 import { homedir } from "node:os";
@@ -6,6 +5,7 @@ import { basename, dirname, join } from "node:path";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import { isCompliantAgentName } from "../agentName.ts";
 import { claudeLiveWork } from "../claude/liveWork.ts";
+import { execFileSyncOwned } from "../ownedCommand.ts";
 import {
   type Agent,
   type AgentIdentity,
@@ -29,7 +29,7 @@ export function defaultHerdrSocketPath(): string {
 
 export function repositoryLabel(cwd: string): string {
   try {
-    const commonDir = execFileSync(
+    const commonDir = execFileSyncOwned(
       "git",
       ["rev-parse", "--path-format=absolute", "--git-common-dir"],
       { cwd, encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] },

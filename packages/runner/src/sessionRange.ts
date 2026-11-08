@@ -1,7 +1,7 @@
-import { execFileSync } from "node:child_process";
 import { isErr } from "@phyxiusjs/fp";
 import { readBriefDocument } from "debrief";
 import type { LedgerEvent } from "ledger";
+import { execFileSyncOwned } from "./ownedCommand.ts";
 
 const GIT_BUFFER_PAST_EXEC_FILE_SYNC_ONE_MEGABYTE_DEFAULT = 512 * 1024 * 1024;
 
@@ -25,7 +25,7 @@ export type SessionInheritance =
 
 function gitText(repoRoot: string, args: readonly string[]): string | undefined {
   try {
-    return execFileSync("git", args, {
+    return execFileSyncOwned("git", args, {
       cwd: repoRoot,
       encoding: "utf-8",
       stdio: ["ignore", "pipe", "pipe"],

@@ -55,11 +55,52 @@
           },
           "exec": {
             "type": "array",
-            "items": { "type": "string" },
+            "items": {
+              "type": "string"
+            },
             "minItems": 1,
-            "contains": { "const": "{command}" },
-            "maxContains": 1,
-            "minContains": 1
+            "contains": {
+              "const": "{command}"
+            },
+            "minContains": 1,
+            "maxContains": 1
+          },
+          "read_only_args": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mcp_servers": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true
+          },
+          "mcp_allow": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true
+          },
+          "mcp_disable_args": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "contains": {
+              "const": "{name}"
+            },
+            "minContains": 1,
+            "maxContains": 1
+          },
+          "prompt": {
+            "const": "stdin"
           },
           "commits": {
             "enum": [

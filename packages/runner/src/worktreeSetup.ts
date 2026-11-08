@@ -1,9 +1,9 @@
-import { spawn } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { link, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import { sharedJournalDirectory } from "face";
+import { spawnOwned } from "./ownedCommand.ts";
 
 export const SETUP_LOG_TAIL_BYTES = 64 * 1024;
 
@@ -83,7 +83,7 @@ function spawnSetupCommand(
 ): Promise<{ readonly exit: WorktreeSetupExit; readonly tail: Buffer }> {
   return new Promise((resolve) => {
     const [bin, ...args] = [...heavy, "mise", "exec", "--", ...tokens];
-    const child = spawn(bin ?? "mise", args, { cwd, env });
+    const child = spawnOwned([bin ?? "mise", ...args], cwd, env, false);
     child.on("error", (error) => {
       tail = appendTail(tail, Buffer.from(error.message));
     });

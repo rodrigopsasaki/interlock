@@ -1,7 +1,7 @@
-import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { err, isErr, isOk, ok, type Result } from "@phyxiusjs/fp";
+import { execFileSyncOwned } from "./ownedCommand.ts";
 
 export type WorktreeRefusal =
   | {
@@ -47,7 +47,7 @@ const GIT_BUFFER_PAST_EXEC_FILE_SYNC_ONE_MEGABYTE_DEFAULT = 512 * 1024 * 1024;
 function git(cwd: string, args: readonly string[]): Result<string, WorktreeRefusal> {
   try {
     return ok(
-      execFileSync("git", [...args], {
+      execFileSyncOwned("git", [...args], {
         cwd,
         encoding: "utf-8",
         maxBuffer: GIT_BUFFER_PAST_EXEC_FILE_SYNC_ONE_MEGABYTE_DEFAULT,
@@ -64,7 +64,7 @@ function git(cwd: string, args: readonly string[]): Result<string, WorktreeRefus
 
 function gitPathExistsAtCommit(repoRoot: string, path: string): boolean {
   try {
-    execFileSync("git", ["cat-file", "-e", path], {
+    execFileSyncOwned("git", ["cat-file", "-e", path], {
       cwd: repoRoot,
       stdio: ["ignore", "ignore", "ignore"],
     });
@@ -168,7 +168,7 @@ export function isIgnoredPath(worktree: string, path: string): boolean {
 
 export function isCommittedAtHead(worktreePath: string, relativePath: string): boolean {
   try {
-    execFileSync("git", ["cat-file", "-e", `HEAD:${relativePath}`], {
+    execFileSyncOwned("git", ["cat-file", "-e", `HEAD:${relativePath}`], {
       cwd: worktreePath,
       stdio: ["ignore", "ignore", "ignore"],
     });

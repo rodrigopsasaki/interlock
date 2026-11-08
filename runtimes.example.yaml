@@ -40,6 +40,15 @@ runtimes:
         keys: [Down, Enter]
     startup_timeout_ms: 90000
 
+  exec-example:
+    kind: exec
+    args: ["/path/to/program", "--prompt", "{prompt}"]
+    model: example-model
+    read_only_args: ["--read-only"]
+    mcp_servers: [filesystem, database]
+    mcp_allow: [filesystem]
+    mcp_disable_args: ["--disable-mcp", "{name}"]
+
   fable:
     provider: anthropic
     kind: claude
