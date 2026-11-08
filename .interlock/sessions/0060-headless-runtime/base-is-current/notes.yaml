@@ -86,3 +86,7 @@ entries:
     at: "2026-11-08T19:20:01Z"
     expected: Re-running the full repository test under isolated HOME and CODEX_HOME would reproduce the reported single runner-commit failure.
     observed: The GitHub-token case passed, while unrelated runner files timed out or failed under the concurrent full run; the target failure needs the preserved stderr and a narrower isolation reproduction.
+  - kind: surprise
+    at: "2026-11-08T19:28:00Z"
+    expected: A temporary HOME would let a direct mise exec use the already-resolved pinned toolchain without changing state.
+    observed: mise tried to install the repository's full tool inventory into the worktree scratch home; the owned installer and its cargo child were terminated before completion, and their scratch directories were removed.
