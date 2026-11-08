@@ -131,9 +131,9 @@ export type {
 } from "./receipt.ts";
 export {
   assessReceipt,
+  COMMAND_RECEIPT_ID_VERSION,
   checkStale,
   commandReceiptId,
-  COMMAND_RECEIPT_ID_VERSION,
   createReceipt,
   duration,
   explainGateIdNul,

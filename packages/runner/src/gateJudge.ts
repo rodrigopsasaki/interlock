@@ -437,12 +437,7 @@ export async function judgeGates(
     }
     const proofWithOutput = { ...proof, gateOutput: retained.value };
 
-    const commandId = await commandReceiptId(
-      scopeRoot,
-      scopePaths,
-      gateId,
-      proofWithOutput,
-    );
+    const commandId = await commandReceiptId(scopeRoot, scopePaths, gateId, proofWithOutput);
     if (isErr(commandId)) {
       const stale = await invalidateStaleDelegated(
         ledger,

@@ -5,8 +5,8 @@ import { isErr } from "@phyxiusjs/fp";
 import { nodeKey } from "ledger";
 import { noneClient } from "substrate";
 import { afterAll, afterEach, describe, expect, it } from "vitest";
-import { gitInitFixtureWithContent } from "./support/gitFixture.ts";
 import { judgeGates } from "../src/gateJudge.ts";
+import { gitInitFixtureWithContent } from "./support/gitFixture.ts";
 import { memoryLedgerWithLog } from "./support/memoryLedger.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
@@ -77,9 +77,10 @@ describe("command receipt identity", () => {
     expect((await judge(root, ledger, pass)).kind).toBe("cleared");
 
     const view = ledger.projection().nodes.get(nodeKey(node));
-    expect(view?.gates.get("proof")?.kind).toBe("satisfied");
-    if (view?.gates.get("proof")?.kind === "satisfied") {
-      expect(view.gates.get("proof")?.receipt.proof["exitCode"]).toBe(0);
+    const proofGate = view?.gates.get("proof");
+    expect(proofGate?.kind).toBe("satisfied");
+    if (proofGate?.kind === "satisfied") {
+      expect(proofGate.receipt.proof["exitCode"]).toBe(0);
     }
     expect(view?.receipts).toHaveLength(2);
     expect(events.filter((event) => event.kind === "receipt-written")).toHaveLength(2);
