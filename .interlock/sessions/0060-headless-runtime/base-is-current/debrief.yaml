@@ -4,7 +4,7 @@ node: base-is-current
 role: implementer
 graph_base_sha: c66e5f1a13a95936d6ddec1f3eaa1ce2bdd4dd13
 session_start_sha: c2a9fbe9a01367973805d649de519c0a82f5e8b1
-head_sha: 5f0f3de8bd0c4a4bcb284d49e421f9368d8add26
+head_sha: aa9a9957e28d166f32c4fdb9a39830ee5684b6d9
 derivation:
   kind: agent
   runtime: codex
@@ -41,16 +41,7 @@ decisions:
     hunks:
       - packages/runner/src/worktree.ts:60-74
       - packages/runner/src/worktree.ts:282-359
-      - packages/runner/src/sessionDrive.ts:356-373
       - packages/runner/src/sessionDrive.ts:433-470
-  - id: selected-codex-home
-    what: Carry process CODEX_HOME into Codex launch preparation when machine configuration does not provide a different value.
-    because: The selected product home must control Codex MCP discovery without requiring machine-provider configuration to echo it, while an explicit provider value remains authoritative.
-    rests_on:
-      - brief:Acceptance (verbatim from the graph)
-    hunks:
-      - packages/runner/src/sessionDrive.ts:356-373
-      - packages/runner/test/machineProvider.test.ts:31-61
   - id: terminal-judge-boundary
     what: Refuse standalone judgment immediately for a decided node, before reading its worktree or judging its gates.
     because: A cleared or otherwise terminal node must never be reset, merged, or re-judged even when its base is stale.
@@ -79,11 +70,11 @@ gates_run_by_agent:
   - id: typecheck
     result: pass
     invocation: PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH" pnpm typecheck
-    note: Node 24.14.0 and pnpm 10.13.1; all 8 workspace projects typechecked.
+    note: Node 24.14.0 and pnpm 10.13.1; all 8 workspace projects typechecked before the accepted revert.
   - id: base-is-current-types
     result: pass
     invocation: PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH" pnpm typecheck
-    note: Same final pinned-toolchain typecheck receipt covers the node-specific type gate.
+    note: Same pinned-toolchain typecheck receipt covers the node-specific type gate.
   - id: lint
     result: pass
     invocation: PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH" pnpm lint
@@ -93,18 +84,24 @@ gates_run_by_agent:
     invocation: PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH" pnpm check:comments
     note: No comments were found under packages/*/src.
   - id: test
-    result: pass
+    result: fail
     invocation: PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH" pnpm test
-    note: "Workspace suites passed: ledger 175, debrief 98, verifier 62, substrate 91, face 186, runner 615, schemas 1325, cli 461 tests."
+    note: >-
+      The runner suite passed with 615 tests and the schemas suite passed with 1327 tests, but the
+      CLI suite had 2 failed and 459 passed out of 461 tests in the two runtime-selection cases.
   - id: base-is-current-proof
     result: pass
     invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/baseIsCurrent.test.ts --passWithNoTests=false
-    note: 5 tests passed.
+    note: 5 tests passed after the accepted revert.
   - id: runner-suite
     result: pass
     invocation: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
-    note: 615 tests passed across 55 files.
+    note: 615 tests passed across 55 files after the accepted revert.
   - id: debrief-valid
     result: pass
-    note: Authored candidate is ready for the runner's final debrief validation after filing.
-open: []
+    note: Authored candidate is ready for final debrief validation after filing.
+open:
+  - >-
+    The standing pnpm test gate failed two CLI runtime-selection tests because this session's
+    inherited CODEX_HOME pointed at the removed session-local overlay codex-home-sUO6F8; the judge
+    should rerun the gates in its own environment.
