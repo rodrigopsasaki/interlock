@@ -74,3 +74,11 @@ entries:
     at: "2026-11-08T18:36:00Z"
     chose: Apply only the formatter's mechanical layout changes to the new integration test and leave unrelated repository lint diagnostics unchanged.
     because: The new test must satisfy the repository formatter while the standing lint gate already identifies two pre-existing diagnostics in runnerCommits.test.ts; changing those unrelated fixtures would widen this correction.
+  - kind: surprise
+    at: "2026-11-08T18:38:00Z"
+    expected: The freshly authored debrief candidate would parse on its first preview.
+    observed: An unquoted colon in an acceptance rest_on string was parsed as a mapping; quoting that rooted claim made the candidate valid and kept its decisions path-scoped.
+  - kind: choice
+    at: "2026-11-08T18:39:00Z"
+    chose: Revise the existing debrief with a fresh candidate rooted at d26f1f5 and report the complete nine-test focused matrix while leaving the reserved workspace gates open.
+    because: The judge hold specifically requires the five integration windows and updated open items, while the user reserved the workspace gate for the judge after the runner-owned Codex home is gone.
