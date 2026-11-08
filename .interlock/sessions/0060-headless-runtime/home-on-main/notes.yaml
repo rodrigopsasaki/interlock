@@ -113,3 +113,10 @@ entries:
       Serial execution still left the same three machine-provider failures and later lost the
       repository-local tinypool worker entry while install-oriented tests ran; no new overlay or
       marker failure appeared.
+  - kind: surprise
+    at: '2026-11-08T18:36:00Z'
+    expected: The final isolated overlay proof would be self-contained with only temporary home
+      directories.
+    observed: >-
+      Its fixture commit required Git identity variables, and the command failed before the
+      overlay assertion; no owner Git configuration was read or changed.
