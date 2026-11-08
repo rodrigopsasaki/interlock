@@ -25,3 +25,11 @@ entries:
     at: "2026-11-08T16:12:00Z"
     expected: The shell wrapper would capture the focused proof and return its exit code.
     observed: zsh rejected the first wrapper's status variable because status is read-only; rerunning with rc captured the proof, which passed with 2 files and 6 tests.
+  - kind: surprise
+    at: "2026-11-08T16:15:00Z"
+    expected: The clean-state full suite would run with the repository's normal environment after the stale session home was removed.
+    observed: CODEX_HOME remained exported to the removed link-based session home, causing four runner machine-provider tests to refuse before their fake runtime calls; the migration tests passed, and the suite will be rerun with only that stale variable unset.
+  - kind: surprise
+    at: "2026-11-08T16:17:00Z"
+    expected: Clearing test/.runs after the clean-state full suite would leave the session directory free of generated homes.
+    observed: Runner tests recreated the link-based codex-home-cLYDFe folder under this session directory during the passing suite; it was removed again before handoff and is not part of the source or session artifacts.
