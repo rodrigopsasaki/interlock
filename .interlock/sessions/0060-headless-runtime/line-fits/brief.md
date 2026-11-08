@@ -20,20 +20,20 @@ gates:
     kind: command
     run: pnpm interlock debrief validate {graph} {node}
   - id: line-fits-proof
-  kind: command
-  run: pnpm --fail-if-no-match --filter runner exec vitest run test/lineFits.test.ts --passWithNoTests=false
-  expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
-- id: marker-never-dropped-still
-  kind: command
-  run: pnpm --fail-if-no-match --filter runner exec vitest run test/markerNeverDropped.test.ts test/realCodexMarkerOverflow.test.ts --passWithNoTests=false
-  expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
-- id: runner-suite
-  kind: command
-  run: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
-  expect_output: 'Tests +[1-9][0-9]* passed'
-- id: line-fits-types
-  kind: command
-  run: pnpm typecheck
+    kind: command
+    run: pnpm --fail-if-no-match --filter runner exec vitest run test/lineFits.test.ts --passWithNoTests=false
+    expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+  - id: marker-never-dropped-still
+    kind: command
+    run: pnpm --fail-if-no-match --filter runner exec vitest run test/markerNeverDropped.test.ts test/realCodexMarkerOverflow.test.ts --passWithNoTests=false
+    expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+  - id: runner-suite
+    kind: command
+    run: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
+    expect_output: 'Tests +[1-9][0-9]* passed'
+  - id: line-fits-types
+    kind: command
+    run: pnpm typecheck
 scope:
   - .gitignore
   - .interlock/arcs.yaml
