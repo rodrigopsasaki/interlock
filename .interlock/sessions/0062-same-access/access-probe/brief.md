@@ -25,11 +25,15 @@ gates:
   expect_output: 'Tests +[1-9][0-9]* passed'
 - id: probe-runner-tests
   kind: command
-  run: pnpm --fail-if-no-match --filter runner exec vitest run test/runtimeProbe.test.ts test/openingPrompt.test.ts --passWithNoTests=false
+  run: pnpm --fail-if-no-match --filter runner exec vitest run test/runtimeProbe.test.ts --passWithNoTests=false
+  expect_output: 'Tests +[1-9][0-9]* passed'
+- id: opening-prompt-tests
+  kind: command
+  run: pnpm --fail-if-no-match --filter runner exec vitest run test/openingPrompt.test.ts --passWithNoTests=false
   expect_output: 'Tests +[1-9][0-9]* passed'
 - id: probe-event-tests
   kind: command
-  run: pnpm --fail-if-no-match --filter ledger exec vitest run test/replay.test.ts --passWithNoTests=false
+  run: pnpm --fail-if-no-match --filter ledger exec vitest run test/probeEvent.test.ts --passWithNoTests=false
   expect_output: 'Tests +[1-9][0-9]* passed'
 scope:
 - .gitignore
@@ -1029,10 +1033,19 @@ edit it.
 > gains `exec` as an optional profile property, an argv template in which exactly one whole element is
 > `{command}` (validated like writable_root_args' `{path}`), and the runner expands `{command}` as one argument
 > with no shell in between, inserting the prepared launch's writable-root and environment arguments before that
-> element. A profile without `exec` and without an adapter executor still reports unavailable.
+> element. Before any check runs, the expanded template passes the equivalence check every executor passes: its
+> first element is the launch's own program (the profile's program for an exec profile, the adapter's program
+> for its kind otherwise), and it carries every launch argument of the profile, the prompt placeholder element
+> aside, in the profile's order, and the writable-root and environment arguments; a template that fails reports
+> every agent-side check unavailable, naming the first missing argument or the differing program, and runs
+> nothing. A profile without `exec` and without an adapter executor still reports unavailable.
 > Tests in packages/runner/test/runtimeProbe.test.ts, through injected process runners (no real agent binary):
 > - a profile declaring `exec` runs each check through exactly the expanded template, with the writable roots
 >   and environment arguments before the `{command}` element, and starts no agent;
+> - a profile whose `exec` omits one of the profile's access arguments reports every agent-side check
+>   unavailable naming that argument, and calls no process runner;
+> - a profile whose `exec` is a host shell (a different program wrapping `{command}`) reports every agent-side
+>   check unavailable naming the differing program, and calls no process runner;
 > - a catalogue whose `exec` has no `{command}` element, or two, is refused at load with a sentence naming the
 >   profile;
 > - for each implementing adapter, the exact argv and environment its executor receives carry the profile's
@@ -1040,9 +1053,10 @@ edit it.
 > - for a production kind that does not implement it, the probe reports every agent-side check unavailable with
 >   the adapter's reason, and no process runner and no agent start is called.
 >
-> The command. `interlock runtime probe <name> [--json]` runs, in a disposable linked worktree it creates and
-> removes, the checks: SysV shared memory create and remove, loopback TCP listen on 127.0.0.1:0, worktree file
-> create and remove, git metadata write (a commit in the linked worktree, unsigned), and signed commit through
+> The command. `interlock runtime probe <name> [--json]` runs, in a disposable linked worktree attached to a
+> uniquely named disposable branch (never detached), both created for the probe and removed on every exit
+> path, the checks: SysV shared memory create and remove, loopback TCP listen on 127.0.0.1:0, worktree file
+> create and remove, git metadata write (a commit on the disposable branch, unsigned, which moves its ref), and signed commit through
 > the profile's commit custodian whose signature verifies. Under `commits: agent` all five run through the
 > adapter; under `commits: runner` the signed commit runs as the runner's custody does, and the agent's signing
 > may be shown separately as a diagnostic that does not decide the exit code. It prints one line per check:
@@ -1055,22 +1069,32 @@ edit it.
 >
 > The record. Each probe appends one `probe` event through a new journal event version, `event@v11`
 > (schemas/event@v11.json, its guard, replay and projection support, EVENT_SHAPE moving to event@v11), with
-> `event@v1` through `event@v10` still replaying unchanged. The event carries a probe id, the profile name, an
-> effective configuration fingerprint (a digest over the merged profile entry and the machine's environment and
-> provider configuration, not over per-attempt paths), the probe implementation version, every check's outcome
+> `event@v1` through `event@v10` still replaying unchanged. The measured configuration is written once as a
+> `probe-config@v0` artifact (schemas/probe-config@v0.json), content-addressed by its sha256 under the ledger
+> directory at `probe/config/<sha256>.json` the way outbox artifacts are kept, never overwritten: the merged
+> profile entry, the machine's provider configuration, and the resolved machine environment as its keys with a
+> sha256 of each value, so no environment value is stored, nothing per-attempt such as paths. The event carries
+> a probe id, the profile name, that artifact's reference as the effective configuration fingerprint, the probe
+> implementation version, every check's outcome
 > with its error text or reason, the signed commit's verifying key fingerprint, its derivation, and its time. `interlock runtime list` shows each profile's last
 > probe result and time; when that result's fingerprint or probe version differs from the profile's current one
-> it reads as historical ("probed under an earlier configuration"), and a profile never probed reads
-> "never probed". `runtime list` never runs a probe.
+> it reads as historical ("probed under an earlier configuration") with its artifact reference, and a profile
+> never probed reads "never probed". To compute the current fingerprint, `runtime list` resolves the machine
+> environment the way an attempt does (resolveMachine, the provider's env command), because that command's
+> output can change while machine.yaml does not; when the resolution fails, the result reads "environment
+> unknown", never current. `runtime list` runs no probe, no probe executor and no adapter: the environment read
+> is its only command. `interlock runtime probe show <fingerprint>` prints a stored configuration.
 >
 > The opening instruction. The opening prompt every attempt receives (packages/runner/src/openingPrompt.ts)
 > carries the sentence "Run one heavy command at a time, never several in parallel or in the background; never
 > pipe a test runner into head or tail." for every role.
 >
-> Tests in packages/ledger/test/replay.test.ts:
+> Tests in packages/ledger/test/probeEvent.test.ts:
 > - a journal mixing event@v1 through event@v10 entries with event@v11 probe events replays, and the probe
 >   projection reads back every field;
-> - an event@v10 journal carrying a probe kind is still refused.
+> - an event@v10 journal carrying a probe kind is still refused;
+> - a probe-config@v0 artifact is written once under its sha256 and a second write of the same content leaves
+>   it unchanged.
 > Tests in packages/runner/test/openingPrompt.test.ts:
 > - the opening prompt carries the heavy-command sentence for every role.
 > Tests in packages/cli/test/runtimeProbe.test.ts with fixture adapters (no real agent binary):
@@ -1080,6 +1104,9 @@ edit it.
 > - an adapter with no probe executor reports unavailable for every agent-side check and exits 1, never passed;
 > - a runner that lets files be created inside the linked worktree but refuses writes under its per-worktree or
 >   common git directory reports file create passed and the git metadata check refused, exit 1;
+> - a runner that allows object writes in the common git directory but refuses updating the disposable branch's
+>   ref reports the git metadata check refused, exit 1; the probe's worktree is attached to that branch, not
+>   detached; and after this and every other refusal no probe worktree or probe branch remains;
 > - a `commits: runner` profile whose agent cannot sign but whose runner custody signs exits 0, with the agent's
 >   signing shown as a diagnostic; the same agent under `commits: agent` exits 1;
 > - with two fixture signing keys, a commit signed by each verifies and its line and probe event name that key's
@@ -1087,5 +1114,7 @@ edit it.
 > - --all probes a non-routable profile, the default_runtime profile and a legacy "default" profile, and names
 >   every one that did not pass; an empty catalogue exits 1 with a sentence;
 > - runtime list shows the last probe per profile; a profile never probed reads "never probed"; after the
->   profile's args change under the same name, its earlier pass reads as historical; and runtime list calls no
->   process runner.
+>   profile's args change under the same name, its earlier pass reads as historical and `runtime probe show`
+>   still prints the configuration it was measured under; runtime list calls no probe executor and no adapter;
+> - when the provider's env command prints a different environment while machine.yaml is unchanged, the
+>   earlier pass reads as historical; when that command fails, it reads "environment unknown", never current.
