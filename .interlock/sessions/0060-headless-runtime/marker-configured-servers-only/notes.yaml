@@ -1,0 +1,27 @@
+interlock: notes@v0
+node: marker-configured-servers-only
+entries:
+  - kind: surprise
+    at: "2026-11-08T14:20:00Z"
+    expected: Codex's MCP listing would identify only servers whose configuration tables can safely receive marker overrides.
+    observed: The existing runner used every stdio name from codex mcp list --json, including built-in servers that have no mcp_servers table and reject env overrides.
+  - kind: choice
+    at: "2026-11-08T14:21:00Z"
+    chose: Treat the effective Codex config tables as the allowlist, then intersect them with the reported stdio MCP servers before constructing marker overrides.
+    because: Built-in and plugin-provided servers must remain untouched, while configured servers must still be marked only when Codex reports them as stdio.
+  - kind: choice
+    at: "2026-11-08T14:22:00Z"
+    chose: Keep the normal short launch on argv and reserve a launch-local Codex profile overlay for an argv line that would reach the canonical terminal limit.
+    because: The marker must reach configured MCP children without sending an oversized launch line; a profile overlay preserves the choice of transport while keeping marker values out of the terminal line.
+  - kind: surprise
+    at: "2026-11-08T14:23:00Z"
+    expected: The first focused command would write its result in the assigned worktree.
+    observed: The command was initially addressed to the repository checkout rather than this node worktree, so it failed before running because the requested scratch path did not exist; no outside file was written.
+  - kind: choice
+    at: "2026-11-08T14:29:00Z"
+    chose: Assert all three marker values on the real Codex configured server.
+    because: The runner marker contract carries session, graph and node together, and Codex reports the complete effective environment in its real mcp list output.
+  - kind: choice
+    at: "2026-11-08T14:30:00Z"
+    chose: Omit generated Codex config overrides when they would reach the 1024-byte launch-line limit and rely on the already-inherited marker environment for MCP children.
+    because: The runner passes marker values in the child environment for both pane and exec launches, so the marker remains available without sending an oversized terminal line.

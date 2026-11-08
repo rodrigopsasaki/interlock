@@ -1,0 +1,32 @@
+[
+  {
+    "name": "codex_app",
+    "enabled": true,
+    "transport": { "type": "stdio", "command": "codex_app" }
+  },
+  {
+    "name": "computer-use",
+    "enabled": true,
+    "transport": { "type": "stdio", "command": "computer-use" }
+  },
+  {
+    "name": "cua_repl",
+    "enabled": true,
+    "transport": { "type": "stdio", "command": "cua_repl" }
+  },
+  {
+    "name": "dialeto",
+    "enabled": true,
+    "transport": { "type": "stdio", "command": "dialeto" }
+  },
+  {
+    "name": "hypha",
+    "enabled": true,
+    "transport": { "type": "stdio", "command": "hypha" }
+  },
+  {
+    "name": "node_repl",
+    "enabled": true,
+    "transport": { "type": "stdio", "command": "node_repl" }
+  }
+]
