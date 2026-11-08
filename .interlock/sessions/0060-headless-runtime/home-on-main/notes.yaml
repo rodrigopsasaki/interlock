@@ -132,3 +132,11 @@ entries:
       configuration rather than a later notes-only commit.
     because: The brief defines head_sha as the last code commit, while notes remain append-only
       receipts beside the code.
+  - kind: surprise
+    at: '2026-11-08T18:50:00Z'
+    expected: The debrief file-derived command would accept a head_sha naming the last
+      source-bearing commit.
+    observed: >-
+      file-derived rejected that candidate because its identity must match the current derived
+      proof HEAD, which includes the append-only notes commits; the candidate is being corrected
+      to the current session HEAD before filing.
