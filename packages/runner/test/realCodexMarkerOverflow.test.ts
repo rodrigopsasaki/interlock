@@ -1,17 +1,17 @@
 import { execFileSync, spawn } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { isOk } from "@phyxiusjs/fp";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { prepareCodexLaunch } from "../src/codex/config.ts";
+import { isolatedHomeEnvironment } from "./support/toolState.ts";
 
-const runsRoot = join(import.meta.dirname, ".runs");
-mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 const previousGitCeiling = process.env["GIT_CEILING_DIRECTORIES"];
 
 beforeAll(() => {
-  process.env["GIT_CEILING_DIRECTORIES"] = join(runsRoot, "..");
+  process.env["GIT_CEILING_DIRECTORIES"] = tmpdir();
 });
 
 afterAll(() => {
@@ -26,7 +26,8 @@ afterEach(() => {
 
 describe("real Codex marker overflow delivery", () => {
   it("keeps every configured server marked through the launch-local profile", () => {
-    directory = mkdtempSync(join(runsRoot, "real-codex-marker-overflow-"));
+    const isolation = isolatedHomeEnvironment("real-codex-marker-overflow");
+    directory = isolation.root;
     const home = join(directory, "codex-home");
     mkdirSync(home);
     const names = Array.from({ length: 12 }, (_, index) => `overflow_${index}_${"x".repeat(48)}`);
@@ -35,8 +36,7 @@ describe("real Codex marker overflow delivery", () => {
       names.map((name) => `[mcp_servers.${name}]\ncommand = "/bin/echo"\n`).join("\n"),
     );
     const environment = {
-      HOME: join(directory, "home"),
-      XDG_STATE_HOME: join(directory, "state"),
+      ...isolation.environment,
       INTERLOCK_SESSION: "real-overflow-session",
       INTERLOCK_GRAPH: "0060-headless-runtime",
       INTERLOCK_NODE: "marker-never-dropped",
@@ -75,7 +75,8 @@ describe("real Codex marker overflow delivery", () => {
   });
 
   it("records marker values in real MCP children started by Codex exec", async () => {
-    const root = mkdtempSync(join(runsRoot, "real-codex-mcp-overflow-"));
+    const isolation = isolatedHomeEnvironment("real-codex-mcp-overflow");
+    const root = isolation.root;
     directory = root;
     const home = join(root, "codex-home");
     mkdirSync(home);
@@ -93,8 +94,7 @@ describe("real Codex marker overflow delivery", () => {
         .join("\n"),
     );
     const environment = {
-      HOME: join(root, "home"),
-      XDG_STATE_HOME: join(root, "state"),
+      ...isolation.environment,
       INTERLOCK_SESSION: "real-mcp-session",
       INTERLOCK_GRAPH: "0060-headless-runtime",
       INTERLOCK_NODE: "marker-never-dropped",

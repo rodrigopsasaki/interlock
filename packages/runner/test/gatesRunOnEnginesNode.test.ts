@@ -17,10 +17,11 @@ import { judgeGates } from "../src/gateJudge.ts";
 import { runWorktreeSetup } from "../src/worktreeSetup.ts";
 import { gitInitFixtureWithContent } from "./support/gitFixture.ts";
 import { memoryLedger } from "./support/memoryLedger.ts";
+import { allocateToolState } from "./support/toolState.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
-const miseState = mkdtempSync(join(runsRoot, "mise-"));
+const toolState = allocateToolState("engines-node-mise");
 
 let directory: string | undefined;
 
@@ -30,7 +31,7 @@ afterEach(() => {
 });
 
 afterAll(() => {
-  rmSync(miseState, { recursive: true, force: true });
+  toolState.cleanup();
 });
 
 function fixture(
@@ -74,7 +75,7 @@ function fixture(
       PATH: [bin, process.env["PATH"] ?? ""].join(delimiter),
       FIXTURE_NODE_VERSION: nodeVersion,
       FIXTURE_SETUP_MARKER: setupMarker,
-      MISE_STATE_DIR: miseState,
+      MISE_STATE_DIR: toolState.environment["MISE_STATE_DIR"],
     },
     proof,
     setup,
@@ -97,7 +98,7 @@ async function judge(root: string, env: NodeJS.ProcessEnv, proof: string, narrat
     runnerId: "runner",
     holdMs: 60_000,
     substrate: noneClient(),
-    env,
+    env: { ...toolState.environment, ...env },
     narrate: (line) => narrate.push(line),
   });
 }

@@ -15,11 +15,11 @@ import { judgeGates, legacyOutputForChunk } from "../src/gateJudge.ts";
 import { readGateOutput, storeGateOutput } from "../src/gateOutput.ts";
 import { commitAll, gitInitFixtureWithContent, headSha } from "./support/gitFixture.ts";
 import { memoryLedger, memoryLedgerWithLog } from "./support/memoryLedger.ts";
+import { allocateToolState } from "./support/toolState.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
-const miseState = mkdtempSync(join(runsRoot, "mise-"));
-process.env["MISE_STATE_DIR"] = miseState;
+const toolState = allocateToolState("gate-judge-mise");
 
 const substrate = noneClient();
 
@@ -31,7 +31,7 @@ afterEach(() => {
 });
 
 afterAll(() => {
-  rmSync(miseState, { recursive: true, force: true });
+  toolState.cleanup();
 });
 
 function fixture(): string {
@@ -82,6 +82,7 @@ describe("receipt-idempotent", () => {
       runnerId: "run-1",
       holdMs: 60_000,
       substrate,
+      env: toolState.environment,
       narrate: () => {},
     };
 

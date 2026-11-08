@@ -1,0 +1,11 @@
+interlock: notes@v0
+node: mise-state-outside-repos
+entries:
+  - kind: choice
+    at: '2026-11-08T20:06:06Z'
+    chose: >-
+      Put the shared temporary tool-state allocator under packages/runner/test/support and keep
+      the repository-link scanner and interlock-state wrapper as scripts.
+    because: >-
+      The allocator is test-only and must be reusable by runner fixtures, while the two checks are
+      command gates that need to run independently of Vitest.
