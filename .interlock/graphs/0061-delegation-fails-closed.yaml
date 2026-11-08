@@ -87,6 +87,13 @@ read: >
   Every attempt opens with: run one heavy command at a time, never several in parallel or in the background; never
   pipe a test runner into head or tail.
 
+  Added 2026-11-08: receipt-carries-its-run. The same promise, at the gate rather than the delegation: a clearance
+  counts only on proof that supports it. Re-judging two preston 0044 nodes on an unchanged tree after a Node fix,
+  each standing `test` gate ran again and passed, yet the ledger recorded the earlier failing receipt as its proof
+  (preston .interlock/ledger/journal.jsonl:7684 writes receipt ad5f5b2f with exitCode 1 on Node 26 and :7685 blocks
+  the gate; :7718 moves the same gate to satisfied on ad5f5b2f). A reader of the ledger sees a satisfied gate whose
+  proof says it failed.
+
 gates:
   - id: approved
     kind: human
@@ -218,3 +225,57 @@ nodes:
         kind: command
         run: pnpm --fail-if-no-match --filter cli exec vitest run test/neutralRefusal.test.ts --passWithNoTests=false
         expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: receipt-carries-its-run
+    role: implementer
+    depends_on: []
+    acceptance: |
+      A satisfied gate never points at a failing proof. receiptId (packages/ledger/src/receipt.ts, called from
+      createReceipt) derives a receipt's id from the scope content and the gate id only, never from the run's proof.
+      judgeGates (packages/runner/src/gateJudge.ts, the alreadyRecorded and effectiveReceipt lines before the gate
+      move) then looks the new receipt up by that id; on an unchanged tree it finds the earlier receipt, skips writing
+      the new one, and moves the gate on the new run's verdict while pointing at the earlier receipt's proof. A run
+      that passes after a failing one is recorded as satisfied on the failing proof, and a run that fails after a
+      passing one is blocked on the passing proof.
+      - A re-run whose proof differs from an already recorded receipt writes its own receipt, with its own id, and the
+        gate points at it. A re-run whose proof is the same may reuse the recorded receipt. What counts as "the same
+        proof" is stated in the debrief with its because (at least the exit code, the output hash, the matched pattern
+        and the retained gate-output references).
+      - A gate moves to satisfied only on a receipt whose own proof meets the gate's criterion (exit 0 and, when the
+        gate has expect_output, a match). A gate moves to blocked only on a receipt whose own proof fails it.
+      - Existing ledgers stay readable and their history is not rewritten. Receipts already recorded keep their ids,
+        content and events; journals in which a satisfied gate points at a failing proof (the preston 0044 shape)
+        replay without error, and the read of such a gate names that its recorded proof does not meet its criterion
+        rather than presenting it as passed. No migration rewrites journal lines.
+      - Any change to how ids are derived is versioned so an old id is never reinterpreted, and the choice is recorded
+        in the debrief with its way back.
+      Tests:
+      - packages/runner/test/receiptCarriesItsRun.test.ts: a real judge on an unchanged tree, with a gate command that
+        fails on the first judge and passes on the second, leaves the gate satisfied on a receipt whose proof has exit
+        0 and two distinct receipts in the journal; the reverse (pass then fail) leaves the gate blocked on the failing
+        receipt; pass then pass with identical output keeps one receipt; an expect_output gate whose pattern starts
+        matching on an unchanged tree behaves the same way.
+      - packages/ledger/test/collidedReceipts.test.ts: a fixture journal with the preston 0044 shape (one receipt id
+        written with exitCode 1, its gate blocked, then the same id moved to satisfied) replays, keeps every event and
+        id as written, and its read names the mismatch.
+      Every gate and test runs with the repository's pinned pnpm and Node first on PATH. No test is excluded.
+    gates:
+      - id: receipt-run-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/receiptCarriesItsRun.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: collided-receipts-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter ledger exec vitest run test/collidedReceipts.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: judge-suite
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/gateJudge.test.ts test/submoduleReceipts.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: ledger-suite
+        kind: command
+        run: pnpm --fail-if-no-match --filter ledger exec vitest run --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: receipt-types
+        kind: command
+        run: pnpm typecheck
