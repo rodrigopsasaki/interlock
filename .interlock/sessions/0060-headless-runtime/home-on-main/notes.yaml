@@ -120,3 +120,9 @@ entries:
     observed: >-
       Its fixture commit required Git identity variables, and the command failed before the
       overlay assertion; no owner Git configuration was read or changed.
+  - kind: surprise
+    at: '2026-11-08T18:43:00Z'
+    expected: The authored debrief candidate's open entries would parse as strings.
+    observed: >-
+      Unquoted entries containing a colon were parsed as mappings by the preview command; the
+      entries were quoted before filing.
