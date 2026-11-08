@@ -1,0 +1,27 @@
+interlock: notes@v0
+node: line-fits
+entries:
+  - kind: choice
+    at: "2026-11-08T13:58:49Z"
+    chose: Keep the existing argv construction for launches below the limit and change only the overflow reconstruction.
+    because: The acceptance requires the argv path to remain unchanged, while the overlay path is the escape hatch for generated Codex configuration.
+  - kind: choice
+    at: "2026-11-08T13:58:49Z"
+    chose: Move a generated shell environment key into the overlay profile only when neither the trusted project config nor runtime selectors set that key.
+    because: A profile is below project and command-line layers, so conflicting keys must retain the generated command-line override to preserve the effective value.
+  - kind: choice
+    at: "2026-11-08T13:58:49Z"
+    chose: Emit generated MCP marker overrides and shell environment settings under explicit TOML table headers.
+    because: Appending bare dotted assignments after a selected profile table can make them members of that prior table instead of the intended Codex sections.
+  - kind: surprise
+    at: "2026-11-08T13:58:49Z"
+    expected: The focused line-fit test files named by the brief would already be present in this branch.
+    observed: The worktree contains the existing marker overflow suites but not lineFits.test.ts or lineFitsRealCodex.test.ts, so the implementation must add coverage for the acceptance cases.
+  - kind: surprise
+    at: "2026-11-08T14:05:20Z"
+    expected: A real Codex MCP child would inherit the shell_environment_policy.set values moved into the overlay profile.
+    observed: The real Codex MCP child received the three runner markers, while the shell policy values are for Codex shell execution and were absent from the MCP child environment.
+  - kind: surprise
+    at: "2026-11-08T14:07:00Z"
+    expected: The foreground typecheck command could be polled by matching its process name.
+    observed: The polling shell matched its own command text, so it was stopped after the typecheck log showed every workspace package completed successfully.
