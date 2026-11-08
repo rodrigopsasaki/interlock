@@ -4,7 +4,7 @@ node: arcs-v1
 role: implementer
 graph_base_sha: 1d4790cbb8a3cf7a2b3e5ee3544a696cf517519b
 session_start_sha: 058dd4dcc474e980122bd42dd8522708a2725bcd
-head_sha: 719809d6e3ee7ca5bb448fbd0ea94413548216ff
+head_sha: 24bdd5a484394530bd4e68ac4d37684fc3295117
 derivation:
   kind: agent
   runtime: codex
@@ -46,27 +46,32 @@ decisions:
     because: The repository now has an explicit identity and the historical asks are deliberately references to words held elsewhere.
     hunks: [.interlock/arcs.yaml]
   - id: c6
-    what: Record the implementation choices and the migration serialization surprise in the session notes.
+    what: Record the implementation choices, migration serialization surprise, and fresh-checkout proof in the session notes.
     rests_on: [brief:Deliverable]
-    because: The session artifact keeps the path back from implementation compression to the choices and observed behavior.
+    because: The session artifact keeps the path back from implementation compression to the choices, observed failures, and verified correction.
     hunks: [.interlock/sessions/0053-graph-arc/arcs-v1/notes.yaml]
+  - id: c7
+    what: Create each migration test fixture beneath the operating system temporary directory and retain afterEach cleanup.
+    rests_on: [brief:Acceptance]
+    because: A fresh checkout cannot assume the ignored packages/cli/test/arcs/.runs parent exists, while per-test cleanup still removes every fixture after the test.
+    hunks: [packages/cli/test/arcs/migrate.test.ts]
 gates_run_by_agent:
   - id: typecheck
     result: pass
   - id: lint
     result: pass
-    note: Biome exited zero; it reported two pre-existing informational diagnostics in packages/runner/test/runnerCommits.test.ts.
+    note: Biome exited zero; it reported two pre-existing diagnostics in packages/runner/test/runnerCommits.test.ts.
   - id: comments
     result: pass
   - id: test
-    result: fail
-    note: The full workspace gate reached the runner suite but four machineProvider tests failed because the launch-local Codex home did not expose its configured stdio servers; the focused arcs proofs passed.
+    result: pass
+    note: The clean-state workspace suite passed all 8 package test projects; packages/cli passed 50 files and 460 tests.
   - id: arcs-v1-proof
     result: pass
     note: "packages/schemas/test/arcs.test.ts: 7 passed."
   - id: arc-resolver-proof
     result: pass
-    note: "packages/cli/test/arcs/: 6 passed."
+    note: "packages/cli/test/arcs/: 6 passed, including all 3 migration tests from a clean checkout."
 open:
-  - The repository-wide pnpm test gate remains unresolved in this environment because the launch-local Codex runtime lacks configured stdio servers for runner machineProvider tests; the arcs-specific proofs are green.
   - The following graph node, arc-required, must wire admission resolution into new-work doors; this node intentionally ships the registry, reader, resolver, and migration seam only.
+  - The full runner suite recreated a generated link-based Codex home under the session directory during testing; it was removed before handoff and no generated home is part of the source or final session artifacts.
