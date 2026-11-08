@@ -466,6 +466,7 @@ scope:
   - .interlock/sessions/0060-headless-runtime/exec-runtime/revisions/809578e35464737611e13f2ab6f2d6e8f88ed0bca9a0958b53063bda79261f02.yaml
   - .interlock/sessions/0060-headless-runtime/gates-run-on-engines-node/brief.md
   - .interlock/sessions/0060-headless-runtime/herdr-gone/brief.md
+  - .interlock/sessions/0060-headless-runtime/marker-configured-servers-only/brief.md
   - .interlock/sessions/0060-headless-runtime/plan-reviews-are-sessions/brief.md
   - .interlock/sessions/0060-headless-runtime/runner-marker/brief.md
   - .interlock/sessions/0060-headless-runtime/runner-marker/debrief-candidate-2.yaml
@@ -1170,7 +1171,7 @@ walk:
   kind: none
   because: the substrate address is none, so there is nothing to ask
 graph_base_sha: fe93a1711b8bb53e6149ee199a62349e2afb7edc
-session: d2027535-38c3-4a97-9812-6ed4b85185a0
+session: a372a155-715d-41f1-8d99-7032f0222862
 ---
 
 # Brief · node `watch-paths-precise-fixed` · graph `0060-headless-runtime`
