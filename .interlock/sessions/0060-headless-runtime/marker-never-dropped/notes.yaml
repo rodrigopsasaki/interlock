@@ -41,3 +41,11 @@ entries:
     at: "2026-11-08T12:03:00Z"
     expected: The new source and focused tests would satisfy the repository formatter on the first check.
     observed: Biome required import ordering and line wrapping, and suggested an optional-chain fix; the formatter corrected the mechanical layout and the unsafe suggestion was applied explicitly.
+  - kind: surprise
+    at: "2026-11-08T12:08:00Z"
+    expected: The root lint gate would report only the known unrelated runner-commit fixture violations.
+    observed: It also reported two inherited marker fixture formatting issues from the dependency implementation; those two files were corrected, while the three unrelated runnerCommits.test.ts findings remain unchanged.
+  - kind: choice
+    at: "2026-11-08T12:08:01Z"
+    chose: Fix only the inherited marker fixture formatting and leave runnerCommits.test.ts unchanged.
+    because: The marker fixtures are part of this node's proof surface, while changing an unrelated pre-existing fixture would broaden the diff without supporting marker delivery.

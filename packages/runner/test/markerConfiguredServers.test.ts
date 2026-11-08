@@ -3,8 +3,8 @@ import { join } from "node:path";
 import { isOk, ok } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
 import { configuredCodexMcpServers } from "../src/codex/config.ts";
-import { prepareLaunch } from "../src/sessionDrive.ts";
 import type { ResolvedRuntime } from "../src/runtimeCatalogue.ts";
+import { prepareLaunch } from "../src/sessionDrive.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -82,14 +82,11 @@ describe("configured Codex marker servers", () => {
     directory = root;
     const home = join(root, "codex-home");
     mkdirSync(home);
-    writeFileSync(join(home, "config.toml"), "[mcp_servers.root]\ncommand = \"root\"\n");
-    writeFileSync(
-      join(home, "fast.config.toml"),
-      "[mcp_servers.profiled]\ncommand = \"profiled\"\n",
+    writeFileSync(join(home, "config.toml"), '[mcp_servers.root]\ncommand = "root"\n');
+    writeFileSync(join(home, "fast.config.toml"), '[mcp_servers.profiled]\ncommand = "profiled"\n');
+    expect(configuredCodexMcpServers(["--profile", "fast"], { CODEX_HOME: home })).toEqual(
+      ok(["root", "profiled"]),
     );
-    expect(
-      configuredCodexMcpServers(["--profile", "fast"], { CODEX_HOME: home }),
-    ).toEqual(ok(["root", "profiled"]));
   });
 
   it("keeps a long launch line below the terminal limit by using inherited marker environment", () => {
@@ -100,7 +97,7 @@ describe("configured Codex marker servers", () => {
     const names = Array.from({ length: 12 }, (_, index) => `server_${index}_${"x".repeat(48)}`);
     writeFileSync(
       join(home, "config.toml"),
-      names.map((name) => `[mcp_servers.${name}]\ncommand = \"${name}\"\n`).join("\n"),
+      names.map((name) => `[mcp_servers.${name}]\ncommand = "${name}"\n`).join("\n"),
     );
     const launch = prepareLaunch(
       runtime(),
