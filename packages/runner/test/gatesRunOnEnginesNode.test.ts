@@ -54,14 +54,17 @@ function fixture(
     ),
   );
   const node = join(bin, "node");
-  writeFileSync(node, `#!/bin/sh\nprintf '%s\\n' '${nodeVersion}'\n`);
+  writeFileSync(node, ["#!/bin/sh", "printf '%s\\n' \"$FIXTURE_NODE_VERSION\"", ""].join("\n"));
   chmodSync(node, 0o755);
   const proof = join(bin, "proof");
   writeFileSync(proof, "#!/bin/sh\nprintf 'proof-ran\\n'\n");
   chmodSync(proof, 0o755);
   const setupMarker = join(root, "setup-ran");
   const setup = join(bin, "setup");
-  writeFileSync(setup, `#!/bin/sh\nprintf 'setup-ran\\n' > '${setupMarker}'\n`);
+  writeFileSync(
+    setup,
+    ["#!/bin/sh", "printf 'setup-ran\\n' > \"$FIXTURE_SETUP_MARKER\"", ""].join("\n"),
+  );
   chmodSync(setup, 0o755);
   gitInitFixtureWithContent(root);
   return {
@@ -69,6 +72,8 @@ function fixture(
     env: {
       ...process.env,
       PATH: [bin, process.env["PATH"] ?? ""].join(delimiter),
+      FIXTURE_NODE_VERSION: nodeVersion,
+      FIXTURE_SETUP_MARKER: setupMarker,
       MISE_STATE_DIR: miseState,
     },
     proof,
