@@ -1,4 +1,4 @@
-import type { Gate } from "ledger";
+import { assessReceipt, type Gate } from "ledger";
 import { type ReceiptSummary, summarizeReceipt } from "./receiptSummary.ts";
 
 export type PositionGateState =
@@ -28,14 +28,27 @@ export interface PositionGate {
 }
 
 export function positionGate(id: string, kind: string, current: Gate): PositionGate {
-  return { id, kind, ...gateFacts(current) };
+  return { id, kind, ...gateFacts(kind, current) };
 }
 
-function gateFacts(current: Gate): Omit<PositionGate, "id" | "kind"> {
+function gateFacts(kind: string, current: Gate): Omit<PositionGate, "id" | "kind"> {
   switch (current.kind) {
     case "pending":
       return { state: { kind: "pending" } };
     case "satisfied":
+      if (kind === "command") {
+        const assessment = assessReceipt(current.receipt);
+        if (assessment.kind === "failed") {
+          return {
+            state: {
+              kind: "blocked",
+              evidence: `receipt ${current.receipt.id}`,
+              because: `recorded proof does not meet its criterion: ${assessment.because}`,
+            },
+            receipt: summarizeReceipt(current.receipt),
+          };
+        }
+      }
       return {
         state: { kind: "satisfied" },
         receipt: summarizeReceipt(current.receipt),

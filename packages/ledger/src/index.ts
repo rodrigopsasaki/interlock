@@ -120,9 +120,20 @@ export {
   isInterrupted,
   leaseIsLive,
 } from "./projection.ts";
-export type { Duration, Receipt, ScopeEntry, ScopeInput, ScopeRefusal, Stale } from "./receipt.ts";
+export type {
+  Duration,
+  Receipt,
+  ReceiptRunAssessment,
+  ScopeEntry,
+  ScopeInput,
+  ScopeRefusal,
+  Stale,
+} from "./receipt.ts";
 export {
+  assessReceipt,
+  COMMAND_RECEIPT_ID_VERSION,
   checkStale,
+  commandReceiptId,
   createReceipt,
   duration,
   explainGateIdNul,

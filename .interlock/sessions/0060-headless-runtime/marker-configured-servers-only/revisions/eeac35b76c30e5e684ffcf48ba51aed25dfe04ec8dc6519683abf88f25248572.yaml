@@ -1,0 +1,88 @@
+interlock: debrief@v2
+graph: 0060-headless-runtime
+node: marker-configured-servers-only
+role: implementer
+graph_base_sha: 11159cca1a8bbd030108efddaa9a9cb207364806
+session_start_sha: 976d99df43a411f2c3ce1357a7e877fb9ced0330
+head_sha: 112136de7d94827cb9cf8ddb772fcc0774d2ada8
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: configured-codex-tables
+    what: Read the effective Codex MCP configuration from CODEX_HOME/config.toml, the selected profile overlay, and legacy profile tables, then allow marker overrides only for configured stdio tables that the Codex list reports as stdio.
+    because: The Codex list includes built-in and plugin-provided names without mcp_servers tables; overriding those names creates invalid bare tables and can reject the whole launch.
+    rests_on:
+      - ".interlock/graphs/0060-headless-runtime.yaml (Acceptance: marker-configured-servers-only)"
+      - packages/runner/src/codex/config.ts:70-167
+      - packages/runner/src/sessionDrive.ts:159-176
+    hunks:
+      - packages/runner/src/codex/config.ts:70-167
+      - packages/runner/src/sessionDrive.ts:159-176
+      - packages/runner/test/markerConfiguredServers.test.ts:49-90
+  - id: profile-and-transport-resolution
+    what: Preserve profile selection while resolving command versus url transport and merging profile values over base values; a configured HTTP entry therefore cannot receive a stdio marker override.
+    because: The launched Codex process may read a profile-specific config file, and transport must be decided from the table Codex will actually use rather than from the name-only list.
+    rests_on:
+      - ".interlock/graphs/0060-headless-runtime.yaml (Acceptance: configured stdio servers and profile overrides)"
+      - packages/runner/src/codex/config.ts:75-167
+    hunks:
+      - packages/runner/src/codex/config.ts:75-167
+      - packages/runner/test/markerConfiguredServers.test.ts:80-90
+  - id: bounded-marker-launch
+    what: Keep per-server Codex marker overrides in argv while the complete launch line remains below 1024 bytes; on overflow, omit only those generated mcp_servers overrides and retain the shell environment policy and inherited marker environment.
+    because: The terminal has a canonical 1024-byte line limit, while the runner already passes the marker environment to both pane and exec children, so the MCP child can inherit the marker without an oversized launch line.
+    rests_on:
+      - ".interlock/graphs/0060-headless-runtime.yaml (Acceptance: launch line limit and marker delivery)"
+      - packages/runner/src/sessionDrive.ts:179-193
+    hunks:
+      - packages/runner/src/sessionDrive.ts:179-193
+      - packages/runner/test/markerConfiguredServers.test.ts:92-118
+  - id: codex-proof-fixtures
+    what: Add a names-only real Codex MCP list fixture, a config fixture containing only dialeto and hypha, profile and long-line tests, and a real Codex mcp list launch assertion for all three marker values.
+    because: The prior fake list omitted built-ins and could not reproduce the invalid override; the proof must show configured names survive while codex_app, computer-use, cua_repl and node_repl remain untouched.
+    rests_on:
+      - packages/runner/test/fixtures/codex/real-mcp-list.json:1-35
+      - packages/runner/test/fixtures/codex/config.toml:1-5
+      - packages/runner/test/realCodexMarkerLaunch.test.ts:39-80
+    hunks:
+      - packages/runner/test/fixtures/codex/real-mcp-list.json:1-35
+      - packages/runner/test/fixtures/codex/config.toml:1-5
+      - packages/runner/test/realCodexMarkerLaunch.test.ts:39-80
+      - packages/runner/test/runnerMarker.test.ts:72-149
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: All eight workspace TypeScript projects passed on Node v24.14.0 with pnpm v10.13.1.
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: Biome exited 0; it reported one pre-existing warning and one info in packages/runner/test/runnerCommits.test.ts outside this node's diff.
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+    note: packages/*/src reported no comments.
+  - id: test
+    result: pass
+    invocation: pnpm test
+    note: All workspace test suites passed, including ledger 174, debrief 98, verifier 62, substrate 91, face 186, runner 572, and cli 453 tests; runner worktree-maintenance fixtures emitted non-failing Git permission diagnostics.
+  - id: marker-configured-servers-proof
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/runnerMarker.test.ts test/markerConfiguredServers.test.ts --passWithNoTests=false
+    note: 2 test files and 10 tests passed.
+  - id: real-codex-launch
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/realCodexMarkerLaunch.test.ts --passWithNoTests=false
+    note: 1 test passed using the installed Codex CLI; codex mcp list exited 0 and reported all three marker values on configured dialeto.
+  - id: runner-suite
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
+    note: 48 test files and 572 tests passed.
+  - id: marker-configured-types
+    result: pass
+    invocation: pnpm typecheck
+    note: The marker implementation and all workspace packages passed strict TypeScript checking.
+open: []
