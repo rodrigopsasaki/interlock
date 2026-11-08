@@ -75,3 +75,18 @@ entries:
       The first standalone gate invocation failed before the runner tests could launch because
       CODEX_HOME pointed at a deliberately isolated directory that had not yet been created;
       the command did not inspect the owner's home.
+  - kind: choice
+    at: '2026-11-08T18:18:00Z'
+    chose: Repair only this worktree's ignored pnpm dependency links with the pinned offline
+      install before retrying the runner gate.
+    because: >-
+      The gate's worker process could not resolve the repository-local tinypool entry point;
+      restoring ignored dependencies is within this worktree and does not copy or inspect any
+      owner home or external repository.
+  - kind: surprise
+    at: '2026-11-08T18:18:00Z'
+    expected: The runner suite would either pass or report only behavioral failures after its
+      isolated homes were created.
+    observed: >-
+      It reported a pre-existing machine-provider profile assertion and then failed to start a
+      Vitest worker because node_modules/.pnpm/tinypool@1.1.1 had no package contents.
