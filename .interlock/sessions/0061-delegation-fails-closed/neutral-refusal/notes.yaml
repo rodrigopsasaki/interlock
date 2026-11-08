@@ -1,0 +1,31 @@
+interlock: notes@v0
+node: neutral-refusal
+entries:
+  - kind: choice
+    at: "2026-11-08T07:36:49Z"
+    chose: Replace the four owner-authorship pronouns in verifyCitation with the configured owner's name and add the named neutral-refusal proof file.
+    because: The acceptance scopes the behavior to those four refusals and requires each refusal to name a non-default configured owner without gendered pronouns; the existing function already receives the owner and the focused test can exercise each branch directly.
+  - kind: surprise
+    at: "2026-11-08T07:37:00Z"
+    expected: The focused test command would execute and write its result to the package test runs directory.
+    observed: zsh rejected the temporary variable name status as read-only before Vitest started; no test process was launched, and the command was retried with a different variable name.
+  - kind: surprise
+    at: "2026-11-08T07:38:00Z"
+    expected: The comment fixture's minimal local configuration would load and reach the injected Git host.
+    observed: The first focused run put worktree_root under runtime, so local configuration refused before the comment branch; the fixture was corrected to match the existing top-level field.
+  - kind: surprise
+    at: "2026-11-08T07:39:00Z"
+    expected: Moving worktree_root to the top level would make the fixture valid YAML for the local configuration reader.
+    observed: The following lease fields remained indented under the runtime mapping, so YAML rejected the fixture as a nested compact mapping; the fields were aligned with the existing fixture shape.
+  - kind: surprise
+    at: "2026-11-08T07:40:00Z"
+    expected: The focused Biome check would accept the new test formatting.
+    observed: Biome requested one single-line call and one expanded JSON fixture; only those mechanical test-format changes were applied.
+  - kind: surprise
+    at: "2026-11-08T07:41:00Z"
+    expected: The standing lint gate would be clean after the focused files passed Biome.
+    observed: The gate exited successfully but reported two existing warnings in packages/runner/test/runnerCommits.test.ts, outside this node's diff; no unrelated file was changed.
+  - kind: surprise
+    at: "2026-11-08T07:41:01Z"
+    expected: mise exec would provide the pinned Node 24.14.0 toolchain.
+    observed: The gate commands reported Node 26.13.0 with pnpm 10.13.1 and an unsupported-engine warning; the checks still completed successfully.

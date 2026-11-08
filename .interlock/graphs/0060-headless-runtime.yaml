@@ -410,6 +410,10 @@ read: >
   file entry watches nothing as landed. watch-paths-precise fixes both; after it lands, the machine's local.yaml
   lists that folder's config.json and runtime and machine config files by name. It touches scopeGuard.ts and
   localConfig.ts only, so it builds without waiting for exec-runtime.
+
+  Tests read fixtures (added 2026-11-08). Two nodes were held on the standing test gate because show.test.ts read
+  the main checkout's real ledger through a worktree's .interlock. tests-read-fixtures gives every such test its
+  own .interlock and adds a guard that throws when a test resolves this repository's own; it has no dependency.
 gates:
   - id: approved
     kind: human
@@ -495,6 +499,46 @@ nodes:
         run: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
         expect_output: 'Tests +[1-9][0-9]* passed'
       - id: watch-paths-types
+        kind: command
+        run: pnpm typecheck
+
+  - id: tests-read-fixtures
+    role: implementer
+    depends_on: []
+    acceptance: |
+      No test reads or writes this repository's own .interlock: not the main checkout's ledger or sessions, not a
+      worktree's. Today a fixture with no .interlock of its own lets findRepoRoot (packages/face/src/root.ts:5-13)
+      walk up past it to the worktree's .interlock, and sharedJournalDirectory (root.ts:28-31) then resolves the
+      git common directory to the main checkout's real ledger. packages/cli/test/session/show.test.ts did exactly
+      that: two of its cases read the owner's live journal and failed on any branch older than its newest shape
+      tag ("line 5182 has shape tag "event@v11", which this build does not recognize"), holding cite-stays-consumed
+      and exec-runtime on the standing test gate. On main they pass only because main can parse that journal.
+      - Every test fixture that runs a command or opens a ledger by cwd carries its own .interlock directory and its
+        own git repository, so the lookup stops inside the fixture. show.test.ts is fixed this way, and so is every
+        other test the guard below finds.
+      - The guard. The vitest configs of every package with tests that resolve a repository root
+        (packages/cli/vitest.config.ts, packages/runner/vitest.config.ts, and any other the implementer finds) set
+        INTERLOCK_TEST_FORBIDDEN_ROOT to this repository's main checkout root, resolved from the git common
+        directory. While it is set, findRepoRoot and sharedJournalDirectory refuse a result inside that root's
+        .interlock or a worktree under it, throwing an error that names the test's cwd and the path it reached. The
+        variable is read once where it is used; outside tests nothing changes.
+      - A test in packages/face/test/root.test.ts proves the guard: with the variable set to a fixture main
+        checkout that has a linked worktree, a lookup from a directory with no .interlock under the worktree throws
+        naming the path, and a lookup from a fixture with its own .interlock returns the fixture.
+      - The whole suite (pnpm test) passes with the guard on, on a branch whose main checkout ledger holds a line
+        with a shape tag the build does not know, which the test sets up in a fixture main checkout, not the real
+        one.
+      Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
+    gates:
+      - id: tests-read-fixtures-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter face exec vitest run test/root.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: session-show-tests
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/session/show.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: tests-read-fixtures-types
         kind: command
         run: pnpm typecheck
 
