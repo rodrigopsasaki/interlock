@@ -1077,8 +1077,7 @@ transcript@v0, one file per phase at <run dir>/transcript.jsonl, one JSON object
 > [--phase <phaseId>] --json [--follow]` prints transcript@v0 lines with the read's completion and drain rules;
 > `interlock sessions stop <id> --by <who> --because <why>` ends the running phase through the same outbox kill
 > as the timeout, reason "stopped by <who>"; with --attempt it ends the whole attempt as the read's Steering
-> says (no continuation, commit or debrief phase; reason "attempt stopped by <who>"; lease released); with
-> --release-obligation it releases an anchor-lost cleanup obligation as the person's override. The control
+> says (no continuation, commit or debrief phase; reason "attempt stopped by <who>"; lease released). The control
 > secret never appears in any printed output. `interlock machine drain --by <who> --because <why>` is the
 > verified pane drain herdr-gone's cutover names: through the existing pane adapter and closeMachinePane
 > (packages/runner/src/machineOutbox.ts:174) it persists a close intent for every unresolved pane-era hold,
@@ -1097,8 +1096,12 @@ transcript@v0, one file per phase at <run dir>/transcript.jsonl, one JSON object
 >   appended after it started, and lines written just before the terminal state, then exits 0;
 > - stop racing a natural exit, and two concurrent stops, leave one terminal transition and refuse the others;
 > - stop kills a fixture child's group and the record reads killed, "stopped by <who>";
-> - a reader polling the record while a writer publishes and prunes many generations never reads a partial
->   record and always reads the highest published one, listing again when a pruned file is gone;
+> - a reader polling the record while a writer publishes and compacts many generations never reads a partial
+>   record or a tombstone and always reads the highest published one;
+> - the pruning interleaving cannot recur: writer A reads generation n and is paused by a fixture seam; B
+>   publishes n+1, n+2 and n+3 and compacts n+1; A's link of n+1 fails because the name is still taken, A
+>   rereads n+3 and its stop either publishes n+4 or is refused as already ended; no published generation
+>   name ever disappears;
 > - the lock-steal interleaving cannot recur: writers A and B both read generation n; A is paused by a fixture
 >   seam between its read and its link while B publishes n+1; A's link of n+1 fails, A rereads n+1 and its
 >   stop either publishes n+2 or is refused as already ended; exactly one document ever exists at each

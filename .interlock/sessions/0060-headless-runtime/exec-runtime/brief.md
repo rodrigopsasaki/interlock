@@ -1088,10 +1088,13 @@ transcript@v0, one file per phase at <run dir>/transcript.jsonl, one JSON object
 > placeholders, release carrying its outcome, and the refusal of an exec phase under a provider without bind or
 > with {pid} or {pane} in admit. Worktree setup (worktreeSetup.ts:86), gate commands (gateJudge.ts:133), and
 > through them `interlock judge` and backfill, the machine provider's commands (machineProvider.ts:105) and
-> every git invocation outside the read-only allowlist (worktree.ts:47, including the signed commit at
+> every git invocation (worktree.ts:47, including status at worktree.ts:102 and the signed commit at
 > worktree.ts:150) run through one owned-command function under the same launcher and group rules, with
-> command anchors under <git-common-dir>/interlock/runs/commands/; read-only git goes through one module that
-> accepts only the allowlisted subcommands. Admission refuses only on the read's orphans and obligations.
+> command anchors under <git-common-dir>/interlock/runs/commands/;
+> every git invocation, read-only ones included, goes through the owned git executor, which the verifier's
+> and the face's git functions take as a required parameter. The control socket lives at the read's short
+> private path. Admission refuses only on the read's orphans and obligations, and `interlock admission
+> release` releases any of them as the read says.
 > Tests in packages/runner/test/execRuntime.test.ts with fixture executables (small node scripts under
 > test/fixtures; no real agent program) and a fixture provider and process reader:
 > - a child writing to both streams and exiting 0 is done only after its group is gone; its transcript lines
@@ -1139,7 +1142,16 @@ transcript@v0, one file per phase at <run dir>/transcript.jsonl, one JSON object
 >   the runner", the obligation lists both the sampled member and the unsampled child, admission is refused
 >   naming them, and it passes only after both exit and the pgid answers ESRCH; the same after the runner
 >   also dies; a person's stop then signals each listed member whose identity verifies and records the act
->   as theirs; a person's --release-obligation lets admission pass and records the listing unresolved;
+>   as theirs; a person's `interlock admission release` of the obligation lets admission pass and records the
+>   listing unresolved;
+> - releasing every kind of hold: a launcher kept stopped (SIGSTOP) before its anchor, never continued, and a
+>   command anchor whose runner died with a sleeper alive: `interlock admission release` on the token and on
+>   "command/<id>" each signal nothing (both processes still alive and the launcher still stopped afterwards),
+>   log release with outcome "override" in the fixture provider for the token, record an override by that
+>   person with each process listed and liveness unresolved, and let admission pass;
+> - a short socket path: a repository root nested to make <run dir> over 200 bytes runs a phase whose anchor
+>   answers its socket; a socket_dir that is a link, or is group-readable, is refused, and one whose socket
+>   path would exceed 100 bytes is refused at load;
 > - a runner killed while its program runs: the next runner start verifies the anchor, ends the orphaned
 >   group through its socket, confirms it gone, marks the tail lost, records the end, and only then leases the
 >   node again;
@@ -1151,9 +1163,12 @@ transcript@v0, one file per phase at <run dir>/transcript.jsonl, one JSON object
 >   signed commit whose fixture pre-commit hook forks a sleeper, and one whose fixture signing program (set as
 >   the worktree's signing program) forks a sleeper: after success, after failure, and after the runner dies
 >   mid-command, each sleeper's group is confirmed empty (on the next start for the last) before admission
->   passes again; a static check finds every child_process import under packages/runner/src in the launcher,
->   the owned-command function or the read-only git module, and that module refuses a subcommand outside its
->   allowlist;
+>   passes again; the same for git helpers: a fixture file-system monitor hook (core.fsmonitor) that forks a
+>   sleeper when the runner reads status, a fixture textconv helper that forks one when the runner reads a
+>   diff, and a fixture clean filter that forks one on status, each sleeper's group confirmed empty; a static
+>   check finds every child_process import under packages/runner/src in the launcher or the owned-command
+>   function, and none in packages/verifier/src/git.ts or packages/face/src/root.ts outside the direct
+>   executor the cli passes;
 > - a two-phase attempt: the work phase leaves code uncommitted, the runner commits it, the debrief phase files a
 >   valid debrief at the new head, and the node is judged; the debrief phase's parentId names the work phase;
 > - an empty-code attempt under runner custody: the work phase changes nothing and leaves no commits.yaml, the

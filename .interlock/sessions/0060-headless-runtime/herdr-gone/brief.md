@@ -1013,7 +1013,8 @@ edit it.
 > confirmed close, today's pane guarantee and no more). The person's override, when the prior release cannot run:
 > `interlock machine release <token> --by <who> --because <why>`, a person's act (I10, never gated) that
 > persists a release intent with the hold's own identity, dispatches the hold's retained release argv through
-> the outbox, and records an override by that person with the pane's liveness unresolved: this release
+> the outbox with outcome "override" where its argv names {outcome}, and records an override by that person
+> with the pane's liveness unresolved (it is `interlock admission release` on that token): this release
 > observes neither the pane nor its descendants, so it never records the pane closed, and the position keeps
 > naming the hold as released by override, liveness unverified. Admission passes once every hold is drained or
 > overridden. Holds already closed and released need nothing. Every read and a person's stop stay available

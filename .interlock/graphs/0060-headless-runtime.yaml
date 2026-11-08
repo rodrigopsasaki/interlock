@@ -24,7 +24,10 @@ read: >
   launchers are found by a launch nonce, go is an outbox effect with the launcher's start evidence, the machine
   provider's wire contract is written out, git and provider commands run owned, steering words outlive a dead
   attempt, a whole-attempt stop, a verified pane drain beside the person's override, three distinct launch
-  failures, admission refused only by orphans and obligations, and session and phase named apart.
+  failures, admission refused only by orphans and obligations, and session and phase named apart. A fourth vet
+  (reject, five findings) is folded without another round, by the owner's coordinator's ruling: record generations
+  are never pruned, every git call the runner makes runs owned, the control socket lives at a short private path,
+  every admission hold has one person's release verb, and a companion app's close is the whole-attempt stop.
 
   Today the runner opens a herdr pane and starts the agent in it (packages/runner/src/herdr/adapter.ts, behind the
   Runtime interface in packages/runner/src/runtime.ts; a tmux stub in packages/runner/src/tmux/adapter.ts), types
@@ -88,8 +91,9 @@ read: >
       {boot} (the machine's boot identity): exit 0 binds; any other exit refuses the bind. Sent at most once per
       token.
     release, with {token}, {outcome} and {pgid}: {outcome} is "never-started" (no launcher process for the token
-      exists or ever started a program, {pgid} empty) or "group-empty" (the token's group was confirmed empty,
-      {pgid} its id). Release is the runner's report of the spawn's outcome; it is idempotent per token, valid
+      exists or ever started a program, {pgid} empty), "group-empty" (the token's group was confirmed empty,
+      {pgid} its id) or "override" (a person released the token's admission hold, `interlock admission release`
+      below, without the runner confirming anything; {pgid} the group's id if one is known, else empty). Release is the runner's report of the spawn's outcome; it is idempotent per token, valid
       for a bound or an unbound token, and sent again with the same arguments when its acknowledgment is lost.
   A provider never frees an unbound token by age alone. The fixture provider in the tests is a small script that
   appends each call's argv to a file, so every test asserts the exact sequence (admit, bind, release with its
@@ -112,8 +116,15 @@ read: >
   writes its exit code or signal to <run dir>/exit.json and stays alive as the group's anchor until the runner
   ends it: it ignores TERM and HUP, and if the control pipe ends after go (the runner died) it keeps waiting, so
   the anchor survives for the next runner.
-  The anchor's control socket. The pipe cannot be reconnected by a later runner, so the anchor also listens on
-  <run dir>/control.sock, a socket created mode 0600 in the runner's own run directory; every request carries the
+  The anchor's control socket. The pipe cannot be reconnected by a later runner, so the anchor also listens on a
+  Unix socket at a short private path, independent of the repository's depth: <socket dir>/<16 hex>.sock, where
+  <socket dir> is /tmp/interlock-<uid> (local.yaml socket_dir may name another), created mode 0700 and refused
+  unless it is a real directory (not a link) owned by the runner's user with no group or other access, and the
+  name is a random value persisted in the record before the spawn. That keeps the path under 40 bytes, well
+  inside the 103-byte limit of macOS and 107 of Linux for a socket path, whatever the root; a socket_dir whose
+  socket path would exceed 100 bytes is refused at load with one line. The socket is created mode 0600 and
+  removed with the anchor's end; a stale one left by a dead anchor is removed by the recovering runner once that
+  anchor is confirmed gone. Every request carries the
   phase's control secret, a random value persisted in the record before the spawn and handed to the launcher on
   its control pipe, never on its argv. Requests: signal <TERM|KILL> (the anchor calls kill on its own process
   group from inside it, so the group cannot have been reused when the signal is sent: its sender is a live
@@ -162,9 +173,9 @@ read: >
   rechecked on every heartbeat; it clears itself only when kill(-pgid, 0) answers ESRCH. A person's stop of that
   phase (I10) is the only signal: it sends TERM, then KILL after the grace, to each listed member whose birth
   identity verifies at that moment, records the act as that person's word, and names the residual race it
-  accepts; the obligation still clears only on ESRCH. A person may also release the obligation outright
-  (`interlock sessions stop <id> --release-obligation --by <who> --because <why>`), recorded as an override with
-  the listing unresolved, never as proof of cleanup.
+  accepts; the obligation still clears only on ESRCH. A person may also release the obligation outright with
+  `interlock admission release` (No survivors, below), recorded as an override with the listing unresolved,
+  never as proof of cleanup.
   Ending a group: once exit.json is written (or on a timeout or a stop), the runner verifies the anchor, asks it
   for its members, and if any remain asks it to signal TERM, then, if any still remain after the grace, KILL
   (which ends the anchor with them, in the same kernel call); once none but the anchor remain it asks the anchor
@@ -178,19 +189,22 @@ read: >
   No survivors, by construction. On 2026-11-07 at 03:40 UTC the owner's machine reached 17.6 GB of swap: an agent
   session had run a package test suite with 16 vitest workers, and 10 more workers from an earlier test run in the
   same worktree were still alive with parent pid 1, their pnpm gone and nothing owning them. So every process the
-  runner starts for a node that can run code other than git's own plumbing runs under a launcher in a process
-  group the runner owns, through one owned-command function: the agent's phases; worktree setup
+  runner starts for a node runs under a launcher in a process group the runner owns, through one owned-command
+  function: the agent's phases; worktree setup
   (packages/runner/src/worktreeSetup.ts:86); gate commands (packages/runner/src/gateJudge.ts:133, which also
   serves the standalone `interlock judge`); backfill, which reaches setup and gates through the same two
   functions (packages/runner/src/backfill.ts); the machine provider's commands (machineProvider.ts:105, the
-  owner's own program); and every git invocation that can run a hook or a signer: commit (worktree.ts:150, signed,
-  so its pre-commit and commit-msg hooks and the signing program run), worktree add and checkout (post-checkout),
-  merge, and any other subcommand outside the read-only allowlist. Git's read-only plumbing (status, rev-parse,
-  diff, log, show, ls-files, cat-file, for-each-ref, merge-base) runs no hook and no signer and stays a direct
-  call, through one module that accepts only those subcommands; this is the guarantee's one named narrowing. A
-  daemon git or a signer starts by the machine's configuration (a signing agent, a file-system monitor) starts its
-  own session and is outside the guarantee by the containment rule, as intended for a daemon meant to outlive
-  the command. A command's launcher publishes its anchor under <git-common-dir>/interlock/runs/commands/<command
+  owner's own program); and every git invocation, with no read-only exemption. A signed commit
+  (worktree.ts:150) runs hooks and a signing program, and even status (worktree.ts:102) can run a configured
+  file-system monitor hook or a clean filter, and diff, log and show a textconv or external diff helper, none of
+  which need start its own session. So the runner reaches git only through one git executor built on the
+  owned-command function, and the git functions it calls in other packages (the verifier's
+  packages/verifier/src/git.ts, the face's packages/face/src/root.ts) take that executor as a required parameter;
+  the cli passes a direct executor, since a command a person runs in their own shell is in their process tree,
+  not the runner's. Each owned git call costs one launcher start; that cost is accepted for the guarantee. A
+  daemon git or a signer starts by the machine's configuration (a signing agent, a file-system monitor daemon)
+  starts its own session and is outside the guarantee by the containment rule, as intended for a daemon meant to
+  outlive the command. A command's launcher publishes its anchor under <git-common-dir>/interlock/runs/commands/<command
   id>/, removed only after its group is confirmed empty. The runner ends that group and confirms it empty on
   every exit path: success, failure, timeout, a person's stop and the runner's own death (found on the next
   start, as below).
@@ -198,9 +212,17 @@ read: >
   whose record is terminal or whose owning runner no longer verifies (the record carries the runner's pid, birth
   and boot identity) and whose anchor or a sampled member still verifies; a command anchor with no live runner; an
   anchor-lost cleanup obligation; an unbound token whose launcher is still found by its nonce; or a pane-era hold
-  (herdr-gone). It names each and its live processes, matched by birth identity, never by pid alone, and the
-  refusal ends once each is confirmed gone or released by a person. Healthy phases of live runners never refuse
-  admission: concurrency is the machine provider's limit, not this rule's.
+  (herdr-gone). It names each by its hold id and its live processes, matched by birth identity, never by pid
+  alone, and the refusal ends once each is confirmed gone or released by a person. Healthy phases of live runners
+  never refuse admission: concurrency is the machine provider's limit, not this rule's.
+  One release for every hold. `interlock admission release <hold id> --by <who> --because <why>` is a person's
+  act (I10, never gated) accepting the id of any hold the refusal names: an orphaned group ("<session
+  id>/<phaseId>"), a command anchor ("command/<command id>"), an anchor-lost obligation (its phase's id), an
+  unbound token whose launcher is still found by its nonce (the token), or a pane-era hold (its token;
+  `interlock machine release` is the same act under the pane-era name). It signals nothing; it persists a
+  release intent with the hold's identity, sends the provider release for a token with outcome "override", and
+  records an override by that person with the hold's processes listed and their liveness unresolved, never as
+  proof that anything ended. The listed processes stay visible in the position until each is seen gone.
 
   Asks are seen at once. On 2026-11-07 a limits-setting session sat an hour on one question it had written into its
   notes ("May I create the incremental why-commits ...?"), unseen, until the runner's wait timed out. An agent's ask
@@ -230,8 +252,10 @@ read: >
   refused as already ended. There is no lock, so nothing can be held by a dead writer, nothing is reclaimed, and
   no interleaving lets two writers both publish n; a person's stop never waits on another writer's liveness, only
   retries past concurrent publishes (I10). Readers list record/ and read the highest generation; a temporary file
-  is never read, and one left by a writer that died is removed by the recovering runner. The winner of n may
-  remove generations below n-1, and a reader that meets a removed file lists again. This replaces the
+  is never read, and one left by a writer that died is removed by the recovering runner. A published generation's
+  name is never removed: exclusive creation only protects a name while it exists, so a pruned n+1
+  would let a writer paused since n publish into a name readers have moved past. A generation below n-1 may be
+  compacted by renaming a tombstone over it (the name stays taken), and readers skip tombstones. This replaces the
   lock-and-rename publish of the re-vet (whose reclaim could move a live replacement lock); the temporary write
   and sync still follow packages/face/src/landedCache.ts:214.
 
@@ -392,10 +416,13 @@ nodes:
       placeholders, release carrying its outcome, and the refusal of an exec phase under a provider without bind or
       with {pid} or {pane} in admit. Worktree setup (worktreeSetup.ts:86), gate commands (gateJudge.ts:133), and
       through them `interlock judge` and backfill, the machine provider's commands (machineProvider.ts:105) and
-      every git invocation outside the read-only allowlist (worktree.ts:47, including the signed commit at
+      every git invocation (worktree.ts:47, including status at worktree.ts:102 and the signed commit at
       worktree.ts:150) run through one owned-command function under the same launcher and group rules, with
-      command anchors under <git-common-dir>/interlock/runs/commands/; read-only git goes through one module that
-      accepts only the allowlisted subcommands. Admission refuses only on the read's orphans and obligations.
+      command anchors under <git-common-dir>/interlock/runs/commands/;
+      every git invocation, read-only ones included, goes through the owned git executor, which the verifier's
+      and the face's git functions take as a required parameter. The control socket lives at the read's short
+      private path. Admission refuses only on the read's orphans and obligations, and `interlock admission
+      release` releases any of them as the read says.
       Tests in packages/runner/test/execRuntime.test.ts with fixture executables (small node scripts under
       test/fixtures; no real agent program) and a fixture provider and process reader:
       - a child writing to both streams and exiting 0 is done only after its group is gone; its transcript lines
@@ -443,7 +470,16 @@ nodes:
         the runner", the obligation lists both the sampled member and the unsampled child, admission is refused
         naming them, and it passes only after both exit and the pgid answers ESRCH; the same after the runner
         also dies; a person's stop then signals each listed member whose identity verifies and records the act
-        as theirs; a person's --release-obligation lets admission pass and records the listing unresolved;
+        as theirs; a person's `interlock admission release` of the obligation lets admission pass and records the
+        listing unresolved;
+      - releasing every kind of hold: a launcher kept stopped (SIGSTOP) before its anchor, never continued, and a
+        command anchor whose runner died with a sleeper alive: `interlock admission release` on the token and on
+        "command/<id>" each signal nothing (both processes still alive and the launcher still stopped afterwards),
+        log release with outcome "override" in the fixture provider for the token, record an override by that
+        person with each process listed and liveness unresolved, and let admission pass;
+      - a short socket path: a repository root nested to make <run dir> over 200 bytes runs a phase whose anchor
+        answers its socket; a socket_dir that is a link, or is group-readable, is refused, and one whose socket
+        path would exceed 100 bytes is refused at load;
       - a runner killed while its program runs: the next runner start verifies the anchor, ends the orphaned
         group through its socket, confirms it gone, marks the tail lost, records the end, and only then leases the
         node again;
@@ -455,9 +491,12 @@ nodes:
         signed commit whose fixture pre-commit hook forks a sleeper, and one whose fixture signing program (set as
         the worktree's signing program) forks a sleeper: after success, after failure, and after the runner dies
         mid-command, each sleeper's group is confirmed empty (on the next start for the last) before admission
-        passes again; a static check finds every child_process import under packages/runner/src in the launcher,
-        the owned-command function or the read-only git module, and that module refuses a subcommand outside its
-        allowlist;
+        passes again; the same for git helpers: a fixture file-system monitor hook (core.fsmonitor) that forks a
+        sleeper when the runner reads status, a fixture textconv helper that forks one when the runner reads a
+        diff, and a fixture clean filter that forks one on status, each sleeper's group confirmed empty; a static
+        check finds every child_process import under packages/runner/src in the launcher or the owned-command
+        function, and none in packages/verifier/src/git.ts or packages/face/src/root.ts outside the direct
+        executor the cli passes;
       - a two-phase attempt: the work phase leaves code uncommitted, the runner commits it, the debrief phase files a
         valid debrief at the new head, and the node is judged; the debrief phase's parentId names the work phase;
       - an empty-code attempt under runner custody: the work phase changes nothing and leaves no commits.yaml, the
@@ -500,8 +539,7 @@ nodes:
       [--phase <phaseId>] --json [--follow]` prints transcript@v0 lines with the read's completion and drain rules;
       `interlock sessions stop <id> --by <who> --because <why>` ends the running phase through the same outbox kill
       as the timeout, reason "stopped by <who>"; with --attempt it ends the whole attempt as the read's Steering
-      says (no continuation, commit or debrief phase; reason "attempt stopped by <who>"; lease released); with
-      --release-obligation it releases an anchor-lost cleanup obligation as the person's override. The control
+      says (no continuation, commit or debrief phase; reason "attempt stopped by <who>"; lease released). The control
       secret never appears in any printed output. `interlock machine drain --by <who> --because <why>` is the
       verified pane drain herdr-gone's cutover names: through the existing pane adapter and closeMachinePane
       (packages/runner/src/machineOutbox.ts:174) it persists a close intent for every unresolved pane-era hold,
@@ -520,8 +558,12 @@ nodes:
         appended after it started, and lines written just before the terminal state, then exits 0;
       - stop racing a natural exit, and two concurrent stops, leave one terminal transition and refuse the others;
       - stop kills a fixture child's group and the record reads killed, "stopped by <who>";
-      - a reader polling the record while a writer publishes and prunes many generations never reads a partial
-        record and always reads the highest published one, listing again when a pruned file is gone;
+      - a reader polling the record while a writer publishes and compacts many generations never reads a partial
+        record or a tombstone and always reads the highest published one;
+      - the pruning interleaving cannot recur: writer A reads generation n and is paused by a fixture seam; B
+        publishes n+1, n+2 and n+3 and compacts n+1; A's link of n+1 fails because the name is still taken, A
+        rereads n+3 and its stop either publishes n+4 or is refused as already ended; no published generation
+        name ever disappears;
       - the lock-steal interleaving cannot recur: writers A and B both read generation n; A is paused by a fixture
         seam between its read and its link while B publishes n+1; A's link of n+1 fails, A rereads n+1 and its
         stop either publishes n+2 or is refused as already ended; exactly one document ever exists at each
@@ -614,7 +656,8 @@ nodes:
       confirmed close, today's pane guarantee and no more). The person's override, when the prior release cannot run:
       `interlock machine release <token> --by <who> --because <why>`, a person's act (I10, never gated) that
       persists a release intent with the hold's own identity, dispatches the hold's retained release argv through
-      the outbox, and records an override by that person with the pane's liveness unresolved: this release
+      the outbox with outcome "override" where its argv names {outcome}, and records an override by that person
+      with the pane's liveness unresolved (it is `interlock admission release` on that token): this release
       observes neither the pane nor its descendants, so it never records the pane closed, and the position keeps
       naming the hold as released by override, liveness unverified. Admission passes once every hold is drained or
       overridden. Holds already closed and released need nothing. Every read and a person's stop stay available
