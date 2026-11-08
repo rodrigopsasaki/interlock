@@ -169,7 +169,7 @@ export function runStateFolderCheck(options: StateFolderCheckOptions): number {
     return 2;
   }
   const result = spawnSync(command, options.command.slice(1), {
-    stdio: "inherit",
+    stdio: ["inherit", "inherit", "inherit"],
     cwd: options.repositoryRoot,
     env: { ...process.env },
   });
