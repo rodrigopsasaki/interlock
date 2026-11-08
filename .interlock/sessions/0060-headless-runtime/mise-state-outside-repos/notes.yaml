@@ -217,3 +217,9 @@ entries:
     observed: >-
       Biome required the type import to precede the value import and to use its single-line form;
       the import was corrected before the next gate run.
+  - kind: surprise
+    at: '2026-11-08T21:46:00Z'
+    expected: The root test command wrapper would return after printing the final summaries.
+    observed: >-
+      The first command response returned before its captured log reached the final package summaries;
+      the still-running command completed in the log, which reported all eight workspace suites passing.
