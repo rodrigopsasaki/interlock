@@ -701,6 +701,48 @@ nodes:
         kind: command
         run: pnpm typecheck
 
+  - id: marker-configured-servers-only
+    role: implementer
+    depends_on: [runner-marker]
+    acceptance: |
+      Every codex launch starts again with the runner marker in place. runner-marker (landed in #131, fe93a17) adds
+      -c mcp_servers.<name>.env.INTERLOCK_{SESSION,GRAPH,NODE}="..." for every stdio server `codex mcp list --json`
+      reports. On the owner's Mac that list includes servers codex provides itself (codex_app, computer-use,
+      cua_repl) that have no [mcp_servers.<name>] table in ~/.codex/config.toml; the override creates a bare table
+      holding only env, and codex rejects the whole config: `codex -c 'mcp_servers.codex_app.env.INTERLOCK_SESSION="x"'
+      mcp list` fails with "invalid transport in `mcp_servers.codex_app`", exit 1, while the same override on dialeto
+      exits 0. Every codex launch failed after fe93a17 reached the CLI pin, and the start line had grown to 2390 to
+      2551 bytes, past the pane's 1024-byte canonical line limit. runner-marker's fixture used a fake `codex mcp list`,
+      so the built-in servers never appeared in a test.
+      - The override is added only for servers defined as a table in the codex config the launched agent will read
+        (the CODEX_HOME config.toml, ~/.codex/config.toml by default, including a profile's own overrides), and only
+        when that table is stdio. Built-in or plugin-provided servers get no override and keep working.
+      - The launch never sends a single input line at or over the terminal's canonical limit: the overrides go into
+        argv only while the line stays under it, or they are passed another way (for example a per-launch config file
+        or environment the runtime reads), and the choice is stated in the read of the node's debrief.
+      - Fixture: the real `codex mcp list --json` shape, captured from the owner's machine with names only and no
+        secrets, including codex_app, computer-use, cua_repl, dialeto, hypha and node_repl, against a fixture
+        config.toml defining only dialeto and hypha: overrides appear for dialeto and hypha only.
+      - Gate: a real codex launch, with the marker, runs `codex mcp list` and exits 0, and its dialeto server receives
+        INTERLOCK_SESSION.
+      Every gate and test runs with the repository's pinned pnpm and Node first on PATH. No test is excluded.
+    gates:
+      - id: marker-configured-servers-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/runnerMarker.test.ts test/markerConfiguredServers.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: real-codex-launch
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/realCodexMarkerLaunch.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: runner-suite
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: marker-configured-types
+        kind: command
+        run: pnpm typecheck
+
   - id: exec-runtime
     role: implementer
     depends_on: []
