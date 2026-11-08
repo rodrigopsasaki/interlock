@@ -449,6 +449,7 @@ scope:
   - .interlock/sessions/0059-submodule-receipts/resume-keeps-range/notes.yaml
   - .interlock/sessions/0059-submodule-receipts/resume-keeps-range/revisions/3708d457dd183b86d278497a6e7f53142315a2fecc9c05a7cd4512e37fcf8034.yaml
   - .interlock/sessions/0059-submodule-receipts/resume-keeps-range/revisions/f8052a9f854f5e0b182b7c3d30680fb458bdb9a6d7bb82a840e9cb731ec873f3.yaml
+  - .interlock/sessions/0060-headless-runtime/exec-phase-ends/brief.md
   - .interlock/sessions/0060-headless-runtime/exec-runtime/brief.md
   - .interlock/sessions/0060-headless-runtime/exec-runtime/debrief-candidate-merge.yaml
   - .interlock/sessions/0060-headless-runtime/exec-runtime/debrief-candidate.yaml
@@ -471,6 +472,7 @@ scope:
   - .interlock/sessions/0060-headless-runtime/tests-read-fixtures/debrief-candidate.yaml
   - .interlock/sessions/0060-headless-runtime/tests-read-fixtures/debrief.yaml
   - .interlock/sessions/0060-headless-runtime/tests-read-fixtures/notes.yaml
+  - .interlock/sessions/0060-headless-runtime/watch-paths-precise-fixed/brief.md
   - .interlock/sessions/0060-headless-runtime/watch-paths-precise/brief.md
   - .interlock/sessions/0061-delegation-fails-closed/cite-stays-consumed/brief.md
   - .interlock/sessions/0061-delegation-fails-closed/cite-stays-consumed/debrief-candidate-merged.yaml
@@ -1151,7 +1153,7 @@ walk:
   kind: none
   because: the substrate address is none, so there is nothing to ask
 graph_base_sha: 2f2dd92b914a07de53bb24ef5cc78bac3974816e
-session: edfe4e26-cf76-4807-8082-5ef3180f562c
+session: 9479b544-697a-4808-887f-b7ecda57547d
 ---
 
 # Brief · node `gates-run-on-engines-node` · graph `0060-headless-runtime`
