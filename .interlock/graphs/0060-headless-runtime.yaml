@@ -374,7 +374,22 @@ read: >
   I8: a review keeps its snapshot. I10: a person's stop (of a phase or of a whole attempt) is never gated, and
   neither is a person's release of a pane-era hold or of a cleanup obligation; a release is recorded as that
   person's override, never as proof that anything ended.
-  Order. Built after graph 0059 and graph 0056's machine-provider node; exec-runtime adapts that provider's admit to
+  Writes outside the worktree. On 2026-11-08 two agents typed absolute patch paths that dropped the worktree's
+  .worktrees/<node> segment (one added packages/runner/src/ownedCommand.ts to the main checkout): every shell call
+  ran in the worktree, with no cd and no lookup of the git top level or common directory, the opening prompt and
+  the brief name no main-checkout path, and under the full-access profile the write succeeded silently. The owner
+  ruled that access stays as it is, so the runner checks instead of fences. Node scope-guard: before every agent
+  phase the runner snapshots the repository's main checkout (its tracked changes, with a content hash per changed
+  path, and its untracked files, outside .interlock/ledger and .interlock/sessions) and each folder the machine's
+  owner lists in local.yaml watch_paths (path, size and content hash per file, .git excluded); after the phase it
+  takes the same snapshot and compares. Any difference holds the node, naming the session, the phase and the
+  runtime profile and listing every changed path; the runner never reverts anything, since the change may be the
+  owner's own or another session's, and with phases running at once each phase whose window covers a change is
+  named. The opening prompt says to give every file and patch path relative to the worktree, never absolute.
+  It runs on today's pane runtime (where the phases are the work turn and the debrief prompt of
+  sessionDrive.ts:675) and, after exec-runtime, on every exec phase, whose owned git executor it then uses.
+
+  Order. scope-guard builds first, ahead of exec-runtime's remaining work, and runner-records waits for it. Built after graph 0059 and graph 0056's machine-provider node; exec-runtime adapts that provider's admit to
   exec as described above. Every attempt opens with: run one heavy command at a time, never several in parallel or
   in the background; never clone the repository inside your worktree, use the worktree you were given. Out of
   scope: uninstalling herdr anywhere, touching a pane the runner did not open, and writing the machine's own
@@ -383,6 +398,43 @@ gates:
   - id: approved
     kind: human
 nodes:
+  - id: scope-guard
+    role: implementer
+    depends_on: []
+    acceptance: |
+      Writes outside the worktree are caught, as this graph's read says. Before every agent phase of every attempt
+      (on today's pane runtime, the work turn and the debrief prompt that packages/runner/src/sessionDrive.ts:675
+      sends; once exec-runtime lands, every exec phase), the runner snapshots the repository's main checkout,
+      resolved from the worktree's git common directory: each tracked path with a change, with the sha256 of its
+      content, and each untracked, unignored file, excluding .interlock/ledger and .interlock/sessions; and each
+      folder listed in local.yaml watch_paths (an optional list of absolute paths the machine's owner names; none
+      by default): each file's path, size and sha256, .git excluded. After the phase it takes the same snapshot and
+      compares. Any added, removed or changed path holds the node (outcome held, with a because) naming the
+      session, the phase and the runtime profile, and lists every changed path, relative to its root; a runner
+      line says the same. The runner never reverts, deletes or stages anything it finds. A snapshot that cannot be
+      taken holds the node with that reason rather than passing. packages/runner/src/openingPrompt.ts gains one
+      sentence for every role: "Give every file and patch path relative to this worktree, never absolute."
+      Tests in packages/runner/test/scopeGuard.test.ts, with a fixture repository and a linked worktree and a
+      fixture agent turn:
+      - a phase that writes a new file into the main checkout holds the node, naming session, phase and runtime
+        and listing that path, and the file is still there afterwards;
+      - a phase that edits a tracked file in the main checkout holds the node and lists it, the edit kept;
+      - a phase that writes a file into a folder named in watch_paths holds the node and lists it;
+      - a phase that writes only in its worktree passes, and so does a main checkout that was already dirty
+        before the phase and is unchanged by it;
+      - writes under the main checkout's .interlock/ledger and .interlock/sessions are not counted;
+      - the opening prompt carries the sentence for every role (scout, planner, implementer, tester, reviewer,
+        verifier).
+      Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
+    gates:
+      - id: scope-guard-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/scopeGuard.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: scope-guard-types
+        kind: command
+        run: pnpm typecheck
+
   - id: exec-runtime
     role: implementer
     depends_on: []
@@ -519,7 +571,7 @@ nodes:
 
   - id: runner-records
     role: implementer
-    depends_on: [exec-runtime]
+    depends_on: [exec-runtime, scope-guard]
     acceptance: |
       Each phase's record generation (<run dir>/record/<n>.json) carries its own version tag, "interlock":
       "session@v0", every sessions@v0 field (this graph's read), the anchor's identity, the owning runner's
