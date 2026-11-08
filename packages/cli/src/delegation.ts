@@ -96,7 +96,7 @@ export async function verifyCitation(
   const citation = parseCitation(literal);
   if (citation === undefined) {
     return err(
-      `${by} can ${citeActionWord(action)} for ${owner} only on his own words; this cite is not a known cite.`,
+      `${by} can ${citeActionWord(action)} for ${owner} only on ${owner}'s own words; this cite is not a known cite.`,
     );
   }
   if (citation.kind === "issues" || citation.kind === "pull") {
@@ -112,7 +112,7 @@ export async function verifyCitation(
     if (isErr(verified)) return err(`cannot verify comment cite: ${verified.error}`);
     if (verified.value.author.toLowerCase() !== local.value.ownerLogin.toLowerCase()) {
       return err(
-        `${by} can ${citeActionWord(action)} for ${owner} only on his own words; this cite is not his.`,
+        `${by} can ${citeActionWord(action)} for ${owner} only on ${owner}'s own words; this cite is not ${owner}'s.`,
       );
     }
     return ok({
@@ -149,7 +149,7 @@ export async function verifyCitation(
   }
   if (parsed["verified"] !== true) {
     return err(
-      `${by} can ${citeActionWord(action)} for ${owner} only on his own words; this cite is not his.`,
+      `${by} can ${citeActionWord(action)} for ${owner} only on ${owner}'s own words; this cite is not ${owner}'s.`,
     );
   }
   const author = parsed["author"];
@@ -164,7 +164,7 @@ export async function verifyCitation(
   }
   if (author !== owner) {
     return err(
-      `${by} can ${citeActionWord(action)} for ${owner} only on his own words; this cite is not his.`,
+      `${by} can ${citeActionWord(action)} for ${owner} only on ${owner}'s own words; this cite is not ${owner}'s.`,
     );
   }
   return ok({ cite: citation, key: `${citation.kind}:${citation.id}`, author, words, at });
