@@ -50,3 +50,11 @@ entries:
     at: "2026-11-08T17:40:00Z"
     expected: A temporary HOME would remain a self-contained fixture while the pinned toolchain was already on PATH.
     observed: Invoking mise while that HOME was active populated it with symlinks to owner paths; the scratch HOME and the session-local Codex overlay were removed immediately, and later checks will resolve the pinned toolchain before assigning temporary HOME.
+  - kind: surprise
+    at: "2026-11-08T17:45:00Z"
+    expected: The runner suite's own mise scratch state would be invisible to Vitest collection.
+    observed: Vitest followed a symlink from packages/runner/test/.runs into a protected .Trash path and aborted before collecting the suite.
+  - kind: choice
+    at: "2026-11-08T17:46:00Z"
+    chose: Exclude **/.runs/** from the shared Vitest test discovery configuration.
+    because: test/.runs is the repository-designated scratch area, and excluding it prevents test collection from traversing generated state without excluding any test file or gate.
