@@ -9,3 +9,46 @@ entries:
     because: >-
       The allocator is test-only and must be reusable by runner fixtures, while the two checks are
       command gates that need to run independently of Vitest.
+  - kind: surprise
+    at: '2026-11-08T20:08:20Z'
+    expected: The clean worktree would already contain the ignored runner test scratch directory.
+    observed: >-
+      The first captured typecheck could not open its output file because packages/runner/test/.runs
+      was absent; the directory was created before rerunning the command.
+  - kind: surprise
+    at: '2026-11-08T20:14:14Z'
+    expected: The focused scanner proof would report no escaping links for the repository.
+    observed: >-
+      The test initially scanned packages/runner, so its normal pnpm symlinks appeared to escape;
+      the test was corrected to scan the worktree root. The same run showed active-session exemption
+      needed to include descendants of codex-homes/<graph>/<node>, not only the node directory.
+  - kind: choice
+    at: '2026-11-08T20:16:12Z'
+    chose: >-
+      Give every mise-running fixture a temporary HOME, XDG roots, CODEX_HOME, MISE data/config
+      roots, an empty MISE_CONFIG_FILE, and MISE_AUTO_INSTALL=0.
+    because: >-
+      An isolated MISE_STATE_DIR alone could still let mise read owner configuration or install
+      configured tools into a temporary data tree; the empty config and disabled auto-install keep
+      the fixture bounded while preserving the real mise exec path.
+  - kind: surprise
+    at: '2026-11-08T20:16:12Z'
+    expected: The migrated gate fixtures would finish within their existing Vitest timeout after
+      their tool homes moved to temporary directories.
+    observed: >-
+      Empty temporary mise homes caused automatic tool installation and left timed-out workers
+      holding their temporary state directory. The fixture environment was tightened with an empty
+      config and disabled auto-install, after which the focused runner suites completed and cleanup
+      removed their temporary roots.
+  - kind: surprise
+    at: '2026-11-08T20:16:12Z'
+    expected: The standing lint gate would be clean after formatting this node's files.
+    observed: >-
+      Lint still reports two pre-existing runnerCommits.test.ts findings outside this node's diff;
+      the new files have no remaining lint findings.
+  - kind: surprise
+    at: '2026-11-08T20:16:12Z'
+    expected: A direct root tsc invocation would use each package's TypeScript settings.
+    observed: >-
+      The root tsc invocation is not the repository's typecheck gate and reports the existing
+      package .ts-extension configuration errors; the prescribed pnpm typecheck passed all packages.
