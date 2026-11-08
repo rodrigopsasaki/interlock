@@ -105,7 +105,14 @@ export interface GateJudgeRequest {
   readonly env?: NodeJS.ProcessEnv;
   readonly heavy?: readonly string[];
   readonly narrate: (line: string) => void;
+  readonly authoritativeGraphPath: string;
+  readonly parsedGraphHash: string;
 }
+
+type LegacyGateJudgeRequest = Omit<GateJudgeRequest, "authoritativeGraphPath" | "parsedGraphHash"> & {
+  readonly authoritativeGraphPath?: string;
+  readonly parsedGraphHash?: string;
+};
 
 export function legacyOutputForChunk(chunk: Buffer): string {
   return chunk.toString("utf-8");
@@ -181,8 +188,123 @@ function heldBecause(
     : `${missing.length} gate(s) not satisfied or waived: ${missing.join(", ")}; ${awaitingPerson.join(", ")} awaits a person, cleared only by a person's verb.`;
 }
 
+async function graphHash(path: string): Promise<string | undefined> {
+  try {
+    return createHash("sha256").update(await readFile(path)).digest("hex");
+  } catch {
+    return undefined;
+  }
+}
+
+function delegatedReceiptContentHash(receipt: Receipt): string | undefined {
+  if (
+    receipt.derivation.kind !== "human" ||
+    !("contentHash" in receipt.derivation)
+  ) {
+    return undefined;
+  }
+  return receipt.derivation.contentHash;
+}
+
+function delegatedContentHash(gateValue: Gate): string | undefined {
+  return gateValue.kind === "satisfied"
+    ? delegatedReceiptContentHash(gateValue.receipt)
+    : undefined;
+}
+
+async function invalidateStaleDelegated(
+  ledger: Ledger,
+  node: Node,
+  declaredGateIds: readonly string[],
+  commandFor: ReadonlyMap<string, GateCommand>,
+  worktree: string,
+  authoritativeGraphPath: string,
+  parsedGraphHash: string | undefined,
+  narrate: (line: string) => void,
+): Promise<readonly string[]> {
+  const authoritativeHash = await graphHash(authoritativeGraphPath);
+  const worktreeHash = await graphHash(join(worktree, ".interlock", "graphs", `${node.graph}.yaml`));
+  const view = ledger.projection().nodes.get(nodeKey(node));
+  const stale: string[] = [];
+
+  for (const gateId of declaredGateIds) {
+    const current = view?.gates.get(gateId);
+    let boundHash = current === undefined ? undefined : delegatedContentHash(current);
+    if (boundHash === undefined && current?.kind === "pending") {
+      const historical = view?.receipts.find(
+        (receipt) =>
+          receipt.gate === gateId &&
+          !ledger.projection().retractedReceipts.has(receipt.id) &&
+          delegatedReceiptContentHash(receipt) !== undefined,
+      );
+      const historicalHash =
+        historical === undefined ? undefined : delegatedReceiptContentHash(historical);
+      if (
+        historical !== undefined &&
+        historicalHash !== undefined &&
+        authoritativeHash === historicalHash &&
+        worktreeHash === historicalHash &&
+        parsedGraphHash === historicalHash
+      ) {
+        ledger.append({
+          kind: "gate-moved",
+          node,
+          gate: gateId,
+          to: gate.satisfied(historical),
+        });
+        boundHash = historicalHash;
+      } else if (historicalHash !== undefined) {
+        stale.push(gateId);
+      }
+    }
+    if (
+      boundHash !== undefined &&
+      (authoritativeHash !== boundHash ||
+        worktreeHash !== boundHash ||
+        parsedGraphHash !== boundHash)
+    ) {
+      stale.push(gateId);
+    }
+  }
+
+  for (const gateId of stale) {
+    const current = ledger.projection().nodes.get(nodeKey(node))?.gates.get(gateId);
+    if (current === undefined) continue;
+    const moved = proposeGateMove(declaredGateIds, gateId, current, gate.pending());
+    if (isOk(moved)) ledger.append({ kind: "gate-moved", node, gate: gateId, to: moved.value });
+    if (commandFor.get(gateId)?.kind === "human") narrate(`${gateId}: awaits a person`);
+  }
+  return stale;
+}
+
+function holdOnStaleDelegation(
+  ledger: Ledger,
+  clock: Clock,
+  node: Node,
+  stale: readonly string[],
+  commandFor: ReadonlyMap<string, GateCommand>,
+  holdMs: number,
+): void {
+  if (stale.length === 0) return;
+  const receipts = ledger.projection().nodes.get(nodeKey(node))?.receipts ?? [];
+  ledger.append({
+    kind: "outcome-set",
+    node,
+    outcome: outcome.held(
+      receipts,
+      heldOn.gateFailure(stale.join(", "), "hold"),
+      heldBecause(stale, commandFor),
+      clock.now().wallMs + holdMs,
+    ),
+  });
+}
+
+export async function judgeGates(request: GateJudgeRequest): Promise<Result<Outcome, GateJudgeRefusal>>;
 export async function judgeGates(
-  request: GateJudgeRequest,
+  request: LegacyGateJudgeRequest,
+): Promise<Result<Outcome, GateJudgeRefusal>>;
+export async function judgeGates(
+  request: GateJudgeRequest | LegacyGateJudgeRequest,
 ): Promise<Result<Outcome, GateJudgeRefusal>> {
   const {
     ledger,
@@ -203,16 +325,22 @@ export async function judgeGates(
     heavy = [],
     narrate,
   } = request;
+  const authoritativeGraphPath =
+    request.authoritativeGraphPath ?? join(worktree, ".interlock", "graphs", `${node.graph}.yaml`);
+  const parsedGraphHash = request.parsedGraphHash;
 
   const gateMovedThisRun: LedgerEvent[] = [];
-  let currentGraphHash: string | undefined;
-  try {
-    currentGraphHash = createHash("sha256")
-      .update(await readFile(join(worktree, ".interlock", "graphs", `${node.graph}.yaml`)))
-      .digest("hex");
-  } catch {
-    currentGraphHash = undefined;
-  }
+
+  await invalidateStaleDelegated(
+    ledger,
+    node,
+    declaredGateIds,
+    commandFor,
+    worktree,
+    authoritativeGraphPath,
+    parsedGraphHash,
+    narrate,
+  );
 
   for (const gateId of declaredGateIds) {
     const view = ledger.projection().nodes.get(nodeKey(node));
@@ -220,17 +348,7 @@ export async function judgeGates(
     const gateCommand = commandFor.get(gateId);
 
     if (gateCommand?.kind === "human") {
-      const staleDelegated =
-        currentGraphHash !== undefined &&
-        current.kind === "satisfied" &&
-        current.receipt.derivation.kind === "human" &&
-        "contentHash" in current.receipt.derivation &&
-        current.receipt.derivation.contentHash !== currentGraphHash;
-      if (staleDelegated) {
-        const moved = proposeGateMove(declaredGateIds, gateId, current, gate.pending());
-        if (isOk(moved)) ledger.append({ kind: "gate-moved", node, gate: gateId, to: moved.value });
-      }
-      if (staleDelegated || (current.kind !== "satisfied" && current.kind !== "waived")) {
+      if (current.kind !== "satisfied" && current.kind !== "waived") {
         narrate(`${gateId}: awaits a person`);
       }
       continue;
@@ -241,7 +359,20 @@ export async function judgeGates(
     }
 
     const substituted = substituteGateCommand(gateCommand?.run ?? "", node);
-    if (isErr(substituted)) return err({ kind: "placeholder", gateId, refusal: substituted.error });
+    if (isErr(substituted)) {
+      const stale = await invalidateStaleDelegated(
+        ledger,
+        node,
+        declaredGateIds,
+        commandFor,
+        worktree,
+        authoritativeGraphPath,
+        parsedGraphHash,
+        narrate,
+      );
+      holdOnStaleDelegation(ledger, clock, node, stale, commandFor, holdMs);
+      return err({ kind: "placeholder", gateId, refusal: substituted.error });
+    }
 
     const before = clock.now().monoMs;
     const { exitCode, output, stdout, stderr } = await spawnGateCommand(
@@ -264,20 +395,65 @@ export async function judgeGates(
           };
 
     const retained = await retainGateOutput(worktree, stdout, stderr);
-    if (isErr(retained)) return err({ kind: "output", refusal: retained.error });
+    if (isErr(retained)) {
+      const stale = await invalidateStaleDelegated(
+        ledger,
+        node,
+        declaredGateIds,
+        commandFor,
+        worktree,
+        authoritativeGraphPath,
+        parsedGraphHash,
+        narrate,
+      );
+      holdOnStaleDelegation(ledger, clock, node, stale, commandFor, holdMs);
+      return err({ kind: "output", refusal: retained.error });
+    }
     const proofWithOutput = { ...proof, gateOutput: retained.value };
 
-    const built = await createReceipt(
-      scopeRoot,
-      scopePaths,
-      gateId,
-      commitSha,
-      spend.none(),
-      duration.measured(elapsedSince(after, before)),
-      derivation.gate(gateId, GATE_DERIVATION_VERSION, runnerId),
-      proofWithOutput,
-    );
-    if (isErr(built)) return err({ kind: "scope", refusal: built.error });
+    let built: Awaited<ReturnType<typeof createReceipt>>;
+    try {
+      built = await createReceipt(
+        scopeRoot,
+        scopePaths,
+        gateId,
+        commitSha,
+        spend.none(),
+        duration.measured(elapsedSince(after, before)),
+        derivation.gate(gateId, GATE_DERIVATION_VERSION, runnerId),
+        proofWithOutput,
+      );
+    } catch {
+      const stale = await invalidateStaleDelegated(
+        ledger,
+        node,
+        declaredGateIds,
+        commandFor,
+        worktree,
+        authoritativeGraphPath,
+        parsedGraphHash,
+        narrate,
+      );
+      holdOnStaleDelegation(ledger, clock, node, stale, commandFor, holdMs);
+      return err({
+        kind: "scope",
+        refusal: { kind: "unreadable", path: scopeRoot },
+      });
+    }
+    if (isErr(built)) {
+      const stale = await invalidateStaleDelegated(
+        ledger,
+        node,
+        declaredGateIds,
+        commandFor,
+        worktree,
+        authoritativeGraphPath,
+        parsedGraphHash,
+        narrate,
+      );
+      holdOnStaleDelegation(ledger, clock, node, stale, commandFor, holdMs);
+      return err({ kind: "scope", refusal: built.error });
+    }
     const receipt = built.value;
 
     const alreadyRecorded = ledger
@@ -308,21 +484,18 @@ export async function judgeGates(
     }
   }
 
+  await invalidateStaleDelegated(
+    ledger,
+    node,
+    declaredGateIds,
+    commandFor,
+    worktree,
+    authoritativeGraphPath,
+    parsedGraphHash,
+    narrate,
+  );
   const finalView = ledger.projection().nodes.get(nodeKey(node));
   const gates = new Map(finalView?.gates ?? new Map<string, Gate>());
-  if (currentGraphHash !== undefined) {
-    for (const gateId of declaredGateIds) {
-      const current = gates.get(gateId);
-      if (
-        current?.kind === "satisfied" &&
-        current.receipt.derivation.kind === "human" &&
-        "contentHash" in current.receipt.derivation &&
-        current.receipt.derivation.contentHash !== currentGraphHash
-      ) {
-        gates.set(gateId, gate.pending());
-      }
-    }
-  }
   const receipts = finalView?.receipts ?? [];
   const cleared = buildCleared(declaredGateIds, gates);
   const resolved: Outcome = isOk(cleared)

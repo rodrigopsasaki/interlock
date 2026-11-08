@@ -151,6 +151,8 @@ export interface DriveSessionRequest {
   readonly shape?: RoleShape;
   readonly acceptance: string;
   readonly nodeGates: readonly GateDeclaration[];
+  readonly authoritativeGraphPath?: string;
+  readonly parsedGraphHash?: string;
   readonly localConfig: LocalConfig;
   readonly agentRuntime: ResolvedRuntime;
   readonly standingGates: readonly StandingGate[];
@@ -847,6 +849,11 @@ export async function driveInteractiveSession(
       declaredGateIds: gateIds,
       commandFor: gateCommandTable(standingGates, nodeGates),
       worktree: worktreePath,
+      authoritativeGraphPath:
+        request.authoritativeGraphPath ?? join(repoRoot, ".interlock", "graphs", `${graph}.yaml`),
+      ...(request.parsedGraphHash === undefined
+        ? {}
+        : { parsedGraphHash: request.parsedGraphHash }),
       narrate,
       runnerId: `${runnerIdPrefix}-${sessionId}`,
       holdMs: HELD_REVISIT_MS,
