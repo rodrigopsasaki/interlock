@@ -1,5 +1,5 @@
-import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
@@ -61,7 +61,15 @@ function isExcluded(path: string): boolean {
   return EXCLUDED_ROOTS.some((excluded) => path === excluded || path.startsWith(`${excluded}/`));
 }
 
-function changedMainPaths(mainRoot: string): Result<readonly string[], ScopeSnapshotRefusal> {
+function isInside(root: string, candidate: string): boolean {
+  const path = relative(root, candidate);
+  return path === "" || (!path.startsWith("..") && !isAbsolute(path));
+}
+
+function changedMainPaths(
+  mainRoot: string,
+  worktreePath: string,
+): Result<readonly string[], ScopeSnapshotRefusal> {
   try {
     const status = execFileSync(
       "git",
@@ -78,11 +86,16 @@ function changedMainPaths(mainRoot: string): Result<readonly string[], ScopeSnap
       const record = records[index];
       if (record === undefined || record === "") continue;
       const path = record.slice(3);
-      if (!isExcluded(path)) paths.add(path);
+      if (!isExcluded(path) && !isInside(worktreePath, join(mainRoot, path))) paths.add(path);
       if (record.slice(0, 2).includes("R") || record.slice(0, 2).includes("C")) {
         const source = records[index + 1];
         index += 1;
-        if (source !== undefined && !isExcluded(source)) paths.add(source);
+        if (
+          source !== undefined &&
+          !isExcluded(source) &&
+          !isInside(worktreePath, join(mainRoot, source))
+        )
+          paths.add(source);
       }
     }
     return ok([...paths].sort());
@@ -183,7 +196,7 @@ export function snapshotScope(
   const common = gitCommonDirectory(worktreePath);
   if (isErr(common)) return common;
   const mainRoot = dirname(common.value);
-  const changed = changedMainPaths(mainRoot);
+  const changed = changedMainPaths(mainRoot, worktreePath);
   if (isErr(changed)) return changed;
 
   const entries: ScopeSnapshotEntry[] = [];
