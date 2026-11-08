@@ -1,0 +1,75 @@
+interlock: debrief@v2
+graph: 0060-headless-runtime
+node: base-is-current
+role: implementer
+graph_base_sha: c66e5f1a13a95936d6ddec1f3eaa1ce2bdd4dd13
+session_start_sha: c2a9fbe9a01367973805d649de519c0a82f5e8b1
+head_sha: d5c9a0ae662156956c9b06301cdda44ae7f3ce06
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: preserve-git-status-diagnostics
+    what: >-
+      Route scope-guard's Git common-directory and main-checkout status reads through the owned
+      command adapter, so a failed Git process carries its stderr into the recorded refusal; add a
+      real fixture regression for a refused status command.
+    because: >-
+      The reported full-run refusal exposed only Node's generic command-failed text, so it could
+      not distinguish a lock, missing path, maintenance writer, or another Git-side cause. The
+      existing adapter already retains stderr at this boundary without changing scope ownership.
+    rests_on:
+      - packages/runner/src/scopeGuard.ts:46-69
+      - packages/runner/src/scopeGuard.ts:81-94
+    hunks:
+      - packages/runner/src/scopeGuard.ts:1-6
+      - packages/runner/src/scopeGuard.ts:46-69
+      - packages/runner/src/scopeGuard.ts:81-94
+      - packages/runner/test/scopeGuard.test.ts:194-209
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH" pnpm typecheck
+    note: Node 24.14.0 and pnpm 10.13.1; all 8 workspace projects typechecked.
+  - id: base-is-current-types
+    result: pass
+    invocation: PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH" pnpm typecheck
+    note: Covered by the same passing workspace typecheck.
+  - id: lint
+    result: pass
+    invocation: PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH" pnpm lint
+    note: Biome exited 0 with the pre-existing runnerCommits.test.ts warning and info.
+  - id: comments
+    result: pass
+    invocation: PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH" pnpm check:comments
+    note: No comments were found under packages/*/src.
+  - id: base-is-current-proof
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/baseIsCurrent.test.ts --passWithNoTests=false
+    note: 5 tests passed.
+  - id: runner-suite
+    result: fail
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
+    note: >-
+      The focused runner-commit file passed all 41 tests, but the full runner suite under isolated
+      HOME and CODEX_HOME had 72 failed and 544 passed tests; the failures were unrelated timeouts
+      after real Codex returned 401 and mise-dependent tests attempted tool setup.
+  - id: test
+    result: fail
+    invocation: PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH" pnpm test
+    note: >-
+      The full repository run under isolated HOME and CODEX_HOME did not reproduce the reported
+      GitHub-token failure: runnerCommits.test.ts passed all 41 tests, including all four token
+      cases. The run had unrelated concurrent runner timeouts, ending with 72 failed and 544 passed
+      runner tests; the worktree's mandatory isolation prevented use of the owner's tool homes.
+  - id: debrief-valid
+    result: pass
+    note: Authored candidate is ready for final debrief validation after filing.
+open:
+  - >-
+    The reported full-run GitHub-token failure was not reproducible in this worktree after stderr
+    preservation: the case passed in the focused runner-commit suite and in both full-run attempts.
+    The required isolated full-repository run remains red for unrelated real-Codex 401 and mise
+    tool-setup timeouts; no owner HOME, CODEX_HOME, Preston folder, or main checkout was used.

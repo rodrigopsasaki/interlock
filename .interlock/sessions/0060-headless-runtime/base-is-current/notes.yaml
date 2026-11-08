@@ -1,0 +1,92 @@
+interlock: notes@v0
+graph: 0060-headless-runtime
+node: base-is-current
+entries:
+  - kind: choice
+    at: "2026-11-08T16:20:00Z"
+    chose: Resolve the sampled base from the repository's main branch ref and carry its branch name and SHA through worktree admission.
+    because: The caller's checkout can be on another branch, while stale-base refusal must name the actual main ref that was sampled.
+  - kind: choice
+    at: "2026-11-08T16:20:01Z"
+    chose: Refuse stale agent branches before taking a lease, committing a brief, or starting an agent, while leaving the worktree untouched.
+    because: Recovery belongs to a person and automatic merge or reset could lose dirty setup state, mix runner and agent commits, or break inherited ranges.
+  - kind: choice
+    at: "2026-11-08T16:20:02Z"
+    chose: Permit a stale branch only when every main change since its merge base is under .interlock/ and narrate that fact.
+    because: Plans, briefs, and ledgers may advance without changing the code base the attempt is working on.
+  - kind: choice
+    at: "2026-11-08T16:20:03Z"
+    chose: Apply the terminal-node boundary in the standalone judge before reading or judging the worktree.
+    because: A decided node must not be reset, merged, or re-judged even when its worktree is stale.
+  - kind: surprise
+    at: "2026-11-08T16:20:04Z"
+    expected: The acceptance's focused real-git proof file would already be present on the graph base.
+    observed: packages/runner/test/baseIsCurrent.test.ts is absent, so the acceptance requires adding the named fixture suite.
+  - kind: surprise
+    at: "2026-11-08T16:25:00Z"
+    expected: The real-git fixture could commit main changes after creating its linked worktree without affecting the main-change path check.
+    observed: The fixture had no .gitignore for .worktrees, so main accidentally staged the linked worktree as an embedded repository; the fixture now ignores that path before exercising admission.
+  - kind: choice
+    at: "2026-11-08T16:25:01Z"
+    chose: Keep the existing fresh-worktree outcome shape and report reattached branches as created with their actual merge-base base.
+    because: Existing callers rely on created meaning a newly attached path, while the acceptance requires the reattachment to stop pretending its base is the sampled main.
+  - kind: choice
+    at: "2026-11-08T17:35:00Z"
+    chose: Update the CLI drive expectations to include the sampled-main narration and make the resumed code-branch scenario assert refusal before session start.
+    because: The acceptance makes the sampled ref part of the attempt transcript and replaces the former automatic continuation of a stale code branch with a named refusal.
+  - kind: surprise
+    at: "2026-11-08T17:36:00Z"
+    expected: The standing workspace test would exercise the changed runner behavior without legacy expectation failures.
+    observed: The root test exposed three old narration expectations and two old-base continuation expectations; the focused CLI suite now passes after those tests were aligned with the acceptance.
+  - kind: surprise
+    at: "2026-11-08T17:37:00Z"
+    expected: Pointing HOME and CODEX_HOME at scratch directories would preserve fixture Git commits automatically.
+    observed: Isolated HOME removed the fixture Git identity, so the isolated command needed explicit temporary Git identity and signing configuration under packages/runner/test/.runs; no owner configuration was read or changed.
+  - kind: choice
+    at: "2026-11-08T17:38:00Z"
+    chose: Run the focused CLI proof with HOME, CODEX_HOME, and Git configuration all under packages/runner/test/.runs.
+    because: The judging rule requires product-home isolation, and the temporary Git configuration keeps the proof self-contained while preserving real fixture commits.
+  - kind: surprise
+    at: "2026-11-08T17:40:00Z"
+    expected: A temporary HOME would remain a self-contained fixture while the pinned toolchain was already on PATH.
+    observed: Invoking mise while that HOME was active populated it with symlinks to owner paths; the scratch HOME and the session-local Codex overlay were removed immediately, and later checks will resolve the pinned toolchain before assigning temporary HOME.
+  - kind: surprise
+    at: "2026-11-08T17:45:00Z"
+    expected: The runner suite's own mise scratch state would be invisible to Vitest collection.
+    observed: Vitest followed a symlink from packages/runner/test/.runs into a protected .Trash path and aborted before collecting the suite.
+  - kind: choice
+    at: "2026-11-08T17:46:00Z"
+    chose: Exclude **/.runs/** from the shared Vitest test discovery configuration.
+    because: test/.runs is the repository-designated scratch area, and excluding it prevents test collection from traversing generated state without excluding any test file or gate.
+  - kind: choice
+    at: "2026-11-08T17:55:00Z"
+    chose: Give machine-provider tests a fixture Codex launch boundary instead of reading the ambient Codex MCP configuration.
+    because: These tests assert machine admission ordering and outbox behavior; consulting a person's configured servers would make those assertions depend on owner state and violate the isolation rule.
+  - kind: choice
+    at: "2026-11-08T18:02:00Z"
+    chose: Carry the process CODEX_HOME into Codex launch preparation when the machine provider has not supplied a different value.
+    because: The selected Codex home is product launch configuration and must control MCP discovery without requiring a machine provider to echo it; a provider-supplied value remains authoritative.
+  - kind: surprise
+    at: "2026-11-08T18:10:00Z"
+    expected: The passing workspace test would leave no session-local Codex overlay behind.
+    observed: Runtime tests recreated .interlock/sessions/0060-headless-runtime/base-is-current/codex-home-sUO6F8; it was removed before debrief filing and is excluded from all staging.
+  - kind: choice
+    at: "2026-11-08T18:20:00Z"
+    chose: Remove process CODEX_HOME forwarding from sessionDrive while retaining the machine-provider test fixture isolation.
+    because: base-is-current accepts stale-base admission behavior, not agent Codex-home selection; forwarding the launcher's process home belongs to home-on-main and can expose the person's selected home to an agent.
+  - kind: surprise
+    at: "2026-11-08T18:16:00Z"
+    expected: The standing test gate would pass after removing the out-of-scope process CODEX_HOME forwarding.
+    observed: pnpm test failed two CLI runtime-selection tests because the inherited CODEX_HOME pointed at the removed session-local codex-home-sUO6F8 path; the focused base proof and full runner suite still passed.
+  - kind: choice
+    at: "2026-11-08T19:20:00Z"
+    chose: Run scope-guard Git reads through the existing owned-command adapter so a refused status carries Git's stderr into the refusal.
+    because: The standing failure only reported Node's generic command-failed text, hiding whether Git named a lock, missing path, maintenance writer, or another cause; the adapter already preserves stderr without changing the command's ownership boundary.
+  - kind: surprise
+    at: "2026-11-08T19:20:01Z"
+    expected: Re-running the full repository test under isolated HOME and CODEX_HOME would reproduce the reported single runner-commit failure.
+    observed: The GitHub-token case passed, while unrelated runner files timed out or failed under the concurrent full run; the target failure needs the preserved stderr and a narrower isolation reproduction.
+  - kind: surprise
+    at: "2026-11-08T19:28:00Z"
+    expected: A temporary HOME would let a direct mise exec use the already-resolved pinned toolchain without changing state.
+    observed: mise tried to install the repository's full tool inventory into the worktree scratch home; the owned installer and its cargo child were terminated before completion, and their scratch directories were removed.

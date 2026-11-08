@@ -1,9 +1,9 @@
-import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import type { WatchPath } from "./localConfig.ts";
+import { execFileSyncOwned } from "./ownedCommand.ts";
 
 const GIT_BUFFER_PAST_EXEC_FILE_SYNC_ONE_MEGABYTE_DEFAULT = 512 * 1024 * 1024;
 const EXCLUDED_ROOTS: readonly string[] = [".interlock/ledger", ".interlock/sessions"];
@@ -45,7 +45,7 @@ type SnapshotOptions = ScopeSnapshotOptions | ScopeSnapshotFileReader;
 
 function gitCommonDirectory(worktreePath: string): Result<string, ScopeSnapshotRefusal> {
   try {
-    const common = execFileSync(
+    const common = execFileSyncOwned(
       "git",
       ["rev-parse", "--path-format=absolute", "--git-common-dir"],
       {
@@ -83,7 +83,7 @@ function changedMainPaths(
   worktreePath: string,
 ): Result<readonly string[], ScopeSnapshotRefusal> {
   try {
-    const status = execFileSync(
+    const status = execFileSyncOwned(
       "git",
       ["status", "--porcelain=v1", "-z", "--untracked-files=all"],
       {

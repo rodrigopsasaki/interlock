@@ -1,9 +1,9 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
 import { err, ok, unwrap } from "@phyxiusjs/fp";
 import { sharedJournalDirectory } from "face";
-import { createLedger, isLedgerEvent, sessionRuntime } from "ledger";
+import { createLedger, sessionRuntime } from "ledger";
 import type { Runtime } from "runner";
 import { afterEach, describe, expect, it } from "vitest";
 import { fixtureGit } from "../../../test/support/gitFixture.ts";
@@ -260,7 +260,7 @@ describe("interlock judge", () => {
     expect(judged.message).toContain('refusing to judge "a"');
   });
 
-  it("clears a clean worktree that carries a committed debrief", async () => {
+  it("refuses to re-judge a cleared node with a clean worktree", async () => {
     const cwd = fixture();
     await approve(cwd);
 
@@ -271,8 +271,6 @@ describe("interlock judge", () => {
     });
     expect(ran.exitCode).toBe(0);
     expect(ran.message).toContain("cleared");
-    const sessionId = sessionIdFrom(ran.message);
-
     const worktreePath = join(cwd, ".worktrees", "a");
     mkdirSync(join(worktreePath, ".interlock", "sessions", "demo", "a"), {
       recursive: true,
@@ -288,11 +286,11 @@ describe("interlock judge", () => {
       clock: createControlledClock({ initialTime: 61_000 }),
     });
 
-    expect(judged.exitCode).toBe(0);
-    expect(judged.message).toBe(`a: cleared (session ${sessionId}, judged by hand)`);
+    expect(judged.exitCode).not.toBe(0);
+    expect(judged.message).toContain("outcome is cleared");
   }, 30_000);
 
-  it("holds a dirty worktree on uncommitted work without running a gate", async () => {
+  it("refuses to re-judge a cleared node even when its worktree is dirty", async () => {
     const cwd = fixture();
     await approve(cwd);
 
@@ -303,36 +301,17 @@ describe("interlock judge", () => {
     });
     expect(ran.exitCode).toBe(0);
     expect(ran.message).toContain("cleared");
-    const sessionId = sessionIdFrom(ran.message);
-
     const worktreePath = join(cwd, ".worktrees", "a");
     settle(worktreePath);
     writeFileSync(join(worktreePath, "uncommitted.txt"), "staged, never committed\n");
 
-    const lines: string[] = [];
     const judged = await runInterlockJudge(["demo", "a"], {
       cwd,
       clock: createControlledClock({ initialTime: 61_000 }),
-      narrate: (line) => lines.push(line),
     });
 
-    expect(judged.exitCode).toBe(0);
-    expect(judged.message).toBe(`a: held (session ${sessionId}, judged by hand)`);
-    expect(lines).toContain("1 uncommitted path(s) in the worktree; gates judge commits only");
-    expect(lines).toContain("  uncommitted.txt");
-
-    const journal = readFileSync(join(cwd, ".interlock", "ledger", "journal.jsonl"), "utf-8");
-    const narrated = journal
-      .trim()
-      .split("\n")
-      .map((line): unknown => JSON.parse(line))
-      .filter(isLedgerEvent)
-      .filter((event) => event.kind === "session-narrated");
-    expect(narrated.every((event) => event.session === sessionId)).toBe(true);
-    expect(narrated.map((event) => event.line).slice(-2)).toEqual([
-      "1 uncommitted path(s) in the worktree; gates judge commits only",
-      "  uncommitted.txt",
-    ]);
+    expect(judged.exitCode).not.toBe(0);
+    expect(judged.message).toContain("outcome is cleared");
   }, 30_000);
 
   it("refuses a node whose lease has not expired", async () => {
@@ -346,14 +325,10 @@ describe("interlock judge", () => {
       runtime: stubRuntime(),
     });
     expect(ran.exitCode).toBe(0);
-    const sessionId = sessionIdFrom(ran.message);
-
     const judged = await runInterlockJudge(["demo", "a"], { cwd, clock });
 
     expect(judged.exitCode).not.toBe(0);
-    expect(judged.message).toBe(
-      `a is leased by session ${sessionId} until 1970-01-01T00:01:00.000Z; wait for it or run interlock sweep.`,
-    );
+    expect(judged.message).toContain("outcome is cleared");
   }, 30_000);
 
   it("refuses a node with no worktree", async () => {
@@ -364,6 +339,39 @@ describe("interlock judge", () => {
 
     expect(judged.exitCode).not.toBe(0);
     expect(judged.message).toContain("no worktree there");
+  });
+
+  it("refuses a decided node before reading a stale worktree", async () => {
+    const cwd = fixture();
+    await approve(cwd);
+    writeFileSync(join(cwd, ".gitignore"), ".worktrees/\n");
+    commitAll(cwd, "ignore fixture worktrees");
+    const oldMain = fixtureGit(["rev-parse", "main"], { cwd }).trim();
+    const worktreePath = join(cwd, ".worktrees", "a");
+    fixtureGit(["worktree", "add", "-b", "graph/demo/a", worktreePath, oldMain], { cwd });
+    writeFileSync(join(worktreePath, "agent.txt"), "agent work\n");
+    commitAll(worktreePath, "agent work");
+
+    const journal = await sharedJournalDirectory(cwd);
+    const ledger = unwrap(
+      await createLedger({ clock: createControlledClock({ initialTime: 0 }), directory: journal }),
+    );
+    ledger.append({
+      kind: "outcome-set",
+      node: { graph: "demo", id: "a" },
+      outcome: { kind: "cleared", receipts: [] },
+    });
+    await ledger.close();
+
+    writeFileSync(join(cwd, "main-code.txt"), "main code\n");
+    commitAll(cwd, "main code change");
+    const before = fixtureGit(["rev-parse", "HEAD"], { cwd: worktreePath });
+
+    const judged = await runInterlockJudge(["demo", "a"], { cwd });
+
+    expect(judged.exitCode).not.toBe(0);
+    expect(judged.message).toContain("outcome is cleared");
+    expect(fixtureGit(["rev-parse", "HEAD"], { cwd: worktreePath })).toBe(before);
   });
 
   it("refuses a worktree with no session recorded for the node", async () => {
@@ -443,7 +451,7 @@ describe("interlock judge", () => {
       clock: createControlledClock({ initialTime: 200_000 }),
     });
 
-    expect(judged.exitCode).toBe(0);
-    expect(judged.message).toBe(`a: cleared (session ${firstSessionId}, judged by hand)`);
+    expect(judged.exitCode).not.toBe(0);
+    expect(judged.message).toContain("outcome is cleared");
   }, 30_000);
 });

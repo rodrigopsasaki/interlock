@@ -28,6 +28,37 @@ vi.mock("face", async (original) => ({
   currentCommitSha: async () => "a".repeat(40),
   sharedJournalDirectory: async (root: string) => join(root, "journal"),
 }));
+vi.mock("../src/codex/config.ts", async () => {
+  const original =
+    await vi.importActual<typeof import("../src/codex/config.ts")>("../src/codex/config.ts");
+  return {
+    ...original,
+    prepareCodexLaunch: (
+      args: Parameters<typeof original.prepareCodexLaunch>[0],
+      _cwd: Parameters<typeof original.prepareCodexLaunch>[1],
+      environment: Parameters<typeof original.prepareCodexLaunch>[2],
+      options: Parameters<typeof original.prepareCodexLaunch>[3] = {},
+    ) => {
+      options.narrate?.("codex marker delivery: overlay");
+      const prepared: ReturnType<typeof original.prepareCodexLaunch> = ok({
+        kind: "delivered",
+        path: "overlay",
+        args: [
+          ...args,
+          "shell_environment_policy.set.INTERLOCK_SESSION=fixture",
+          "shell_environment_policy.set.INTERLOCK_GRAPH=fixture",
+          "shell_environment_policy.set.INTERLOCK_NODE=fixture",
+          "--profile",
+          "fixture",
+        ],
+        environment,
+        servers: [],
+        cleanup: () => undefined,
+      });
+      return prepared;
+    },
+  };
+});
 vi.mock("../src/scope.ts", () => ({ gitScope: () => [], gitTrackedFiles: () => [] }));
 vi.mock("../src/worktree.ts", async (original) => ({
   ...(await original<typeof import("../src/worktree.ts")>()),
@@ -35,6 +66,7 @@ vi.mock("../src/worktree.ts", async (original) => ({
     mkdirSync(path, { recursive: true });
     return ok({ kind: "created", path, base });
   },
+  mainBranchOf: () => ok({ branch: "main", sha: "a".repeat(40) }),
   createDetachedWorktree: (_root: string, path: string) => {
     mkdirSync(path, { recursive: true });
     return ok(undefined);

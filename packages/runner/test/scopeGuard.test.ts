@@ -8,10 +8,10 @@ import {
   utimesSync,
   writeFileSync,
 } from "node:fs";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 import { isOk } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
-import { fixtureGit } from "../../../test/support/gitFixture.ts";
+import { fixtureGit, writeGitForwarder } from "../../../test/support/gitFixture.ts";
 import type { WatchPath } from "../src/localConfig.ts";
 import { buildOpeningPrompt, type SessionRole } from "../src/openingPrompt.ts";
 import {
@@ -189,6 +189,23 @@ describe("scope guard snapshots", () => {
     const after = requireSnapshot(fixture.worktree);
 
     expect(changedScopePaths(before, after)).toEqual([]);
+  });
+
+  it("keeps Git stderr when the main checkout status cannot be read", () => {
+    const fixture = fixtureWorktree();
+    const bin = join(runRoot ?? "", "bin");
+    mkdirSync(bin);
+    writeGitForwarder(join(bin, "git"), ["status"]);
+    const savedPath = process.env["PATH"];
+    process.env["PATH"] = `${bin}${delimiter}${savedPath ?? ""}`;
+    try {
+      const snapshot = snapshotScope(fixture.worktree);
+      expect(isOk(snapshot)).toBe(false);
+      if (!isOk(snapshot)) expect(snapshot.error.because).toContain("fixture git refuses status");
+    } finally {
+      if (savedPath === undefined) delete process.env["PATH"];
+      else process.env["PATH"] = savedPath;
+    }
   });
 });
 
