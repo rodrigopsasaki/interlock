@@ -1,0 +1,19 @@
+interlock: notes@v0
+node: arcs-v1
+entries:
+  - kind: choice
+    at: "2026-11-08T15:23:12Z"
+    chose: Keep arcs parsing and resolution in packages/cli/src/arcs, with a typed normalized registry shared by the resolver and migration command.
+    because: The acceptance names that package as the seam for repository identity and requires both arcs versions to remain readable without leaking YAML details into callers.
+  - kind: choice
+    at: "2026-11-08T15:23:12Z"
+    chose: Preserve migration comments and existing scalar spelling through the YAML document tree, changing only the tag, repository, removed legacy key, duplicate graph entries, and shared context entries.
+    because: The acceptance requires lossless asks, words, sources, comments, and key order, so rebuilding the registry from plain JavaScript values would discard provenance-bearing formatting.
+  - kind: surprise
+    at: "2026-11-08T15:23:12Z"
+    expected: The assigned session would already contain its notes artifact.
+    observed: notes.yaml was absent, so it was created before implementation work.
+  - kind: surprise
+    at: "2026-11-08T15:34:00Z"
+    expected: The first migration serialization would preserve the original long scalar layout.
+    observed: YAML's default line width rewrapped long asks, words, and sources; migration now disables wrapping and the repository file was checked for the nine explicit placeholder arcs.

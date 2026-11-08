@@ -1,4 +1,5 @@
 import { runInterlockBackfill } from "./backfill.ts";
+import { runArcsMigrate } from "./arcs/command.ts";
 import { validateBrief } from "./brief/validate.ts";
 import { runDebriefFileDerived, runDebriefPrepare } from "./debrief/derived.ts";
 import { runDebriefPreview } from "./debrief/preview.ts";
@@ -55,6 +56,10 @@ export async function run(argv: readonly string[]): Promise<CommandResult> {
 
   if (group === "debrief" && action === "file-derived") {
     return runDebriefFileDerived(argv.slice(2));
+  }
+
+  if (group === "arcs" && action === "migrate") {
+    return runArcsMigrate(argv.slice(2));
   }
 
   if (group === "brief" && action === "validate") {
