@@ -287,11 +287,13 @@ class TranscriptWriter {
   private running = false;
   private sealed = false;
   private failedBecause: string | undefined;
+  private readonly path: string;
+  private readonly sink: TranscriptSink;
 
-  constructor(
-    private readonly path: string,
-    private readonly sink: TranscriptSink,
-  ) {}
+  constructor(path: string, sink: TranscriptSink) {
+    this.path = path;
+    this.sink = sink;
+  }
 
   append(line: ExecTranscriptLine): Promise<boolean> {
     if (this.sealed && line.stream !== "runner") return Promise.resolve(false);
@@ -605,12 +607,14 @@ class CaptureController {
   };
   private drainResolver: (() => void) | undefined;
   private drainReady = false;
+  private readonly child: OwnedProcess;
+  private readonly writer: TranscriptWriter;
+  private readonly delivery: CaptureStreamDelivery;
 
-  constructor(
-    private readonly child: OwnedProcess,
-    private readonly writer: TranscriptWriter,
-    private readonly delivery: CaptureStreamDelivery,
-  ) {
+  constructor(child: OwnedProcess, writer: TranscriptWriter, delivery: CaptureStreamDelivery) {
+    this.child = child;
+    this.writer = writer;
+    this.delivery = delivery;
     this.delivery.attach(this.child, {
       onData: (stream, chunk) => this.onData(stream, chunk),
       onEnd: (stream) => this.onEnd(stream),

@@ -25,3 +25,7 @@ entries:
     at: "2026-11-08T19:24:00Z"
     chose: Keep the native file sink and timers as production defaults while the focused suite supplies its own sink, stream delivery, and controlled timers.
     because: The acceptance requires deterministic timing without shipping a test-only switch, and the seams remain ordinary runtime dependencies rather than test branches.
+  - kind: surprise
+    at: "2026-11-08T19:30:00Z"
+    expected: The first debrief prepare command would load the changed runner source under the repository's direct Node entrypoint.
+    observed: Node 24 strip-only execution rejected the new parameter-property syntax even though TypeScript typecheck passed; the new classes now use explicit fields and constructors.
