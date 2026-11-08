@@ -169,3 +169,10 @@ entries:
     observed: >-
       Filing rejected the candidate identity because notes changed after preparation; a new candidate
       must be prepared after the final notes commit and authored again.
+  - kind: choice
+    at: '2026-11-08T21:17:00Z'
+    chose: Author the fresh candidate only with the wrapper-process-semantics decision from this continuation.
+    because: >-
+      The current derived proof starts at this continuation's brief commit; carrying earlier filed
+      decisions would leave them unrooted in this candidate's source range, while their prior debrief
+      remains available in repository history.
