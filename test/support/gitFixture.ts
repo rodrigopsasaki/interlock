@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { accessSync, chmodSync, constants, writeFileSync } from "node:fs";
+import { accessSync, chmodSync, constants, mkdirSync, writeFileSync } from "node:fs";
 import { basename, delimiter, join } from "node:path";
 
 // The one process boundary through which test fixtures run Git. Every invocation it builds
@@ -114,6 +114,7 @@ export function initFixtureRepository(
   directory: string,
   options: FixtureRepositoryOptions = {},
 ): void {
+  mkdirSync(join(directory, ".interlock"), { recursive: true });
   const branch =
     options.defaultBranch === undefined
       ? []

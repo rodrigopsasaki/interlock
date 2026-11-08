@@ -1,0 +1,31 @@
+interlock: notes@v0
+node: tests-read-fixtures
+entries:
+  - kind: choice
+    at: "2026-11-08T07:55:58Z"
+    chose: Give every shared Git fixture an empty .interlock boundary during initialization.
+    because: Cwd-based repository and ledger lookups must stop inside the fixture instead of climbing into this worktree.
+  - kind: choice
+    at: "2026-11-08T07:55:58Z"
+    chose: Set INTERLOCK_TEST_FORBIDDEN_ROOT once from the shared Vitest configuration using the repository Git common directory.
+    because: Every package test configuration needs the same test-only guard, while production processes must remain unchanged.
+  - kind: choice
+    at: "2026-11-08T07:55:58Z"
+    chose: Detect forbidden linked worktrees through their .git file and keep the refusal message tied to the test cwd and reached path.
+    because: A linked worktree can have a different filesystem path while still resolving its journal through the main checkout's Git common directory.
+  - kind: surprise
+    at: "2026-11-08T07:55:58Z"
+    expected: A fixture under this worktree would remain allowed when the main checkout root is forbidden.
+    observed: The first guard considered every path lexically below the main checkout, including disposable fixtures under .worktrees; the check was narrowed to the main .interlock, the main root itself, and linked-worktree metadata.
+  - kind: choice
+    at: "2026-11-08T07:55:58Z"
+    chose: Replace tests that read the repository bootstrap graph with equivalent local graph fixtures.
+    because: The guard must run for the whole suite without allowing tests to read this repository's own .interlock graphs or ledger.
+  - kind: surprise
+    at: "2026-11-08T07:55:58Z"
+    expected: A zsh variable named status would capture a test command's exit code.
+    observed: zsh rejected the assignment because status is read-only; the command output was still retained in the required package test .runs file and later rerun with a different variable name.
+  - kind: surprise
+    at: "2026-11-08T07:55:58Z"
+    expected: The standing lint gate would pass after the focused tests and typecheck.
+    observed: Biome found one formatter change in the new frame fixture; existing runner test warnings were unrelated. The formatter output was applied to the changed test.

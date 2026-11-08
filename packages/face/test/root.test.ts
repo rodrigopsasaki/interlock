@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { fixtureGit, initFixtureRepository } from "../../../test/support/gitFixture.ts";
-import { sharedJournalDirectory } from "../src/root.ts";
+import { findRepoRoot, sharedJournalDirectory } from "../src/root.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -43,5 +43,41 @@ describe("sharedJournalDirectory", () => {
 
     expect(fromSecondWorktree).toBe(fromMainWorktree);
     expect(fromMainWorktree).toBe(join(directory, ".interlock", "ledger"));
+  });
+
+  it("refuses the main checkout and its linked worktree while the test guard is set", async () => {
+    directory = mkdtempSync(join(runsRoot, "guard-"));
+    initFixtureRepository(directory, { defaultBranch: "main", env: gitEnv });
+    git(
+      ["-c", "commit.gpgsign=false", "commit", "--quiet", "--allow-empty", "-m", "root"],
+      directory,
+    );
+
+    const worktree = join(directory, "second-worktree");
+    git(["worktree", "add", "--quiet", "-b", "second", worktree], directory);
+    mkdirSync(join(worktree, ".interlock"), { recursive: true });
+    const missingInterlock = join(worktree, "nested");
+    mkdirSync(missingInterlock, { recursive: true });
+    const fixture = mkdtempSync(join(runsRoot, "guard-own-"));
+    initFixtureRepository(fixture, { defaultBranch: "main", env: gitEnv });
+
+    const previousForbiddenRoot = process.env["INTERLOCK_TEST_FORBIDDEN_ROOT"];
+    process.env["INTERLOCK_TEST_FORBIDDEN_ROOT"] = directory;
+    try {
+      expect(() => findRepoRoot(missingInterlock)).toThrow(
+        `test cwd "${missingInterlock}" reached forbidden repository path "${worktree}"`,
+      );
+      await expect(sharedJournalDirectory(worktree)).rejects.toThrow(
+        `test cwd "${worktree}" reached forbidden repository path "${join(directory, ".interlock", "ledger")}"`,
+      );
+      expect(findRepoRoot(fixture)).toBe(fixture);
+      await expect(sharedJournalDirectory(fixture)).resolves.toBe(
+        join(fixture, ".interlock", "ledger"),
+      );
+    } finally {
+      if (previousForbiddenRoot === undefined) delete process.env["INTERLOCK_TEST_FORBIDDEN_ROOT"];
+      else process.env["INTERLOCK_TEST_FORBIDDEN_ROOT"] = previousForbiddenRoot;
+      rmSync(fixture, { recursive: true, force: true });
+    }
   });
 });
