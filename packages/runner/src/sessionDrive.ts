@@ -364,7 +364,13 @@ export async function driveInteractiveSession(
       narrate(message);
       return { exitCode: 1, message };
     }
-    const agentEnvironment = markedEnvironment.value;
+    const agentEnvironment = {
+      ...markedEnvironment.value,
+      ...(markedEnvironment.value["CODEX_HOME"] === undefined &&
+      process.env["CODEX_HOME"] !== undefined
+        ? { CODEX_HOME: process.env["CODEX_HOME"] }
+        : {}),
+    };
     const worktreeHeadSha = worktreeHead(worktreePath);
     const journalEvents = await readRawEvents(ledger.directory());
     const inheritedFallback: SessionInheritance = {

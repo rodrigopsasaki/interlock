@@ -62,3 +62,7 @@ entries:
     at: "2026-11-08T17:55:00Z"
     chose: Give machine-provider tests a fixture Codex launch boundary instead of reading the ambient Codex MCP configuration.
     because: These tests assert machine admission ordering and outbox behavior; consulting a person's configured servers would make those assertions depend on owner state and violate the isolation rule.
+  - kind: choice
+    at: "2026-11-08T18:02:00Z"
+    chose: Carry the process CODEX_HOME into Codex launch preparation when the machine provider has not supplied a different value.
+    because: The selected Codex home is product launch configuration and must control MCP discovery without requiring a machine provider to echo it; a provider-supplied value remains authoritative.
