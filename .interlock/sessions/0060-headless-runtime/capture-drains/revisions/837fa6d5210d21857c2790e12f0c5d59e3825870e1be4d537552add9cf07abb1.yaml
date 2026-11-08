@@ -1,0 +1,97 @@
+interlock: debrief@v2
+graph: 0060-headless-runtime
+node: capture-drains
+role: implementer
+graph_base_sha: 180be87c995fb803995028313eb37d5f2ba912c7
+session_start_sha: 6cfb9aeb285ee94af0483ceb7e9dfa2f3f1bc9ef
+head_sha: 560ddee80522d16b9964939981f3a969a22c4302
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: ordered-transcript-writer
+    what: Route native transcript writes and injected test writes through one serialized writer that records failures, seals stream lines at the drain boundary, and keeps runner lines ordered behind already-ready lines.
+    because: The acceptance requires one writer for stdout, stderr, stream tails, and runner lines, while a held or failed write must not prevent bounded terminal publication.
+    rests_on:
+      - packages/runner/src/execRuntime.ts:137-184
+      - packages/runner/src/execRuntime.ts:260-343
+    hunks:
+      - packages/runner/src/execRuntime.ts:137-184
+      - packages/runner/src/execRuntime.ts:260-343
+  - id: normal-stream-drain
+    what: Attach stream delivery before launcher input, normalize chunks and tails in ready order, require normal end plus completed writes, and treat an explicitly destroyed stream as incomplete.
+    because: The old handlers started after go, counted destroyed streams as ended, and allowed independent chunk promises to reorder stdout, stderr, and runner lines.
+    rests_on:
+      - packages/runner/src/execRuntime.ts:590-754
+      - packages/runner/src/execRuntime.ts:917-925
+    hunks:
+      - packages/runner/src/execRuntime.ts:590-754
+      - packages/runner/src/execRuntime.ts:917-925
+  - id: bounded-terminal-finalization
+    what: Finalize early launch failures and normal phases through the same capture result, bounded settle timers, group confirmation text, and closing runner line before publishing the terminal record.
+    because: Every terminal path must retain launcher diagnostics, name failed or unsettled writes, avoid stream lines after the closing line, and tell confirmed group emptiness from an unconfirmed result.
+    rests_on:
+      - packages/runner/src/execRuntime.ts:756-814
+      - packages/runner/src/execRuntime.ts:948-1097
+      - packages/runner/src/execRuntime.ts:1201-1258
+    hunks:
+      - packages/runner/src/execRuntime.ts:756-814
+      - packages/runner/src/execRuntime.ts:948-1097
+      - packages/runner/src/execRuntime.ts:1201-1258
+  - id: deterministic-capture-proof
+    what: Add the ten named capture-drain cases, controlled transcript sink/timers/stream delivery, early-failure launcher fixture, and many-line real-program fixture.
+    because: The acceptance requires deterministic proof of held tails, ordering, grace and settle bounds, failed writes, destroyed streams, early launcher diagnostics, and real multi-line capture without a test-only production switch.
+    rests_on:
+      - packages/runner/test/captureDrains.test.ts:1-422
+      - packages/runner/test/fixtures/exec/earlyFailLauncher.mjs:1-2
+      - packages/runner/test/fixtures/exec/manyLines.mjs:1-4
+    hunks:
+      - packages/runner/test/captureDrains.test.ts:1-422
+      - packages/runner/test/fixtures/exec/earlyFailLauncher.mjs:1-2
+      - packages/runner/test/fixtures/exec/manyLines.mjs:1-4
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: Node 24.14.0 and pnpm 10.13.1; all eight workspace typecheck projects passed after the strip-only constructor correction.
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: Biome exited successfully; it reported the existing runnerCommits.test.ts warning and info diagnostics only.
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+    note: packages/*/src reported no comments.
+  - id: capture-drains-cases
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/captureDrains.test.ts --reporter=verbose --passWithNoTests=false
+    note: All ten required case names passed in order.
+  - id: capture-drains-proof
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/captureDrains.test.ts --passWithNoTests=false
+    note: 10 tests passed.
+  - id: exec-runtime-still
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/execRuntime.test.ts --passWithNoTests=false
+    note: 5 tests passed.
+  - id: start-failure-still
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/startFailureNotTimeout.test.ts --passWithNoTests=false
+    note: 9 tests passed.
+  - id: runner-suite
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
+    note: 56 files and 629 tests passed; the log also retained expected environment diagnostics from existing worktree-maintenance and real-Codex tests.
+  - id: test
+    result: fail
+    invocation: pnpm test
+    note: The isolated attempt used relative temporary HOME and CODEX_HOME paths; the runner portion reported 553 passed and 76 failed, with missing CODEX_HOME and cleanup collisions. This receipt is not evidence against the capture change and remains unresolved pending a clean absolute-path run.
+  - id: capture-drains-types
+    result: pass
+    invocation: pnpm typecheck
+    note: Repeated after the direct-Node constructor correction.
+open:
+  - "The full pnpm test gate remains unresolved: its first isolated attempt used relative temporary HOME and CODEX_HOME paths, and a separate long-running pnpm test process is still present in this worktree. The runner suite passed independently."
+  - "The first debrief prepare attempt exposed and then fixed Node strip-only incompatibility; the fresh candidate is prepared against code head 560ddee after that correction."
