@@ -1153,6 +1153,64 @@ nodes:
         kind: command
         run: pnpm typecheck
 
+  - id: capture-drains
+    role: implementer
+    depends_on: [start-failure-is-not-a-timeout]
+    acceptance: |
+      A phase records captureComplete true only when every byte the program wrote to stdout and stderr is in the
+      transcript, in the order it was read, before the runner's closing line and before the final record is published.
+      Found by the vet of start-failure-is-not-a-timeout (interlock #144) and confirmed by reading main at c66e5f1:
+      - closeStreams (packages/runner/src/execRuntime.ts:472-514) sets stdoutClosed and stderrClosed before
+        finishStream() has written the stream's unterminated tail (:486-497). When the drain grace expires (:503) while
+        that write is still pending, the check at :504 sees both flags set and returns true: captureComplete is published
+        with the tail not yet in the transcript, and the tail can land after the "ended ...; capture complete" line (:830).
+      - The data handlers (:691-698) start appendStream with `void`, so nothing waits for those writes, and each chunk
+        builds its own promise chain (appendStream, :387-402): writes from two chunks are not ordered with each other, and
+        each opens, writes, syncs and closes the file (appendTranscript, :213-221), so lines can land out of read order.
+      What changes:
+      - Each stream has one ordered write queue: every line from a data chunk and the final tail go through it, in read
+        order. Nothing writes to the transcript from a stream outside that queue.
+      - A stream counts as drained only when it has closed AND its queue, including the tail, has finished writing.
+        closeStreams waits for that within the drain grace; captureComplete is true only if both streams drained within
+        it. A write that fails makes capture incomplete, and the transcript says why; it is never swallowed.
+      - When the grace expires first, the streams are destroyed, capture is incomplete, and the runner's closing line and
+        the published record are written only after the queued writes have settled (finished or failed), so no stream
+        line can follow the closing line.
+      - No test-only switch ships in the runner; tests reach the timing through an injected seam (the transcript writer
+        or the clock), with the native writer as the production default.
+      Depends on start-failure-is-not-a-timeout, which rewrites the same function's finalization; this node builds on its
+      result rather than racing it.
+      Tests:
+      - packages/runner/test/captureDrains.test.ts, deterministic (injected seams, no wall-clock sleeps for ordering):
+        - a tail write still pending when the stream closes: captureComplete is true only after it lands, and the tail
+          precedes the closing line;
+        - a tail write that outlasts the drain grace: captureComplete false, and no stream line follows the closing line;
+        - two chunks whose first write is slow: transcript lines appear in read order;
+        - a write that fails: captureComplete false, with the failure named in the transcript;
+        - a program that writes many lines quickly and exits: every line is present, in order, and captureComplete true.
+      - The existing execRuntime.test.ts and startFailureNotTimeout.test.ts pass unchanged.
+      Every gate and test runs with the repository's pinned Node first on PATH. No test is excluded and none is skipped.
+    gates:
+      - id: capture-drains-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/captureDrains.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: exec-runtime-still
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/execRuntime.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: start-failure-still
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/startFailureNotTimeout.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: runner-suite
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: capture-drains-types
+        kind: command
+        run: pnpm typecheck
+
   - id: exec-runtime
     role: implementer
     depends_on: []
