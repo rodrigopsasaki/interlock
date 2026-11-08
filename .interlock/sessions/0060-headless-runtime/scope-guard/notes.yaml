@@ -32,4 +32,6 @@ entries:
   - kind: surprise
     at: "2026-11-08T06:34:00Z"
     expected: The final serial standing gate would preserve the isolated runner-suite result.
-    observed: After the schema-backed docs correction, the final root test run passed all workspace suites: runner 545, schemas 1228, CLI 443, and the remaining package suites.
+    observed: >-
+      After the schema-backed docs correction, the final root test run passed all workspace suites:
+      runner 545, schemas 1228, CLI 443, and the remaining package suites.
