@@ -83,7 +83,9 @@ function parseConfig(
       table = pathParts(trimmed.slice(1, -1)) ?? [];
       profileTable =
         (profileLayer && table[0] === "mcp_servers" && table.length === 2) ||
-        (table[0] === "profiles" && table[2] === "mcp_servers" && table.length === 4 &&
+        (table[0] === "profiles" &&
+          table[2] === "mcp_servers" &&
+          table.length === 4 &&
           (activeProfile === undefined || table[1] === activeProfile));
       continue;
     }
@@ -94,7 +96,9 @@ function parseConfig(
     if (table.length === 0 && key === "profile") profile = stringValue(value);
     const rootServer = table[0] === "mcp_servers" && table.length === 2 ? table[1] : undefined;
     const profileServer =
-      table[0] === "profiles" && table[2] === "mcp_servers" && table.length === 4 &&
+      table[0] === "profiles" &&
+      table[2] === "mcp_servers" &&
+      table.length === 4 &&
       (activeProfile === undefined || table[1] === activeProfile)
         ? table[3]
         : undefined;

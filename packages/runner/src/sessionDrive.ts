@@ -16,8 +16,8 @@ import {
   sessionRuntime,
 } from "ledger";
 import type { SubstrateClient } from "substrate";
-import { agentEnvironmentArgs, needsPaneEnvironment } from "./codex/environment.ts";
 import { CODEX_CANONICAL_LINE_LIMIT, configuredCodexMcpServers } from "./codex/config.ts";
+import { agentEnvironmentArgs, needsPaneEnvironment } from "./codex/environment.ts";
 import { type ExecPhaseRequest, execRunRoot, runExecPhase } from "./execRuntime.ts";
 import { declaredGateIds, gateCommandTable } from "./gateCommand.ts";
 import { explainGateJudgeRefusal } from "./gateJudge.ts";

@@ -3,8 +3,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { isOk } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
-import { prepareLaunch } from "../src/sessionDrive.ts";
 import type { ResolvedRuntime } from "../src/runtimeCatalogue.ts";
+import { prepareLaunch } from "../src/sessionDrive.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
