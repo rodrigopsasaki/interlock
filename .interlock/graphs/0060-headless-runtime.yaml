@@ -812,6 +812,58 @@ nodes:
         kind: command
         run: pnpm typecheck
 
+  - id: codex-home-outside-worktree
+    role: implementer
+    depends_on: [marker-never-dropped]
+    acceptance: |
+      A launch-local codex home never lives inside a git worktree. marker-never-dropped's createOverlay
+      (packages/runner/src/codex/config.ts) makes the overflow home with
+      mkdtempSync(join(cwd, ".interlock", "sessions", graph, node, "codex-home-")), so it sits inside the agent's own
+      worktree, holds symlinks to every entry of the owner's CODEX_HOME (auth.json among them), and nothing ignores it.
+      An agent that stages its session folder whole commits symlinks into the owner's codex home, and the scope guard
+      sees an untracked folder it did not cause.
+      - Interlock gains one machine state directory: $XDG_STATE_HOME/interlock, or ~/.local/state/interlock when
+        XDG_STATE_HOME is unset or empty, created with mode 0700. It is resolved in one place and named the way
+        machineProvider.ts names the config path.
+      - Overlays live under <state>/codex-homes/<graph>/<node>/<session>, mode 0700. Overlay creation refuses by name
+        when the resolved overlay path would be inside any git worktree (the launch's own worktree, the repository's
+        main checkout, or any worktree `git worktree list` reports for that repository), so a state directory set
+        inside a repository can never put links there.
+      - Cleanup removes only the overlay directory and its links, never a link target, as marker-never-dropped does.
+        An overlay whose session no longer holds a live lease is removed the next time the runner prepares a codex
+        launch, so a crashed session leaves nothing behind for long. The removal never follows a symlink.
+      - Nothing else about delivery changes: the same symlink layout, the same generated config.toml and profile file,
+        the same refusals.
+      Tests:
+      - packages/runner/test/codexHomeOutsideWorktree.test.ts: with XDG_STATE_HOME pointed at a temp folder and a
+        real git repository plus one linked worktree as fixtures, an overflow launch prepared in the worktree puts its
+        overlay under the state folder and not under any path `git worktree list --porcelain` reports; `git status
+        --porcelain` in the worktree and the main checkout is empty after prepare and after cleanup; XDG_STATE_HOME set
+        inside the repository is refused by name; an overlay left by a session without a live lease is removed on the
+        next prepare, and its link targets still exist; XDG_STATE_HOME unset resolves to ~/.local/state/interlock
+        (with HOME pointed at a temp folder).
+      Every gate and test runs with the repository's pinned Node first on PATH. No test is excluded.
+    gates:
+      - id: overlay-outside-worktree-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/codexHomeOutsideWorktree.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: marker-never-dropped-still
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/markerNeverDropped.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: real-codex-overflow-still
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/realCodexMarkerOverflow.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: runner-suite
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: overlay-types
+        kind: command
+        run: pnpm typecheck
+
   - id: exec-runtime
     role: implementer
     depends_on: []
