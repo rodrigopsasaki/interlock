@@ -57,7 +57,6 @@ const anchor = {
   boot: `${process.platform}-${process.ppid}`,
   nonce,
 };
-atomicJson(`${runDir}/anchor.json`, anchor);
 
 let init: InitMessage | undefined;
 let child: ReturnType<typeof spawn> | undefined;
@@ -151,6 +150,7 @@ const server = createServer((socket) => {
 
 server.listen(socketPath, () => {
   chmodSync(socketPath, 0o600);
+  atomicJson(`${runDir}/anchor.json`, anchor);
 });
 
 const input = createInterface({ input: process.stdin });

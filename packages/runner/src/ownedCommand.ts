@@ -11,7 +11,7 @@ export type OwnedProcess = ChildProcessWithoutNullStreams;
 export function execFileSyncOwned(
   program: string,
   args: readonly string[],
-  options: Pick<SpawnSyncOptions, "cwd" | "maxBuffer" | "stdio"> & {
+  options: Pick<SpawnSyncOptions, "cwd" | "env" | "maxBuffer" | "stdio"> & {
     readonly encoding?: "utf8" | "utf-8";
   } = {},
 ): string {

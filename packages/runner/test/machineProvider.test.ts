@@ -273,12 +273,24 @@ describe("machine provider", () => {
     writeFileSync(machineFile, "interlock: machine@v0\nprovider: none\n");
     const runtime = runtimeFixture();
     const result = await launch(runtime.runtime);
+    const sessionView = [...result.ledger.projection().sessions.values()][0];
     expect(runtime.calls).toEqual(["open", "start", "close"]);
-    expect(runtime.args).toEqual([[]]);
-    expect(runtime.environments).toEqual([undefined]);
+    expect(runtime.args).toEqual([
+      expect.arrayContaining([
+        expect.stringContaining("shell_environment_policy.set.INTERLOCK_SESSION"),
+        expect.stringContaining("shell_environment_policy.set.INTERLOCK_GRAPH"),
+        expect.stringContaining("shell_environment_policy.set.INTERLOCK_NODE"),
+      ]),
+    ]);
+    expect(runtime.environments).toEqual([
+      expect.objectContaining({
+        INTERLOCK_SESSION: sessionView?.session,
+        INTERLOCK_GRAPH: "g",
+        INTERLOCK_NODE: "n",
+      }),
+    ]);
     expect(result.narrated.filter((line) => line.includes("no machine provider"))).toHaveLength(1);
-    const session = [...result.ledger.projection().sessions.values()][0];
-    expect(session?.narration.map((entry) => entry.line)).toEqual(result.narrated);
+    expect(sessionView?.narration.map((entry) => entry.line)).toEqual(result.narrated);
     expect(result.ledger.projection().outbox.size).toBe(0);
   });
   it.each(["admit", "release", "env", "heavy"])(
@@ -342,9 +354,18 @@ describe("machine provider", () => {
     });
     expect(runtime.calls).toEqual(["open", "pid", "start", "close"]);
     const session = [...result.ledger.projection().sessions.keys()][0];
+    if (session === undefined) return;
     expect(lines()).toContainEqual(["release", `${session}/pane`]);
     expect(runtime.args[0]).toEqual(
-      agentEnvironmentArgs("codex", [], { LIMIT: 'space and "quote"', SECOND: "line\nslash\\end" }),
+      expect.arrayContaining([
+        ...agentEnvironmentArgs("codex", [], {
+          LIMIT: 'space and "quote"',
+          SECOND: "line\nslash\\end",
+          INTERLOCK_SESSION: session,
+          INTERLOCK_GRAPH: "g",
+          INTERLOCK_NODE: "n",
+        }),
+      ]),
     );
     expect(runtime.args[0]).toContain('shell_environment_policy.set.LIMIT="space and \\"quote\\""');
   });
