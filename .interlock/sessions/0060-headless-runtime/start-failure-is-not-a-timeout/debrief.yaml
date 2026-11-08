@@ -1,0 +1,100 @@
+interlock: debrief@v2
+graph: 0060-headless-runtime
+node: start-failure-is-not-a-timeout
+role: implementer
+graph_base_sha: 70bcce800291c2dae52343f653e175fa440f32fb
+session_start_sha: d7e662ec87fbb8de9d1024051e2f77dcd1e71a0e
+head_sha: d26f1f501a272783bddf352de0c658ea13131828
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: bounded-exit-observation
+    what: Kept the watcher and scheduler as native-default observation seams, added an optional exit reader, and made every poll and final reconciliation use the selected reader.
+    because: The deterministic integration cases must control exit-file timing while production continues to read the real exit.json through the native default.
+    rests_on:
+      - packages/runner/src/execRuntime.ts:115-134
+      - packages/runner/src/execRuntime.ts:311-385
+    hunks:
+      - packages/runner/src/execRuntime.ts:126-134
+      - packages/runner/src/execRuntime.ts:342-385
+  - id: reconcile-start-failure-evidence
+    what: Reconciled exit evidence after the bounded launcher and group waits, and retained explicit program start errors as failed state and start-failure reason ahead of timeout state.
+    because: Evidence written before TERM, during TERM grace, or during later bounded exit waits must outrank a deadline, while a successfully spawned program that exits after the deadline remains a run timeout.
+    rests_on:
+      - packages/runner/src/execRuntime.ts:750-817
+      - packages/runner/src/execRuntime.ts:863-885
+      - "acceptance: explicit error precedence in both state and reason"
+    hunks:
+      - packages/runner/src/execRuntime.ts:762-817
+      - packages/runner/src/execRuntime.ts:863-885
+  - id: deterministic-deadline-matrix
+    what: Added five runExecPhase integration cases covering start errors before TERM, during TERM grace, and during bounded drain, plus spawned nonzero and still-running timeout outcomes; each checks state and reason, and spawned cases check handoff.json.
+    because: The acceptance requires deterministic proof of every timing window and distinguishes explicit spawn errors from programs that successfully hand off.
+    rests_on:
+      - packages/runner/test/startFailureNotTimeout.test.ts:118-180
+      - packages/runner/test/startFailureNotTimeout.test.ts:248-324
+    hunks:
+      - packages/runner/test/startFailureNotTimeout.test.ts:118-180
+      - packages/runner/test/startFailureNotTimeout.test.ts:248-324
+  - id: handoff-timing-fixture
+    what: Added a fixture program that ignores TERM and exits only when the test writes a marker, allowing the successful-spawn and still-running cases to prove handoff timing without wall-clock ordering sleeps.
+    because: The acceptance requires a successful handoff to remain a timeout after the deadline and requires deterministic control of the program's later exit.
+    rests_on:
+      - packages/runner/test/fixtures/exec/waitForMarker.mjs:1-11
+    hunks:
+      - packages/runner/test/fixtures/exec/waitForMarker.mjs:1-11
+  - id: existing-start-failure-state-proof
+    what: Retained the existing missing-program test's explicit failed-state and start-failure-reason assertions.
+    because: The acceptance requires the pre-existing execRuntime start-failure case to assert state as well as reason.
+    rests_on:
+      - packages/runner/test/execRuntime.test.ts:167-180
+    hunks:
+      - packages/runner/test/execRuntime.test.ts:167-180
+  - id: retain-session-evidence
+    what: Appended the correction choices, environment surprises, and gate boundary to the notes@v0 session artifact without staging the launch-local Codex home.
+    because: The brief requires every choice and surprise to remain available beside the immutable brief and final debrief, while launch-local homes are runner-owned artifacts.
+    rests_on:
+      - .interlock/sessions/0060-headless-runtime/start-failure-is-not-a-timeout/notes.yaml:61-76
+    hunks:
+      - .interlock/sessions/0060-headless-runtime/start-failure-is-not-a-timeout/notes.yaml:61-76
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; pnpm typecheck
+    note: All workspace TypeScript projects passed on Node 24.14.0 and pnpm 10.13.1 after the correction commit.
+  - id: lint
+    result: pass
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; pnpm lint
+    note: Biome exited 0; the remaining diagnostics are pre-existing in packages/runner/test/runnerCommits.test.ts outside this diff.
+  - id: comments
+    result: pass
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; pnpm check:comments
+  - id: start-failure-proof
+    result: pass
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; pnpm --fail-if-no-match --filter runner exec vitest run --exclude 'test/.runs/**' test/startFailureNotTimeout.test.ts --passWithNoTests=false
+    note: Nine tests passed, including all five required state-and-reason integration cases; the exclude is required because pre-existing test/.runs symlinks make Vitest scan an owner-home path.
+  - id: exec-runtime-still
+    result: pass
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; pnpm --fail-if-no-match --filter runner exec vitest run --exclude 'test/.runs/**' test/execRuntime.test.ts --passWithNoTests=false
+    note: Five tests passed, including the existing start-failure state and reason assertion.
+  - id: debrief-valid
+    result: pass
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; pnpm interlock debrief validate 0060-headless-runtime start-failure-is-not-a-timeout
+    note: Validation is run after revise selects this candidate.
+  - id: test
+    result: fail
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; HOME="$PWD/packages/runner/test/.runs/gate-home" CODEX_HOME="$PWD/packages/runner/test/.runs/gate-codex-home" XDG_CONFIG_HOME="$PWD/packages/runner/test/.runs/gate-xdg" pnpm test
+    note: The prior workspace gate was stopped after unrelated runner fixtures timed out under isolated homes; it was not rerun after this correction because the user explicitly reserved the workspace gate for the judge after session-owned Codex-home cleanup.
+  - id: runner-suite
+    result: fail
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; HOME="$PWD/packages/runner/test/.runs/gate-home" CODEX_HOME="$PWD/packages/runner/test/.runs/gate-codex-home" XDG_CONFIG_HOME="$PWD/packages/runner/test/.runs/gate-xdg" pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
+    note: The prior full runner run stalled or failed in unrelated machine-provider and repository fixture tests under required owner-home isolation; not rerun per the judge hold.
+  - id: start-failure-types
+    result: pass
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; pnpm typecheck
+open:
+  - The workspace test and full runner-suite gates remain unresolved from the prior isolated-home run; the required focused matrix, existing execRuntime case, typecheck, lint, and comment checks pass after d26f1f5. The judge should rerun the reserved workspace gates after the runner removes its launch-local Codex home.
+  - The untracked .interlock/sessions/0060-headless-runtime/start-failure-is-not-a-timeout/codex-home-no28bz directory remains runner-owned and was deliberately neither removed nor staged.

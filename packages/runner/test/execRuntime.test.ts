@@ -175,6 +175,7 @@ describe("runExecPhase", () => {
     expect(isOk(missingLauncher)).toBe(false);
     expect(isOk(missingProgram)).toBe(true);
     if (isOk(missingNode) || isOk(missingLauncher) || !isOk(missingProgram)) return;
+    expect(missingProgram.value.record.state).toBe("failed");
     expect(missingProgram.value.record.reason).toBe("program could not start: ENOENT");
     expect(existsSync(join(missingProgram.value.runDir, "handoff.json"))).toBe(false);
   });

@@ -1,0 +1,88 @@
+interlock: debrief@v2
+graph: 0060-headless-runtime
+node: start-failure-is-not-a-timeout
+role: implementer
+graph_base_sha: 70bcce800291c2dae52343f653e175fa440f32fb
+session_start_sha: d7e662ec87fbb8de9d1024051e2f77dcd1e71a0e
+head_sha: 5c79f65544210fc70806f2d21722075693680c87
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: bounded-exit-observation
+    what: Added a native-default watcher and scheduler seam whose single waiter polls exit.json, observes every directory event without trusting its filename, continues through watcher failure, and owns deadline cleanup.
+    because: Atomic rename and watcher coalescing can hide a recorded spawn error; a watcher failure must not become an early timeout, and deterministic tests need ordering seams.
+    rests_on:
+      - packages/runner/src/execRuntime.ts:115-162
+      - packages/runner/src/execRuntime.ts:316-385
+      - "acceptance: watcher polling and bounded failure behavior"
+    hunks:
+      - packages/runner/src/execRuntime.ts:115-162
+      - packages/runner/src/execRuntime.ts:316-385
+  - id: reconcile-start-failure-evidence
+    what: Re-read exit.json after the bounded launcher and group waits, retain the transcript distinction between confirmed and unconfirmed launcher death, and let an explicit program start error determine failed state and reason before timeout state.
+    because: Evidence written before TERM, during TERM grace, or during later bounded exit waits must outrank a deadline, while a successfully spawned program that exits after the deadline must remain a run timeout.
+    rests_on:
+      - packages/runner/src/execRuntime.ts:742-810
+      - packages/runner/src/execRuntime.ts:855-880
+      - "acceptance: explicit error precedence in both state and reason"
+    hunks:
+      - packages/runner/src/execRuntime.ts:742-810
+      - packages/runner/src/execRuntime.ts:855-880
+  - id: deterministic-observation-proof
+    what: Added controlled scheduler and watcher tests for dropped events, watcher creation failure, watcher error, polling, and the deadline-final read, and strengthened the existing missing-program assertion to require failed state.
+    because: The acceptance names watcher delivery failures and both state and reason as proof boundaries; injected seams keep ordering deterministic without shipping a test-only launcher switch.
+    rests_on:
+      - packages/runner/test/startFailureNotTimeout.test.ts:1-172
+      - packages/runner/test/execRuntime.test.ts:167-180
+      - "acceptance: deterministic start-failure proof"
+    hunks:
+      - packages/runner/test/startFailureNotTimeout.test.ts
+      - packages/runner/test/execRuntime.test.ts:167-180
+  - id: retain-session-evidence
+    what: Recorded implementation choices, gate evidence limits, and launch-local artifact handling in the notes@v0 session artifact.
+    because: The brief requires every choice and surprise to remain available beside the immutable brief and final debrief.
+    rests_on:
+      - .interlock/sessions/0060-headless-runtime/start-failure-is-not-a-timeout/notes.yaml
+    hunks:
+      - .interlock/sessions/0060-headless-runtime/start-failure-is-not-a-timeout/notes.yaml
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; pnpm typecheck
+    note: All workspace TypeScript projects passed on Node 24.14.0 and pnpm 10.13.1.
+  - id: lint
+    result: pass
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; pnpm lint
+    note: Biome exited 0 with pre-existing diagnostics in packages/runner/test/runnerCommits.test.ts outside this diff.
+  - id: comments
+    result: pass
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; pnpm check:comments
+  - id: test
+    result: fail
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; HOME="$PWD/packages/runner/test/.runs/gate-home" CODEX_HOME="$PWD/packages/runner/test/.runs/gate-codex-home" XDG_CONFIG_HOME="$PWD/packages/runner/test/.runs/gate-xdg" pnpm test
+    note: The first run was contaminated by the untracked launch-local codex home and failed the schemas corpus; after exact cleanup and owner-home isolation, unrelated runner tests repeatedly timed out and the process was stopped. The focused execRuntime tests passed within the run.
+  - id: debrief-valid
+    result: pass
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; pnpm interlock debrief validate 0060-headless-runtime start-failure-is-not-a-timeout
+    note: Validation is rerun after file-derived selects this candidate.
+  - id: start-failure-proof
+    result: pass
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; pnpm --fail-if-no-match --filter runner exec vitest run test/startFailureNotTimeout.test.ts --passWithNoTests=false
+    note: Four tests passed.
+  - id: exec-runtime-still
+    result: pass
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; pnpm --fail-if-no-match --filter runner exec vitest run test/execRuntime.test.ts --passWithNoTests=false
+    note: Five tests passed.
+  - id: runner-suite
+    result: fail
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; HOME="$PWD/packages/runner/test/.runs/gate-home" CODEX_HOME="$PWD/packages/runner/test/.runs/gate-codex-home" XDG_CONFIG_HOME="$PWD/packages/runner/test/.runs/gate-xdg" pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
+    note: The full runner run reached the focused tests, but unrelated machine-provider and repository fixture tests timed out or failed under the required owner-home isolation.
+  - id: start-failure-types
+    result: pass
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; pnpm typecheck
+open:
+  - The implementation does not add the graph's full delayed-after-deadline integration matrix; the focused file proves the observation seam and the existing execRuntime file proves the missing-program failed state and reason, while the runner gate remains unresolved because unrelated fixture tests time out under isolated homes.
+  - The workspace test gate requires a clean rerun in an environment where the repository's unrelated Codex and machine fixtures complete under owner-home isolation; no owner-home link was restored or committed.

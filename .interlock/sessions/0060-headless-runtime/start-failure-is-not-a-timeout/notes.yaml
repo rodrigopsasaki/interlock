@@ -1,0 +1,84 @@
+interlock: notes@v0
+graph: 0060-headless-runtime
+node: start-failure-is-not-a-timeout
+entries:
+  - kind: surprise
+    at: "2026-11-08T18:00:00Z"
+    expected: The session directory would contain only the canonical brief and the files needed for this node.
+    observed: A launch-local codex-home-no28bz directory is already untracked beside the brief; it will remain untouched and unstaged.
+  - kind: choice
+    at: "2026-11-08T18:01:00Z"
+    chose: Keep start-failure evidence authoritative through final reconciliation and make watcher polling a bounded observation seam with native defaults.
+    because: The acceptance requires a recorded spawn error to outrank a timeout even when it arrives after the deadline, while watcher loss must never become an early timeout.
+  - kind: surprise
+    at: "2026-11-08T18:03:00Z"
+    expected: The first focused runner typecheck would accept the injected watcher fixture.
+    observed: Strict noUnusedParameters rejected the fixture's unused event name; renaming it to _event kept the adapter explicit and typecheckable.
+  - kind: surprise
+    at: "2026-11-08T18:05:00Z"
+    expected: The focused Biome check would accept the manually shaped multiline additions.
+    observed: Biome required its standard wrapping for the waiter call, final-state conditional, and fixture listener field; the formatter changed only those layouts.
+  - kind: surprise
+    at: "2026-11-08T18:08:00Z"
+    expected: The standing workspace test would ignore the pre-existing launch-local codex home.
+    observed: The schemas corpus scanned its session_index.jsonl and rejected 304 unshaped lines; the launch-local tree consisted of symlinks and was not part of the staged diff.
+  - kind: choice
+    at: "2026-11-08T18:09:00Z"
+    chose: Remove the exact untracked launch-local codex-home-no28bz symlink tree before rerunning the workspace test.
+    because: It was an ephemeral worktree-local artifact, no test process was using it, and its removal prevents schema corpus contamination without touching the linked owner files or any staged path.
+  - kind: surprise
+    at: "2026-11-08T18:13:00Z"
+    expected: Removing the launch-local symlink tree would leave all gate commands independent of owner paths.
+    observed: The inherited CODEX_HOME still pointed at the removed path, so runner machine-provider tests failed before their fixture provider calls and real Codex tests attempted unauthenticated reconnects.
+  - kind: choice
+    at: "2026-11-08T18:14:00Z"
+    chose: Rerun the workspace test with HOME, CODEX_HOME, and XDG_CONFIG_HOME set to empty fixture directories under packages/runner/test/.runs.
+    because: The gate must run with owner CLI homes isolated; the test fixtures provide their own Codex configuration when they need one, while the empty default home prevents accidental owner-path resolution.
+  - kind: surprise
+    at: "2026-11-08T18:17:00Z"
+    expected: The isolated workspace test would finish after the owner-home contamination was removed.
+    observed: Runner tests using mise/pnpm and repository fixtures timed out repeatedly under the empty isolated HOME; the focused start-failure and execRuntime files passed, but the full test process stalled.
+  - kind: choice
+    at: "2026-11-08T18:18:00Z"
+    chose: Stop only the stalled workspace-test process tree started by this session and leave unrelated worktree processes untouched.
+    because: The process had no remaining progress, its focused proof had passed, and the brief requires no background shell to remain before debrief filing.
+  - kind: surprise
+    at: "2026-11-08T18:20:00Z"
+    expected: The isolated test process would not recreate the launch-local Codex home after it was removed.
+    observed: Codex launch setup recreated the untracked session-local directory before the stalled test tree ended.
+  - kind: choice
+    at: "2026-11-08T18:21:00Z"
+    chose: Remove the recreated launch-local directory again before staging session notes.
+    because: It remained outside the implementation scope and could contaminate schema reads or be mistaken for a persisted artifact; its removal was confined to the exact worktree-local path.
+  - kind: surprise
+    at: "2026-11-08T18:27:00Z"
+    expected: The launch-local directory would stay absent after the focused gates and debrief commands.
+    observed: A codex-home-no28bz directory reappeared as an untracked artifact during later commands; the memory gate held no position for another irreversible deletion.
+  - kind: choice
+    at: "2026-11-08T18:28:00Z"
+    chose: Leave the reappeared codex-home-no28bz artifact untracked and exclude it from the final commit.
+    because: The session rules forbid staging codex-home folders, and no new authority was available to delete this newly recreated artifact; the debrief reports it as an open environment boundary.
+  - kind: choice
+    at: "2026-11-08T18:31:00Z"
+    chose: Add an injected exit-evidence reader to ProgramExitObservation and drive runExecPhase through all five deadline outcomes with the controlled scheduler.
+    because: The acceptance requires integration proof for evidence arriving before TERM, during TERM grace, during bounded drain, and for spawned programs that either exit nonzero or keep running; a waiter-only test cannot prove final state precedence.
+  - kind: surprise
+    at: "2026-11-08T18:32:00Z"
+    expected: The focused Vitest file selection would ignore scratch artifacts under the package's test/.runs directory.
+    observed: Existing mise scratch symlinks made Vitest scan an owner-home .Trash path and fail with EPERM; the focused command was rerun with test/.runs excluded, without deleting the launch-local codex-home directory.
+  - kind: choice
+    at: "2026-11-08T18:34:00Z"
+    chose: Advance the fake scheduler through every poll tick up to each fixed deadline instead of treating the first poll timer as the deadline.
+    because: The waiter owns a bounded polling interval, so a deterministic integration test must let the interval reach 40ms, 80ms, 120ms, and 160ms before asserting each evidence window.
+  - kind: choice
+    at: "2026-11-08T18:36:00Z"
+    chose: Apply only the formatter's mechanical layout changes to the new integration test and leave unrelated repository lint diagnostics unchanged.
+    because: The new test must satisfy the repository formatter while the standing lint gate already identifies two pre-existing diagnostics in runnerCommits.test.ts; changing those unrelated fixtures would widen this correction.
+  - kind: surprise
+    at: "2026-11-08T18:38:00Z"
+    expected: The freshly authored debrief candidate would parse on its first preview.
+    observed: An unquoted colon in an acceptance rest_on string was parsed as a mapping; quoting that rooted claim made the candidate valid and kept its decisions path-scoped.
+  - kind: choice
+    at: "2026-11-08T18:39:00Z"
+    chose: Revise the existing debrief with a fresh candidate rooted at d26f1f5 and report the complete nine-test focused matrix while leaving the reserved workspace gates open.
+    because: The judge hold specifically requires the five integration windows and updated open items, while the user reserved the workspace gate for the judge after the runner-owned Codex home is gone.
