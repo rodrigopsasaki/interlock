@@ -11,7 +11,7 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { isErr, isOk, ok } from "@phyxiusjs/fp";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { CODEX_CANONICAL_LINE_LIMIT, prepareCodexLaunch } from "../src/codex/config.ts";
 import { agentEnvironmentArgs } from "../src/codex/environment.ts";
 import type { ResolvedRuntime } from "../src/runtimeCatalogue.ts";
@@ -20,6 +20,16 @@ import { prepareLaunch } from "../src/sessionDrive.ts";
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
+const previousGitCeiling = process.env["GIT_CEILING_DIRECTORIES"];
+
+beforeAll(() => {
+  process.env["GIT_CEILING_DIRECTORIES"] = join(runsRoot, "..");
+});
+
+afterAll(() => {
+  if (previousGitCeiling === undefined) delete process.env["GIT_CEILING_DIRECTORIES"];
+  else process.env["GIT_CEILING_DIRECTORIES"] = previousGitCeiling;
+});
 
 afterEach(() => {
   if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
@@ -32,7 +42,10 @@ function fixtureRoot(name: string): string {
 }
 
 function environment(home: string): Readonly<Record<string, string>> {
+  const root = join(home, "..");
   return {
+    HOME: join(root, "home"),
+    XDG_STATE_HOME: join(root, "state"),
     INTERLOCK_SESSION: "session",
     INTERLOCK_GRAPH: "0060-headless-runtime",
     INTERLOCK_NODE: "marker-never-dropped",
@@ -89,7 +102,7 @@ describe("Codex marker delivery policy", () => {
     const profileText = readFileSync(profilePath, "utf8");
     expect(profileText).toContain("mcp_servers.server_0_");
     expect(profileText).toContain('INTERLOCK_SESSION = "session"');
-    result.value.cleanup();
+    result.value.cleanup(true);
     expect(existsSync(overlayHome)).toBe(false);
   });
 
@@ -128,7 +141,7 @@ describe("Codex marker delivery policy", () => {
     expect(regularEntries).toContain("interlock-session.config.toml");
     expect(regularEntries).not.toContain("auth.json");
     expect(regularEntries).not.toContain("auth.lock");
-    result.value.cleanup();
+    result.value.cleanup(true);
     expect(existsSync(overlayHome)).toBe(false);
     expect(readFileSync(authPath, "utf8")).toBe('{"token":"updated"}\n');
     expect(existsSync(sessionsPath)).toBe(true);
@@ -156,15 +169,15 @@ describe("Codex marker delivery policy", () => {
     const root = fixtureRoot("marker-utf8");
     const home = codexHome(root, '[mcp_servers.fixture]\ncommand = "fixture"\n');
     const values = environment(home);
-    const base = agentEnvironmentArgs("codex", ["x".repeat(450), "é".repeat(30)], values, []);
-    const withMarker = agentEnvironmentArgs("codex", ["x".repeat(450), "é".repeat(30)], values, [
+    const base = agentEnvironmentArgs("codex", ["x".repeat(280), "é".repeat(30)], values, []);
+    const withMarker = agentEnvironmentArgs("codex", ["x".repeat(280), "é".repeat(30)], values, [
       "fixture",
     ]);
     expect(["codex", ...base].join(" ").length).toBeLessThan(CODEX_CANONICAL_LINE_LIMIT);
     expect(Buffer.byteLength(["codex", ...withMarker].join(" "), "utf8")).toBeGreaterThanOrEqual(
       CODEX_CANONICAL_LINE_LIMIT,
     );
-    const result = prepareCodexLaunch(["x".repeat(450), "é".repeat(30)], root, values, {
+    const result = prepareCodexLaunch(["x".repeat(280), "é".repeat(30)], root, values, {
       listCodexMcp: () => ok(["fixture"]),
     });
     expect(isOk(result)).toBe(true);
@@ -207,6 +220,6 @@ describe("Codex marker delivery policy", () => {
     expect(launch.value.args).toContain(
       'mcp_servers.profile_only.env.INTERLOCK_NODE="marker-never-dropped"',
     );
-    launch.value.cleanup?.();
+    launch.value.cleanup?.(true);
   });
 });

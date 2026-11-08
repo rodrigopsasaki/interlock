@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { join } from "node:path";
 import { isOk } from "@phyxiusjs/fp";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { prepareCodexLaunch } from "../src/codex/config.ts";
 
 type JsonObject = Record<string, unknown>;
@@ -11,6 +11,16 @@ type JsonObject = Record<string, unknown>;
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
+const previousGitCeiling = process.env["GIT_CEILING_DIRECTORIES"];
+
+beforeAll(() => {
+  process.env["GIT_CEILING_DIRECTORIES"] = join(runsRoot, "..");
+});
+
+afterAll(() => {
+  if (previousGitCeiling === undefined) delete process.env["GIT_CEILING_DIRECTORIES"];
+  else process.env["GIT_CEILING_DIRECTORIES"] = previousGitCeiling;
+});
 
 afterEach(() => {
   if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
@@ -218,6 +228,8 @@ describe("real Codex line fitting", () => {
       ].join("\n\n"),
     );
     const environment = {
+      HOME: join(root, "home"),
+      XDG_STATE_HOME: join(root, "state"),
       NODE_OPTIONS: "--max-old-space-size=3072",
       VITEST_MAX_WORKERS: "4",
       VITEST_MAX_THREADS: "4",
@@ -279,7 +291,7 @@ describe("real Codex line fitting", () => {
         INTERLOCK_GRAPH: "0060-headless-runtime",
         INTERLOCK_NODE: "line-fits-real-codex",
       });
-      launch.value.cleanup();
+      launch.value.cleanup(true);
     } finally {
       await provider.close();
     }

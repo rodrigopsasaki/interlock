@@ -101,6 +101,7 @@ export interface PrepareLaunchOptions {
     cwd: string,
     environment: Readonly<Record<string, string>>,
   ) => Result<readonly string[], string>;
+  readonly journalPath?: string;
 }
 
 type LaunchRefusal = WorktreeRefusal | MarkerConflict | CodexLaunchRefusal;
@@ -145,6 +146,7 @@ export function prepareLaunch(
     const prepared = prepareCodexLaunch(launchArgs, worktreePath, environment, {
       ...(options.narrate === undefined ? {} : { narrate: options.narrate }),
       ...(options.listCodexMcp === undefined ? {} : { listCodexMcp: options.listCodexMcp }),
+      ...(options.journalPath === undefined ? {} : { journalPath: options.journalPath }),
     });
     if (isErr(prepared)) return prepared;
     return ok({
@@ -271,7 +273,8 @@ export async function driveInteractiveSession(
   let pane: Pane | undefined;
   let agent: Agent | undefined;
   let runtime: Runtime | undefined;
-  let launchCleanup: (() => void) | undefined;
+  let launchCleanup: ((terminationConfirmed: boolean) => void) | undefined;
+  let execTerminationConfirmed = false;
   let cleanup: { readonly session: string; readonly hold: MachineHold } | undefined;
   let stopLease: (() => void) | undefined;
   let paneCustody: "runner" | "person" = "runner";
@@ -528,9 +531,11 @@ export async function driveInteractiveSession(
       let phaseArgs: readonly string[] = argv.slice(1);
       let phaseEnvironment: Readonly<Record<string, string>> = agentEnvironment;
       if (basename(program) === "codex") {
+        const journalDirectory = await sharedJournalDirectory(repoRoot);
         const prepared = prepareCodexLaunch(phaseArgs, worktreePath, agentEnvironment, {
           narrate,
           program,
+          journalPath: join(journalDirectory, "journal.jsonl"),
         });
         if (isErr(prepared)) {
           lease.stop();
@@ -707,6 +712,7 @@ export async function driveInteractiveSession(
         lease.stop();
         return refuse(abandon("debrief wait"), debrief.error.because);
       }
+      execTerminationConfirmed = true;
       if (committedCode !== undefined && isOk(committedCode)) {
         const committed = await commitRunnerDebrief(custody, committedCode.value);
         if (isErr(committed)) {
@@ -749,7 +755,14 @@ export async function driveInteractiveSession(
       };
     }
 
-    const launch = await prepareLaunch(agentRuntime, worktreePath, agentEnvironment, { narrate });
+    const journalPath =
+      agentRuntime.kind === "codex"
+        ? join(await sharedJournalDirectory(repoRoot), "journal.jsonl")
+        : undefined;
+    const launch = await prepareLaunch(agentRuntime, worktreePath, agentEnvironment, {
+      narrate,
+      ...(journalPath === undefined ? {} : { journalPath }),
+    });
     if (isErr(launch)) {
       const result = refuse(abandon("writable root"), explainLaunchRefusal(launch.error));
       lease.stop();
@@ -1182,6 +1195,7 @@ export async function driveInteractiveSession(
   };
   let result: DriveSessionOutcome;
   let closeFailure: DriveSessionOutcome | undefined;
+  let terminationConfirmed = false;
   try {
     result = await drive();
   } finally {
@@ -1212,12 +1226,14 @@ export async function driveInteractiveSession(
             ),
           });
           closeFailure = { exitCode: 1, message: because };
+        } else {
+          terminationConfirmed = true;
         }
       } else {
         narrate(`pane ${pane.id} left open for drilldown`);
       }
     }
-    launchCleanup?.();
+    launchCleanup?.(terminationConfirmed || execTerminationConfirmed);
     launchCleanup = undefined;
   }
   return closeFailure ?? result;

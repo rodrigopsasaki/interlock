@@ -1,0 +1,50 @@
+interlock: notes@v0
+node: home-on-main
+entries:
+  - kind: choice
+    at: '2026-11-08T17:54:18Z'
+    chose: >-
+      Port the cleared branch's Codex overlay containment and termination evidence onto main's
+      marker-never-dropped and line-fits implementation instead of replacing main's config/profile
+      generation.
+    because: >-
+      The acceptance gives main's regular generated base config, profile, symlinked shared entries,
+      and moved shell-environment policy entries precedence over the stale branch's config.toml
+      linking behavior.
+  - kind: surprise
+    at: '2026-11-08T17:54:18Z'
+    expected: The session worktree would contain only repository files before implementation.
+    observed: >-
+      An untracked launch-local codex-home directory contained symlinks into the owner's ~/.codex;
+      it was removed without staging it or following its links.
+  - kind: surprise
+    at: '2026-11-08T17:54:18Z'
+    expected: The pinned typecheck command wrapper would capture its exit status normally.
+    observed: >-
+      zsh treats the variable name status as read-only after typecheck ran, so the command's exit
+      status was not captured; the retained output file is the source for the result.
+  - kind: choice
+    at: '2026-11-08T17:54:18Z'
+    chose: >-
+      Bound fixture Git discovery at the package test .runs root while running overlay tests, and
+      supplied isolated HOME and XDG_STATE_HOME values for every Codex fixture.
+    because: >-
+      The production containment check must reject state in any repository, while test fixture
+      roots live inside this checkout; the ceiling reproduces a temporary fixture boundary without
+      allowing tests to inspect or mutate the owner's state.
+  - kind: surprise
+    at: '2026-11-08T17:54:18Z'
+    expected: The bounded real Codex marker-overflow command would return a complete Vitest receipt.
+    observed: >-
+      The command returned after only Vitest's initial line while its Codex and MCP fixture child
+      processes remained alive; those explicit test processes were terminated and the incomplete
+      output is not treated as proof.
+  - kind: choice
+    at: '2026-11-08T17:54:18Z'
+    chose: >-
+      Mark an exec overlay removable only after both work and debrief groups report successful
+      confirmed termination, while pane overlays require a confirmed pane close.
+    because: >-
+      A launch can finish one phase and still leave an unresolved later group; cleanup must preserve
+      the overlay on every uncertain or retained path and remove it only from explicit termination
+      evidence.
