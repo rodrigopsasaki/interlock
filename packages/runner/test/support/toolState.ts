@@ -36,18 +36,18 @@ function contains(root: string, path: string): boolean {
   return remainder === "" || (!remainder.startsWith("..") && !isAbsolute(remainder));
 }
 
-function assertOutsideProtectedRoots(path: string): void {
-  for (const root of protectedRoots(repositoryRoot())) {
+function assertOutsideProtectedRoots(path: string, protectedRoot: string): void {
+  for (const root of protectedRoots(protectedRoot)) {
     if (contains(root, path)) {
       throw new Error(`tool state is inside protected repository root: ${path} -> ${root}`);
     }
   }
 }
 
-export function allocateToolState(prefix: string): ToolState {
+export function allocateToolState(prefix: string, protectedRoot = repositoryRoot()): ToolState {
   const directory = realpathSync(mkdtempSync(join(tmpdir(), `interlock-${prefix}-`)));
   try {
-    assertOutsideProtectedRoots(directory);
+    assertOutsideProtectedRoots(directory, protectedRoot);
   } catch (error) {
     rmSync(directory, { recursive: true, force: true });
     throw error;
@@ -93,7 +93,7 @@ export function isolatedHomeEnvironment(prefix: string): {
   readonly cleanup: () => void;
 } {
   const root = realpathSync(mkdtempSync(join(tmpdir(), `interlock-${prefix}-`)));
-  assertOutsideProtectedRoots(root);
+  assertOutsideProtectedRoots(root, repositoryRoot());
   const home = join(root, "home");
   const state = join(root, "state");
   const codex = join(root, "codex");

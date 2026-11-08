@@ -1,3 +1,4 @@
+import { type ChildProcess, spawn } from "node:child_process";
 import {
   mkdirSync,
   mkdtempSync,
@@ -13,6 +14,7 @@ import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { scanRepositoryLinks } from "../../../scripts/runs-links-stay-inside.ts";
 import { runStateFolderCheck } from "../../../scripts/state-folder-untouched.ts";
+import { initFixtureRepository } from "../../../test/support/gitFixture.ts";
 import { allocateToolState } from "./support/toolState.ts";
 
 const repositoryRoot = realpathSync(resolve(import.meta.dirname, "../../.."));
@@ -32,6 +34,28 @@ function command(source: string): readonly string[] {
   return [process.execPath, "-e", source];
 }
 
+function scanFixtureRoot(): string {
+  const root = temporaryRoot("scan-repository");
+  initFixtureRepository(root);
+  return root;
+}
+
+function waitForChildReady(child: ChildProcess): Promise<void> {
+  const stdout = child.stdout;
+  if (stdout === null) return Promise.reject(new Error("child stdout was not piped"));
+  return new Promise((resolve, reject) => {
+    stdout.once("data", () => resolve());
+    child.once("error", reject);
+  });
+}
+
+function waitForChildExit(child: ChildProcess): Promise<void> {
+  return new Promise((resolve, reject) => {
+    child.once("error", reject);
+    child.once("exit", () => resolve());
+  });
+}
+
 describe("tool state outside repositories", () => {
   it("allocates unique state under the system temporary directory", () => {
     const first = allocateToolState("proof-one");
@@ -44,10 +68,11 @@ describe("tool state outside repositories", () => {
   });
 
   it("keeps concurrent tool state out of the repository while it is live", () => {
-    const first = allocateToolState("concurrent-one");
-    const second = allocateToolState("concurrent-two");
+    const scanRoot = scanFixtureRoot();
+    const first = allocateToolState("concurrent-one", scanRoot);
+    const second = allocateToolState("concurrent-two", scanRoot);
     try {
-      const result = scanRepositoryLinks(repositoryRoot);
+      const result = scanRepositoryLinks(scanRoot);
       expect(result.failure).toBeUndefined();
       expect(result.links).toEqual([]);
     } finally {
@@ -56,15 +81,31 @@ describe("tool state outside repositories", () => {
     }
   });
 
-  it("does not follow a live state link after a child is interrupted", () => {
-    const state = allocateToolState("interrupted");
+  it("does not follow a live state link after a child is interrupted", async () => {
+    const scanRoot = scanFixtureRoot();
+    const state = allocateToolState("interrupted", scanRoot);
     const target = join(state.directory, "outside-target");
     mkdirSync(target);
-    symlinkSync(target, join(state.directory, "trusted-config"));
-    const result = scanRepositoryLinks(repositoryRoot);
-    expect(result.failure).toBeUndefined();
-    expect(result.links).toEqual([]);
-    state.cleanup();
+    const link = join(state.directory, "trusted-config");
+    const child = spawn(
+      process.execPath,
+      [
+        "-e",
+        `require("node:fs").symlinkSync(${JSON.stringify(target)}, ${JSON.stringify(link)}); process.stdout.write("ready\\n"); setInterval(() => {}, 1000)`,
+      ],
+      { cwd: scanRoot, env: state.environment, stdio: ["ignore", "pipe", "pipe"] },
+    );
+    try {
+      await waitForChildReady(child);
+      expect(child.kill("SIGTERM")).toBe(true);
+      await waitForChildExit(child);
+      const result = scanRepositoryLinks(scanRoot);
+      expect(result.failure).toBeUndefined();
+      expect(result.links).toEqual([]);
+    } finally {
+      if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
+      state.cleanup();
+    }
   });
 
   it("detects outward links without dereferencing them", () => {

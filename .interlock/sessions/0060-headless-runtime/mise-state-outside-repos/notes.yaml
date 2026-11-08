@@ -194,3 +194,26 @@ entries:
     observed: >-
       Recovery correctly refused because the prior debrief's session_start_sha is already a commit;
       the correction must retain that prior session start and use revise without recovery.
+  - kind: choice
+    at: '2026-11-08T21:30:00Z'
+    chose: >-
+      Point the live-state, concurrent-allocation, and interrupted-run link scans at a disposable Git
+      fixture under the system temporary directory, and let the allocator validate against that fixture.
+    because: >-
+      The shared worktree is concurrently changing as Vitest runs other tests, so a scan of it can
+      report a transient ENOENT unrelated to escaping tool state. The acceptance needs the state
+      isolation proof, not a race with unrelated test scratch directories.
+  - kind: choice
+    at: '2026-11-08T21:30:00Z'
+    chose: >-
+      Have the interrupted-run proof spawn one child that creates its temporary state link, then
+      terminate that child through its ChildProcess handle before scanning the fixture repository.
+    because: >-
+      The proof must show that interruption is scoped to the child under test; a process-group signal
+      could explain unrelated one-off failures in runnerCommits and runnerMarker.
+  - kind: surprise
+    at: '2026-11-08T21:33:00Z'
+    expected: The focused Biome check would accept the new child-process import formatting.
+    observed: >-
+      Biome required the type import to precede the value import and to use its single-line form;
+      the import was corrected before the next gate run.
