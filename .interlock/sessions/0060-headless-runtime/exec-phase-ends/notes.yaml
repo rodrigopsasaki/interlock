@@ -1,0 +1,107 @@
+interlock: notes@v0
+node: exec-phase-ends
+entries:
+  - kind: choice
+    at: "2026-11-08T00:00:00Z"
+    chose: Read the canonical brief, graph, design context, and current runtime before editing.
+    because: The brief makes the graph acceptance authoritative and requires the cause of the missed phase end to be fixed.
+  - kind: surprise
+    at: "2026-11-08T00:00:00Z"
+    expected: The session branch would already contain runner-marker and its focused test.
+    observed: HEAD is the brief commit on origin/main, and packages/runner/test/runnerMarker.test.ts is absent.
+  - kind: choice
+    at: "2026-11-08T00:05:00Z"
+    chose: Merge graph/0060-headless-runtime/runner-marker and origin/main with signed no-ff merges before reproducing the phase-end failure.
+    because: The acceptance requires both parent histories in this session and the runtime fix must be evaluated on the same landing branch that previously cleared its judge.
+  - kind: surprise
+    at: "2026-11-08T07:22:15Z"
+    expected: The focused command would run under the pinned Node after exporting the mise pnpm and node directories first on PATH.
+    observed: The shell reported Node 24.14.0, but mise exec -- pnpm launched pnpm under Node 26.13.0; the passing run is not proof and will be repeated with the corrected invocation.
+  - kind: choice
+    at: "2026-11-08T07:28:00Z"
+    chose: Bound the entire anchor control request, including Unix-socket connection establishment, rather than only idle socket activity.
+    because: The diagnostic transcript stops at the first timeout control request while the anchor is alive in its record, and the existing socket idle timeout does not cover a connect that never completes.
+  - kind: surprise
+    at: "2026-11-08T07:28:01Z"
+    expected: A slow phase would leave a completed record or a terminal timeout record for inspection.
+    observed: Under load 8.75, the phase stayed running for more than 60 seconds at the timeout-control request; the launcher anchor and group-end evidence were not observed by the runner.
+  - kind: choice
+    at: "2026-11-08T07:31:00Z"
+    chose: Bound both launcher-close waits with the existing drain grace after bounding control-socket connection requests.
+    because: A refused or unanswered control request must not leave the runner awaiting a launcher close forever; the phase can still complete its bounded transcript and group observation path.
+  - kind: surprise
+    at: "2026-11-08T07:31:01Z"
+    expected: Bounding the first launcher-close wait would cover every timeout path.
+    observed: The second fallback branch still awaited the same launcher promise without a bound and kept the diagnostic phase running for 60 seconds; both awaits now share the drain bound.
+  - kind: choice
+    at: "2026-11-08T07:32:00Z"
+    chose: Remove the temporary phase diagnostic source and generated root after preserving its lifecycle transcript in the session notes.
+    because: The diagnostic isolated the cause and is not part of the requested artifact or focused proof.
+  - kind: choice
+    at: "2026-11-08T07:34:00Z"
+    chose: Publish the launcher anchor only from the control server's listening callback, after stdin handling is installed.
+    because: Anchor observation is the runner's launch readiness boundary; publishing it before the socket and input handlers exist lets the runner send bind and go into a launcher that cannot yet process them.
+  - kind: surprise
+    at: "2026-11-08T07:34:01Z"
+    expected: A bounded control request would make every focused phase complete successfully under load.
+    observed: The focused run became finite but still timed out or classified phases as killed because the launcher had no started, handoff, or exit file after goIntent.
+  - kind: choice
+    at: "2026-11-08T07:36:00Z"
+    chose: Temporarily retain launcher stderr in the phase transcript before anchor publication to diagnose the new pre-anchor refusal.
+    because: The launcher currently returns only an exit code before its anchor, so the runner's existing record is insufficient to distinguish a socket error from a launcher startup error; the diagnostic hook will be removed before the implementation commit.
+  - kind: surprise
+    at: "2026-11-08T07:37:00Z"
+    expected: The worktree-relative control socket path would be accepted by macOS.
+    observed: The launcher control socket was 160 bytes and server.listen returned EINVAL; the runner had already published anchor readiness before that failure and could wait forever for control responses from the dead launcher.
+  - kind: choice
+    at: "2026-11-08T07:38:00Z"
+    chose: Put ephemeral control sockets in the short per-user private directory under the system temporary directory required by the graph design.
+    because: The socket path must stay below the platform limit regardless of worktree depth; this is runtime state, not scratch work, and the directory is created with private permissions.
+  - kind: surprise
+    at: "2026-11-08T07:35:00Z"
+    expected: The corrected readiness boundary would still fail in the diagnostic worktree.
+    observed: With the short socket path, the same diagnostic completed done under load 9.47 and preserved a complete transcript in 170ms.
+  - kind: choice
+    at: "2026-11-08T07:36:00Z"
+    chose: Remove the temporary launcher-stderr hook and diagnostic fixture after the short-socket run identified the platform refusal.
+    because: The committed runtime should preserve the existing transcript contract and the focused tests are the proof artifact.
+  - kind: choice
+    at: "2026-11-08T07:38:00Z"
+    chose: Use the full runner-suite command for the repeated proof runs because it includes execRuntime.test.ts and runnerMarker.test.ts in every run.
+    because: The session forbids parallel or background heavy commands, while the acceptance requires the focused tests to pass as part of the full runner suite under the recorded load.
+  - kind: surprise
+    at: "2026-11-08T07:40:00Z"
+    expected: The full runner suite would expose only the previously observed lifecycle failures.
+    observed: Runner suite run 1 passed all 46 files and 568 tests; it still printed the existing Git maintenance permission diagnostics, and its measured load was 7.30 at start and 9.21 near completion.
+  - kind: surprise
+    at: "2026-11-08T07:43:00Z"
+    expected: A second full runner-suite proof would regress under the same busy machine.
+    observed: Runner suite run 2 passed all 46 files and 568 tests at load 8.06 at start and 7.78 near completion.
+  - kind: surprise
+    at: "2026-11-08T07:47:00Z"
+    expected: The third full runner-suite proof would regress after two successful runs.
+    observed: Runner suite run 3 passed all 46 files and 568 tests at load 7.51 at start and 6.97 near completion; its one-minute load did not meet the acceptance threshold for this run.
+  - kind: surprise
+    at: "2026-11-08T07:50:00Z"
+    expected: The first standing typecheck invocation would retain its load metadata in the command output.
+    observed: Pinned Node and pnpm were recorded and all eight workspace typechecks passed, but the first invocation omitted load sampling; I will rerun the gate with start and end load recorded before filing.
+  - kind: surprise
+    at: "2026-11-08T07:52:00Z"
+    expected: The first workspace test gate would read the newly created notes artifact.
+    observed: The debrief package rejected notes.yaml because its required top-level node field was missing; the field is now present and the gate will be rerun.
+  - kind: surprise
+    at: "2026-11-08T07:55:00Z"
+    expected: The corrected workspace gates would show a source regression after the lifecycle changes.
+    observed: Rerun typecheck passed all eight workspace projects at load 9.81→9.43; lint passed with two pre-existing runnerCommits.test.ts warnings; comments passed at load 6.05.
+  - kind: surprise
+    at: "2026-11-08T07:56:00Z"
+    expected: The workspace test gate would remain blocked by the notes shape correction.
+    observed: Rerun pnpm test passed ledger 174, debrief 98, verifier 62, substrate 91, face 186, runner 568, schemas 1266, and cli 453 tests; load was 5.81→8.40.
+  - kind: surprise
+    at: "2026-11-08T07:59:00Z"
+    expected: The final focused proof would regress after the standing gates.
+    observed: execRuntime.test.ts and runnerMarker.test.ts passed all 12 tests at load 7.60→7.60 on Node 24.14.0 and pnpm 10.13.1.
+  - kind: choice
+    at: "2026-11-08T08:00:00Z"
+    chose: Commit the source fix and notes together as the code commit, leaving the debrief for a separate final commit.
+    because: The brief requires the debrief commit to be last and requires notes to accompany the implementation decisions and proof observations.

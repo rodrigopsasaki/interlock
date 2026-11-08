@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, watch, writeFileSync } from "node:fs";
 import { mkdir, open, readFile, rm } from "node:fs/promises";
 import { connect } from "node:net";
+import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { err, isErr, isOk, ok, type Result } from "@phyxiusjs/fp";
@@ -236,12 +237,15 @@ function connectControl(
   return new Promise((resolve) => {
     const socket = connect(socketPath);
     let settled = false;
+    let deadline: NodeJS.Timeout | undefined;
     const finish = (result: Result<readonly number[], string>): void => {
       if (settled) return;
       settled = true;
+      if (deadline !== undefined) clearTimeout(deadline);
       socket.destroy();
       resolve(result);
     };
+    deadline = setTimeout(() => finish(err("anchor control request timed out")), 1_000);
     socket.setTimeout(1_000, () => finish(err("anchor control request timed out")));
     let data = "";
     socket.on("error", (error) => finish(err(error.message)));
@@ -520,10 +524,8 @@ export async function runExecPhase(
   const transcriptPath = join(runDir, "transcript.jsonl");
   const nonce = randomBytes(16).toString("hex");
   const secret = randomBytes(32).toString("hex");
-  const socketPath = join(
-    dirname(request.runRoot),
-    `interlock-${randomBytes(8).toString("hex")}.sock`,
-  );
+  const uid = process.getuid?.() ?? process.pid;
+  const socketPath = join(tmpdir(), `interlock-${uid}`, `${randomBytes(8).toString("hex")}.sock`);
   const record = initialRecord({ ...request, id, phaseId }, runDir, nonce, secret);
   try {
     await mkdir(runDir, { recursive: true, mode: 0o700 });
@@ -730,7 +732,12 @@ export async function runExecPhase(
     ]);
     if (exit === undefined) {
       await connectControl(socketPath, secret, "KILL");
-      await launcherExit;
+      await Promise.race([
+        launcherExit,
+        new Promise<void>((resolve) =>
+          setTimeout(resolve, request.drainGraceMs ?? DEFAULT_DRAIN_GRACE_MS),
+        ),
+      ]);
       exit = await waitForProgramExit(
         join(runDir, "exit.json"),
         request.drainGraceMs ?? DEFAULT_DRAIN_GRACE_MS,
@@ -738,7 +745,12 @@ export async function runExecPhase(
     }
   }
   if (exit === undefined) {
-    await launcherExit;
+    await Promise.race([
+      launcherExit,
+      new Promise<void>((resolve) =>
+        setTimeout(resolve, request.drainGraceMs ?? DEFAULT_DRAIN_GRACE_MS),
+      ),
+    ]);
     exit = await waitForProgramExit(
       join(runDir, "exit.json"),
       request.drainGraceMs ?? DEFAULT_DRAIN_GRACE_MS,
