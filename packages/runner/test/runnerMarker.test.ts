@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { err, isOk, ok } from "@phyxiusjs/fp";
@@ -92,6 +93,47 @@ describe("runner marker", () => {
     if (!isOk(launch)) return;
     expect(launch.value.args).toContain('mcp_servers.stdio.env.INTERLOCK_NODE="node"');
     expect(launch.value.args.some((arg) => arg.includes("http"))).toBe(false);
+  });
+
+  it("carries marker values from Codex launch args into a probe server", () => {
+    const root = fixtureRoot();
+    const bin = join(root, "bin");
+    mkdirSync(bin);
+    const codex = join(bin, "codex");
+    writeFileSync(
+      codex,
+      `#!/usr/bin/env node\n${readFileSync(join(import.meta.dirname, "fixtures", "exec", "codexProbe.mjs"), "utf8")}`,
+    );
+    chmodSync(codex, 0o755);
+    const output = join(root, "probe.jsonl");
+    const environment = {
+      INTERLOCK_SESSION: "session",
+      INTERLOCK_GRAPH: "graph",
+      INTERLOCK_NODE: "node",
+      INTERLOCK_PROBE_SCRIPT: join(
+        import.meta.dirname,
+        "fixtures",
+        "exec",
+        "appendEnvironment.mjs",
+      ),
+      INTERLOCK_PROBE_OUTPUT: output,
+    };
+    const launch = prepareLaunch(codexRuntime(), root, environment, {
+      listCodexMcp: () => ok(["probe"]),
+    });
+    expect(isOk(launch)).toBe(true);
+    if (!isOk(launch)) return;
+    const started = spawnSync(codex, [...launch.value.args], {
+      cwd: root,
+      env: { ...process.env, ...launch.value.environment },
+      encoding: "utf8",
+    });
+    expect(started.status).toBe(0);
+    expect(JSON.parse(readFileSync(output, "utf8"))).toEqual({
+      INTERLOCK_SESSION: "session",
+      INTERLOCK_GRAPH: "graph",
+      INTERLOCK_NODE: "node",
+    });
   });
 
   it("leaves MCP overrides out when listing fails or is empty", () => {
