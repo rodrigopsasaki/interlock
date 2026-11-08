@@ -1153,6 +1153,102 @@ nodes:
         kind: command
         run: pnpm typecheck
 
+  - id: capture-drains
+    role: implementer
+    depends_on: [start-failure-is-not-a-timeout]
+    acceptance: |
+      A phase records captureComplete true only when every line the runner read from the program's stdout and stderr
+      (newline-normalized UTF-8, as transcript@v0 defines) is in the transcript, in the order the lines became ready,
+      before the runner's closing line and before the terminal record is published; and a terminal record never waits
+      past the drain grace for that. Found by the vet of start-failure-is-not-a-timeout (interlock #144); confirmed on
+      main at c66e5f1, and widened by this node's own vet:
+      - closeStreams (packages/runner/src/execRuntime.ts:472-514) sets stdoutClosed and stderrClosed before
+        finishStream() has written the stream's tail (:486-497). Both flags can be set before either tail is written, so
+        the immediate check() (:483, :499) or one finished tail can resolve `closed` while the other tail is pending, even
+        before the grace expires; and when the grace expires (:503) mid-write, the check at :504 still returns true.
+      - The fast path (:493-498) treats a destroyed stream like a normal end.
+      - The data handlers (:691-698) start appendStream with `void`, so nothing waits for those writes, and each chunk
+        builds its own promise chain (appendStream, :387-402), so lines from two chunks, from stdout against stderr, and
+        against runner lines written during capture (:718, :763) are not ordered. The graph already requires "One writer
+        per transcript serializes every append" (this graph, transcript@v0); the code does not keep it.
+      - Records that end before "go" (:638 onward) inherit captureComplete true from the initial record (:451) without
+        any drain, and the launcher's own output is read only after "go" (:690), so its diagnostics on those paths are
+        never captured.
+      - The closing line (:834) says "group confirmed empty" after ignoring waitForGroupGone's result (:799).
+      What changes:
+      - One transcript writer per phase: a single ordered queue through which every append passes, stdout and stderr
+        lines, stream tails, and runner lines alike, in the order each line becomes ready. Nothing else writes the
+        transcript.
+      - Stream handlers attach before anything is written to the launcher, so every terminal path, including those that
+        end before "go", reads and drains the launcher's output through the same writer.
+      - A stream counts as drained only when it ended normally (a destroyed stream is not an end) AND every line it
+        produced, tail included, has been written. captureComplete is true only if both streams drained and every write
+        succeeded within the drain grace.
+      - Bounded finalization: at the drain grace the writer is sealed; no stream line is accepted after the seal. The
+        closing line goes through the writer after everything queued before it. The terminal record is published once
+        the writer settles or, at the latest, a fixed settle bound after the seal, whichever is first; if the writer has
+        not settled by then the record says captureComplete false and the closing line (when it can be written) names
+        the unsettled write. No line from the program can follow the closing line.
+      - A failed write makes captureComplete false and is named in the closing line; if the transcript itself cannot be
+        written, the failure goes to the runner's own stderr and the record still turns terminal.
+      - The closing line says the group was confirmed empty only when waitForGroupGone confirmed it, and otherwise says it
+        was not confirmed. The evidence reconciliation and the unconfirmed-death note from start-failure-is-not-a-timeout
+        are kept as that node built them.
+      - No test-only switch ships in the runner; tests reach the timing through injected seams (the transcript sink, the
+        grace and settle timers, and chunk delivery), with the native file sink and timers as production defaults.
+      Tests:
+      - packages/runner/test/captureDrains.test.ts, deterministic: writes are held and released by the test, the grace is
+        advanced by the test, chunks are delivered by the test; no wall-clock sleeps decide order. Each case asserts what
+        is published WHILE a write is still held (no closing line and no terminal record yet, unless the grace or settle
+        bound has passed) and what lands after. Case names, exactly:
+        - "tail held on an ended stream"
+        - "tail held on one stream"
+        - "held line with no tail"
+        - "alternating streams in ready order"
+        - "held write outlasts the grace"
+        - "stuck writer still ends"
+        - "failed chunk then tail"
+        - "destroyed stream is not an end"
+        - "early failure drains the launcher"
+        - "many lines from a real program":
+          respectively: a stream already ended when finalization starts, with its tail write held; stdout's tail done
+          and stderr's held; a newline-terminated chunk with no tail whose write is held; a held stdout line followed
+          by a stderr line and a runner line, which land after it; a held write that outlasts the grace (record terminal
+          within the bound, captureComplete false, no stream line after the closing line); a writer that never settles
+          (record terminal within the settle bound, captureComplete false); a failed chunk write followed by a tail
+          (failure named, tail still in order, captureComplete false); a destroyed stream (captureComplete false); a
+          phase that fails before "go" whose launcher wrote a diagnostic (the diagnostic is in the transcript and the
+          record's captureComplete is true only if it drained); and a fixture program writing many lines quickly to
+          both streams (every line present, in order, captureComplete true).
+      - The existing execRuntime.test.ts and startFailureNotTimeout.test.ts pass unchanged.
+      Gates: capture-drains-cases runs the file with the verbose reporter and requires every case name above, in order;
+      capture-drains-proof requires an all-passed count with nothing skipped. Every gate and test runs with the
+      repository's pinned Node first on PATH. No test is excluded and none is skipped.
+    gates:
+      - id: capture-drains-cases
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/captureDrains.test.ts --reporter=verbose --passWithNoTests=false
+        expect_output: '> tail held on an ended stream[\s\S]*> tail held on one stream[\s\S]*> held line with no tail[\s\S]*> alternating streams in ready order[\s\S]*> held write outlasts the grace[\s\S]*> stuck writer still ends[\s\S]*> failed chunk then tail[\s\S]*> destroyed stream is not an end[\s\S]*> early failure drains the launcher[\s\S]*> many lines from a real program'
+      - id: capture-drains-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/captureDrains.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: exec-runtime-still
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/execRuntime.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: start-failure-still
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/startFailureNotTimeout.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: runner-suite
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: capture-drains-types
+        kind: command
+        run: pnpm typecheck
+
   - id: exec-runtime
     role: implementer
     depends_on: []
