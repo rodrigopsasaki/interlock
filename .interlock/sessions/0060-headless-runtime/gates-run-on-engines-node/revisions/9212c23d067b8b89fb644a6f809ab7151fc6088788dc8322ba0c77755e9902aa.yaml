@@ -1,0 +1,81 @@
+interlock: debrief@v2
+graph: 0060-headless-runtime
+node: gates-run-on-engines-node
+role: implementer
+graph_base_sha: 2f2dd92b914a07de53bb24ef5cc78bac3974816e
+session_start_sha: c599aa90d3e2684374ed86cbe2ad0803d484a52c
+head_sha: 25c23c35f53cc0b0af0de90fe82f6e99d6fea583
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: node-engine-resolution
+    what: Resolve the first executable named node from the command environment, run that absolute executable once for its version, read the worktree package's engines.node, and refuse ranges the small comparator parser cannot understand.
+    because: Gate and setup commands must be judged against the Node they would actually find, without rewriting PATH or choosing a replacement runtime; an unparseable range must hold rather than pass.
+    rests_on: [notes:choice-10:01:34, notes:surprise-10:05:00]
+    hunks: [packages/runner/src/nodeEngine.ts:1-193]
+    applies_to:
+      kind: path
+      path: packages/runner/src/nodeEngine.ts
+  - id: gate-engine-hold
+    what: Check the Node engine before the first command gate that can run, narrate the discovered version and executable or the lookup refusal, and record a held node outcome without spawning the gate.
+    because: A gate result is not proof when its command would run outside the repository's declared engine; the hold preserves the reason and leaves the owner's PATH setup to be corrected.
+    rests_on: [notes:choice-10:01:34]
+    hunks: [packages/runner/src/gateJudge.ts:339-383]
+    applies_to:
+      kind: path
+      path: packages/runner/src/gateJudge.ts
+  - id: setup-engine-hold
+    what: Apply the same engine refusal before each worktree setup command and convert that refusal into a held node outcome in the session driver.
+    because: Setup can mutate a worktree before the agent session begins, so it needs the same fail-closed runtime boundary and the same named hold rather than an unrecorded setup failure.
+    rests_on: [notes:choice-10:01:34]
+    hunks: [packages/runner/src/worktreeSetup.ts:15-23, packages/runner/src/worktreeSetup.ts:29-34, packages/runner/src/worktreeSetup.ts:108-120, packages/runner/src/sessionDrive.ts:429-453]
+    applies_to:
+      kind: path
+      path: packages/runner/src/worktreeSetup.ts
+  - id: engines-node-proof
+    what: Add fixture executables at the front of PATH covering exact matches and mismatches, space-joined ranges, absent engines, unparseable ranges, missing Node, and setup refusal, while preserving the existing setup refusal type narrowing.
+    because: The acceptance needs proof that the runner both avoids spawning outside the range and still runs commands for allowed or unspecified engines without depending on the host Node version.
+    rests_on: [notes:choice-10:01:34, notes:surprise-10:05:00, notes:surprise-10:06:00, notes:surprise-10:08:00]
+    hunks: [packages/runner/test/gatesRunOnEnginesNode.test.ts:1-194, packages/runner/test/worktreeSetup.test.ts:41-112]
+    applies_to:
+      kind: path
+      path: packages/runner/test/gatesRunOnEnginesNode.test.ts
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: Node v24.14.0 and pnpm 10.13.1 were placed first on PATH; all workspace packages typechecked.
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: Biome exited successfully with two pre-existing warnings in packages/runner/test/runnerCommits.test.ts.
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+    note: packages/*/src contains no comments.
+  - id: debrief-valid
+    result: pass
+    invocation: pnpm interlock debrief validate 0060-headless-runtime gates-run-on-engines-node
+    note: The filed debrief and notes validated as debrief@v2 and notes@v0.
+  - id: test
+    result: fail
+    invocation: pnpm test
+    note: The new engines-node proof passed, but four existing execRuntime tests timed out; the workspace run reported 566 runner tests passed and 4 failed.
+  - id: engines-node-proof
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/gatesRunOnEnginesNode.test.ts --passWithNoTests=false
+    note: 1 file and 9 tests passed.
+  - id: runner-suite
+    result: fail
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
+    note: 45 files and 566 tests passed; the same 4 execRuntime tests timed out.
+  - id: engines-node-types
+    result: pass
+    invocation: pnpm typecheck
+    note: The final workspace typecheck passed.
+open:
+  - The standing workspace test gate remains unresolved because four existing packages/runner/test/execRuntime.test.ts tests timed out in both the workspace and standalone runner-suite runs; the engines-node proof passed independently.
+  - The lint gate exited successfully but retained two pre-existing warnings in packages/runner/test/runnerCommits.test.ts.
