@@ -55,3 +55,9 @@ entries:
       Lint found two pre-existing errors in packages/runner/test/runnerCommits.test.ts, plus one
       import ordering issue and formatting in the new files; the new-file issues were corrected,
       while the unrelated existing errors remain outside this node's diff.
+  - kind: choice
+    at: '2026-11-08T17:54:18Z'
+    chose: Exclude package test .runs directories from Vitest discovery.
+    because: >-
+      The real Codex proof creates an MCP plugin checkout under its isolated overlay; those fixture
+      files can have test-like names and are scratch, not workspace tests.
