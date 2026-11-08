@@ -1,0 +1,11 @@
+interlock: notes@v0
+node: access-probe
+entries:
+  - kind: choice
+    at: "2026-11-08T04:00:00Z"
+    chose: Build the probe through the existing runtime catalogue, machine-provider, worktree, and ledger seams.
+    because: The acceptance requires equivalent launch preparation and durable probe evidence; reusing those seams preserves the repository's adapter and outbox boundaries.
+  - kind: surprise
+    at: "2026-11-08T04:00:00Z"
+    expected: The prior session would have left implementation changes and notes to resume.
+    observed: The worktree is clean and contains only the refreshed brief commit; notes.yaml and implementation changes are absent.
