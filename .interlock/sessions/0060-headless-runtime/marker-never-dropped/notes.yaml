@@ -89,3 +89,11 @@ entries:
     at: "2026-11-08T14:00:00Z"
     expected: The new real-delivery test would satisfy the formatter after the type correction.
     observed: Biome required import compaction and wrapping in the new test; formatting changed only that proof file, while the existing runnerCommits warning and info remained.
+  - kind: surprise
+    at: "2026-11-08T14:05:00Z"
+    expected: The full workspace test gate would reproduce the focused green runner suites without fixture interference.
+    observed: One existing submoduleReceipts fixture failed at git maintenance.auto=false add -A with a permission-denied worktree lock; 597 of 598 runner tests and every other package suite passed, so the gate is being rerun once in isolation.
+  - kind: choice
+    at: "2026-11-08T14:10:00Z"
+    chose: Record the isolated full-test rerun as the repaired workspace gate receipt.
+    because: The rerun exited zero with every package suite passing, including runner 598 tests and schemas 1290 tests; the remaining Git maintenance warning lines are existing fixture observations and did not fail the gate.
