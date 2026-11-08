@@ -189,7 +189,7 @@ export function prepareLaunch(
     options.narrate?.(
       `codex marker overrides omitted from argv because the launch line would reach ${String(CODEX_CANONICAL_LINE_LIMIT)} bytes; marker environment remains inherited by MCP children`,
     );
-    return agentEnvironmentArgs(agentRuntime.kind, args, {}, []);
+    return agentEnvironmentArgs(agentRuntime.kind, args, environment, []);
   };
   const template = agentRuntime.writableRootArgs;
   if (template === undefined) {
