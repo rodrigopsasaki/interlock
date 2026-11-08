@@ -1,0 +1,83 @@
+interlock: debrief@v2
+graph: 0060-headless-runtime
+node: watch-paths-precise-fixed
+role: implementer
+graph_base_sha: fe93a1711b8bb53e6149ee199a62349e2afb7edc
+session_start_sha: 22a5cc43954ee79514d1eac69fceaa9d0eff9e04
+head_sha: 371876df75dafdb8c25b5837d4b2f670358245bc
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: owner-only-mtime-rounding
+    what: >-
+      On the required combined history, retained by signed merge 0f96ed3 for
+      graph/0060-headless-runtime/watch-paths-precise and signed merge 5f05f08 for origin/main,
+      normalize owner-only watched-file mtimeMs with Math.trunc before storing and comparing it.
+      Retain size and mtimeMs as the only owner-only change signals, leave sha256 content reads
+      disabled for those files, and leave absorbOutbox.ts and its unrooted-claim expectation
+      unchanged because both absorb tests pass on this tree.
+    because: >-
+      The reproduced same-size rewrite restored the timestamp 0.000244140625 ms below the
+      original filesystem float, so exact comparison falsely reported a change. Millisecond
+      normalization removes that storage-rounding false positive without weakening hashing for
+      non-owner-only files. The prior watch-paths-precise clear on Homebrew Node 26 remains
+      historical evidence only; the acceptance requires pinned Node 24 proof against this merged
+      tree and forbids changing a passing absorb expectation without a failing trace.
+    rests_on:
+      - .interlock/graphs/0060-headless-runtime.yaml
+      - packages/runner/src/scopeGuard.ts
+      - packages/runner/test/scopeGuard.test.ts
+      - .interlock/sessions/0060-headless-runtime/watch-paths-precise-fixed/notes.yaml
+    applies_to:
+      kind: path
+      path: packages/runner/src/scopeGuard.ts
+    hunks:
+      - packages/runner/src/scopeGuard.ts:135-145
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: Node v24.14.0 and pnpm 10.13.1; all eight workspace packages typechecked successfully.
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: Biome exited zero with one existing warning and one informational finding in packages/runner/test/runnerCommits.test.ts.
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+    note: packages/*/src contains no comments.
+  - id: test
+    result: pass
+    invocation: pnpm test
+    note: >-
+      All eight workspace packages passed: ledger 174, debrief 98, verifier 62, substrate 91,
+      face 186, runner 577, schemas 1274, CLI 453; 2915 tests total.
+  - id: debrief-valid
+    result: pass
+    invocation: pnpm interlock debrief validate 0060-headless-runtime watch-paths-precise-fixed
+    note: The filed debrief and notes validated as debrief@v2 and notes@v0 after file-derived selection.
+  - id: scope-guard-owner-only
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/scopeGuard.test.ts test/absorbOutbox.test.ts --passWithNoTests=false
+    note: 2 files and 12 tests passed, including both owner-only and absorb-outbox regressions.
+  - id: runner-suite
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
+    note: 46 files and 577 tests passed.
+  - id: cli-suite
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter cli exec vitest run --passWithNoTests=false
+    note: 47 files and 453 tests passed.
+  - id: wppf-types
+    result: pass
+    invocation: pnpm typecheck
+    note: The duplicate graph gate passed with Node v24.14.0 and pnpm 10.13.1.
+open:
+  - >-
+    The two reported failures were recorded: scopeGuard's exact mtime float comparison was fixed
+    in fcfd50d; absorbOutbox's reported held outcome was not reproducible after the required signed
+    merges and its existing expectation passed unchanged. The earlier watch-paths-precise clear on
+    Homebrew Node 26 is not treated as proof for this node. No test was excluded or skipped.

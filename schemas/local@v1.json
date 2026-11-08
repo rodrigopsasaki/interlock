@@ -72,8 +72,35 @@
       "type": "array",
       "uniqueItems": true,
       "items": {
-        "type": "string",
-        "pattern": "^/"
+        "oneOf": [
+          {
+            "type": "string",
+            "pattern": "^/"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "pattern": "^/"
+              },
+              "exclude": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+"
+                }
+              }
+            },
+            "required": [
+              "path",
+              "exclude"
+            ],
+            "additionalProperties": true
+          }
+        ]
       }
     },
     "owner_login": {

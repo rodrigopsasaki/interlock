@@ -1,8 +1,18 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { isOk } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
 import { fixtureGit } from "../../../test/support/gitFixture.ts";
+import type { WatchPath } from "../src/localConfig.ts";
 import { buildOpeningPrompt, type SessionRole } from "../src/openingPrompt.ts";
 import {
   changedScopePaths,
@@ -41,7 +51,7 @@ function fixtureWorktree(): {
   return { main, worktree, watch };
 }
 
-function requireSnapshot(worktree: string, watchPaths: readonly string[] = []): ScopeSnapshot {
+function requireSnapshot(worktree: string, watchPaths: readonly WatchPath[] = []): ScopeSnapshot {
   const snapshot = snapshotScope(worktree, watchPaths);
   if (!isOk(snapshot)) throw new Error(`${snapshot.error.path}: ${snapshot.error.because}`);
   return snapshot.value;
@@ -81,6 +91,82 @@ describe("scope guard snapshots", () => {
     expect(changedScopePaths(before, after).map(describeScopeChange)).toEqual([
       `watch path ${fixture.watch}/watched.txt`,
     ]);
+  });
+
+  it("watches a single file by its own name and holds a rewrite", () => {
+    const fixture = fixtureWorktree();
+    const watchedFile = join(fixture.watch, "watched.txt");
+    writeFileSync(watchedFile, "before\n");
+    const before = requireSnapshot(fixture.worktree, [watchedFile]);
+    writeFileSync(watchedFile, "after\n");
+    const after = requireSnapshot(fixture.worktree, [watchedFile]);
+
+    expect(changedScopePaths(before, after).map(describeScopeChange)).toEqual([
+      `watch path ${watchedFile}`,
+    ]);
+  });
+
+  it("watches a missing single file for creation", () => {
+    const fixture = fixtureWorktree();
+    const watchedFile = join(fixture.watch, "created.txt");
+    const before = requireSnapshot(fixture.worktree, [watchedFile]);
+    writeFileSync(watchedFile, "created\n");
+    const after = requireSnapshot(fixture.worktree, [watchedFile]);
+
+    expect(changedScopePaths(before, after).map(describeScopeChange)).toEqual([
+      `watch path ${watchedFile}`,
+    ]);
+  });
+
+  it("does not count files at or below excluded folder paths", () => {
+    const fixture = fixtureWorktree();
+    mkdirSync(join(fixture.watch, "logs"));
+    mkdirSync(join(fixture.watch, "postgres"));
+    const watchPath = { path: fixture.watch, exclude: ["logs", "postgres"] };
+    const before = requireSnapshot(fixture.worktree, [watchPath]);
+    writeFileSync(join(fixture.watch, "logs", "serve.log"), "log\n");
+    writeFileSync(join(fixture.watch, "postgres", "x"), "postgres\n");
+    const excluded = requireSnapshot(fixture.worktree, [watchPath]);
+    expect(changedScopePaths(before, excluded)).toEqual([]);
+
+    writeFileSync(join(fixture.watch, "config.json"), "{}\n");
+    const after = requireSnapshot(fixture.worktree, [watchPath]);
+    expect(changedScopePaths(excluded, after).map(describeScopeChange)).toEqual([
+      `watch path ${fixture.watch}/config.json`,
+    ]);
+  });
+
+  it("does not read owner-only watched files and compares their size and mtimeMs", () => {
+    const fixture = fixtureWorktree();
+    const watchedFile = join(fixture.watch, "secret.txt");
+    writeFileSync(watchedFile, "secret\n");
+    chmodSync(watchedFile, 0o600);
+    const reads: string[] = [];
+    const reader = (path: string): Buffer => {
+      reads.push(path);
+      return readFileSync(path);
+    };
+    const before = snapshotScope(fixture.worktree, [watchedFile], { readFile: reader });
+    expect(isOk(before)).toBe(true);
+    expect(reads).toEqual([]);
+    if (!isOk(before)) return;
+    const original = statSync(watchedFile);
+
+    writeFileSync(watchedFile, "changed-size\n");
+    const changed = snapshotScope(fixture.worktree, [watchedFile], { readFile: reader });
+    expect(isOk(changed)).toBe(true);
+    if (!isOk(changed)) return;
+    expect(changedScopePaths(before.value, changed.value).map(describeScopeChange)).toEqual([
+      `watch path ${watchedFile} (owner-only; size and mtimeMs only)`,
+    ]);
+    expect(reads).toEqual([]);
+
+    writeFileSync(watchedFile, "secret\n");
+    utimesSync(watchedFile, original.mtimeMs / 1000, original.mtimeMs / 1000);
+    const restored = snapshotScope(fixture.worktree, [watchedFile], { readFile: reader });
+    expect(isOk(restored)).toBe(true);
+    if (isOk(restored)) expect(changedScopePaths(before.value, restored.value)).toEqual([]);
+    expect(reads).toEqual([]);
   });
 
   it("passes worktree-only writes and unchanged pre-existing main-checkout dirt", () => {

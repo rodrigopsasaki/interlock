@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import { isValidSubstrateAddress } from "substrate";
@@ -14,6 +14,14 @@ export const DEFAULT_PROMPT_TAKEN_TIMEOUT_MS = 20_000;
 const DEFAULT_ANSWER_GRACE_MS = 300_000;
 export const DEFAULT_READY_SETTLE_MS = 0;
 export const DEFAULT_PROMPT_RETRIES = 2;
+
+export interface WatchPathConfig {
+  readonly path: string;
+  readonly exclude: readonly string[];
+}
+
+export type WatchPath = string | WatchPathConfig;
+export type WatchPathEntry = WatchPath;
 
 export interface LocalConfig {
   readonly runtime: {
@@ -34,7 +42,7 @@ export interface LocalConfig {
   readonly leaseMs: number;
   readonly runTimeoutMs: number;
   readonly answerGraceMs: number;
-  readonly watchPaths?: readonly string[];
+  readonly watchPaths?: readonly WatchPath[];
   readonly ownerLogin?: string;
   readonly substrateAddress: string;
   readonly substrateKeyFile?: string;
@@ -71,7 +79,7 @@ const FIELD_GUIDE =
   "run_timeout_ms (the wall timeout waiting for the agent to go idle, blocked or done), " +
   "answer_grace_ms (optional; once a person has answered a blocked turn, how long an idle or " +
   "done that follows stays open for the agent to resume before it is judged settled), " +
-  "watch_paths (optional; absolute folders whose files are watched for writes outside the worktree), " +
+  "watch_paths (optional; absolute files or folders whose files are watched for writes outside the worktree; local@v1 folders may carry relative excludes), " +
   'substrate.address ("none" or an http(s) URL), ' +
   "substrate.key_file (optional; a path to a file whose first line is a bearer token sent as " +
   "Authorization: Bearer ... on every call to substrate.address).";
@@ -89,7 +97,83 @@ export function localConfigPath(repoRoot: string): string {
   return join(repoRoot, ".interlock", "local.yaml");
 }
 
-function parseShape(parsed: unknown, path: string): Result<LocalConfig, LocalConfigRefusal> {
+async function parseWatchPaths(
+  value: unknown,
+  acceptsMappings: boolean,
+): Promise<Result<readonly WatchPath[] | undefined, string>> {
+  if (value === undefined) return ok(undefined);
+  if (!Array.isArray(value)) {
+    return err('"watch_paths" must be a list of distinct absolute paths or folder mappings');
+  }
+
+  const entries: WatchPath[] = [];
+  const paths = new Set<string>();
+  for (const [index, rawEntry] of value.entries()) {
+    if (typeof rawEntry === "string") {
+      if (!isAbsolute(rawEntry)) {
+        return err(`"watch_paths" entry ${JSON.stringify(rawEntry)} must be an absolute path`);
+      }
+      if (paths.has(rawEntry)) {
+        return err(`"watch_paths" entry ${JSON.stringify(rawEntry)} is duplicated`);
+      }
+      paths.add(rawEntry);
+      entries.push(rawEntry);
+      continue;
+    }
+
+    if (!acceptsMappings || !isRecord(rawEntry)) {
+      return err(`"watch_paths" entry at index ${index} must be an absolute path`);
+    }
+    const watchPath = prop(rawEntry, "path");
+    const exclude = prop(rawEntry, "exclude");
+    if (!isString(watchPath) || !isAbsolute(watchPath)) {
+      return err(
+        `"watch_paths" entry ${isString(watchPath) ? JSON.stringify(watchPath) : `at index ${index}`} must name an absolute path`,
+      );
+    }
+    if (paths.has(watchPath)) {
+      return err(`"watch_paths" entry ${JSON.stringify(watchPath)} is duplicated`);
+    }
+    if (
+      !Array.isArray(exclude) ||
+      !exclude.every(isString) ||
+      new Set(exclude).size !== exclude.length ||
+      exclude.some(
+        (candidate) =>
+          candidate === "" ||
+          candidate === "." ||
+          isAbsolute(candidate) ||
+          candidate.split("/").some((part) => part === ".."),
+      )
+    ) {
+      return err(
+        `"watch_paths" entry ${JSON.stringify(watchPath)} has an exclude list of distinct relative paths under the folder`,
+      );
+    }
+    try {
+      const stats = await stat(watchPath);
+      if (!stats.isDirectory()) {
+        return err(
+          `"watch_paths" entry ${JSON.stringify(watchPath)} cannot have an exclude because it is not a folder`,
+        );
+      }
+    } catch (error) {
+      if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) {
+        return err(
+          `"watch_paths" entry ${JSON.stringify(watchPath)} could not be inspected for its exclude`,
+        );
+      }
+    }
+    paths.add(watchPath);
+    entries.push({ path: watchPath, exclude });
+  }
+  return ok(entries);
+}
+
+async function parseShape(
+  parsed: unknown,
+  path: string,
+): Promise<Result<LocalConfig, LocalConfigRefusal>> {
   if (!isRecord(parsed)) {
     return err({
       kind: "malformed",
@@ -255,20 +339,14 @@ function parseShape(parsed: unknown, path: string): Result<LocalConfig, LocalCon
   }
   const answerGraceMs = answerGraceMsField ?? DEFAULT_ANSWER_GRACE_MS;
 
-  const watchPathsField = prop(parsed, "watch_paths");
-  if (
-    watchPathsField !== undefined &&
-    (!isStringArray(watchPathsField) ||
-      watchPathsField.some((watchPath) => !isAbsolute(watchPath)) ||
-      new Set(watchPathsField).size !== watchPathsField.length)
-  ) {
+  const watchPaths = await parseWatchPaths(prop(parsed, "watch_paths"), tag === LOCAL_CONFIG_SHAPE);
+  if (isErr(watchPaths)) {
     return err({
       kind: "malformed",
       path,
-      reason: '"watch_paths" must be a list of distinct absolute paths',
+      reason: watchPaths.error,
     });
   }
-  const watchPaths = watchPathsField;
 
   const ownerLogin = prop(parsed, "owner_login");
   if (ownerLogin !== undefined && (!isString(ownerLogin) || ownerLogin.trim() === "")) {
@@ -335,7 +413,7 @@ function parseShape(parsed: unknown, path: string): Result<LocalConfig, LocalCon
     leaseMs,
     runTimeoutMs,
     answerGraceMs,
-    ...(watchPaths === undefined ? {} : { watchPaths }),
+    ...(watchPaths.value === undefined ? {} : { watchPaths: watchPaths.value }),
     ...(ownerLogin === undefined ? {} : { ownerLogin }),
     substrateAddress,
     substrateSendRepository: substrateSendRepository ?? false,

@@ -738,6 +738,81 @@ describe("loadLocalConfig watch_paths", () => {
     if (isOk(result)) expect(result.value.watchPaths).toEqual([first, second]);
   });
 
+  it("accepts strings and folder mappings under local@v1", async () => {
+    const repoRoot = fixtureRepo(
+      ["interlock: local@v1", ...baseFields.slice(1, -1), ""].join("\n"),
+    );
+    const file = join(repoRoot, "watched-file");
+    const folder = join(repoRoot, "watched-folder");
+    writeFileSync(file, "watched\n");
+    mkdirSync(folder);
+    const yaml = [
+      "interlock: local@v1",
+      "runtime:",
+      "  kind: claude",
+      "  args: []",
+      "worktree_root: .worktrees",
+      "lease_ms: 900000",
+      "run_timeout_ms: 3600000",
+      "watch_paths:",
+      `  - ${file}`,
+      `  - path: ${folder}`,
+      "    exclude:",
+      "      - logs",
+      "substrate:",
+      "  address: none",
+      "",
+    ].join("\n");
+    writeFileSync(join(repoRoot, ".interlock", "local.yaml"), yaml);
+
+    const result = await loadLocalConfig(repoRoot);
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) {
+      expect(result.value.watchPaths).toEqual([file, { path: folder, exclude: ["logs"] }]);
+    }
+  });
+
+  it.each([
+    ["a file entry", "exclude-file", "not a folder"],
+    ["an absolute exclude", "exclude: [/logs]", "relative paths"],
+    ["an escaping exclude", "exclude: [../logs]", "relative paths"],
+    ["a duplicate exclude", "exclude: [logs, logs]", "distinct relative paths"],
+  ])("refuses %s with a sentence naming the entry", async (_label, exclude, expected) => {
+    const repoRoot = fixtureRepo(
+      ["interlock: local@v1", ...baseFields.slice(1, -1), ""].join("\n"),
+    );
+    const watched = join(repoRoot, "watched");
+    const isFile = exclude === "exclude-file";
+    if (isFile) writeFileSync(watched, "watched\n");
+    else mkdirSync(watched);
+    const excludeLines = isFile ? ["    exclude:", "      - logs"] : [`    ${exclude}`];
+    const yaml = [
+      "interlock: local@v1",
+      "runtime:",
+      "  kind: claude",
+      "  args: []",
+      "worktree_root: .worktrees",
+      "lease_ms: 900000",
+      "run_timeout_ms: 3600000",
+      "watch_paths:",
+      `  - path: ${watched}`,
+      ...excludeLines,
+      "substrate:",
+      "  address: none",
+      "",
+    ].join("\n");
+    writeFileSync(join(repoRoot, ".interlock", "local.yaml"), yaml);
+
+    const result = await loadLocalConfig(repoRoot);
+
+    expect(isErr(result)).toBe(true);
+    if (isErr(result) && result.error.kind === "malformed") {
+      expect(result.error.reason).toContain(watched);
+      expect(result.error.reason).toContain(expected);
+    }
+  });
+
   it("refuses a relative watch path", async () => {
     const repoRoot = fixtureRepo(
       [...baseFields.slice(0, -1), "watch_paths:", "  - watched", ""].join("\n"),

@@ -1,0 +1,139 @@
+interlock: debrief@v2
+graph: 0060-headless-runtime
+node: watch-paths-precise
+role: implementer
+graph_base_sha: 18ad5765f5255887e112475ffe4308ae416bdd48
+session_start_sha: 164651817d4a39dde75159a9510251c357593cfa
+head_sha: 4539d824701c604ebaa88e9ba63d69b0fbf25b23
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: watch-path-config-contract
+    what: >-
+      Add a typed WatchPath union for absolute string entries and local@v1 folder mappings, validate
+      mapping paths and distinct relative excludes with entry-naming refusals, reject excludes on
+      existing non-folders, and retain the existing string parser for local@v0. Publish the mapping
+      shape in schemas/local@v1.json and regenerate the committed shapes reference.
+    because: >-
+      The acceptance needs exclusions without changing historical local@v0 string configuration.
+      Validating the folder on load catches an exclude on a file before the scope guard runs, while
+      the schema and generated reference keep the persisted contract readable.
+    rests_on:
+      - .interlock/graphs/0060-headless-runtime.yaml
+      - packages/runner/src/localConfig.ts
+      - schemas/local@v1.json
+      - docs/shapes.md
+    applies_to:
+      kind: path
+      path: packages/runner/src/localConfig.ts
+    hunks:
+      - packages/runner/src/localConfig.ts:18-24
+      - packages/runner/src/localConfig.ts:82-85
+      - packages/runner/src/localConfig.ts:100-170
+      - packages/runner/src/localConfig.ts:342-348
+      - schemas/local@v1.json:71-105
+      - docs/shapes.md:1051-1065
+      - packages/runner/test/localConfig.test.ts:712-827
+  - id: exact-file-and-exclude-walk
+    what: >-
+      Make a configured file a stable snapshot entry named by its basename, retain an absent entry
+      so creation is detected, and pass folder excludes through recursive collection so excluded
+      names are skipped before descendant lstat or file reading.
+    because: >-
+      The previous root-relative walk produced an empty path for a file and discarded it. Skipping
+      at the directory-entry boundary means excluded additions, edits and removals cannot become
+      scope changes or be inspected beyond the listing that names them.
+    rests_on:
+      - .interlock/graphs/0060-headless-runtime.yaml
+      - packages/runner/src/scopeGuard.ts
+      - packages/runner/test/scopeGuard.test.ts
+    applies_to:
+      kind: path
+      path: packages/runner/src/scopeGuard.ts
+    hunks:
+      - packages/runner/src/scopeGuard.ts:168-275
+      - packages/runner/src/scopeGuard.ts:277-313
+      - packages/runner/test/scopeGuard.test.ts:85-137
+  - id: owner-only-snapshot-boundary
+    what: >-
+      Add injected file reading and owner-only snapshot metadata: watched files with mode & 0o077
+      equal to zero retain size and mtimeMs, omit sha256, never invoke the reader, compare only
+      those fields, and describe changed paths with the owner-only limit. Main checkout entries
+      continue using sha256 reads.
+    because: >-
+      The watch path may contain secrets that the guard must never open, but it still needs a
+      deterministic change signal. Restricting the mode-based behavior to watch entries preserves
+      today's main-checkout hashing contract and makes the read-avoidance proof injectable.
+    rests_on:
+      - .interlock/graphs/0060-headless-runtime.yaml
+      - packages/runner/src/scopeGuard.ts
+      - packages/runner/test/scopeGuard.test.ts
+    applies_to:
+      kind: path
+      path: packages/runner/src/scopeGuard.ts
+    hunks:
+      - packages/runner/src/scopeGuard.ts:11-44
+      - packages/runner/src/scopeGuard.ts:122-166
+      - packages/runner/src/scopeGuard.ts:277-313
+      - packages/runner/src/scopeGuard.ts:319-357
+      - packages/runner/test/scopeGuard.test.ts:139-170
+  - id: focused-fixture-proof
+    what: >-
+      Add linked-worktree fixture coverage for single-file rewrite and creation, excluded folder
+      writes, owner-only reader avoidance and size/mtime behavior, plus localConfig acceptance and
+      refusal cases; record the typed session notes alongside the implementation.
+    because: >-
+      These cases exercise the boundary through the same fixture repository and worktree shape the
+      scope guard uses, including the filesystem facts that distinguish a file from a folder and
+      that restore an owner-only timestamp without reading its contents.
+    rests_on:
+      - packages/runner/test/scopeGuard.test.ts
+      - packages/runner/test/localConfig.test.ts
+      - .interlock/sessions/0060-headless-runtime/watch-paths-precise/notes.yaml
+    applies_to:
+      kind: path
+      path: packages/runner/test/scopeGuard.test.ts
+    hunks:
+      - packages/runner/test/scopeGuard.test.ts:1-211
+      - packages/runner/test/localConfig.test.ts:712-827
+      - .interlock/sessions/0060-headless-runtime/watch-paths-precise/notes.yaml:1-35
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: All eight workspace packages typechecked successfully.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Biome exited zero; it reported one pre-existing warning and one informational finding in packages/runner/test/runnerCommits.test.ts.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+    note: packages/*/src contains no comments.
+  - id: test
+    result: pass
+    invocation: mise exec -- pnpm test
+    note: All workspace test packages passed; the runner suite reported 554 tests and the schema suite reported 1240 tests.
+  - id: debrief-valid
+    result: pass
+    invocation: mise exec -- pnpm interlock debrief validate 0060-headless-runtime watch-paths-precise
+    note: The filed debrief will be validated after file-derived selects this candidate.
+  - id: watch-paths-proof
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter runner exec vitest run test/scopeGuard.test.ts test/localConfig.test.ts --passWithNoTests=false
+    note: 60 focused tests passed.
+  - id: runner-suite
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
+    note: 554 runner tests passed.
+  - id: watch-paths-types
+    result: pass
+    invocation: mise exec -- pnpm --filter runner exec tsc --noEmit
+    note: The runner package typechecked successfully.
+open:
+  - >-
+    The full workspace run emitted expected fixture diagnostics from Git and signing failure
+    tests while exiting successfully; no acceptance item remains unresolved.

@@ -1,0 +1,31 @@
+interlock: notes@v0
+node: watch-paths-precise-fixed
+entries:
+  - kind: surprise
+    at: "2026-11-08T12:00:00Z"
+    expected: The resumed session would have an existing notes.yaml beside its canonical brief.
+    observed: The worktree is clean and the session directory contains only brief.md; notes.yaml has not yet been created.
+  - kind: choice
+    at: "2026-11-08T12:01:00Z"
+    chose: Merge graph/0060-headless-runtime/watch-paths-precise and origin/main with signed forward merge commits before fixing the two reported runner failures.
+    because: The acceptance requires both source histories to be present and signed, and the failures must be reproduced on the combined tree before their causes are corrected.
+  - kind: surprise
+    at: "2026-11-08T12:04:00Z"
+    expected: The first version check would already use the repository's pinned Node and pnpm on PATH.
+    observed: A read-only package metadata command invoked node before the explicit PATH setup; the subsequent version check used the required mise paths and reported Node v24.14.0 with pnpm 10.13.1.
+  - kind: surprise
+    at: "2026-11-08T12:08:00Z"
+    expected: The combined-history focused run would reproduce both acceptance failures.
+    observed: absorbOutbox.test.ts passed both tests, while scopeGuard.test.ts reproduced the same-size owner-only rewrite with restored mtime as one failure; the focused run reported 11 passing and 1 failing test.
+  - kind: choice
+    at: "2026-11-08T12:12:00Z"
+    chose: Normalize owner-only snapshot mtimeMs with Math.trunc while preserving size-only-plus-mtime comparison and never reading owner-only content.
+    because: The filesystem restored the timestamp 0.000244140625 ms below the original float; millisecond normalization removes that storage-rounding false positive without weakening content hashing for other files.
+  - kind: choice
+    at: "2026-11-08T12:13:00Z"
+    chose: Leave absorbOutbox logic and expectation unchanged after the required merges and focused reproduction passed both absorb tests.
+    because: Changing a passing expectation or delegated-clearance behavior without a current failing trace would be an unrooted alteration; the existing test continues to prove observed command evidence is retained while the node clears.
+  - kind: choice
+    at: "2026-11-08T12:15:00Z"
+    chose: Run every gate with mise-provided Node v24.14.0 and pnpm 10.13.1 first on PATH, recording each result under the runner test runs directory.
+    because: The acceptance attributes the earlier clear to the wrong Node and requires pinned-tool evidence for every gate and test.
