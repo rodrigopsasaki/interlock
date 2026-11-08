@@ -53,3 +53,11 @@ entries:
     at: "2026-11-08T10:52:00Z"
     expected: The full workspace test would provide a clean standing receipt after the fixture-only correction.
     observed: The full run passed 566 of 570 runner tests and repeated the four pre-existing execRuntime timeouts; the corrected engines-node proof passed its 9 tests within that run.
+  - kind: choice
+    at: "2026-11-08T10:58:00Z"
+    chose: Run the standing typecheck, lint, comments, and explicit runner-suite gates after the fixture correction before revising the debrief.
+    because: The final debrief must be based on post-change harness receipts, including the repository-wide checks and the runner gate named by the acceptance.
+  - kind: surprise
+    at: "2026-11-08T11:04:00Z"
+    expected: The explicit runner-suite gate would differ from the earlier full workspace runner result after the fixture-only correction.
+    observed: It passed 45 test files and 566 of 570 tests, with the same four execRuntime timeouts; typecheck and comments passed, while lint exited zero with the existing one warning and one info.
