@@ -24,3 +24,7 @@ entries:
     at: "2026-11-08T15:08:00Z"
     chose: Render the proof mismatch through the face's graph frame as well as position and session reads.
     because: The acceptance requires every read surface, including the face, to name a satisfied gate whose recorded command proof fails its criterion.
+  - kind: surprise
+    at: "2026-11-08T15:12:00Z"
+    expected: Existing face graph-frame text would accept the richer blocked reason for all blocked gates.
+    observed: Its established contract intentionally renders ordinary blocked gates without a reason, so the richer text is limited to recorded-proof mismatches.

@@ -57,7 +57,9 @@ function renderGateState(state: PositionGateState): string {
     case "satisfied":
       return "satisfied";
     case "blocked":
-      return `blocked (${state.because})`;
+      return state.because.startsWith("recorded proof does not meet its criterion")
+        ? `blocked (${state.because})`
+        : "blocked";
     case "waived":
       return `waived by ${state.authority}`;
     case "superseded":
