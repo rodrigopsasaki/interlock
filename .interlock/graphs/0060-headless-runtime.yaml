@@ -743,6 +743,51 @@ nodes:
         kind: command
         run: pnpm typecheck
 
+  - id: marker-never-dropped
+    role: implementer
+    depends_on: [marker-configured-servers-only]
+    acceptance: |
+      The runner marker reaches every configured codex MCP server on every launch, or the launch is refused by name.
+      marker-configured-servers-only keeps the per-server overrides in argv while the start line stays under
+      CODEX_CANONICAL_LINE_LIMIT (packages/runner/src/codex/config.ts). Past it, boundedArgsFor in
+      packages/runner/src/sessionDrive.ts drops every generated mcp_servers.<name>.env override, narrates that the
+      marker "remains inherited by MCP children", and launches anyway. That is false: codex starts a stdio MCP server
+      with its default environment list plus that server's own env table, so INTERLOCK_SESSION, INTERLOCK_GRAPH and
+      INTERLOCK_NODE never reach dialeto on that path, and nothing records the gap. The same check also measures
+      characters where the limit is in bytes.
+      - On overflow the runner writes a launch-local codex profile overlay that carries the marker env for each
+        configured stdio server, and launches with a short line selecting it. The overlay lives only for that launch:
+        it is never written into ~/.codex or the CODEX_HOME the owner uses, and it is removed when the session ends.
+        The owner's own config, its other tables and the selected profile's settings stay in force.
+      - When the overlay cannot carry the marker either (it cannot be written, or the line selecting it is still at or
+        over the limit), the launch fails closed before any agent starts, with a named refusal that says which
+        servers would have gone unmarked and why. It never drops the marker and launches.
+      - The line-length check counts UTF-8 bytes, the unit of the terminal's canonical limit.
+      - The narration that claimed inheritance is gone; each launch narrates the path it took (argv, overlay or
+        refusal).
+      - Fixture: a start line padded past the limit (long worktree path or extra args) with two configured stdio
+        servers takes the overlay path, the line stays under the limit, and both servers' overlay tables carry all
+        three marker values; an unwritable overlay location yields the named refusal and no launch.
+      - Gate: a real codex launch with its start line padded past the limit takes the overlay path, `codex mcp list`
+        exits 0, and its configured dialeto server receives INTERLOCK_SESSION, INTERLOCK_GRAPH and INTERLOCK_NODE.
+      Every gate and test runs with the repository's pinned pnpm and Node first on PATH. No test is excluded.
+    gates:
+      - id: marker-never-dropped-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/markerConfiguredServers.test.ts test/markerNeverDropped.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: real-codex-overflow-launch
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/realCodexMarkerLaunch.test.ts test/realCodexMarkerOverflow.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: runner-suite
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: marker-never-dropped-types
+        kind: command
+        run: pnpm typecheck
+
   - id: exec-runtime
     role: implementer
     depends_on: []
