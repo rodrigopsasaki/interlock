@@ -61,3 +61,9 @@ entries:
     because: >-
       The real Codex proof creates an MCP plugin checkout under its isolated overlay; those fixture
       files can have test-like names and are scratch, not workspace tests.
+  - kind: surprise
+    at: '2026-11-08T17:54:18Z'
+    expected: Adding the .runs exclusion would preserve Vitest's normal dependency exclusions.
+    observed: >-
+      Vitest treats an explicit exclude list as a replacement, so linked node_modules tests were
+      discovered; the default node_modules exclusion was restored explicitly.
