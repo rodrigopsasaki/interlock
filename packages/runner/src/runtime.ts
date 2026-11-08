@@ -50,6 +50,7 @@ export interface PreparedLaunch {
   readonly cwd: string;
   readonly environment: Readonly<Record<string, string>>;
   readonly writableRoots: readonly string[];
+  readonly cleanup?: () => void;
 }
 
 export interface ProbeInvocation {

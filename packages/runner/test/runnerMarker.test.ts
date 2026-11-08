@@ -156,28 +156,39 @@ describe("runner marker", () => {
     });
   });
 
-  it("leaves MCP overrides out when listing fails or is empty", () => {
+  it("refuses when discovery fails or establishes no configured server set", () => {
     const environment = {
       INTERLOCK_SESSION: "session",
       INTERLOCK_GRAPH: "graph",
       INTERLOCK_NODE: "node",
+      CODEX_HOME: join(import.meta.dirname, ".runs", "empty-codex-home"),
     };
     const narration: string[] = [];
     const failed = prepareLaunch(codexRuntime(), fixtureRoot(), environment, {
       narrate: (line) => narration.push(line),
       listCodexMcp: () => err("fixture failed"),
     });
-    expect(isOk(failed)).toBe(true);
-    if (!isOk(failed)) return;
-    expect(failed.value.args.some((arg) => arg.startsWith("mcp_servers."))).toBe(false);
-    expect(narration).toEqual(["codex mcp list --json failed: fixture failed"]);
-    const emptyNarration: string[] = [];
+    expect(failed).toEqual(
+      err({
+        kind: "codex-launch-refusal",
+        servers: [],
+        because: "codex mcp list --json failed: fixture failed",
+      }),
+    );
+    expect(narration).toEqual([]);
     const empty = prepareLaunch(codexRuntime(), fixtureRoot(), environment, {
-      narrate: (line) => emptyNarration.push(line),
       listCodexMcp: () => ok([]),
     });
-    expect(isOk(empty)).toBe(true);
-    expect(emptyNarration).toEqual(["codex mcp list --json returned no stdio servers"]);
+    expect(empty).toEqual(
+      ok({
+        program: "codex",
+        args: expect.any(Array),
+        cwd: expect.any(String),
+        environment,
+        writableRoots: [],
+        cleanup: expect.any(Function),
+      }),
+    );
   });
 
   it("refuses a different machine marker value", () => {

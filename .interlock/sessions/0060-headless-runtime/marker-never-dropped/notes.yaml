@@ -1,0 +1,99 @@
+interlock: notes@v0
+node: marker-never-dropped
+entries:
+  - kind: choice
+    at: "2026-11-08T11:30:00Z"
+    chose: Resume from the clean brief-only worktree and inspect the existing Codex launch, session-drive and fixture seams before changing code.
+    because: The worktree has no implementation or session-note changes beyond the derived brief commits, so the current source and tests are the only reliable starting point.
+  - kind: choice
+    at: "2026-11-08T11:31:00Z"
+    chose: Run the required focused marker tests with the repository's mise-selected Node and pnpm before implementation.
+    because: The existing assertions establish which marker paths are intentionally passing or failing at the session boundary, and the brief requires the pinned toolchain first on PATH.
+  - kind: surprise
+    at: "2026-11-08T11:32:00Z"
+    expected: The focused test command would preserve its exit code through the shell wrapper.
+    observed: zsh treats `status` as a read-only special variable, so the wrapper stopped before printing the test result; no source command was started in the background.
+  - kind: choice
+    at: "2026-11-08T11:35:00Z"
+    chose: Reuse the marker-configured-server implementation and retain its complete session notes while resolving the cherry-pick conflict by keeping both overflow decisions.
+    because: The current node depends on that implementation, and its notes preserve the prior session's provenance without changing its code history.
+  - kind: surprise
+    at: "2026-11-08T11:35:01Z"
+    expected: The two dependency commits would apply without artifact overlap.
+    observed: The second commit also extended the dependency session notes, so cherry-pick stopped on that notes file; the source patch applied and the conflict was resolved by retaining all distinct entries.
+  - kind: choice
+    at: "2026-11-08T11:40:00Z"
+    chose: Keep Codex launch policy in codex/config.ts and use the excluded session directory for a launch-local CODEX_HOME overlay.
+    because: The policy must own configuration resolution and cleanup, while the overlay must remain inside this worktree and outside scope-guard snapshots during the live session.
+  - kind: choice
+    at: "2026-11-08T11:52:00Z"
+    chose: Refuse when Codex discovery, configuration reading, effective-server reconciliation, marker conflict checks, or overlay preparation cannot establish delivery, and pass the same policy through exec phases whose program is codex.
+    because: A launch without a verified configured-server set cannot prove marker delivery; generic session orchestration must not narrate inherited delivery or bypass the Codex adapter.
+  - kind: choice
+    at: "2026-11-08T11:55:00Z"
+    chose: Replace the old discovery-failure and empty-list success assertions with named refusal assertions.
+    because: The acceptance explicitly removes the prior success contract; these tests must prevent a future regression to launching an unmarked Codex child.
+  - kind: choice
+    at: "2026-11-08T12:00:00Z"
+    chose: Prove overflow delivery with the installed Codex CLI against a fixture CODEX_HOME and leave the owner's Codex home and credentials untouched.
+    because: The acceptance requires real Codex config-validity evidence while forbidding live Dialeto or owner credentials; the launch-local overlay provides that isolation.
+  - kind: surprise
+    at: "2026-11-08T12:03:00Z"
+    expected: The new source and focused tests would satisfy the repository formatter on the first check.
+    observed: Biome required import ordering and line wrapping, and suggested an optional-chain fix; the formatter corrected the mechanical layout and the unsafe suggestion was applied explicitly.
+  - kind: surprise
+    at: "2026-11-08T12:08:00Z"
+    expected: The root lint gate would report only the known unrelated runner-commit fixture violations.
+    observed: It also reported two inherited marker fixture formatting issues from the dependency implementation; those two files were corrected, while the three unrelated runnerCommits.test.ts findings remain unchanged.
+  - kind: choice
+    at: "2026-11-08T12:08:01Z"
+    chose: Fix only the inherited marker fixture formatting and leave runnerCommits.test.ts unchanged.
+    because: The marker fixtures are part of this node's proof surface, while changing an unrelated pre-existing fixture would broaden the diff without supporting marker delivery.
+  - kind: choice
+    at: "2026-11-08T12:16:00Z"
+    chose: Treat the workspace test gate as passed while retaining its fixture Git maintenance warnings in the gate record.
+    because: The command exited zero and every package suite passed; the warnings came from existing worktree-maintenance fixtures and did not fail any test.
+  - kind: choice
+    at: "2026-11-08T12:17:00Z"
+    chose: "Record the final gate checks as pinned-toolchain evidence: typecheck passed, lint exited zero with the existing runnerCommits warning and info, comments passed, the full runner suite passed 596 tests, and the workspace test passed all package suites including runner 596 and CLI 453."
+    because: These are the checks run after the final implementation and fixture-format commits; the runner receipts remain the binding proof for node clearance.
+  - kind: surprise
+    at: "2026-11-08T12:25:00Z"
+    expected: The filed debrief would validate against the notes committed with the final gate counts.
+    observed: The unquoted colon in the final note's chose scalar made notes.yaml invalid YAML; the scalar was quoted before rerunning validation.
+  - kind: surprise
+    at: "2026-11-08T13:50:00Z"
+    expected: The installed Codex app-server would accept the prepared launch's profile selector.
+    observed: Codex rejected --profile for app-server because that selector is limited to runtime commands and codex mcp.
+  - kind: choice
+    at: "2026-11-08T13:51:00Z"
+    chose: Make the overlay base config select its generated profile, then omit only the unsupported --profile argument when starting app-server in the real proof.
+    because: The pane and exec runtime commands still receive the prepared selector, while app-server reads the same launch-local home and must get the generated marker profile through its supported config path.
+  - kind: surprise
+    at: "2026-11-08T13:53:00Z"
+    expected: A generated profile could be selected from overlay config.toml for app-server.
+    observed: Codex rejects the legacy profile key in config.toml, so app-server cannot consume the generated profile that way; the proof now exercises the normal runtime command that accepts --profile.
+  - kind: choice
+    at: "2026-11-08T13:55:00Z"
+    chose: Use real codex exec with the prepared profile and assert the fixture child files before treating an authentication failure as skippable.
+    because: Codex starts the configured MCP children before its model request, so the proof observes actual child environments without owner credentials while preserving a narrow skip only when an unauthenticated runtime starts no fixture.
+  - kind: surprise
+    at: "2026-11-08T13:56:00Z"
+    expected: The no-credential fixture Codex launch would fail before starting MCP children.
+    observed: Codex retried the model request with 401 Unauthorized, but all four local MCP fixture children recorded the three marker values first.
+  - kind: surprise
+    at: "2026-11-08T13:58:00Z"
+    expected: The first post-repair typecheck would pass after the focused runtime proof was green.
+    observed: Strict indexed-access checking required an explicit output-path narrowing, and this Vitest version accepts no argument on the runtime skip helper; both were corrected without weakening the proof.
+  - kind: surprise
+    at: "2026-11-08T14:00:00Z"
+    expected: The new real-delivery test would satisfy the formatter after the type correction.
+    observed: Biome required import compaction and wrapping in the new test; formatting changed only that proof file, while the existing runnerCommits warning and info remained.
+  - kind: surprise
+    at: "2026-11-08T14:05:00Z"
+    expected: The full workspace test gate would reproduce the focused green runner suites without fixture interference.
+    observed: One existing submoduleReceipts fixture failed at git maintenance.auto=false add -A with a permission-denied worktree lock; 597 of 598 runner tests and every other package suite passed, so the gate is being rerun once in isolation.
+  - kind: choice
+    at: "2026-11-08T14:10:00Z"
+    chose: Record the isolated full-test rerun as the repaired workspace gate receipt.
+    because: The rerun exited zero with every package suite passing, including runner 598 tests and schemas 1290 tests; the remaining Git maintenance warning lines are existing fixture observations and did not fail the gate.

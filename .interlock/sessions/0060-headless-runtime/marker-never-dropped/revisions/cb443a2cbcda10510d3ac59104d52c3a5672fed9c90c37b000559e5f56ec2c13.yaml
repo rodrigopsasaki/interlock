@@ -1,0 +1,194 @@
+interlock: debrief@v2
+graph: 0060-headless-runtime
+node: marker-never-dropped
+role: implementer
+graph_base_sha: f821aecd6591114dacfb79de0c66a346a08925c2
+session_start_sha: 7a74860d7811eada4a136e420f5a93f913259952
+head_sha: d719377122de4301e756dcaf6f4652e74a0eac18
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: effective-codex-policy
+    what: >-
+      Added the Codex adapter policy that reads the effective base, selected profile, project and
+      -c configuration, reconciles configured stdio servers with `codex mcp list --json`, refuses
+      discovery/configuration failures and marker conflicts by server name, and returns a typed
+      delivered-or-refused result to the runner.
+    because: >-
+      The marker must be delivered to every configured stdio server or the launch must be refused;
+      generic orchestration cannot establish that invariant from inherited environment narration.
+    rests_on:
+      - .interlock/sessions/0060-headless-runtime/marker-never-dropped/brief.md
+      - packages/runner/src/codex/config.ts
+    hunks:
+      - packages/runner/src/codex/config.ts:300-327
+      - packages/runner/src/codex/config.ts:333-366
+      - packages/runner/src/codex/config.ts:443-491
+      - packages/runner/src/sessionDrive.ts:106-165
+      - packages/runner/test/runnerMarker.test.ts:159-192
+    applies_to: { kind: repository }
+    produces:
+      - packages/runner/src/codex/config.ts
+      - packages/runner/src/sessionDrive.ts
+      - packages/runner/test/runnerMarker.test.ts
+  - id: overflow-overlay-delivery
+    what: >-
+      Added UTF-8 byte-length selection between argv and a launch-local CODEX_HOME overlay. The
+      overlay copies the base config, composes the selected profile with per-server marker env
+      entries, preserves the owner's home untouched, replaces the launch profile selector, and
+      removes the temporary home through the returned cleanup function.
+    because: >-
+      Codex's stdio environment is assembled from its effective configuration, so inheriting the
+      runner environment cannot prove marker delivery after argv exceeds the terminal limit. The
+      overlay carries the values in Codex configuration while retaining the owner's auth/settings
+      source and a way back after the session.
+    rests_on:
+      - .interlock/sessions/0060-headless-runtime/marker-never-dropped/brief.md
+      - packages/runner/src/codex/config.ts
+      - packages/runner/test/markerNeverDropped.test.ts
+    hunks:
+      - packages/runner/src/codex/config.ts:372-441
+      - packages/runner/src/codex/config.ts:492-526
+      - packages/runner/test/markerNeverDropped.test.ts:57-121
+      - packages/runner/test/realCodexMarkerOverflow.test.ts:17-63
+    applies_to: { kind: repository }
+    produces:
+      - packages/runner/src/codex/config.ts
+      - packages/runner/test/markerNeverDropped.test.ts
+      - packages/runner/test/realCodexMarkerOverflow.test.ts
+  - id: all-codex-launch-phases
+    what: >-
+      Routed pane launches and exec-phase Codex launches through the same prepared launch result,
+      passed its prepared arguments and environment to the actual start path, and invoked overlay
+      cleanup from the session's finalization path; extended PreparedLaunch with the optional
+      cleanup contract.
+    because: >-
+      A marker policy that covers only the pane opening path still leaves exec phases unmarked,
+      and an overlay that is not cleaned up would violate the launch-local ownership boundary.
+    rests_on:
+      - packages/runner/src/sessionDrive.ts
+      - packages/runner/src/runtime.ts
+      - .interlock/sessions/0060-headless-runtime/marker-never-dropped/brief.md
+    hunks:
+      - packages/runner/src/sessionDrive.ts:512-542
+      - packages/runner/src/sessionDrive.ts:752-761
+      - packages/runner/src/sessionDrive.ts:1183-1223
+      - packages/runner/src/runtime.ts:47-54
+    applies_to: { kind: path, path: packages/runner/src/sessionDrive.ts }
+    produces:
+      - packages/runner/src/sessionDrive.ts
+      - packages/runner/src/runtime.ts
+      - packages/runner/test/runnerMarker.test.ts
+  - id: marker-delivery-proof
+    what: >-
+      Added focused coverage for irreducible-line refusal, UTF-8 byte counting, project and -c
+      conflicts, launch-profile-only servers, overlay cleanup, and actual Codex overflow delivery;
+      retained the configured-server and real-launch fixtures and corrected their mechanical
+      formatting.
+    because: >-
+      The acceptance names each former unmarked path and requires real Codex config-validity
+      evidence without a live Dialeto service or owner credentials, so the tests exercise the
+      refusal and delivery contracts at both adapter and installed-CLI boundaries.
+    rests_on:
+      - .interlock/sessions/0060-headless-runtime/marker-never-dropped/brief.md
+      - packages/runner/test/markerNeverDropped.test.ts
+      - packages/runner/test/realCodexMarkerOverflow.test.ts
+      - packages/runner/test/markerConfiguredServers.test.ts
+      - packages/runner/test/realCodexMarkerLaunch.test.ts
+    hunks:
+      - packages/runner/test/markerNeverDropped.test.ts:57-160
+      - packages/runner/test/realCodexMarkerOverflow.test.ts:17-63
+      - packages/runner/test/markerConfiguredServers.test.ts:49-120
+      - packages/runner/test/realCodexMarkerLaunch.test.ts:39-81
+      - packages/runner/test/runnerMarker.test.ts:159-230
+      - packages/runner/test/fixtures/codex/config.toml:1-5
+      - packages/runner/test/fixtures/codex/real-mcp-list.json:1-32
+    applies_to: { kind: repository }
+    produces:
+      - packages/runner/test/markerNeverDropped.test.ts
+      - packages/runner/test/realCodexMarkerOverflow.test.ts
+      - packages/runner/test/markerConfiguredServers.test.ts
+      - packages/runner/test/realCodexMarkerLaunch.test.ts
+      - packages/runner/test/runnerMarker.test.ts
+  - id: session-receipts
+    what: >-
+      Appended typed notes for the implementation choices, surprises, focused proofs and final
+      pinned-toolchain gate counts, retaining the dependency session's marker notes while bringing
+      its implementation commits into this branch.
+    because: >-
+      The brief requires every choice and surprise to keep a way back, and the final debrief must
+      close those notes beside the produced diff.
+    rests_on:
+      - .interlock/sessions/0060-headless-runtime/marker-never-dropped/notes.yaml
+      - .interlock/sessions/0060-headless-runtime/marker-configured-servers-only/notes.yaml
+    hunks:
+      - .interlock/sessions/0060-headless-runtime/marker-never-dropped/notes.yaml:1-59
+      - .interlock/sessions/0060-headless-runtime/marker-configured-servers-only/notes.yaml:1-39
+    applies_to:
+      kind: path
+      path: .interlock/sessions/0060-headless-runtime/marker-never-dropped/notes.yaml
+    produces:
+      - .interlock/sessions/0060-headless-runtime/marker-never-dropped/notes.yaml
+      - .interlock/sessions/0060-headless-runtime/marker-configured-servers-only/notes.yaml
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: >-
+      PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH" pnpm typecheck
+    note: Node v24.14.0 and pnpm 10.13.1; all workspace projects typechecked successfully.
+  - id: lint
+    result: pass
+    invocation: >-
+      PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH" pnpm lint
+    note: >-
+      Exit 0. Biome retained one existing warning and one info in packages/runner/test/runnerCommits.test.ts;
+      no new lint failure remained.
+  - id: comments
+    result: pass
+    invocation: >-
+      PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH" pnpm check:comments
+    note: packages/*/src has no comments.
+  - id: test
+    result: pass
+    invocation: >-
+      PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH" pnpm test
+    note: >-
+      All workspace package suites passed: ledger 174, debrief 98, verifier 62, substrate 91,
+      face 186, runner 596, schemas 1286 and cli 453 tests. Existing fixture Git maintenance
+      warning lines were emitted without a test failure.
+  - id: marker-never-dropped-proof
+    result: pass
+    invocation: >-
+      PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH" pnpm --fail-if-no-match --filter runner exec vitest run test/markerNeverDropped.test.ts --passWithNoTests=false
+    note: 5 tests passed.
+  - id: real-codex-overflow-delivery
+    result: pass
+    invocation: >-
+      PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH" pnpm --fail-if-no-match --filter runner exec vitest run test/realCodexMarkerOverflow.test.ts --passWithNoTests=false
+    note: 1 test passed using the installed Codex CLI and a fixture CODEX_HOME.
+  - id: marker-configured-still
+    result: pass
+    invocation: >-
+      PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH" pnpm --fail-if-no-match --filter runner exec vitest run test/markerConfiguredServers.test.ts test/realCodexMarkerLaunch.test.ts test/runnerMarker.test.ts --passWithNoTests=false
+    note: 11 tests passed across 3 files.
+  - id: runner-suite
+    result: pass
+    invocation: >-
+      PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH" pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
+    note: 51 files and 596 tests passed.
+  - id: marker-never-dropped-types
+    result: pass
+    invocation: >-
+      PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH" pnpm typecheck
+    note: The marker policy and runner integration typechecked with the workspace.
+open:
+  - >-
+    gap: Codex built-in and plugin-provided servers remain outside this proof because they have no
+    configuration table that can carry the marker; the delivered/refused contract covers every
+    configured stdio server.
+  - >-
+    note: The full workspace test and lint gates passed, while existing fixture-maintenance Git
+    warning lines and runnerCommits.test.ts warning/info remain outside this node's source scope.
