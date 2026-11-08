@@ -1,0 +1,19 @@
+interlock: notes@v0
+node: retraction-holds-outcome
+entries:
+  - kind: choice
+    at: "2026-11-08T08:00:00Z"
+    chose: Make receipt-retracted replay replace a matching node's cleared outcome with a held outcome in the same projection branch that moves the gate to pending.
+    because: The acceptance makes the retraction itself the durable cause of the hold, so a later outcome-set event is neither required nor safe to rely on.
+  - kind: choice
+    at: "2026-11-08T08:02:00Z"
+    chose: Preserve the cleared outcome's receipts, identify the retracted gate as a held decision for the owner, and set expiry to 0.
+    because: The held outcome must retain proof history while making the human gate the immediate revisit point without introducing a new artifact or event shape.
+  - kind: surprise
+    at: "2026-11-08T08:18:00Z"
+    expected: mise exec would select the repository's pinned Node 24.14.0 toolchain.
+    observed: The environment reported Node 26.13.0 during focused and standing gates, while typecheck, lint, comments, focused proof, and the full workspace test still passed.
+  - kind: surprise
+    at: "2026-11-08T08:19:00Z"
+    expected: The full workspace test would be quiet apart from ordinary test summaries.
+    observed: Runner fixture tests emitted expected-looking Git setup and maintenance errors on stderr, but the workspace command exited successfully and all suites passed.
