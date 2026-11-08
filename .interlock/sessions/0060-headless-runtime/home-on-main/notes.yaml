@@ -90,3 +90,18 @@ entries:
     observed: >-
       It reported a pre-existing machine-provider profile assertion and then failed to start a
       Vitest worker because node_modules/.pnpm/tinypool@1.1.1 had no package contents.
+  - kind: surprise
+    at: '2026-11-08T18:24:00Z'
+    expected: Restoring the local dependencies would make the standalone runner gate complete
+      with its normal parallel worker pool.
+    observed: >-
+      The dependency repair removed the worker crash, but the parallel suite still timed out 69
+      command-heavy tests; the overlay and marker proofs passed, and one machine-provider test
+      deterministically expected an overlay profile for a short launch line.
+  - kind: choice
+    at: '2026-11-08T18:24:00Z'
+    chose: Retry the runner suite with one Vitest worker while keeping the exact gate command and
+      all fixture isolation variables.
+    because: >-
+      Serial execution separates suite-level resource contention from behavior without changing
+      production code or excluding any test.
