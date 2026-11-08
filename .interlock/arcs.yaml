@@ -57,6 +57,7 @@ arcs:
     graphs:
       - interlock/0053-graph-arc
       - interlock/0058-cited-delegation
+      - interlock/0061-delegation-fails-closed
 
   - id: talk-to-gilb-from-anywhere
     title: Talk to Gilb from anywhere

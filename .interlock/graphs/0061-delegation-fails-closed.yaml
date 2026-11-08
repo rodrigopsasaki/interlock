@@ -1,0 +1,220 @@
+interlock: graph@v0
+id: 0061-delegation-fails-closed
+arc: every-ask-is-an-arc
+ask: A delegated clearance stops counting whenever Interlock cannot show that its graph content is unchanged, and the delegation refusals name the owner instead of assuming a pronoun.
+derivation:
+  kind: model
+  model: gilb
+  prompt: delegation-fails-closed-2026-11-07
+authorization:
+  granted_by: Rodrigo Sasaki
+  mandate: loom-feed-2026-11-04  # "You're free to do changes on phyxius and interlock too", 23:25 UTC
+  approver: Rodrigo Sasaki; Gilb relays the recorded approval and coordinates cleared-node merges. The cross-vendor vet is advisory.
+read: >
+  Arc: every-ask-is-an-arc (.interlock/arcs.yaml). Rodrigo, 2026-11-06 19:28 UTC, after being handed pull-request and
+  commit lines to paste: "why am I being asked to do these? ... This is exactly the type of thing I don't want to have
+  to do." Graph 0058-cited-delegation answered it; its node approve-for-the-owner landed on main as interlock #109
+  (45374e2) and plan-publish as #110. Reading that landing showed two defects, and a strict cross-vendor vet of this
+  graph found four more holes in the same promise (a cite is bound to one act on one content, and a retracted
+  delegated receipt stops counting from the retraction on, 0058's acceptance). A second vet found four ways the first
+  fold could still be bypassed (items 7 to 10). The coordinator ruled there are no more vet rounds: every finding is
+  folded with a fixture test and the judge is the check from here. This graph closes all ten.
+
+  1. Fail-open stale check. packages/runner/src/gateJudge.ts:208-215 hashes the graph file to compare a delegated
+  clearance's bound contentHash with the current graph; when that read fails it sets currentGraphHash to undefined,
+  and both stale checks (gateJudge.ts:223-228 and the final view at :312-324) are skipped when it is undefined. A
+  delegated clearance therefore keeps counting exactly when Interlock cannot show its content is unchanged. An
+  unreadable graph must hold the delegated clearance, never keep it. A clearance with no contentHash (an owner's own
+  clearance, not delegated) is unaffected.
+
+  2. Two graph copies. judgeGates hashes the graph inside the judged worktree, but its callers decide authority from
+  another copy: packages/cli/src/judge.ts:95-139 loads and checks approval of the root graph, and
+  packages/runner/src/backfill.ts:102-107 judges root declarations against a fresh checkout of main. A clearance bound
+  to the worktree copy H1 can therefore satisfy a root graph H2 whose acceptance changed. The authoritative copy must
+  be named by every caller and both copies must equal the bound hash.
+
+  3. Obsolete final evidence. The final view (gateJudge.ts:312-324) reuses the hash read before the command gates ran;
+  a gate command can change or remove the graph and the delegated clearance still counts. The final view must read
+  again.
+
+  4. Pending releases the cite. delegatedReceipt (packages/cli/src/delegation.ts:203-237) finds a consumed cite only
+  in node receipts, current satisfied or waived gates and the outbox. Delegated approve and clear write only
+  gate-moved, and the gate-moved case of packages/ledger/src/projection.ts:232-237 replaces the gate without keeping
+  its receipt. Any move off satisfied (stale, retraction at projection.ts:215-224, and the hold this graph adds)
+  therefore frees the cite for another act. Consumption must be a projection fact that never shrinks.
+
+  5. Retraction leaves the outcome cleared. receipt-retracted moves only the gate; the node's cleared outcome stays,
+  so packages/runner/src/dependencies.ts:9 still counts it and position still reports it cleared, contrary to 0058's
+  "a retracted clearance reads held". Writing a second outcome-set from the CLI is not enough: each append persists
+  on its own, so a crash between them leaves the gate pending and the outcome cleared, a retry then refuses the
+  pending gate, and retractions already in a journal stay unaffected. Losing the cleared outcome must be what
+  replaying the retraction itself means.
+
+  6. Gendered refusal. packages/cli/src/delegation.ts:99, :115, :152 and :167 word the owner-authorship refusals as
+  "only on his own words" and "this cite is not his". Interlock is vendor- and person-neutral (AGENTS.md, the wall):
+  those four refusals name the configured owner instead, e.g. "only on <owner>'s own words; this cite is not
+  <owner>'s", using the owner string these functions already receive. The configuration, provider and JSON refusals
+  in the same function carry no owner attribution and are out of scope.
+
+  7. Concurrent spends. Each ledger replays once at open and then keeps its own projection
+  (packages/ledger/src/ledger.ts:30-48), and no cross-process lock exists in the repository. Two approve, clear or
+  publish processes can both see a cite unconsumed and both append an authorization; the growing record only notices
+  afterwards. The consumption check and the authorization append must run under one cross-process lock on the shared
+  journal, against a replay taken inside that lock.
+
+  8. Parsed declarations unbound. Matching live file hashes does not prove the declarations being judged came from
+  those bytes: judge.ts parses the graph at :95 before hashing, and backfill keeps its parsed document through install
+  and setup. Parse H2, restore both files to H1, and an H1 receipt passes while H2's gate declarations run. The hash
+  of the exact bytes parsed must travel with the declarations and equal both live hashes and the bound hash.
+
+  9. Failure paths skip the final check. Real judgeWorktree passes the tracked-file scope, and createReceipt reads
+  every scope path (packages/ledger/src/receipt.ts:141); a gate command that removes the tracked graph makes that read
+  throw before the final view, so a cleared outcome survives. Every exit from judgment, refusal or thrown read
+  failure included, must still apply the delegated rule and persist the hold.
+
+  10. Publication recovery. packages/cli/src/planPublish.ts:502-515 deliberately lets a consumed publication cite
+  reconcile the same publication (action publish, same graph, same contentHash) so an interrupted publish finishes
+  its persisted effects. Moving consumption to the projection keeps each caller's own reuse rule: approve and clear
+  refuse any consumed cite, publish refuses all but the same publication.
+
+  Recovery stays open: restoring the graph to its bound content, or the owner's own ordinary clearance, clears a
+  held gate again; a regression proves it.
+
+  Every regression lands in a new test file named by its node's proof gate, so a gate cannot pass on tests that
+  existed before the fix. Read failures in tests are deterministic (a removed file, a directory where the file should
+  be), never permission tricks.
+
+  Every attempt opens with: run one heavy command at a time, never several in parallel or in the background; never
+  pipe a test runner into head or tail.
+
+gates:
+  - id: approved
+    kind: human
+
+nodes:
+  - id: cite-stays-consumed
+    role: implementer
+    depends_on: []
+    acceptance: |
+      Once a delegated derivation (a human derivation carrying a citeKey) appears in any replayed event, its cite is
+      consumed for the life of the ledger. The ledger projection keeps a consumed-cite record keyed by citeKey that
+      only grows, filled from every event that carries a delegated derivation (gate-moved to satisfied or waived,
+      receipt-written, outbox intents); no later gate-moved, receipt-retracted or outcome-set removes it.
+      Delegated receipts carried inside outcomes (cleared and held receipts) and derivations carried inside outbox
+      deliveries count as carrying events. delegatedReceipt in packages/cli/src/delegation.ts answers from that record
+      whatever the gate now reads. Each caller keeps its landed reuse rule: graph approve and gate clear refuse any
+      consumed cite; plan publish refuses a consumed cite unless it is the same publication (action publish, same
+      graph, same contentHash), so an interrupted publish still reconciles.
+      Spending a cite is serialized across processes: approve, clear and publish take one exclusive lock in the shared
+      journal directory (created with exclusive create; a lock whose recorded holder process is gone is broken and
+      taken over), open a fresh replay inside it, run the consumption check, append the authorization and release.
+      Verification and receipt preparation may run before the lock; the check and the append never run outside it.
+      Tests:
+      - packages/ledger/test/consumedCite.test.ts: replaying only gate-moved events (no explicit receipt-written)
+        keeps a delegated cite consumed after the gate moves to pending, after it is replaced by another satisfied
+        receipt, and after receipt-retracted; an owner's own receipt (no citeKey) never enters the record;
+      - packages/ledger/test/consumedCite.test.ts also: a delegated receipt that appears only inside an outcome, and a
+        derivation that appears only inside an outbox delivery, both consume their cite;
+      - packages/cli/test/consumedCite.test.ts: a delegated clear whose gate was then moved to pending, replaced and
+        retracted (each case separately) refuses reuse of the same cite for another act and for other content; an
+        already-consumed publication cite reconciles the same publication (same graph, same hash) and is refused for
+        another graph, another hash and another action;
+      - packages/cli/test/concurrentCite.test.ts: two callers spend one cite on two different acts, the first held
+        inside the lock by an injected pause between its check and its append while the second starts; exactly one
+        act is appended and the other is refused naming the consumed cite; a stale lock left by a dead holder is
+        taken over.
+    gates:
+      - id: consumed-cite-ledger-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter ledger exec vitest run test/consumedCite.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: consumed-cite-cli-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/consumedCite.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: concurrent-cite-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/concurrentCite.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: retraction-holds-outcome
+    role: implementer
+    depends_on: [cite-stays-consumed]
+    acceptance: |
+      Retracting a delegated receipt withdraws what it authorized, as a consequence of replaying the retraction
+      itself. In packages/ledger/src/projection.ts, a receipt-retracted that moves a gate to pending also replaces a
+      cleared outcome on that node with a held outcome on that gate awaiting a person (expiry 0, so it is due for
+      revisit at once); a retraction on a node that is not cleared, or one that does not match the satisfied receipt,
+      changes no outcome. `interlock receipt retract` appends only receipt-retracted, as today: one append, nothing to
+      interrupt. Retractions already in a journal take effect on the next replay. The retracted cite stays consumed.
+      Tests:
+      - packages/cli/test/retractionHoldsOutcome.test.ts: on a fixture ledger with a cleared node whose human gate
+        holds a delegated receipt, retraction and replay show the node held (not cleared), position reports it held,
+        and unmetDependencies for a dependent names it; a journal that ends immediately after receipt-retracted
+        (no later event of any kind) replays the same way; retracting on a node that is not cleared leaves its outcome
+        untouched; after retraction the retracted cite is refused for a new clear.
+    gates:
+      - id: retraction-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/retractionHoldsOutcome.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: fails-closed
+    role: implementer
+    depends_on: [cite-stays-consumed]
+    acceptance: |
+      A delegated human clearance (a satisfied human gate whose receipt derivation carries a contentHash) counts only
+      while Interlock can show its graph content is unchanged. judgeGates, and judgeWorktree which forwards to it,
+      take the authoritative graph path as a required field, and every caller supplies it: packages/cli/src/judge.ts and packages/runner/src/sessionDrive.ts
+      the root graph file, packages/runner/src/backfill.ts the root graph file whose declarations it judges. Each
+      caller reads the graph bytes once, parses those bytes and passes the hash of exactly those bytes with the
+      declarations, so the declarations judged are bound to their content. A delegated clearance stands only when the
+      authoritative copy and the judged worktree copy are both readable and both hash to its bound contentHash, and
+      the parsed-bytes hash equals it too. Otherwise (either copy missing or unreadable, or either hash different) the
+      gate moves back to pending with the same move and narration a stale clearance gets today. The final view reads
+      both copies again after the command gates have run and applies the same rule, so a gate command that changes or
+      removes the graph leaves the delegated clearance pending in the resolved outcome. Every exit from judgeGates
+      applies the rule too: a refusal (scope, output, placeholder) or a thrown read failure, including createReceipt
+      failing on a tracked graph a command removed, first re-reads both copies, moves every delegated clearance that
+      no longer stands to pending and sets the node held on it, then returns the refusal; a read failure inside
+      createReceipt becomes a scope refusal, never an uncaught throw. A clearance without a
+      contentHash is never held by this rule. Because the cite stays consumed (cite-stays-consumed), the hold never
+      frees it. Restoring the graph to the bound content, or the owner's own clearance, clears the gate again.
+      Tests:
+      - packages/runner/test/delegatedFailsClosed.test.ts: a delegated clearance is held pending with the stale
+        narration when the worktree graph is removed, when it is a directory, and when the authoritative graph is
+        removed; it is held when the root copy is H2 and the worktree copy is H1 (bound to H1), for a judge-shaped and
+        a backfill-shaped call; it is held when a passing gate command removes the graph during judgment, and when
+        one rewrites it; with both copies unchanged it still counts; an owner's own clearance (no contentHash) still
+        counts with the graph removed; after a hold, restoring the bound graph clears the node again, and so does the
+        owner's own clearance;
+      - packages/runner/test/delegatedFailsClosed.test.ts also, at caller level: a judge that parsed H2 while both
+        files were then restored to H1 before judgment holds an H1-bound delegated clearance (parsed-bytes hash
+        differs), for judgeWorktree and for a backfill-shaped call; on a real git fixture with the graph tracked and
+        judged through judgeWorktree with gitScope, a passing gate command that removes the graph leaves the node held,
+        never cleared, and judgment returns a refusal rather than throwing; a placeholder refusal after a delegated
+        clearance was already moved to pending leaves the node held, not cleared.
+    gates:
+      - id: fail-closed-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/delegatedFailsClosed.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: neutral-refusal
+    role: implementer
+    depends_on: []
+    acceptance: |
+      The four owner-authorship refusals in verifyCitation (packages/cli/src/delegation.ts:99, :115, :152, :167: the
+      unknown cite, the comment by another author, the provider answering not verified, and the provider naming
+      another author) name the owner they are given and carry no gendered pronoun. The other refusals in that function
+      are unchanged.
+      Tests:
+      - packages/cli/test/neutralRefusal.test.ts: each of the four refusals, reached on fixtures with a configured
+        owner that is not the default (the comment host and the cite provider parameterized so the author differs
+        from the owner, and the provider answering verified false), names that owner and matches no
+        /\b(his|her|him|he|she)\b/i.
+    gates:
+      - id: neutral-refusal-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/neutralRefusal.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
