@@ -7,7 +7,6 @@ import {
   ARCS_V0,
   ARCS_V1,
   parseArcsRegistry,
-  type ArcRegistry,
 } from "./reader.ts";
 
 interface Listing {
@@ -147,15 +146,16 @@ export async function migrateArcs(
   if (tag === ARCS_V1) return ok({ changed: false });
   if (tag !== ARCS_V0) return err(`${path}: expected ${ARCS_V0} or ${ARCS_V1}`);
 
+  const parsedShape = parseArcsRegistry(document.toJS(), repositoryOverride ?? "migration");
+  if (isErr(parsedShape)) return err(`${path}: ${parsedShape.error}`);
+  if (parsedShape.value.needsHisWords.length > 0) {
+    const graphs = parsedShape.value.needsHisWords.map((entry) => entry.graph).join(", ");
+    return err(`${path}: cannot migrate non-empty needs_his_words; edit arcs.yaml to choose an arc for ${graphs}`);
+  }
   const repository = await repositoryForMigration(repoRoot, repositoryOverride);
   if (isErr(repository)) return repository;
   const parsed = parseArcsRegistry(document.toJS(), repository.value);
   if (isErr(parsed)) return err(`${path}: ${parsed.error}`);
-  const registry: ArcRegistry = parsed.value;
-  if (registry.needsHisWords.length > 0) {
-    const graphs = registry.needsHisWords.map((entry) => entry.graph).join(", ");
-    return err(`${path}: cannot migrate non-empty needs_his_words; edit arcs.yaml to choose an arc for ${graphs}`);
-  }
 
   const listings = listingsFor(root);
   const byGraph = new Map<string, Listing[]>();

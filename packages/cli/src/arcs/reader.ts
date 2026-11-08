@@ -185,6 +185,9 @@ export function parseArcsRegistry(
   if (!isRecord(value)) return err("the document is not a YAML mapping");
   const tag = stringAt(value, "interlock");
   if (tag !== ARCS_V0 && tag !== ARCS_V1) return err(`shape tag is missing or unsupported: ${tag ?? "none"}`);
+  if (tag === ARCS_V1 && value["needs_his_words"] !== undefined) {
+    return err('"needs_his_words" is not part of arcs@v1');
+  }
   const declaredRepository = stringAt(value, "repository");
   if (tag === ARCS_V1 && declaredRepository === undefined) {
     return err('"repository" is missing or not a non-empty string');

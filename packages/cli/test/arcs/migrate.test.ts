@@ -47,7 +47,8 @@ describe("arcs migration", () => {
     const root = await fixture(content);
     const needsWords = await migrateArcs(root, "example");
     expect(isErr(needsWords) && needsWords.error).toContain("example/orphan");
-    const noIdentity = await migrateArcs(root);
+    const identityRoot = await fixture(content.replace(/needs_his_words:[\s\S]*$/, ""));
+    const noIdentity = await migrateArcs(identityRoot);
     expect(isErr(noIdentity) && noIdentity.error).toContain("interlock arcs migrate --repository <name>");
   });
 
