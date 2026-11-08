@@ -455,6 +455,7 @@ scope:
   - .interlock/sessions/0059-submodule-receipts/resume-keeps-range/revisions/3708d457dd183b86d278497a6e7f53142315a2fecc9c05a7cd4512e37fcf8034.yaml
   - .interlock/sessions/0059-submodule-receipts/resume-keeps-range/revisions/f8052a9f854f5e0b182b7c3d30680fb458bdb9a6d7bb82a840e9cb731ec873f3.yaml
   - .interlock/sessions/0060-headless-runtime/base-is-current/brief.md
+  - .interlock/sessions/0060-headless-runtime/capture-drains/brief.md
   - .interlock/sessions/0060-headless-runtime/codex-home-outside-worktree/brief.md
   - .interlock/sessions/0060-headless-runtime/exec-phase-ends/brief.md
   - .interlock/sessions/0060-headless-runtime/exec-phase-ends/debrief-candidate.yaml
@@ -497,6 +498,7 @@ scope:
   - .interlock/sessions/0060-headless-runtime/marker-never-dropped/notes.yaml
   - .interlock/sessions/0060-headless-runtime/marker-never-dropped/revisions/c07c5b5b3eae23360f222e092f57b9ead0146589f16eee453cc74cb157468e09.yaml
   - .interlock/sessions/0060-headless-runtime/marker-never-dropped/revisions/cb443a2cbcda10510d3ac59104d52c3a5672fed9c90c37b000559e5f56ec2c13.yaml
+  - .interlock/sessions/0060-headless-runtime/mise-state-outside-repos/brief.md
   - .interlock/sessions/0060-headless-runtime/plan-reviews-are-sessions/brief.md
   - .interlock/sessions/0060-headless-runtime/runner-marker/brief.md
   - .interlock/sessions/0060-headless-runtime/runner-marker/debrief-candidate-2.yaml
@@ -512,6 +514,11 @@ scope:
   - .interlock/sessions/0060-headless-runtime/scope-guard/notes.yaml
   - .interlock/sessions/0060-headless-runtime/scope-guard/revisions/8fc5b5e70e7abb27d515f7a101f60106bf3c32c2ee8dc29dfc7029d4d177df44.yaml
   - .interlock/sessions/0060-headless-runtime/start-failure-is-not-a-timeout/brief.md
+  - .interlock/sessions/0060-headless-runtime/start-failure-is-not-a-timeout/debrief-candidate.yaml
+  - .interlock/sessions/0060-headless-runtime/start-failure-is-not-a-timeout/debrief-correction-candidate.yaml
+  - .interlock/sessions/0060-headless-runtime/start-failure-is-not-a-timeout/debrief.yaml
+  - .interlock/sessions/0060-headless-runtime/start-failure-is-not-a-timeout/notes.yaml
+  - .interlock/sessions/0060-headless-runtime/start-failure-is-not-a-timeout/revisions/91d30bb9a6e03f8039fe62633636ef970c62d18e4c4bd97fd4bd663aeb635f60.yaml
   - .interlock/sessions/0060-headless-runtime/tests-read-fixtures/brief.md
   - .interlock/sessions/0060-headless-runtime/tests-read-fixtures/debrief-candidate.yaml
   - .interlock/sessions/0060-headless-runtime/tests-read-fixtures/debrief.yaml
@@ -964,6 +971,7 @@ scope:
   - packages/runner/test/fixtures/exec/ignoreTerm.mjs
   - packages/runner/test/fixtures/exec/reapGrandchild.mjs
   - packages/runner/test/fixtures/exec/recordEnvironment.mjs
+  - packages/runner/test/fixtures/exec/waitForMarker.mjs
   - packages/runner/test/fixtures/exec/writeStreams.mjs
   - packages/runner/test/fixtures/herdr-socket-schema.json
   - packages/runner/test/gateCommand.test.ts
@@ -1002,6 +1010,7 @@ scope:
   - packages/runner/test/sessionWait.test.ts
   - packages/runner/test/settled.test.ts
   - packages/runner/test/standingGates.test.ts
+  - packages/runner/test/startFailureNotTimeout.test.ts
   - packages/runner/test/submoduleReceipts.test.ts
   - packages/runner/test/support/driveFixture.ts
   - packages/runner/test/support/gitFixture.ts
@@ -1238,7 +1247,7 @@ walk:
   kind: none
   because: the substrate address is none, so there is nothing to ask
 graph_base_sha: c66e5f1a13a95936d6ddec1f3eaa1ce2bdd4dd13
-session: 599743ee-076f-4a76-a1e7-6bb7259a87d2
+session: cd621e90-2b62-4dd6-a02c-0196e31a0cc2
 ---
 
 # Brief · node `base-is-current` · graph `0060-headless-runtime`
