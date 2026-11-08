@@ -1,0 +1,102 @@
+interlock: debrief@v2
+graph: 0060-headless-runtime
+node: runner-marker
+role: implementer
+graph_base_sha: ed0a09a73b7884bebcda58c1e296e969db4a0c36
+session_start_sha: 13f434870fe1696abd5738157f9fdc3f979af9fa
+head_sha: 42c710ce804234140ff53fb47a3eb7b5116c9d96
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: marker-contract
+    applies_to: { kind: repository }
+    what: Add a typed runner marker and merge it into machine environment values without overwriting a conflicting marker key.
+    because: Every launched agent and child must receive the same session, graph and node identity, while a machine value that disagrees must refuse the launch instead of being silently replaced.
+    rests_on:
+      - .interlock/graphs/0060-headless-runtime.yaml
+      - packages/runner/src/runnerMarker.ts
+    hunks:
+      - packages/runner/src/runnerMarker.ts:3-41
+      - packages/runner/src/sessionDrive.ts:377-387
+  - id: codex-mcp-overrides
+    applies_to: { kind: repository }
+    what: Discover Codex stdio MCP servers through codex mcp list --json, narrate failure or an empty stdio set, and add quoted per-server marker env overrides alongside shell_environment_policy overrides.
+    because: Codex does not forward its own environment to stdio MCP servers, so only the per-launch server env table reaches those servers; failed discovery must preserve the launch without inventing server entries.
+    rests_on:
+      - .interlock/graphs/0060-headless-runtime.yaml
+      - packages/runner/src/codex/environment.ts
+      - packages/runner/src/ownedCommand.ts
+    hunks:
+      - packages/runner/src/codex/environment.ts:3-29
+      - packages/runner/src/sessionDrive.ts:98-205
+      - packages/runner/src/ownedCommand.ts:11-29
+      - packages/runner/src/index.ts:126-132
+  - id: launch-boundaries
+    what: Pass the merged marker environment to every exec phase and always to runtime.openPane, including provider none, while retaining the existing machine environment for provider setup and custody.
+    because: The marker belongs at the agent and child launch boundaries, not to unrelated provider commands; passing it through the existing pane and exec seams gives non-Codex runtimes their environment and Codex its shell policy inputs.
+    rests_on:
+      - packages/runner/src/sessionDrive.ts
+    hunks:
+      - packages/runner/src/sessionDrive.ts:620-637
+      - packages/runner/src/sessionDrive.ts:761-769
+  - id: event-driven-exec-observation
+    what: Replace fixed polling sleeps for program exit and group or anchor observation with filesystem events and event-loop yields, retaining the request timeout and grace values as explicit bounds.
+    because: Under machine load, a short polling interval can miss a child or group event and make tests time out; observed completion should settle the phase, while the injected bounds still cap a missing event.
+    rests_on:
+      - packages/runner/src/execRuntime.ts
+      - packages/runner/test/execRuntime.test.ts
+    hunks:
+      - packages/runner/src/execRuntime.ts:276-342
+      - packages/runner/src/execRuntime.ts:601-607
+  - id: marker-and-probe-proof
+    applies_to: { kind: repository }
+    what: Add focused marker coverage for shell and stdio Codex overrides, empty or failing discovery, conflicting machine values, provider-none pane delivery, exec child delivery, and a fake Codex probe server; update existing provider expectations for the required marker.
+    because: The acceptance spans independent launch boundaries and requires the probe to observe the same three values, while existing provider tests must assert the new contract without depending on a random session literal.
+    rests_on:
+      - packages/runner/test/runnerMarker.test.ts
+      - packages/runner/test/machineProvider.test.ts
+      - packages/runner/test/fixtures/exec/codexProbe.mjs
+      - packages/runner/test/fixtures/exec/appendEnvironment.mjs
+      - packages/runner/test/fixtures/exec/recordEnvironment.mjs
+    hunks:
+      - packages/runner/test/runnerMarker.test.ts:45-213
+      - packages/runner/test/machineProvider.test.ts:272-294
+      - packages/runner/test/machineProvider.test.ts:333-370
+      - packages/runner/test/fixtures/exec/codexProbe.mjs
+      - packages/runner/test/fixtures/exec/appendEnvironment.mjs
+      - packages/runner/test/fixtures/exec/recordEnvironment.mjs
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: All 8 workspace packages typechecked on 2026-11-08 through mise.
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: Biome checked 465 files; it retained two pre-existing warnings in packages/runner/test/runnerCommits.test.ts.
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+    note: packages/*/src contained no comments.
+  - id: runner-marker-proof
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/runnerMarker.test.ts --passWithNoTests=false
+    note: 7 tests passed, including the fake Codex stdio probe.
+  - id: runner-marker-types
+    result: pass
+    invocation: pnpm typecheck
+    note: The runner marker implementation and fixtures typechecked.
+  - id: test
+    result: pass
+    invocation: pnpm test
+    note: >-
+      The retry passed all 8 workspace packages: 2870 tests across 177 test files,
+      including runner 556/556, schemas 1251/1251 and cli 453/453. The first
+      unchanged run had one unrelated herdr timing failure; it remains recorded
+      in notes.yaml.
+open:
+  - The graph read explicitly leaves the tmux adapter's lack of pane environment as a standing gap; this change passes the marker to runtime.openPane, but tmux does not yet consume that optional environment, so a tmux-pane Claude session remains outside the marker proof.
+  - The first full pnpm test attempt observed an unrelated herdr adapter agent.wait count of 3 instead of 2 under load; the unchanged retry passed and the runner gate receipts remain binding.

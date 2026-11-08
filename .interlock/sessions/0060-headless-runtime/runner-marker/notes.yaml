@@ -1,0 +1,58 @@
+interlock: notes@v0
+node: runner-marker
+entries:
+  - kind: choice
+    at: "2026-11-08T08:40:14Z"
+    chose: Keep the runner marker in one shared environment merge and pass the resulting environment to both interactive panes and exec phases.
+    because: The session, graph and node identity must be identical at every launch boundary, while existing machine values remain authoritative unless they conflict with a marker key.
+  - kind: surprise
+    at: "2026-11-08T08:40:14Z"
+    expected: The focused exec-runtime tests would be stable once run with their current short timeout and grace values.
+    observed: The focused file passed while idle, but the implementation polls wall-clock deadlines for exit and group disappearance; the missing-launcher path also has a fixed 30-second anchor deadline. The launch note's loaded-machine failures are therefore credible and require event-based test synchronization.
+  - kind: choice
+    at: "2026-11-08T08:50:00Z"
+    chose: Make program-exit observation filesystem-event driven and let group checks yield on observed process state instead of sleeping for a fixed polling interval, while retaining the request timeout and grace values as explicit bounds.
+    because: The tests must remain bounded under load without treating a wall-clock sleep as evidence that the child or its group ended.
+  - kind: surprise
+    at: "2026-11-08T08:50:00Z"
+    expected: The complete runner suite would exercise execRuntime.test.ts without timing failures under suite load.
+    observed: The complete runner suite passed 45 files and 556 tests; execRuntime.test.ts passed all 5 tests in the same run. Git auto-maintenance tests emitted permission-denied diagnostics from their intentional lock-down fixtures, but the suite exited successfully.
+  - kind: surprise
+    at: "2026-11-08T08:53:45Z"
+    expected: The standing workspace test gate would remain green on its first full run.
+    observed: The first captured pnpm test run reached the runner suite with all 5 execRuntime tests passing, but an unrelated herdr adapter timing assertion observed 3 agent.wait calls instead of 2; the gate exited 1 after 555 of 556 runner tests passed.
+  - kind: choice
+    at: "2026-11-08T08:53:45Z"
+    chose: Re-run the unchanged workspace test gate after the unrelated herdr timing failure.
+    because: The first failure was outside the changed paths, while the required exec-runtime proof was green; a second serial gate run distinguishes a transient loaded-machine failure without altering its timeout.
+  - kind: surprise
+    at: "2026-11-08T08:53:45Z"
+    expected: The retry would either reproduce the unrelated failure or pass with the same implementation.
+    observed: >-
+      The retry passed all 8 workspace packages: 19, 6, 8, 13, 16, 45, 22 and
+      47 test files respectively, including all 5 exec-runtime and 6 marker tests.
+  - kind: choice
+    at: "2026-11-08T06:40:00Z"
+    chose: Copy the existing codex probe fixture into the temporary fake Codex path and launch it through execFileSync(process.execPath, [codex, ...args]).
+    because: The fixture guard can read a static Node executable boundary, while copying the already-reviewed probe avoids generating unreadable child-process source and preserves the end-to-end marker delivery test.
+  - kind: surprise
+    at: "2026-11-08T06:40:30Z"
+    expected: The focused runner proof would retain the prior spawn result assertion after switching to the fixture helper.
+    observed: execFileSync returns stdout and reports a non-zero child exit by throwing, so the old status assertion was invalid; the proof now asserts that the helper call does not throw before reading the probe output.
+  - kind: surprise
+    at: "2026-11-08T06:42:00Z"
+    expected: The final fixture guard would find no unreadable fixture process starts after the helper rewrite.
+    observed: The CLI fixture guard passed all 69 tests, including its repository-wide process-start audit.
+  - kind: surprise
+    at: "2026-11-08T06:42:00Z"
+    expected: The full workspace test gate would pass with the corrected fixture process boundary.
+    observed: >-
+      pnpm test exited successfully across all 8 packages: 19, 6, 8, 13, 16,
+      45, 22 and 47 test files respectively, with 174, 98, 62, 91, 185, 557,
+      1252 and 453 tests respectively; the existing worktree-maintenance
+      fixtures emitted intentional permission-denied diagnostics while their
+      tests passed.
+  - kind: surprise
+    at: "2026-11-08T06:44:00Z"
+    expected: The selected debrief would validate immediately after revision.
+    observed: The validator rejected the newly appended full-test note because its unquoted package-count colon made the YAML invalid; the note was changed to a folded scalar.

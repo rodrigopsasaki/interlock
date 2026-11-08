@@ -1,8 +1,8 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, watch, writeFileSync } from "node:fs";
 import { mkdir, open, readFile, rm } from "node:fs/promises";
 import { connect } from "node:net";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { err, isErr, isOk, ok, type Result } from "@phyxiusjs/fp";
 import { type OwnedProcess, spawnOwned } from "./ownedCommand.ts";
@@ -275,27 +275,20 @@ function connectControl(
 
 async function waitForGroupGone(pgid: number, timeoutMs: number): Promise<boolean> {
   const deadline = Date.now() + timeoutMs;
-  while (groupAlive(pgid) && Date.now() < deadline) {
-    await new Promise((resolve) => setTimeout(resolve, 20));
+  while (Date.now() < deadline) {
+    if (!groupAlive(pgid)) return true;
+    await new Promise<void>((resolve) => setImmediate(resolve));
   }
   return !groupAlive(pgid);
 }
 
-async function waitForProgramExit(
-  exitPath: string,
-  timeoutMs: number,
-): Promise<
-  | {
-      readonly code: number | null;
-      readonly signal: NodeJS.Signals | null;
-      readonly error?: string;
-    }
-  | undefined
-> {
-  const deadline = Date.now() + timeoutMs;
-  while (!existsSync(exitPath) && Date.now() < deadline) {
-    await new Promise((resolve) => setTimeout(resolve, 20));
-  }
+type ProgramExit = {
+  readonly code: number | null;
+  readonly signal: NodeJS.Signals | null;
+  readonly error?: string;
+};
+
+function readProgramExit(exitPath: string): ProgramExit | undefined {
   if (!existsSync(exitPath)) return undefined;
   const parsed: unknown = JSON.parse(readFileSync(exitPath, "utf8"));
   if (isRecordWithString(parsed, "error")) {
@@ -307,6 +300,45 @@ async function waitForProgramExit(
   const code = typeof parsed.code === "number" || parsed.code === null ? parsed.code : null;
   const signal = isSignal(parsed.signal) ? parsed.signal : null;
   return { code, signal };
+}
+
+async function waitForProgramExit(
+  exitPath: string,
+  timeoutMs: number,
+): Promise<ProgramExit | undefined> {
+  const existing = readProgramExit(exitPath);
+  if (existing !== undefined) return Promise.resolve(existing);
+  return new Promise((resolve) => {
+    let settled = false;
+    let watcher: ReturnType<typeof watch> | undefined;
+    let timer: NodeJS.Timeout | undefined;
+    const finish = (result: ProgramExit | undefined): void => {
+      if (settled) return;
+      settled = true;
+      watcher?.close();
+      if (timer !== undefined) clearTimeout(timer);
+      resolve(result);
+    };
+    const observe = (): void => {
+      const result = readProgramExit(exitPath);
+      if (result !== undefined) finish(result);
+    };
+    try {
+      watcher = watch(dirname(exitPath), (_event, filename) => {
+        if (filename === null || filename.toString() === "") {
+          observe();
+          return;
+        }
+        if (filename.toString() === basename(exitPath)) observe();
+      });
+      watcher.on("error", () => finish(undefined));
+    } catch {
+      finish(undefined);
+      return;
+    }
+    observe();
+    timer = setTimeout(() => finish(undefined), timeoutMs);
+  });
 }
 
 function isSignal(value: unknown): value is NodeJS.Signals {
@@ -572,7 +604,7 @@ export async function runExecPhase(
     !launcherExited &&
     Date.now() < anchorDeadline
   )
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await new Promise<void>((resolve) => setImmediate(resolve));
   await appendTranscript(transcriptPath, {
     interlock: TRANSCRIPT_SHAPE,
     ts: now(),
