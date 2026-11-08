@@ -4,6 +4,9 @@ import type { CommitMode } from "./runtimeCatalogue.ts";
 
 export type SessionRole = "worker" | "interpreter" | NodeRole;
 
+const HEAVY_COMMAND_INSTRUCTION =
+  "Run one heavy command at a time, never several in parallel or in the background; never pipe a test runner into head or tail.";
+
 function roleSentenceFor(graph: string, role: SessionRole, roleParagraph?: string): string {
   switch (role) {
     case "worker":
@@ -56,6 +59,7 @@ export function buildOpeningPrompt(
     `This is an interlock session for node ${node} of graph ${graph}. ` +
     `${briefSentence}Work only in this worktree. ` +
     roleSentence +
+    `${HEAVY_COMMAND_INSTRUCTION} ` +
     `Append .interlock/sessions/${graph}/${node}/notes.yaml at every choice and surprise, ` +
     commitInstruction +
     `Before you stop to wait for a person in your pane, append a question note to that notes.yaml ` +

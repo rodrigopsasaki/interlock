@@ -66,7 +66,13 @@ export {
   loadLocalConfig,
   localConfigPath,
 } from "./localConfig.ts";
-export { reconcileMachineOnStart } from "./machineOutbox.ts";
+export type { MachineHold } from "./machineOutbox.ts";
+export {
+  admitMachine,
+  machineDelivery,
+  machineIntent,
+  reconcileMachineOnStart,
+} from "./machineOutbox.ts";
 export type { MachineAttempt, MachineProvider } from "./machineProvider.ts";
 export {
   loadMachine,
@@ -99,6 +105,10 @@ export type {
   LiveWork,
   Pane,
   PaneFact,
+  PreparedLaunch,
+  ProbeCheck,
+  ProbeExecutor,
+  ProbeInvocation,
   Runtime,
   RuntimeObservation,
   RuntimeRefusal,
@@ -131,6 +141,11 @@ export {
   explainRuntimeSelectionRefusal,
   selectRuntime,
 } from "./runtimeSelection.ts";
+export {
+  PROBE_COMMAND_PLACEHOLDER,
+  expandProbeExec,
+  parseProbeExec,
+} from "./writableRootArgs.ts";
 export { gitScope, gitTrackedFiles } from "./scope.ts";
 export type { BriefWriteOutcome, DeclaredNode, SessionBriefRefusal } from "./sessionBrief.ts";
 export {
@@ -145,7 +160,18 @@ export type {
   DriveSessionOutcome,
   DriveSessionRequest,
 } from "./sessionDrive.ts";
-export { driveInteractiveSession } from "./sessionDrive.ts";
+export { driveInteractiveSession, prepareLaunch } from "./sessionDrive.ts";
+export type {
+  ProbeExecutionOptions,
+  ProbeProcessResult,
+  ProbeProcessRunner,
+} from "./runtimeProbe.ts";
+export {
+  PROBE_CHECKS,
+  execProbeInvocation,
+  probePassed,
+  runProbeChecks,
+} from "./runtimeProbe.ts";
 export type { SessionInheritance } from "./sessionRange.ts";
 export { findInheritedSessionStart } from "./sessionRange.ts";
 export {

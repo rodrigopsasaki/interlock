@@ -9,7 +9,7 @@ import { carriesPersonSaid, upcastV8 } from "./upcast/v8.ts";
 import { carriesProviderAttribution, upcastV9 } from "./upcast/v9.ts";
 import { isRecord, isString, prop } from "./validate.ts";
 
-export const EVENT_SHAPE = "event@v10";
+export const EVENT_SHAPE = "event@v11";
 
 export type EventEnvelope = {
   readonly interlock: typeof EVENT_SHAPE;
@@ -37,6 +37,7 @@ function predatesQuestionNotes(upcast: Upcaster): Upcaster {
 
 const priorUpcasts: ReadonlyMap<string, Upcaster> = new Map([
   [EVENT_SHAPE, (raw: unknown) => (isLedgerEvent(raw) ? raw : undefined)],
+  ["event@v10", (raw: unknown) => (isLedgerEvent(raw) ? raw : undefined)],
   ["event@v9", upcastV9],
   ["event@v8", upcastV8],
   ["event@v7", predatesPersonSaid(upcastV7)],
@@ -52,6 +53,9 @@ export const upcastTable: ReadonlyMap<string, Upcaster> = new Map(
   [...priorUpcasts].map(([tag, upcast]) => [
     tag,
     (raw: unknown) =>
-      tag !== EVENT_SHAPE && carriesProviderAttribution(raw) ? undefined : upcast(raw),
+      tag !== EVENT_SHAPE &&
+      (carriesProviderAttribution(raw) || (isRecord(raw) && prop(raw, "kind") === "probe"))
+        ? undefined
+        : upcast(raw),
   ]),
 );

@@ -34,8 +34,16 @@ export type { Disposition } from "./disposition.ts";
 export { isDisposition } from "./disposition.ts";
 export type { EventEnvelope, Upcaster } from "./envelope.ts";
 export { EVENT_SHAPE, envelopeFor, shapeTag, upcastTable } from "./envelope.ts";
-export type { LedgerEvent } from "./event.ts";
+export type { LedgerEvent, ProbeCheckResult, ProbeEvent } from "./event.ts";
 export { isLedgerEvent } from "./event.ts";
+export type { ProbeConfig, ProbeConfigReference } from "./probe.ts";
+export {
+  PROBE_CONFIG_SHAPE,
+  probeConfigPath,
+  readProbeConfig,
+  retainProbeConfig,
+  sha256,
+} from "./probe.ts";
 export { parseExpectOutput } from "./expectOutput.ts";
 export type { Gate, GateRefusal } from "./gate.ts";
 export { gate, isGate, proposeGateMove } from "./gate.ts";

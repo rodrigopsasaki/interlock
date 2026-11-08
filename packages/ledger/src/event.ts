@@ -16,9 +16,10 @@ import { isReceipt, type Receipt } from "./receipt.ts";
 import { isEpochMs, isSession, isSessionRuntime, type Session, sessionRuntime } from "./session.ts";
 import { isSessionFacts, type SessionFacts } from "./sessionFacts.ts";
 import { isRecord, isString, prop } from "./validate.ts";
+import { isDerivation, type Derivation } from "./derivation.ts";
 import { isWalk, type Walk } from "./walk.ts";
 
-export type LedgerEvent =
+type BaseLedgerEvent =
   | { readonly kind: "node-created"; readonly node: Node }
   | {
       readonly kind: "lease-taken";
@@ -114,6 +115,25 @@ export type LedgerEvent =
       readonly because: string;
     };
 
+export type ProbeCheckResult =
+  | { readonly check: string; readonly state: "passed"; readonly fingerprint?: string }
+  | { readonly check: string; readonly state: "refused"; readonly error: string }
+  | { readonly check: string; readonly state: "unavailable"; readonly reason: string };
+
+export interface ProbeEvent {
+  readonly kind: "probe";
+  readonly probeId: string;
+  readonly profile: string;
+  readonly configuration: string;
+  readonly implementationVersion: string;
+  readonly checks: readonly ProbeCheckResult[];
+  readonly signedCommitKeyFingerprint?: string;
+  readonly derivation: Derivation;
+  readonly at: number;
+}
+
+export type LedgerEvent = BaseLedgerEvent | ProbeEvent;
+
 export function isLedgerEvent(value: unknown): value is LedgerEvent {
   if (!isRecord(value)) return false;
   const kind = prop(value, "kind");
@@ -190,9 +210,33 @@ export function isLedgerEvent(value: unknown): value is LedgerEvent {
         isString(prop(value, "by")) &&
         isString(prop(value, "because"))
       );
+    case "probe": {
+      const checks = prop(value, "checks");
+      return (
+        isString(prop(value, "probeId")) &&
+        isString(prop(value, "profile")) &&
+        isString(prop(value, "configuration")) &&
+        isString(prop(value, "implementationVersion")) &&
+        Array.isArray(checks) &&
+        checks.every(isProbeCheckResult) &&
+        isDerivation(prop(value, "derivation")) &&
+        typeof prop(value, "at") === "number" &&
+        (prop(value, "signedCommitKeyFingerprint") === undefined ||
+          isString(prop(value, "signedCommitKeyFingerprint")))
+      );
+    }
     default:
       return false;
   }
+}
+
+function isProbeCheckResult(value: unknown): value is ProbeCheckResult {
+  if (!isRecord(value) || !isString(prop(value, "check"))) return false;
+  const state = prop(value, "state");
+  if (state === "passed") return true;
+  return state === "refused"
+    ? isString(prop(value, "error"))
+    : state === "unavailable" && isString(prop(value, "reason"));
 }
 
 function isLegacySessionRecord(value: unknown): value is Record<string, unknown> & {

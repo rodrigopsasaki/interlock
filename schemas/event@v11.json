@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigosasaki/interlock/schemas/event@v11.json",
+  "title": "event@v11",
+  "description": "Adds durable runtime probe events while retaining every earlier event version.",
+  "type": "object",
+  "properties": {
+    "interlock": { "const": "event@v11" },
+    "kind": { "type": "string" },
+    "probeId": { "type": "string" },
+    "profile": { "type": "string" },
+    "configuration": { "type": "string" },
+    "implementationVersion": { "type": "string" },
+    "checks": { "type": "array" },
+    "signedCommitKeyFingerprint": { "type": "string" },
+    "derivation": { "$ref": "parts/derivation.json" },
+    "at": { "type": "integer", "minimum": 0 }
+  },
+  "required": ["interlock", "kind"],
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "const": "probe" } } },
+      "then": {
+        "required": ["probeId", "profile", "configuration", "implementationVersion", "checks", "derivation", "at"],
+        "properties": {
+          "checks": {
+            "items": {
+              "oneOf": [
+                { "required": ["check", "state"], "properties": { "check": { "type": "string" }, "state": { "const": "passed" } } },
+                { "required": ["check", "state", "error"], "properties": { "check": { "type": "string" }, "state": { "const": "refused" }, "error": { "type": "string" } } },
+                { "required": ["check", "state", "reason"], "properties": { "check": { "type": "string" }, "state": { "const": "unavailable" }, "reason": { "type": "string" } } }
+              ]
+            }
+          }
+        }
+      }
+    }
+  ],
+  "additionalProperties": true
+}

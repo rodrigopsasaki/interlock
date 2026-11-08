@@ -9,3 +9,23 @@ entries:
     at: "2026-11-08T04:00:00Z"
     expected: The prior session would have left implementation changes and notes to resume.
     observed: The worktree is clean and contains only the refreshed brief commit; notes.yaml and implementation changes are absent.
+  - kind: surprise
+    at: "2026-11-08T04:10:00Z"
+    expected: Every patch path would resolve inside this worktree.
+    observed: A ledger patch was initially addressed to the main checkout; the main checkout is clean, and the ledger changes were re-applied only in this worktree.
+  - kind: choice
+    at: "2026-11-08T04:20:00Z"
+    chose: Keep probe execution non-conversational and represent missing adapter equivalence as unavailable for every affected check.
+    because: The probe must measure the runtime's access without starting an agent or using a host shell, and an unavailable result is safer than claiming access the adapter cannot demonstrate.
+  - kind: choice
+    at: "2026-11-08T04:20:00Z"
+    chose: Store the measured profile, provider and environment fingerprints as a content-addressed probe-config artifact and reference it from event@v11.
+    because: Runtime configuration is outside the repository and can change without a file edit; retaining the hashed evidence keeps historical probe results inspectable without persisting environment values.
+  - kind: surprise
+    at: "2026-11-08T04:21:00Z"
+    expected: The existing opening-prompt focused test would assert the new mandatory sentence additively.
+    observed: Its legacy exact-string assertion fails because the required heavy-command sentence changes the prompt; the role coverage itself remains green.
+  - kind: surprise
+    at: "2026-11-08T04:22:00Z"
+    expected: The existing ledger replay test would accept the event shape version bump.
+    observed: Its one legacy assertion still expects event@v10; replay of the prior versions remains green, while event@v11 is now the current shape required by the acceptance.

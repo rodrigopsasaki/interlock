@@ -42,6 +42,27 @@ export interface RuntimeObservation {
   attempt(query: AgentIdentityQuery): AgentObservation;
 }
 
+export type ProbeCheck = "shm" | "loopback" | "worktree-file" | "git-metadata" | "signed-commit";
+
+export interface PreparedLaunch {
+  readonly program: string;
+  readonly args: readonly string[];
+  readonly cwd: string;
+  readonly environment: Readonly<Record<string, string>>;
+  readonly writableRoots: readonly string[];
+}
+
+export interface ProbeInvocation {
+  readonly argv: readonly string[];
+  readonly cwd: string;
+  readonly environment: Readonly<Record<string, string>>;
+}
+
+export type ProbeExecutor = (
+  launch: PreparedLaunch,
+  check: ProbeCheck,
+) => Promise<Result<ProbeInvocation, string>>;
+
 export function unobservedAttempt(because: string): AgentObservation {
   return {
     agentStatus: "unknown",
@@ -116,6 +137,7 @@ export function explainRuntimeRefusal(refusal: RuntimeRefusal): string {
 }
 
 export interface Runtime {
+  probeExecutor?: ProbeExecutor;
   checkServer?(): Promise<Result<void, RuntimeRefusal>>;
   readonly paneEnvironment?: boolean;
   paneProcess?(

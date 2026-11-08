@@ -43,6 +43,7 @@ import {
   explainRuntimeRefusal,
   observeRuntime,
   type Pane,
+  type PreparedLaunch,
   type Runtime,
 } from "./runtime.ts";
 import type { ResolvedRuntime } from "./runtimeCatalogue.ts";
@@ -84,31 +85,46 @@ function priorWorkOf(worktree: WorktreeOutcome): PriorWork | undefined {
   };
 }
 
-interface AgentLaunch {
-  readonly args: readonly string[];
-  readonly writableRoots: readonly string[];
-}
-
-function agentLaunch(
+export function prepareLaunch(
   agentRuntime: ResolvedRuntime,
   worktreePath: string,
+  environment: Readonly<Record<string, string>> = {},
 ): Result<AgentLaunch, WorktreeRefusal> {
   const template = agentRuntime.writableRootArgs;
-  if (template === undefined) return ok({ args: agentRuntime.args, writableRoots: [] });
+  if (template === undefined) {
+    return ok({
+      program: agentRuntime.kind,
+      args: agentEnvironmentArgs(agentRuntime.kind, agentRuntime.args, environment),
+      cwd: worktreePath,
+      environment,
+      writableRoots: [],
+    });
+  }
   const layout = worktreeGitLayout(worktreePath);
   if (isErr(layout)) return layout;
   if (layout.value.kind === "not-linked") {
-    return ok({ args: agentRuntime.args, writableRoots: [] });
+    return ok({
+      program: agentRuntime.kind,
+      args: agentEnvironmentArgs(agentRuntime.kind, agentRuntime.args, environment),
+      cwd: worktreePath,
+      environment,
+      writableRoots: [],
+    });
   }
   const writableRoots = [layout.value.commonGitDir, layout.value.gitDir];
   return ok({
-    args: [
+    program: agentRuntime.kind,
+    args: agentEnvironmentArgs(agentRuntime.kind, [
       ...agentRuntime.args,
       ...writableRoots.flatMap((root) => expandWritableRootArgs(template, root)),
-    ],
+    ], environment),
+    cwd: worktreePath,
+    environment,
     writableRoots,
   });
 }
+
+type AgentLaunch = PreparedLaunch;
 
 export interface BeforeJudgeRefusal {
   readonly on: HeldOn;
@@ -410,7 +426,7 @@ export async function driveInteractiveSession(
       return result;
     }
 
-    const launch = agentLaunch(agentRuntime, worktreePath);
+    const launch = prepareLaunch(agentRuntime, worktreePath, machine.value.env);
     if (isErr(launch)) {
       const result = refuse(abandon("writable root"), explainWorktreeRefusal(launch.error));
       lease.stop();
@@ -499,7 +515,7 @@ export async function driveInteractiveSession(
       lease.stop();
       return refuse(abandon("agent start"), agentIntent.error);
     }
-    const args = agentEnvironmentArgs(agentRuntime.kind, launch.value.args, machine.value.env);
+    const args = launch.value.args;
     const startedAgent = await runtime.startAgent(
       pane,
       agentRuntime.kind,
