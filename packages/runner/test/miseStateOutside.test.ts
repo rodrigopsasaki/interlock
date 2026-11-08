@@ -1,13 +1,14 @@
 import {
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   realpathSync,
   rmSync,
   symlinkSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
+import { constants as osConstants, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { scanRepositoryLinks } from "../../../scripts/runs-links-stay-inside.ts";
@@ -193,5 +194,44 @@ describe("tool state outside repositories", () => {
       command: command("process.exit(7)"),
     });
     expect(result).toBe(7);
+  });
+
+  it("passes the command environment and cwd through unchanged", () => {
+    const account = temporaryRoot("account-process");
+    const output = join(temporaryRoot("process-output"), "process.json");
+    mkdirSync(join(account, ".local", "state", "interlock"), { recursive: true });
+    const marker = "state-folder-untouched-test";
+    const previous = process.env["INTERLOCK_STATE_FOLDER_TEST"];
+    process.env["INTERLOCK_STATE_FOLDER_TEST"] = marker;
+    try {
+      const result = runStateFolderCheck({
+        accountHome: account,
+        repositoryRoot,
+        journalFile: join(temporaryRoot("journal-process"), "journal.jsonl"),
+        command: command(
+          `require("node:fs").writeFileSync(${JSON.stringify(output)}, JSON.stringify({ cwd: process.cwd(), marker: process.env.INTERLOCK_STATE_FOLDER_TEST })); process.exit(7)`,
+        ),
+      });
+      expect(result).toBe(7);
+      expect(JSON.parse(readFileSync(output, "utf8"))).toEqual({
+        cwd: repositoryRoot,
+        marker,
+      });
+    } finally {
+      if (previous === undefined) delete process.env["INTERLOCK_STATE_FOLDER_TEST"];
+      else process.env["INTERLOCK_STATE_FOLDER_TEST"] = previous;
+    }
+  });
+
+  it("reports the direct-run exit code when the command is terminated by a signal", () => {
+    const account = temporaryRoot("account-signal");
+    mkdirSync(join(account, ".local", "state", "interlock"), { recursive: true });
+    const result = runStateFolderCheck({
+      accountHome: account,
+      repositoryRoot,
+      journalFile: join(temporaryRoot("journal-signal"), "journal.jsonl"),
+      command: command('process.kill(process.pid, "SIGTERM")'),
+    });
+    expect(result).toBe(128 + osConstants.signals.SIGTERM);
   });
 });

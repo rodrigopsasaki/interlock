@@ -110,3 +110,38 @@ entries:
     at: '2026-11-08T20:38:00Z'
     chose: Set the authored debrief head_sha to the last code commit, 1d3290c.
     because: The brief defines head_sha as the last code commit; the later b512009 commit records notes only.
+  - kind: surprise
+    at: '2026-11-08T20:58:00Z'
+    expected: The two reported failures would reproduce in the focused runner files.
+    observed: >-
+      A direct run of runnerCommits.test.ts and runnerMarker.test.ts passed all 48 tests, so the
+      failures are specific to the wrapper invocation or its timing rather than deterministic test
+      assertions.
+  - kind: choice
+    at: '2026-11-08T20:59:00Z'
+    chose: >-
+      Make the wrapper's inherited environment, repository cwd, and signal exit-code mapping
+      explicit while retaining inherited stdio.
+    because: >-
+      A direct command inherits the caller's environment and terminal streams, runs in the
+      repository cwd, and reports signal termination as 128 plus the signal number; the wrapper
+      must preserve those process semantics while adding only its snapshots.
+  - kind: surprise
+    at: '2026-11-08T21:00:00Z'
+    expected: The new process-pass-through regression would compile and run on its first attempt.
+    observed: >-
+      The test initially omitted readFileSync from its existing node:fs imports; the focused test
+      caught it before any code commit.
+  - kind: surprise
+    at: '2026-11-08T21:02:00Z'
+    expected: The temporary wrapper reproduction would resolve the shared script from its scratch location.
+    observed: >-
+      The first scratch import climbed only to packages; its focused log captured Node's module-not-found
+      error before the wrapper ran. The relative import was corrected to the repository scripts directory.
+  - kind: surprise
+    at: '2026-11-08T21:04:00Z'
+    expected: The standing full suite would repeat the focused 11-test proof without interference.
+    observed: >-
+      The full suite reached 659 of 660 runner tests before the live-link scan test saw an escaping
+      link during concurrent fixture activity; the focused proof and the two previously failing files
+      remained green.

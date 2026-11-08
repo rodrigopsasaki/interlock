@@ -1,6 +1,6 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { lstatSync, readdirSync, readFileSync, readlinkSync, type Stats } from "node:fs";
-import { userInfo } from "node:os";
+import { constants as osConstants, userInfo } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -141,6 +141,12 @@ function sameEntry(left: ManifestEntry | undefined, right: ManifestEntry | undef
   );
 }
 
+function exitCodeForSignal(signal: NodeJS.Signals | null): number {
+  if (signal === null) return 2;
+  const number = osConstants.signals[signal];
+  return number === undefined ? 2 : 128 + number;
+}
+
 function changes(
   before: Manifest,
   after: Manifest,
@@ -165,6 +171,7 @@ export function runStateFolderCheck(options: StateFolderCheckOptions): number {
   const result = spawnSync(command, options.command.slice(1), {
     stdio: "inherit",
     cwd: options.repositoryRoot,
+    env: { ...process.env },
   });
   const after = snapshotStateFolder(root);
   const changed = changes(
@@ -181,7 +188,7 @@ export function runStateFolderCheck(options: StateFolderCheckOptions): number {
     console.error(`command failed to start: ${result.error.message}`);
     return 2;
   }
-  if (result.status !== 0) return result.status ?? 2;
+  if (result.status !== 0) return result.status ?? exitCodeForSignal(result.signal);
   console.log("interlock state folder untouched");
   return 0;
 }
