@@ -21,24 +21,29 @@ gates:
     run: pnpm interlock debrief validate {graph} {node}
   - id: line-fits-proof
     kind: command
-    run: pnpm --fail-if-no-match --filter runner exec vitest run test/lineFits.test.ts --passWithNoTests=false
-    expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+    run: pnpm --fail-if-no-match --filter runner exec vitest run
+      test/lineFits.test.ts --passWithNoTests=false
+    expect_output: Tests +[1-9][0-9]* passed \([1-9][0-9]*\)
   - id: line-fits-real-codex
     kind: command
-    run: pnpm --fail-if-no-match --filter runner exec vitest run test/lineFitsRealCodex.test.ts --passWithNoTests=false
-    expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+    run: pnpm --fail-if-no-match --filter runner exec vitest run
+      test/lineFitsRealCodex.test.ts --passWithNoTests=false
+    expect_output: Tests +[1-9][0-9]* passed \([1-9][0-9]*\)
   - id: marker-never-dropped-still
     kind: command
-    run: pnpm --fail-if-no-match --filter runner exec vitest run test/markerNeverDropped.test.ts --passWithNoTests=false
-    expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+    run: pnpm --fail-if-no-match --filter runner exec vitest run
+      test/markerNeverDropped.test.ts --passWithNoTests=false
+    expect_output: Tests +[1-9][0-9]* passed \([1-9][0-9]*\)
   - id: real-codex-overflow-still
     kind: command
-    run: pnpm --fail-if-no-match --filter runner exec vitest run test/realCodexMarkerOverflow.test.ts --passWithNoTests=false
-    expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+    run: pnpm --fail-if-no-match --filter runner exec vitest run
+      test/realCodexMarkerOverflow.test.ts --passWithNoTests=false
+    expect_output: Tests +[1-9][0-9]* passed \([1-9][0-9]*\)
   - id: runner-suite
     kind: command
-    run: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
-    expect_output: 'Tests +[1-9][0-9]* passed'
+    run: pnpm --fail-if-no-match --filter runner exec vitest run
+      --passWithNoTests=false
+    expect_output: Tests +[1-9][0-9]* passed
   - id: line-fits-types
     kind: command
     run: pnpm typecheck
@@ -459,6 +464,7 @@ scope:
   - .interlock/sessions/0059-submodule-receipts/resume-keeps-range/notes.yaml
   - .interlock/sessions/0059-submodule-receipts/resume-keeps-range/revisions/3708d457dd183b86d278497a6e7f53142315a2fecc9c05a7cd4512e37fcf8034.yaml
   - .interlock/sessions/0059-submodule-receipts/resume-keeps-range/revisions/f8052a9f854f5e0b182b7c3d30680fb458bdb9a6d7bb82a840e9cb731ec873f3.yaml
+  - .interlock/sessions/0060-headless-runtime/codex-home-outside-worktree/brief.md
   - .interlock/sessions/0060-headless-runtime/exec-phase-ends/brief.md
   - .interlock/sessions/0060-headless-runtime/exec-phase-ends/debrief-candidate.yaml
   - .interlock/sessions/0060-headless-runtime/exec-phase-ends/debrief.yaml
@@ -478,8 +484,20 @@ scope:
   - .interlock/sessions/0060-headless-runtime/gates-run-on-engines-node/revisions/9a67eb766ad3afa70ba6342991cff45db4c80ed06417defafe105e060d1f561c.yaml
   - .interlock/sessions/0060-headless-runtime/gates-run-on-engines-node/revisions/f455da514abdf715444251b60b9f3c4991b0919e65b4304c59b55d708a536d3a.yaml
   - .interlock/sessions/0060-headless-runtime/herdr-gone/brief.md
+  - .interlock/sessions/0060-headless-runtime/line-fits/brief.md
   - .interlock/sessions/0060-headless-runtime/marker-configured-servers-only/brief.md
+  - .interlock/sessions/0060-headless-runtime/marker-configured-servers-only/debrief-candidate.yaml
+  - .interlock/sessions/0060-headless-runtime/marker-configured-servers-only/debrief.yaml
+  - .interlock/sessions/0060-headless-runtime/marker-configured-servers-only/notes.yaml
+  - .interlock/sessions/0060-headless-runtime/marker-configured-servers-only/revisions/eeac35b76c30e5e684ffcf48ba51aed25dfe04ec8dc6519683abf88f25248572.yaml
   - .interlock/sessions/0060-headless-runtime/marker-never-dropped/brief.md
+  - .interlock/sessions/0060-headless-runtime/marker-never-dropped/debrief-candidate-final.yaml
+  - .interlock/sessions/0060-headless-runtime/marker-never-dropped/debrief-candidate-repair.yaml
+  - .interlock/sessions/0060-headless-runtime/marker-never-dropped/debrief-candidate.yaml
+  - .interlock/sessions/0060-headless-runtime/marker-never-dropped/debrief.yaml
+  - .interlock/sessions/0060-headless-runtime/marker-never-dropped/notes.yaml
+  - .interlock/sessions/0060-headless-runtime/marker-never-dropped/revisions/c07c5b5b3eae23360f222e092f57b9ead0146589f16eee453cc74cb157468e09.yaml
+  - .interlock/sessions/0060-headless-runtime/marker-never-dropped/revisions/cb443a2cbcda10510d3ac59104d52c3a5672fed9c90c37b000559e5f56ec2c13.yaml
   - .interlock/sessions/0060-headless-runtime/plan-reviews-are-sessions/brief.md
   - .interlock/sessions/0060-headless-runtime/runner-marker/brief.md
   - .interlock/sessions/0060-headless-runtime/runner-marker/debrief-candidate-2.yaml
@@ -521,6 +539,11 @@ scope:
   - .interlock/sessions/0061-delegation-fails-closed/neutral-refusal/debrief-candidate.yaml
   - .interlock/sessions/0061-delegation-fails-closed/neutral-refusal/debrief.yaml
   - .interlock/sessions/0061-delegation-fails-closed/neutral-refusal/notes.yaml
+  - .interlock/sessions/0061-delegation-fails-closed/receipt-carries-its-run/brief.md
+  - .interlock/sessions/0061-delegation-fails-closed/receipt-carries-its-run/debrief-candidate.yaml
+  - .interlock/sessions/0061-delegation-fails-closed/receipt-carries-its-run/debrief.yaml
+  - .interlock/sessions/0061-delegation-fails-closed/receipt-carries-its-run/notes.yaml
+  - .interlock/sessions/0061-delegation-fails-closed/receipt-carries-its-run/revisions/670eec7f2a937dd67e47556d89e5a0e09f9f13dec5b975674fc42a3e93eeff47.yaml
   - .interlock/sessions/0061-delegation-fails-closed/retraction-holds-outcome/brief.md
   - .interlock/sessions/0061-delegation-fails-closed/retraction-holds-outcome/debrief-candidate.yaml
   - .interlock/sessions/0061-delegation-fails-closed/retraction-holds-outcome/debrief.yaml
@@ -637,6 +660,7 @@ scope:
   - packages/cli/test/backfill.test.ts
   - packages/cli/test/brief/validate.test.ts
   - packages/cli/test/citedApproval.test.ts
+  - packages/cli/test/collidedReceiptsRead.test.ts
   - packages/cli/test/concurrentCite.test.ts
   - packages/cli/test/consumedCite.test.ts
   - packages/cli/test/debrief/derived.test.ts
@@ -817,6 +841,7 @@ scope:
   - packages/ledger/src/validate.ts
   - packages/ledger/src/walk.ts
   - packages/ledger/test/applicability.test.ts
+  - packages/ledger/test/collidedReceipts.test.ts
   - packages/ledger/test/consumedCite.test.ts
   - packages/ledger/test/derivation.test.ts
   - packages/ledger/test/expectOutput.test.ts
@@ -848,6 +873,7 @@ scope:
   - packages/runner/src/briefRewrite.ts
   - packages/runner/src/claude/headroom.ts
   - packages/runner/src/claude/liveWork.ts
+  - packages/runner/src/codex/config.ts
   - packages/runner/src/codex/environment.ts
   - packages/runner/src/codex/headroom.ts
   - packages/runner/src/contextSlice.ts
@@ -923,6 +949,9 @@ scope:
   - packages/runner/test/fixtures/claude/repo-worktrees-node/subagent-reported-running.jsonl
   - packages/runner/test/fixtures/claude/repo-worktrees-node/tool-in-flight.jsonl
   - packages/runner/test/fixtures/claude/repo-worktrees-node/unparseable.jsonl
+  - packages/runner/test/fixtures/codex/config.toml
+  - packages/runner/test/fixtures/codex/real-mcp-list.json
+  - packages/runner/test/fixtures/codex/recordMcpEnvironment.mjs
   - packages/runner/test/fixtures/exec/appendEnvironment.mjs
   - packages/runner/test/fixtures/exec/codexProbe.mjs
   - packages/runner/test/fixtures/exec/ignoreTerm.mjs
@@ -940,11 +969,16 @@ scope:
   - packages/runner/test/liveSmoke.test.ts
   - packages/runner/test/localConfig.test.ts
   - packages/runner/test/machineProvider.test.ts
+  - packages/runner/test/markerConfiguredServers.test.ts
+  - packages/runner/test/markerNeverDropped.test.ts
   - packages/runner/test/narration.test.ts
   - packages/runner/test/openingPrompt.test.ts
   - packages/runner/test/promptDelivery.test.ts
   - packages/runner/test/providerRouting.test.ts
   - packages/runner/test/questionNotes.test.ts
+  - packages/runner/test/realCodexMarkerLaunch.test.ts
+  - packages/runner/test/realCodexMarkerOverflow.test.ts
+  - packages/runner/test/receiptCarriesItsRun.test.ts
   - packages/runner/test/refusalOutcomes.test.ts
   - packages/runner/test/runnerCommits.test.ts
   - packages/runner/test/runnerMarker.test.ts
@@ -1192,8 +1226,8 @@ substrate:
 walk:
   kind: none
   because: the substrate address is none, so there is nothing to ask
-graph_base_sha: f821aecd6591114dacfb79de0c66a346a08925c2
-session: d1a37ce8-63f6-4dfc-a54a-3f3febea9436
+graph_base_sha: 10824759899119e671db37bab3bf67cfc70ca3cc
+session: b76517e5-54d6-4ff5-a882-4156bd1457f9
 ---
 
 # Brief · node `line-fits` · graph `0060-headless-runtime`
@@ -1276,3 +1310,65 @@ edit it.
 >   offers no model-free command path that applies the policy, the test instead drives codex against a local
 >   deterministic provider fixture on loopback that asks for one shell call; the debrief names which path was used.
 > Every gate and test runs with the repository's pinned Node first on PATH. No test is excluded.
+
+<!-- interlock: debrief-authoring-guidance@v1:start -->
+## Debrief authoring
+
+`found_at`, `rests_on`, and `hunks` say what supports a claim. Optional `applies_to` says
+where you judge a rooted lesson useful; it never supplies support or ratifies a claim.
+
+Review notes for discoveries worth handing on. For an explicit `found_at` path and line or
+range, write one separate exact quotation from that range at the authored head. A bare ranged
+path does not establish the discovery:
+
+```yaml
+discoveries:
+  - id: exact-range
+    what: The evidence records a durable exact excerpt.
+    found_at: 'evidence.ts:2-3 "durable exact excerpt"'
+    mattered_because: A later session can re-read the cited source.
+```
+
+No discovery, no justified applicability, an unrooted claim, and declining a received hypothesis
+are all valid. Do not invent claims, infer applicability, rewrite citations, or promote notes
+automatically.
+
+Prefer a justified narrow path:
+
+```yaml
+applies_to: { kind: path, path: packages/substrate/src/evidence.ts }
+```
+
+Use repository scope only with an explicit cross-cutting reason:
+
+```yaml
+applies_to: { kind: repository }
+```
+
+Omit `applies_to` when no target is warranted. Keep the real decision and its why, and say what
+a future session can act on. It changes neither authority nor gates, and does not establish better
+judgment. Treat received context as a hypothesis: check, reject, or leave it unused.
+
+Before filing, optionally inspect an authored candidate read-only with `interlock debrief preview --file <candidate>`.
+
+Before you stop to wait for a person in your pane, append a question note to notes.yaml, then
+ask in the pane as you do today. `asked` is the question in the words you would say to the
+person; optional `options` are the short answers you would accept. The position shows exactly
+these words while you wait, and nothing else:
+
+```yaml
+  - kind: question
+    at: "2026-11-05T01:30:00Z"
+    asked: Should the walk stay empty when the substrate address is none?
+    options: [yes, no]
+```
+<!-- interlock: debrief-authoring-guidance@v1:end -->
+
+<!-- interlock: role-walk@v0:start -->
+## Walk
+
+Role: implementer.
+
+This walk is empty: the substrate address is none, so there is nothing to ask. Nothing here errors; the session runs without a substrate.
+When an address is set, the whole substrate is open to the session through it, and any role may walk anywhere it wants.
+<!-- interlock: role-walk@v0:end -->

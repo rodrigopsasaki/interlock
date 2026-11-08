@@ -1,0 +1,79 @@
+interlock: notes@v0
+node: line-fits
+entries:
+  - kind: choice
+    at: "2026-11-08T13:58:49Z"
+    chose: Keep the existing argv construction for launches below the limit and change only the overflow reconstruction.
+    because: The acceptance requires the argv path to remain unchanged, while the overlay path is the escape hatch for generated Codex configuration.
+  - kind: choice
+    at: "2026-11-08T13:58:49Z"
+    chose: Move a generated shell environment key into the overlay profile only when neither the trusted project config nor runtime selectors set that key.
+    because: A profile is below project and command-line layers, so conflicting keys must retain the generated command-line override to preserve the effective value.
+  - kind: choice
+    at: "2026-11-08T13:58:49Z"
+    chose: Emit generated MCP marker overrides and shell environment settings under explicit TOML table headers.
+    because: Appending bare dotted assignments after a selected profile table can make them members of that prior table instead of the intended Codex sections.
+  - kind: surprise
+    at: "2026-11-08T13:58:49Z"
+    expected: The focused line-fit test files named by the brief would already be present in this branch.
+    observed: The worktree contains the existing marker overflow suites but not lineFits.test.ts or lineFitsRealCodex.test.ts, so the implementation must add coverage for the acceptance cases.
+  - kind: surprise
+    at: "2026-11-08T14:05:20Z"
+    expected: A real Codex MCP child would inherit the shell_environment_policy.set values moved into the overlay profile.
+    observed: The real Codex MCP child received the three runner markers, while the shell policy values are for Codex shell execution and were absent from the MCP child environment.
+  - kind: surprise
+    at: "2026-11-08T14:07:00Z"
+    expected: The foreground typecheck command could be polled by matching its process name.
+    observed: The polling shell matched its own command text, so it was stopped after the typecheck log showed every workspace package completed successfully.
+  - kind: choice
+    at: "2026-11-08T14:11:40Z"
+    chose: Update the machine-provider fixture to assert the overflow profile selection instead of requiring shell policy overrides on argv.
+    because: The fixture intentionally supplies a long environment and now exercises the overlay path; the line-fit suite owns the profile-content proof while this fixture needs only the launch contract.
+  - kind: choice
+    at: "2026-11-08T14:14:30Z"
+    chose: Keep the machine-provider fixture formatting correction in a separate forward commit.
+    because: The branch rules prohibit amending and require each source or test correction to remain visible in forward history before the final debrief commit.
+  - kind: choice
+    at: "2026-11-08T14:17:00Z"
+    chose: Revise the authored debrief after filing to add the debrief-valid gate receipt.
+    because: The filed debrief and notes validate successfully, and the final report should include that proof without changing the implementation head.
+  - kind: choice
+    at: "2026-11-08T15:05:00Z"
+    chose: Drive the real Codex proof through a loopback Responses provider whose first response is a shell_call and whose second request is inspected for the shell output.
+    because: The acceptance requires a credential-free provider path, moved values to be observed by the shell execution, and no skipped test; the Responses wire is the installed Codex runtime's supported custom-provider protocol.
+  - kind: surprise
+    at: "2026-11-08T15:06:00Z"
+    expected: The first focused test command would execute from this worktree.
+    observed: A command was initially given the main checkout's package path, found no test files, and created only a redirected log there; the log was removed immediately and no source or test artifact was changed outside this worktree.
+  - kind: surprise
+    at: "2026-11-08T15:10:00Z"
+    expected: The replacement real-Codex test would resolve the same fp package import as the existing focused suite.
+    observed: The preexisting test imported the unavailable package name @phyxius/fp while this workspace exposes @phyxiusjs/fp; the replacement uses the workspace package name.
+  - kind: surprise
+    at: "2026-11-08T15:18:00Z"
+    expected: A streamed Responses response containing a shell_call item would make the installed Codex CLI execute the command.
+    observed: Codex accepted the provider response but completed without a follow-up request; its request advertises the shell executor as the exec_command function, so the fixture now returns that function_call shape.
+  - kind: choice
+    at: "2026-11-08T15:22:00Z"
+    chose: Run Codex with sentinel inherited values that differ from every moved policy and marker value while leaving the overlay profile unchanged.
+    because: The real proof must demonstrate inherit = "none" and policy application, rather than passing because the child inherited the expected values from the test process.
+  - kind: surprise
+    at: "2026-11-08T15:31:00Z"
+    expected: The standing lint gate would remain green after the loopback test was formatted.
+    observed: Biome reported one new import-order error in lineFitsRealCodex.test.ts alongside the two pre-existing runnerCommits.test.ts diagnostics; the import order was corrected before continuing.
+  - kind: surprise
+    at: "2026-11-08T15:38:00Z"
+    expected: The standing workspace test would judge the committed worktree without unrelated generated artifacts.
+    observed: The schema corpus test read the existing untracked launch-local codex-home-shDV73 session logs and failed two corpus assertions; the generated directory is being removed before the rerun and will not be staged.
+  - kind: choice
+    at: "2026-11-08T15:45:00Z"
+    chose: Rerun the standing workspace gate with the stale inherited CODEX_HOME variable unset after removing its launch-local target.
+    because: The process environment still pointed at the removed generated home, causing the machine-provider fixture to fail before its own assertions; unsetting that ambient path restores the gate's isolated fixture inputs without changing repository state.
+  - kind: surprise
+    at: "2026-11-08T15:53:00Z"
+    expected: The prepared debrief candidate would parse on the first preview.
+    observed: The workspace-test gate note contained an unquoted colon in a YAML plain scalar; quoting that note made the candidate parseable without changing its claim.
+  - kind: choice
+    at: "2026-11-08T15:57:00Z"
+    chose: Add the successful debrief-valid receipt to the fresh authored candidate and revise the filed debrief once more.
+    because: The final handoff must carry the validation proof for the authored debrief and notes, not only the implementation and test receipts.

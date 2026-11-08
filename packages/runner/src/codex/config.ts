@@ -33,6 +33,7 @@ interface ConfigSnapshot {
   readonly profile: string | undefined;
   readonly baseText: string;
   readonly profileText: string | undefined;
+  readonly projectShellEnvironmentKeys: ReadonlySet<string>;
 }
 
 export interface CodexLaunchOptions {
@@ -171,6 +172,26 @@ function markerTableValue(value: string): ReadonlyMap<string, string> {
   return entries;
 }
 
+function inlineSetKeys(value: string): ReadonlySet<string> {
+  const trimmed = withoutComment(value);
+  if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) return new Set();
+  const keys = new Set<string>();
+  for (const part of splitTopLevel(trimmed.slice(1, -1))) {
+    const separator = part.indexOf("=");
+    if (separator < 0) continue;
+    const key = pathParts(part.slice(0, separator).trim());
+    const nested = withoutComment(part.slice(separator + 1));
+    if (key?.[0] !== "set" || !nested.startsWith("{") || !nested.endsWith("}")) continue;
+    for (const nestedPart of splitTopLevel(nested.slice(1, -1))) {
+      const nestedSeparator = nestedPart.indexOf("=");
+      if (nestedSeparator < 0) continue;
+      const nestedKey = pathParts(nestedPart.slice(0, nestedSeparator).trim())?.[0];
+      if (nestedKey !== undefined) keys.add(nestedKey);
+    }
+  }
+  return keys;
+}
+
 function serverPath(
   table: readonly string[],
 ): { readonly name: string; readonly rest: readonly string[] } | undefined {
@@ -223,6 +244,31 @@ function parseConfig(text: string): ParsedConfig {
   return { servers, profile };
 }
 
+function shellEnvironmentKeys(text: string): ReadonlySet<string> {
+  const keys = new Set<string>();
+  let table: readonly string[] = [];
+  for (const sourceLine of text.split(/\r?\n/)) {
+    const line = withoutComment(sourceLine);
+    if (line.startsWith("[") && line.endsWith("]") && !line.startsWith("[[")) {
+      table = pathParts(line.slice(1, -1)) ?? [];
+      continue;
+    }
+    const separator = line.indexOf("=");
+    if (separator < 0) continue;
+    const key = pathParts(line.slice(0, separator).trim());
+    if (key === undefined) continue;
+    const path = [...table, ...key];
+    if (path[0] === "shell_environment_policy" && path[1] === "set" && path[2] !== undefined) {
+      keys.add(path[2]);
+    } else if (path[0] === "shell_environment_policy" && path[1] === "set") {
+      for (const inlineKey of inlineSetKeys(line.slice(separator + 1))) {
+        keys.add(inlineKey);
+      }
+    }
+  }
+  return keys;
+}
+
 function mergeServers(
   target: Map<string, ServerConfig>,
   source: ReadonlyMap<string, ServerConfig>,
@@ -259,6 +305,22 @@ function configSelectors(args: readonly string[]): readonly string[] {
     }
   }
   return selectors;
+}
+
+function selectorShellEnvironmentKeys(args: readonly string[]): ReadonlySet<string> {
+  const keys = new Set<string>();
+  const selectors = configSelectors(args);
+  for (let index = 0; index < selectors.length; index += 2) {
+    const selector = selectors[index + 1];
+    if (selector === undefined) continue;
+    const separator = selector.indexOf("=");
+    if (separator < 0) continue;
+    const path = pathParts(selector.slice(0, separator));
+    if (path?.[0] === "shell_environment_policy" && path[1] === "set" && path[2] !== undefined) {
+      keys.add(path[2]);
+    }
+  }
+  return keys;
 }
 
 function applySelectors(servers: Map<string, ServerConfig>, args: readonly string[]): void {
@@ -303,6 +365,7 @@ function snapshotConfig(
   const selectedProfile = profileFromArgs(args) ?? baseParsed.profile;
   let profileText: string | undefined;
   const servers = new Map<string, ServerConfig>();
+  const projectShellEnvironmentKeys = new Set<string>();
   mergeServers(servers, baseParsed.servers);
   if (selectedProfile !== undefined) {
     const profile = readConfig(join(home, `${selectedProfile}.config.toml`));
@@ -318,10 +381,22 @@ function snapshotConfig(
   for (const projectPath of projectConfigPaths(cwd)) {
     const project = readConfig(projectPath);
     if (isErr(project)) return project;
-    if (project.value !== undefined) mergeServers(servers, parseConfig(project.value).servers);
+    if (project.value !== undefined) {
+      const parsed = parseConfig(project.value);
+      mergeServers(servers, parsed.servers);
+      for (const key of shellEnvironmentKeys(project.value)) {
+        projectShellEnvironmentKeys.add(key);
+      }
+    }
   }
   applySelectors(servers, args);
-  return ok({ servers, profile: selectedProfile, baseText, profileText });
+  return ok({
+    servers,
+    profile: selectedProfile,
+    baseText,
+    profileText,
+    projectShellEnvironmentKeys,
+  });
 }
 
 function refusal(servers: readonly string[], because: string): Result<never, CodexLaunchRefusal> {
@@ -376,13 +451,47 @@ function markerLines(
   environment: Readonly<Record<string, string>>,
 ): string {
   return servers
-    .flatMap((server) =>
-      ["INTERLOCK_SESSION", "INTERLOCK_GRAPH", "INTERLOCK_NODE"].map(
-        (key) =>
-          `mcp_servers.${quotedConfigKey(server)}.env.${quotedConfigKey(key)} = ${JSON.stringify(environment[key] ?? "")}`,
+    .flatMap((server) => [
+      `[mcp_servers.${quotedConfigKey(server)}.env]`,
+      ...["INTERLOCK_SESSION", "INTERLOCK_GRAPH", "INTERLOCK_NODE"].map(
+        (key) => `${quotedConfigKey(key)} = ${JSON.stringify(environment[key] ?? "")}`,
       ),
-    )
+    ])
     .join("\n");
+}
+
+function shellEnvironmentLines(environment: Readonly<Record<string, string>>): string {
+  const entries = Object.entries(environment);
+  if (entries.length === 0) return "";
+  return [
+    "[shell_environment_policy.set]",
+    ...entries.map(([key, value]) => `${quotedConfigKey(key)} = ${JSON.stringify(value)}`),
+  ].join("\n");
+}
+
+function generatedShellEnvironmentArgs(
+  environment: Readonly<Record<string, string>>,
+  keptKeys: ReadonlySet<string>,
+): readonly string[] {
+  const generated = agentEnvironmentArgs("codex", [], environment, []);
+  const result: string[] = [];
+  for (let index = 0; index < generated.length; index += 2) {
+    const argument = generated[index];
+    const value = generated[index + 1];
+    if (argument !== "-c" || value === undefined) continue;
+    const separator = value.indexOf("=");
+    if (separator < 0) continue;
+    const path = pathParts(value.slice(0, separator));
+    if (
+      path?.[0] === "shell_environment_policy" &&
+      path[1] === "set" &&
+      path[2] !== undefined &&
+      keptKeys.has(path[2])
+    ) {
+      result.push(argument, value);
+    }
+  }
+  return result;
 }
 
 function replaceProfile(args: readonly string[], profile: string): readonly string[] {
@@ -408,6 +517,7 @@ function createOverlay(
   snapshot: ConfigSnapshot,
   servers: readonly string[],
   environment: Readonly<Record<string, string>>,
+  movedEnvironment: Readonly<Record<string, string>>,
 ): Result<
   { readonly home: string; readonly profile: string; readonly cleanup: () => void },
   string
@@ -434,11 +544,15 @@ function createOverlay(
     }
     writeFileSync(join(home, "config.toml"), snapshot.baseText, { mode: 0o600 });
     const sourceProfile = snapshot.profileText ?? "";
-    writeFileSync(
-      join(home, `${profile}.config.toml`),
-      `${sourceProfile}${sourceProfile.endsWith("\n") || sourceProfile.length === 0 ? "" : "\n"}${markerLines(servers, environment)}\n`,
-      { mode: 0o600 },
-    );
+    const generatedProfile = [
+      sourceProfile,
+      sourceProfile.length > 0 && !sourceProfile.endsWith("\n") ? "" : undefined,
+      markerLines(servers, environment),
+      shellEnvironmentLines(movedEnvironment),
+    ]
+      .filter((line): line is string => line !== undefined && line.length > 0)
+      .join("\n");
+    writeFileSync(join(home, `${profile}.config.toml`), `${generatedProfile}\n`, { mode: 0o600 });
     return ok({
       home,
       profile,
@@ -518,14 +632,25 @@ export function prepareCodexLaunch(
     });
   }
   const profile = `interlock-${(environment["INTERLOCK_SESSION"] ?? "session").replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 24) || "session"}`;
-  const overlayArgs = replaceProfile(agentEnvironmentArgs("codex", args, environment, []), profile);
+  const keptKeys = new Set<string>([
+    ...snapshot.value.projectShellEnvironmentKeys,
+    ...selectorShellEnvironmentKeys(args),
+  ]);
+  const movedEnvironment: Record<string, string> = {};
+  for (const [key, value] of Object.entries(environment)) {
+    if (!keptKeys.has(key)) movedEnvironment[key] = value;
+  }
+  const overlayArgs = replaceProfile(
+    [...args, ...generatedShellEnvironmentArgs(environment, keptKeys)],
+    profile,
+  );
   if (lineBytes(program, overlayArgs) >= CODEX_CANONICAL_LINE_LIMIT) {
     return refusal(
       configured,
       `Codex launch line remains at or above ${String(CODEX_CANONICAL_LINE_LIMIT)} UTF-8 bytes`,
     );
   }
-  const overlay = createOverlay(cwd, snapshot.value, configured, environment);
+  const overlay = createOverlay(cwd, snapshot.value, configured, environment, movedEnvironment);
   if (isErr(overlay))
     return refusal(configured, `Codex overlay could not be prepared: ${overlay.error}`);
   options.narrate?.("codex marker delivery: overlay");

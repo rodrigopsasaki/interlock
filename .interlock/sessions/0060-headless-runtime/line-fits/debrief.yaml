@@ -1,0 +1,101 @@
+interlock: debrief@v2
+graph: 0060-headless-runtime
+node: line-fits
+role: implementer
+graph_base_sha: 10824759899119e671db37bab3bf67cfc70ca3cc
+session_start_sha: e8405c7a27567ef372389686769846771a034d19
+head_sha: e4a477b345e032b04f5571c1ecf03f58b10bd216
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: c1
+    what: The overflow path now keeps generated shell-environment overrides on argv only when trusted project configuration or runtime -c selectors set the same key, and moves every other runner environment key into the overlay profile.
+    because: Profile precedence is lower than project and command-line precedence, so only conflicting keys need their generated command-line override retained on argv to preserve the effective value.
+    rests_on:
+      - brief:Acceptance (verbatim from the graph)
+    hunks:
+      - packages/runner/src/codex/config.ts:247-269
+      - packages/runner/src/codex/config.ts:310-324
+      - packages/runner/src/codex/config.ts:472-495
+      - packages/runner/src/codex/config.ts:634-652
+  - id: c2
+    what: The generated overlay writes marker environments and moved shell policy values under explicit TOML tables, after the selected profile text, while retaining the existing base config and linked owner state.
+    because: Explicit headers prevent generated assignments from being nested in a selected profile's final table, while copying the base and linking owner state preserves existing Codex configuration semantics.
+    rests_on:
+      - brief:Acceptance (verbatim from the graph)
+    hunks:
+      - packages/runner/src/codex/config.ts:445-470
+      - packages/runner/src/codex/config.ts:515-568
+  - id: c3
+    what: Focused deterministic tests cover the byte threshold, UTF-8-sized overlay, profile-table preservation, project and runtime precedence, base-only policy, unchanged short argv, and irreducible refusal.
+    because: Each acceptance edge needs a local proof at the launch-preparation seam, including refusal after the overlay cannot reduce the line below the limit.
+    rests_on:
+      - brief:Tests
+    hunks:
+      - packages/runner/test/lineFits.test.ts:1-198
+  - id: c4
+    what: Real Codex overflow coverage uses a loopback Responses provider with no credentials; its first streamed response calls the CLI's exec_command shell function, the follow-up carries every moved policy value and marker, and the real MCP child records the three markers.
+    because: The acceptance requires a model-free deterministic provider path, inherit = "none" isolation, and retained MCP marker delivery without a skipped test.
+    rests_on:
+      - brief:Tests
+    hunks:
+      - packages/runner/test/lineFitsRealCodex.test.ts:1-286
+  - id: c5
+    what: The real Codex fixture records the moved shell-policy keys and all three runner markers from the child environment.
+    because: The fixture gives the runtime proof a stable file receipt without depending on a model response.
+    rests_on:
+      - brief:Tests
+    hunks:
+      - packages/runner/test/fixtures/codex/recordShellEnvironment.mjs:1-45
+  - id: c6
+    what: The machine-provider fixture now asserts the overflow launch selects a profile instead of requiring generated shell-policy arguments to remain on argv.
+    because: Its long machine environment intentionally exercises the new overlay path, so its old argv-only assertion contradicted the accepted line-fitting behavior.
+    rests_on:
+      - brief:Acceptance (verbatim from the graph)
+    hunks:
+      - packages/runner/test/machineProvider.test.ts:353-358
+  - id: c7
+    what: The real-Codex proof runs the child with sentinel inherited values that differ from the expected moved values, then asserts the provider follow-up and MCP receipt contain the configured values.
+    because: This makes the fixture's inherit = "none" policy observable instead of allowing ambient process inheritance to satisfy the assertions.
+    rests_on:
+      - brief:Tests
+    hunks:
+      - packages/runner/test/lineFitsRealCodex.test.ts:220-281
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    note: Final pnpm typecheck passed across all workspace packages on pinned Node 24.14.0.
+  - id: lint
+    result: pass
+    note: Biome passed; it reported only the pre-existing runnerCommits.test.ts warning and info.
+  - id: comments
+    result: pass
+  - id: debrief-valid
+    result: pass
+    note: pnpm interlock debrief validate 0060-headless-runtime line-fits passed for debrief@v2 and notes@v0 after the authored revision.
+  - id: test
+    result: pass
+    note: "Workspace pnpm test passed with 8 packages green: runner 610 tests, schemas 1306 tests, and all other workspace packages passed; the command ran with the stale ambient CODEX_HOME unset so generated launch homes were not part of the corpus."
+  - id: line-fits-proof
+    result: pass
+    note: 7 tests passed.
+  - id: line-fits-real-codex
+    result: pass
+    note: 1 real Codex test passed through the loopback Responses provider; the shell follow-up carried all moved values and the MCP child recorded all three markers.
+  - id: marker-never-dropped-still
+    result: pass
+    note: 6 tests passed.
+  - id: real-codex-overflow-still
+    result: pass
+    note: 2 tests passed, including real MCP-child marker delivery; the fixture also emitted expected unauthenticated OpenAI websocket fallback diagnostics.
+  - id: runner-suite
+    result: pass
+    note: 610 tests passed across 54 files.
+  - id: line-fits-types
+    result: pass
+    note: Final pnpm typecheck passed.
+open:
+  - "The Codex runtime may recreate an untracked session-local codex-home-* directory under this session; it is intentionally outside the staged debrief and must never be committed."
