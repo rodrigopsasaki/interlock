@@ -200,6 +200,6 @@ export async function migrateArcs(
 
   addRepository(root, document, repository.value);
   root.delete("needs_his_words");
-  await writeFile(path, document.toString(), "utf-8");
+  await writeFile(path, document.toString({ lineWidth: 0 }), "utf-8");
   return ok({ changed: true, repository: repository.value });
 }
