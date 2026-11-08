@@ -1,0 +1,111 @@
+interlock: debrief@v2
+graph: 0060-headless-runtime
+node: mise-state-outside-repos
+role: implementer
+graph_base_sha: 8d0ec49a3f205e405b2b6b07fa549ef16abcf414
+session_start_sha: 3645bd32791b485b6df3faf3eb2c499c34656ffb
+head_sha: ea866162026167e3fa1492ae8cc18abeb23810af
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: wrapper-process-semantics
+    what: >-
+      Make state-folder-untouched pass an explicit copy of the caller environment, the repository
+      cwd, and inherited stdin, stdout, and stderr to its command, and map signal termination to 128
+      plus the signal number. Add fake-account tests that verify environment and cwd pass-through,
+      ordinary exit codes, and signal exit codes without touching the real interlock state folder.
+    because: >-
+      The two judge-only failures did not reproduce in a direct focused run or in a fake-account
+      wrapper reproduction; preserving direct-run process semantics removes the wrapper's implicit
+      defaults as a source of divergence while retaining snapshots as its only extra behavior.
+    applies_to: { kind: repository }
+    rests_on:
+      - "notes:surprise-2026-11-08T20:58:00Z"
+      - "notes:choice-2026-11-08T20:59:00Z"
+      - scripts/state-folder-untouched.ts:145-194
+      - packages/runner/test/miseStateOutside.test.ts:195-242
+    hunks:
+      - scripts/state-folder-untouched.ts:145-194
+      - packages/runner/test/miseStateOutside.test.ts:195-242
+  - id: fixture-repository-scans
+    what: >-
+      Make the live-state and concurrent-allocation link scans use a disposable Git repository under
+      the system temporary directory, and let allocateToolState validate its temporary state against
+      the repository supplied by each scan fixture.
+    because: >-
+      The shared worktree is concurrently changing as Vitest runs other files, so walking it can
+      observe an unrelated test/.runs entry disappearing and report ENOENT. The proof needs to show
+      that tool state stays outside its protected repository, without coupling it to another test's
+      scratch-directory lifecycle.
+    applies_to: { kind: path, path: packages/runner/test/miseStateOutside.test.ts }
+    rests_on:
+      - packages/runner/test/miseStateOutside.test.ts:37-41
+      - packages/runner/test/miseStateOutside.test.ts:70-80
+      - packages/runner/test/support/toolState.ts:39-50
+    hunks:
+      - packages/runner/test/miseStateOutside.test.ts:37-41
+      - packages/runner/test/miseStateOutside.test.ts:70-80
+      - packages/runner/test/support/toolState.ts:39-50
+  - id: child-scoped-interruption
+    what: >-
+      Make the interrupted-run proof spawn one child that creates its temporary state link, terminate
+      that child through its ChildProcess handle, wait for its exit, and scan the disposable fixture
+      repository afterwards.
+    because: >-
+      The interruption proof must show that only the child under test is signaled; a process-group
+      signal could explain unrelated one-off failures in runnerCommits.test.ts and runnerMarker.test.ts.
+    applies_to: { kind: path, path: packages/runner/test/miseStateOutside.test.ts }
+    rests_on:
+      - packages/runner/test/miseStateOutside.test.ts:43-57
+      - packages/runner/test/miseStateOutside.test.ts:84-108
+    hunks:
+      - packages/runner/test/miseStateOutside.test.ts:1-18
+      - packages/runner/test/miseStateOutside.test.ts:43-57
+      - packages/runner/test/miseStateOutside.test.ts:84-108
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: All eight workspace TypeScript projects passed on Node v24.14.0 with pnpm v10.13.1.
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: Biome exited 0; it retained the existing runnerCommits.test.ts warning and info outside this diff.
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+    note: packages/*/src reported no comments.
+  - id: test
+    result: pass
+    invocation: pnpm test
+    note: >-
+      All eight workspace package suites reported pass, including 662 runner tests, 1355 schema
+      tests, and 461 CLI tests; existing Git maintenance diagnostics were non-failing assertions.
+  - id: debrief-valid
+    result: pass
+    invocation: pnpm interlock debrief validate 0060-headless-runtime mise-state-outside-repos
+    note: Validation is run after filing this authored correction and before the final artifact commit.
+  - id: mise-state-proof
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/miseStateOutside.test.ts --passWithNoTests=false
+    note: The focused file passed 11 tests in two consecutive final runs.
+  - id: runner-suite
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
+    note: The runner suite passed 60 test files and 662 tests in two consecutive runs.
+  - id: runs-links-proof
+    result: pass
+    invocation: node scripts/runs-links-stay-inside.ts
+    note: The final worktree scan printed no symlink leaves the repository and exited 0.
+  - id: mise-state-types
+    result: pass
+    invocation: pnpm typecheck
+    note: The final workspace typecheck passed after the fixture-repository scan correction.
+open:
+  - >-
+    The real-account state-folder-untouched gate was not run locally by rule; the judge must run it
+    with its real-folder before-and-after snapshot. The judge reported that this gate passed on the
+    current tree without changing the real interlock state folder.

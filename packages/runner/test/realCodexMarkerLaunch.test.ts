@@ -1,13 +1,12 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { isOk } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
 import type { ResolvedRuntime } from "../src/runtimeCatalogue.ts";
 import { prepareLaunch } from "../src/sessionDrive.ts";
+import { isolatedHomeEnvironment } from "./support/toolState.ts";
 
-const runsRoot = join(import.meta.dirname, ".runs");
-mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
 
 afterEach(() => {
@@ -38,7 +37,8 @@ function record(value: unknown): value is Record<string, unknown> {
 
 describe("real Codex marker launch", () => {
   it("runs codex mcp list and carries the marker to configured dialeto", () => {
-    const root = mkdtempSync(join(runsRoot, "real-codex-marker-"));
+    const isolation = isolatedHomeEnvironment("real-codex-marker");
+    const root = isolation.root;
     directory = root;
     const home = join(root, "codex-home");
     mkdirSync(home);
@@ -47,6 +47,7 @@ describe("real Codex marker launch", () => {
       `[mcp_servers.dialeto]\ncommand = ${JSON.stringify(process.execPath)}\nargs = [${JSON.stringify(join(import.meta.dirname, "fixtures", "exec", "appendEnvironment.mjs"))}, ${JSON.stringify(join(root, "server-env.jsonl"))}]\n`,
     );
     const environment = {
+      ...isolation.environment,
       INTERLOCK_SESSION: "real-session",
       INTERLOCK_GRAPH: "0060-headless-runtime",
       INTERLOCK_NODE: "marker-configured-servers-only",
