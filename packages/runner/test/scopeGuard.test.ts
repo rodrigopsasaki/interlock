@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { join } from "node:path";
 import { isOk } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
+import { fixtureGit } from "../../../test/support/gitFixture.ts";
 import { buildOpeningPrompt, type SessionRole } from "../src/openingPrompt.ts";
 import {
   changedScopePaths,
@@ -9,7 +10,6 @@ import {
   type ScopeSnapshot,
   snapshotScope,
 } from "../src/scopeGuard.ts";
-import { fixtureGit } from "../../../test/support/gitFixture.ts";
 import { gitInitFixtureWithContent } from "./support/gitFixture.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
