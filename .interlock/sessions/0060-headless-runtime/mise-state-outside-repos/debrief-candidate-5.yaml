@@ -1,0 +1,77 @@
+interlock: debrief@v2
+graph: 0060-headless-runtime
+node: mise-state-outside-repos
+role: implementer
+graph_base_sha: 8d0ec49a3f205e405b2b6b07fa549ef16abcf414
+session_start_sha: 3645bd32791b485b6df3faf3eb2c499c34656ffb
+head_sha: 6cd67cf3793b356130f8d2ebea31e920cab8a22c
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: wrapper-process-semantics
+    what: >-
+      Make state-folder-untouched pass an explicit copy of the caller environment, the repository
+      cwd, and inherited stdin, stdout, and stderr to its command, and map signal termination to 128
+      plus the signal number. Add fake-account tests that verify environment and cwd pass-through,
+      ordinary exit codes, and signal exit codes without touching the real interlock state folder.
+    because: >-
+      The two judge-only failures did not reproduce in a direct focused run or in a fake-account
+      wrapper reproduction; preserving direct-run process semantics removes the wrapper's implicit
+      defaults as a source of divergence while retaining snapshots as its only extra behavior.
+    applies_to: { kind: repository }
+    rests_on:
+      - "notes:surprise-2026-11-08T20:58:00Z"
+      - "notes:choice-2026-11-08T20:59:00Z"
+      - scripts/state-folder-untouched.ts:145-194
+      - packages/runner/test/miseStateOutside.test.ts:195-242
+    hunks:
+      - scripts/state-folder-untouched.ts:145-194
+      - packages/runner/test/miseStateOutside.test.ts:195-242
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: All eight workspace TypeScript projects passed on Node v24.14.0 with pnpm v10.13.1.
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: Biome exited 0; it retained the existing runnerCommits.test.ts warning and info outside this diff.
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+    note: packages/*/src reported no comments.
+  - id: test
+    result: pass
+    invocation: pnpm test
+    note: >-
+      The successful rerun passed all workspace packages, including 662 runner tests and 461 CLI
+      tests; existing Git maintenance diagnostics were non-failing assertions. An earlier concurrent
+      run had 659 of 660 runner tests pass and was rerun successfully.
+  - id: debrief-valid
+    result: pass
+    invocation: pnpm interlock debrief validate 0060-headless-runtime mise-state-outside-repos
+    note: Validation is run after filing the authored debrief and before the final artifact commit.
+  - id: mise-state-proof
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/miseStateOutside.test.ts --passWithNoTests=false
+    note: 1 file and 11 tests passed after explicit stdio forwarding.
+  - id: runner-suite
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
+    note: 60 test files and 662 tests passed in the successful workspace run.
+  - id: runs-links-proof
+    result: pass
+    invocation: node scripts/runs-links-stay-inside.ts
+    note: The final worktree scan printed no symlink leaves the repository and exited 0.
+  - id: mise-state-types
+    result: pass
+    invocation: pnpm typecheck
+    note: The final workspace typecheck passed after the wrapper process-semantics fix.
+open:
+  - >-
+    The real-account state-folder-untouched gate was not run locally by rule; the judge must run it
+    with its real-folder before-and-after snapshot. The focused fake-account wrapper reproduction
+    passed both previously failing runner files (48 of 48) and captured no command stderr failure.

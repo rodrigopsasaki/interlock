@@ -4,131 +4,32 @@ node: mise-state-outside-repos
 role: implementer
 graph_base_sha: 8d0ec49a3f205e405b2b6b07fa549ef16abcf414
 session_start_sha: 3645bd32791b485b6df3faf3eb2c499c34656ffb
-head_sha: 1d3290c4d4611516fcbd14bfc72d5eca0e392d0f
+head_sha: 6cd67cf3793b356130f8d2ebea31e920cab8a22c
 derivation:
   kind: agent
   runtime: codex
   model: gpt-5
 discoveries: []
 decisions:
-  - id: isolated-mise-state
+  - id: wrapper-process-semantics
     what: >-
-      Add packages/runner/test/support/toolState.ts as the shared allocator for MISE_STATE_DIR,
-      MISE_DATA_DIR, MISE_CONFIG_DIR, MISE_CONFIG_FILE, HOME, XDG roots, and CODEX_HOME. It creates
-      unique roots under the system temporary directory, checks them against the repository, its
-      .worktrees directory, and every Git worktree, and cleans them up idempotently. The four
-      mise-running fixtures use its environment; realCodexMarkerLaunch, realCodexMarkerOverflow,
-      and lineFitsRealCodex use complete temporary cwd and home trees.
+      Make state-folder-untouched pass an explicit copy of the caller environment, the repository
+      cwd, and inherited stdin, stdout, and stderr to its command, and map signal termination to 128
+      plus the signal number. Add fake-account tests that verify environment and cwd pass-through,
+      ordinary exit codes, and signal exit codes without touching the real interlock state folder.
     because: >-
-      mise can create trusted and tracked-config links before teardown, so cleanup cannot protect a
-      repository-resident state directory or a live interrupted run. The allocator also prevents
-      the fixture from reading owner tool homes and disables automatic installation while retaining
-      the real mise exec path.
+      The two judge-only failures did not reproduce in a direct focused run or in a fake-account
+      wrapper reproduction; preserving direct-run process semantics removes the wrapper's implicit
+      defaults as a source of divergence while retaining snapshots as its only extra behavior.
     applies_to: { kind: repository }
     rests_on:
-      - ".interlock/graphs/0060-headless-runtime.yaml (Acceptance: temporary tool state and four runner fixtures)"
-      - "notes:choice-2026-11-08T20:06:06Z"
-      - "notes:choice-2026-11-08T20:16:12Z"
-      - packages/runner/test/support/toolState.ts:1-122
-      - packages/runner/src/gateJudge.ts:403-407
+      - "notes:surprise-2026-11-08T20:58:00Z"
+      - "notes:choice-2026-11-08T20:59:00Z"
+      - scripts/state-folder-untouched.ts:145-194
+      - packages/runner/test/miseStateOutside.test.ts:195-242
     hunks:
-      - packages/runner/test/support/toolState.ts:1-122
-      - packages/runner/test/receiptCarriesItsRun.test.ts:1-67
-      - packages/runner/test/gatesRunOnEnginesNode.test.ts:1-104
-      - packages/runner/test/submoduleReceipts.test.ts:1-111
-      - packages/runner/test/gateJudge.test.ts:1-89
-      - packages/runner/test/realCodexMarkerLaunch.test.ts:1-77
-      - packages/runner/test/realCodexMarkerOverflow.test.ts:1-150
-      - packages/runner/test/lineFitsRealCodex.test.ts:198-290
-  - id: symlink-boundary-scan
-    what: >-
-      Add scripts/runs-links-stay-inside.ts, which walks every directory including node_modules and
-      .git with lstat, resolves symlink chains without dereferencing them, reports outward and
-      dangling targets, detects cycles, uses boundary-aware containment, and returns exit 0, 1, or
-      2 for clean, escaping, or incomplete scans. packages/runner/test/miseStateOutside.test.ts
-      covers absolute and relative escapes, chains, internal links, dangling links, sibling-prefix
-      paths, ignored folders, node_modules, .git, cycles, missing roots, and non-directory roots.
-    because: >-
-      A repository-wide proof must observe links while tools are live and must not itself follow a
-      link into an owner path. A lexical, component-by-component walk keeps dangling targets and
-      cycles observable without crossing the scan root.
-    applies_to: { kind: repository }
-    rests_on:
-      - ".interlock/graphs/0060-headless-runtime.yaml (Acceptance: runs-links-proof behavior)"
-      - "notes:surprise-2026-11-08T20:14:14Z"
-      - scripts/runs-links-stay-inside.ts:1-108
-      - packages/runner/test/miseStateOutside.test.ts:55-105
-    hunks:
-      - scripts/runs-links-stay-inside.ts:1-108
-      - packages/runner/test/miseStateOutside.test.ts:55-105
-  - id: account-state-guard
-    what: >-
-      Add scripts/state-folder-untouched.ts to snapshot the account-derived
-      ~/.local/state/interlock tree with lstat metadata and symlink targets, run one command, and
-      report every added, removed, or changed entry by name. It ignores only entries under
-      codex-homes/<graph>/<node> while that graph/node has a started session without a later
-      outcome-set event in the repository journal, never follows links, and otherwise passes
-      through an unchanged command exit code. Fake-account tests cover additions, removals,
-      changes, active-session exemptions, link safety, and HOME/XDG independence.
-    because: >-
-      Tests must not write persistent interlock state, while real sessions may write their own live
-      overlays. Resolving the account home with os.userInfo rather than invoking environment
-      variables makes the judge's before-and-after snapshot test the production location.
-    applies_to: { kind: repository }
-    rests_on:
-      - ".interlock/graphs/0060-headless-runtime.yaml (Acceptance: state-folder-untouched wrapper)"
-      - packages/runner/src/codex/config.ts:537-541
-      - packages/runner/src/codex/config.ts:701-740
-      - packages/runner/test/miseStateOutside.test.ts:107-204
-    hunks:
-      - scripts/state-folder-untouched.ts:1-190
-      - packages/runner/test/miseStateOutside.test.ts:107-204
-  - id: inventory-and-fixture-boundaries
-    what: >-
-      Inventory after this node: receiptCarriesItsRun, gatesRunOnEnginesNode, submoduleReceipts,
-      and gateJudge use unique system-temporary mise roots; realCodexMarkerLaunch,
-      realCodexMarkerOverflow, and lineFitsRealCodex use complete system-temporary cwd/home/state/
-      Codex trees; codexHomeOutsideWorktree, markerNeverDropped, markerConfiguredServers, lineFits,
-      runnerMarker, and the deliberate inside-state cases in codexHomeOutsideWorktree retain their
-      packages/runner/test/.runs fixture roots because their links are fixture-internal or their
-      purpose is to reject repository-contained state. runtimes.test's XDG_CONFIG_HOME assertions
-      use a temporary path string and restore the process environment. tmuxOverlay only asserts a
-      passed CODEX_HOME string. The internal-link fixtures in packages/schemas/test/corpus.files.test.ts,
-      packages/debrief/test/revise.test.ts, and packages/cli/test/debrief/derived.test.ts remain
-      unchanged because their links are between files in their own fixture.
-    because: >-
-      The acceptance requires every redirected writable home or state to be accounted for while
-      preserving tests whose explicit subject is an internal fixture link or repository-containment
-      refusal. External-tool fixtures move as complete trees; pure parser and boundary fixtures do
-      not gain a misleading isolation layer.
-    applies_to: { kind: repository }
-    rests_on:
-      - ".interlock/graphs/0060-headless-runtime.yaml (Acceptance: inventory and internal-link exceptions)"
-      - "notes:choice-2026-11-08T20:24:41Z"
-      - packages/runner/test/markerNeverDropped.test.ts:39-55
-      - packages/runner/test/codexHomeOutsideWorktree.test.ts:35-70
-      - packages/runner/test/runtimes.test.ts:349-374
-    hunks:
-      - packages/runner/test/realCodexMarkerLaunch.test.ts:35-58
-      - packages/runner/test/realCodexMarkerOverflow.test.ts:25-108
-      - packages/runner/test/lineFitsRealCodex.test.ts:204-253
-      - packages/runner/test/markerNeverDropped.test.ts:160-178
-  - id: fixture-git-adapter
-    what: Route protected-root Git discovery in the shared helper through the repository's audited
-      test/support/gitFixture.ts adapter, and keep the UTF-8 marker-bound fixture independent of
-      this worktree's path length.
-    because: >-
-      The full CLI fixture guard requires every test Git call to use the maintenance-suppressing
-      adapter, and a fixed synthetic line-length test must remain valid when the worktree name is
-      longer than the branch used to author it.
-    applies_to: { kind: repository }
-    rests_on:
-      - "notes:surprise-2026-11-08T20:27:52Z"
-      - packages/runner/test/support/toolState.ts:1-38
-      - packages/runner/test/markerNeverDropped.test.ts:168-181
-    hunks:
-      - packages/runner/test/support/toolState.ts:1-38
-      - packages/runner/test/markerNeverDropped.test.ts:168-181
+      - scripts/state-folder-untouched.ts:145-194
+      - packages/runner/test/miseStateOutside.test.ts:195-242
 gates_run_by_agent:
   - id: typecheck
     result: pass
@@ -145,7 +46,10 @@ gates_run_by_agent:
   - id: test
     result: pass
     invocation: pnpm test
-    note: All workspace packages passed, including 660 runner tests and 461 CLI tests; existing Git maintenance diagnostics were non-failing assertions.
+    note: >-
+      The successful rerun passed all workspace packages, including 662 runner tests and 461 CLI
+      tests; existing Git maintenance diagnostics were non-failing assertions. An earlier concurrent
+      run had 659 of 660 runner tests pass and was rerun successfully.
   - id: debrief-valid
     result: pass
     invocation: pnpm interlock debrief validate 0060-headless-runtime mise-state-outside-repos
@@ -153,11 +57,11 @@ gates_run_by_agent:
   - id: mise-state-proof
     result: pass
     invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/miseStateOutside.test.ts --passWithNoTests=false
-    note: 1 file and 9 tests passed.
+    note: 1 file and 11 tests passed after explicit stdio forwarding.
   - id: runner-suite
     result: pass
     invocation: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
-    note: 60 test files and 660 tests passed.
+    note: 60 test files and 662 tests passed in the successful workspace run.
   - id: runs-links-proof
     result: pass
     invocation: node scripts/runs-links-stay-inside.ts
@@ -165,6 +69,9 @@ gates_run_by_agent:
   - id: mise-state-types
     result: pass
     invocation: pnpm typecheck
-    note: The final workspace typecheck passed after the helper was routed through the fixture Git adapter.
+    note: The final workspace typecheck passed after the wrapper process-semantics fix.
 open:
-  - "The real-account state-folder-untouched gate was not run locally by rule; the judge must run it with its real-folder before-and-after snapshot."
+  - >-
+    The real-account state-folder-untouched gate was not run locally by rule; the judge must run it
+    with its real-folder before-and-after snapshot. The focused fake-account wrapper reproduction
+    passed both previously failing runner files (48 of 48) and captured no command stderr failure.
