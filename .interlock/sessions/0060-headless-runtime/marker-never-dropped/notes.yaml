@@ -81,3 +81,7 @@ entries:
     at: "2026-11-08T13:56:00Z"
     expected: The no-credential fixture Codex launch would fail before starting MCP children.
     observed: Codex retried the model request with 401 Unauthorized, but all four local MCP fixture children recorded the three marker values first.
+  - kind: surprise
+    at: "2026-11-08T13:58:00Z"
+    expected: The first post-repair typecheck would pass after the focused runtime proof was green.
+    observed: Strict indexed-access checking required an explicit output-path narrowing, and this Vitest version accepts no argument on the runtime skip helper; both were corrected without weakening the proof.

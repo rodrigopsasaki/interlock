@@ -70,18 +70,22 @@ describe("real Codex marker overflow delivery", () => {
   });
 
   it("records marker values in real MCP children started by Codex exec", ({ skip }) => {
-    directory = mkdtempSync(join(runsRoot, "real-codex-mcp-overflow-"));
-    const home = join(directory, "codex-home");
+    const root = mkdtempSync(join(runsRoot, "real-codex-mcp-overflow-"));
+    directory = root;
+    const home = join(root, "codex-home");
     mkdirSync(home);
     const fixture = join(import.meta.dirname, "fixtures", "codex", "recordMcpEnvironment.mjs");
     const names = Array.from({ length: 4 }, (_, index) => `overflow_${index}_${"x".repeat(120)}`);
-    const outputPaths = names.map((name) => join(directory, `${name}.json`));
+    const outputPaths = names.map((name) => join(root, `${name}.json`));
     writeFileSync(
       join(home, "config.toml"),
       names
         .map(
-          (name, index) =>
-            `[mcp_servers.${name}]\ncommand = ${JSON.stringify(process.execPath)}\nargs = [${JSON.stringify(fixture)}, ${JSON.stringify(outputPaths[index])}]\n`,
+          (name, index) => {
+            const output = outputPaths[index];
+            if (output === undefined) throw new Error(`missing output path for ${name}`);
+            return `[mcp_servers.${name}]\ncommand = ${JSON.stringify(process.execPath)}\nargs = [${JSON.stringify(fixture)}, ${JSON.stringify(output)}]\n`;
+          },
         )
         .join("\n"),
     );
@@ -91,14 +95,14 @@ describe("real Codex marker overflow delivery", () => {
       INTERLOCK_NODE: "marker-never-dropped",
       CODEX_HOME: home,
     };
-    const launch = prepareCodexLaunch([], directory, environment);
+    const launch = prepareCodexLaunch([], root, environment);
     expect(isOk(launch)).toBe(true);
     if (!isOk(launch)) return;
     expect(launch.value.path).toBe("overlay");
     let commandError: unknown;
     try {
       execFileSync("codex", [...launch.value.args, "exec", "--skip-git-repo-check", "marker proof"], {
-        cwd: directory,
+        cwd: root,
         env: { ...process.env, ...launch.value.environment },
         input: "\u0003",
         encoding: "utf8",
@@ -112,7 +116,9 @@ describe("real Codex marker overflow delivery", () => {
       if (!/401|unauthorized|missing bearer|not logged in/i.test(detail)) {
         throw commandError;
       }
-      skip("Codex is not logged in and did not start the MCP fixture before the model call.");
+      console.info("skip: Codex is not logged in and did not start the MCP fixture before the model call");
+      skip();
+      return;
     }
     for (const output of outputPaths) {
       expect(JSON.parse(readFileSync(output, "utf8"))).toEqual({
