@@ -1,0 +1,19 @@
+interlock: notes@v0
+node: scope-guard
+entries:
+  - kind: choice
+    at: "2026-11-08T05:20:00Z"
+    chose: Add a dedicated scope-guard snapshot module and wire it around the work and debrief agent phases.
+    because: The acceptance requires the same main-checkout and watch-path comparison before and after each phase, while keeping the runner's gate and worktree concerns separate.
+  - kind: choice
+    at: "2026-11-08T05:20:00Z"
+    chose: Treat an unavailable snapshot as a held node and report the phase, session, runtime profile, and refusal reason.
+    because: The acceptance says a snapshot that cannot be taken must hold rather than pass, and the resulting receipt needs enough context for a person to recover it.
+  - kind: surprise
+    at: "2026-11-08T05:36:00Z"
+    expected: The first focused fixture run would exercise the snapshot assertions immediately.
+    observed: The test fixture imports initially pointed at the wrong support module, then the helper returned a Result instead of its snapshot value; both were corrected and the focused proof passed.
+  - kind: choice
+    at: "2026-11-08T05:42:00Z"
+    chose: Compare the after-phase snapshot even when the runtime wait returns an error.
+    because: A failed or timed-out phase can still have written outside the worktree, and the scope guard must hold on that evidence instead of abandoning before the required comparison.

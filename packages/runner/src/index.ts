@@ -153,6 +153,17 @@ export {
   selectRuntime,
 } from "./runtimeSelection.ts";
 export { gitScope, gitTrackedFiles } from "./scope.ts";
+export type {
+  ScopeGuardChange,
+  ScopeSnapshot,
+  ScopeSnapshotEntry,
+  ScopeSnapshotRefusal,
+} from "./scopeGuard.ts";
+export {
+  changedScopePaths,
+  describeScopeChange,
+  snapshotScope,
+} from "./scopeGuard.ts";
 export type { BriefWriteOutcome, DeclaredNode, SessionBriefRefusal } from "./sessionBrief.ts";
 export {
   briefExists,

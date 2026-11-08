@@ -708,3 +708,46 @@ describe("loadLocalConfig runtime.writable_root_args", () => {
     },
   );
 });
+
+describe("loadLocalConfig watch_paths", () => {
+  it("defaults watchPaths to absent when the field is not set", async () => {
+    const repoRoot = fixtureRepo(baseFields.join("\n"));
+
+    const result = await loadLocalConfig(repoRoot);
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) expect(result.value.watchPaths).toBeUndefined();
+  });
+
+  it("parses distinct absolute paths", async () => {
+    const repoRoot = fixtureRepo(baseFields.join("\n"));
+    const first = join(repoRoot, "watched-one");
+    const second = join(repoRoot, "watched-two");
+    const yaml = [
+      ...baseFields.slice(0, -1),
+      "watch_paths:",
+      `  - ${first}`,
+      `  - ${second}`,
+      "",
+    ].join("\n");
+    writeFileSync(join(repoRoot, ".interlock", "local.yaml"), yaml);
+
+    const result = await loadLocalConfig(repoRoot);
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) expect(result.value.watchPaths).toEqual([first, second]);
+  });
+
+  it("refuses a relative watch path", async () => {
+    const repoRoot = fixtureRepo(
+      [...baseFields.slice(0, -1), "watch_paths:", "  - watched", ""].join("\n"),
+    );
+
+    const result = await loadLocalConfig(repoRoot);
+
+    expect(isErr(result)).toBe(true);
+    if (isErr(result) && result.error.kind === "malformed") {
+      expect(result.error.reason).toContain('"watch_paths"');
+    }
+  });
+});

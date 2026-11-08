@@ -17,7 +17,7 @@ function roleSentenceFor(graph: string, role: SessionRole, roleParagraph?: strin
         "correct; it never leases or runs a node. "
       );
     default:
-      return `${roleParagraph ?? defaultRoleTable[role].prompt} `;
+      return `${roleParagraph ?? defaultRoleTable[role].prompt} Give every file and patch path relative to this worktree, never absolute. `;
   }
 }
 

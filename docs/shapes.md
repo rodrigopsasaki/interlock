@@ -1048,7 +1048,7 @@ No vocabulary entry for `local`.
 ### Versions
 
 - `local@v0`: the first version.
-- `local@v1`: added `owner_login` (optional); added `provider_order` (optional); added `last_resort` (optional).
+- `local@v1`: added `owner_login` (optional); added `provider_order` (optional); added `last_resort` (optional); added `watch_paths` (optional).
 
 ### Fields (`local@v1`)
 
@@ -1062,6 +1062,7 @@ No vocabulary entry for `local`.
 | `lease_ms` | number | yes |  |
 | `run_timeout_ms` | number | yes |  |
 | `answer_grace_ms` | number | no |  |
+| `watch_paths` | array of absolute string | no | folders whose files are watched for writes outside the worktree |
 | `owner_login` | string matching `\S` | no |  |
 | `substrate` | object | yes | fields: address (string, required); handle (string, optional); key_file (string, optional); send_repository (boolean, optional) |
 | `provider_order` | array of string matching `\S` | no |  |
