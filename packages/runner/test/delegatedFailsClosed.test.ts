@@ -6,6 +6,7 @@ import { isErr } from "@phyxiusjs/fp";
 import { nodeKey, type Receipt } from "ledger";
 import { noneClient } from "substrate";
 import { afterEach, describe, expect, it } from "vitest";
+import type { GateCommand } from "../src/gateCommand.ts";
 import { judgeGates } from "../src/gateJudge.ts";
 import { gitInitFixtureWithContent } from "./support/gitFixture.ts";
 import { memoryLedger } from "./support/memoryLedger.ts";
@@ -81,7 +82,7 @@ function seedDelegated(graphHash: string, gate = "witnessed") {
 function request(
   root: ReturnType<typeof fixture>,
   ledger: ReturnType<typeof memoryLedger>,
-  commandFor: ReadonlyMap<string, { readonly kind: "human" | "command"; readonly run: string }>,
+  commandFor: ReadonlyMap<string, GateCommand>,
   declaredGateIds: readonly string[] = ["witnessed"],
   scopePaths: readonly string[] = ["content.txt"],
 ) {
