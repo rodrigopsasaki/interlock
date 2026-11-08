@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { isErr, isOk, unwrap } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
+import { initFixtureRepository } from "../../../test/support/gitFixture.ts";
 import { explainGraphRefusal, loadGraphDocument, loadGraphDocumentText } from "../src/document.ts";
 import { findRepoRoot, graphFilePath } from "../src/root.ts";
 
@@ -255,9 +256,55 @@ describe("expect_output", () => {
     expect(message).toContain("(unclosed");
   });
 
-  it("reads the enclosing repository's own bootstrap graph (read-only) and parses its expect_output criteria", async () => {
-    const repoRoot = findRepoRoot(import.meta.dirname);
-    if (repoRoot === undefined) throw new Error("expected a repo root");
+  it("reads a fixture bootstrap graph and parses its expect_output criteria", async () => {
+    directory = mkdtempSync(join(runsRoot, "repo-"));
+    initFixtureRepository(directory, { defaultBranch: "main" });
+    mkdirSync(join(directory, ".interlock", "graphs"), { recursive: true });
+    writeFileSync(
+      join(directory, ".interlock", "graphs", "0001-bootstrap.yaml"),
+      [
+        "interlock: graph@v0",
+        "id: 0001-bootstrap",
+        "nodes:",
+        "  - id: ledger",
+        "    depends_on: []",
+        "    gates:",
+        "      - id: replay",
+        "        kind: command",
+        "        run: pnpm test",
+        "        expect_output: 'Tests +[1-9][0-9]* passed'",
+        "      - id: illegal-states",
+        "        kind: command",
+        "        run: pnpm test",
+        "        expect_output: 'Tests +[1-9][0-9]* passed'",
+        "      - id: upcast-v1",
+        "        kind: command",
+        "        run: pnpm test",
+        "        expect_output: 'Tests +[1-9][0-9]* passed'",
+        "      - id: one-adapter",
+        "        kind: command",
+        "        run: pnpm test",
+        "        expect_output: 'Tests +[1-9][0-9]* passed'",
+        "      - id: receipt-idempotent",
+        "        kind: command",
+        "        run: pnpm test",
+        "        expect_output: 'Tests +[1-9][0-9]* passed'",
+        "      - id: inverse-check",
+        "        kind: command",
+        "        run: pnpm test",
+        "        expect_output: 'Tests +[1-9][0-9]* passed'",
+        "      - id: stale-approval",
+        "        kind: command",
+        "        run: pnpm test",
+        "        expect_output: 'Tests +[1-9][0-9]* passed'",
+        "      - id: dogfood",
+        "        kind: command",
+        "        run: pnpm test",
+        "",
+      ].join("\n"),
+    );
+    const repoRoot = findRepoRoot(directory);
+    if (repoRoot === undefined) throw new Error("expected a fixture repo root");
 
     const document = unwrap(await loadGraphDocument(graphFilePath(repoRoot, "0001-bootstrap")));
     const ledgerNode = document.nodes.find((node) => node.id === "ledger");

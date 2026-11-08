@@ -1,3 +1,5 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { isErr } from "@phyxiusjs/fp";
 import {
   derivation,
@@ -9,19 +11,61 @@ import {
   sessionRuntime,
   spend,
 } from "ledger";
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { initFixtureRepository } from "../../../test/support/gitFixture.ts";
 import { loadGraphDocument } from "../src/document.ts";
 import { renderGraphFrame, renderNodeFrame, renderPlansFrame } from "../src/frameRender.ts";
 import { plansEntryOf } from "../src/plansEntry.ts";
 import { type PositionNode, positionOf } from "../src/position.ts";
-import { findRepoRoot, graphFilePath } from "../src/root.ts";
+import { graphFilePath } from "../src/root.ts";
 
-const repoRoot = findRepoRoot(import.meta.dirname);
-if (repoRoot === undefined) {
-  throw new Error("frameRender.test.ts must run inside an interlock repository checkout");
-}
-const root: string = repoRoot;
-const GRAPH_ID = "0001-bootstrap";
+const runsRoot = join(import.meta.dirname, ".runs");
+mkdirSync(runsRoot, { recursive: true });
+
+let root: string | undefined;
+const GRAPH_ID = "fixture";
+
+beforeAll(() => {
+  root = mkdtempSync(join(runsRoot, "frame-render-"));
+  initFixtureRepository(root, { defaultBranch: "main" });
+  mkdirSync(join(root, ".interlock", "graphs"), { recursive: true });
+  writeFileSync(
+    join(root, ".interlock", "graphs", `${GRAPH_ID}.yaml`),
+    [
+      "interlock: graph@v0",
+      `id: ${GRAPH_ID}`,
+      "nodes:",
+      "  - id: scaffold",
+      "    depends_on: []",
+      "    gates: []",
+      "  - id: ledger",
+      "    depends_on: [scaffold]",
+      "    gates:",
+      "      - id: replay",
+      "        kind: command",
+      "      - id: illegal-states",
+      "        kind: command",
+      "  - id: ledger-gaps",
+      "    depends_on: [ledger]",
+      "    gates:",
+      "      - id: upcast-v1",
+      "        kind: command",
+      "  - id: runner-command-gate",
+      "    depends_on: [ledger-gaps]",
+      "    gates:",
+      "      - id: one-adapter",
+      "        kind: command",
+      "      - id: receipt-idempotent",
+      "        kind: command",
+      "",
+    ].join("\n"),
+  );
+});
+
+afterAll(() => {
+  if (root !== undefined) rmSync(root, { recursive: true, force: true });
+  root = undefined;
+});
 
 function receiptFor(gateId: string): Receipt {
   return {
@@ -105,6 +149,7 @@ const fixtureEvents: readonly LedgerEvent[] = [
 ];
 
 async function loadRealDocument() {
+  if (root === undefined) throw new Error("frame fixture was not initialized");
   const document = await loadGraphDocument(graphFilePath(root, GRAPH_ID));
   if (isErr(document)) throw new Error(document.error.kind);
   return document.value;
@@ -120,8 +165,8 @@ function nodeIn(nodes: readonly PositionNode[], id: string): PositionNode {
   return found;
 }
 
-describe("frames over the real bootstrap graph", () => {
-  it("renders a Plans-level row for the real graph with its approval, cleared count and live-session count", async () => {
+describe("frames over a fixture graph", () => {
+  it("renders a Plans-level row for the graph with its approval, cleared count and live-session count", async () => {
     const document = await loadRealDocument();
     const projection = fold(fixtureEvents);
     const position = positionOf(document, projection, "some-hash", Date.now(), agentStatusFor);
@@ -129,11 +174,9 @@ describe("frames over the real bootstrap graph", () => {
     const text = renderPlansFrame([entry], 0);
 
     expect(text).toBe(
-      [
-        "graphs",
-        "",
-        `> 0001-bootstrap — not approved — 3/${document.nodes.length} cleared — 1 live`,
-      ].join("\n"),
+      ["graphs", "", `> fixture — not approved — 3/${document.nodes.length} cleared — 1 live`].join(
+        "\n",
+      ),
     );
   });
 
@@ -147,7 +190,7 @@ describe("frames over the real bootstrap graph", () => {
     const text = renderGraphFrame(position, runnerIndex);
     const lines = text.split("\n");
 
-    expect(lines[0]).toBe("graph 0001-bootstrap — not approved");
+    expect(lines[0]).toBe("graph fixture — not approved");
     expect(lines).toContain("    scaffold — cleared");
     expect(lines).toContain("> ● runner-command-gate — ready");
     expect(text).toContain("gates: one-adapter blocked, receipt-idempotent pending");

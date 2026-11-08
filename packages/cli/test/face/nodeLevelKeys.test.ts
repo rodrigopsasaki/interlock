@@ -1,4 +1,4 @@
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { isErr, isOk, ok } from "@phyxiusjs/fp";
 import type { FaceKey } from "face";
@@ -8,18 +8,18 @@ import { afterEach, describe, expect, it } from "vitest";
 import { runInterlockFace } from "../../src/face/run.ts";
 import { gitInitFixture } from "../graph/gitFixture.ts";
 
-// verifier-hunks' row at the Graph level is wherever the real graph's own topological order
-// puts it, not its declared position in the YAML. Recomputed here so a graph edit that moves
-// the node moves this test's key count with it, rather than silently drifting off target.
+// verifier-hunks' row at the Graph level is wherever the fixture graph's topological order puts
+// it, not its declared position in the YAML. Recomputed here so a graph edit that moves the node
+// moves this test's key count with it, rather than silently drifting off target.
 async function verifierHunksIndex(repoRoot: string): Promise<number> {
   const document = await loadGraphDocument(graphFilePath(repoRoot, "0001-bootstrap"));
-  if (isErr(document)) throw new Error("expected the real graph");
+  if (isErr(document)) throw new Error("expected the fixture graph");
   const order = topologicalOrder(document.value.nodes);
   const ids = isOk(order)
     ? order.value.map((node) => node.id)
     : document.value.nodes.map((node) => node.id);
   const index = ids.indexOf("verifier-hunks");
-  if (index < 0) throw new Error("verifier-hunks not in the real graph");
+  if (index < 0) throw new Error("verifier-hunks not in the fixture graph");
   return index;
 }
 
@@ -82,15 +82,28 @@ function fakeStdout(): {
 function fixture(): string {
   directory = mkdtempSync(join(runsRoot, "run-"));
   gitInitFixture(directory);
-  const repoRoot = findRepoRoot(import.meta.dirname);
-  if (repoRoot === undefined) {
-    throw new Error("nodeLevelKeys.test.ts must run inside this repository");
-  }
   mkdirSync(join(directory, ".interlock", "graphs"), { recursive: true });
-  cpSync(
-    join(repoRoot, ".interlock", "graphs", "0001-bootstrap.yaml"),
+  writeFileSync(
     join(directory, ".interlock", "graphs", "0001-bootstrap.yaml"),
+    [
+      "interlock: graph@v0",
+      "id: 0001-bootstrap",
+      "nodes:",
+      "  - id: scaffold",
+      "    depends_on: []",
+      "    gates: []",
+      "  - id: verifier-hunks",
+      "    depends_on: [scaffold]",
+      "    gates:",
+      "      - id: inverse-check",
+      "        kind: command",
+      "",
+    ].join("\n"),
   );
+  const repoRoot = findRepoRoot(directory);
+  if (repoRoot === undefined) {
+    throw new Error("nodeLevelKeys.test.ts must run inside its fixture repository");
+  }
   mkdirSync(join(directory, ".interlock", "ledger"), { recursive: true });
   const realJournal = readFileSync(realVerifierHunksJournalFixture(), "utf-8");
   // One genuinely live session on an unrelated node in the same graph, expiry always ahead of
@@ -128,13 +141,13 @@ function fixture(): string {
   return directory;
 }
 
-describe("the face at the node level over the real bootstrap graph and its real verifier-hunks history", () => {
+describe("the face at the node level over a fixture graph and verifier-hunks history", () => {
   it("Enter reaches Session on a non-live attempt, Escape returns, and ? toggles help — none of them silently doing nothing", async () => {
-    const repoRoot = findRepoRoot(import.meta.dirname);
+    const cwd = fixture();
+    const repoRoot = findRepoRoot(cwd);
     if (repoRoot === undefined) throw new Error("expected a repo root");
     const verifierIndex = await verifierHunksIndex(repoRoot);
 
-    const cwd = fixture();
     const { runtime, statusCalls } = stubRuntime();
     const stdout = fakeStdout();
 

@@ -1,0 +1,122 @@
+interlock: debrief@v2
+graph: 0060-headless-runtime
+node: tests-read-fixtures
+role: implementer
+graph_base_sha: 18ad5765f5255887e112475ffe4308ae416bdd48
+session_start_sha: ece13515578ad772d06424fe8e32ca994a63096c
+head_sha: 7bd608ca860f1964ca0962c98101396e160f2881
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-luna
+discoveries: []
+decisions:
+  - id: c1
+    what: >
+      Added the test-only INTERLOCK_TEST_FORBIDDEN_ROOT guard to repository-root and shared-journal
+      lookup, with Vitest setup deriving the forbidden main checkout from git's common directory;
+      the face test proves rejection of the main checkout and linked worktree while accepting an
+      independent fixture repository.
+    because: >
+      The acceptance requires tests to fail loudly rather than resolve the owner's .interlock,
+      while leaving production behavior unchanged when the environment variable is absent. The
+      guard checks the resolved path and linked-worktree git metadata so ordinary disposable repos
+      created under this worktree remain valid fixtures.
+    rests_on:
+      - brief:Acceptance
+      - notes:2
+      - notes:3
+    hunks:
+      - packages/face/src/root.ts:5-43
+      - packages/face/src/root.ts:45-55
+      - packages/face/src/root.ts:71-75
+      - vitest.config.base.ts:1-18
+      - packages/face/test/root.test.ts:48-82
+
+  - id: c2
+    what: >
+      Made repository fixtures self-contained by creating .interlock during fixture initialization
+      and moved root-resolving face and CLI tests from the real checkout's bootstrap graph and
+      journal to disposable local repositories with only the graph and journal data each test
+      needs.
+    because: >
+      The acceptance says every fixture that runs a command or opens a ledger by cwd must carry its
+      own repository boundary. Keeping the fixture data minimal prevents the guard from merely
+      hiding owner-state reads while preserving the behaviors these tests exercise.
+    rests_on:
+      - brief:Acceptance
+      - notes:1
+      - notes:5
+    hunks:
+      - test/support/gitFixture.ts:104-125
+      - packages/face/test/document.test.ts:255-311
+      - packages/face/test/frameRender.test.ts:1-68
+      - packages/face/test/frameRender.test.ts:149-177
+      - packages/cli/test/face/nodeLevelKeys.test.ts:82-150
+
+  - id: c3
+    what: >
+      Preserved the retained gate-output corruption case by removing the fixture's .interlock
+      directory immediately before replacing it with the deliberate non-directory corruption.
+    because: >
+      The shared fixture initializer now creates .interlock as the repository boundary required by
+      the acceptance, so the existing test's intentional write would otherwise fail before it
+      reached the production corruption path. Removing only that directory keeps the test's
+      scenario explicit and unchanged.
+    rests_on:
+      - brief:Acceptance
+      - notes:7
+    hunks:
+      - packages/runner/test/gateJudge.test.ts
+
+  - id: c4
+    what: >
+      Added an optional ReferenceSource list to schema reference generation and the CLI command,
+      exported its type, and used an empty-source fixture repository for schema reference checks.
+    because: >
+      The schema reference tests are root-resolving tests too, but their normal corpus walks the
+      repository and cannot be reproduced in a small fixture without an explicit source seam. The
+      option is additive and defaults to the existing referenceSources, so production generation
+      remains unchanged while the tests avoid the owner's .interlock and repository corpus.
+    rests_on:
+      - brief:Acceptance
+      - notes:8
+      - notes:9
+    hunks:
+      - packages/schemas/src/reference.ts:1-39
+      - packages/schemas/src/index.ts:1-10
+      - packages/cli/src/schema/reference.ts:1-54
+      - packages/cli/test/schema/reference.test.ts:1-60
+
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+  - id: test
+    result: pass
+    invocation: mise exec -- pnpm test
+  - id: tests-read-fixtures-proof
+    result: pass
+    invocation: >-
+      mise exec -- pnpm --fail-if-no-match --filter face exec vitest run test/root.test.ts
+      --passWithNoTests=false
+  - id: session-show-tests
+    result: pass
+    invocation: >-
+      mise exec -- pnpm --fail-if-no-match --filter cli exec vitest run
+      test/session/show.test.ts --passWithNoTests=false
+  - id: tests-read-fixtures-types
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+open:
+  - >
+    The mise invocations emitted the repository's unsupported-engine warning because this machine
+    selected Node v26.13.0 while package.json requests v24.14.0; all declared checks nevertheless
+    passed under mise exec. pnpm lint also retained two pre-existing warnings in
+    packages/runner/test/runnerCommits.test.ts.

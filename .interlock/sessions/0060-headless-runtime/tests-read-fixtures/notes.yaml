@@ -1,0 +1,59 @@
+interlock: notes@v0
+node: tests-read-fixtures
+entries:
+  - kind: choice
+    at: "2026-11-08T07:55:58Z"
+    chose: Give every shared Git fixture an empty .interlock boundary during initialization.
+    because: Cwd-based repository and ledger lookups must stop inside the fixture instead of climbing into this worktree.
+  - kind: choice
+    at: "2026-11-08T07:55:58Z"
+    chose: Set INTERLOCK_TEST_FORBIDDEN_ROOT once from the shared Vitest configuration using the repository Git common directory.
+    because: Every package test configuration needs the same test-only guard, while production processes must remain unchanged.
+  - kind: choice
+    at: "2026-11-08T07:55:58Z"
+    chose: Detect forbidden linked worktrees through their .git file and keep the refusal message tied to the test cwd and reached path.
+    because: A linked worktree can have a different filesystem path while still resolving its journal through the main checkout's Git common directory.
+  - kind: surprise
+    at: "2026-11-08T07:55:58Z"
+    expected: A fixture under this worktree would remain allowed when the main checkout root is forbidden.
+    observed: The first guard considered every path lexically below the main checkout, including disposable fixtures under .worktrees; the check was narrowed to the main .interlock, the main root itself, and linked-worktree metadata.
+  - kind: choice
+    at: "2026-11-08T07:55:58Z"
+    chose: Replace tests that read the repository bootstrap graph with equivalent local graph fixtures.
+    because: The guard must run for the whole suite without allowing tests to read this repository's own .interlock graphs or ledger.
+  - kind: surprise
+    at: "2026-11-08T07:55:58Z"
+    expected: A zsh variable named status would capture a test command's exit code.
+    observed: zsh rejected the assignment because status is read-only; the command output was still retained in the required package test .runs file and later rerun with a different variable name.
+  - kind: surprise
+    at: "2026-11-08T07:55:58Z"
+    expected: The standing lint gate would pass after the focused tests and typecheck.
+    observed: Biome found one formatter change in the new frame fixture; existing runner test warnings were unrelated. The formatter output was applied to the changed test.
+  - kind: choice
+    at: "2026-11-08T08:00:00Z"
+    chose: Commit the tested implementation and session notes as a signed forward commit before running the full suite.
+    because: The brief requires incremental commits, preserves the proof boundary at a real code head, and forbids amending or force-pushing history.
+  - kind: surprise
+    at: "2026-11-08T08:05:00Z"
+    expected: The existing runner gate-output suite would remain unchanged after shared fixtures gained an .interlock directory.
+    observed: One test intentionally replaced its fixture .interlock directory with a file and failed before reaching the production assertion; the test now removes the boundary immediately before that deliberate corruption.
+  - kind: surprise
+    at: "2026-11-08T08:10:00Z"
+    expected: The final full suite would reproduce the earlier passing runner suite.
+    observed: 544 of 545 runner tests passed; runnerCommits failed once while a fixture configured user.signingkey, before the production assertion. The first full run had passed all 545 runner tests.
+  - kind: choice
+    at: "2026-11-08T08:15:00Z"
+    chose: Give schema-reference tests a local fixture and an optional reference-source list while leaving normal generation on the complete corpus.
+    because: The guard correctly rejects the worktree root, and copying the repository's reference corpus would make the test read this repository's .interlock; the additive seam keeps the command path testable without changing production defaults.
+  - kind: surprise
+    at: "2026-11-08T08:15:00Z"
+    expected: The fixture vocabulary would produce the same contiguous missing-term sentence as the full repository.
+    observed: The fixture's schema registry terms differ from the full corpus vocabulary, so the test now checks each required missing term independently while still asserting the command's report.
+  - kind: choice
+    at: "2026-11-08T08:25:00Z"
+    chose: Author and file the debrief from a fresh candidate at the final code head, retaining the candidate beside the filed debrief.
+    because: The brief requires an authored debrief whose decisions are rooted in the produced hunks and whose head_sha names the last code commit before the final debrief commit.
+  - kind: surprise
+    at: "2026-11-08T08:25:00Z"
+    expected: mise exec would select the repository's pinned Node version without an engine warning.
+    observed: The environment selected Node v26.13.0 while package.json requests v24.14.0; all standing and focused gates still passed under mise exec, so the mismatch is reported in debrief open.

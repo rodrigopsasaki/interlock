@@ -1,6 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { findRepoRoot } from "face";
-import { checkReference, docsShapesPath, generateReference } from "schemas";
+import { checkReference, docsShapesPath, generateReference, type ReferenceSource } from "schemas";
 import type { CommandResult } from "../main.ts";
 
 function gapsNote(missingVocabularyTerms: readonly string[]): string {
@@ -29,7 +29,7 @@ async function runCheck(path: string, generated: string, note: string): Promise<
 
 export async function runSchemaReference(
   args: readonly string[],
-  options: { readonly cwd?: string } = {},
+  options: { readonly cwd?: string; readonly sources?: readonly ReferenceSource[] } = {},
 ): Promise<CommandResult> {
   const cwd = options.cwd ?? process.cwd();
   const repoRoot = findRepoRoot(cwd);
@@ -40,7 +40,11 @@ export async function runSchemaReference(
     };
   }
 
-  const { markdown, missingVocabularyTerms } = generateReference({ repoRoot });
+  const reference =
+    options.sources === undefined
+      ? generateReference({ repoRoot })
+      : generateReference({ repoRoot, sources: options.sources });
+  const { markdown, missingVocabularyTerms } = reference;
   const path = docsShapesPath(repoRoot);
   const note = gapsNote(missingVocabularyTerms);
 

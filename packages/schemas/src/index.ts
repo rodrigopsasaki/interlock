@@ -1,4 +1,5 @@
 export { splitFrontMatter } from "./frontMatter.ts";
+export type { ReferenceSource } from "./reference/corpus.ts";
 export {
   type CheckResult,
   checkReference,

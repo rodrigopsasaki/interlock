@@ -769,6 +769,7 @@ describe("retained gate output", () => {
     if (isErr(absent)) throw new Error("expected legacy output to be absent, not corrupt");
     expect(absent.value).toEqual({ kind: "absent" });
 
+    rmSync(join(root, ".interlock"), { recursive: true, force: true });
     writeFileSync(join(root, ".interlock"), "not a directory");
     const ledger = memoryLedger();
     const judged = await judgeGates({
