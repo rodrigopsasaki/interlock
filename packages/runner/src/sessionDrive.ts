@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { basename, dirname, join, relative } from "node:path";
 import { type Clock, deadlineFrom, ms } from "@phyxiusjs/clock";
 import { err, isErr, isOk, ok, type Result } from "@phyxiusjs/fp";
 import { debriefFilePath } from "debrief";
@@ -16,8 +16,8 @@ import {
   sessionRuntime,
 } from "ledger";
 import type { SubstrateClient } from "substrate";
-import { agentEnvironmentArgs, needsPaneEnvironment } from "./codex/environment.ts";
-import { CODEX_CANONICAL_LINE_LIMIT, configuredCodexMcpServers } from "./codex/config.ts";
+import { type CodexLaunchRefusal, prepareCodexLaunch } from "./codex/config.ts";
+import { needsPaneEnvironment } from "./codex/environment.ts";
 import { type ExecPhaseRequest, execRunRoot, runExecPhase } from "./execRuntime.ts";
 import { declaredGateIds, gateCommandTable } from "./gateCommand.ts";
 import { explainGateJudgeRefusal } from "./gateJudge.ts";
@@ -42,7 +42,6 @@ import {
 } from "./machineProvider.ts";
 import { recordingNarrate } from "./narration.ts";
 import { buildOpeningPrompt, type PriorWork, type SessionRole } from "./openingPrompt.ts";
-import { execFileSyncOwned } from "./ownedCommand.ts";
 import { deliverOpeningPrompt } from "./promptDelivery.ts";
 import { recordQuestionNotes } from "./questionNotes.ts";
 import type { RoleShape } from "./roleShape.ts";
@@ -104,50 +103,17 @@ export interface PrepareLaunchOptions {
   ) => Result<readonly string[], string>;
 }
 
-type LaunchRefusal = WorktreeRefusal | MarkerConflict;
+type LaunchRefusal = WorktreeRefusal | MarkerConflict | CodexLaunchRefusal;
 
 function explainLaunchRefusal(refusal: LaunchRefusal): string {
-  return refusal.kind === "marker-conflict"
-    ? `launch refused: ${refusal.key} is already set to a different value`
-    : explainWorktreeRefusal(refusal);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function codexMcpServers(value: unknown): Result<readonly string[], string> {
-  const entries = Array.isArray(value)
-    ? value
-    : isRecord(value) && Array.isArray(value["servers"])
-      ? value["servers"]
-      : undefined;
-  if (entries === undefined) return err("the output was not a server list");
-  const names: string[] = [];
-  for (const entry of entries) {
-    if (!isRecord(entry) || typeof entry["name"] !== "string") continue;
-    const transport = entry["transport"];
-    const transportType = isRecord(transport) ? transport["type"] : transport;
-    if (transportType === "stdio") names.push(entry["name"]);
+  if (refusal.kind === "marker-conflict") {
+    return `launch refused: ${refusal.key} is already set to a different value`;
   }
-  return ok(names);
-}
-
-function discoverCodexMcpServers(
-  cwd: string,
-  environment: Readonly<Record<string, string>>,
-): Result<readonly string[], string> {
-  try {
-    const output = execFileSyncOwned("codex", ["mcp", "list", "--json"], {
-      cwd,
-      env: { ...process.env, ...environment },
-      encoding: "utf8",
-      maxBuffer: 8 * 1024 * 1024,
-    });
-    return codexMcpServers(JSON.parse(output));
-  } catch (error) {
-    return err(error instanceof Error ? error.message : "invalid JSON");
+  if (refusal.kind === "codex-launch-refusal") {
+    const names = refusal.servers.length === 0 ? "Codex" : refusal.servers.join(", ");
+    return `launch refused for ${names}: ${refusal.because}`;
   }
+  return explainWorktreeRefusal(refusal);
 }
 
 export function prepareLaunch(
@@ -156,69 +122,43 @@ export function prepareLaunch(
   environment: Readonly<Record<string, string>> = {},
   options: PrepareLaunchOptions = {},
 ): Result<AgentLaunch, LaunchRefusal> {
-  let stdioMcpServers: readonly string[] = [];
-  if (agentRuntime.kind === "codex") {
-    const listed = (options.listCodexMcp ?? discoverCodexMcpServers)(worktreePath, environment);
-    if (isErr(listed)) {
-      options.narrate?.(`codex mcp list --json failed: ${listed.error}`);
-    } else if (listed.value.length === 0) {
-      options.narrate?.("codex mcp list --json returned no stdio servers");
-    } else {
-      const configured = configuredCodexMcpServers(agentRuntime.args, environment);
-      if (isErr(configured)) {
-        options.narrate?.(`Codex config could not be read: ${configured.error}`);
-      } else {
-        const configuredNames = new Set(configured.value);
-        stdioMcpServers = listed.value.filter((name) => configuredNames.has(name));
-        options.narrate?.(
-          `codex mcp list --json found ${String(stdioMcpServers.length)} configured stdio server(s)`,
-        );
-      }
-    }
-  }
-  const argsFor = (args: readonly string[]): readonly string[] =>
-    agentEnvironmentArgs(agentRuntime.kind, args, environment, stdioMcpServers);
-  const boundedArgsFor = (args: readonly string[]): readonly string[] => {
-    const full = argsFor(args);
-    if (
-      agentRuntime.kind !== "codex" ||
-      [agentRuntime.kind, ...full].join(" ").length < CODEX_CANONICAL_LINE_LIMIT
-    ) {
-      return full;
-    }
-    options.narrate?.(
-      `codex marker overrides omitted from argv because the launch line would reach ${String(CODEX_CANONICAL_LINE_LIMIT)} bytes; marker environment remains inherited by MCP children`,
-    );
-    return agentEnvironmentArgs(agentRuntime.kind, args, environment, []);
-  };
   const template = agentRuntime.writableRootArgs;
-  if (template === undefined) {
+  const writableRoots =
+    template === undefined
+      ? []
+      : (() => {
+          const layout = worktreeGitLayout(worktreePath);
+          if (isErr(layout) || layout.value.kind === "not-linked") return [];
+          return [layout.value.commonGitDir, layout.value.gitDir];
+        })();
+  if (template !== undefined && writableRoots.length === 0) {
+    const layout = worktreeGitLayout(worktreePath);
+    if (isErr(layout)) return layout;
+  }
+  const launchArgs = [
+    ...agentRuntime.args,
+    ...(template === undefined
+      ? []
+      : writableRoots.flatMap((root) => expandWritableRootArgs(template, root))),
+  ];
+  if (agentRuntime.kind === "codex") {
+    const prepared = prepareCodexLaunch(launchArgs, worktreePath, environment, {
+      ...(options.narrate === undefined ? {} : { narrate: options.narrate }),
+      ...(options.listCodexMcp === undefined ? {} : { listCodexMcp: options.listCodexMcp }),
+    });
+    if (isErr(prepared)) return prepared;
     return ok({
       program: agentRuntime.kind,
-      args: boundedArgsFor(agentRuntime.args),
+      args: prepared.value.args,
       cwd: worktreePath,
-      environment,
-      writableRoots: [],
+      environment: prepared.value.environment,
+      writableRoots,
+      cleanup: prepared.value.cleanup,
     });
   }
-  const layout = worktreeGitLayout(worktreePath);
-  if (isErr(layout)) return layout;
-  if (layout.value.kind === "not-linked") {
-    return ok({
-      program: agentRuntime.kind,
-      args: boundedArgsFor(agentRuntime.args),
-      cwd: worktreePath,
-      environment,
-      writableRoots: [],
-    });
-  }
-  const writableRoots = [layout.value.commonGitDir, layout.value.gitDir];
   return ok({
     program: agentRuntime.kind,
-    args: boundedArgsFor([
-      ...agentRuntime.args,
-      ...writableRoots.flatMap((root) => expandWritableRootArgs(template, root)),
-    ]),
+    args: launchArgs,
     cwd: worktreePath,
     environment,
     writableRoots,
@@ -331,6 +271,7 @@ export async function driveInteractiveSession(
   let pane: Pane | undefined;
   let agent: Agent | undefined;
   let runtime: Runtime | undefined;
+  let launchCleanup: (() => void) | undefined;
   let cleanup: { readonly session: string; readonly hold: MachineHold } | undefined;
   let stopLease: (() => void) | undefined;
   let paneCustody: "runner" | "person" = "runner";
@@ -584,6 +525,21 @@ export async function driveInteractiveSession(
         lease.stop();
         return refuse(abandon("runtime"), "exec runtime has no program argument");
       }
+      let phaseArgs: readonly string[] = argv.slice(1);
+      let phaseEnvironment: Readonly<Record<string, string>> = agentEnvironment;
+      if (basename(program) === "codex") {
+        const prepared = prepareCodexLaunch(phaseArgs, worktreePath, agentEnvironment, {
+          narrate,
+          program,
+        });
+        if (isErr(prepared)) {
+          lease.stop();
+          return refuse(abandon("runtime"), explainLaunchRefusal(prepared.error));
+        }
+        phaseArgs = prepared.value.args;
+        phaseEnvironment = prepared.value.environment;
+        launchCleanup = prepared.value.cleanup;
+      }
       const journalDirectory = await sharedJournalDirectory(repoRoot);
       const provider = machine.value.provider;
       if (provider !== "none") {
@@ -662,11 +618,11 @@ export async function driveInteractiveSession(
           runtime: agentRuntime.name,
           model: agentRuntime.model ?? "undeclared",
           program,
-          args: argv.slice(1),
+          args: phaseArgs,
           prompt,
           promptOnStdin: agentRuntime.prompt === "stdin",
           cwd: worktreePath,
-          env: agentEnvironment,
+          env: phaseEnvironment,
           timeoutMs: localConfig.runTimeoutMs,
           ...(admission === undefined ? {} : { admission }),
         };
@@ -800,8 +756,9 @@ export async function driveInteractiveSession(
       abandonLease();
       return result;
     }
+    launchCleanup = launch.value.cleanup;
 
-    const openedPane = await runtime.openPane(worktreePath, agentEnvironment);
+    const openedPane = await runtime.openPane(worktreePath, launch.value.environment);
     if (isErr(openedPane)) {
       const result = refuse(abandon("pane open"), explainRuntimeRefusal(openedPane.error));
       lease.stop();
@@ -1260,6 +1217,8 @@ export async function driveInteractiveSession(
         narrate(`pane ${pane.id} left open for drilldown`);
       }
     }
+    launchCleanup?.();
+    launchCleanup = undefined;
   }
   return closeFailure ?? result;
 }

@@ -1,0 +1,43 @@
+interlock: notes@v0
+node: marker-never-dropped
+entries:
+  - kind: choice
+    at: "2026-11-08T11:30:00Z"
+    chose: Resume from the clean brief-only worktree and inspect the existing Codex launch, session-drive and fixture seams before changing code.
+    because: The worktree has no implementation or session-note changes beyond the derived brief commits, so the current source and tests are the only reliable starting point.
+  - kind: choice
+    at: "2026-11-08T11:31:00Z"
+    chose: Run the required focused marker tests with the repository's mise-selected Node and pnpm before implementation.
+    because: The existing assertions establish which marker paths are intentionally passing or failing at the session boundary, and the brief requires the pinned toolchain first on PATH.
+  - kind: surprise
+    at: "2026-11-08T11:32:00Z"
+    expected: The focused test command would preserve its exit code through the shell wrapper.
+    observed: zsh treats `status` as a read-only special variable, so the wrapper stopped before printing the test result; no source command was started in the background.
+  - kind: choice
+    at: "2026-11-08T11:35:00Z"
+    chose: Reuse the marker-configured-server implementation and retain its complete session notes while resolving the cherry-pick conflict by keeping both overflow decisions.
+    because: The current node depends on that implementation, and its notes preserve the prior session's provenance without changing its code history.
+  - kind: surprise
+    at: "2026-11-08T11:35:01Z"
+    expected: The two dependency commits would apply without artifact overlap.
+    observed: The second commit also extended the dependency session notes, so cherry-pick stopped on that notes file; the source patch applied and the conflict was resolved by retaining all distinct entries.
+  - kind: choice
+    at: "2026-11-08T11:40:00Z"
+    chose: Keep Codex launch policy in codex/config.ts and use the excluded session directory for a launch-local CODEX_HOME overlay.
+    because: The policy must own configuration resolution and cleanup, while the overlay must remain inside this worktree and outside scope-guard snapshots during the live session.
+  - kind: choice
+    at: "2026-11-08T11:52:00Z"
+    chose: Refuse when Codex discovery, configuration reading, effective-server reconciliation, marker conflict checks, or overlay preparation cannot establish delivery, and pass the same policy through exec phases whose program is codex.
+    because: A launch without a verified configured-server set cannot prove marker delivery; generic session orchestration must not narrate inherited delivery or bypass the Codex adapter.
+  - kind: choice
+    at: "2026-11-08T11:55:00Z"
+    chose: Replace the old discovery-failure and empty-list success assertions with named refusal assertions.
+    because: The acceptance explicitly removes the prior success contract; these tests must prevent a future regression to launching an unmarked Codex child.
+  - kind: choice
+    at: "2026-11-08T12:00:00Z"
+    chose: Prove overflow delivery with the installed Codex CLI against a fixture CODEX_HOME and leave the owner's Codex home and credentials untouched.
+    because: The acceptance requires real Codex config-validity evidence while forbidding live Dialeto or owner credentials; the launch-local overlay provides that isolation.
+  - kind: surprise
+    at: "2026-11-08T12:03:00Z"
+    expected: The new source and focused tests would satisfy the repository formatter on the first check.
+    observed: Biome required import ordering and line wrapping, and suggested an optional-chain fix; the formatter corrected the mechanical layout and the unsafe suggestion was applied explicitly.
