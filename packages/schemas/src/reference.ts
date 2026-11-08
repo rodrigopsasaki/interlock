@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { loadArtifacts } from "./reference/artifacts.ts";
-import { buildCorpusExamples } from "./reference/corpus.ts";
+import { buildCorpusExamples, type ReferenceSource, referenceSources } from "./reference/corpus.ts";
 import { renderReference } from "./reference/render.ts";
 import { vocabularyPurposes } from "./reference/vocabulary.ts";
 import { defaultSchemasDirectory } from "./registry.ts";
@@ -8,6 +8,7 @@ import { defaultSchemasDirectory } from "./registry.ts";
 export interface ReferenceOptions {
   readonly repoRoot?: string;
   readonly schemasDirectory?: string;
+  readonly sources?: readonly ReferenceSource[];
 }
 
 export interface ReferenceResult {
@@ -25,7 +26,7 @@ export function generateReference(options: ReferenceOptions = {}): ReferenceResu
 
   const { artifacts, files } = loadArtifacts(schemasDirectory);
   const vocabulary = vocabularyPurposes(join(repoRoot, "AGENTS.md"));
-  const examples = buildCorpusExamples(repoRoot);
+  const examples = buildCorpusExamples(repoRoot, options.sources ?? referenceSources);
 
   const missingVocabularyTerms = artifacts
     .map((artifact) => artifact.term)

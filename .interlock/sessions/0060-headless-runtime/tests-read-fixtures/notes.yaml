@@ -37,3 +37,15 @@ entries:
     at: "2026-11-08T08:05:00Z"
     expected: The existing runner gate-output suite would remain unchanged after shared fixtures gained an .interlock directory.
     observed: One test intentionally replaced its fixture .interlock directory with a file and failed before reaching the production assertion; the test now removes the boundary immediately before that deliberate corruption.
+  - kind: surprise
+    at: "2026-11-08T08:10:00Z"
+    expected: The final full suite would reproduce the earlier passing runner suite.
+    observed: 544 of 545 runner tests passed; runnerCommits failed once while a fixture configured user.signingkey, before the production assertion. The first full run had passed all 545 runner tests.
+  - kind: choice
+    at: "2026-11-08T08:15:00Z"
+    chose: Give schema-reference tests a local fixture and an optional reference-source list while leaving normal generation on the complete corpus.
+    because: The guard correctly rejects the worktree root, and copying the repository's reference corpus would make the test read this repository's .interlock; the additive seam keeps the command path testable without changing production defaults.
+  - kind: surprise
+    at: "2026-11-08T08:15:00Z"
+    expected: The fixture vocabulary would produce the same contiguous missing-term sentence as the full repository.
+    observed: The fixture's schema registry terms differ from the full corpus vocabulary, so the test now checks each required missing term independently while still asserting the command's report.
