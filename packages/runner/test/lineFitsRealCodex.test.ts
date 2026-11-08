@@ -1,10 +1,11 @@
 import { spawn } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { join } from "node:path";
 import { isOk } from "@phyxiusjs/fp";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { prepareCodexLaunch } from "../src/codex/config.ts";
+import { isolatedHomeEnvironment } from "./support/toolState.ts";
 
 type JsonObject = Record<string, unknown>;
 
@@ -205,7 +206,8 @@ async function runCodex(
 
 describe("real Codex line fitting", () => {
   it("runs a provider shell call with moved policy and marker values", async () => {
-    const root = mkdtempSync(join(runsRoot, "line-fit-real-codex-"));
+    const isolation = isolatedHomeEnvironment("line-fit-real-codex");
+    const root = isolation.root;
     directory = root;
     const home = join(root, "codex-home");
     mkdirSync(home);
@@ -228,8 +230,7 @@ describe("real Codex line fitting", () => {
       ].join("\n\n"),
     );
     const environment = {
-      HOME: join(root, "home"),
-      XDG_STATE_HOME: join(root, "state"),
+      ...isolation.environment,
       NODE_OPTIONS: "--max-old-space-size=3072",
       VITEST_MAX_WORKERS: "4",
       VITEST_MAX_THREADS: "4",

@@ -8,11 +8,11 @@ import { afterAll, afterEach, describe, expect, it } from "vitest";
 import { judgeGates } from "../src/gateJudge.ts";
 import { gitInitFixtureWithContent } from "./support/gitFixture.ts";
 import { memoryLedgerWithLog } from "./support/memoryLedger.ts";
+import { allocateToolState } from "./support/toolState.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
-const miseState = mkdtempSync(join(runsRoot, "receipt-run-mise-"));
-process.env["MISE_STATE_DIR"] = miseState;
+const toolState = allocateToolState("receipt-run-mise");
 
 const node = { graph: "fixture", id: "n1" };
 const pass = `${process.execPath} -e process.exit(0)`;
@@ -30,7 +30,7 @@ afterEach(() => {
 });
 
 afterAll(() => {
-  rmSync(miseState, { recursive: true, force: true });
+  toolState.cleanup();
 });
 
 function fixture(): string {
@@ -62,6 +62,7 @@ async function judge(
     runnerId: "runner",
     holdMs: 60_000,
     substrate: noneClient(),
+    env: toolState.environment,
     narrate: () => {},
   });
   if (isErr(judged)) throw new Error("expected an outcome");

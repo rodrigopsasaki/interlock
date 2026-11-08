@@ -16,11 +16,11 @@ import { judgeGates } from "../src/gateJudge.ts";
 import { gitScope } from "../src/scope.ts";
 import { commitAll, gitInitFixtureWithContent, headSha } from "./support/gitFixture.ts";
 import { memoryLedger } from "./support/memoryLedger.ts";
+import { allocateToolState } from "./support/toolState.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
-const miseState = mkdtempSync(join(runsRoot, "mise-"));
-process.env["MISE_STATE_DIR"] = miseState;
+const toolState = allocateToolState("submodule-receipts-mise");
 
 const passCommand = `${process.execPath} -e process.exit(0)`;
 const node = { graph: "fixture", id: "n1" };
@@ -34,7 +34,7 @@ afterEach(() => {
 });
 
 afterAll(() => {
-  rmSync(miseState, { recursive: true, force: true });
+  toolState.cleanup();
 });
 
 interface SubmoduleFixture {
@@ -105,6 +105,7 @@ describe("a scope that holds a gitlink", () => {
       runnerId: "run-1",
       holdMs: 60_000,
       substrate: noneClient(),
+      env: toolState.environment,
       narrate: () => {},
     });
     if (isErr(judged)) throw new Error("expected an outcome");

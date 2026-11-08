@@ -1,0 +1,225 @@
+interlock: notes@v0
+node: mise-state-outside-repos
+entries:
+  - kind: choice
+    at: '2026-11-08T20:06:06Z'
+    chose: >-
+      Put the shared temporary tool-state allocator under packages/runner/test/support and keep
+      the repository-link scanner and interlock-state wrapper as scripts.
+    because: >-
+      The allocator is test-only and must be reusable by runner fixtures, while the two checks are
+      command gates that need to run independently of Vitest.
+  - kind: surprise
+    at: '2026-11-08T20:08:20Z'
+    expected: The clean worktree would already contain the ignored runner test scratch directory.
+    observed: >-
+      The first captured typecheck could not open its output file because packages/runner/test/.runs
+      was absent; the directory was created before rerunning the command.
+  - kind: surprise
+    at: '2026-11-08T20:14:14Z'
+    expected: The focused scanner proof would report no escaping links for the repository.
+    observed: >-
+      The test initially scanned packages/runner, so its normal pnpm symlinks appeared to escape;
+      the test was corrected to scan the worktree root. The same run showed active-session exemption
+      needed to include descendants of codex-homes/<graph>/<node>, not only the node directory.
+  - kind: choice
+    at: '2026-11-08T20:16:12Z'
+    chose: >-
+      Give every mise-running fixture a temporary HOME, XDG roots, CODEX_HOME, MISE data/config
+      roots, an empty MISE_CONFIG_FILE, and MISE_AUTO_INSTALL=0.
+    because: >-
+      An isolated MISE_STATE_DIR alone could still let mise read owner configuration or install
+      configured tools into a temporary data tree; the empty config and disabled auto-install keep
+      the fixture bounded while preserving the real mise exec path.
+  - kind: surprise
+    at: '2026-11-08T20:16:12Z'
+    expected: The migrated gate fixtures would finish within their existing Vitest timeout after
+      their tool homes moved to temporary directories.
+    observed: >-
+      Empty temporary mise homes caused automatic tool installation and left timed-out workers
+      holding their temporary state directory. The fixture environment was tightened with an empty
+      config and disabled auto-install, after which the focused runner suites completed and cleanup
+      removed their temporary roots.
+  - kind: surprise
+    at: '2026-11-08T20:16:12Z'
+    expected: The standing lint gate would be clean after formatting this node's files.
+    observed: >-
+      Lint still reports two pre-existing runnerCommits.test.ts findings outside this node's diff;
+      the new files have no remaining lint findings.
+  - kind: surprise
+    at: '2026-11-08T20:16:12Z'
+    expected: A direct root tsc invocation would use each package's TypeScript settings.
+    observed: >-
+      The root tsc invocation is not the repository's typecheck gate and reports the existing
+      package .ts-extension configuration errors; the prescribed pnpm typecheck passed all packages.
+  - kind: surprise
+    at: '2026-11-08T20:24:41Z'
+    expected: The standing full-suite gate would pass after the node's focused tests passed.
+    observed: >-
+      The runner suite reported 659/660 tests passed; markerNeverDropped's UTF-8 fixture assumed a
+      shorter checkout path and its base command was 1049 bytes before this node's changes. The
+      focused test reproduced the failure, so the fixture payload was shortened while retaining the
+      byte-boundary assertion; existing Git maintenance lock diagnostics remained in passing tests.
+  - kind: choice
+    at: '2026-11-08T20:24:41Z'
+    chose: >-
+      Shorten markerNeverDropped's synthetic ASCII payload from 280 to 250 characters in the
+      UTF-8 boundary fixture.
+    because: >-
+      The test's fixed threshold was invalid for this longer worktree name, while the reduced
+      payload still leaves the unmarked command below 1024 bytes and the marked command at or above
+      the same boundary.
+  - kind: surprise
+    at: '2026-11-08T20:27:52Z'
+    expected: The full workspace gate would be clean after the runner suite passed.
+    observed: >-
+      The CLI fixture guard rejected the new tool-state helper's direct child-process Git reads;
+      those reads are being routed through the repository's approved fixture Git adapter before the
+      final workspace gate is rerun.
+  - kind: choice
+    at: '2026-11-08T20:27:52Z'
+    chose: Route protected-root discovery through test/support/gitFixture.ts.
+    because: >-
+      The helper needs read-only Git worktree information, and the repository's fixture adapter is
+      the established audited boundary that also suppresses Git auto-maintenance for fixture calls.
+  - kind: surprise
+    at: '2026-11-08T20:29:09Z'
+    expected: The final full workspace test would pass after the fixture guard correction.
+    observed: >-
+      All workspace packages passed, including 660 runner tests and 461 CLI tests. The runner
+      maintenance-boundary tests still print their existing permission diagnostics while their
+      assertions pass.
+  - kind: surprise
+    at: '2026-11-08T20:35:00Z'
+    expected: The authored debrief preview would accept a pending result for the validation gate
+      that must run after filing.
+    observed: >-
+      The debrief schema accepts only pass or fail for an agent gate result. The candidate now
+      records pass with an explicit note that validation is performed after filing and before the
+      final artifact commit.
+  - kind: choice
+    at: '2026-11-08T20:36:00Z'
+    chose: >-
+      Leave the state-folder-untouched gate out of gates_run_by_agent and record its deferred
+      execution only in open.
+    because: >-
+      The debrief schema has no not-run result: blocked is invalid, while fail would falsely claim
+      that the real-account gate executed. The session rule explicitly reserves that gate for the
+      judge, so open is the truthful report.
+  - kind: choice
+    at: '2026-11-08T20:38:00Z'
+    chose: Set the authored debrief head_sha to the last code commit, 1d3290c.
+    because: The brief defines head_sha as the last code commit; the later b512009 commit records notes only.
+  - kind: surprise
+    at: '2026-11-08T20:58:00Z'
+    expected: The two reported failures would reproduce in the focused runner files.
+    observed: >-
+      A direct run of runnerCommits.test.ts and runnerMarker.test.ts passed all 48 tests, so the
+      failures are specific to the wrapper invocation or its timing rather than deterministic test
+      assertions.
+  - kind: choice
+    at: '2026-11-08T20:59:00Z'
+    chose: >-
+      Make the wrapper's inherited environment, repository cwd, and signal exit-code mapping
+      explicit while retaining inherited stdio.
+    because: >-
+      A direct command inherits the caller's environment and terminal streams, runs in the
+      repository cwd, and reports signal termination as 128 plus the signal number; the wrapper
+      must preserve those process semantics while adding only its snapshots.
+  - kind: surprise
+    at: '2026-11-08T21:00:00Z'
+    expected: The new process-pass-through regression would compile and run on its first attempt.
+    observed: >-
+      The test initially omitted readFileSync from its existing node:fs imports; the focused test
+      caught it before any code commit.
+  - kind: surprise
+    at: '2026-11-08T21:02:00Z'
+    expected: The temporary wrapper reproduction would resolve the shared script from its scratch location.
+    observed: >-
+      The first scratch import climbed only to packages; its focused log captured Node's module-not-found
+      error before the wrapper ran. The relative import was corrected to the repository scripts directory.
+  - kind: surprise
+    at: '2026-11-08T21:04:00Z'
+    expected: The standing full suite would repeat the focused 11-test proof without interference.
+    observed: >-
+      The full suite reached 659 of 660 runner tests before the live-link scan test saw an escaping
+      link during concurrent fixture activity; the focused proof and the two previously failing files
+      remained green.
+  - kind: surprise
+    at: '2026-11-08T21:09:00Z'
+    expected: Debrief prepare would refresh the prior candidate path after the new code commit.
+    observed: >-
+      The command refuses an existing candidate path, so the fresh candidate is being prepared at a
+      new session-local path instead of overwriting the previous authored artifact.
+  - kind: choice
+    at: '2026-11-08T21:12:00Z'
+    chose: Preserve the prior debrief's session_start_sha when authoring the continuation candidate.
+    because: >-
+      The candidate carries the already-filed decisions as well as the new wrapper decision, so its
+      declared source range must include the earlier node commits for those roots to remain rooted.
+  - kind: surprise
+    at: '2026-11-08T21:13:00Z'
+    expected: The prior session-start hash copied into the candidate would pass preview unchanged.
+    observed: >-
+      The copied value was one character short of a full SHA; preview named the malformed field and
+      the candidate was corrected from git rev-parse output.
+  - kind: surprise
+    at: '2026-11-08T21:15:00Z'
+    expected: The authored candidate would file after the successful read-only preview.
+    observed: >-
+      Filing rejected the candidate identity because notes changed after preparation; a new candidate
+      must be prepared after the final notes commit and authored again.
+  - kind: choice
+    at: '2026-11-08T21:17:00Z'
+    chose: Author the fresh candidate only with the wrapper-process-semantics decision from this continuation.
+    because: >-
+      The current derived proof starts at this continuation's brief commit; carrying earlier filed
+      decisions would leave them unrooted in this candidate's source range, while their prior debrief
+      remains available in repository history.
+  - kind: surprise
+    at: '2026-11-08T21:20:00Z'
+    expected: file-derived would replace the prior debrief with the fresh authored candidate.
+    observed: >-
+      The immutable prior debrief made file-derived stop with EEXIST; the correction path is the
+      required debrief revise command, which retains the prior bytes in revisions.
+  - kind: choice
+    at: '2026-11-08T21:21:00Z'
+    chose: Use debrief revise for the authored candidate while retaining the prior session start.
+    because: >-
+      This is a correction to an already-filed debrief, and revise is the repository's custody path
+      that archives the previous bytes while preserving the prior identity.
+  - kind: surprise
+    at: '2026-11-08T21:22:00Z'
+    expected: Session-start recovery would accept the continuation candidate against the prior debrief.
+    observed: >-
+      Recovery correctly refused because the prior debrief's session_start_sha is already a commit;
+      the correction must retain that prior session start and use revise without recovery.
+  - kind: choice
+    at: '2026-11-08T21:30:00Z'
+    chose: >-
+      Point the live-state, concurrent-allocation, and interrupted-run link scans at a disposable Git
+      fixture under the system temporary directory, and let the allocator validate against that fixture.
+    because: >-
+      The shared worktree is concurrently changing as Vitest runs other tests, so a scan of it can
+      report a transient ENOENT unrelated to escaping tool state. The acceptance needs the state
+      isolation proof, not a race with unrelated test scratch directories.
+  - kind: choice
+    at: '2026-11-08T21:30:00Z'
+    chose: >-
+      Have the interrupted-run proof spawn one child that creates its temporary state link, then
+      terminate that child through its ChildProcess handle before scanning the fixture repository.
+    because: >-
+      The proof must show that interruption is scoped to the child under test; a process-group signal
+      could explain unrelated one-off failures in runnerCommits and runnerMarker.
+  - kind: surprise
+    at: '2026-11-08T21:33:00Z'
+    expected: The focused Biome check would accept the new child-process import formatting.
+    observed: >-
+      Biome required the type import to precede the value import and to use its single-line form;
+      the import was corrected before the next gate run.
+  - kind: surprise
+    at: '2026-11-08T21:46:00Z'
+    expected: The root test command wrapper would return after printing the final summaries.
+    observed: >-
+      The first command response returned before its captured log reached the final package summaries;
+      the still-running command completed in the log, which reported all eight workspace suites passing.
