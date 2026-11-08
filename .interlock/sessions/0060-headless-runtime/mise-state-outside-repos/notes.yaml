@@ -157,3 +157,9 @@ entries:
     because: >-
       The candidate carries the already-filed decisions as well as the new wrapper decision, so its
       declared source range must include the earlier node commits for those roots to remain rooted.
+  - kind: surprise
+    at: '2026-11-08T21:13:00Z'
+    expected: The prior session-start hash copied into the candidate would pass preview unchanged.
+    observed: >-
+      The copied value was one character short of a full SHA; preview named the malformed field and
+      the candidate was corrected from git rev-parse output.
