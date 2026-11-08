@@ -78,3 +78,11 @@ entries:
     at: "2026-11-08T18:16:00Z"
     expected: The standing test gate would pass after removing the out-of-scope process CODEX_HOME forwarding.
     observed: pnpm test failed two CLI runtime-selection tests because the inherited CODEX_HOME pointed at the removed session-local codex-home-sUO6F8 path; the focused base proof and full runner suite still passed.
+  - kind: choice
+    at: "2026-11-08T19:20:00Z"
+    chose: Run scope-guard Git reads through the existing owned-command adapter so a refused status carries Git's stderr into the refusal.
+    because: The standing failure only reported Node's generic command-failed text, hiding whether Git named a lock, missing path, maintenance writer, or another cause; the adapter already preserves stderr without changing the command's ownership boundary.
+  - kind: surprise
+    at: "2026-11-08T19:20:01Z"
+    expected: Re-running the full repository test under isolated HOME and CODEX_HOME would reproduce the reported single runner-commit failure.
+    observed: The GitHub-token case passed, while unrelated runner files timed out or failed under the concurrent full run; the target failure needs the preserved stderr and a narrower isolation reproduction.
