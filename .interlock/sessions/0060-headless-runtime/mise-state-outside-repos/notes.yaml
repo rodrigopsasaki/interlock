@@ -82,3 +82,10 @@ entries:
     because: >-
       The helper needs read-only Git worktree information, and the repository's fixture adapter is
       the established audited boundary that also suppresses Git auto-maintenance for fixture calls.
+  - kind: surprise
+    at: '2026-11-08T20:29:09Z'
+    expected: The final full workspace test would pass after the fixture guard correction.
+    observed: >-
+      All workspace packages passed, including 660 runner tests and 461 CLI tests. The runner
+      maintenance-boundary tests still print their existing permission diagnostics while their
+      assertions pass.
