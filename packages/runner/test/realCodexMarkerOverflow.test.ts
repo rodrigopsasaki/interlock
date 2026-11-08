@@ -1,12 +1,5 @@
 import { execFileSync } from "node:child_process";
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { isOk } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
@@ -80,13 +73,11 @@ describe("real Codex marker overflow delivery", () => {
     writeFileSync(
       join(home, "config.toml"),
       names
-        .map(
-          (name, index) => {
-            const output = outputPaths[index];
-            if (output === undefined) throw new Error(`missing output path for ${name}`);
-            return `[mcp_servers.${name}]\ncommand = ${JSON.stringify(process.execPath)}\nargs = [${JSON.stringify(fixture)}, ${JSON.stringify(output)}]\n`;
-          },
-        )
+        .map((name, index) => {
+          const output = outputPaths[index];
+          if (output === undefined) throw new Error(`missing output path for ${name}`);
+          return `[mcp_servers.${name}]\ncommand = ${JSON.stringify(process.execPath)}\nargs = [${JSON.stringify(fixture)}, ${JSON.stringify(output)}]\n`;
+        })
         .join("\n"),
     );
     const environment = {
@@ -101,13 +92,17 @@ describe("real Codex marker overflow delivery", () => {
     expect(launch.value.path).toBe("overlay");
     let commandError: unknown;
     try {
-      execFileSync("codex", [...launch.value.args, "exec", "--skip-git-repo-check", "marker proof"], {
-        cwd: root,
-        env: { ...process.env, ...launch.value.environment },
-        input: "\u0003",
-        encoding: "utf8",
-        timeout: 15_000,
-      });
+      execFileSync(
+        "codex",
+        [...launch.value.args, "exec", "--skip-git-repo-check", "marker proof"],
+        {
+          cwd: root,
+          env: { ...process.env, ...launch.value.environment },
+          input: "\u0003",
+          encoding: "utf8",
+          timeout: 15_000,
+        },
+      );
     } catch (error) {
       commandError = error;
     }
@@ -116,7 +111,9 @@ describe("real Codex marker overflow delivery", () => {
       if (!/401|unauthorized|missing bearer|not logged in/i.test(detail)) {
         throw commandError;
       }
-      console.info("skip: Codex is not logged in and did not start the MCP fixture before the model call");
+      console.info(
+        "skip: Codex is not logged in and did not start the MCP fixture before the model call",
+      );
       skip();
       return;
     }

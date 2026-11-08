@@ -85,3 +85,7 @@ entries:
     at: "2026-11-08T13:58:00Z"
     expected: The first post-repair typecheck would pass after the focused runtime proof was green.
     observed: Strict indexed-access checking required an explicit output-path narrowing, and this Vitest version accepts no argument on the runtime skip helper; both were corrected without weakening the proof.
+  - kind: surprise
+    at: "2026-11-08T14:00:00Z"
+    expected: The new real-delivery test would satisfy the formatter after the type correction.
+    observed: Biome required import compaction and wrapping in the new test; formatting changed only that proof file, while the existing runnerCommits warning and info remained.
