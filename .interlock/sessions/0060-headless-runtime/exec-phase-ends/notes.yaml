@@ -105,3 +105,7 @@ entries:
     at: "2026-11-08T08:00:00Z"
     chose: Commit the source fix and notes together as the code commit, leaving the debrief for a separate final commit.
     because: The brief requires the debrief commit to be last and requires notes to accompany the implementation decisions and proof observations.
+  - kind: choice
+    at: "2026-11-08T08:05:00Z"
+    chose: File the authored candidate after its read-only preview and validate the filed debrief before the final commit.
+    because: The brief requires the first filing to use the derived candidate workflow and the debrief-valid gate must verify the final artifact before handoff.
