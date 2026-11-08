@@ -625,6 +625,44 @@ nodes:
         kind: command
         run: pnpm typecheck
 
+  - id: watch-paths-precise-fixed
+    role: implementer
+    depends_on: [watch-paths-precise, runner-marker]
+    acceptance: |
+      The record of two failures watch-paths-precise shipped and the fixes they need. That node cleared on a judge
+      whose gates ran on Homebrew's Node 26 against an older main, so its outcome is terminal and it cannot be run
+      again; this node is where the fix and the record live. Re-tested on 2026-11-08 on the repository's pinned
+      Node (v24.14.0, pnpm 10.13.1) with origin/main merged in, two runner tests failed that main itself passes:
+      - packages/runner/test/scopeGuard.test.ts "does not read owner-only watched files and compares their size and
+        mtimeMs": a same-size rewrite with the mtime restored was still reported as a change ({ ownerOnly: true,
+        path: "secret.txt", root: "watch path" }).
+      - packages/runner/test/absorbOutbox.test.ts "retains observed command evidence when an authored claim is
+        unrooted" ended held where it expects cleared (absorbOutbox.test.ts:124, :155), an interaction between
+        watch-paths-precise's change and what main brought in, such as fails-closed's change to delegated clearance.
+      The session merges graph/0060-headless-runtime/watch-paths-precise and origin/main, each with a signed merge;
+      origin/main then holds runner-marker, so execRuntime.test.ts's timed tests pass under load. It fixes both
+      failures at the cause, never by loosening what counts as a change for files that are not owner-only and never
+      by changing the absorbOutbox test's expectation unless the expectation itself is shown wrong. Every gate and
+      test runs with the repository's pinned pnpm and Node first on PATH, and the session records node --version
+      and pnpm --version in notes.yaml. Its debrief names both failures, their causes, the fix commits, the Node 26
+      clear of watch-paths-precise, and the counts of each gate below. No test is excluded or skipped.
+    gates:
+      - id: scope-guard-owner-only
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/scopeGuard.test.ts test/absorbOutbox.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: runner-suite
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: cli-suite
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: wppf-types
+        kind: command
+        run: pnpm typecheck
+
   - id: exec-runtime
     role: implementer
     depends_on: []
