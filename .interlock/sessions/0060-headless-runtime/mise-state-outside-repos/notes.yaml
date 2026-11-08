@@ -151,3 +151,9 @@ entries:
     observed: >-
       The command refuses an existing candidate path, so the fresh candidate is being prepared at a
       new session-local path instead of overwriting the previous authored artifact.
+  - kind: choice
+    at: '2026-11-08T21:12:00Z'
+    chose: Preserve the prior debrief's session_start_sha when authoring the continuation candidate.
+    because: >-
+      The candidate carries the already-filed decisions as well as the new wrapper decision, so its
+      declared source range must include the earlier node commits for those roots to remain rooted.
