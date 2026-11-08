@@ -55,5 +55,9 @@ entries:
     because: The command exited zero and every package suite passed; the warnings came from existing worktree-maintenance fixtures and did not fail any test.
   - kind: choice
     at: "2026-11-08T12:17:00Z"
-    chose: Record the final gate checks as pinned-toolchain evidence: typecheck passed, lint exited zero with the existing runnerCommits warning and info, comments passed, the full runner suite passed 596 tests, and the workspace test passed all package suites including runner 596 and CLI 453.
+    chose: "Record the final gate checks as pinned-toolchain evidence: typecheck passed, lint exited zero with the existing runnerCommits warning and info, comments passed, the full runner suite passed 596 tests, and the workspace test passed all package suites including runner 596 and CLI 453."
     because: These are the checks run after the final implementation and fixture-format commits; the runner receipts remain the binding proof for node clearance.
+  - kind: surprise
+    at: "2026-11-08T12:25:00Z"
+    expected: The filed debrief would validate against the notes committed with the final gate counts.
+    observed: The unquoted colon in the final note's chose scalar made notes.yaml invalid YAML; the scalar was quoted before rerunning validation.
