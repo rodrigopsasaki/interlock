@@ -54,6 +54,30 @@
             "items": {
               "$ref": "#/$defs/line"
             }
+          },
+          "superseded": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/superseded"
+            }
+          },
+          "context": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/context"
+            }
+          },
+          "version": {
+            "$ref": "#/$defs/line"
+          },
+          "approved": {
+            "$ref": "#/$defs/approved"
+          },
+          "passed": {
+            "$ref": "#/$defs/line"
+          },
+          "authorized_by": {
+            "$ref": "#/$defs/approved"
           }
         },
         "required": [
@@ -94,6 +118,33 @@
       "type": "string",
       "minLength": 1,
       "pattern": "^(?=.*\\S)[^\\r\\n\\u0000]+$"
+    },
+    "superseded": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "graph": { "$ref": "#/$defs/line" },
+        "because": { "$ref": "#/$defs/line" }
+      },
+      "required": ["graph", "because"]
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "graph": { "$ref": "#/$defs/line" },
+        "because": { "$ref": "#/$defs/line" }
+      },
+      "required": ["graph", "because"]
+    },
+    "approved": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "words": { "$ref": "#/$defs/line" },
+        "source": { "$ref": "#/$defs/line" }
+      },
+      "required": ["words", "source"]
     }
   }
 }

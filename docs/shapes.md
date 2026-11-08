@@ -9,20 +9,25 @@ No vocabulary entry for `arcs`.
 ### Versions
 
 - `arcs@v0`: the first version.
+- `arcs@v1`: added `repository` (required); retyped `arcs`; removed `needs_his_words`.
 
-### Fields (`arcs@v0`)
+### Fields (`arcs@v1`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `interlock` | the literal `"arcs@v0"` | yes |  |
-| `arcs` | array of object | yes | fields: id (string matching `^[a-z0-9]+(?:-[a-z0-9]+)*$`, required); title (line, required); ask (line, required); source (line, required); also_said (array of object, optional); graphs (array of line, required) |
-| `needs_his_words` | array of object | no | fields: graph (line, required); found (line, required) |
+| `interlock` | the literal `"arcs@v1"` | yes |  |
+| `repository` | line | yes |  |
+| `arcs` | array of arc | yes | fields: id (string matching `^[a-z0-9]+(?:-[a-z0-9]+)*$`, required); title (line, required); ask (line, required); ask_form (one of `"verbatim"`, `"placeholder"`, optional); source (line, required); also_said (array of words, optional); graphs (array of reference, required); superseded (array of superseded, optional); context (array of context, optional); version (string, optional); approved (approved, optional); passed (line, optional); authorized_by (approved, optional) |
 
 ### Examples
 
 #### `arcs@v0`
 
 _No example of `arcs@v0` was found in the corpus._
+
+#### `arcs@v1`
+
+_No example of `arcs@v1` was found in the corpus._
 
 ## brief
 

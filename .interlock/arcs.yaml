@@ -1,4 +1,5 @@
-interlock: arcs@v0
+interlock: arcs@v1
+repository: interlock
 # Rodrigo, 2026-11-06 18:34 UTC: "nothing should run in 'not in an arc yet' because if I asked for something, the way
 # in which I asked should be the arc, even if the arc has only one graph in it. Arcs are my language, graphs are the
 # result of what the planner decided the work should be to satisfy my intent."
@@ -9,11 +10,16 @@ interlock: arcs@v0
 arcs:
   - id: interlock-feeds-the-app
     title: Interlock feeds the app
-    ask: "you need to make interlock capable of feeding that UI ... You're free to do changes on phyxius and interlock too"
-    source: 2026-11-04 23:25 UTC, project chat (the loom-feed-2026-11-04 mandate these graphs cite)
+    ask: "you need to make interlock capable of feeding that UI ... You're free to
+      do changes on phyxius and interlock too"
+    source: 2026-11-04 23:25 UTC, project chat (the loom-feed-2026-11-04 mandate
+      these graphs cite)
     also_said:
       - words: "do all these things really need me?"
-        source: 2026-11-05 12:24 UTC (0052's approval receipt in .interlock/ledger/journal.jsonl; preston's .interlock/handoff.md:159); 0052 placed here on his 22:06 UTC word (cmsg_01BN1q6CYuBjcZAFT6C2pgFd6QJVvmV1AsDav1RxL4JYZo)
+        source: 2026-11-05 12:24 UTC (0052's approval receipt in
+          .interlock/ledger/journal.jsonl; preston's .interlock/handoff.md:159);
+          0052 placed here on his 22:06 UTC word
+          (cmsg_01BN1q6CYuBjcZAFT6C2pgFd6QJVvmV1AsDav1RxL4JYZo)
     graphs:
       - interlock/0046-loom-feed
       - interlock/0047-worktree-commits
@@ -25,7 +31,9 @@ arcs:
 
   - id: spread-work-across-models
     title: Spread work across models
-    ask: "I want you to have one model of each to do any task, and you do them in round robin or on whoever has the most tokens available. Protect your anthropic tokens to the most because it's what I use to talk to you."
+    ask: "I want you to have one model of each to do any task, and you do them in
+      round robin or on whoever has the most tokens available. Protect your
+      anthropic tokens to the most because it's what I use to talk to you."
     source: 2026-11-05 12:49 UTC, project chat (quoted in graph 0054's read)
     graphs:
       - interlock/0054-provider-routing
@@ -39,21 +47,29 @@ arcs:
 
   - id: machine-limits-as-a-preston-setting
     title: Machine limits as a Preston setting
-    ask: "this has to be managed via Preston settings, I don't want you working around the product when doing this is also the purpose of the product."
-    source: 2026-11-06 15:43 UTC, project chat (the arc's full words, through 17:13 UTC, are in preston's .interlock/arcs.yaml)
+    ask: "this has to be managed via Preston settings, I don't want you working
+      around the product when doing this is also the purpose of the product."
+    source: 2026-11-06 15:43 UTC, project chat (the arc's full words, through 17:13
+      UTC, are in preston's .interlock/arcs.yaml)
     graphs:
       - interlock/0056-machine-provider
-      - interlock/0057-own-sessions (folded into interlock/0060-headless-runtime, 2026-11-06 21:52 UTC)
+      - interlock/0057-own-sessions (folded into
+        interlock/0060-headless-runtime, 2026-11-06 21:52 UTC)
       - preston/0034-machine-limits
       - preston/0035-limits-smart
 
   - id: every-ask-is-an-arc
     title: Every ask is an arc
-    ask: "nothing should run in 'not in an arc yet' because if I asked for something, the way in which I asked should be the arc, even if the arc has only one graph in it. Arcs are my language, graphs are the result of what the planner decided the work should be to satisfy my intent."
+    ask: "nothing should run in 'not in an arc yet' because if I asked for
+      something, the way in which I asked should be the arc, even if the arc has
+      only one graph in it. Arcs are my language, graphs are the result of what
+      the planner decided the work should be to satisfy my intent."
     source: 2026-11-06 18:34 UTC, project chat
     also_said:
-      - words: "why am I being asked to do these? ... This is exactly the type of thing I don't want to have to do."
-        source: 2026-11-06 19:28 UTC, project chat, after being handed pull-request and commit lines to paste
+      - words: "why am I being asked to do these? ... This is exactly the type of thing
+          I don't want to have to do."
+        source: 2026-11-06 19:28 UTC, project chat, after being handed pull-request and
+          commit lines to paste
     graphs:
       - interlock/0053-graph-arc
       - interlock/0058-cited-delegation
@@ -62,34 +78,50 @@ arcs:
   - id: talk-to-gilb-from-anywhere
     title: Talk to Gilb from anywhere
     ask: >-
-      Yeah, if that is the gap, let's bridge that gap. I want to start working with you from my own interfaces soon.
-      There's no rush, but I want to see this product suite start coming together. In a way, Gilb could be the thing I
-      take with me anywhere while it knows how to talk to my "host machine" (this is a future thing, obviously), just
-      notice the seams
-    source: 2026-11-06 17:42 UTC, project chat (cmsg_01BN1q6CYuBjcZAFT6C2pgFd87DS8F9HFYHKcF8eXAyG2u; the arc's full words are in gilb's .interlock/arcs.yaml)
+      Yeah, if that is the gap, let's bridge that gap. I want to start working
+      with you from my own interfaces soon. There's no rush, but I want to see
+      this product suite start coming together. In a way, Gilb could be the
+      thing I take with me anywhere while it knows how to talk to my "host
+      machine" (this is a future thing, obviously), just notice the seams
+    source: 2026-11-06 17:42 UTC, project chat
+      (cmsg_01BN1q6CYuBjcZAFT6C2pgFd87DS8F9HFYHKcF8eXAyG2u; the arc's full words
+      are in gilb's .interlock/arcs.yaml)
     graphs:
       - interlock/0059-submodule-receipts
-      - interlock/0059-submodule-receipts-2 (re-plan of its gitlinks-hash-commit node after a cancel, 2026-11-07)
+      - interlock/0059-submodule-receipts-2 (re-plan of its gitlinks-hash-commit
+        node after a cancel, 2026-11-07)
 
   - id: herdr-only-for-visuals
     title: Herdr was only for visuals
-    ask: "If herdr is only there for visuals then we don't need it. That's what I mean. I used herdr when working on interlock but Preston had no interface, that's not true anymore"
-    source: 2026-11-06 21:52 UTC, project chat (cmsg_01BN1q6CYuBjcZAFT6C2pgFd3pJA1iGhhHyHPYPy1QAvvH)
+    ask: "If herdr is only there for visuals then we don't need it. That's what I
+      mean. I used herdr when working on interlock but Preston had no interface,
+      that's not true anymore"
+    source: 2026-11-06 21:52 UTC, project chat
+      (cmsg_01BN1q6CYuBjcZAFT6C2pgFd3pJA1iGhhHyHPYPy1QAvvH)
     also_said:
-      - words: "I thought we needed it to manage sessions, but if we don't, then let's scrap it. I want Preston's install to be as lean as possible. We already have a UI, a server, an MCP and a postgres"
-        source: 2026-11-06 21:54 UTC, project chat (cmsg_01BN1q6CYuBjcZAFT6C2pgFd59MV43pQgzhM6JeEnLuYQT)
+      - words: "I thought we needed it to manage sessions, but if we don't, then let's
+          scrap it. I want Preston's install to be as lean as possible. We
+          already have a UI, a server, an MCP and a postgres"
+        source: 2026-11-06 21:54 UTC, project chat
+          (cmsg_01BN1q6CYuBjcZAFT6C2pgFd59MV43pQgzhM6JeEnLuYQT)
     graphs:
       - interlock/0060-headless-runtime
       - preston/0038-lean-install
 
   - id: interlock-runs-any-runtime
     title: Interlock runs any runtime
-    ask: "I want you to be able to invoke sessions of any of the available models I have… orchestrate lunas or kimi 3.0s. Plan the work."
-    source: 2026-09-24, as quoted (trimmed) on the hand-kept arcs page (interlock-notes/the-arcs-2026-09-26.html, arc "Jarvis"; the graphs' derivation prompts rodrigo-conversation-2026-09-24-*); registered 2026-11-06 on his 22:06 UTC word, "give these arcs please" (cmsg_01BN1q6CYuBjcZAFT6C2pgFd6QJVvmV1AsDav1RxL4JYZo)
+    ask: "I want you to be able to invoke sessions of any of the available models I
+      have… orchestrate lunas or kimi 3.0s. Plan the work."
+    source: 2026-09-24, as quoted (trimmed) on the hand-kept arcs page
+      (interlock-notes/the-arcs-2026-09-26.html, arc "Jarvis"; the graphs'
+      derivation prompts rodrigo-conversation-2026-09-24-*); registered
+      2026-11-06 on his 22:06 UTC word, "give these arcs please"
+      (cmsg_01BN1q6CYuBjcZAFT6C2pgFd6QJVvmV1AsDav1RxL4JYZo)
     also_said:
       - words: "My Jarvis, literally."
         source: 2026-09-24, the same page
-      - words: "I want it gone, I want a good integration for you on this, not to have to keep babysitting or working around anything."
+      - words: "I want it gone, I want a good integration for you on this, not to have
+          to keep babysitting or working around anything."
         source: 2026-09-24, the same page
     graphs:
       - interlock/0043-any-runtime
@@ -97,43 +129,91 @@ arcs:
 
   - id: the-ultimate-harness
     title: The ultimate harness
-    ask: "(his own typed words at 2026-09-09 15:55 UTC in his Claude Code design session; held locally, not in this repository)"
-    source: 2026-09-09 15:55 UTC, his Claude Code design session; registered 2026-11-06 on his words at 22:06 UTC ("give these arcs please", cmsg_01BN1q6CYuBjcZAFT6C2pgFd6QJVvmV1AsDav1RxL4JYZo) and 22:20 UTC ("there should never be a graph that has no arc, by construction", cmsg_01BN1q6CYuBjcZAFT6C2pgFdXvbQKFuJRsF3aERh8Xna8M), as a best effort for old graphs on his 01:08 UTC 2026-11-07 word ("just do a best effort for the old arcs", cmsg_01BN1q6CYuBjcZAFT6C2pgFd626rxx4CbggdbQMyPPVeL3)
+    ask: "(his own typed words at 2026-09-09 15:55 UTC in his Claude Code design
+      session; held locally, not in this repository)"
+    source: 2026-09-09 15:55 UTC, his Claude Code design session; registered
+      2026-11-06 on his words at 22:06 UTC ("give these arcs please",
+      cmsg_01BN1q6CYuBjcZAFT6C2pgFd6QJVvmV1AsDav1RxL4JYZo) and 22:20 UTC ("there
+      should never be a graph that has no arc, by construction",
+      cmsg_01BN1q6CYuBjcZAFT6C2pgFdXvbQKFuJRsF3aERh8Xna8M), as a best effort for
+      old graphs on his 01:08 UTC 2026-11-07 word ("just do a best effort for
+      the old arcs", cmsg_01BN1q6CYuBjcZAFT6C2pgFd626rxx4CbggdbQMyPPVeL3)
+    ask_form: placeholder
     graphs:
       - interlock/0001-bootstrap
 
   - id: shapes-precise-enough-for-docs
     title: Shapes precise enough for docs
-    ask: "(his own typed words at 2026-09-10 12:53 UTC in his Claude Code design session; held locally, not in this repository)"
-    source: 2026-09-10 12:53 UTC, his Claude Code design session; registered 2026-11-06 on his words at 22:06 UTC ("give these arcs please", cmsg_01BN1q6CYuBjcZAFT6C2pgFd6QJVvmV1AsDav1RxL4JYZo) and 22:20 UTC ("there should never be a graph that has no arc, by construction", cmsg_01BN1q6CYuBjcZAFT6C2pgFdXvbQKFuJRsF3aERh8Xna8M), as a best effort for old graphs on his 01:08 UTC 2026-11-07 word ("just do a best effort for the old arcs", cmsg_01BN1q6CYuBjcZAFT6C2pgFd626rxx4CbggdbQMyPPVeL3)
+    ask: "(his own typed words at 2026-09-10 12:53 UTC in his Claude Code design
+      session; held locally, not in this repository)"
+    source: 2026-09-10 12:53 UTC, his Claude Code design session; registered
+      2026-11-06 on his words at 22:06 UTC ("give these arcs please",
+      cmsg_01BN1q6CYuBjcZAFT6C2pgFd6QJVvmV1AsDav1RxL4JYZo) and 22:20 UTC ("there
+      should never be a graph that has no arc, by construction",
+      cmsg_01BN1q6CYuBjcZAFT6C2pgFdXvbQKFuJRsF3aERh8Xna8M), as a best effort for
+      old graphs on his 01:08 UTC 2026-11-07 word ("just do a best effort for
+      the old arcs", cmsg_01BN1q6CYuBjcZAFT6C2pgFd626rxx4CbggdbQMyPPVeL3)
+    ask_form: placeholder
     graphs:
       - interlock/0002-shapes
 
   - id: a-translator-for-sessions
     title: A translator for what sessions say
-    ask: "(his own typed words at 2026-09-11 15:21 UTC in his Claude Code design session; held locally, not in this repository)"
-    source: 2026-09-11 15:21 UTC, his Claude Code design session; registered 2026-11-06 on his words at 22:06 UTC ("give these arcs please", cmsg_01BN1q6CYuBjcZAFT6C2pgFd6QJVvmV1AsDav1RxL4JYZo) and 22:20 UTC ("there should never be a graph that has no arc, by construction", cmsg_01BN1q6CYuBjcZAFT6C2pgFdXvbQKFuJRsF3aERh8Xna8M), as a best effort for old graphs on his 01:08 UTC 2026-11-07 word ("just do a best effort for the old arcs", cmsg_01BN1q6CYuBjcZAFT6C2pgFd626rxx4CbggdbQMyPPVeL3)
+    ask: "(his own typed words at 2026-09-11 15:21 UTC in his Claude Code design
+      session; held locally, not in this repository)"
+    source: 2026-09-11 15:21 UTC, his Claude Code design session; registered
+      2026-11-06 on his words at 22:06 UTC ("give these arcs please",
+      cmsg_01BN1q6CYuBjcZAFT6C2pgFd6QJVvmV1AsDav1RxL4JYZo) and 22:20 UTC ("there
+      should never be a graph that has no arc, by construction",
+      cmsg_01BN1q6CYuBjcZAFT6C2pgFdXvbQKFuJRsF3aERh8Xna8M), as a best effort for
+      old graphs on his 01:08 UTC 2026-11-07 word ("just do a best effort for
+      the old arcs", cmsg_01BN1q6CYuBjcZAFT6C2pgFd626rxx4CbggdbQMyPPVeL3)
+    ask_form: placeholder
     graphs:
       - interlock/0003-translator
 
   - id: interlock-the-concept
     title: Interlock as the concept
-    ask: "(his own typed words at 2026-09-11 15:09 UTC in his Codex desktop thread; held locally, not in this repository)"
-    source: 2026-09-11 15:09 UTC, his Codex desktop thread; registered 2026-11-06 on his words at 22:06 UTC ("give these arcs please", cmsg_01BN1q6CYuBjcZAFT6C2pgFd6QJVvmV1AsDav1RxL4JYZo) and 22:20 UTC ("there should never be a graph that has no arc, by construction", cmsg_01BN1q6CYuBjcZAFT6C2pgFdXvbQKFuJRsF3aERh8Xna8M), as a best effort for old graphs on his 01:08 UTC 2026-11-07 word ("just do a best effort for the old arcs", cmsg_01BN1q6CYuBjcZAFT6C2pgFd626rxx4CbggdbQMyPPVeL3)
+    ask: "(his own typed words at 2026-09-11 15:09 UTC in his Codex desktop thread;
+      held locally, not in this repository)"
+    source: 2026-09-11 15:09 UTC, his Codex desktop thread; registered 2026-11-06 on
+      his words at 22:06 UTC ("give these arcs please",
+      cmsg_01BN1q6CYuBjcZAFT6C2pgFd6QJVvmV1AsDav1RxL4JYZo) and 22:20 UTC ("there
+      should never be a graph that has no arc, by construction",
+      cmsg_01BN1q6CYuBjcZAFT6C2pgFdXvbQKFuJRsF3aERh8Xna8M), as a best effort for
+      old graphs on his 01:08 UTC 2026-11-07 word ("just do a best effort for
+      the old arcs", cmsg_01BN1q6CYuBjcZAFT6C2pgFd626rxx4CbggdbQMyPPVeL3)
+    ask_form: placeholder
     graphs:
       - interlock/readme-interlock-concept
 
   - id: orchestrate-the-plan
     title: Orchestrate the plan with sub-agents
-    ask: "(his own typed words at 2026-09-14 16:21 UTC in his Codex desktop thread; held locally, not in this repository)"
-    source: 2026-09-14 16:21 UTC, his Codex desktop thread; registered 2026-11-06 on his words at 22:06 UTC ("give these arcs please", cmsg_01BN1q6CYuBjcZAFT6C2pgFd6QJVvmV1AsDav1RxL4JYZo) and 22:20 UTC ("there should never be a graph that has no arc, by construction", cmsg_01BN1q6CYuBjcZAFT6C2pgFdXvbQKFuJRsF3aERh8Xna8M), as a best effort for old graphs on his 01:08 UTC 2026-11-07 word ("just do a best effort for the old arcs", cmsg_01BN1q6CYuBjcZAFT6C2pgFd626rxx4CbggdbQMyPPVeL3)
+    ask: "(his own typed words at 2026-09-14 16:21 UTC in his Codex desktop thread;
+      held locally, not in this repository)"
+    source: 2026-09-14 16:21 UTC, his Codex desktop thread; registered 2026-11-06 on
+      his words at 22:06 UTC ("give these arcs please",
+      cmsg_01BN1q6CYuBjcZAFT6C2pgFd6QJVvmV1AsDav1RxL4JYZo) and 22:20 UTC ("there
+      should never be a graph that has no arc, by construction",
+      cmsg_01BN1q6CYuBjcZAFT6C2pgFdXvbQKFuJRsF3aERh8Xna8M), as a best effort for
+      old graphs on his 01:08 UTC 2026-11-07 word ("just do a best effort for
+      the old arcs", cmsg_01BN1q6CYuBjcZAFT6C2pgFd626rxx4CbggdbQMyPPVeL3)
+    ask_form: placeholder
     graphs:
       - interlock/0004-readable-refusals
 
   - id: the-first-six-graphs
     title: The first six graphs
-    ask: "(his own typed words at 2026-09-14 20:58 UTC in his Codex desktop thread; held locally, not in this repository)"
-    source: 2026-09-14 20:58 UTC, his Codex desktop thread; registered 2026-11-06 on his words at 22:06 UTC ("give these arcs please", cmsg_01BN1q6CYuBjcZAFT6C2pgFd6QJVvmV1AsDav1RxL4JYZo) and 22:20 UTC ("there should never be a graph that has no arc, by construction", cmsg_01BN1q6CYuBjcZAFT6C2pgFdXvbQKFuJRsF3aERh8Xna8M), as a best effort for old graphs on his 01:08 UTC 2026-11-07 word ("just do a best effort for the old arcs", cmsg_01BN1q6CYuBjcZAFT6C2pgFd626rxx4CbggdbQMyPPVeL3)
+    ask: "(his own typed words at 2026-09-14 20:58 UTC in his Codex desktop thread;
+      held locally, not in this repository)"
+    source: 2026-09-14 20:58 UTC, his Codex desktop thread; registered 2026-11-06 on
+      his words at 22:06 UTC ("give these arcs please",
+      cmsg_01BN1q6CYuBjcZAFT6C2pgFd6QJVvmV1AsDav1RxL4JYZo) and 22:20 UTC ("there
+      should never be a graph that has no arc, by construction",
+      cmsg_01BN1q6CYuBjcZAFT6C2pgFdXvbQKFuJRsF3aERh8Xna8M), as a best effort for
+      old graphs on his 01:08 UTC 2026-11-07 word ("just do a best effort for
+      the old arcs", cmsg_01BN1q6CYuBjcZAFT6C2pgFd626rxx4CbggdbQMyPPVeL3)
+    ask_form: placeholder
     graphs:
       - interlock/0005-gate-output-way-back
       - interlock/0006-repository-context
@@ -143,7 +223,14 @@ arcs:
   - id: a-more-fluent-process
     title: A more fluent process
     ask: "ok, try another 6, and see if we can have a more fluent process"
-    source: 2026-09-14 22:54 UTC, his Codex desktop thread; quoted in interlock-notes/second-six-graph-mandate-2026-09-14.md:5; registered 2026-11-06 on his words at 22:06 UTC ("give these arcs please", cmsg_01BN1q6CYuBjcZAFT6C2pgFd6QJVvmV1AsDav1RxL4JYZo) and 22:20 UTC ("there should never be a graph that has no arc, by construction", cmsg_01BN1q6CYuBjcZAFT6C2pgFdXvbQKFuJRsF3aERh8Xna8M), as a best effort for old graphs on his 01:08 UTC 2026-11-07 word ("just do a best effort for the old arcs", cmsg_01BN1q6CYuBjcZAFT6C2pgFd626rxx4CbggdbQMyPPVeL3)
+    source: 2026-09-14 22:54 UTC, his Codex desktop thread; quoted in
+      interlock-notes/second-six-graph-mandate-2026-09-14.md:5; registered
+      2026-11-06 on his words at 22:06 UTC ("give these arcs please",
+      cmsg_01BN1q6CYuBjcZAFT6C2pgFd6QJVvmV1AsDav1RxL4JYZo) and 22:20 UTC ("there
+      should never be a graph that has no arc, by construction",
+      cmsg_01BN1q6CYuBjcZAFT6C2pgFdXvbQKFuJRsF3aERh8Xna8M), as a best effort for
+      old graphs on his 01:08 UTC 2026-11-07 word ("just do a best effort for
+      the old arcs", cmsg_01BN1q6CYuBjcZAFT6C2pgFd626rxx4CbggdbQMyPPVeL3)
     graphs:
       - interlock/0009-delivery-boundary-proof
       - interlock/0010-learning-transfer
@@ -153,8 +240,16 @@ arcs:
 
   - id: another-six-graphs
     title: Another six graphs
-    ask: "(his own typed words at 2026-09-15 17:18 UTC in his Codex desktop thread; held locally, not in this repository)"
-    source: 2026-09-15 17:18 UTC, his Codex desktop thread; registered 2026-11-06 on his words at 22:06 UTC ("give these arcs please", cmsg_01BN1q6CYuBjcZAFT6C2pgFd6QJVvmV1AsDav1RxL4JYZo) and 22:20 UTC ("there should never be a graph that has no arc, by construction", cmsg_01BN1q6CYuBjcZAFT6C2pgFdXvbQKFuJRsF3aERh8Xna8M), as a best effort for old graphs on his 01:08 UTC 2026-11-07 word ("just do a best effort for the old arcs", cmsg_01BN1q6CYuBjcZAFT6C2pgFd626rxx4CbggdbQMyPPVeL3)
+    ask: "(his own typed words at 2026-09-15 17:18 UTC in his Codex desktop thread;
+      held locally, not in this repository)"
+    source: 2026-09-15 17:18 UTC, his Codex desktop thread; registered 2026-11-06 on
+      his words at 22:06 UTC ("give these arcs please",
+      cmsg_01BN1q6CYuBjcZAFT6C2pgFd6QJVvmV1AsDav1RxL4JYZo) and 22:20 UTC ("there
+      should never be a graph that has no arc, by construction",
+      cmsg_01BN1q6CYuBjcZAFT6C2pgFdXvbQKFuJRsF3aERh8Xna8M), as a best effort for
+      old graphs on his 01:08 UTC 2026-11-07 word ("just do a best effort for
+      the old arcs", cmsg_01BN1q6CYuBjcZAFT6C2pgFd626rxx4CbggdbQMyPPVeL3)
+    ask_form: placeholder
     graphs:
       - interlock/0014-qualified-citations
       - interlock/0015-hypothesis-context
@@ -163,8 +258,16 @@ arcs:
 
   - id: evolve-from-current-reality
     title: Evolve from the current reality
-    ask: "(his own typed words at 2026-09-15 22:19 UTC in his Codex desktop thread; held locally, not in this repository)"
-    source: 2026-09-15 22:19 UTC, his Codex desktop thread; registered 2026-11-06 on his words at 22:06 UTC ("give these arcs please", cmsg_01BN1q6CYuBjcZAFT6C2pgFd6QJVvmV1AsDav1RxL4JYZo) and 22:20 UTC ("there should never be a graph that has no arc, by construction", cmsg_01BN1q6CYuBjcZAFT6C2pgFdXvbQKFuJRsF3aERh8Xna8M), as a best effort for old graphs on his 01:08 UTC 2026-11-07 word ("just do a best effort for the old arcs", cmsg_01BN1q6CYuBjcZAFT6C2pgFd626rxx4CbggdbQMyPPVeL3)
+    ask: "(his own typed words at 2026-09-15 22:19 UTC in his Codex desktop thread;
+      held locally, not in this repository)"
+    source: 2026-09-15 22:19 UTC, his Codex desktop thread; registered 2026-11-06 on
+      his words at 22:06 UTC ("give these arcs please",
+      cmsg_01BN1q6CYuBjcZAFT6C2pgFd6QJVvmV1AsDav1RxL4JYZo) and 22:20 UTC ("there
+      should never be a graph that has no arc, by construction",
+      cmsg_01BN1q6CYuBjcZAFT6C2pgFdXvbQKFuJRsF3aERh8Xna8M), as a best effort for
+      old graphs on his 01:08 UTC 2026-11-07 word ("just do a best effort for
+      the old arcs", cmsg_01BN1q6CYuBjcZAFT6C2pgFd626rxx4CbggdbQMyPPVeL3)
+    ask_form: placeholder
     graphs:
       - interlock/0020-learning-applicability
       - interlock/0021-current-debrief
@@ -173,8 +276,16 @@ arcs:
 
   - id: show-what-is-now-possible
     title: Show what is now possible
-    ask: "(his own typed words at 2026-09-16 03:29 UTC in his Codex desktop thread; held locally, not in this repository)"
-    source: 2026-09-16 03:29 UTC, his Codex desktop thread; registered 2026-11-06 on his words at 22:06 UTC ("give these arcs please", cmsg_01BN1q6CYuBjcZAFT6C2pgFd6QJVvmV1AsDav1RxL4JYZo) and 22:20 UTC ("there should never be a graph that has no arc, by construction", cmsg_01BN1q6CYuBjcZAFT6C2pgFdXvbQKFuJRsF3aERh8Xna8M), as a best effort for old graphs on his 01:08 UTC 2026-11-07 word ("just do a best effort for the old arcs", cmsg_01BN1q6CYuBjcZAFT6C2pgFd626rxx4CbggdbQMyPPVeL3)
+    ask: "(his own typed words at 2026-09-16 03:29 UTC in his Codex desktop thread;
+      held locally, not in this repository)"
+    source: 2026-09-16 03:29 UTC, his Codex desktop thread; registered 2026-11-06 on
+      his words at 22:06 UTC ("give these arcs please",
+      cmsg_01BN1q6CYuBjcZAFT6C2pgFd6QJVvmV1AsDav1RxL4JYZo) and 22:20 UTC ("there
+      should never be a graph that has no arc, by construction",
+      cmsg_01BN1q6CYuBjcZAFT6C2pgFdXvbQKFuJRsF3aERh8Xna8M), as a best effort for
+      old graphs on his 01:08 UTC 2026-11-07 word ("just do a best effort for
+      the old arcs", cmsg_01BN1q6CYuBjcZAFT6C2pgFd626rxx4CbggdbQMyPPVeL3)
+    ask_form: placeholder
     graphs:
       - interlock/0024-debrief-content
       - interlock/0025-stable-examples
@@ -184,8 +295,16 @@ arcs:
 
   - id: ten-more-iterations
     title: Ten more iterations
-    ask: "ok you are cleared for another 10 iterations, then present them in the same way"
-    source: 2026-09-16 11:22 UTC, his Codex desktop thread; quoted in interlock-notes/2026-09-16-ten-iteration-learning-find-shape.md:5; registered 2026-11-06 on his words at 22:06 UTC ("give these arcs please", cmsg_01BN1q6CYuBjcZAFT6C2pgFd6QJVvmV1AsDav1RxL4JYZo) and 22:20 UTC ("there should never be a graph that has no arc, by construction", cmsg_01BN1q6CYuBjcZAFT6C2pgFdXvbQKFuJRsF3aERh8Xna8M), as a best effort for old graphs on his 01:08 UTC 2026-11-07 word ("just do a best effort for the old arcs", cmsg_01BN1q6CYuBjcZAFT6C2pgFd626rxx4CbggdbQMyPPVeL3)
+    ask: "ok you are cleared for another 10 iterations, then present them in the
+      same way"
+    source: 2026-09-16 11:22 UTC, his Codex desktop thread; quoted in
+      interlock-notes/2026-09-16-ten-iteration-learning-find-shape.md:5;
+      registered 2026-11-06 on his words at 22:06 UTC ("give these arcs please",
+      cmsg_01BN1q6CYuBjcZAFT6C2pgFd6QJVvmV1AsDav1RxL4JYZo) and 22:20 UTC ("there
+      should never be a graph that has no arc, by construction",
+      cmsg_01BN1q6CYuBjcZAFT6C2pgFdXvbQKFuJRsF3aERh8Xna8M), as a best effort for
+      old graphs on his 01:08 UTC 2026-11-07 word ("just do a best effort for
+      the old arcs", cmsg_01BN1q6CYuBjcZAFT6C2pgFd626rxx4CbggdbQMyPPVeL3)
     graphs:
       - interlock/0031-repair-planning-context
       - interlock/0032-derived-handoff
@@ -200,18 +319,34 @@ arcs:
 
   - id: until-m5-is-complete
     title: Until M5 is complete
-    ask: "alright, you are cleared until completion of M5 or 15 iterations, whatever comes first"
-    source: 2026-09-16 14:35 UTC, his Codex desktop thread; quoted in interlock-notes/2026-09-16-m5-exit-find-shape.md:5; registered 2026-11-06 on his words at 22:06 UTC ("give these arcs please", cmsg_01BN1q6CYuBjcZAFT6C2pgFd6QJVvmV1AsDav1RxL4JYZo) and 22:20 UTC ("there should never be a graph that has no arc, by construction", cmsg_01BN1q6CYuBjcZAFT6C2pgFdXvbQKFuJRsF3aERh8Xna8M), as a best effort for old graphs on his 01:08 UTC 2026-11-07 word ("just do a best effort for the old arcs", cmsg_01BN1q6CYuBjcZAFT6C2pgFd626rxx4CbggdbQMyPPVeL3)
+    ask: "alright, you are cleared until completion of M5 or 15 iterations, whatever
+      comes first"
+    source: 2026-09-16 14:35 UTC, his Codex desktop thread; quoted in
+      interlock-notes/2026-09-16-m5-exit-find-shape.md:5; registered 2026-11-06
+      on his words at 22:06 UTC ("give these arcs please",
+      cmsg_01BN1q6CYuBjcZAFT6C2pgFd6QJVvmV1AsDav1RxL4JYZo) and 22:20 UTC ("there
+      should never be a graph that has no arc, by construction",
+      cmsg_01BN1q6CYuBjcZAFT6C2pgFdXvbQKFuJRsF3aERh8Xna8M), as a best effort for
+      old graphs on his 01:08 UTC 2026-11-07 word ("just do a best effort for
+      the old arcs", cmsg_01BN1q6CYuBjcZAFT6C2pgFd626rxx4CbggdbQMyPPVeL3)
     graphs:
       - interlock/0041-citation-type-repair
 
   - id: agents-set-up-as-one
     title: Preston sets up all its agents as one
-    ask: "this should all be part of Preston's setup by the way. Requesting access for all its agents as one thing, even the interface we use to communicate with them should be shared in a way. This needs to happen by design and by construction"
-    source: 2026-11-07 16:05 UTC, project chat (cmsg_01BN1q6CYuBjcZAFT6C2pgFd4iBikfQH3F2s2VqUMcFUzN)
+    ask: "this should all be part of Preston's setup by the way. Requesting access
+      for all its agents as one thing, even the interface we use to communicate
+      with them should be shared in a way. This needs to happen by design and by
+      construction"
+    source: 2026-11-07 16:05 UTC, project chat
+      (cmsg_01BN1q6CYuBjcZAFT6C2pgFd4iBikfQH3F2s2VqUMcFUzN)
     also_said:
-      - words: "ok yes, that's obviously yes. Codex should be able to run postgres. There are no special models and no model should ask another one to do something due to permissions. This is not correct. All models have the same access to my machine, it's kind of the whole point"
-        source: 2026-11-07 15:54 UTC, project chat (cmsg_01BN1q6CYuBjcZAFT6C2pgFd5bnNWZaUhxvR6PTUp3SGxc)
+      - words: "ok yes, that's obviously yes. Codex should be able to run postgres.
+          There are no special models and no model should ask another one to do
+          something due to permissions. This is not correct. All models have the
+          same access to my machine, it's kind of the whole point"
+        source: 2026-11-07 15:54 UTC, project chat
+          (cmsg_01BN1q6CYuBjcZAFT6C2pgFd5bnNWZaUhxvR6PTUp3SGxc)
     graphs:
       - interlock/0062-same-access
       - preston/0042-agents-as-one

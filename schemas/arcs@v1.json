@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/arcs@v1.json",
+  "title": "arcs@v1",
+  "description": "The repository's owner-word arcs and the graphs and context they hold.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "interlock": { "const": "arcs@v1" },
+    "repository": { "$ref": "#/$defs/line" },
+    "arcs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/arc" }
+    }
+  },
+  "required": ["interlock", "repository", "arcs"],
+  "$defs": {
+    "line": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?=.*\\S)[^\\r\\n\\u0000]+$"
+    },
+    "reference": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?=.*\\S)[^\\r\\n\\u0000]+$"
+    },
+    "words": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "words": { "$ref": "#/$defs/line" },
+        "source": { "$ref": "#/$defs/line" }
+      },
+      "required": ["words", "source"]
+    },
+    "superseded": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "graph": { "$ref": "#/$defs/reference" },
+        "because": { "$ref": "#/$defs/line" }
+      },
+      "required": ["graph", "because"]
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "graph": { "$ref": "#/$defs/reference" },
+        "because": { "$ref": "#/$defs/line" }
+      },
+      "required": ["graph", "because"]
+    },
+    "approved": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "words": { "$ref": "#/$defs/line" },
+        "source": { "$ref": "#/$defs/line" }
+      },
+      "required": ["words", "source"]
+    },
+    "arc": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "title": { "$ref": "#/$defs/line" },
+        "ask": { "$ref": "#/$defs/line" },
+        "ask_form": {
+          "enum": ["verbatim", "placeholder"]
+        },
+        "source": { "$ref": "#/$defs/line" },
+        "also_said": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/words" }
+        },
+        "graphs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "superseded": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/superseded" }
+        },
+        "context": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/context" }
+        },
+        "version": { "type": "string" },
+        "approved": { "$ref": "#/$defs/approved" },
+        "passed": { "$ref": "#/$defs/line" },
+        "authorized_by": { "$ref": "#/$defs/approved" }
+      },
+      "required": ["id", "title", "ask", "source", "graphs"],
+      "allOf": [
+        {
+          "if": {
+            "required": ["graphs"],
+            "properties": { "graphs": { "type": "array", "maxItems": 0 } }
+          },
+          "then": {
+            "required": ["context"],
+            "properties": { "context": { "type": "array", "minItems": 1 } }
+          }
+        }
+      ]
+    }
+  }
+}

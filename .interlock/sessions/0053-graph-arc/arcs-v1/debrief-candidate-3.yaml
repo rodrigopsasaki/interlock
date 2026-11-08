@@ -1,0 +1,77 @@
+interlock: debrief@v2
+graph: 0053-graph-arc
+node: arcs-v1
+role: implementer
+graph_base_sha: 1d4790cbb8a3cf7a2b3e5ee3544a696cf517519b
+session_start_sha: 058dd4dcc474e980122bd42dd8522708a2725bcd
+head_sha: 24bdd5a484394530bd4e68ac4d37684fc3295117
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries:
+  - id: d1
+    what: Migration edits the parsed YAML document tree before writing the v1 registry.
+    found_at: 'packages/cli/src/arcs/migrate.ts:201 "addRepository(root, document, repository.value);"'
+    mattered_because: The migration must keep existing asks, words, and sources lossless while still changing the registry shape.
+  - id: d2
+    what: The repository already centralizes origin parsing in the CLI repository identity adapter.
+    found_at: 'packages/cli/src/repositoryOrigin.ts:61-69 "export function gitOrigin(repoRoot: string): Promise<Result<string, string>>"'
+    mattered_because: The v0 reader and migration can derive identity through the existing origin seam without adding runtime-specific repository logic.
+decisions:
+  - id: c1
+    what: Publish arcs@v1 with repository identity, placeholder asks, context and superseded relations, and retain the expanded arcs@v0 reader shape.
+    rests_on: [brief:Acceptance]
+    because: The schema is the durable public contract, while additive v0 fields preserve adopter registries and generated reference documentation.
+    hunks: [schemas/arcs@v1.json, schemas/arcs@v0.json, packages/schemas/test/arcs.test.ts, docs/shapes.md]
+    rejected: A second reader-only version was rejected because artifacts are public API and the schema registry must validate the published shape.
+  - id: c2
+    what: Normalize arcs@v0 and arcs@v1 through one typed reader, deriving v0 identity from origin only when v1 does not declare repository.
+    rests_on: [brief:Acceptance]
+    because: One normalized type keeps version compatibility and makes the identity refusal explicit only for legacy registries without origin.
+    hunks: [packages/cli/src/arcs/reader.ts, packages/cli/test/arcs/resolve.test.ts, packages/cli/test/arcs/migrate.test.ts]
+  - id: c3
+    what: Resolve graph arcs in separate admission and history readings and construct AdmittedGraph only from admission.
+    rests_on: [brief:Acceptance]
+    because: Admission must refuse superseded work while history must retain the arc that explains records of the replaced graph.
+    hunks: [packages/cli/src/arcs/resolve.ts, packages/cli/test/arcs/resolve.test.ts]
+  - id: c4
+    what: Add arcs migrate as a YAML-tree migration that preserves comments and key order, collapses duplicates, moves only explicitly shared listings to context, and refuses ambiguous or ownerless legacy graphs.
+    rests_on: [brief:Acceptance]
+    because: The migration is a one-time compatibility bridge, so it must retain provenance and stop when ownership cannot be inferred safely.
+    hunks: [packages/cli/src/arcs/migrate.ts, packages/cli/src/arcs/command.ts, packages/cli/src/main.ts, packages/cli/test/arcs/migrate.test.ts]
+  - id: c5
+    what: Migrate this repository's registry to arcs@v1 with repository interlock and mark exactly the nine historical placeholder asks without changing their ask strings.
+    rests_on: [brief:Acceptance]
+    because: The repository now has an explicit identity and the historical asks are deliberately references to words held elsewhere.
+    hunks: [.interlock/arcs.yaml]
+  - id: c6
+    what: Record the implementation choices, migration serialization surprise, and fresh-checkout proof in the session notes.
+    rests_on: [brief:Deliverable]
+    because: The session artifact keeps the path back from implementation compression to the choices, observed failures, and verified correction.
+    hunks: [.interlock/sessions/0053-graph-arc/arcs-v1/notes.yaml]
+  - id: c7
+    what: Create each migration test fixture beneath the operating system temporary directory and retain afterEach cleanup.
+    rests_on: [brief:Acceptance]
+    because: A fresh checkout cannot assume the ignored packages/cli/test/arcs/.runs parent exists, while per-test cleanup still removes every fixture after the test.
+    hunks: [packages/cli/test/arcs/migrate.test.ts]
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+  - id: lint
+    result: pass
+    note: Biome exited zero; it reported two pre-existing diagnostics in packages/runner/test/runnerCommits.test.ts.
+  - id: comments
+    result: pass
+  - id: test
+    result: pass
+    note: The clean-state workspace suite passed all 8 package test projects; packages/cli passed 50 files and 460 tests.
+  - id: arcs-v1-proof
+    result: pass
+    note: "packages/schemas/test/arcs.test.ts: 7 passed."
+  - id: arc-resolver-proof
+    result: pass
+    note: "packages/cli/test/arcs/: 6 passed, including all 3 migration tests from a clean checkout."
+open:
+  - The following graph node, arc-required, must wire admission resolution into new-work doors; this node intentionally ships the registry, reader, resolver, and migration seam only.
+  - The full runner suite recreated a generated link-based Codex home under the session directory during testing; it was removed before handoff and no generated home is part of the source or final session artifacts.
