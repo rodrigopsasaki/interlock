@@ -29,3 +29,7 @@ entries:
     at: "2026-11-08T14:11:40Z"
     chose: Update the machine-provider fixture to assert the overflow profile selection instead of requiring shell policy overrides on argv.
     because: The fixture intentionally supplies a long environment and now exercises the overlay path; the line-fit suite owns the profile-content proof while this fixture needs only the launch contract.
+  - kind: choice
+    at: "2026-11-08T14:14:30Z"
+    chose: Keep the machine-provider fixture formatting correction in a separate forward commit.
+    because: The branch rules prohibit amending and require each source or test correction to remain visible in forward history before the final debrief commit.
