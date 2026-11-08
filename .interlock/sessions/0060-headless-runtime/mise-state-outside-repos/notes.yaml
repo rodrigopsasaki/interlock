@@ -163,3 +163,9 @@ entries:
     observed: >-
       The copied value was one character short of a full SHA; preview named the malformed field and
       the candidate was corrected from git rev-parse output.
+  - kind: surprise
+    at: '2026-11-08T21:15:00Z'
+    expected: The authored candidate would file after the successful read-only preview.
+    observed: >-
+      Filing rejected the candidate identity because notes changed after preparation; a new candidate
+      must be prepared after the final notes commit and authored again.
