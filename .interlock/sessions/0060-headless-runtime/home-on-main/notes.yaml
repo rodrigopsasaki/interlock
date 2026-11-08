@@ -126,3 +126,9 @@ entries:
     observed: >-
       Unquoted entries containing a colon were parsed as mappings by the preview command; the
       entries were quoted before filing.
+  - kind: choice
+    at: '2026-11-08T18:46:00Z'
+    chose: Set the authored debrief head_sha to the last commit containing source, tests, or
+      configuration rather than a later notes-only commit.
+    because: The brief defines head_sha as the last code commit, while notes remain append-only
+      receipts beside the code.
