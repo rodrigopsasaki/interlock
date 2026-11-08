@@ -67,3 +67,11 @@ entries:
     observed: >-
       Vitest treats an explicit exclude list as a replacement, so linked node_modules tests were
       discovered; the default node_modules exclusion was restored explicitly.
+  - kind: surprise
+    at: '2026-11-08T18:12:00Z'
+    expected: The standalone runner gate would use the isolated Codex home supplied in its
+      environment.
+    observed: >-
+      The first standalone gate invocation failed before the runner tests could launch because
+      CODEX_HOME pointed at a deliberately isolated directory that had not yet been created;
+      the command did not inspect the owner's home.
