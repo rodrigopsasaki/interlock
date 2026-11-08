@@ -1,0 +1,32 @@
+interlock: notes@v0
+graph: 0060-headless-runtime
+node: base-is-current
+entries:
+  - kind: choice
+    at: "2026-11-08T16:20:00Z"
+    chose: Resolve the sampled base from the repository's main branch ref and carry its branch name and SHA through worktree admission.
+    because: The caller's checkout can be on another branch, while stale-base refusal must name the actual main ref that was sampled.
+  - kind: choice
+    at: "2026-11-08T16:20:01Z"
+    chose: Refuse stale agent branches before taking a lease, committing a brief, or starting an agent, while leaving the worktree untouched.
+    because: Recovery belongs to a person and automatic merge or reset could lose dirty setup state, mix runner and agent commits, or break inherited ranges.
+  - kind: choice
+    at: "2026-11-08T16:20:02Z"
+    chose: Permit a stale branch only when every main change since its merge base is under .interlock/ and narrate that fact.
+    because: Plans, briefs, and ledgers may advance without changing the code base the attempt is working on.
+  - kind: choice
+    at: "2026-11-08T16:20:03Z"
+    chose: Apply the terminal-node boundary in the standalone judge before reading or judging the worktree.
+    because: A decided node must not be reset, merged, or re-judged even when its worktree is stale.
+  - kind: surprise
+    at: "2026-11-08T16:20:04Z"
+    expected: The acceptance's focused real-git proof file would already be present on the graph base.
+    observed: packages/runner/test/baseIsCurrent.test.ts is absent, so the acceptance requires adding the named fixture suite.
+  - kind: surprise
+    at: "2026-11-08T16:25:00Z"
+    expected: The real-git fixture could commit main changes after creating its linked worktree without affecting the main-change path check.
+    observed: The fixture had no .gitignore for .worktrees, so main accidentally staged the linked worktree as an embedded repository; the fixture now ignores that path before exercising admission.
+  - kind: choice
+    at: "2026-11-08T16:25:01Z"
+    chose: Keep the existing fresh-worktree outcome shape and report reattached branches as created with their actual merge-base base.
+    because: Existing callers rely on created meaning a newly attached path, while the acceptance requires the reattachment to stop pretending its base is the sampled main.

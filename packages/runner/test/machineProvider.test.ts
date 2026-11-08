@@ -35,6 +35,7 @@ vi.mock("../src/worktree.ts", async (original) => ({
     mkdirSync(path, { recursive: true });
     return ok({ kind: "created", path, base });
   },
+  mainBranchOf: () => ok({ branch: "main", sha: "a".repeat(40) }),
   createDetachedWorktree: (_root: string, path: string) => {
     mkdirSync(path, { recursive: true });
     return ok(undefined);

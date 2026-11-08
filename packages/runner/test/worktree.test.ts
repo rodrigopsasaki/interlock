@@ -141,7 +141,7 @@ describe("ensureNodeWorktree", () => {
     expect(existsSync(join(path, "merged.txt"))).toBe(true);
   });
 
-  it("keeps a resumed branch on its own base when main moves on, even with a path left uncommitted", () => {
+  it("refuses a resumed branch on an old code base before resetting over a dirty path", () => {
     const repoRoot = fixtureRepo();
     const firstSha = headSha(repoRoot);
     const path = join(repoRoot, ".worktrees", "node-a");
@@ -160,16 +160,18 @@ describe("ensureNodeWorktree", () => {
 
     const result = ensureNodeWorktree(repoRoot, path, laterSha, branch);
 
-    expect(isOk(result)).toBe(true);
-    if (isOk(result)) {
-      expect(result.value).toEqual({
-        kind: "reused",
-        path,
-        base: firstSha,
-        uncommittedPaths: 1,
-        commitsBeyondBase: 1,
-      });
-    }
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) throw new Error("expected a stale-base refusal");
+    expect(result.error).toEqual({
+      kind: "stale-base",
+      branch,
+      base: firstSha,
+      mainBranch: "main",
+      main: laterSha,
+      mainCommits: 1,
+      mainTouchesOutsideInterlock: true,
+      commitsBeyondBase: 1,
+    });
     expect(headSha(path)).toBe(sessionSha);
     expect(existsSync(join(path, "session-work.txt"))).toBe(true);
     expect(readFileSync(join(path, "session-work.txt"), "utf-8")).toBe("the agent's own work\n");

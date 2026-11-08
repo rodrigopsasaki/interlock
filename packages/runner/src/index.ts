@@ -237,7 +237,7 @@ export {
   type TmuxCommandRunner,
 } from "./tmux/adapter.ts";
 export { renderWalkSection, withWalkSection } from "./walkSection.ts";
-export type { WorktreeOutcome, WorktreeRefusal } from "./worktree.ts";
+export type { MainBranch, WorktreeOutcome, WorktreeRefusal } from "./worktree.ts";
 export {
   baseHoldsGraph,
   commitBriefIfChanged,
@@ -245,6 +245,8 @@ export {
   ensureNodeWorktree,
   explainWorktreeRefusal,
   isCommittedAtHead,
+  mainBranchOf,
+  mainChangesSince,
   removeWorktree,
   uncommittedPaths,
 } from "./worktree.ts";

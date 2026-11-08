@@ -21,6 +21,7 @@ import {
   receiptId,
 } from "ledger";
 import {
+  decidedNodeRefusal,
   declaredGateIds,
   explainJudgeWorktreeRefusal,
   explainLocalConfigRefusal,
@@ -154,6 +155,9 @@ export async function runInterlockJudge(
         message: `${graph}: graph is ${approval}, not approved for its current content; refusing to judge "${node}".`,
       };
     }
+
+    const decided = decidedNodeRefusal(graph, node, ledger.projection());
+    if (decided !== undefined) return { exitCode: 1, message: decided };
 
     const worktreePath = join(repoRoot, localConfig.value.worktreeRoot, node);
     if (!existsSync(worktreePath)) {
