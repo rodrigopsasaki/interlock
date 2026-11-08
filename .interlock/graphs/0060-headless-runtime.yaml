@@ -394,6 +394,15 @@ read: >
   in the background; never clone the repository inside your worktree, use the worktree you were given. Out of
   scope: uninstalling herdr anywhere, touching a pane the runner did not open, and writing the machine's own
   runtimes.yaml (the owner's machine setup, done after this graph lands).
+
+  Runner marker (added 2026-11-08). Agents launched by the runner filed about 256 prompts in dialeto as the
+  owner's own words, because nothing told dialeto who launched them. runner-marker gives every launched agent,
+  and every stdio MCP server a codex agent starts, INTERLOCK_SESSION, INTERLOCK_GRAPH and INTERLOCK_NODE;
+  dialeto graph 0001-owner-voice-is-his reads it. A probe measured codex 0.162.1: setting the variable in codex's
+  own environment does not reach its MCP servers, while a per-launch -c mcp_servers.<name>.env.<KEY> override
+  does. Claude Code passes stdio servers its full environment. Gap left standing: the tmux adapter's openPane
+  (packages/runner/src/tmux/adapter.ts:29) takes no environment, so a tmux-pane claude session gets no marker
+  until herdr-gone retires panes; a codex session on tmux still gets it through its launch args.
 gates:
   - id: approved
     kind: human
@@ -568,6 +577,46 @@ nodes:
         kind: command
         run: pnpm --fail-if-no-match --filter runner exec vitest run test/execRuntime.test.ts --passWithNoTests=false
         expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: runner-marker
+    role: implementer
+    depends_on: [exec-runtime]
+    acceptance: |
+      Every agent the runner launches, and every MCP server that agent starts, can tell it was runner-launched and
+      for which session. sessionDrive.ts makes the session id at :300 (on 552524b); right after, the runner builds
+      one marker, INTERLOCK_SESSION=<session id>, INTERLOCK_GRAPH=<graph id>, INTERLOCK_NODE=<node id>, and merges
+      it over the machine environment wherever that environment goes today:
+      - into the env passed to prepareLaunch (:433), so a codex runtime's shell gets it through
+        agentEnvironmentArgs' shell_environment_policy.set overrides (packages/runner/src/codex/environment.ts);
+      - into the pane env at runtime.openPane (:441-444) always, including when machine.provider is none, where
+        today it passes undefined;
+      - into the child environment of every exec phase exec-runtime adds.
+      For a codex runtime, agentEnvironmentArgs also adds -c mcp_servers.<name>.env.<KEY>="<value>" for the three
+      marker keys, for each server that `codex mcp list --json` reports with a stdio transport, quoting the name
+      and key as it already quotes shell_environment_policy keys. Codex passes an MCP server only a default list
+      plus that server's env table and env_vars, and a per-launch env override merges into the table, so this
+      reaches the server without editing any codex config file. A `codex mcp list --json` that fails or returns
+      no stdio server leaves the args unchanged and a runner line says which. The marker never overwrites a key
+      the machine environment already sets with a different value; the runner refuses the launch, naming the key.
+      Tests in packages/runner/test/runnerMarker.test.ts:
+      - prepareLaunch for a codex runtime, given a fixture `codex mcp list --json` with two stdio servers and one
+        http server, yields the shell_environment_policy overrides and the mcp_servers.<name>.env overrides for
+        the two stdio servers only, each carrying the three marker values;
+      - a failing or empty `codex mcp list` leaves the codex args without mcp_servers overrides and says so;
+      - a claude runtime's pane, opened with provider none, receives the marker env;
+      - an exec phase's child process sees the marker in its environment;
+      - a machine env that already sets INTERLOCK_SESSION to another value refuses the launch, naming the key;
+      - end to end: a fake codex executable on PATH, given the launch args, starts a probe stdio server per its
+        mcp_servers overrides, and the probe's recorded environment contains the three marker keys.
+      Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
+    gates:
+      - id: runner-marker-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/runnerMarker.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: runner-marker-types
+        kind: command
+        run: pnpm typecheck
 
   - id: runner-records
     role: implementer
