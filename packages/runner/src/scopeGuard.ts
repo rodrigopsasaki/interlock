@@ -133,13 +133,14 @@ function fileEntry(
       return err({ path: absolutePath, because: "the snapshot target is not a regular file" });
     }
     const ownerOnly = allowOwnerOnly && (stat.mode & 0o077) === 0;
+    const mtimeMs = ownerOnly ? Math.trunc(stat.mtimeMs) : undefined;
     return ok({
       root,
       rootPath,
       path,
       present: true,
       size: stat.size,
-      mtimeMs: ownerOnly ? stat.mtimeMs : undefined,
+      mtimeMs,
       sha256: ownerOnly
         ? undefined
         : createHash("sha256").update(readFile(absolutePath)).digest("hex"),
