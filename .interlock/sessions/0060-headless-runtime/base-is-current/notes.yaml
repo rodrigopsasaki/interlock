@@ -74,3 +74,7 @@ entries:
     at: "2026-11-08T18:20:00Z"
     chose: Remove process CODEX_HOME forwarding from sessionDrive while retaining the machine-provider test fixture isolation.
     because: base-is-current accepts stale-base admission behavior, not agent Codex-home selection; forwarding the launcher's process home belongs to home-on-main and can expose the person's selected home to an agent.
+  - kind: surprise
+    at: "2026-11-08T18:16:00Z"
+    expected: The standing test gate would pass after removing the out-of-scope process CODEX_HOME forwarding.
+    observed: pnpm test failed two CLI runtime-selection tests because the inherited CODEX_HOME pointed at the removed session-local codex-home-sUO6F8 path; the focused base proof and full runner suite still passed.
