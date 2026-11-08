@@ -1,0 +1,208 @@
+interlock: debrief@v2
+graph: 0062-same-access
+node: access-probe
+role: implementer
+graph_base_sha: a9239f81fa7938d858c06e4bd8b270285e6ad3a0
+session_start_sha: d00fc5aa35c0bb5b4f82ff535c72d1ddd0f5fa5c
+head_sha: bf2d7aa45c758ea7207d943e2a0e8f9d5b9b0521
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: shared-launch-preparation
+    what: >-
+      Extracted prepareLaunch as the single launch-preparation path used by interactive attempts
+      and probes, carrying adapter environment arguments, machine environment, expanded writable
+      roots, cwd, and the profile's program and arguments into a PreparedLaunch contract.
+    because: >-
+      The acceptance requires probe preparation to equal attempt preparation for the same linked
+      worktree while preserving sessionDrive behavior; one shared function prevents those paths
+      from drifting.
+    rests_on:
+      - packages/runner/src/sessionDrive.ts
+      - packages/runner/src/runtime.ts
+      - packages/runner/src/writableRootArgs.ts
+    hunks:
+      - packages/runner/src/sessionDrive.ts:88-120
+      - packages/runner/src/sessionDrive.ts:430-450
+      - packages/runner/src/runtime.ts:1-54
+      - packages/runner/src/writableRootArgs.ts:1-92
+    produces:
+      - packages/runner/src/sessionDrive.ts
+      - packages/runner/src/runtime.ts
+      - packages/runner/src/writableRootArgs.ts
+  - id: non-conversational-executors
+    what: >-
+      Added optional profile exec templates and ProbeExecutor contracts. Exec templates require
+      exactly one whole {command} element, are checked for the launch program and ordered profile
+      arguments before execution, receive prepared writable-root and environment arguments before
+      the check command, and report every check unavailable when equivalence cannot be shown.
+    because: >-
+      The probe must spend no model tokens, must never use an agent conversation or host shell,
+      and must fail closed when an adapter or profile cannot demonstrate the attempt's access
+      settings.
+    rests_on:
+      - packages/runner/src/runtimeCatalogue.ts
+      - packages/runner/src/runtimeProbe.ts
+      - schemas/runtimes@v2.json
+      - packages/runner/test/runtimeProbe.test.ts
+    hunks:
+      - packages/runner/src/runtimeCatalogue.ts:200-235
+      - packages/runner/src/runtimeProbe.ts:1-163
+      - packages/runner/src/writableRootArgs.ts:56-92
+      - schemas/runtimes@v2.json:60-98
+      - packages/runner/test/runtimeProbe.test.ts:1-92
+    produces:
+      - packages/runner/src/runtimeCatalogue.ts
+      - packages/runner/src/runtimeProbe.ts
+      - schemas/runtimes@v2.json
+      - packages/runner/test/runtimeProbe.test.ts
+  - id: probe-lifecycle
+    what: >-
+      Implemented runtime probe execution over a uniquely named branch and linked worktree with
+      cleanup on every exit path, sequential five-check reporting, machine admission held through
+      checks and released afterwards, --all and empty-catalogue behavior, JSON output, and
+      runner-custodied signed commits with their verifying fingerprint.
+    because: >-
+      The command's deciding checks must observe the disposable linked worktree and machine
+      boundary without leaving a branch, worktree, conversation, or unrecorded admission behind.
+    rests_on:
+      - packages/cli/src/runtime/probe.ts
+      - packages/runner/src/machineOutbox.ts
+      - packages/runner/src/runtimeProbe.ts
+      - packages/cli/test/runtimeProbe.test.ts
+    hunks:
+      - packages/cli/src/runtime/probe.ts:126-249
+      - packages/runner/src/machineOutbox.ts:1-180
+      - packages/cli/test/runtimeProbe.test.ts:1-42
+    produces:
+      - packages/cli/src/runtime/probe.ts
+      - packages/runner/src/machineOutbox.ts
+      - packages/cli/test/runtimeProbe.test.ts
+  - id: durable-probe-evidence
+    what: >-
+      Added ProbeEvent to the ledger event union and projection, moved the current envelope to
+      event@v11 while preserving event@v1 through event@v10 replay rules, and retained each
+      measured profile/provider/environment hash once as a probe-config@v0 content-addressed
+      artifact referenced by the event.
+    because: >-
+      Probe results need durable, historical configuration evidence without storing environment
+      values, and the acceptance explicitly requires old journal lines to remain readable while a
+      legacy event@v10 probe is refused.
+    rests_on:
+      - packages/ledger/src/event.ts
+      - packages/ledger/src/envelope.ts
+      - packages/ledger/src/projection.ts
+      - packages/ledger/src/probe.ts
+      - schemas/event@v11.json
+      - schemas/probe-config@v0.json
+      - packages/ledger/test/probeEvent.test.ts
+    hunks:
+      - packages/ledger/src/event.ts:101-224
+      - packages/ledger/src/envelope.ts:12-62
+      - packages/ledger/src/projection.ts:55-145
+      - packages/ledger/src/probe.ts:1-54
+      - schemas/event@v11.json:1-364
+      - schemas/probe-config@v0.json:1-14
+      - packages/ledger/test/probeEvent.test.ts:1-42
+    produces:
+      - packages/ledger/src/event.ts
+      - packages/ledger/src/envelope.ts
+      - packages/ledger/src/projection.ts
+      - packages/ledger/src/probe.ts
+      - schemas/event@v11.json
+      - schemas/probe-config@v0.json
+      - packages/ledger/test/probeEvent.test.ts
+  - id: probe-history-and-opening
+    what: >-
+      Made runtime list render never-probed, current, historical, and environment-unknown probe
+      states using the attempt-equivalent environment resolution, and added the required
+      heavy-command sentence to every opening prompt while preserving role prompt continuity.
+    because: >-
+      A stored result is meaningful only against the current resolved machine environment and
+      configuration, while every role must receive the same operational instruction without
+      breaking existing role-specific opening text.
+    rests_on:
+      - packages/cli/src/runtime/list.ts
+      - packages/runner/src/openingPrompt.ts
+      - packages/runner/test/openingPrompt.test.ts
+      - packages/cli/test/runtime.test.ts
+    hunks:
+      - packages/cli/src/runtime/list.ts:42-153
+      - packages/runner/src/openingPrompt.ts:7-88
+      - packages/runner/test/openingPrompt.test.ts:4-36
+      - packages/cli/test/runtime.test.ts:74-201
+    produces:
+      - packages/cli/src/runtime/list.ts
+      - packages/runner/src/openingPrompt.ts
+      - packages/runner/test/openingPrompt.test.ts
+      - packages/cli/test/runtime.test.ts
+  - id: compatibility-and-proof
+    what: >-
+      Updated current-shape schema corpus assertions and generated docs/shapes.md, retained
+      historical event@v10 fixtures, and recorded the session's typed notes including the earlier
+      main-checkout path surprise and the compatibility corrections.
+    because: >-
+      Version publication is additive and the repository's generated shape reference and focused
+      tests are part of the proof that old artifacts still read while the new acceptance is
+      exercised.
+    rests_on:
+      - docs/shapes.md
+      - packages/schemas/test/corpus.guards.test.ts
+      - packages/schemas/test/providerRouting.test.ts
+      - packages/ledger/test/replay.test.ts
+      - .interlock/sessions/0062-same-access/access-probe/notes.yaml
+    hunks:
+      - docs/shapes.md:879-886
+      - packages/schemas/test/corpus.guards.test.ts:391-527
+      - packages/schemas/test/providerRouting.test.ts:104-130
+      - packages/ledger/test/replay.test.ts:650-710
+      - .interlock/sessions/0062-same-access/access-probe/notes.yaml:1-58
+    produces:
+      - docs/shapes.md
+      - packages/schemas/test/corpus.guards.test.ts
+      - packages/schemas/test/providerRouting.test.ts
+      - packages/ledger/test/replay.test.ts
+      - .interlock/sessions/0062-same-access/access-probe/notes.yaml
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: All eight workspace packages passed strict TypeScript checking.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Biome passed; it reported only two pre-existing suggestions in packages/runner/test/runnerCommits.test.ts.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+    note: packages/*/src reported no comments.
+  - id: test
+    result: pass
+    invocation: mise exec -- pnpm test
+    note: The final retained full-suite run passed all workspace tests.
+  - id: probe-tests
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter cli exec vitest run test/runtimeProbe.test.ts --passWithNoTests=false
+    note: 1 test passed.
+  - id: probe-runner-tests
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter runner exec vitest run test/runtimeProbe.test.ts --passWithNoTests=false
+    note: 4 tests passed.
+  - id: opening-prompt-tests
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter runner exec vitest run test/openingPrompt.test.ts --passWithNoTests=false
+    note: 11 tests passed.
+  - id: probe-event-tests
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter ledger exec vitest run test/probeEvent.test.ts --passWithNoTests=false
+    note: 2 tests passed.
+open:
+  - >-
+    The default process runner uses the named interlock-probe check commands, while the production
+    adapter kinds currently have no executor and therefore report agent-side checks unavailable;
+    fixture adapters and profile exec templates provide the non-conversational execution seam.
+    A deployment that needs deciding checks to pass must supply those commands or an implementing
+    adapter executor, and the runner must retain the resulting receipts.
