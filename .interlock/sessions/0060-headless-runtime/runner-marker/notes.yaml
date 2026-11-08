@@ -28,4 +28,6 @@ entries:
   - kind: surprise
     at: "2026-11-08T08:53:45Z"
     expected: The retry would either reproduce the unrelated failure or pass with the same implementation.
-    observed: The retry passed all 8 workspace packages: 19, 6, 8, 13, 16, 45, 22 and 47 test files respectively, including all 5 exec-runtime and 6 marker tests.
+    observed: >-
+      The retry passed all 8 workspace packages: 19, 6, 8, 13, 16, 45, 22 and
+      47 test files respectively, including all 5 exec-runtime and 6 marker tests.
