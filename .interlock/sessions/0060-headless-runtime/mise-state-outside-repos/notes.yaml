@@ -52,3 +52,20 @@ entries:
     observed: >-
       The root tsc invocation is not the repository's typecheck gate and reports the existing
       package .ts-extension configuration errors; the prescribed pnpm typecheck passed all packages.
+  - kind: surprise
+    at: '2026-11-08T20:24:41Z'
+    expected: The standing full-suite gate would pass after the node's focused tests passed.
+    observed: >-
+      The runner suite reported 659/660 tests passed; markerNeverDropped's UTF-8 fixture assumed a
+      shorter checkout path and its base command was 1049 bytes before this node's changes. The
+      focused test reproduced the failure, so the fixture payload was shortened while retaining the
+      byte-boundary assertion; existing Git maintenance lock diagnostics remained in passing tests.
+  - kind: choice
+    at: '2026-11-08T20:24:41Z'
+    chose: >-
+      Shorten markerNeverDropped's synthetic ASCII payload from 280 to 250 characters in the
+      UTF-8 boundary fixture.
+    because: >-
+      The test's fixed threshold was invalid for this longer worktree name, while the reduced
+      payload still leaves the unmarked command below 1024 bytes and the marked command at or above
+      the same boundary.
