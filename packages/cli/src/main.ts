@@ -25,6 +25,7 @@ import { runSchemaReference } from "./schema/reference.ts";
 import { runSchemaValidate } from "./schema/validate.ts";
 import { runSessionSay } from "./session/say.ts";
 import { runSessionShow } from "./session/show.ts";
+import { runSessions, runSessionsRead } from "./sessions.ts";
 import { runInterlockSweep } from "./sweep.ts";
 import { runInterlockVerify } from "./verify.ts";
 
@@ -78,6 +79,14 @@ export async function run(argv: readonly string[]): Promise<CommandResult> {
 
   if (group === "session" && action === "say") {
     return runSessionSay(argv.slice(2));
+  }
+
+  if (group === "sessions" && action === "read") {
+    return runSessionsRead(argv.slice(2));
+  }
+
+  if (group === "sessions") {
+    return runSessions(argv.slice(1));
   }
 
   if (group === "node" && action === "cancel") {

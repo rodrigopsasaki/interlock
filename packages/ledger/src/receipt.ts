@@ -56,6 +56,7 @@ export function fileScope(paths: readonly string[]): readonly ScopeEntry[] {
 
 export type ScopeRefusal =
   | { readonly kind: "gate-contains-nul"; readonly gate: string }
+  | { readonly kind: "unreadable"; readonly path: string }
   | { readonly kind: "absolute-path"; readonly path: string }
   | {
       readonly kind: "escapes-root";
@@ -67,6 +68,8 @@ export function explainScopeRefusal(refusal: ScopeRefusal): string {
   switch (refusal.kind) {
     case "gate-contains-nul":
       return explainGateIdNul(refusal.gate);
+    case "unreadable":
+      return `${refusal.path}: scope file could not be read.`;
     case "absolute-path":
       return `${refusal.path}: scope paths are relative to the repository root, never absolute.`;
     case "escapes-root":
@@ -138,11 +141,20 @@ export async function receiptId(
     const path = Buffer.from(toPosixPath(entry.path));
     if (!framed) {
       hash.update(path);
-      hash.update(await readFile(resolved.value));
+      try {
+        hash.update(await readFile(resolved.value));
+      } catch {
+        return err({ kind: "unreadable", path: entry.path });
+      }
       continue;
     }
-    const content =
-      entry.kind === "gitlink" ? Buffer.from(entry.commit) : await readFile(resolved.value);
+    let content: Buffer;
+    try {
+      content =
+        entry.kind === "gitlink" ? Buffer.from(entry.commit) : await readFile(resolved.value);
+    } catch {
+      return err({ kind: "unreadable", path: entry.path });
+    }
     hash.update(Buffer.from(entry.kind === "gitlink" ? "g" : "f"));
     updateFramed(hash, path);
     updateFramed(hash, content);

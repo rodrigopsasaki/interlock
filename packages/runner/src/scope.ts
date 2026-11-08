@@ -1,5 +1,5 @@
-import { execFileSync } from "node:child_process";
 import { type ScopeEntry, scopeEntry } from "ledger";
+import { execFileSyncOwned } from "./ownedCommand.ts";
 
 const GIT_BUFFER_PAST_EXEC_FILE_SYNC_ONE_MEGABYTE_DEFAULT = 512 * 1024 * 1024;
 const GITLINK_MODE = "160000";
@@ -33,7 +33,7 @@ export function scopeFromIndex(root: string, index: string): readonly ScopeEntry
 export function gitScope(root: string): readonly ScopeEntry[] {
   return scopeFromIndex(
     root,
-    execFileSync("git", ["ls-files", "-s", "-z"], {
+    execFileSyncOwned("git", ["ls-files", "-s", "-z"], {
       cwd: root,
       encoding: "utf-8",
       maxBuffer: GIT_BUFFER_PAST_EXEC_FILE_SYNC_ONE_MEGABYTE_DEFAULT,

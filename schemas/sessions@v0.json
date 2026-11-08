@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/sessions@v0.json",
+  "title": "sessions@v0",
+  "type": "object",
+  "required": ["interlock", "sessions"],
+  "properties": {
+    "interlock": {"const": "sessions@v0"},
+    "sessions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "phase", "phaseId", "parentId", "kind", "graph", "node", "lens", "subjectHash", "snapshotHash", "arc", "runtime", "model", "pid", "pgid", "startedAt", "endedAt", "state", "exitCode", "signal", "reason", "reaped", "captureComplete", "asks", "waitingOnAsk", "transcriptPath"],
+        "properties": {
+          "id": {"type": "string"},
+          "phase": {"enum": ["work", "debrief", "review"]},
+          "phaseId": {"type": "string"},
+          "parentId": {"type": ["string", "null"]},
+          "kind": {"enum": ["node", "review"]},
+          "graph": {"type": "string"},
+          "node": {"type": ["string", "null"]},
+          "lens": {"type": ["string", "null"]},
+          "subjectHash": {"type": ["string", "null"]},
+          "snapshotHash": {"type": ["string", "null"]},
+          "arc": {"type": ["string", "null"]},
+          "runtime": {"type": "string"},
+          "model": {"type": "string"},
+          "pid": {"type": ["integer", "null"]},
+          "pgid": {"type": ["integer", "null"]},
+          "startedAt": {"type": "string"},
+          "endedAt": {"type": ["string", "null"]},
+          "state": {"enum": ["running", "done", "failed", "killed"]},
+          "exitCode": {"type": ["integer", "null"]},
+          "signal": {"type": ["string", "null"]},
+          "reason": {"type": ["string", "null"]},
+          "reaped": {"type": "integer"},
+          "captureComplete": {"type": "boolean"},
+          "asks": {"type": "array"},
+          "waitingOnAsk": {"type": "boolean"},
+          "transcriptPath": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

@@ -61,6 +61,7 @@ export interface LedgerProjection {
   readonly sessions: ReadonlyMap<string, SessionView>;
   readonly outbox: ReadonlyMap<string, OutboxView>;
   readonly consumedCites: ReadonlyMap<string, DelegatedDerivation>;
+  readonly retractedReceipts: ReadonlySet<string>;
   readonly probes: ReadonlyMap<string, ProbeEvent>;
 }
 
@@ -76,6 +77,7 @@ export function emptyProjection(): LedgerProjection {
     sessions: new Map(),
     outbox: new Map(),
     consumedCites: new Map(),
+    retractedReceipts: new Set(),
     probes: new Map(),
   };
 }
@@ -252,8 +254,11 @@ export function applyEvent(projection: LedgerProjection, event: LedgerEvent): Le
         ...view,
         said: [...view.said, { said: event.said, delivery: undefined }],
       }));
-    case "receipt-retracted":
-      return withNode(projection, event.node, (view) => {
+    case "receipt-retracted": {
+      const retractedReceipts = new Set(projection.retractedReceipts);
+      retractedReceipts.add(event.receiptId);
+      const withRetraction = { ...projection, retractedReceipts };
+      return withNode(withRetraction, event.node, (view) => {
         const current = view.gates.get(event.gate);
         if (current?.kind !== "satisfied" || current.receipt.id !== event.receiptId) {
           return view;
@@ -271,6 +276,7 @@ export function applyEvent(projection: LedgerProjection, event: LedgerEvent): Le
             : view.outcome;
         return { ...view, gates, outcome: nextOutcome };
       });
+    }
     case "debrief-filed":
       return withSession(projection, event.session, (view) => ({
         ...view,

@@ -20,6 +20,8 @@ export interface JudgeWorktreeRequest {
   readonly declaredGateIds: readonly string[];
   readonly commandFor: ReadonlyMap<string, GateCommand>;
   readonly worktree: string;
+  readonly authoritativeGraphPath?: string;
+  readonly parsedGraphHash?: string;
   readonly narrate: (line: string) => void;
   readonly runnerId: string;
   readonly holdMs: number;
@@ -55,6 +57,8 @@ export async function judgeWorktree(
     declaredGateIds,
     commandFor,
     worktree,
+    authoritativeGraphPath,
+    parsedGraphHash,
     narrate,
     runnerId,
     holdMs,
@@ -99,6 +103,8 @@ export async function judgeWorktree(
     worktree,
     scopeRoot: worktree,
     scopePaths: gitScope(worktree),
+    ...(authoritativeGraphPath === undefined ? {} : { authoritativeGraphPath }),
+    ...(parsedGraphHash === undefined ? {} : { parsedGraphHash }),
     commitSha,
     runnerId,
     holdMs,

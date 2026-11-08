@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/transcript@v0.json",
+  "title": "transcript@v0",
+  "type": "object",
+  "required": ["interlock", "ts", "stream", "text"],
+  "properties": {
+    "interlock": {"const": "transcript@v0"},
+    "ts": {"type": "string"},
+    "stream": {"enum": ["stdout", "stderr", "runner"]},
+    "text": {"type": "string", "pattern": "^[^\\r\\n]*$"}
+  },
+  "additionalProperties": false
+}

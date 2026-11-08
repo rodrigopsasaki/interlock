@@ -1403,6 +1403,15 @@ runtimes:
         keys: [Down, Enter]
     startup_timeout_ms: 90000
 
+  exec-example:
+    kind: exec
+    args: ["/path/to/program", "--prompt", "{prompt}"]
+    model: example-model
+    read_only_args: ["--read-only"]
+    mcp_servers: [filesystem, database]
+    mcp_allow: [filesystem]
+    mcp_disable_args: ["--disable-mcp", "{name}"]
+
   fable:
     provider: anthropic
     kind: claude
@@ -1528,3 +1537,100 @@ runtimes:
         keys: [Enter]
     startup_timeout_ms: 90000
 ```
+
+## session
+
+One agent process working one node in one pane.
+
+### Versions
+
+- `session@v0`: the first version.
+
+### Fields (`session@v0`)
+
+| field | type | required | description |
+| --- | --- | --- | --- |
+| `interlock` | the literal `"session@v0"` | yes |  |
+| `id` | string | yes |  |
+| `phase` | one of `"work"`, `"debrief"`, `"review"` | yes |  |
+| `phaseId` | string | yes |  |
+| `parentId` | unknown | yes |  |
+| `kind` | one of `"node"`, `"review"` | yes |  |
+| `graph` | string | yes |  |
+| `node` | unknown | yes |  |
+| `lens` | unknown | yes |  |
+| `subjectHash` | unknown | yes |  |
+| `snapshotHash` | unknown | yes |  |
+| `arc` | unknown | yes |  |
+| `runtime` | string | yes |  |
+| `model` | string | yes |  |
+| `pid` | unknown | yes |  |
+| `pgid` | unknown | yes |  |
+| `runnerPid` | unknown | yes |  |
+| `runnerBirth` | string | yes |  |
+| `runnerBoot` | string | yes |  |
+| `launchNonce` | string | yes |  |
+| `controlSecret` | string | yes |  |
+| `startedAt` | string | yes |  |
+| `endedAt` | unknown | yes |  |
+| `state` | one of `"running"`, `"done"`, `"failed"`, `"killed"` | yes |  |
+| `exitCode` | unknown | yes |  |
+| `signal` | unknown | yes |  |
+| `reason` | unknown | yes |  |
+| `reaped` | unknown | yes |  |
+| `captureComplete` | boolean | yes |  |
+| `asks` | array | yes |  |
+| `waitingOnAsk` | boolean | yes |  |
+| `transcriptPath` | string | yes |  |
+| `sampledMembers` | array of unknown | yes |  |
+| `goIntent` | boolean | yes |  |
+
+### Examples
+
+#### `session@v0`
+
+_No example of `session@v0` was found in the corpus._
+
+## sessions
+
+No vocabulary entry for `sessions`.
+
+### Versions
+
+- `sessions@v0`: the first version.
+
+### Fields (`sessions@v0`)
+
+| field | type | required | description |
+| --- | --- | --- | --- |
+| `interlock` | the literal `"sessions@v0"` | yes |  |
+| `sessions` | array of object | yes | fields: id (string, required); phase (one of `"work"`, `"debrief"`, `"review"`, required); phaseId (string, required); parentId (unknown, required); kind (one of `"node"`, `"review"`, required); graph (string, required); node (unknown, required); lens (unknown, required); subjectHash (unknown, required); snapshotHash (unknown, required); arc (unknown, required); runtime (string, required); model (string, required); pid (unknown, required); pgid (unknown, required); startedAt (string, required); endedAt (unknown, required); state (one of `"running"`, `"done"`, `"failed"`, `"killed"`, required); exitCode (unknown, required); signal (unknown, required); reason (unknown, required); reaped (unknown, required); captureComplete (boolean, required); asks (array, required); waitingOnAsk (boolean, required); transcriptPath (string, required) |
+
+### Examples
+
+#### `sessions@v0`
+
+_No example of `sessions@v0` was found in the corpus._
+
+## transcript
+
+No vocabulary entry for `transcript`.
+
+### Versions
+
+- `transcript@v0`: the first version.
+
+### Fields (`transcript@v0`)
+
+| field | type | required | description |
+| --- | --- | --- | --- |
+| `interlock` | the literal `"transcript@v0"` | yes |  |
+| `ts` | string | yes |  |
+| `stream` | one of `"stdout"`, `"stderr"`, `"runner"` | yes |  |
+| `text` | string matching `^[^\r\n]*$` | yes |  |
+
+### Examples
+
+#### `transcript@v0`
+
+_No example of `transcript@v0` was found in the corpus._

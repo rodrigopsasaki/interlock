@@ -40,6 +40,11 @@ export interface CatalogueRuntime {
   readonly promptRetries: number;
   readonly writableRootArgs: WritableRootTemplate | undefined;
   readonly exec?: WritableRootTemplate;
+  readonly readOnlyArgs?: readonly string[];
+  readonly mcpServers?: readonly string[];
+  readonly mcpAllow?: readonly string[];
+  readonly mcpDisableArgs?: readonly string[];
+  readonly prompt?: "stdin";
 }
 
 export type RuntimeCatalogueRefusal =
@@ -88,10 +93,32 @@ const KNOWN_ENTRY_KEYS: ReadonlySet<string> = new Set([
   "prompt_retries",
   "writable_root_args",
   "exec",
+  "read_only_args",
+  "mcp_servers",
+  "mcp_allow",
+  "mcp_disable_args",
+  "prompt",
 ]);
 
 function isPositiveInteger(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value > 0;
+}
+
+function isTemplate(value: unknown, placeholder: string): value is readonly string[] {
+  return (
+    isStringArray(value) &&
+    value.length > 0 &&
+    value.every((part) => !part.includes("\0")) &&
+    value.filter((part) => part === placeholder).length === 1
+  );
+}
+
+function isServerNames(value: unknown): value is readonly string[] {
+  return (
+    isStringArray(value) &&
+    value.every((name) => name.length > 0 && !name.includes("\0") && !/\s/.test(name)) &&
+    new Set(value).size === value.length
+  );
 }
 
 function parseEntry(
@@ -227,6 +254,75 @@ function parseEntry(
   const exec = parseProbeExec(prop(value, "exec"), `runtimes.${name}.exec`);
   if (isErr(exec)) return err({ kind: "malformed", path, reason: exec.error });
 
+  const readOnlyArgs = prop(value, "read_only_args");
+  if (readOnlyArgs !== undefined && !isStringArray(readOnlyArgs)) {
+    return err({
+      kind: "malformed",
+      path,
+      reason: `"runtimes.${name}.read_only_args" must be a list of strings`,
+    });
+  }
+  const mcpServers = prop(value, "mcp_servers");
+  if (mcpServers !== undefined && !isServerNames(mcpServers)) {
+    return err({
+      kind: "malformed",
+      path,
+      reason: `"runtimes.${name}.mcp_servers" must be a list of distinct nonempty names`,
+    });
+  }
+  const mcpAllow = prop(value, "mcp_allow");
+  if (mcpAllow !== undefined && !isServerNames(mcpAllow)) {
+    return err({
+      kind: "malformed",
+      path,
+      reason: `"runtimes.${name}.mcp_allow" must be a list of distinct nonempty names`,
+    });
+  }
+  const mcpDisableArgs = prop(value, "mcp_disable_args");
+  if (mcpDisableArgs !== undefined && !isTemplate(mcpDisableArgs, "{name}")) {
+    return err({
+      kind: "malformed",
+      path,
+      reason: `"runtimes.${name}.mcp_disable_args" must contain exactly one whole "{name}" element`,
+    });
+  }
+  const prompt = prop(value, "prompt");
+  if (prompt !== undefined && prompt !== "stdin") {
+    return err({
+      kind: "malformed",
+      path,
+      reason: `"runtimes.${name}.prompt" must be "stdin"`,
+    });
+  }
+  if (kind === "exec") {
+    if (!isStringArray(args) || args.length === 0) {
+      return err({
+        kind: "malformed",
+        path,
+        reason: `"runtimes.${name}.args" must be a nonempty list for kind exec`,
+      });
+    }
+    const hasPromptArg = args.some((part) => part === "{prompt}");
+    if (!hasPromptArg && prompt !== "stdin") {
+      return err({
+        kind: "malformed",
+        path,
+        reason: `"runtimes.${name}" needs a whole "{prompt}" args element or prompt: stdin`,
+      });
+    }
+    if (mcpAllow !== undefined) {
+      const servers = new Set(mcpServers ?? []);
+      const outside = mcpAllow.find((name) => !servers.has(name));
+      if (outside !== undefined) {
+        return err({
+          kind: "malformed",
+          path,
+          reason: `"runtimes.${name}.mcp_allow" names server "${outside}" not in mcp_servers`,
+        });
+      }
+    }
+  }
+
   return ok({
     ...(provider === undefined ? {} : { provider }),
     ...(routable === true ? { routable } : {}),
@@ -241,6 +337,11 @@ function parseEntry(
     promptRetries: promptRetriesField ?? DEFAULT_PROMPT_RETRIES,
     writableRootArgs: writableRootArgs.value,
     ...(exec.value === undefined ? {} : { exec: exec.value }),
+    ...(readOnlyArgs === undefined ? {} : { readOnlyArgs }),
+    ...(mcpServers === undefined ? {} : { mcpServers }),
+    ...(mcpAllow === undefined ? {} : { mcpAllow }),
+    ...(mcpDisableArgs === undefined ? {} : { mcpDisableArgs }),
+    ...(prompt === undefined ? {} : { prompt }),
   });
 }
 
@@ -344,8 +445,34 @@ export interface ResolvedRuntime {
   readonly promptRetries: number;
   readonly writableRootArgs: WritableRootTemplate | undefined;
   readonly exec?: WritableRootTemplate;
+  readonly readOnlyArgs?: readonly string[];
+  readonly mcpServers?: readonly string[];
+  readonly mcpAllow?: readonly string[];
+  readonly mcpDisableArgs?: readonly string[];
+  readonly prompt?: "stdin";
   readonly source: "catalogue" | "local.yaml";
   readonly chosenBy?: ChosenBy;
+}
+
+export function execRuntimeArgv(
+  runtime: Pick<
+    ResolvedRuntime,
+    "args" | "readOnlyArgs" | "mcpServers" | "mcpAllow" | "mcpDisableArgs"
+  >,
+  prompt: string,
+  review = false,
+): readonly string[] {
+  const args = runtime.args.flatMap((part) => (part === "{prompt}" ? [prompt] : [part]));
+  const readOnly = review ? (runtime.readOnlyArgs ?? []) : [];
+  const servers = runtime.mcpServers ?? [];
+  const allow = review ? (runtime.mcpAllow ?? []) : (runtime.mcpAllow ?? servers);
+  const disabled = servers.filter((name) => !allow.includes(name));
+  const mcp = runtime.mcpDisableArgs ?? [];
+  return [
+    ...args,
+    ...readOnly,
+    ...disabled.flatMap((name) => mcp.map((part) => part.replace("{name}", name))),
+  ];
 }
 
 export type MergeRuntimesRefusal =
@@ -396,6 +523,11 @@ export function mergeRuntimes(
       promptRetries: entry.promptRetries,
       writableRootArgs: entry.writableRootArgs,
       ...(entry.exec === undefined ? {} : { exec: entry.exec }),
+      ...(entry.readOnlyArgs === undefined ? {} : { readOnlyArgs: entry.readOnlyArgs }),
+      ...(entry.mcpServers === undefined ? {} : { mcpServers: entry.mcpServers }),
+      ...(entry.mcpAllow === undefined ? {} : { mcpAllow: entry.mcpAllow }),
+      ...(entry.mcpDisableArgs === undefined ? {} : { mcpDisableArgs: entry.mcpDisableArgs }),
+      ...(entry.prompt === undefined ? {} : { prompt: entry.prompt }),
       source: "catalogue",
     });
   }

@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
@@ -11,6 +10,7 @@ import { noneClient } from "substrate";
 import { declaredGateIds, gateCommandTable } from "./gateCommand.ts";
 import { explainGateJudgeRefusal, type GateJudgeRefusal, judgeGates } from "./gateJudge.ts";
 import { type MachineAttempt, resolveMachine } from "./machineProvider.ts";
+import { execFileSyncOwned } from "./ownedCommand.ts";
 import { gitScope } from "./scope.ts";
 import { buildBrief } from "./sessionBrief.ts";
 import type { StandingGate } from "./standingGates.ts";
@@ -75,6 +75,8 @@ export interface BackfillOptions {
   readonly clock: Clock;
   readonly standingGates: readonly StandingGate[];
   readonly worktreeRoot: string;
+  readonly authoritativeGraphPath?: string;
+  readonly parsedGraphHash?: string;
   readonly worktreeSetup?: readonly string[];
   readonly narrate?: (line: string) => void;
 }
@@ -90,6 +92,8 @@ export async function backfillGraph(
     clock,
     standingGates,
     worktreeRoot,
+    authoritativeGraphPath: requestedAuthoritativeGraphPath,
+    parsedGraphHash,
     worktreeSetup = [],
     narrate = () => {},
   } = options;
@@ -98,8 +102,11 @@ export async function backfillGraph(
     options.machine === undefined ? await resolveMachine(repoRoot) : ok(options.machine);
   if (isErr(machine)) return err({ kind: "machine", because: machine.error });
   const env = withAutoMaintenanceDisabled({ ...process.env, ...machine.value.env });
+  const authoritativeGraphPath =
+    requestedAuthoritativeGraphPath ??
+    join(repoRoot, ".interlock", "graphs", `${document.id}.yaml`);
 
-  const mainSha = execFileSync("git", ["rev-parse", mainBranch], {
+  const mainSha = execFileSyncOwned("git", ["rev-parse", mainBranch], {
     cwd: repoRoot,
     encoding: "utf-8",
   }).trim();
@@ -185,6 +192,8 @@ export async function backfillGraph(
       scopeRoot: worktreePath,
       scopePaths: scope,
       commitSha: mainSha,
+      authoritativeGraphPath,
+      ...(parsedGraphHash === undefined ? {} : { parsedGraphHash }),
       runnerId,
       holdMs: HOLD_MS,
       env,

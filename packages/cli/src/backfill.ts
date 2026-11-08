@@ -1,10 +1,12 @@
+import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { type Clock, createSystemClock } from "@phyxiusjs/clock";
 import { isErr } from "@phyxiusjs/fp";
 import {
   explainGraphRefusal,
   findRepoRoot,
   graphFilePath,
-  loadGraphDocument,
+  loadGraphDocumentText,
   sharedJournalDirectory,
 } from "face";
 import { createLedger } from "ledger";
@@ -56,7 +58,17 @@ export async function runInterlockBackfill(
     };
   }
 
-  const document = await loadGraphDocument(graphFilePath(repoRoot, graph));
+  const graphPath = graphFilePath(repoRoot, graph);
+  let graphBytes: Buffer;
+  try {
+    graphBytes = await readFile(graphPath);
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return { exitCode: 1, message: `${graphPath}: no such file; expected a graph@v0 document.` };
+    }
+    throw error;
+  }
+  const document = loadGraphDocumentText(graphBytes.toString("utf-8"), graphPath);
   if (isErr(document)) {
     return { exitCode: 1, message: explainGraphRefusal(document.error) };
   }
@@ -95,6 +107,8 @@ export async function runInterlockBackfill(
       clock,
       standingGates: standingGates.value,
       worktreeRoot: localConfig.value.worktreeRoot,
+      authoritativeGraphPath: graphPath,
+      parsedGraphHash: createHash("sha256").update(graphBytes).digest("hex"),
       worktreeSetup: localConfig.value.worktreeSetup,
       narrate,
     });
