@@ -1,0 +1,23 @@
+interlock: notes@v0
+node: fails-closed
+entries:
+  - kind: choice
+    at: "2026-11-08T08:12:00Z"
+    chose: Bind delegated-clearance validation to an authoritative graph path, the judged worktree graph path, and the hash of the bytes whose declarations were parsed.
+    because: The acceptance requires both copies and the parsed declarations to prove the same content, including after command gates and on refusal paths.
+  - kind: choice
+    at: "2026-11-08T08:28:00Z"
+    chose: Retain the delegated receipt after a stale move and restore its satisfied gate only when the same receipt is still not retracted and all three graph proofs match again.
+    because: Restoring the bound graph must recover the clearance, while a retracted receipt must remain pending even if its old graph content returns.
+  - kind: surprise
+    at: "2026-11-08T08:34:00Z"
+    expected: The focused runner fixture could execute a passing gate command with only temporary files.
+    observed: Gate-output retention resolves the shared journal through Git, so the fixture needed a local Git repository before command-side graph mutation tests could run.
+  - kind: surprise
+    at: "2026-11-08T08:35:00Z"
+    expected: The shell wrapper could store a command exit code in a variable named status.
+    observed: zsh reserves status as read-only; the proof was rerun with rc and completed with 11 tests passing.
+  - kind: choice
+    at: "2026-11-08T09:18:00Z"
+    chose: Revise the authored debrief candidate after filing so its debrief-valid gate note records the completed canonical validation.
+    because: The validator passed after file-derived selection, so the final artifact should report that receipt as completed rather than as a future action.

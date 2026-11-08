@@ -1,4 +1,6 @@
+import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { type Clock, createSystemClock } from "@phyxiusjs/clock";
 import { isErr } from "@phyxiusjs/fp";
@@ -7,7 +9,7 @@ import {
   explainGraphRefusal,
   findRepoRoot,
   graphFilePath,
-  loadGraphDocument,
+  loadGraphDocumentText,
   sharedJournalDirectory,
 } from "face";
 import {
@@ -93,7 +95,16 @@ export async function runInterlockJudge(
   );
 
   const graphPath = graphFilePath(repoRoot, graph);
-  const document = await loadGraphDocument(graphPath);
+  let graphBytes: Buffer;
+  try {
+    graphBytes = await readFile(graphPath);
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return { exitCode: 1, message: `${graphPath}: no such file; expected a graph@v0 document.` };
+    }
+    throw error;
+  }
+  const document = loadGraphDocumentText(graphBytes.toString("utf-8"), graphPath);
   if (isErr(document)) {
     return { exitCode: 1, message: explainGraphRefusal(document.error) };
   }
@@ -190,6 +201,8 @@ export async function runInterlockJudge(
       declaredGateIds: gateIds,
       commandFor: gateCommandTable(standingGates.value, declaration.gates),
       worktree: worktreePath,
+      authoritativeGraphPath: graphPath,
+      parsedGraphHash: createHash("sha256").update(graphBytes).digest("hex"),
       narrate,
       runnerId: `judge-${sessionId}`,
       holdMs: HELD_REVISIT_MS,

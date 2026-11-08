@@ -1,0 +1,94 @@
+interlock: debrief@v2
+graph: 0061-delegation-fails-closed
+node: fails-closed
+role: implementer
+graph_base_sha: 18ad5765f5255887e112475ffe4308ae416bdd48
+session_start_sha: 11ed16511053ae6066f96dded7c9fdb4019586f0
+head_sha: 42f52eb95001991a5935905e93fd6c1810c7b462
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: graph-proof-bound-to-parsed-declarations
+    what: Passed the authoritative graph path and the SHA-256 hash of the exact graph bytes parsed by each production caller into judgment, and made the judge compare that hash with fresh authoritative and worktree reads.
+    because: A delegated clearance must authorize the declarations that were actually parsed, and neither a second graph copy nor a read failure may make an old clearance count.
+    rests_on:
+      - packages/cli/src/judge.ts
+      - packages/cli/src/run.ts
+      - packages/cli/src/backfill.ts
+      - packages/runner/src/sessionDrive.ts
+      - packages/runner/src/backfill.ts
+      - packages/runner/src/judgeWorktree.ts
+    applies_to: { kind: path, path: packages/runner/src/gateJudge.ts }
+    hunks:
+      - packages/cli/src/judge.ts
+      - packages/cli/src/run.ts
+      - packages/cli/src/backfill.ts
+      - packages/runner/src/sessionDrive.ts
+      - packages/runner/src/backfill.ts
+      - packages/runner/src/judgeWorktree.ts
+      - packages/runner/src/gateJudge.ts
+  - id: fail-closed-on-every-judgment-exit
+    what: Centralized delegated-clearance invalidation and invoked it before human-gate handling, after command gates, and before every placeholder, output, and scope refusal; refusal paths persist a held outcome when a delegated clearance no longer stands.
+    because: Command gates can remove or rewrite the graph, and receipt preparation can fail after that mutation; every judgment exit must leave the node held rather than return an unrecorded stale clearance.
+    rests_on:
+      - packages/runner/src/gateJudge.ts
+      - packages/runner/test/delegatedFailsClosed.test.ts
+    applies_to: { kind: path, path: packages/runner/src/gateJudge.ts }
+    hunks:
+      - packages/runner/src/gateJudge.ts
+      - packages/runner/test/delegatedFailsClosed.test.ts
+  - id: restore-only-unretracted-clearance
+    what: Kept delegated receipts in the journal projection after a stale move, restored a pending gate only when its historical receipt still matches all graph proofs, and tracked retracted receipt ids so retraction cannot be undone by graph restoration.
+    because: The acceptance requires recovery when the bound graph returns while preserving the separate append-only meaning of receipt retraction.
+    rests_on:
+      - packages/ledger/src/projection.ts
+      - packages/runner/src/gateJudge.ts
+      - packages/runner/test/delegatedFailsClosed.test.ts
+    applies_to: { kind: path, path: packages/ledger/src/projection.ts }
+    hunks:
+      - packages/ledger/src/projection.ts
+      - packages/runner/src/gateJudge.ts
+      - packages/runner/test/delegatedFailsClosed.test.ts
+  - id: scope-read-failure-is-a-refusal
+    what: Added a typed unreadable scope refusal and converted file-read failures during receipt creation into that refusal so graph removal cannot escape as an uncaught exception.
+    because: A tracked graph removed during a passing command must produce the runner's normal scope refusal while the delegated hold is already persisted.
+    rests_on:
+      - packages/ledger/src/receipt.ts
+      - packages/runner/src/gateJudge.ts
+      - packages/runner/test/delegatedFailsClosed.test.ts
+    applies_to: { kind: path, path: packages/ledger/src/receipt.ts }
+    hunks:
+      - packages/ledger/src/receipt.ts
+      - packages/runner/src/gateJudge.ts
+      - packages/runner/test/delegatedFailsClosed.test.ts
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: All eight workspace TypeScript projects passed; mise reported Node 26.13.0 against the repository's Node 24.14.0 declaration.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Biome exited 0. It reported only two pre-existing diagnostics in packages/runner/test/runnerCommits.test.ts outside this node's diff.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+    note: No comments were reported in packages/*/src.
+  - id: test
+    result: pass
+    invocation: mise exec -- pnpm test
+    note: "All eight workspace suites passed: ledger 174, debrief 98, verifier 62, substrate 91, face 185, runner 556, schemas 1240, and cli 447 tests; the runner emitted unrelated fixture Git-signing and maintenance diagnostics while still reporting 44 test files and 556 passing tests."
+  - id: fail-closed-proof
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter runner exec vitest run test/delegatedFailsClosed.test.ts --passWithNoTests=false
+    note: The node proof passed 11 tests with 0 failures.
+  - id: debrief-valid
+    result: pass
+    invocation: mise exec -- pnpm interlock debrief validate 0061-delegation-fails-closed fails-closed
+    note: The filed debrief and notes validated as debrief@v2 and notes@v0 after candidate selection.
+open:
+  - The environment reports Node 26.13.0 through mise even though the repository pins Node 24.14.0; all required checks passed under the available toolchain.
+  - The full workspace test emitted unrelated fixture Git-signing and maintenance permission diagnostics, but every package suite completed with zero failed tests.

@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { relative } from "node:path";
 import { type Clock, createSystemClock } from "@phyxiusjs/clock";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
@@ -7,7 +9,7 @@ import {
   explainGraphRefusal,
   findRepoRoot,
   graphFilePath,
-  loadGraphDocument,
+  loadGraphDocumentText,
   sharedJournalDirectory,
 } from "face";
 import { createLedger, explainScopeRefusal, fileScope, nodeKey, receiptId } from "ledger";
@@ -108,7 +110,16 @@ export async function runInterlockRun(
   const requestedRuntime = parseFlag(args, "--runtime");
 
   const graphPath = graphFilePath(repoRoot, graph);
-  const document = await loadGraphDocument(graphPath);
+  let graphBytes: Buffer;
+  try {
+    graphBytes = await readFile(graphPath);
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return { exitCode: 1, message: `${graphPath}: no such file; expected a graph@v0 document.` };
+    }
+    throw error;
+  }
+  const document = loadGraphDocumentText(graphBytes.toString("utf-8"), graphPath);
   if (isErr(document)) {
     return { exitCode: 1, message: explainGraphRefusal(document.error) };
   }
@@ -234,6 +245,8 @@ export async function runInterlockRun(
       ...(shape === undefined ? {} : { shape }),
       acceptance: declared.acceptance,
       nodeGates: declared.gates,
+      authoritativeGraphPath: graphPath,
+      parsedGraphHash: createHash("sha256").update(graphBytes).digest("hex"),
       ...(declaration.paths === undefined ? {} : { paths: declaration.paths }),
       localConfig: localConfig.value,
       agentRuntime: agentRuntime.value,
