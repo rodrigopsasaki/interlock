@@ -4,104 +4,72 @@ node: base-is-current
 role: implementer
 graph_base_sha: c66e5f1a13a95936d6ddec1f3eaa1ce2bdd4dd13
 session_start_sha: c2a9fbe9a01367973805d649de519c0a82f5e8b1
-head_sha: aa9a9957e28d166f32c4fdb9a39830ee5684b6d9
+head_sha: d5c9a0ae662156956c9b06301cdda44ae7f3ce06
 derivation:
   kind: agent
   runtime: codex
   model: gpt-5
 discoveries: []
 decisions:
-  - id: sampled-main-stale-admission
+  - id: preserve-git-status-diagnostics
     what: >-
-      Resolve main from origin's default branch or the local main/master ref, sample its SHA once,
-      compute the resumed branch merge base and commits beyond it, and refuse a stale branch before
-      leasing when main gained code changes beyond that base. The refusal names the branch, base,
-      sampled main, gained commit count, outside-.interlock status, and person-directed recovery.
+      Route scope-guard's Git common-directory and main-checkout status reads through the owned
+      command adapter, so a failed Git process carries its stderr into the recorded refusal; add a
+      real fixture regression for a refused status command.
     because: >-
-      The attempt must never start on an old code base after main moved past it, and recovery must
-      remain a person's inspect-and-merge or fresh-worktree decision.
+      The reported full-run refusal exposed only Node's generic command-failed text, so it could
+      not distinguish a lock, missing path, maintenance writer, or another Git-side cause. The
+      existing adapter already retains stderr at this boundary without changing scope ownership.
     rests_on:
-      - brief:Acceptance (verbatim from the graph)
+      - packages/runner/src/scopeGuard.ts:46-69
+      - packages/runner/src/scopeGuard.ts:81-94
     hunks:
-      - packages/runner/src/worktree.ts:6-58
-      - packages/runner/src/worktree.ts:149-180
-      - packages/runner/src/worktree.ts:282-359
-      - packages/runner/src/sessionDrive.ts:330-355
-  - id: truthful-reattach-and-interlock-progress
-    what: >-
-      Reattach an existing branch through the same merge-base analysis as a reused worktree, report
-      its true base and commits beyond that base, reset only branches with no own commits, and allow
-      an old branch to proceed only when main's gained changes are entirely under .interlock/;
-      successful sessions narrate the sampled ref and that exception.
-    because: >-
-      Existing branches must be described truthfully, while plan and ledger movement under
-      .interlock/ does not change the code base an agent is attempting.
-    rests_on:
-      - brief:Acceptance (verbatim from the graph)
-    hunks:
-      - packages/runner/src/worktree.ts:60-74
-      - packages/runner/src/worktree.ts:282-359
-      - packages/runner/src/sessionDrive.ts:433-470
-  - id: terminal-judge-boundary
-    what: Refuse standalone judgment immediately for a decided node, before reading its worktree or judging its gates.
-    because: A cleared or otherwise terminal node must never be reset, merged, or re-judged even when its base is stale.
-    rests_on:
-      - brief:Acceptance (verbatim from the graph)
-    hunks:
-      - packages/cli/src/judge.ts:140-166
-      - packages/cli/test/judge.test.ts:344-375
-  - id: real-git-and-scratch-proof
-    what: >-
-      Add real-git admission tests for stale code refusal and byte-for-byte preservation, interlock-only
-      progress, no-own-commit reset, true reattachment, and explicit main resolution; align drive
-      narration tests with sampled-main output and keep generated test scratch out of Vitest discovery.
-    because: >-
-      The acceptance names these real-git edges, and scratch state must not be traversed as tests or
-      allowed to resolve owner Codex configuration during machine-provider assertions.
-    rests_on:
-      - brief:Tests
-    hunks:
-      - packages/runner/test/baseIsCurrent.test.ts:1-181
-      - packages/cli/test/run.test.ts:874-1095
-      - packages/cli/test/run.test.ts:1553-1600
-      - packages/runner/test/machineProvider.test.ts:31-61
-      - vitest.config.base.ts:13-19
+      - packages/runner/src/scopeGuard.ts:1-6
+      - packages/runner/src/scopeGuard.ts:46-69
+      - packages/runner/src/scopeGuard.ts:81-94
+      - packages/runner/test/scopeGuard.test.ts:194-209
 gates_run_by_agent:
   - id: typecheck
     result: pass
     invocation: PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH" pnpm typecheck
-    note: Node 24.14.0 and pnpm 10.13.1; all 8 workspace projects typechecked before the accepted revert.
+    note: Node 24.14.0 and pnpm 10.13.1; all 8 workspace projects typechecked.
   - id: base-is-current-types
     result: pass
     invocation: PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH" pnpm typecheck
-    note: Same pinned-toolchain typecheck receipt covers the node-specific type gate.
+    note: Covered by the same passing workspace typecheck.
   - id: lint
     result: pass
     invocation: PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH" pnpm lint
-    note: Biome exited 0; only the pre-existing runnerCommits.test.ts warning/info remained.
+    note: Biome exited 0 with the pre-existing runnerCommits.test.ts warning and info.
   - id: comments
     result: pass
     invocation: PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH" pnpm check:comments
     note: No comments were found under packages/*/src.
+  - id: base-is-current-proof
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/baseIsCurrent.test.ts --passWithNoTests=false
+    note: 5 tests passed.
+  - id: runner-suite
+    result: fail
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
+    note: >-
+      The focused runner-commit file passed all 41 tests, but the full runner suite under isolated
+      HOME and CODEX_HOME had 72 failed and 544 passed tests; the failures were unrelated timeouts
+      after real Codex returned 401 and mise-dependent tests attempted tool setup.
   - id: test
     result: fail
     invocation: PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH" pnpm test
     note: >-
-      The runner suite passed with 615 tests and the schemas suite passed with 1327 tests, but the
-      CLI suite had 2 failed and 459 passed out of 461 tests in the two runtime-selection cases.
-  - id: base-is-current-proof
-    result: pass
-    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/baseIsCurrent.test.ts --passWithNoTests=false
-    note: 5 tests passed after the accepted revert.
-  - id: runner-suite
-    result: pass
-    invocation: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
-    note: 615 tests passed across 55 files after the accepted revert.
+      The full repository run under isolated HOME and CODEX_HOME did not reproduce the reported
+      GitHub-token failure: runnerCommits.test.ts passed all 41 tests, including all four token
+      cases. The run had unrelated concurrent runner timeouts, ending with 72 failed and 544 passed
+      runner tests; the worktree's mandatory isolation prevented use of the owner's tool homes.
   - id: debrief-valid
     result: pass
     note: Authored candidate is ready for final debrief validation after filing.
 open:
   - >-
-    The standing pnpm test gate failed two CLI runtime-selection tests because this session's
-    inherited CODEX_HOME pointed at the removed session-local overlay codex-home-sUO6F8; the judge
-    should rerun the gates in its own environment.
+    The reported full-run GitHub-token failure was not reproducible in this worktree after stderr
+    preservation: the case passed in the focused runner-commit suite and in both full-run attempts.
+    The required isolated full-repository run remains red for unrelated real-Codex 401 and mise
+    tool-setup timeouts; no owner HOME, CODEX_HOME, Preston folder, or main checkout was used.
