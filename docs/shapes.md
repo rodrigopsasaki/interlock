@@ -883,7 +883,7 @@ No vocabulary entry for `event`.
 | field | type | required | description |
 | --- | --- | --- | --- |
 | `interlock` | the literal `"event@v11"` | yes |  |
-| `kind` | string | yes |  |
+| `kind` | one of `"node-created"`, `"lease-taken"`, `"lease-renewed"`, `"lease-expired"`, `"session-started"`, `"note-appended"`, `"debrief-filed"`, `"gate-moved"`, `"receipt-written"`, `"outcome-set"`, `"outbox-intent-recorded"`, `"outbox-delivery-recorded"`, `"session-narrated"`, `"session-facts-observed"`, `"person-said"`, `"receipt-retracted"`, `"probe"` | yes |  |
 | `probeId` | string | no |  |
 | `profile` | string | no |  |
 | `configuration` | string | no |  |

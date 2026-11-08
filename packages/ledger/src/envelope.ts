@@ -54,7 +54,8 @@ export const upcastTable: ReadonlyMap<string, Upcaster> = new Map(
     tag,
     (raw: unknown) =>
       tag !== EVENT_SHAPE &&
-      (carriesProviderAttribution(raw) || (isRecord(raw) && prop(raw, "kind") === "probe"))
+      ((tag !== "event@v10" && carriesProviderAttribution(raw)) ||
+        (isRecord(raw) && prop(raw, "kind") === "probe"))
         ? undefined
         : upcast(raw),
   ]),

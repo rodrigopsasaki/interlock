@@ -254,8 +254,8 @@ describe("cited delegation", () => {
   });
 
   it("validates a delegated receipt beside an existing human receipt", () => {
-    const schema = validatorFor(buildRegistry(), "event@v10");
-    if (schema === undefined) throw new Error("missing event@v10 schema");
+    const schema = validatorFor(buildRegistry(), "event@v11");
+    if (schema === undefined) throw new Error("missing event@v11 schema");
     const delegated = envelopeFor({
       kind: "gate-moved",
       node: { graph: "demo", id: "a" },

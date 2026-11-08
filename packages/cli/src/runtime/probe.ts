@@ -21,6 +21,7 @@ import {
   loadLocalConfig,
   loadRuntimeCatalogue,
   type MachineAttempt,
+  type MachineHold,
   machineDelivery,
   machineIntent,
   mergeRuntimes,
@@ -43,6 +44,7 @@ export interface RuntimeProbeOptions {
   readonly machine?: MachineAttempt;
   readonly processRunner?: ProbeProcessRunner;
   readonly adapter?: ProbeExecutor;
+  readonly adapterFor?: (kind: string) => ProbeExecutor | undefined;
   readonly runnerSignedCommit?: () => Promise<
     import("@phyxiusjs/fp").Result<string | undefined, string>
   >;
@@ -51,7 +53,8 @@ export interface RuntimeProbeOptions {
 export function probeConfiguration(runtime: ResolvedRuntime, machine: MachineAttempt): ProbeConfig {
   const profile: Record<string, string> = {};
   for (const [key, value] of Object.entries(runtime)) {
-    profile[key] = sha256(JSON.stringify(value));
+    const serialized = JSON.stringify(value);
+    profile[key] = sha256(serialized === undefined ? "undefined" : serialized);
   }
   return {
     interlock: "probe-config@v0",
@@ -111,7 +114,7 @@ function renderResults(
     .map((result) => {
       const detail =
         result.state === "passed"
-          ? "passed"
+          ? `passed${result.fingerprint === undefined ? "" : ` (fingerprint ${result.fingerprint})`}`
           : result.state === "refused"
             ? `refused: ${result.error}`
             : `unavailable: ${result.reason}`;
@@ -154,6 +157,7 @@ async function probeOne(
     if (isErr(launch))
       return { exitCode: 1, message: `probe launch refused: ${launch.error.kind}` };
     let admissionReason: string | undefined;
+    let releaseHold: MachineHold | undefined;
     if (machine.provider !== "none") {
       const values = {
         holder: `runtime probe ${profile}`,
@@ -180,20 +184,7 @@ async function probeOne(
         providerArgv(machine.provider.admit, values),
       );
       if (isErr(admitted)) admissionReason = admitted.error;
-      if (admissionReason === undefined) {
-        const releaseIntent = machineIntent(ledger, node, probeId, "release", hold);
-        if (!isErr(releaseIntent)) {
-          const released = await runProviderCommand(hold.release, hold.cwd, {
-            ...process.env,
-            ...hold.env,
-          });
-          machineDelivery(
-            ledger,
-            releaseIntent.value,
-            released.code === 0 ? ok(released) : err(released.output),
-          );
-        }
-      }
+      if (admissionReason === undefined) releaseHold = hold;
     }
     if (admissionReason !== undefined) {
       results = [
@@ -204,11 +195,12 @@ async function probeOne(
         { check: "signed-commit", state: "unavailable", reason: admissionReason },
       ];
     } else {
+      const adapter = options.adapter ?? options.adapterFor?.(runtime.kind);
       results = await runProbeChecks({
         runtime,
         launch: launch.value,
         ...(options.processRunner === undefined ? {} : { processRunner: options.processRunner }),
-        ...(options.adapter === undefined ? {} : { adapter: options.adapter }),
+        ...(adapter === undefined ? {} : { adapter }),
         ...((options.runnerSignedCommit ??
           (runtime.commits === "runner" ? () => signRunnerCommit(path) : undefined)) === undefined
           ? {}
@@ -217,6 +209,23 @@ async function probeOne(
             }),
       });
     }
+    if (releaseHold !== undefined) {
+      const releaseIntent = machineIntent(ledger, node, probeId, "release", releaseHold);
+      if (!isErr(releaseIntent)) {
+        const released = await runProviderCommand(releaseHold.release, releaseHold.cwd, {
+          ...process.env,
+          ...releaseHold.env,
+        });
+        machineDelivery(
+          ledger,
+          releaseIntent.value,
+          released.code === 0 ? ok(released) : err(released.output),
+        );
+      }
+    }
+    const signedCommit = results.find((result) => result.check === "signed-commit");
+    const signedCommitKeyFingerprint =
+      signedCommit?.state === "passed" ? signedCommit.fingerprint : undefined;
     ledger.append({
       kind: "probe",
       probeId,
@@ -224,6 +233,7 @@ async function probeOne(
       configuration: config.value.sha256,
       implementationVersion: IMPLEMENTATION_VERSION,
       checks: results,
+      ...(signedCommitKeyFingerprint === undefined ? {} : { signedCommitKeyFingerprint }),
       derivation: derivation.gate("runtime-probe", IMPLEMENTATION_VERSION, "runner"),
       at: Date.now(),
     });

@@ -16,6 +16,7 @@ describe("buildOpeningPrompt", () => {
         "interlock debrief preview --file <candidate-path> to inspect it read-only if useful before interlock debrief file-derived g n --from <candidate-path>. After source changes, commit, prepare a fresh candidate, author it, inspect it if useful, and file it. " +
         "When correcting an authored debrief, keep the correction in this session directory and run " +
         "interlock debrief revise g n --from <candidate-path> to select it. " +
+        "Run one heavy command at a time, never several in parallel or in the background; never pipe a test runner into head or tail. " +
         "When the debrief is committed, stop and wait. " +
         "Keep scratch work under this package's test/.runs/ directory, never /tmp, and remove it " +
         "with plain rm, never rm -rf. " +

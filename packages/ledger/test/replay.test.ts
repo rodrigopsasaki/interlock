@@ -654,8 +654,8 @@ describe("replay: a person's words enter the journal at event@v9", () => {
     },
   };
 
-  it("names event@v10 as the current shape", () => {
-    expect(EVENT_SHAPE).toBe("event@v10");
+  it("names event@v11 as the current shape", () => {
+    expect(EVENT_SHAPE).toBe("event@v11");
   });
 
   it("derives the same outbox identity from the same words, and a new one from new words", () => {

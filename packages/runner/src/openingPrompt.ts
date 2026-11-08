@@ -59,7 +59,6 @@ export function buildOpeningPrompt(
     `This is an interlock session for node ${node} of graph ${graph}. ` +
     `${briefSentence}Work only in this worktree. ` +
     roleSentence +
-    `${HEAVY_COMMAND_INSTRUCTION} ` +
     `Append .interlock/sessions/${graph}/${node}/notes.yaml at every choice and surprise, ` +
     commitInstruction +
     `Before you stop to wait for a person in your pane, append a question note to that notes.yaml ` +
@@ -69,6 +68,7 @@ export function buildOpeningPrompt(
     previewSentence +
     `When correcting an authored debrief, keep the correction in this session directory and run ` +
     `interlock debrief revise ${graph} ${node} --from <candidate-path> to select it. ` +
+    `${HEAVY_COMMAND_INSTRUCTION} ` +
     (commits === "runner"
       ? `When the debrief is filed, stop and wait without committing. `
       : `When the debrief is committed, stop and wait. `) +
