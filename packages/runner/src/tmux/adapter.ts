@@ -24,9 +24,13 @@ export function defaultTmuxRunner(
 
 export function createTmuxRuntime(run: TmuxCommandRunner = defaultTmuxRunner): Runtime {
   return {
-    async openPane(cwd: string) {
+    async openPane(cwd: string, env?: Readonly<Record<string, string>>) {
       const name = `interlock-${randomUUID()}`;
-      const created = await run(["new-session", "-d", "-s", name, "-c", cwd]);
+      const environment =
+        env === undefined
+          ? []
+          : Object.entries(env).flatMap(([key, value]) => ["-e", `${key}=${value}`]);
+      const created = await run(["new-session", "-d", "-s", name, "-c", cwd, ...environment]);
       return isErr(created) ? created : ok({ id: name });
     },
 

@@ -1,13 +1,23 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { isErr, isOk, ok } from "@phyxiusjs/fp";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { CODEX_CANONICAL_LINE_LIMIT, prepareCodexLaunch } from "../src/codex/config.ts";
 import { agentEnvironmentArgs } from "../src/codex/environment.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
+const previousGitCeiling = process.env["GIT_CEILING_DIRECTORIES"];
+
+beforeAll(() => {
+  process.env["GIT_CEILING_DIRECTORIES"] = join(runsRoot, "..");
+});
+
+afterAll(() => {
+  if (previousGitCeiling === undefined) delete process.env["GIT_CEILING_DIRECTORIES"];
+  else process.env["GIT_CEILING_DIRECTORIES"] = previousGitCeiling;
+});
 
 afterEach(() => {
   if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
@@ -36,7 +46,10 @@ function codexHome(root: string, body: string): string {
 }
 
 function environment(home: string): Readonly<Record<string, string>> {
+  const root = join(home, "..");
   return {
+    HOME: join(root, "home"),
+    XDG_STATE_HOME: join(root, "state"),
     NODE_OPTIONS: "--max-old-space-size=3072",
     VITEST_MAX_WORKERS: "4",
     VITEST_MAX_THREADS: "4",
@@ -86,7 +99,7 @@ describe("Codex launch line fitting", () => {
     expect(profile).toContain("[shell_environment_policy.set]");
     expect(profile).toContain('NODE_OPTIONS = "--max-old-space-size=3072"');
     expect(profile).toContain('INTERLOCK_NODE = "line-fits-node-with-a-long-name"');
-    result.value.cleanup();
+    result.value.cleanup(true);
   });
 
   it("keeps a selected profile's final table intact before generated tables", () => {
@@ -100,7 +113,7 @@ describe("Codex launch line fitting", () => {
     expect(profile).toContain("[features]\nresponses_websocket = true");
     expect(profile).toContain("[mcp_servers.server_0_");
     expect(profile).toContain("[shell_environment_policy.set]");
-    result.value.cleanup();
+    result.value.cleanup(true);
   });
 
   it("keeps a generated key on argv when trusted project configuration sets it", () => {
@@ -118,7 +131,7 @@ describe("Codex launch line fitting", () => {
       'shell_environment_policy.set.NODE_OPTIONS="--max-old-space-size=3072"',
     );
     expect(overlayProfile(result)).not.toContain("NODE_OPTIONS =");
-    result.value.cleanup();
+    result.value.cleanup(true);
   });
 
   it("keeps a generated key on argv when runtime configuration sets it", () => {
@@ -135,7 +148,7 @@ describe("Codex launch line fitting", () => {
       'shell_environment_policy.set.VITEST_MAX_WORKERS="runtime-value"',
     );
     expect(overlayProfile(result)).not.toContain("VITEST_MAX_WORKERS =");
-    result.value.cleanup();
+    result.value.cleanup(true);
   });
 
   it("keeps base-only policy in the effective overlay configuration", () => {
@@ -153,7 +166,7 @@ describe("Codex launch line fitting", () => {
     expect(readFileSync(join(overlayHome, "config.toml"), "utf8")).toContain(
       'BASE_ONLY = "base-value"',
     );
-    result.value.cleanup();
+    result.value.cleanup(true);
   });
 
   it("leaves the argv path unchanged when the full line fits", () => {

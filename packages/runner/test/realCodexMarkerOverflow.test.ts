@@ -1,13 +1,23 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { isOk } from "@phyxiusjs/fp";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { prepareCodexLaunch } from "../src/codex/config.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
+const previousGitCeiling = process.env["GIT_CEILING_DIRECTORIES"];
+
+beforeAll(() => {
+  process.env["GIT_CEILING_DIRECTORIES"] = join(runsRoot, "..");
+});
+
+afterAll(() => {
+  if (previousGitCeiling === undefined) delete process.env["GIT_CEILING_DIRECTORIES"];
+  else process.env["GIT_CEILING_DIRECTORIES"] = previousGitCeiling;
+});
 
 afterEach(() => {
   if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
@@ -25,6 +35,8 @@ describe("real Codex marker overflow delivery", () => {
       names.map((name) => `[mcp_servers.${name}]\ncommand = "/bin/echo"\n`).join("\n"),
     );
     const environment = {
+      HOME: join(directory, "home"),
+      XDG_STATE_HOME: join(directory, "state"),
       INTERLOCK_SESSION: "real-overflow-session",
       INTERLOCK_GRAPH: "0060-headless-runtime",
       INTERLOCK_NODE: "marker-never-dropped",
@@ -58,11 +70,11 @@ describe("real Codex marker overflow delivery", () => {
         INTERLOCK_NODE: "marker-never-dropped",
       });
     }
-    launch.value.cleanup();
+    launch.value.cleanup(true);
     expect(readFileSync(join(home, "config.toml"), "utf8")).toContain(names[0]);
   });
 
-  it("records marker values in real MCP children started by Codex exec", ({ skip }) => {
+  it("records marker values in real MCP children started by Codex exec", async () => {
     const root = mkdtempSync(join(runsRoot, "real-codex-mcp-overflow-"));
     directory = root;
     const home = join(root, "codex-home");
@@ -81,6 +93,8 @@ describe("real Codex marker overflow delivery", () => {
         .join("\n"),
     );
     const environment = {
+      HOME: join(root, "home"),
+      XDG_STATE_HOME: join(root, "state"),
       INTERLOCK_SESSION: "real-mcp-session",
       INTERLOCK_GRAPH: "0060-headless-runtime",
       INTERLOCK_NODE: "marker-never-dropped",
@@ -90,32 +104,15 @@ describe("real Codex marker overflow delivery", () => {
     expect(isOk(launch)).toBe(true);
     if (!isOk(launch)) return;
     expect(launch.value.path).toBe("overlay");
-    let commandError: unknown;
-    try {
-      execFileSync(
-        "codex",
-        [...launch.value.args, "exec", "--skip-git-repo-check", "marker proof"],
-        {
-          cwd: root,
-          env: { ...process.env, ...launch.value.environment },
-          input: "\u0003",
-          encoding: "utf8",
-          timeout: 15_000,
-        },
-      );
-    } catch (error) {
-      commandError = error;
-    }
+    const command = await runCodex(
+      [...launch.value.args, "exec", "--skip-git-repo-check", "marker proof"],
+      root,
+      launch.value.environment,
+    );
     if (!outputPaths.every((output) => existsSync(output))) {
-      const detail = commandError instanceof Error ? commandError.message : String(commandError);
-      if (!/401|unauthorized|missing bearer|not logged in/i.test(detail)) {
-        throw commandError;
-      }
-      console.info(
-        "skip: Codex is not logged in and did not start the MCP fixture before the model call",
+      throw new Error(
+        `Codex did not start every MCP fixture child (exit ${String(command.code)}): ${command.stderr}`,
       );
-      skip();
-      return;
     }
     for (const output of outputPaths) {
       expect(JSON.parse(readFileSync(output, "utf8"))).toEqual({
@@ -124,10 +121,48 @@ describe("real Codex marker overflow delivery", () => {
         INTERLOCK_NODE: "marker-never-dropped",
       });
     }
-    launch.value.cleanup();
+    launch.value.cleanup(true);
     expect(readFileSync(join(home, "config.toml"), "utf8")).toContain(names[0]);
-  });
+  }, 30_000);
 });
+
+function runCodex(
+  args: readonly string[],
+  cwd: string,
+  environment: Readonly<Record<string, string>>,
+): Promise<{ readonly code: number | null; readonly stderr: string }> {
+  return new Promise((resolve) => {
+    const child = spawn("codex", args, {
+      cwd,
+      env: { ...process.env, ...environment },
+      stdio: ["pipe", "ignore", "pipe"],
+      detached: true,
+    });
+    let stderr = "";
+    let settled = false;
+    let timer: NodeJS.Timeout | undefined;
+    const finish = (code: number | null): void => {
+      if (settled) return;
+      settled = true;
+      if (timer !== undefined) clearTimeout(timer);
+      resolve({ code, stderr });
+    };
+    child.stderr.on("data", (chunk: Buffer) => {
+      stderr += chunk.toString("utf8");
+    });
+    child.once("error", () => finish(null));
+    child.once("close", (code) => finish(code));
+    child.stdin.end("\u0003");
+    timer = setTimeout(() => {
+      if (child.pid !== undefined) {
+        try {
+          process.kill(-child.pid, "SIGTERM");
+        } catch {}
+      }
+      child.kill("SIGTERM");
+    }, 15_000);
+  });
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
