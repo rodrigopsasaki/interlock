@@ -19,6 +19,10 @@ gates:
   - id: debrief-valid
     kind: command
     run: pnpm interlock debrief validate {graph} {node}
+  - id: state-folder-untouched
+    kind: command
+    run: node scripts/state-folder-untouched.ts pnpm test
+    expect_output: 'interlock state folder untouched'
   - id: mise-state-proof
     kind: command
     run: pnpm --fail-if-no-match --filter runner exec vitest run test/miseStateOutside.test.ts --passWithNoTests=false
@@ -1293,6 +1297,20 @@ edit it.
 >   link as path and target and exits 1; it exits 2 with a named reason on any unreadable entry or incomplete scan;
 >   with none it prints "no symlink leaves the repository" and exits 0. It never changes a link.
 > - No test-only switch ships in product code.
+> Added 2026-11-08 19:13 (coordinator): the real interlock state folder. A runner fixture that fell back to persistent
+> state (fixed in home-on-main, 509672b) created test overlays in the owner's real ~/.local/state/interlock/codex-homes:
+> folders named graph/node, g/n and 0060-headless-runtime/marker-never-dropped holding 209 symlinks into ~/.codex.
+> - A wrapper, scripts/state-folder-untouched.ts <command...>, resolves the account's interlock state folder the way
+>   production does from the account itself (os.userInfo().homedir joined with .local/state/interlock; never HOME,
+>   XDG_STATE_HOME or any other variable of the invoking environment), records a manifest of it (names, types, sizes,
+>   mtimes, symlink targets; it never reads file contents or follows a link), runs the command, records the manifest
+>   again, and fails by name for every entry added, removed or changed, except entries under codex-homes/<graph>/<node>
+>   whose graph and node have a session started, and not yet ended, in the repository's own journal during the run
+>   (real sessions may write there; tests may not). It passes the command's exit code through when nothing else is
+>   wrong, and prints "interlock state folder untouched" last only then.
+> - Tests in packages/runner/test/miseStateOutside.test.ts cover the wrapper against an injected fake account home: an
+>   added fixture folder fails by name, an entry for a live session in a fake journal passes, a removed or changed entry
+>   fails, a link is never followed, and HOME or XDG_STATE_HOME pointing elsewhere does not move the folder checked.
 > Tests:
 > - packages/runner/test/miseStateOutside.test.ts:
 >   - the helper's folders are unique, under the system temp directory, and outside every protected root, checked
