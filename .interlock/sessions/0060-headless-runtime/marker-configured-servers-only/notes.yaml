@@ -45,3 +45,11 @@ entries:
     at: "2026-11-08T14:40:00Z"
     expected: The full workspace test would finish without environmental diagnostics.
     observed: All workspace tests passed, while runner worktree-maintenance fixtures printed expected permission warnings from their locked Git fixture directories.
+  - kind: surprise
+    at: "2026-11-08T14:42:00Z"
+    expected: The authored debrief's plain-text rests_on entries would parse as YAML strings.
+    observed: The preview parser treated the unquoted Acceptance colon as a mapping; quoting those citation strings made the candidate structurally valid without changing its claims.
+  - kind: choice
+    at: "2026-11-08T14:44:00Z"
+    chose: Revise the authored debrief candidate to include the debrief-valid receipt after filing and validation.
+    because: The canonical brief declares debrief-valid as a gate, and the final filed artifact should report that validation alongside the implementation gates.
