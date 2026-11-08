@@ -17,3 +17,7 @@ entries:
     at: "2026-11-08T08:35:00Z"
     expected: The shell wrapper could store a command exit code in a variable named status.
     observed: zsh reserves status as read-only; the proof was rerun with rc and completed with 11 tests passing.
+  - kind: choice
+    at: "2026-11-08T09:18:00Z"
+    chose: Revise the authored debrief candidate after filing so its debrief-valid gate note records the completed canonical validation.
+    because: The validator passed after file-derived selection, so the final artifact should report that receipt as completed rather than as a future action.
