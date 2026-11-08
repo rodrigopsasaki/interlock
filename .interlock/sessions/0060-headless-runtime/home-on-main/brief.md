@@ -523,6 +523,7 @@ scope:
   - .interlock/sessions/0060-headless-runtime/marker-never-dropped/notes.yaml
   - .interlock/sessions/0060-headless-runtime/marker-never-dropped/revisions/c07c5b5b3eae23360f222e092f57b9ead0146589f16eee453cc74cb157468e09.yaml
   - .interlock/sessions/0060-headless-runtime/marker-never-dropped/revisions/cb443a2cbcda10510d3ac59104d52c3a5672fed9c90c37b000559e5f56ec2c13.yaml
+  - .interlock/sessions/0060-headless-runtime/mise-state-outside-repos/brief.md
   - .interlock/sessions/0060-headless-runtime/plan-reviews-are-sessions/brief.md
   - .interlock/sessions/0060-headless-runtime/runner-marker/brief.md
   - .interlock/sessions/0060-headless-runtime/runner-marker/debrief-candidate-2.yaml
@@ -538,6 +539,11 @@ scope:
   - .interlock/sessions/0060-headless-runtime/scope-guard/notes.yaml
   - .interlock/sessions/0060-headless-runtime/scope-guard/revisions/8fc5b5e70e7abb27d515f7a101f60106bf3c32c2ee8dc29dfc7029d4d177df44.yaml
   - .interlock/sessions/0060-headless-runtime/start-failure-is-not-a-timeout/brief.md
+  - .interlock/sessions/0060-headless-runtime/start-failure-is-not-a-timeout/debrief-candidate.yaml
+  - .interlock/sessions/0060-headless-runtime/start-failure-is-not-a-timeout/debrief-correction-candidate.yaml
+  - .interlock/sessions/0060-headless-runtime/start-failure-is-not-a-timeout/debrief.yaml
+  - .interlock/sessions/0060-headless-runtime/start-failure-is-not-a-timeout/notes.yaml
+  - .interlock/sessions/0060-headless-runtime/start-failure-is-not-a-timeout/revisions/91d30bb9a6e03f8039fe62633636ef970c62d18e4c4bd97fd4bd663aeb635f60.yaml
   - .interlock/sessions/0060-headless-runtime/tests-read-fixtures/brief.md
   - .interlock/sessions/0060-headless-runtime/tests-read-fixtures/debrief-candidate.yaml
   - .interlock/sessions/0060-headless-runtime/tests-read-fixtures/debrief.yaml
@@ -990,6 +996,7 @@ scope:
   - packages/runner/test/fixtures/exec/ignoreTerm.mjs
   - packages/runner/test/fixtures/exec/reapGrandchild.mjs
   - packages/runner/test/fixtures/exec/recordEnvironment.mjs
+  - packages/runner/test/fixtures/exec/waitForMarker.mjs
   - packages/runner/test/fixtures/exec/writeStreams.mjs
   - packages/runner/test/fixtures/herdr-socket-schema.json
   - packages/runner/test/gateCommand.test.ts
@@ -1028,6 +1035,7 @@ scope:
   - packages/runner/test/sessionWait.test.ts
   - packages/runner/test/settled.test.ts
   - packages/runner/test/standingGates.test.ts
+  - packages/runner/test/startFailureNotTimeout.test.ts
   - packages/runner/test/submoduleReceipts.test.ts
   - packages/runner/test/support/driveFixture.ts
   - packages/runner/test/support/gitFixture.ts
@@ -1264,7 +1272,7 @@ walk:
   kind: none
   because: the substrate address is none, so there is nothing to ask
 graph_base_sha: 70bcce800291c2dae52343f653e175fa440f32fb
-session: 14f9743b-7c5c-495f-8c10-4e46d4942e63
+session: c9534dfe-becd-4613-b341-26a3bf41aa7b
 ---
 
 # Brief · node `home-on-main` · graph `0060-headless-runtime`
