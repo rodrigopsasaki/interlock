@@ -2,9 +2,11 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  type ProgramExit,
   type ProgramExitObservation,
   type ProgramExitScheduler,
   type ProgramExitWatcher,
+  runExecPhase,
   waitForProgramExit,
 } from "../src/execRuntime.ts";
 
@@ -44,6 +46,10 @@ class ControlledScheduler implements ProgramExitScheduler {
       next.callback();
     }
     this.current = at;
+  }
+
+  nextDue(): number | undefined {
+    return [...this.tasks.values()].sort((left, right) => left.at - right.at)[0]?.at;
   }
 }
 
@@ -86,8 +92,12 @@ afterEach(() => {
 });
 
 function exitPath(): string {
+  return join(fixtureRoot(), "exit.json");
+}
+
+function fixtureRoot(): string {
   directory = mkdtempSync(join(runsRoot, "start-failure-"));
-  return join(directory, "exit.json");
+  return directory;
 }
 
 function observation(
@@ -103,6 +113,70 @@ function observation(
       return watcher;
     },
   };
+}
+
+async function waitForTask(scheduler: ControlledScheduler): Promise<number> {
+  for (let attempt = 0; attempt < 100_000; attempt += 1) {
+    const next = scheduler.nextDue();
+    if (next !== undefined) return next;
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  }
+  throw new Error("controlled scheduler did not receive a task");
+}
+
+async function waitForPath(path: string): Promise<void> {
+  for (let attempt = 0; attempt < 100_000; attempt += 1) {
+    if (existsSync(path)) return;
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  }
+  throw new Error(`path did not appear: ${path}`);
+}
+
+type ControlledRun = {
+  readonly pending: ReturnType<typeof runExecPhase>;
+  readonly scheduler: ControlledScheduler;
+  readonly evidence: { value: ProgramExit | undefined };
+  readonly runRoot: string;
+};
+
+function controlledRun(root: string, program: string, args: readonly string[]): ControlledRun {
+  const scheduler = new ControlledScheduler();
+  const evidence: { value: ProgramExit | undefined } = { value: undefined };
+  const watcher = new ControlledWatcher();
+  const runRoot = join(root, "interlock", "runs");
+  const observation: ProgramExitObservation = {
+    read: () => evidence.value,
+    scheduler,
+    pollMs: 10,
+    watch: (_path, listener) => {
+      watcher.attach(listener);
+      return watcher;
+    },
+  };
+  const pending = runExecPhase({
+    runRoot,
+    id: "controlled",
+    phase: "work",
+    graph: "g",
+    node: "n",
+    runtime: "fixture",
+    model: "fixture-model",
+    program,
+    args,
+    prompt: "unused",
+    cwd: root,
+    timeoutMs: 40,
+    termGraceMs: 40,
+    drainGraceMs: 40,
+    programExitObservation: observation,
+  });
+  return { pending, scheduler, evidence, runRoot };
+}
+
+function expectTimeoutStartFailure(result: Awaited<ControlledRun["pending"]>, code: string): void {
+  expect(result).toMatchObject({
+    value: { record: { state: "failed", reason: `program could not start: ${code}` } },
+  });
 }
 
 describe("program exit observation", () => {
@@ -170,4 +244,82 @@ describe("program exit observation", () => {
     await expect(pending).resolves.toEqual({ code: null, signal: null, error: "ENOENT" });
     expect(existsSync(path)).toBe(true);
   });
+
+  it("reconciles a spawn error written after the deadline before TERM", async () => {
+    const root = fixtureRoot();
+    const run = controlledRun(root, join(root, "missing-program"), []);
+    await waitForTask(run.scheduler);
+    run.scheduler.advanceTo(40);
+    run.evidence.value = { code: null, signal: null, error: "ENOENT" };
+
+    const result = await run.pending;
+    expectTimeoutStartFailure(result, "ENOENT");
+  });
+
+  it("reconciles a spawn error written during TERM grace", async () => {
+    const root = fixtureRoot();
+    const run = controlledRun(root, join(root, "missing-program"), []);
+    await waitForTask(run.scheduler);
+    run.scheduler.advanceTo(40);
+    await waitForTask(run.scheduler);
+    run.evidence.value = { code: null, signal: null, error: "ENOENT" };
+    run.scheduler.advanceTo(80);
+
+    const result = await run.pending;
+    expectTimeoutStartFailure(result, "ENOENT");
+  });
+
+  it("reconciles a spawn error written during the later bounded exit wait", async () => {
+    const root = fixtureRoot();
+    const run = controlledRun(root, join(root, "missing-program"), []);
+    await waitForTask(run.scheduler);
+    run.scheduler.advanceTo(40);
+    await waitForTask(run.scheduler);
+    run.scheduler.advanceTo(80);
+    await waitForTask(run.scheduler);
+    run.evidence.value = { code: null, signal: null, error: "ENOENT" };
+    run.scheduler.advanceTo(120);
+
+    const result = await run.pending;
+    expectTimeoutStartFailure(result, "ENOENT");
+  });
+
+  it("keeps a successful nonzero spawn as a run timeout after the deadline", async () => {
+    const root = fixtureRoot();
+    const marker = join(root, "exit-marker");
+    const program = join(import.meta.dirname, "fixtures", "exec", "waitForMarker.mjs");
+    const run = controlledRun(root, process.execPath, [program, marker, "7"]);
+    await waitForTask(run.scheduler);
+    await waitForPath(join(run.runRoot, "controlled", "work", "handoff.json"));
+    run.scheduler.advanceTo(40);
+    run.evidence.value = { code: 7, signal: null };
+    writeFileSync(marker, "exit\n");
+
+    const result = await run.pending;
+    expect(result).toMatchObject({
+      value: { record: { state: "killed", reason: "run timeout 40ms" } },
+    });
+    if ("value" in result) expect(existsSync(join(result.value.runDir, "handoff.json"))).toBe(true);
+  });
+
+  it("kills a program that runs past the deadline", async () => {
+    const root = fixtureRoot();
+    const marker = join(root, "never-created");
+    const program = join(import.meta.dirname, "fixtures", "exec", "waitForMarker.mjs");
+    const run = controlledRun(root, process.execPath, [program, marker, "0"]);
+    await waitForTask(run.scheduler);
+    run.scheduler.advanceTo(40);
+    await waitForTask(run.scheduler);
+    run.scheduler.advanceTo(80);
+    await waitForTask(run.scheduler);
+    run.scheduler.advanceTo(120);
+    await waitForTask(run.scheduler);
+    run.scheduler.advanceTo(160);
+
+    const result = await run.pending;
+    expect(result).toMatchObject({
+      value: { record: { state: "killed", reason: "run timeout 40ms" } },
+    });
+    if ("value" in result) expect(existsSync(join(result.value.runDir, "handoff.json"))).toBe(true);
+  }, 15_000);
 });

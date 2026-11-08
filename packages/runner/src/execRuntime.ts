@@ -124,6 +124,7 @@ export interface ProgramExitScheduler {
 }
 
 export interface ProgramExitObservation {
+  readonly read?: (path: string) => ProgramExit | undefined;
   readonly watch?: (
     path: string,
     listener: (eventType: string, filename: string | Buffer | null) => void,
@@ -307,7 +308,7 @@ async function waitForGroupGone(pgid: number, timeoutMs: number): Promise<boolea
   return !groupAlive(pgid);
 }
 
-type ProgramExit = {
+export type ProgramExit = {
   readonly code: number | null;
   readonly signal: NodeJS.Signals | null;
   readonly error?: string;
@@ -338,12 +339,19 @@ function readProgramExit(exitPath: string): ProgramExit | undefined {
   return { code, signal };
 }
 
+function readObservedProgramExit(
+  exitPath: string,
+  observation: ProgramExitObservation | undefined,
+): ProgramExit | undefined {
+  return observation?.read === undefined ? readProgramExit(exitPath) : observation.read(exitPath);
+}
+
 export async function waitForProgramExit(
   exitPath: string,
   timeoutMs: number,
   observation: ProgramExitObservation | undefined,
 ): Promise<ProgramExit | undefined> {
-  const existing = readProgramExit(exitPath);
+  const existing = readObservedProgramExit(exitPath, observation);
   if (existing !== undefined) return Promise.resolve(existing);
   const scheduler = observation?.scheduler ?? nativeProgramExitScheduler;
   const observeWith = observation?.watch ?? nativeProgramExitWatch;
@@ -360,7 +368,7 @@ export async function waitForProgramExit(
       resolve(result);
     };
     const observe = (): void => {
-      const result = readProgramExit(exitPath);
+      const result = readObservedProgramExit(exitPath, observation);
       if (result !== undefined) finish(result);
     };
     const deadline = scheduler.now() + timeoutMs;
@@ -805,7 +813,7 @@ export async function runExecPhase(
       ? "launcher confirmed dead; reconciling program exit evidence"
       : "launcher death not confirmed after bounded exit wait; reconciling available program exit evidence",
   });
-  const reconciledExit = readProgramExit(exitFile);
+  const reconciledExit = readObservedProgramExit(exitFile, request.programExitObservation);
   if (reconciledExit !== undefined) exit = reconciledExit;
   const programError = exit.error;
   await appendTranscript(transcriptPath, {
