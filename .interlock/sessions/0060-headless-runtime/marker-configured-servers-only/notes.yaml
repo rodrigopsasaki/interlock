@@ -1,0 +1,55 @@
+interlock: notes@v0
+node: marker-configured-servers-only
+entries:
+  - kind: surprise
+    at: "2026-11-08T14:20:00Z"
+    expected: Codex's MCP listing would identify only servers whose configuration tables can safely receive marker overrides.
+    observed: The existing runner used every stdio name from codex mcp list --json, including built-in servers that have no mcp_servers table and reject env overrides.
+  - kind: choice
+    at: "2026-11-08T14:21:00Z"
+    chose: Treat the effective Codex config tables as the allowlist, then intersect them with the reported stdio MCP servers before constructing marker overrides.
+    because: Built-in and plugin-provided servers must remain untouched, while configured servers must still be marked only when Codex reports them as stdio.
+  - kind: choice
+    at: "2026-11-08T14:22:00Z"
+    chose: Keep the normal short launch on argv and reserve a launch-local Codex profile overlay for an argv line that would reach the canonical terminal limit.
+    because: The marker must reach configured MCP children without sending an oversized launch line; a profile overlay preserves the choice of transport while keeping marker values out of the terminal line.
+  - kind: surprise
+    at: "2026-11-08T14:23:00Z"
+    expected: The first focused command would write its result in the assigned worktree.
+    observed: The command was initially addressed to the repository checkout rather than this node worktree, so it failed before running because the requested scratch path did not exist; no outside file was written.
+  - kind: choice
+    at: "2026-11-08T14:29:00Z"
+    chose: Assert all three marker values on the real Codex configured server.
+    because: The runner marker contract carries session, graph and node together, and Codex reports the complete effective environment in its real mcp list output.
+  - kind: choice
+    at: "2026-11-08T14:30:00Z"
+    chose: Omit generated Codex config overrides when they would reach the 1024-byte launch-line limit and rely on the already-inherited marker environment for MCP children.
+    because: The runner passes marker values in the child environment for both pane and exec launches, so the marker remains available without sending an oversized terminal line.
+  - kind: surprise
+    at: "2026-11-08T14:34:00Z"
+    expected: The standing lint gate would be clean after formatting the changed files.
+    observed: Biome still reported pre-existing violations in packages/runner/test/runnerCommits.test.ts; the marker files themselves pass a targeted Biome check, and the unrelated file was left unchanged.
+  - kind: surprise
+    at: "2026-11-08T14:37:00Z"
+    expected: The long-line fallback could omit all Codex config arguments without changing existing launch contracts.
+    observed: The machine-provider fixture asserts that shell_environment_policy settings remain in argv; only per-server MCP overrides are optional for the line-length fallback.
+  - kind: choice
+    at: "2026-11-08T14:37:00Z"
+    chose: Keep shell environment policy arguments during overflow fallback and omit only generated mcp_servers env overrides.
+    because: The marker is already inherited by MCP children, while other environment policy settings remain part of the established Codex launch contract.
+  - kind: surprise
+    at: "2026-11-08T14:39:00Z"
+    expected: The final full lint gate would remain blocked by the pre-existing runner commit fixture diagnostics seen before formatting.
+    observed: The final lint gate passed with only the same pre-existing informational warning and info in packages/runner/test/runnerCommits.test.ts; the changed files are clean.
+  - kind: surprise
+    at: "2026-11-08T14:40:00Z"
+    expected: The full workspace test would finish without environmental diagnostics.
+    observed: All workspace tests passed, while runner worktree-maintenance fixtures printed expected permission warnings from their locked Git fixture directories.
+  - kind: surprise
+    at: "2026-11-08T14:42:00Z"
+    expected: The authored debrief's plain-text rests_on entries would parse as YAML strings.
+    observed: The preview parser treated the unquoted Acceptance colon as a mapping; quoting those citation strings made the candidate structurally valid without changing its claims.
+  - kind: choice
+    at: "2026-11-08T14:44:00Z"
+    chose: Revise the authored debrief candidate to include the debrief-valid receipt after filing and validation.
+    because: The canonical brief declares debrief-valid as a gate, and the final filed artifact should report that validation alongside the implementation gates.

@@ -32,6 +32,16 @@ function fixtureRoot(): string {
   return directory;
 }
 
+function codexHome(root: string, servers: readonly string[]): string {
+  const home = join(root, "codex-home");
+  mkdirSync(home);
+  writeFileSync(
+    join(home, "config.toml"),
+    servers.map((name) => `[mcp_servers.${name}]\ncommand = "${name}"\n`).join("\n"),
+  );
+  return home;
+}
+
 function codexRuntime(): ResolvedRuntime {
   return {
     name: "codex",
@@ -62,13 +72,15 @@ describe("runner marker", () => {
   });
 
   it("uses only stdio servers reported by codex mcp list", () => {
+    const root = fixtureRoot();
     const launch = prepareLaunch(
       codexRuntime(),
-      fixtureRoot(),
+      root,
       {
         INTERLOCK_SESSION: "session",
         INTERLOCK_GRAPH: "graph",
         INTERLOCK_NODE: "node",
+        CODEX_HOME: codexHome(root, ["stdio-one", '"stdio.two"']),
       },
       {
         listCodexMcp: () => ok(["stdio-one", "stdio.two"]),
@@ -96,6 +108,7 @@ describe("runner marker", () => {
       INTERLOCK_SESSION: "session",
       INTERLOCK_GRAPH: "graph",
       INTERLOCK_NODE: "node",
+      CODEX_HOME: codexHome(root, ["stdio"]),
     });
     expect(isOk(launch)).toBe(true);
     if (!isOk(launch)) return;
@@ -122,6 +135,7 @@ describe("runner marker", () => {
         "appendEnvironment.mjs",
       ),
       INTERLOCK_PROBE_OUTPUT: output,
+      CODEX_HOME: codexHome(root, ["probe"]),
     };
     const launch = prepareLaunch(codexRuntime(), root, environment, {
       listCodexMcp: () => ok(["probe"]),

@@ -16,6 +16,7 @@ import {
   sessionRuntime,
 } from "ledger";
 import type { SubstrateClient } from "substrate";
+import { CODEX_CANONICAL_LINE_LIMIT, configuredCodexMcpServers } from "./codex/config.ts";
 import { agentEnvironmentArgs, needsPaneEnvironment } from "./codex/environment.ts";
 import { type ExecPhaseRequest, execRunRoot, runExecPhase } from "./execRuntime.ts";
 import { declaredGateIds, gateCommandTable } from "./gateCommand.ts";
@@ -163,19 +164,38 @@ export function prepareLaunch(
     } else if (listed.value.length === 0) {
       options.narrate?.("codex mcp list --json returned no stdio servers");
     } else {
-      stdioMcpServers = listed.value;
-      options.narrate?.(
-        `codex mcp list --json found ${String(stdioMcpServers.length)} stdio server(s)`,
-      );
+      const configured = configuredCodexMcpServers(agentRuntime.args, environment);
+      if (isErr(configured)) {
+        options.narrate?.(`Codex config could not be read: ${configured.error}`);
+      } else {
+        const configuredNames = new Set(configured.value);
+        stdioMcpServers = listed.value.filter((name) => configuredNames.has(name));
+        options.narrate?.(
+          `codex mcp list --json found ${String(stdioMcpServers.length)} configured stdio server(s)`,
+        );
+      }
     }
   }
   const argsFor = (args: readonly string[]): readonly string[] =>
     agentEnvironmentArgs(agentRuntime.kind, args, environment, stdioMcpServers);
+  const boundedArgsFor = (args: readonly string[]): readonly string[] => {
+    const full = argsFor(args);
+    if (
+      agentRuntime.kind !== "codex" ||
+      [agentRuntime.kind, ...full].join(" ").length < CODEX_CANONICAL_LINE_LIMIT
+    ) {
+      return full;
+    }
+    options.narrate?.(
+      `codex marker overrides omitted from argv because the launch line would reach ${String(CODEX_CANONICAL_LINE_LIMIT)} bytes; marker environment remains inherited by MCP children`,
+    );
+    return agentEnvironmentArgs(agentRuntime.kind, args, environment, []);
+  };
   const template = agentRuntime.writableRootArgs;
   if (template === undefined) {
     return ok({
       program: agentRuntime.kind,
-      args: argsFor(agentRuntime.args),
+      args: boundedArgsFor(agentRuntime.args),
       cwd: worktreePath,
       environment,
       writableRoots: [],
@@ -186,7 +206,7 @@ export function prepareLaunch(
   if (layout.value.kind === "not-linked") {
     return ok({
       program: agentRuntime.kind,
-      args: argsFor(agentRuntime.args),
+      args: boundedArgsFor(agentRuntime.args),
       cwd: worktreePath,
       environment,
       writableRoots: [],
@@ -195,7 +215,7 @@ export function prepareLaunch(
   const writableRoots = [layout.value.commonGitDir, layout.value.gitDir];
   return ok({
     program: agentRuntime.kind,
-    args: argsFor([
+    args: boundedArgsFor([
       ...agentRuntime.args,
       ...writableRoots.flatMap((root) => expandWritableRootArgs(template, root)),
     ]),
