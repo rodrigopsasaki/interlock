@@ -53,6 +53,14 @@
           "writable_root_args": {
             "$ref": "parts/writable-root-args.json"
           },
+          "exec": {
+            "type": "array",
+            "items": { "type": "string" },
+            "minItems": 1,
+            "contains": { "const": "{command}" },
+            "maxContains": 1,
+            "minContains": 1
+          },
           "commits": {
             "enum": [
               "runner",

@@ -4,6 +4,9 @@ import type { CommitMode } from "./runtimeCatalogue.ts";
 
 export type SessionRole = "worker" | "interpreter" | NodeRole;
 
+const HEAVY_COMMAND_INSTRUCTION =
+  "Run one heavy command at a time, never several in parallel or in the background; never pipe a test runner into head or tail.";
+
 function roleSentenceFor(graph: string, role: SessionRole, roleParagraph?: string): string {
   switch (role) {
     case "worker":
@@ -65,6 +68,7 @@ export function buildOpeningPrompt(
     previewSentence +
     `When correcting an authored debrief, keep the correction in this session directory and run ` +
     `interlock debrief revise ${graph} ${node} --from <candidate-path> to select it. ` +
+    `${HEAVY_COMMAND_INSTRUCTION} ` +
     (commits === "runner"
       ? `When the debrief is filed, stop and wait without committing. `
       : `When the debrief is committed, stop and wait. `) +
