@@ -403,6 +403,13 @@ read: >
   does. Claude Code passes stdio servers its full environment. Gap left standing: the tmux adapter's openPane
   (packages/runner/src/tmux/adapter.ts:29) takes no environment, so a tmux-pane claude session gets no marker
   until herdr-gone retires panes; a codex session on tmux still gets it through its launch args.
+
+  Watch paths (added 2026-11-08). Listing the owner's Preston folder in watch_paths would hold every node: serve
+  writes its log, its Postgres data and its limits file there all the time, and the walk hashes every file,
+  reading provider.key and the .pgpass files to do it. Narrowing the entry to one file does not help, because a
+  file entry watches nothing as landed. watch-paths-precise fixes both; after it lands, the machine's local.yaml
+  lists that folder's config.json and runtime and machine config files by name. It touches scopeGuard.ts and
+  localConfig.ts only, so it builds without waiting for exec-runtime.
 gates:
   - id: approved
     kind: human
@@ -441,6 +448,53 @@ nodes:
         run: pnpm --fail-if-no-match --filter runner exec vitest run test/scopeGuard.test.ts --passWithNoTests=false
         expect_output: 'Tests +[1-9][0-9]* passed'
       - id: scope-guard-types
+        kind: command
+        run: pnpm typecheck
+
+  - id: watch-paths-precise
+    role: implementer
+    depends_on: [scope-guard]
+    acceptance: |
+      watch_paths say exactly what they watch, and watching never reads a secret. Three defects in scope-guard as
+      landed (packages/runner/src/scopeGuard.ts on 5699f33) are fixed, and only scopeGuard.ts, localConfig.ts,
+      schemas/local@v1.json and their tests change:
+      - A single file. A watch_paths entry naming a file watches that file. Today the walk records it under the
+        empty relative path (:149) and the snapshot then skips empty paths (:184), so the entry silently watches
+        nothing. A file entry is recorded and reported by its own name. A file entry that does not exist is
+        watched for creation, as a folder's missing child is.
+      - Excludes. An entry is either an absolute path string, as today, or a mapping {path, exclude}, where
+        exclude is a list of distinct relative paths under that folder. A changed, added or removed file at or
+        under an excluded path is never counted, and is never opened or stat'ed beyond the directory listing that
+        names it. local@v1's schema and localConfig.ts accept both forms and refuse an exclude on a file entry,
+        an absolute or escaping exclude ("..") and duplicates, each with a sentence naming the entry. local@v0
+        files keep parsing unchanged.
+      - Owner-only files. A watched file whose mode grants nothing to group or others (mode & 0o077 is 0, as
+        0600 files are) is compared by size and mtime only and is never opened or read. Its snapshot entry
+        records size and mtimeMs with no sha256. A change that keeps both size and mtime is not detected for such
+        a file; the snapshot's describe line says so for every such file it watches. Files in the main checkout
+        keep today's sha256 comparison.
+      Tests in packages/runner/test/scopeGuard.test.ts, with a fixture repository, linked worktree and fixture
+      agent turn as scope-guard's own:
+      - a single-file entry: a phase that rewrites that file holds the node and names it; a phase that leaves it
+        alone passes; a phase that creates a missing watched file holds the node;
+      - a folder entry with exclude [logs, postgres]: a phase that writes logs/serve.log and postgres/x passes; a
+        phase that writes config.json in the same folder holds the node and lists only config.json;
+      - an owner-only (0600) watched file: the snapshot's file reader is injected and the test asserts it is never
+        called for that file's path; a phase that changes its size holds the node; a phase that rewrites it with
+        the same size and restores its mtime passes, and the describe line names the limit;
+      - localConfig refuses an exclude on a file entry, an absolute exclude, a ".." exclude and a duplicate
+        exclude, and accepts both entry forms under local@v1 and the string form under local@v0.
+      Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
+    gates:
+      - id: watch-paths-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/scopeGuard.test.ts test/localConfig.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: runner-suite
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: watch-paths-types
         kind: command
         run: pnpm typecheck
 
