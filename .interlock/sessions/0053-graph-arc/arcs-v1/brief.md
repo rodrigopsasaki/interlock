@@ -1219,7 +1219,7 @@ walk:
   kind: none
   because: the substrate address is none, so there is nothing to ask
 graph_base_sha: 1d4790cbb8a3cf7a2b3e5ee3544a696cf517519b
-session: ebc277f9-fac2-4ce8-a10c-0ee8555e4186
+session: 662db799-a611-40ce-9348-b453d4a2ad40
 ---
 
 # Brief · node `arcs-v1` · graph `0053-graph-arc`
