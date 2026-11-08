@@ -45,6 +45,7 @@ describe("runSetupCommand", () => {
 
     expect(isErr(result)).toBe(true);
     if (!isErr(result)) return;
+    if (result.error.kind !== "command-failed") return;
     expect(result.error).toEqual({
       kind: "command-failed",
       command: "false",
@@ -66,6 +67,7 @@ describe("runSetupCommand", () => {
 
     expect(isErr(result)).toBe(true);
     if (!isErr(result)) return;
+    if (result.error.kind !== "command-failed") return;
     expect(result.error.exit).toEqual({ kind: "exit", code: 3 });
     const explanation = explainWorktreeSetupRefusal(result.error);
     expect(explanation).toContain("exited 3");
@@ -90,6 +92,7 @@ describe("runSetupCommand", () => {
 
     expect(isErr(result)).toBe(true);
     if (!isErr(result)) return;
+    if (result.error.kind !== "command-failed") return;
     expect(Buffer.byteLength(result.error.tail)).toBeLessThanOrEqual(SETUP_LOG_TAIL_BYTES);
     expect(result.error.tail).toContain("line-1999-");
     expect(result.error.tail).not.toContain("line-0-");
@@ -103,6 +106,7 @@ describe("runSetupCommand", () => {
 
     expect(isErr(result)).toBe(true);
     if (!isErr(result)) return;
+    if (result.error.kind !== "command-failed") return;
     expect(result.error.exit).toEqual({ kind: "signal", signal: "SIGKILL" });
     expect(explainWorktreeSetupRefusal(result.error)).toContain("was killed by SIGKILL");
   });

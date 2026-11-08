@@ -3,6 +3,7 @@ import { link, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import { sharedJournalDirectory } from "face";
+import { checkNodeEngine, explainNodeEngineRefusal, type NodeEngineRefusal } from "./nodeEngine.ts";
 import { spawnOwned } from "./ownedCommand.ts";
 
 export const SETUP_LOG_TAIL_BYTES = 64 * 1024;
@@ -11,19 +12,22 @@ export type WorktreeSetupExit =
   | { readonly kind: "exit"; readonly code: number }
   | { readonly kind: "signal"; readonly signal: string };
 
-export type WorktreeSetupRefusal = {
-  readonly kind: "command-failed";
-  readonly command: string;
-  readonly exit: WorktreeSetupExit;
-  readonly tail: string;
-  readonly logPath?: string;
-};
+export type WorktreeSetupRefusal =
+  | {
+      readonly kind: "command-failed";
+      readonly command: string;
+      readonly exit: WorktreeSetupExit;
+      readonly tail: string;
+      readonly logPath?: string;
+    }
+  | NodeEngineRefusal;
 
 function describeExit(exit: WorktreeSetupExit): string {
   return exit.kind === "exit" ? `exited ${exit.code}` : `was killed by ${exit.signal}`;
 }
 
 export function explainWorktreeSetupRefusal(refusal: WorktreeSetupRefusal): string {
+  if (refusal.kind === "node-engine") return explainNodeEngineRefusal(refusal);
   const header = `"${refusal.command}" ${describeExit(refusal.exit)}.`;
   const tail = refusal.tail.length === 0 ? "" : `\n${refusal.tail}`;
   const logged = refusal.logPath === undefined ? "" : `\nsetup output kept at ${refusal.logPath}`;
@@ -111,6 +115,8 @@ export async function runSetupCommand(
   if (tokens.length === 0) {
     return err({ kind: "command-failed", command, exit: { kind: "exit", code: -1 }, tail: "" });
   }
+  const nodeEngine = await checkNodeEngine(cwd, "worktree setup", env, heavy);
+  if (isErr(nodeEngine)) return nodeEngine;
   const { exit, tail } = await spawnSetupCommand(tokens, cwd, env, heavy);
   if (exit.kind === "exit" && exit.code === 0) return ok(undefined);
   const logPath = await retainSetupLog(cwd, tail);
