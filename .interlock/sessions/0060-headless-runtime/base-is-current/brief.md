@@ -1256,30 +1256,36 @@ edit it.
 
 ## Acceptance (verbatim from the graph)
 
-> A leased attempt always starts from current main, or is refused by name. Today ensureNodeWorktree reuses an
-> existing worktree (packages/runner/src/worktree.ts:231-235), and reuseWorktree (:196-226) moves it to the current
-> main sha only when the branch has no commits of its own; a branch with commits keeps its old base silently. The
-> runner commits the brief into the worktree before a launch can be refused (sessionDrive.ts, commitBriefIfChanged),
-> so a first launch refused before the agent starts leaves a branch one commit ahead on that day's main, and every
-> later resume reuses that base. codex-home-outside-worktree (2026-11-08) was refused at 13:42 on 49b3a80, resumed at
-> 15:04 on the same base after marker-never-dropped and line-fits had landed, cleared, and could not land: its merge
-> with main conflicted across five files.
-> - Before leasing, a reused worktree whose base is behind current main and whose branch has its own commits merges
->   current main in, as a signed merge commit made by the runner, narrated and recorded in the ledger with the old and
->   new base. A merge that conflicts aborts cleanly (no partial merge left in the worktree) and the attempt is
->   refused by name, naming the conflicting paths, before any agent starts.
-> - A launch refused before the agent starts leaves nothing a later launch silently reuses: when the branch holds only
->   runner-written commits (the brief), the refused launch removes that worktree and branch, so the next launch cuts a
->   fresh one from current main; when it holds anything else, the merge rule above applies on the next launch.
-> - A resume of a worktree whose branch has only runner-written commits and a stale base is reset to current main, as
->   today for a branch with no commits.
-> - Uncommitted work in a worktree that needs a merge refuses by name, as dirty-behind-base does today; it is never
->   stashed or discarded.
+> An attempt never starts on a base that main has moved past without saying so: it is refused by name before
+> leasing, and a person directs the recovery. Today ensureNodeWorktree (packages/runner/src/worktree.ts:231-241)
+> reuses an existing worktree, and reuseWorktree (:196-226) moves it to the sampled main only when the branch has no
+> commits of its own, keeping the old base otherwise (sessionDrive.ts:433-437 narrates it, nothing stops it); an
+> existing branch without its worktree is reattached and reported as `created` on the requested base without its
+> ancestry being read (:237-241). The runner commits the brief (sessionDrive.ts:458) before a launch can be refused,
+> so a first launch refused before the agent starts leaves a branch ahead on that day's main.
+> codex-home-outside-worktree (2026-11-08) was refused at 13:42 on 49b3a80, resumed at 15:04 on the same base after
+> marker-never-dropped and line-fits had landed, cleared, and could not land. Automatic recovery (merging main in,
+> or removing a refused launch's worktree) is not safe here: it races judges, mixes agent and runner commits, can
+> lose a brief or dirty setup state, and breaks inherited debrief ranges (sessionRange.ts:126-130, :237-241,
+> :308-309). This node changes no worktree; it refuses and names.
+> - "Main" is the repository's main branch ref, resolved explicitly (not the caller's HEAD, which
+>   currentCommitSha reads at packages/face/src/root.ts:78-79), and the sampled sha is recorded.
+> - Every existing branch is read truthfully, reused worktree or reattached: its actual merge base with the sampled
+>   main and its commits beyond it.
+> - Before leasing, an attempt whose branch has commits beyond a base that main has moved past refuses by name, with
+>   the branch, its base, the sampled main sha, how many commits main gained since, and whether any of them touch
+>   files outside .interlock/; the refusal names the person-directed recovery (inspect the branch; then either
+>   relaunch on a fresh worktree after the branch is kept under an attempt ref, or merge main by hand as a signed
+>   commit). A branch with no commits of its own is reset to the sampled main, as today. When main gained only
+>   changes under .interlock/ (plans, briefs, ledgers), the attempt proceeds and the transcript says so.
+> - A decided node (cleared or otherwise terminal) is never touched: no reset, no merge, no re-judgment; run.ts:203
+>   already refuses decided nodes, and the standalone judge gains the same boundary for a stale base, saying so
+>   instead of judging.
 > Tests:
-> - packages/runner/test/baseIsCurrent.test.ts, with real git fixtures: a worktree whose branch has an agent commit on
->   an old main is merged with current main before leasing, by a signed merge commit, and the ledger records old and
->   new base; a conflicting branch is refused by name with its paths and the worktree is left with no merge in
->   progress; a launch refused before the agent starts (forced by a fixture refusal after the brief commit) leaves no
->   worktree or branch, and the next launch starts on current main; a dirty worktree that needs a merge is refused
->   and its files are untouched.
+> - packages/runner/test/baseIsCurrent.test.ts, with real git fixtures: a reused worktree whose branch has an agent
+>   commit on an old main with a code change since is refused by name before any lease or agent, and its worktree,
+>   index, untracked files and branch are byte-for-byte unchanged; the same with only .interlock/ changes on main
+>   proceeds and says so; a branch with no own commits is reset to main; a reattached branch reports its true base
+>   and is refused the same way; "main" resolves to the main ref when the caller's checkout is on another branch;
+>   a cleared node with a stale base is neither run nor judged, with the refusal naming why.
 > Every gate and test runs with the repository's pinned Node first on PATH. No test is excluded.

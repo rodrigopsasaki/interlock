@@ -30,7 +30,7 @@ gates:
   - id: runner-suite
     kind: command
     run: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
-    expect_output: 'Tests +[1-9][0-9]* passed'
+    expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
   - id: start-failure-types
     kind: command
     run: pnpm typecheck
@@ -1260,8 +1260,9 @@ edit it.
 
 ## Acceptance (verbatim from the graph)
 
-> An exec phase whose program cannot start is recorded as a start failure, never as a run timeout, however late the
-> evidence arrives. packages/runner/test/execRuntime.test.ts ("distinguishes launcher, node, and profile-program start
+> An exec phase whose program cannot start is recorded as a start failure, never as a run timeout, whenever the
+> launcher has recorded that spawn error by the time the launcher is confirmed dead. Evidence the launcher never wrote
+> (it was killed before persisting it) cannot be recovered and is out of scope. packages/runner/test/execRuntime.test.ts ("distinguishes launcher, node, and profile-program start
 > failures", timeoutMs 2_000 at :150) failed in a judge on 2026-11-08 with "run timeout 2000ms" where it expects
 > "program could not start: ENOENT". Reproduced in a scratch copy with a synthetic delay, not load: when the
 > launcher's exit.json carrying the spawn error is written 2.5 s after "go", the phase is recorded as "run timeout
@@ -1271,20 +1272,40 @@ edit it.
 >   though its exit.json says so.
 > - waitForProgramExit (:309-346) notices exit.json only through a directory watcher event naming it, plus one read
 >   at the start; the launcher writes exit.json atomically through a temp file and a rename
->   (packages/runner/src/execLauncher.ts:28-31, :215-219). On macOS the directory watch can coalesce or delay events
->   and may name only the temp file, so a promptly written exit.json can go unnoticed until the deadline.
+>   (packages/runner/src/execLauncher.ts:28-31, :215-219). There is one more eager read (:343) and unnamed events
+>   are handled, but there is no periodic or deadline-final read, so a coalesced or missed event (FSEvents coalesces;
+>   Node documents watcher caveats) can leave a promptly written exit.json unnoticed until the deadline. That the 11-08
+>   failure delivered only the temp filename is a possible mechanism, not an established one.
+> - When the watcher errors or cannot be created, waitForProgramExit (:338) resolves undefined and the caller (:716)
+>   reads that as the deadline, so a watcher failure becomes an immediate false timeout well before timeoutMs.
 > What changes:
-> - The outcome is decided by evidence: after the deadline, before TERM, the runner reads exit.json once more; a
->   recorded spawn error makes the phase a start failure ("program could not start: <code>") with the deadline noted
->   in the transcript, not a timeout. A program that really started and ran past the deadline is still a run
->   timeout.
-> - waitForProgramExit does not depend on one watcher event: it also re-reads exit.json at a bounded interval (and on
->   any event in the folder), so a missed or coalesced event delays observation by at most that interval.
+> - The outcome is decided by evidence, reconciled at finalization: the runner retains any observed ProgramExit.error,
+>   and before the terminal state and reason are computed it re-reads exit.json after the launcher is confirmed dead
+>   (or after the last bounded wait if its death cannot be confirmed, which the transcript then says). This covers
+>   evidence that arrives before TERM, during TERM grace, and during the later bounded exit waits (:727, :761). A
+>   recorded spawn error (the explicit `error` field) takes precedence over timedOut in BOTH the state (:807, failed,
+>   never killed) and the reason (:818, "program could not start: <code>"), with the deadline noted in the transcript.
+>   Only the explicit `error` field overrides the timeout: a program that spawned (handoff.json written,
+>   execLauncher.ts:209) and exits nonzero after the deadline is still killed with a run-timeout reason.
+> - waitForProgramExit does not depend on one watcher event: it re-reads exit.json at a bounded interval and on any
+>   event in the folder, and reads only exit.json, never the event's filename (atomicJson's rename means exit.json is
+>   either absent or complete). When watching fails (creation throws or the watcher emits error), polling and the
+>   deadline continue; a watcher failure never resolves the wait early. One waiter owns its deadline and cleanup; the
+>   redundant timeout races are removed.
 > - No test-only switch ships in the launcher or the runner; tests reach the timing through injected seams (the
->   watcher and the clock or delay), or through fixture programs.
+>   watcher and the clock or scheduler, with native production defaults), or through fixture programs.
 > Tests:
-> - packages/runner/test/startFailureNotTimeout.test.ts: a spawn error written after the deadline, before TERM, is
->   recorded as a start failure; a watcher that delivers no event (an injected watcher that drops every event) still
->   observes exit.json within the poll interval; a program that starts and runs past the deadline is still recorded
->   as a run timeout; the existing execRuntime.test.ts case passes unchanged.
-> Every gate and test runs with the repository's pinned Node first on PATH. No test is excluded.
+> - packages/runner/test/startFailureNotTimeout.test.ts, deterministic (injected seams, no wall-clock sleeps for
+>   ordering), each asserting both `state` and the reason:
+>   - a spawn error written after the deadline, before TERM: state failed, reason "program could not start: <code>";
+>   - a spawn error written during TERM grace: same;
+>   - a spawn error written during the later bounded exit wait: same;
+>   - a successful spawn that exits nonzero after the deadline: state killed, run-timeout reason;
+>   - a program that starts and runs past the deadline: state killed, run-timeout reason;
+>   - an injected watcher that drops every event still observes exit.json within the poll interval;
+>   - a watcher whose creation throws, and one that emits error, neither resolves before timeoutMs and both still
+>     observe exit.json by polling.
+> - The existing execRuntime.test.ts start-failure case also asserts the failed state, not only the reason.
+> Out of scope, recorded for a separate node: execRuntime.ts:485 marks streams closed before finishStream() completes
+> and data-handler writes (:695) are untracked, so captureComplete can be true with writes pending.
+> Every gate and test runs with the repository's pinned Node first on PATH. No test is excluded and none is skipped.

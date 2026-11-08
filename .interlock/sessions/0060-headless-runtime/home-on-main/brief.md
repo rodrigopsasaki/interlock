@@ -27,9 +27,21 @@ gates:
     kind: command
     run: pnpm --fail-if-no-match --filter runner exec vitest run test/tmuxOverlay.test.ts --passWithNoTests=false
     expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
-  - id: marker-and-line-still
+  - id: marker-never-dropped-still
     kind: command
-    run: pnpm --fail-if-no-match --filter runner exec vitest run test/markerNeverDropped.test.ts test/realCodexMarkerOverflow.test.ts test/lineFits.test.ts test/lineFitsRealCodex.test.ts --passWithNoTests=false
+    run: pnpm --fail-if-no-match --filter runner exec vitest run test/markerNeverDropped.test.ts --passWithNoTests=false
+    expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+  - id: real-codex-child-proof
+    kind: command
+    run: pnpm --fail-if-no-match --filter runner exec vitest run test/realCodexMarkerOverflow.test.ts --passWithNoTests=false
+    expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+  - id: line-fits-still
+    kind: command
+    run: pnpm --fail-if-no-match --filter runner exec vitest run test/lineFits.test.ts --passWithNoTests=false
+    expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+  - id: line-fits-real-still
+    kind: command
+    run: pnpm --fail-if-no-match --filter runner exec vitest run test/lineFitsRealCodex.test.ts --passWithNoTests=false
     expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
   - id: runner-suite
     kind: command
@@ -1270,20 +1282,33 @@ edit it.
 > re-implemented the overlay inside that stale base, so its branch (graph/0060-headless-runtime/codex-home-outside-
 > worktree, head cb52d88) conflicts with main in packages/runner/src/codex/config.ts, runtime.ts, sessionDrive.ts and
 > two tests, and cannot land. This node does the same work on main's code.
-> - Change main's createOverlay and its callers (packages/runner/src/codex/config.ts, sessionDrive.ts), do not
->   replace them: keep marker-never-dropped's configured-server delivery, refusals and symlink layout, and line-fits'
->   move of the runner's shell_environment_policy entries into the overlay profile.
-> - Everything codex-home-outside-worktree's acceptance asks, word for word: the machine state directory
->   ($XDG_STATE_HOME/interlock or ~/.local/state/interlock, mode 0700, resolved in one place), overlays under
+> - Precedence where the two disagree: main's marker-never-dropped and line-fits behaviour wins (a regular generated
+>   base config and profile, symlinks for the shared entries, line-fits' move of the runner's shell_environment_policy
+>   entries); the cleared branch's link of config.toml does not carry over. Change main's createOverlay and its
+>   callers, do not replace them.
+> - Everything codex-home-outside-worktree's acceptance asks: the machine state directory ($XDG_STATE_HOME/interlock
+>   or ~/.local/state/interlock, mode 0700, resolved in one place), overlays under
 >   <state>/codex-homes/<graph>/<node>/<session> recording their owner journal, physical containment refused inside
->   any git worktree or repository including symlink aliases, removal only on confirmed termination or a freshly
->   read owner journal recording it, never traversing a symlink at any level, the tmux adapter carrying the
->   prepared environment or refusing, and the write-through contract.
+>   any git worktree or repository including symlink aliases, never traversing a symlink at any level, the tmux
+>   adapter carrying the prepared environment (its test asserts delivery), and the write-through contract.
+> - Removal only on confirmed termination, made explicit. The overlay cleanup takes termination evidence as an
+>   argument, never a default: main's argumentless cleanup (runtime.ts:53) and its unconditional call
+>   (sessionDrive.ts:1220) change so that a pane retained for drilldown, an unconfirmed pane close and an unresolved
+>   exec group keep the overlay, and only a confirmed group termination removes it, on both the pane and the exec
+>   launch paths. A later prepare removes another session's overlay only when that session's own journal, freshly
+>   read, records its confirmed termination; a held outcome, another attempt's outcome, a lease expiry or a person's
+>   override is not that evidence.
 > - Tests: carry over the cleared branch's packages/runner/test/codexHomeOutsideWorktree.test.ts and
->   tmuxOverlay.test.ts (git show cb52d88:<path>), adjusted only where main's code differs, keeping every case:
->   placement, in-repo and alias refusals, unrelated-repository refusal, HOME fallback, removal on confirmed
->   termination, the three keep cases, sentinel symlinks at each traversal level, and both checkouts clean after a
->   real codex launch. Every fixture home is built under the OS temp folder; nothing links to the owner's real
->   codex home. main's markerNeverDropped, realCodexMarkerOverflow, lineFits and lineFitsRealCodex tests still
->   pass unchanged except where the overlay's location is asserted.
+>   tmuxOverlay.test.ts (git show cb52d88:<path>), keeping every case (placement, in-repo and alias refusals,
+>   unrelated-repository refusal, HOME fallback, removal on confirmed termination, the three keep cases, sentinel
+>   symlinks at each traversal level, both checkouts clean after a real codex launch), with these named adaptations:
+>   termination fixtures give session-specific journal evidence, and negatives for a held outcome, another attempt's
+>   outcome and a person's override keep the overlay; cleanup calls pass termination evidence; the `as const` at
+>   :349 goes, per AGENTS.md. Add cases for a retained pane, a failed close and an unresolved exec group, each keeping
+>   the overlay.
+> - main's markerNeverDropped, realCodexMarkerOverflow, lineFits and lineFitsRealCodex tests keep their behavioural
+>   assertions, adapted only to use temporary fixture roots with isolated HOME, XDG_STATE_HOME and CODEX_HOME (no test
+>   touches the owner's state or codex home) and confirmation-aware cleanup calls. realCodexMarkerOverflow's
+>   MCP-child test loses its skip on an authentication failure (:109): missing child evidence fails, whatever the
+>   reason, as codex-home-outside-worktree's acceptance requires.
 > Every gate and test runs with the repository's pinned Node first on PATH. No test is excluded.
