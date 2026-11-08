@@ -8,7 +8,7 @@ import type { Lease } from "./lease.ts";
 import type { MarkCounts } from "./mark.ts";
 import type { Note } from "./note.ts";
 import type { OutboxDelivery, OutboxIntent } from "./outbox.ts";
-import type { Outcome } from "./outcome.ts";
+import { heldOn, type Outcome, outcome } from "./outcome.ts";
 import type { PersonSaid } from "./personSaid.ts";
 import type { Receipt } from "./receipt.ts";
 import { type SessionRuntime, type SessionStartedAt, sessionStartedAt } from "./session.ts";
@@ -265,7 +265,16 @@ export function applyEvent(projection: LedgerProjection, event: LedgerEvent): Le
         }
         const gates = new Map(view.gates);
         gates.set(event.gate, { kind: "pending" });
-        return { ...view, gates };
+        const nextOutcome =
+          view.outcome?.kind === "cleared"
+            ? outcome.held(
+                view.outcome.receipts,
+                heldOn.gateFailure(event.gate, "hold"),
+                `${event.gate}: awaits a person; a person's verb clears it.`,
+                0,
+              )
+            : view.outcome;
+        return { ...view, gates, outcome: nextOutcome };
       });
     }
     case "debrief-filed":

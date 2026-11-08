@@ -1,0 +1,67 @@
+interlock: debrief@v2
+graph: 0061-delegation-fails-closed
+node: retraction-holds-outcome
+role: implementer
+graph_base_sha: 18ad5765f5255887e112475ffe4308ae416bdd48
+session_start_sha: 053b7e558acd841d2bd8aaa543a5639c6a6a1c27
+head_sha: 5cef746e7bcbe202c47a6f7dcbb28915565084ac
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: replay-retraction-as-held-outcome
+    what: The ledger projection now moves a matching satisfied gate to pending and replaces a cleared node outcome with a held outcome on that gate, preserving the cleared receipts and using expiry 0.
+    because: The retraction event must itself withdraw the authorization during replay, so a crash or a journal ending immediately after receipt-retracted cannot leave the node cleared.
+    rests_on:
+      - packages/ledger/src/projection.ts:255-273
+    applies_to: { kind: path, path: packages/ledger/src/projection.ts }
+    hunks:
+      - packages/ledger/src/projection.ts:11
+      - packages/ledger/src/projection.ts:255-273
+  - id: prove-retraction-position-and-consumption
+    what: Added the required CLI proof fixture for a cleared delegated human gate, asserting one receipt-retracted append, replayed held state, held position, unmet dependency reporting, immediate replay with no later event, and consumed-cite refusal; it also covers non-cleared and mismatched retractions.
+    because: The acceptance makes replay behavior, outward position, dependency blocking, append discipline, and cite lifetime one regression boundary.
+    rests_on:
+      - packages/cli/test/retractionHoldsOutcome.test.ts:164-293
+    applies_to: { kind: path, path: packages/cli/test/retractionHoldsOutcome.test.ts }
+    hunks:
+      - packages/cli/test/retractionHoldsOutcome.test.ts:164-239
+      - packages/cli/test/retractionHoldsOutcome.test.ts:241-293
+  - id: retain-session-receipts
+    what: Recorded the implementation choices and observed gate-environment surprises in the session notes.
+    because: The session artifact is part of the node deliverable and keeps the reasoning and way back beside the code proof.
+    rests_on:
+      - .interlock/sessions/0061-delegation-fails-closed/retraction-holds-outcome/notes.yaml:1-19
+    applies_to: { kind: path, path: .interlock/sessions/0061-delegation-fails-closed/retraction-holds-outcome/notes.yaml }
+    hunks:
+      - .interlock/sessions/0061-delegation-fails-closed/retraction-holds-outcome/notes.yaml:1-19
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: All eight workspace TypeScript projects passed; the command reported 0 failures.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Biome checked the workspace with exit code 0; the initial repository warnings were outside this node's diff.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+    note: No comments were reported in packages/*/src.
+  - id: test
+    result: pass
+    invocation: mise exec -- pnpm test
+    note: The full workspace suite exited 0; all package test suites passed.
+  - id: retraction-proof
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter cli exec vitest run test/retractionHoldsOutcome.test.ts --passWithNoTests=false
+    note: One test file passed with 2 tests and 0 failures.
+  - id: debrief-valid
+    result: pass
+    invocation: mise exec -- pnpm interlock debrief validate 0061-delegation-fails-closed retraction-holds-outcome
+    note: Validation is run after authoring this candidate and before the final artifact commit.
+open:
+  - The environment reports Node 26.13.0 through mise exec although the repository declares Node 24.14.0.
+  - Runner fixture tests emitted Git setup and maintenance errors on stderr during the passing full workspace test; the command exited successfully with no failed tests.

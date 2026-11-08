@@ -1,6 +1,6 @@
-import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
+import { runOwnedCommand } from "../ownedCommand.ts";
 import type {
   Agent,
   AgentIdentity,
@@ -17,11 +17,9 @@ export type TmuxCommandRunner = (
 export function defaultTmuxRunner(
   args: readonly string[],
 ): Promise<Result<string, RuntimeRefusal>> {
-  return new Promise((resolve) => {
-    execFile("tmux", [...args], (error, stdout) => {
-      resolve(error === null ? ok(stdout) : err({ kind: "transport", because: error.message }));
-    });
-  });
+  return runOwnedCommand(["tmux", ...args], process.cwd(), process.env).then((result) =>
+    isErr(result) ? err({ kind: "transport", because: result.error }) : ok(result.value.stdout),
+  );
 }
 
 export function createTmuxRuntime(run: TmuxCommandRunner = defaultTmuxRunner): Runtime {

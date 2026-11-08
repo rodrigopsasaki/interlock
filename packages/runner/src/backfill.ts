@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
@@ -11,6 +10,7 @@ import { noneClient } from "substrate";
 import { declaredGateIds, gateCommandTable } from "./gateCommand.ts";
 import { explainGateJudgeRefusal, type GateJudgeRefusal, judgeGates } from "./gateJudge.ts";
 import { type MachineAttempt, resolveMachine } from "./machineProvider.ts";
+import { execFileSyncOwned } from "./ownedCommand.ts";
 import { gitScope } from "./scope.ts";
 import { buildBrief } from "./sessionBrief.ts";
 import type { StandingGate } from "./standingGates.ts";
@@ -106,7 +106,7 @@ export async function backfillGraph(
     requestedAuthoritativeGraphPath ??
     join(repoRoot, ".interlock", "graphs", `${document.id}.yaml`);
 
-  const mainSha = execFileSync("git", ["rev-parse", mainBranch], {
+  const mainSha = execFileSyncOwned("git", ["rev-parse", mainBranch], {
     cwd: repoRoot,
     encoding: "utf-8",
   }).trim();

@@ -1,0 +1,83 @@
+interlock: debrief@v2
+graph: 0060-headless-runtime
+node: exec-runtime
+role: implementer
+graph_base_sha: a9239f81fa7938d858c06e4bd8b270285e6ad3a0
+session_start_sha: 2c307185edc2b8766f097c5d7ebd09ccffb619b5
+head_sha: f05b4b5607aba629a2d8ce1f6f2f7a87f1bfecd3
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: exec-catalogue-contract
+    what: Keep the headless runtime fields additive to runtimes@v2 while preserving graph 0062's exec probe template unchanged.
+    because: The catalogue carries the probe template as a WritableRootTemplate and validates the exec profile's args, prompt, read-only arguments, and MCP allowlist without making provider flags part of runner code.
+    rests_on: [notes:choice-00:00, notes:choice-00:10]
+    hunks: [packages/runner/src/runtimeCatalogue.ts:29-48, packages/runner/src/runtimeCatalogue.ts:247-345, schemas/runtimes@v2.json:53-104]
+    applies_to:
+      kind: path
+      path: packages/runner/src/runtimeCatalogue.ts
+  - id: detached-phase-containment
+    what: Run each exec phase through the detached launcher that records its anchor, owns group signals, drains the transcript, and publishes terminal state only after group confirmation.
+    because: The phase record and transcript must remain authoritative even when the child exits before its group or streams finish.
+    rests_on: [notes:choice-00:20, notes:surprise-01:15]
+    hunks: [packages/runner/src/execLauncher.ts:48-60, packages/runner/src/execLauncher.ts:92-225, packages/runner/src/execRuntime.ts:482-509, packages/runner/src/execRuntime.ts:678-795]
+    applies_to:
+      kind: path
+      path: packages/runner/src/execRuntime.ts
+  - id: phase-sequence-and-scope
+    what: Run work and debrief as two exec phases sharing one session id, and snapshot the configured scope before and after each phase.
+    because: The phase parentage replaces the second pane prompt while the merged scope guard keeps changes outside the allowed worktree from silently passing through either headless phase.
+    rests_on: [notes:choice-01:23, notes:choice-01:26, notes:choice-07:45]
+    hunks: [packages/runner/src/sessionDrive.ts:441-455, packages/runner/src/sessionDrive.ts:457-648, packages/runner/src/scopeGuard.ts:192-259]
+    applies_to:
+      kind: path
+      path: packages/runner/src/sessionDrive.ts
+  - id: owned-command-boundary
+    what: Route runner process starts and provider commands through the owned-command seam, and expose the durable exec session and transcript view through the sessions CLI.
+    because: The runner must own process containment while the app reads sessions and transcript lines from Interlock records rather than runtime state.
+    rests_on: [notes:choice-01:06]
+    hunks: [packages/runner/src/ownedCommand.ts:1-75, packages/cli/src/sessions.ts:1-80, schemas/sessions@v0.json:1-47]
+    applies_to:
+      kind: repository
+  - id: focused-exec-proof
+    what: Add fixture-only exec tests for streams, admission refusal, grandchild reaping, timeout escalation, and launch/program failure distinctions.
+    because: The focused proof exercises durable records and transcripts without depending on a real agent runtime.
+    rests_on: []
+    hunks: [packages/runner/test/execRuntime.test.ts:27-180]
+    applies_to:
+      kind: path
+      path: packages/runner/test/execRuntime.test.ts
+  - id: merge-0062-and-scope-guard
+    what: Resolve origin/main's runtime catalogue, schema, and session-driver conflicts by keeping graph 0062's exec probe field, graph 0060's additive headless fields, and origin/main's pane launch preparation and scope-guard behavior.
+    because: The graph 0062 field owns the name exec, while this node's contract forbids reusing that name for its own fields; the scope guard must run around every exec phase and prepareLaunch must remain the pane-era launch seam.
+    rests_on: [notes:choice-07:45, notes:surprise-07:45]
+    hunks: [packages/runner/src/runtimeCatalogue.ts:29-48, packages/runner/src/runtimeCatalogue.ts:247-345, packages/runner/src/sessionDrive.ts:441-680, schemas/runtimes@v2.json:53-104]
+    applies_to:
+      kind: repository
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+  - id: test
+    result: pass
+    invocation: mise exec -- pnpm test
+    note: The pre-merge judgement was held because two CLI session-show tests read event@v11 from the shared main checkout ledger while this branch lacked that reader; after merging origin/main, 173 test files and 2848 tests passed.
+  - id: exec-runtime-proof
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter runner exec vitest run test/execRuntime.test.ts --passWithNoTests=false
+    note: 1 file and 5 tests passed.
+open:
+  - "The prior standing judgement held this node on test because packages/cli/test/session/show.test.ts read the shared main checkout ledger at line 5182, whose event@v11 record the pre-merge build did not recognize; the cause was outside this worktree and the post-merge rerun passed."
+  - "The acceptance's dead-runner recovery, launch-nonce recovery, orphan obligations, admission release overrides, and monotonic recovery paths are not implemented in this diff."
+  - "Provider bind and release calls are routed through the command seam but are not yet durable outbox effects with lost-ack replay."
+  - "The acceptance's command-level launcher anchors, owned git executor for verifier and face, and helper-sleeper proofs remain open."
+  - "Ask answering, detached-grandchild and escaped-stream proofs, review-session defaults, and full live-session admission behavior remain open beyond the focused fixture coverage."
