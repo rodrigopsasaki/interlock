@@ -17,3 +17,11 @@ entries:
     at: "2026-11-08T15:34:00Z"
     expected: The first migration serialization would preserve the original long scalar layout.
     observed: YAML's default line width rewrapped long asks, words, and sources; migration now disables wrapping and the repository file was checked for the nine explicit placeholder arcs.
+  - kind: surprise
+    at: "2026-11-08T16:10:00Z"
+    expected: The focused migration and standing test gates would pass from a clean checkout.
+    observed: The judge found three migration tests failing because mkdtemp assumed the ignored packages/cli/test/arcs/.runs parent already existed; the fixture now creates its directory directly under os.tmpdir(), while afterEach removes it.
+  - kind: surprise
+    at: "2026-11-08T16:12:00Z"
+    expected: The shell wrapper would capture the focused proof and return its exit code.
+    observed: zsh rejected the first wrapper's status variable because status is read-only; rerunning with rc captured the proof, which passed with 2 files and 6 tests.

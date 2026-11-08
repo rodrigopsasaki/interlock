@@ -1,4 +1,5 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { isErr, isOk } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
@@ -12,7 +13,7 @@ afterEach(async () => {
 });
 
 async function fixture(content: string): Promise<string> {
-  const root = await mkdtemp(join(import.meta.dirname, ".runs", "arcs-"));
+  const root = await mkdtemp(join(tmpdir(), "interlock-arcs-"));
   roots.push(root);
   await mkdir(join(root, ".interlock"));
   await writeFile(join(root, ".interlock", "arcs.yaml"), content, "utf-8");
