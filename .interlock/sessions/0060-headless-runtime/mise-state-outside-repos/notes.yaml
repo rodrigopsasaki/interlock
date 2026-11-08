@@ -176,3 +176,15 @@ entries:
       The current derived proof starts at this continuation's brief commit; carrying earlier filed
       decisions would leave them unrooted in this candidate's source range, while their prior debrief
       remains available in repository history.
+  - kind: surprise
+    at: '2026-11-08T21:20:00Z'
+    expected: file-derived would replace the prior debrief with the fresh authored candidate.
+    observed: >-
+      The immutable prior debrief made file-derived stop with EEXIST; the correction path is the
+      required debrief revise command, which retains the prior bytes in revisions.
+  - kind: choice
+    at: '2026-11-08T21:21:00Z'
+    chose: Use debrief revise with session-start recovery for the authored candidate.
+    because: >-
+      This is a correction to an already-filed debrief, and revise is the repository's custody path
+      that archives the previous bytes while accepting the current continuation's derived session start.
