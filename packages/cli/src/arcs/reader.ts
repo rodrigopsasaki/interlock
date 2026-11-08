@@ -138,10 +138,13 @@ function arcAt(value: unknown, version: typeof ARCS_V0 | typeof ARCS_V1): Result
     return err('"ask_form" must be "verbatim" or "placeholder"');
   }
 
-  const approved = value["approved"] === undefined ? undefined : wordsAt(value["approved"], "approved");
+  const approved =
+    value["approved"] === undefined ? undefined : wordsAt(value["approved"], "approved");
   if (approved !== undefined && isErr(approved)) return approved;
   const authorizedBy =
-    value["authorized_by"] === undefined ? undefined : wordsAt(value["authorized_by"], "authorized_by");
+    value["authorized_by"] === undefined
+      ? undefined
+      : wordsAt(value["authorized_by"], "authorized_by");
   if (authorizedBy !== undefined && isErr(authorizedBy)) return authorizedBy;
   const optionalVersion = stringAt(value, "version");
   const passed = stringAt(value, "passed");
@@ -184,7 +187,8 @@ export function parseArcsRegistry(
 ): Result<ArcRegistry, string> {
   if (!isRecord(value)) return err("the document is not a YAML mapping");
   const tag = stringAt(value, "interlock");
-  if (tag !== ARCS_V0 && tag !== ARCS_V1) return err(`shape tag is missing or unsupported: ${tag ?? "none"}`);
+  if (tag !== ARCS_V0 && tag !== ARCS_V1)
+    return err(`shape tag is missing or unsupported: ${tag ?? "none"}`);
   if (tag === ARCS_V1 && value["needs_his_words"] !== undefined) {
     return err('"needs_his_words" is not part of arcs@v1');
   }
@@ -194,7 +198,9 @@ export function parseArcsRegistry(
   }
   const resolvedRepository = tag === ARCS_V1 ? declaredRepository : repository;
   if (resolvedRepository === undefined || resolvedRepository.length === 0) {
-    return err("repository identity is unavailable; run interlock arcs migrate --repository <name>");
+    return err(
+      "repository identity is unavailable; run interlock arcs migrate --repository <name>",
+    );
   }
   const rawArcs = value["arcs"];
   if (!Array.isArray(rawArcs)) return err('"arcs" is missing or not a list');
@@ -209,7 +215,9 @@ export function parseArcsRegistry(
   return ok({ version: tag, repository: resolvedRepository, arcs, needsHisWords: needs.value });
 }
 
-export async function readArcsRegistry(repoRoot: string): Promise<Result<ArcRegistry, ArcReadRefusal>> {
+export async function readArcsRegistry(
+  repoRoot: string,
+): Promise<Result<ArcRegistry, ArcReadRefusal>> {
   const path = `${repoRoot}/.interlock/arcs.yaml`;
   let raw: string;
   try {
@@ -225,19 +233,32 @@ export async function readArcsRegistry(repoRoot: string): Promise<Result<ArcRegi
   try {
     parsed = parseYaml(raw);
   } catch (error) {
-    return err({ kind: "malformed", path, reason: error instanceof Error ? error.message : "invalid YAML" });
+    return err({
+      kind: "malformed",
+      path,
+      reason: error instanceof Error ? error.message : "invalid YAML",
+    });
   }
   const tag = isRecord(parsed) ? stringAt(parsed, "interlock") : undefined;
   if (tag === ARCS_V1) {
     const registry = parseArcsRegistry(parsed, undefined);
     return isErr(registry) ? err({ kind: "malformed", path, reason: registry.error }) : registry;
   }
-  if (tag !== ARCS_V0) return err({ kind: "malformed", path, reason: `unsupported shape ${tag ?? "none"}` });
+  if (tag !== ARCS_V0)
+    return err({ kind: "malformed", path, reason: `unsupported shape ${tag ?? "none"}` });
 
   const origin = await gitOrigin(repoRoot);
-  if (isErr(origin)) return err({ kind: "identity", reason: "repository identity is unavailable; run interlock arcs migrate --repository <name>" });
+  if (isErr(origin))
+    return err({
+      kind: "identity",
+      reason: "repository identity is unavailable; run interlock arcs migrate --repository <name>",
+    });
   const identity = repositoryForOrigin(origin.value);
-  if (isErr(identity)) return err({ kind: "identity", reason: "repository identity is unavailable; run interlock arcs migrate --repository <name>" });
+  if (isErr(identity))
+    return err({
+      kind: "identity",
+      reason: "repository identity is unavailable; run interlock arcs migrate --repository <name>",
+    });
   const registry = parseArcsRegistry(parsed, identity.value.name);
   return isErr(registry) ? err({ kind: "malformed", path, reason: registry.error }) : registry;
 }

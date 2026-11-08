@@ -28,11 +28,14 @@ function ownersOf(registry: ArcRegistry, reference: string): readonly Arc[] {
   );
 }
 
-function supersedingArc(registry: ArcRegistry, reference: string):
-  | { readonly arc: Arc; readonly because: string }
-  | undefined {
+function supersedingArc(
+  registry: ArcRegistry,
+  reference: string,
+): { readonly arc: Arc; readonly because: string } | undefined {
   for (const arc of registry.arcs) {
-    const entry = arc.superseded.find((candidate) => referenceWithoutNote(candidate.graph) === reference);
+    const entry = arc.superseded.find(
+      (candidate) => referenceWithoutNote(candidate.graph) === reference,
+    );
     if (entry !== undefined) return { arc, because: entry.because };
   }
   return undefined;
@@ -62,13 +65,17 @@ export function resolveGraphArc(
 
   const owner = owners[0];
   if (owner !== undefined && keyedArc !== undefined && owner.id !== keyedArc.id) {
-    return err(noArcReason(graph, `its arc key says ${key}, but arcs.yaml lists it under ${owner.id}`));
+    return err(
+      noArcReason(graph, `its arc key says ${key}, but arcs.yaml lists it under ${owner.id}`),
+    );
   }
 
   const superseded = supersedingArc(registry, reference);
   if (owner === undefined && keyedArc === undefined && superseded !== undefined) {
     if (reading === "admission") {
-      return err(noArcReason(graph, `it was superseded in arc ${superseded.arc.id}: ${superseded.because}`));
+      return err(
+        noArcReason(graph, `it was superseded in arc ${superseded.arc.id}: ${superseded.because}`),
+      );
     }
     return ok(superseded.arc);
   }
@@ -76,7 +83,10 @@ export function resolveGraphArc(
   const resolved = keyedArc ?? owner;
   if (resolved !== undefined) return ok(resolved);
   return err(
-    noArcReason(graph, `no arc in .interlock/arcs.yaml lists ${reference}, and the graph carries no arc key`),
+    noArcReason(
+      graph,
+      `no arc in .interlock/arcs.yaml lists ${reference}, and the graph carries no arc key`,
+    ),
   );
 }
 

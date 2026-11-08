@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
 import { isErr, isOk } from "@phyxiusjs/fp";
+import { afterEach, describe, expect, it } from "vitest";
 import { migrateArcs } from "../../src/arcs/migrate.ts";
 import { readArcsRegistry } from "../../src/arcs/reader.ts";
 
@@ -23,7 +23,9 @@ describe("arcs migration", () => {
   it("adds identity, keeps comments and values, and moves a marked shared listing to context", async () => {
     const ask = "the owner's exact ask stays here even when it is long";
     const source = "chat source stays byte for byte";
-    const root = await fixture(`interlock: arcs@v0\n# preserved comment\narcs:\n  - id: a\n    title: A\n    ask: "${ask}"\n    source: "${source}"\n    graphs:\n      - example/shared\n  - id: b\n    title: B\n    ask: B\n    source: chat\n    graphs:\n      - example/shared (shared with a)\n`);
+    const root = await fixture(
+      `interlock: arcs@v0\n# preserved comment\narcs:\n  - id: a\n    title: A\n    ask: "${ask}"\n    source: "${source}"\n    graphs:\n      - example/shared\n  - id: b\n    title: B\n    ask: B\n    source: chat\n    graphs:\n      - example/shared (shared with a)\n`,
+    );
 
     const migrated = await migrateArcs(root, "example");
     expect(isOk(migrated)).toBe(true);
@@ -38,7 +40,9 @@ describe("arcs migration", () => {
     if (isOk(read)) {
       expect(read.value.version).toBe("arcs@v1");
       expect(read.value.arcs[1]?.graphs).toEqual([]);
-      expect(read.value.arcs[1]?.context).toEqual([{ graph: "example/shared", because: "shared with a" }]);
+      expect(read.value.arcs[1]?.context).toEqual([
+        { graph: "example/shared", because: "shared with a" },
+      ]);
     }
   });
 
@@ -49,7 +53,9 @@ describe("arcs migration", () => {
     expect(isErr(needsWords) && needsWords.error).toContain("example/orphan");
     const identityRoot = await fixture(content.replace(/needs_his_words:[\s\S]*$/, ""));
     const noIdentity = await migrateArcs(identityRoot);
-    expect(isErr(noIdentity) && noIdentity.error).toContain("interlock arcs migrate --repository <name>");
+    expect(isErr(noIdentity) && noIdentity.error).toContain(
+      "interlock arcs migrate --repository <name>",
+    );
   });
 
   it("leaves v1 bytes unchanged", async () => {

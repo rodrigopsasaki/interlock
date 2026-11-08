@@ -1,5 +1,5 @@
-import { runInterlockBackfill } from "./backfill.ts";
 import { runArcsMigrate } from "./arcs/command.ts";
+import { runInterlockBackfill } from "./backfill.ts";
 import { validateBrief } from "./brief/validate.ts";
 import { runDebriefFileDerived, runDebriefPrepare } from "./debrief/derived.ts";
 import { runDebriefPreview } from "./debrief/preview.ts";

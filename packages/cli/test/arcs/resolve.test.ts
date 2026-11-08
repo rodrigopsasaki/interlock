@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
 import { isErr, isOk } from "@phyxiusjs/fp";
-import { type GraphDocument } from "face";
-import { admitGraph, resolveGraphArc } from "../../src/arcs/resolve.ts";
+import type { GraphDocument } from "face";
+import { describe, expect, it } from "vitest";
 import { parseArcsRegistry } from "../../src/arcs/reader.ts";
+import { admitGraph, resolveGraphArc } from "../../src/arcs/resolve.ts";
 
 function registry() {
   const result = parseArcsRegistry(
@@ -10,7 +10,14 @@ function registry() {
       interlock: "arcs@v1",
       repository: "example",
       arcs: [
-        { id: "a", title: "A", ask: "A", source: "chat", graphs: ["example/one"], superseded: [{ graph: "example/old", because: "replaced" }] },
+        {
+          id: "a",
+          title: "A",
+          ask: "A",
+          source: "chat",
+          graphs: ["example/one"],
+          superseded: [{ graph: "example/old", because: "replaced" }],
+        },
         { id: "b", title: "B", ask: "B", source: "chat", graphs: ["example/two"] },
       ],
     },
@@ -46,9 +53,13 @@ describe("arc resolution", () => {
       "none has no arc: no arc in .interlock/arcs.yaml lists example/none, and the graph carries no arc key",
     );
     const unknownKey = resolveGraphArc(arcs, graph("none", "c"), "admission");
-    expect(isErr(unknownKey) && unknownKey.error).toContain("arc key names c, which arcs.yaml does not hold");
+    expect(isErr(unknownKey) && unknownKey.error).toContain(
+      "arc key names c, which arcs.yaml does not hold",
+    );
     const mismatch = resolveGraphArc(arcs, graph("one", "b"), "admission");
-    expect(isErr(mismatch) && mismatch.error).toContain("arc key says b, but arcs.yaml lists it under a");
+    expect(isErr(mismatch) && mismatch.error).toContain(
+      "arc key says b, but arcs.yaml lists it under a",
+    );
 
     const duplicate = parseArcsRegistry(
       {

@@ -1,13 +1,9 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
-import { isMap, isScalar, isSeq, parseDocument, YAMLSeq, type YAMLMap } from "yaml";
+import { isMap, isScalar, isSeq, parseDocument, type YAMLMap, YAMLSeq } from "yaml";
 import { gitOrigin, repositoryForOrigin } from "../repositoryOrigin.ts";
-import {
-  ARCS_V0,
-  ARCS_V1,
-  parseArcsRegistry,
-} from "./reader.ts";
+import { ARCS_V0, ARCS_V1, parseArcsRegistry } from "./reader.ts";
 
 interface Listing {
   readonly arc: YAMLMap;
@@ -35,7 +31,9 @@ function normalizedGraph(graph: string): string {
   return graph.replace(/\s+\([^()]*\)$/, "");
 }
 
-function sharedNote(graph: string): { readonly normalized: string; readonly note: string; readonly other: string } | undefined {
+function sharedNote(
+  graph: string,
+): { readonly normalized: string; readonly note: string; readonly other: string } | undefined {
   const match = /^(.*)\s+\(shared with ([a-z0-9]+(?:-[a-z0-9]+)*)\)$/.exec(graph);
   if (match === null) return undefined;
   const normalized = match[1];
@@ -85,7 +83,12 @@ function listingsFor(root: YAMLMap): readonly Listing[] {
   return result;
 }
 
-function addContext(document: ReturnType<typeof parseDocument>, arc: YAMLMap, graph: string, because: string): void {
+function addContext(
+  document: ReturnType<typeof parseDocument>,
+  arc: YAMLMap,
+  graph: string,
+  because: string,
+): void {
   const current = arc.get("context", true);
   const context = isSeq(current) ? current : new YAMLSeq();
   context.add(document.createNode({ graph, because }));
@@ -100,7 +103,11 @@ function removeGraph(arc: YAMLMap, graph: string): void {
   }
 }
 
-function addRepository(root: YAMLMap, document: ReturnType<typeof parseDocument>, repository: string): void {
+function addRepository(
+  root: YAMLMap,
+  document: ReturnType<typeof parseDocument>,
+  repository: string,
+): void {
   const tag = root.get("interlock", true);
   if (isScalar(tag)) tag.value = ARCS_V1;
   else root.set("interlock", ARCS_V1);
@@ -114,10 +121,16 @@ function addRepository(root: YAMLMap, document: ReturnType<typeof parseDocument>
   root.items.splice(tagIndex < 0 ? 0 : tagIndex + 1, 0, pair);
 }
 
-async function repositoryForMigration(repoRoot: string, override: string | undefined): Promise<Result<string, string>> {
+async function repositoryForMigration(
+  repoRoot: string,
+  override: string | undefined,
+): Promise<Result<string, string>> {
   if (override !== undefined) return ok(override);
   const origin = await gitOrigin(repoRoot);
-  if (isErr(origin)) return err("repository identity is unavailable; run interlock arcs migrate --repository <name>");
+  if (isErr(origin))
+    return err(
+      "repository identity is unavailable; run interlock arcs migrate --repository <name>",
+    );
   const identity = repositoryForOrigin(origin.value);
   return isErr(identity)
     ? err("repository identity is unavailable; run interlock arcs migrate --repository <name>")
@@ -150,7 +163,9 @@ export async function migrateArcs(
   if (isErr(parsedShape)) return err(`${path}: ${parsedShape.error}`);
   if (parsedShape.value.needsHisWords.length > 0) {
     const graphs = parsedShape.value.needsHisWords.map((entry) => entry.graph).join(", ");
-    return err(`${path}: cannot migrate non-empty needs_his_words; edit arcs.yaml to choose an arc for ${graphs}`);
+    return err(
+      `${path}: cannot migrate non-empty needs_his_words; edit arcs.yaml to choose an arc for ${graphs}`,
+    );
   }
   const repository = await repositoryForMigration(repoRoot, repositoryOverride);
   if (isErr(repository)) return repository;
@@ -168,12 +183,16 @@ export async function migrateArcs(
     const owners = [...new Set(group.map((listing) => listing.arcId))];
     if (owners.length < 2) continue;
     if (owners.length !== 2 || group.length !== 2) {
-      return err(`${path}: graph ${group[0]?.normalized ?? "unknown"} is listed under arcs ${owners.join(" and ")}; edit arcs.yaml to choose an owner`);
+      return err(
+        `${path}: graph ${group[0]?.normalized ?? "unknown"} is listed under arcs ${owners.join(" and ")}; edit arcs.yaml to choose an owner`,
+      );
     }
     const noted = group.find((listing) => listing.note !== undefined);
     const plain = group.find((listing) => listing.note === undefined);
     if (noted === undefined || plain === undefined || noted.note !== `shared with ${plain.arcId}`) {
-      return err(`${path}: graph ${group[0]?.normalized ?? "unknown"} is listed under arcs ${owners.join(" and ")}; edit arcs.yaml to choose an owner`);
+      return err(
+        `${path}: graph ${group[0]?.normalized ?? "unknown"} is listed under arcs ${owners.join(" and ")}; edit arcs.yaml to choose an owner`,
+      );
     }
     addContext(document, noted.arc, noted.normalized, noted.note);
     removeGraph(noted.arc, noted.graph);

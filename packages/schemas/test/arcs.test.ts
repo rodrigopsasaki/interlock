@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { parse as parseYaml } from "yaml";
 import { describe, expect, it } from "vitest";
+import { parse as parseYaml } from "yaml";
 import { buildRegistry, validatorFor } from "../src/registry.ts";
 
 const registry = buildRegistry();
@@ -86,15 +86,29 @@ describe("arcs schemas", () => {
     ["missing repository", { interlock: "arcs@v1", arcs: [] }],
     [
       "list ask",
-      { interlock: "arcs@v1", repository: "example", arcs: [{ id: "a", title: "A", ask: [], source: "chat", graphs: ["example/a"] }] },
+      {
+        interlock: "arcs@v1",
+        repository: "example",
+        arcs: [{ id: "a", title: "A", ask: [], source: "chat", graphs: ["example/a"] }],
+      },
     ],
     [
       "empty graphs without context",
-      { interlock: "arcs@v1", repository: "example", arcs: [{ id: "a", title: "A", ask: "ask", source: "chat", graphs: [] }] },
+      {
+        interlock: "arcs@v1",
+        repository: "example",
+        arcs: [{ id: "a", title: "A", ask: "ask", source: "chat", graphs: [] }],
+      },
     ],
     [
       "duplicate graph",
-      { interlock: "arcs@v1", repository: "example", arcs: [{ id: "a", title: "A", ask: "ask", source: "chat", graphs: ["example/a", "example/a"] }] },
+      {
+        interlock: "arcs@v1",
+        repository: "example",
+        arcs: [
+          { id: "a", title: "A", ask: "ask", source: "chat", graphs: ["example/a", "example/a"] },
+        ],
+      },
     ],
   ])("refuses %s", (_name, value) => {
     expect(valid("arcs@v1", value)).toBe(false);
@@ -111,7 +125,11 @@ describe("arcs schemas", () => {
       const entries = arcs.arcs;
       expect(Array.isArray(entries)).toBe(true);
       if (Array.isArray(entries)) {
-        expect(entries.filter((entry) => typeof entry === "object" && entry !== null && "ask_form" in entry)).toHaveLength(9);
+        expect(
+          entries.filter(
+            (entry) => typeof entry === "object" && entry !== null && "ask_form" in entry,
+          ),
+        ).toHaveLength(9);
       }
     }
   });

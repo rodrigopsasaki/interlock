@@ -1,5 +1,5 @@
-import { findRepoRoot } from "face";
 import { isErr } from "@phyxiusjs/fp";
+import { findRepoRoot } from "face";
 import { parseFlag } from "../flags.ts";
 import type { CommandResult } from "../main.ts";
 import { migrateArcs } from "./migrate.ts";
