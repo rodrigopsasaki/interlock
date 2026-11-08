@@ -4,7 +4,7 @@ node: cite-stays-consumed
 role: implementer
 graph_base_sha: a9239f81fa7938d858c06e4bd8b270285e6ad3a0
 session_start_sha: 2d2ec5d1c1877725bd6b53d42f51c0305808be6a
-head_sha: b7f18cb51cdd6eb9b29eb007a6115038f42ebf09
+head_sha: 68ae4757dcd326ccb156d209ed897ed82aaa5757
 derivation:
   kind: agent
   runtime: codex
@@ -69,11 +69,11 @@ gates_run_by_agent:
   - id: typecheck
     result: pass
     invocation: mise exec -- pnpm typecheck
-    note: All eight workspace TypeScript projects passed.
+    note: All eight workspace TypeScript projects passed; the command reported 0 failures.
   - id: lint
-    result: fail
+    result: pass
     invocation: mise exec -- pnpm lint
-    note: Touched files are clean; Biome still reports two existing findings in packages/runner/test/runnerCommits.test.ts outside this node's diff.
+    note: Biome checked 452 files with exit code 0; it reported one existing warning and one info in packages/runner/test/runnerCommits.test.ts outside this node's diff.
   - id: comments
     result: pass
     invocation: mise exec -- pnpm check:comments
@@ -81,23 +81,23 @@ gates_run_by_agent:
   - id: test
     result: pass
     invocation: mise exec -- pnpm test
-    note: The full workspace suite completed with 8 package suites, including 445 CLI tests and the new focused proofs; the environment printed existing fixture git and signing diagnostics, but no test failed.
+    note: The full workspace suite passed 172 test files and 2,838 tests across eight packages, with 0 failed tests; packages/cli/test/session/show.test.ts passed all 7 tests after the event@v11 reader arrived through the merge.
   - id: debrief-valid
     result: pass
     invocation: mise exec -- pnpm interlock debrief validate 0061-delegation-fails-closed cite-stays-consumed
-    note: Validation is run after filing this authored candidate and before the final commit.
+    note: Validation is run after this revised candidate is selected and before the final signed artifact commit.
   - id: consumed-cite-ledger-proof
     result: pass
     invocation: mise exec -- pnpm --fail-if-no-match --filter ledger exec vitest run test/consumedCite.test.ts --passWithNoTests=false
-    note: Two ledger tests passed.
+    note: One test file passed with 2 tests and 0 failures.
   - id: consumed-cite-cli-proof
     result: pass
     invocation: mise exec -- pnpm --fail-if-no-match --filter cli exec vitest run test/consumedCite.test.ts --passWithNoTests=false
-    note: Three CLI tests passed for pending, replacement, and retraction.
+    note: One test file passed with 3 tests and 0 failures.
   - id: concurrent-cite-proof
     result: pass
     invocation: mise exec -- pnpm --fail-if-no-match --filter cli exec vitest run test/concurrentCite.test.ts --passWithNoTests=false
-    note: One concurrency test passed, proving one append, one refusal, and dead-holder takeover.
+    note: One test file passed with 1 test and 0 failures, proving one append, one refusal, and dead-holder takeover.
 open:
-  - The standing lint gate remains held by two pre-existing runner test diagnostics outside this node's diff; the touched files pass the same Biome check.
-  - mise exec reported Node 26.13.0 against the repository's declared Node 24.14.0 engine during all commands.
+  - The environment reports Node 26.13.0 through mise exec although the repository declares Node 24.14.0.
+  - packages/cli/test/session/show.test.ts reads the repository main checkout's real shared ledger, so its result depends on whatever the installed CLI last wrote there; this caused the prior held test judgement when the ledger contained event@v11 and this branch lacked the reader.
