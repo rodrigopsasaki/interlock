@@ -46,4 +46,13 @@ entries:
   - kind: surprise
     at: "2026-11-08T06:42:00Z"
     expected: The full workspace test gate would pass with the corrected fixture process boundary.
-    observed: pnpm test exited successfully across all 8 packages: 19, 6, 8, 13, 16, 45, 22 and 47 test files, with 174, 98, 62, 91, 185, 557, 1252 and 453 tests respectively; the existing worktree-maintenance fixtures emitted intentional permission-denied diagnostics while their tests passed.
+    observed: >-
+      pnpm test exited successfully across all 8 packages: 19, 6, 8, 13, 16,
+      45, 22 and 47 test files respectively, with 174, 98, 62, 91, 185, 557,
+      1252 and 453 tests respectively; the existing worktree-maintenance
+      fixtures emitted intentional permission-denied diagnostics while their
+      tests passed.
+  - kind: surprise
+    at: "2026-11-08T06:44:00Z"
+    expected: The selected debrief would validate immediately after revision.
+    observed: The validator rejected the newly appended full-test note because its unquoted package-count colon made the YAML invalid; the note was changed to a folded scalar.

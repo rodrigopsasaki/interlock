@@ -4,7 +4,7 @@ node: runner-marker
 role: implementer
 graph_base_sha: ed0a09a73b7884bebcda58c1e296e969db4a0c36
 session_start_sha: 13f434870fe1696abd5738157f9fdc3f979af9fa
-head_sha: 42c710ce804234140ff53fb47a3eb7b5116c9d96
+head_sha: b24258fc51bf00972d00175795455709ba0ca808
 derivation:
   kind: agent
   runtime: codex
@@ -62,41 +62,55 @@ decisions:
       - packages/runner/test/fixtures/exec/appendEnvironment.mjs
       - packages/runner/test/fixtures/exec/recordEnvironment.mjs
     hunks:
-      - packages/runner/test/runnerMarker.test.ts:45-213
+      - packages/runner/test/runnerMarker.test.ts:52-213
       - packages/runner/test/machineProvider.test.ts:272-294
       - packages/runner/test/machineProvider.test.ts:333-370
       - packages/runner/test/fixtures/exec/codexProbe.mjs
       - packages/runner/test/fixtures/exec/appendEnvironment.mjs
       - packages/runner/test/fixtures/exec/recordEnvironment.mjs
+  - id: readable-fixture-boundary
+    what: Copy the existing Codex probe into the temporary fake executable and launch it through execFileSync(process.execPath, [codex, ...args]) so the fixture guard can read both process boundaries.
+    because: The guard rejects generated child-process source and dynamic executable commands; the static Node boundary preserves the end-to-end probe while keeping fixture process starts auditable.
+    rests_on:
+      - packages/cli/test/fixtureGuard.test.ts
+      - packages/runner/test/runnerMarker.test.ts
+      - packages/runner/test/fixtures/exec/codexProbe.mjs
+    hunks:
+      - packages/runner/test/runnerMarker.test.ts:1-10
+      - packages/runner/test/runnerMarker.test.ts:106-142
 gates_run_by_agent:
   - id: typecheck
     result: pass
-    invocation: pnpm typecheck
-    note: All 8 workspace packages typechecked on 2026-11-08 through mise.
+    invocation: mise exec -- pnpm typecheck
+    note: All 8 workspace packages typechecked on 2026-11-08; pnpm reported the repository's Node 24.14.0 engine expectation while the available Node was 26.13.0.
   - id: lint
     result: pass
-    invocation: pnpm lint
-    note: Biome checked 465 files; it retained two pre-existing warnings in packages/runner/test/runnerCommits.test.ts.
+    invocation: mise exec -- pnpm lint
+    note: Biome checked 467 files and retained the existing warning in packages/runner/test/runnerCommits.test.ts.
   - id: comments
     result: pass
-    invocation: pnpm check:comments
+    invocation: mise exec -- pnpm check:comments
     note: packages/*/src contained no comments.
   - id: runner-marker-proof
     result: pass
-    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/runnerMarker.test.ts --passWithNoTests=false
+    invocation: pnpm --filter runner exec vitest run test/runnerMarker.test.ts --passWithNoTests=false
     note: 7 tests passed, including the fake Codex stdio probe.
   - id: runner-marker-types
     result: pass
     invocation: pnpm typecheck
-    note: The runner marker implementation and fixtures typechecked.
+    note: The runner marker implementation and fixtures typechecked in the final workspace check.
+  - id: fixture-guard
+    result: pass
+    invocation: pnpm --filter cli exec vitest run test/fixtureGuard.test.ts --passWithNoTests=false
+    note: 69 tests passed, including the repository-wide fixture process-start audit.
   - id: test
     result: pass
     invocation: pnpm test
     note: >-
-      The retry passed all 8 workspace packages: 2870 tests across 177 test files,
-      including runner 556/556, schemas 1251/1251 and cli 453/453. The first
-      unchanged run had one unrelated herdr timing failure; it remains recorded
-      in notes.yaml.
+      All 8 workspace packages passed: 176 test files and 2872 tests total,
+      including runner 557/557, schemas 1252/1252 and cli 453/453. The
+      intentional worktree-maintenance fixtures emitted permission-denied
+      diagnostics while their tests passed.
 open:
   - The graph read explicitly leaves the tmux adapter's lack of pane environment as a standing gap; this change passes the marker to runtime.openPane, but tmux does not yet consume that optional environment, so a tmux-pane Claude session remains outside the marker proof.
-  - The first full pnpm test attempt observed an unrelated herdr adapter agent.wait count of 3 instead of 2 under load; the unchanged retry passed and the runner gate receipts remain binding.
+  - The workspace reports the pinned Node 24.14.0 engine as unsupported by the available Node 26.13.0 during the final checks; the checks still exited successfully.
