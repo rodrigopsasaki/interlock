@@ -468,6 +468,10 @@ scope:
   - .interlock/sessions/0061-delegation-fails-closed/cite-stays-consumed/notes.yaml
   - .interlock/sessions/0061-delegation-fails-closed/cite-stays-consumed/revisions/4a2d54500d355c7de1e8599c5c27b482e045b9164c9bcef9b6bdad65cc7a1995.yaml
   - .interlock/sessions/0061-delegation-fails-closed/fails-closed/brief.md
+  - .interlock/sessions/0061-delegation-fails-closed/fails-closed/debrief-candidate.yaml
+  - .interlock/sessions/0061-delegation-fails-closed/fails-closed/debrief.yaml
+  - .interlock/sessions/0061-delegation-fails-closed/fails-closed/notes.yaml
+  - .interlock/sessions/0061-delegation-fails-closed/fails-closed/revisions/67860d0dff6d8a518d92a69396e55ad7e6ba369990b37dfa014201f355aac55f.yaml
   - .interlock/sessions/0061-delegation-fails-closed/neutral-refusal/brief.md
   - .interlock/sessions/0061-delegation-fails-closed/neutral-refusal/debrief-candidate.yaml
   - .interlock/sessions/0061-delegation-fails-closed/neutral-refusal/debrief.yaml
@@ -858,6 +862,7 @@ scope:
   - packages/runner/test/baseHoldsGraph.test.ts
   - packages/runner/test/briefRewrite.test.ts
   - packages/runner/test/debriefAuthoringGuidance.test.ts
+  - packages/runner/test/delegatedFailsClosed.test.ts
   - packages/runner/test/execRuntime.test.ts
   - packages/runner/test/fixtures/claude/repo-worktrees-node/completed.jsonl
   - packages/runner/test/fixtures/claude/repo-worktrees-node/empty.jsonl
@@ -1136,7 +1141,7 @@ walk:
   kind: none
   because: the substrate address is none, so there is nothing to ask
 graph_base_sha: ed0a09a73b7884bebcda58c1e296e969db4a0c36
-session: ca3cbd43-2677-4048-8b6b-a521d1d78f95
+session: 286eafa7-f5cf-4c04-9ef0-b2cd004da8cf
 ---
 
 # Brief · node `runner-marker` · graph `0060-headless-runtime`
