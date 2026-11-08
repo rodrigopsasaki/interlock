@@ -1,0 +1,26 @@
+interlock: notes@v0
+graph: 0061-delegation-fails-closed
+node: receipt-carries-its-run
+entries:
+  - kind: choice
+    at: "2026-11-08T15:00:00Z"
+    chose: Preserve receiptId as the content-and-gate fingerprint and add a versioned command-proof identity at the runner boundary.
+    because: Approval and staleness depend on the existing content fingerprint, while command reruns need distinct receipts when their retained proof differs.
+    rejected:
+      - Make receiptId include proof for every receipt, which would change approval and stale semantics.
+  - kind: choice
+    at: "2026-11-08T15:01:00Z"
+    chose: Assess failing recorded command proofs during reads without appending corrective journal events.
+    because: Existing journals and event history must remain unchanged, and human or legacy receipts must remain recorded without an invented run result.
+  - kind: surprise
+    at: "2026-11-08T15:02:00Z"
+    expected: The position gate helper would already receive the declared gate kind where proof assessment belongs.
+    observed: The helper discarded that kind before constructing the gate facts, so the read-path change required passing it through explicitly.
+  - kind: surprise
+    at: "2026-11-08T15:05:00Z"
+    expected: The focused test output directory would already exist and a generic shell status variable would be writable.
+    observed: The package test/.runs directory was absent and zsh reserves status, so the test command had to create the directory and use another exit variable before starting.
+  - kind: choice
+    at: "2026-11-08T15:08:00Z"
+    chose: Render the proof mismatch through the face's graph frame as well as position and session reads.
+    because: The acceptance requires every read surface, including the face, to name a satisfied gate whose recorded command proof fails its criterion.

@@ -50,6 +50,21 @@ function renderNodeState(node: PositionNode): string {
   }
 }
 
+function renderGateState(state: PositionGateState): string {
+  switch (state.kind) {
+    case "pending":
+      return "pending";
+    case "satisfied":
+      return "satisfied";
+    case "blocked":
+      return `blocked (${state.because})`;
+    case "waived":
+      return `waived by ${state.authority}`;
+    case "superseded":
+      return `superseded by ${state.authority}`;
+  }
+}
+
 function latestIsLive(node: PositionNode): boolean {
   const latest = node.attempts[node.attempts.length - 1];
   return latest !== undefined && isLiveAttempt(latest);
@@ -72,7 +87,7 @@ export function renderGraphFrame(position: Position, index: number): string {
     const gateLine =
       node.gates.length === 0
         ? "gates: none declared"
-        : `gates: ${node.gates.map((entry) => `${entry.id} ${entry.state.kind}`).join(", ")}`;
+        : `gates: ${node.gates.map((entry) => `${entry.id} ${renderGateState(entry.state)}`).join(", ")}`;
     lines.push(`      ${gateLine}`);
     const attempt = liveOrLatestAttempt(node.attempts, isLiveAttempt);
     if (attempt !== undefined)

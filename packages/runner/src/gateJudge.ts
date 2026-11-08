@@ -15,6 +15,7 @@ import {
 } from "debrief";
 import {
   buildCleared,
+  commandReceiptId,
   countMarks,
   createReceipt,
   type Debrief,
@@ -407,14 +408,15 @@ export async function judgeGates(
     const after = clock.now().monoMs;
 
     const pattern = gateCommand?.expectOutput;
-    const satisfied = exitCode === 0 && (pattern === undefined || pattern.test(output));
+    const outputMatched = pattern === undefined ? undefined : pattern.test(output);
+    const satisfied = exitCode === 0 && (outputMatched ?? true);
     const proof =
       pattern === undefined
         ? { exitCode, outputHash: outputHash(output) }
         : {
             exitCode,
             outputHash: outputHash(output),
-            outputMatched: pattern.test(output),
+            outputMatched,
             pattern: pattern.source,
           };
 
@@ -434,6 +436,27 @@ export async function judgeGates(
       return err({ kind: "output", refusal: retained.error });
     }
     const proofWithOutput = { ...proof, gateOutput: retained.value };
+
+    const commandId = await commandReceiptId(
+      scopeRoot,
+      scopePaths,
+      gateId,
+      proofWithOutput,
+    );
+    if (isErr(commandId)) {
+      const stale = await invalidateStaleDelegated(
+        ledger,
+        node,
+        declaredGateIds,
+        commandFor,
+        worktree,
+        authoritativeGraphPath,
+        parsedGraphHash,
+        narrate,
+      );
+      holdOnStaleDelegation(ledger, clock, node, stale, commandFor, holdMs);
+      return err({ kind: "scope", refusal: commandId.error });
+    }
 
     let built: Awaited<ReturnType<typeof createReceipt>>;
     try {
@@ -478,7 +501,7 @@ export async function judgeGates(
       holdOnStaleDelegation(ledger, clock, node, stale, commandFor, holdMs);
       return err({ kind: "scope", refusal: built.error });
     }
-    const receipt = built.value;
+    const receipt = { ...built.value, id: commandId.value };
 
     const alreadyRecorded = ledger
       .projection()

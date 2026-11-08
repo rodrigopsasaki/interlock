@@ -11,6 +11,7 @@ import type {
   Receipt,
   SessionView,
 } from "ledger";
+import { assessReceipt } from "ledger";
 import { renderSessionRuntime } from "./runtimeLine.ts";
 
 function isoOf(wallMs: number): string {
@@ -33,6 +34,10 @@ export function renderGate(
     case "pending":
       return `  ${gateId}: pending`;
     case "satisfied": {
+      const assessment = assessReceipt(current.receipt);
+      if (assessment.kind === "failed") {
+        return `  ${gateId}: recorded proof does not meet its criterion: ${assessment.because} (receipt ${current.receipt.id})`;
+      }
       const because = printBecause ? humanBecause(current.receipt) : undefined;
       const suffix = because === undefined ? "" : `; because: ${because}`;
       return `  ${gateId}: satisfied (receipt ${current.receipt.id})${suffix}`;
