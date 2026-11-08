@@ -21,3 +21,11 @@ entries:
     at: "2026-11-08T06:20:00Z"
     expected: The standing runner tests would treat a fixture linked worktree as separate from the main checkout automatically.
     observed: Fixture repositories do not ignore their linked worktree directory, so the guard initially saw the runner-created worktree as an outside write; the snapshot now excludes the active linked worktree path while still hashing other main-checkout changes.
+  - kind: surprise
+    at: "2026-11-08T06:25:00Z"
+    expected: The final root test gate would repeat the clean runner-suite result.
+    observed: The root run had two concurrent fixture failures involving process-wide Git/PATH state, while the runner suite itself passed 545 tests; the affected backfill and runner-commit files are being rerun in isolation before deciding whether the root gate is flaky.
+  - kind: choice
+    at: "2026-11-08T06:32:00Z"
+    chose: Declare watch_paths as an additive optional local@v1 schema field and regenerate docs/shapes.md from the schema reference generator.
+    because: The repository treats artifact schemas and docs/shapes.md as the source-backed public contract; a parser-only field would make the generated reference stale.
