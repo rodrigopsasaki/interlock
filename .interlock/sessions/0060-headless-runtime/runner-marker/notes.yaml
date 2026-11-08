@@ -17,3 +17,15 @@ entries:
     at: "2026-11-08T08:50:00Z"
     expected: The complete runner suite would exercise execRuntime.test.ts without timing failures under suite load.
     observed: The complete runner suite passed 45 files and 556 tests; execRuntime.test.ts passed all 5 tests in the same run. Git auto-maintenance tests emitted permission-denied diagnostics from their intentional lock-down fixtures, but the suite exited successfully.
+  - kind: surprise
+    at: "2026-11-08T08:53:45Z"
+    expected: The standing workspace test gate would remain green on its first full run.
+    observed: The first captured pnpm test run reached the runner suite with all 5 execRuntime tests passing, but an unrelated herdr adapter timing assertion observed 3 agent.wait calls instead of 2; the gate exited 1 after 555 of 556 runner tests passed.
+  - kind: choice
+    at: "2026-11-08T08:53:45Z"
+    chose: Re-run the unchanged workspace test gate after the unrelated herdr timing failure.
+    because: The first failure was outside the changed paths, while the required exec-runtime proof was green; a second serial gate run distinguishes a transient loaded-machine failure without altering its timeout.
+  - kind: surprise
+    at: "2026-11-08T08:53:45Z"
+    expected: The retry would either reproduce the unrelated failure or pass with the same implementation.
+    observed: The retry passed all 8 workspace packages: 19, 6, 8, 13, 16, 45, 22 and 47 test files respectively, including all 5 exec-runtime and 6 marker tests.
