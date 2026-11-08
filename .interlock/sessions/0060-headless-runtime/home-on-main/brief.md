@@ -1272,7 +1272,7 @@ walk:
   kind: none
   because: the substrate address is none, so there is nothing to ask
 graph_base_sha: 70bcce800291c2dae52343f653e175fa440f32fb
-session: c9534dfe-becd-4613-b341-26a3bf41aa7b
+session: 40d254c4-ab06-44a1-b000-67e6a1dd2f72
 ---
 
 # Brief · node `home-on-main` · graph `0060-headless-runtime`
