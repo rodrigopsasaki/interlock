@@ -1,0 +1,110 @@
+interlock: debrief@v2
+graph: 0060-headless-runtime
+node: base-is-current
+role: implementer
+graph_base_sha: c66e5f1a13a95936d6ddec1f3eaa1ce2bdd4dd13
+session_start_sha: c2a9fbe9a01367973805d649de519c0a82f5e8b1
+head_sha: 5f0f3de8bd0c4a4bcb284d49e421f9368d8add26
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: sampled-main-stale-admission
+    what: >-
+      Resolve main from origin's default branch or the local main/master ref, sample its SHA once,
+      compute the resumed branch merge base and commits beyond it, and refuse a stale branch before
+      leasing when main gained code changes beyond that base. The refusal names the branch, base,
+      sampled main, gained commit count, outside-.interlock status, and person-directed recovery.
+    because: >-
+      The attempt must never start on an old code base after main moved past it, and recovery must
+      remain a person's inspect-and-merge or fresh-worktree decision.
+    rests_on:
+      - brief:Acceptance (verbatim from the graph)
+    hunks:
+      - packages/runner/src/worktree.ts:6-58
+      - packages/runner/src/worktree.ts:149-180
+      - packages/runner/src/worktree.ts:282-359
+      - packages/runner/src/sessionDrive.ts:330-355
+  - id: truthful-reattach-and-interlock-progress
+    what: >-
+      Reattach an existing branch through the same merge-base analysis as a reused worktree, report
+      its true base and commits beyond that base, reset only branches with no own commits, and allow
+      an old branch to proceed only when main's gained changes are entirely under .interlock/;
+      successful sessions narrate the sampled ref and that exception.
+    because: >-
+      Existing branches must be described truthfully, while plan and ledger movement under
+      .interlock/ does not change the code base an agent is attempting.
+    rests_on:
+      - brief:Acceptance (verbatim from the graph)
+    hunks:
+      - packages/runner/src/worktree.ts:60-74
+      - packages/runner/src/worktree.ts:282-359
+      - packages/runner/src/sessionDrive.ts:356-373
+      - packages/runner/src/sessionDrive.ts:433-470
+  - id: selected-codex-home
+    what: Carry process CODEX_HOME into Codex launch preparation when machine configuration does not provide a different value.
+    because: The selected product home must control Codex MCP discovery without requiring machine-provider configuration to echo it, while an explicit provider value remains authoritative.
+    rests_on:
+      - brief:Acceptance (verbatim from the graph)
+    hunks:
+      - packages/runner/src/sessionDrive.ts:356-373
+      - packages/runner/test/machineProvider.test.ts:31-61
+  - id: terminal-judge-boundary
+    what: Refuse standalone judgment immediately for a decided node, before reading its worktree or judging its gates.
+    because: A cleared or otherwise terminal node must never be reset, merged, or re-judged even when its base is stale.
+    rests_on:
+      - brief:Acceptance (verbatim from the graph)
+    hunks:
+      - packages/cli/src/judge.ts:140-166
+      - packages/cli/test/judge.test.ts:344-375
+  - id: real-git-and-scratch-proof
+    what: >-
+      Add real-git admission tests for stale code refusal and byte-for-byte preservation, interlock-only
+      progress, no-own-commit reset, true reattachment, and explicit main resolution; align drive
+      narration tests with sampled-main output and keep generated test scratch out of Vitest discovery.
+    because: >-
+      The acceptance names these real-git edges, and scratch state must not be traversed as tests or
+      allowed to resolve owner Codex configuration during machine-provider assertions.
+    rests_on:
+      - brief:Tests
+    hunks:
+      - packages/runner/test/baseIsCurrent.test.ts:1-181
+      - packages/cli/test/run.test.ts:874-1095
+      - packages/cli/test/run.test.ts:1553-1600
+      - packages/runner/test/machineProvider.test.ts:31-61
+      - vitest.config.base.ts:13-19
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH" pnpm typecheck
+    note: Node 24.14.0 and pnpm 10.13.1; all 8 workspace projects typechecked.
+  - id: base-is-current-types
+    result: pass
+    invocation: PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH" pnpm typecheck
+    note: Same final pinned-toolchain typecheck receipt covers the node-specific type gate.
+  - id: lint
+    result: pass
+    invocation: PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH" pnpm lint
+    note: Biome exited 0; only the pre-existing runnerCommits.test.ts warning/info remained.
+  - id: comments
+    result: pass
+    invocation: PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH" pnpm check:comments
+    note: No comments were found under packages/*/src.
+  - id: test
+    result: pass
+    invocation: PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH" pnpm test
+    note: "Workspace suites passed: ledger 175, debrief 98, verifier 62, substrate 91, face 186, runner 615, schemas 1325, cli 461 tests."
+  - id: base-is-current-proof
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/baseIsCurrent.test.ts --passWithNoTests=false
+    note: 5 tests passed.
+  - id: runner-suite
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
+    note: 615 tests passed across 55 files.
+  - id: debrief-valid
+    result: pass
+    note: Authored candidate is ready for the runner's final debrief validation after filing.
+open: []

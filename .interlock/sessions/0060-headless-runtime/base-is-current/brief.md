@@ -21,12 +21,14 @@ gates:
     run: pnpm interlock debrief validate {graph} {node}
   - id: base-is-current-proof
     kind: command
-    run: pnpm --fail-if-no-match --filter runner exec vitest run test/baseIsCurrent.test.ts --passWithNoTests=false
-    expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+    run: pnpm --fail-if-no-match --filter runner exec vitest run
+      test/baseIsCurrent.test.ts --passWithNoTests=false
+    expect_output: Tests +[1-9][0-9]* passed \([1-9][0-9]*\)
   - id: runner-suite
     kind: command
-    run: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
-    expect_output: 'Tests +[1-9][0-9]* passed'
+    run: pnpm --fail-if-no-match --filter runner exec vitest run
+      --passWithNoTests=false
+    expect_output: Tests +[1-9][0-9]* passed
   - id: base-is-current-types
     kind: command
     run: pnpm typecheck
@@ -390,6 +392,11 @@ scope:
   - .interlock/sessions/0052-count-tells-the-truth/retire/brief.md
   - .interlock/sessions/0053-graph-arc/arc-required/brief.md
   - .interlock/sessions/0053-graph-arc/arcs-v1/brief.md
+  - .interlock/sessions/0053-graph-arc/arcs-v1/debrief-candidate-2.yaml
+  - .interlock/sessions/0053-graph-arc/arcs-v1/debrief-candidate-3.yaml
+  - .interlock/sessions/0053-graph-arc/arcs-v1/debrief.yaml
+  - .interlock/sessions/0053-graph-arc/arcs-v1/notes.yaml
+  - .interlock/sessions/0053-graph-arc/arcs-v1/revisions/c906609f3fac5ed4023258a42b1cde94878467bc6ab23f351e7548471df4fd2b.yaml
   - .interlock/sessions/0053-graph-arc/briefs-before-approval/brief.md
   - .interlock/sessions/0053-graph-arc/registry-reads/brief.md
   - .interlock/sessions/0054-provider-routing/provider-routing/brief.md
@@ -447,6 +454,8 @@ scope:
   - .interlock/sessions/0059-submodule-receipts/resume-keeps-range/notes.yaml
   - .interlock/sessions/0059-submodule-receipts/resume-keeps-range/revisions/3708d457dd183b86d278497a6e7f53142315a2fecc9c05a7cd4512e37fcf8034.yaml
   - .interlock/sessions/0059-submodule-receipts/resume-keeps-range/revisions/f8052a9f854f5e0b182b7c3d30680fb458bdb9a6d7bb82a840e9cb731ec873f3.yaml
+  - .interlock/sessions/0060-headless-runtime/base-is-current/brief.md
+  - .interlock/sessions/0060-headless-runtime/capture-drains/brief.md
   - .interlock/sessions/0060-headless-runtime/codex-home-outside-worktree/brief.md
   - .interlock/sessions/0060-headless-runtime/exec-phase-ends/brief.md
   - .interlock/sessions/0060-headless-runtime/exec-phase-ends/debrief-candidate.yaml
@@ -467,7 +476,15 @@ scope:
   - .interlock/sessions/0060-headless-runtime/gates-run-on-engines-node/revisions/9a67eb766ad3afa70ba6342991cff45db4c80ed06417defafe105e060d1f561c.yaml
   - .interlock/sessions/0060-headless-runtime/gates-run-on-engines-node/revisions/f455da514abdf715444251b60b9f3c4991b0919e65b4304c59b55d708a536d3a.yaml
   - .interlock/sessions/0060-headless-runtime/herdr-gone/brief.md
+  - .interlock/sessions/0060-headless-runtime/home-on-main/brief.md
   - .interlock/sessions/0060-headless-runtime/line-fits/brief.md
+  - .interlock/sessions/0060-headless-runtime/line-fits/debrief-candidate-2.yaml
+  - .interlock/sessions/0060-headless-runtime/line-fits/debrief-candidate.yaml
+  - .interlock/sessions/0060-headless-runtime/line-fits/debrief.yaml
+  - .interlock/sessions/0060-headless-runtime/line-fits/notes.yaml
+  - .interlock/sessions/0060-headless-runtime/line-fits/revisions/2962572d5e985ff94939b3ace8127464e4268cb4866e018c1ef019a844d392f8.yaml
+  - .interlock/sessions/0060-headless-runtime/line-fits/revisions/396db4cf94aa2655fa2f1821d4d4345c35e6928f4f0301b674eeeadccc8ea17a.yaml
+  - .interlock/sessions/0060-headless-runtime/line-fits/revisions/cafe72e249f95b93453ca931e5c7a4da2efa670b13c146df8c21ce8d34ec30d5.yaml
   - .interlock/sessions/0060-headless-runtime/marker-configured-servers-only/brief.md
   - .interlock/sessions/0060-headless-runtime/marker-configured-servers-only/debrief-candidate.yaml
   - .interlock/sessions/0060-headless-runtime/marker-configured-servers-only/debrief.yaml
@@ -481,6 +498,7 @@ scope:
   - .interlock/sessions/0060-headless-runtime/marker-never-dropped/notes.yaml
   - .interlock/sessions/0060-headless-runtime/marker-never-dropped/revisions/c07c5b5b3eae23360f222e092f57b9ead0146589f16eee453cc74cb157468e09.yaml
   - .interlock/sessions/0060-headless-runtime/marker-never-dropped/revisions/cb443a2cbcda10510d3ac59104d52c3a5672fed9c90c37b000559e5f56ec2c13.yaml
+  - .interlock/sessions/0060-headless-runtime/mise-state-outside-repos/brief.md
   - .interlock/sessions/0060-headless-runtime/plan-reviews-are-sessions/brief.md
   - .interlock/sessions/0060-headless-runtime/runner-marker/brief.md
   - .interlock/sessions/0060-headless-runtime/runner-marker/debrief-candidate-2.yaml
@@ -495,6 +513,12 @@ scope:
   - .interlock/sessions/0060-headless-runtime/scope-guard/debrief.yaml
   - .interlock/sessions/0060-headless-runtime/scope-guard/notes.yaml
   - .interlock/sessions/0060-headless-runtime/scope-guard/revisions/8fc5b5e70e7abb27d515f7a101f60106bf3c32c2ee8dc29dfc7029d4d177df44.yaml
+  - .interlock/sessions/0060-headless-runtime/start-failure-is-not-a-timeout/brief.md
+  - .interlock/sessions/0060-headless-runtime/start-failure-is-not-a-timeout/debrief-candidate.yaml
+  - .interlock/sessions/0060-headless-runtime/start-failure-is-not-a-timeout/debrief-correction-candidate.yaml
+  - .interlock/sessions/0060-headless-runtime/start-failure-is-not-a-timeout/debrief.yaml
+  - .interlock/sessions/0060-headless-runtime/start-failure-is-not-a-timeout/notes.yaml
+  - .interlock/sessions/0060-headless-runtime/start-failure-is-not-a-timeout/revisions/91d30bb9a6e03f8039fe62633636ef970c62d18e4c4bd97fd4bd663aeb635f60.yaml
   - .interlock/sessions/0060-headless-runtime/tests-read-fixtures/brief.md
   - .interlock/sessions/0060-headless-runtime/tests-read-fixtures/debrief-candidate.yaml
   - .interlock/sessions/0060-headless-runtime/tests-read-fixtures/debrief.yaml
@@ -593,6 +617,10 @@ scope:
   - docs/shapes.md
   - package.json
   - packages/cli/package.json
+  - packages/cli/src/arcs/command.ts
+  - packages/cli/src/arcs/migrate.ts
+  - packages/cli/src/arcs/reader.ts
+  - packages/cli/src/arcs/resolve.ts
   - packages/cli/src/backfill.ts
   - packages/cli/src/bin.ts
   - packages/cli/src/brief/validate.ts
@@ -640,6 +668,8 @@ scope:
   - packages/cli/src/sessions.ts
   - packages/cli/src/sweep.ts
   - packages/cli/src/verify.ts
+  - packages/cli/test/arcs/migrate.test.ts
+  - packages/cli/test/arcs/resolve.test.ts
   - packages/cli/test/backfill.test.ts
   - packages/cli/test/brief/validate.test.ts
   - packages/cli/test/citedApproval.test.ts
@@ -935,11 +965,13 @@ scope:
   - packages/runner/test/fixtures/codex/config.toml
   - packages/runner/test/fixtures/codex/real-mcp-list.json
   - packages/runner/test/fixtures/codex/recordMcpEnvironment.mjs
+  - packages/runner/test/fixtures/codex/recordShellEnvironment.mjs
   - packages/runner/test/fixtures/exec/appendEnvironment.mjs
   - packages/runner/test/fixtures/exec/codexProbe.mjs
   - packages/runner/test/fixtures/exec/ignoreTerm.mjs
   - packages/runner/test/fixtures/exec/reapGrandchild.mjs
   - packages/runner/test/fixtures/exec/recordEnvironment.mjs
+  - packages/runner/test/fixtures/exec/waitForMarker.mjs
   - packages/runner/test/fixtures/exec/writeStreams.mjs
   - packages/runner/test/fixtures/herdr-socket-schema.json
   - packages/runner/test/gateCommand.test.ts
@@ -949,6 +981,8 @@ scope:
   - packages/runner/test/herdr/adapter.test.ts
   - packages/runner/test/herdr/fakeServer.ts
   - packages/runner/test/lease.test.ts
+  - packages/runner/test/lineFits.test.ts
+  - packages/runner/test/lineFitsRealCodex.test.ts
   - packages/runner/test/liveSmoke.test.ts
   - packages/runner/test/localConfig.test.ts
   - packages/runner/test/machineProvider.test.ts
@@ -976,6 +1010,7 @@ scope:
   - packages/runner/test/sessionWait.test.ts
   - packages/runner/test/settled.test.ts
   - packages/runner/test/standingGates.test.ts
+  - packages/runner/test/startFailureNotTimeout.test.ts
   - packages/runner/test/submoduleReceipts.test.ts
   - packages/runner/test/support/driveFixture.ts
   - packages/runner/test/support/gitFixture.ts
@@ -1006,6 +1041,7 @@ scope:
   - packages/schemas/src/reference/vocabulary.ts
   - packages/schemas/src/registry.ts
   - packages/schemas/src/validate.ts
+  - packages/schemas/test/arcs.test.ts
   - packages/schemas/test/askedInWords.test.ts
   - packages/schemas/test/brief.test.ts
   - packages/schemas/test/commits.test.ts
@@ -1088,6 +1124,7 @@ scope:
   - pnpm-workspace.yaml
   - runtimes.example.yaml
   - schemas/arcs@v0.json
+  - schemas/arcs@v1.json
   - schemas/brief@v0.json
   - schemas/brief@v1.json
   - schemas/commits@v0.json
@@ -1209,8 +1246,8 @@ substrate:
 walk:
   kind: none
   because: the substrate address is none, so there is nothing to ask
-graph_base_sha: 10824759899119e671db37bab3bf67cfc70ca3cc
-session: b76517e5-54d6-4ff5-a882-4156bd1457f9
+graph_base_sha: c66e5f1a13a95936d6ddec1f3eaa1ce2bdd4dd13
+session: cd621e90-2b62-4dd6-a02c-0196e31a0cc2
 ---
 
 # Brief · node `base-is-current` · graph `0060-headless-runtime`
@@ -1289,3 +1326,65 @@ edit it.
 >   and is refused the same way; "main" resolves to the main ref when the caller's checkout is on another branch;
 >   a cleared node with a stale base is neither run nor judged, with the refusal naming why.
 > Every gate and test runs with the repository's pinned Node first on PATH. No test is excluded.
+
+<!-- interlock: debrief-authoring-guidance@v1:start -->
+## Debrief authoring
+
+`found_at`, `rests_on`, and `hunks` say what supports a claim. Optional `applies_to` says
+where you judge a rooted lesson useful; it never supplies support or ratifies a claim.
+
+Review notes for discoveries worth handing on. For an explicit `found_at` path and line or
+range, write one separate exact quotation from that range at the authored head. A bare ranged
+path does not establish the discovery:
+
+```yaml
+discoveries:
+  - id: exact-range
+    what: The evidence records a durable exact excerpt.
+    found_at: 'evidence.ts:2-3 "durable exact excerpt"'
+    mattered_because: A later session can re-read the cited source.
+```
+
+No discovery, no justified applicability, an unrooted claim, and declining a received hypothesis
+are all valid. Do not invent claims, infer applicability, rewrite citations, or promote notes
+automatically.
+
+Prefer a justified narrow path:
+
+```yaml
+applies_to: { kind: path, path: packages/substrate/src/evidence.ts }
+```
+
+Use repository scope only with an explicit cross-cutting reason:
+
+```yaml
+applies_to: { kind: repository }
+```
+
+Omit `applies_to` when no target is warranted. Keep the real decision and its why, and say what
+a future session can act on. It changes neither authority nor gates, and does not establish better
+judgment. Treat received context as a hypothesis: check, reject, or leave it unused.
+
+Before filing, optionally inspect an authored candidate read-only with `interlock debrief preview --file <candidate>`.
+
+Before you stop to wait for a person in your pane, append a question note to notes.yaml, then
+ask in the pane as you do today. `asked` is the question in the words you would say to the
+person; optional `options` are the short answers you would accept. The position shows exactly
+these words while you wait, and nothing else:
+
+```yaml
+  - kind: question
+    at: "2026-11-05T01:30:00Z"
+    asked: Should the walk stay empty when the substrate address is none?
+    options: [yes, no]
+```
+<!-- interlock: debrief-authoring-guidance@v1:end -->
+
+<!-- interlock: role-walk@v0:start -->
+## Walk
+
+Role: implementer.
+
+This walk is empty: the substrate address is none, so there is nothing to ask. Nothing here errors; the session runs without a substrate.
+When an address is set, the whole substrate is open to the session through it, and any role may walk anywhere it wants.
+<!-- interlock: role-walk@v0:end -->

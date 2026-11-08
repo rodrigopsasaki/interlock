@@ -10,9 +10,23 @@ export type WorktreeRefusal =
       readonly because: string;
     }
   | {
+      readonly kind: "main-branch-missing";
+      readonly because: string;
+    }
+  | {
       readonly kind: "dirty-behind-base";
       readonly branch: string;
       readonly paths: number;
+    }
+  | {
+      readonly kind: "stale-base";
+      readonly branch: string;
+      readonly base: string;
+      readonly mainBranch: string;
+      readonly main: string;
+      readonly mainCommits: number;
+      readonly mainTouchesOutsideInterlock: boolean;
+      readonly commitsBeyondBase: number;
     }
   | {
       readonly kind: "base-predates-graph";
@@ -25,15 +39,32 @@ export function explainWorktreeRefusal(refusal: WorktreeRefusal): string {
   switch (refusal.kind) {
     case "git-failed":
       return `git ${refusal.command.join(" ")}: ${refusal.because}`;
+    case "main-branch-missing":
+      return refusal.because;
     case "dirty-behind-base":
       return `branch "${refusal.branch}" is behind its base with ${refusal.paths} uncommitted path(s); refusing to reset over them.`;
+    case "stale-base":
+      return (
+        `stale base: branch "${refusal.branch}" is based at ${refusal.base} and has ` +
+        `${refusal.commitsBeyondBase} commit(s) beyond that base, but ${refusal.mainBranch} ` +
+        `moved to sampled ${refusal.main} with ${refusal.mainCommits} commit(s) gained since ` +
+        `the base; changes outside .interlock/: ${refusal.mainTouchesOutsideInterlock ? "yes" : "no"}. ` +
+        "Refusing before lease. A person must inspect the branch, then either relaunch on a " +
+        "fresh worktree after keeping the branch under an attempt ref, or merge main by hand as a signed commit."
+      );
     case "base-predates-graph":
       return `this worktree's base (${refusal.base.slice(0, 7)}) predates graph ${refusal.graph}; merge main into graph/${refusal.graph}/${refusal.node} and run again`;
   }
 }
 
 export type WorktreeOutcome =
-  | { readonly kind: "created"; readonly path: string; readonly base: string }
+  | {
+      readonly kind: "created";
+      readonly path: string;
+      readonly base: string;
+      readonly uncommittedPaths?: number;
+      readonly commitsBeyondBase?: number;
+    }
   | {
       readonly kind: "reused";
       readonly path: string;
@@ -43,6 +74,16 @@ export type WorktreeOutcome =
     };
 
 const GIT_BUFFER_PAST_EXEC_FILE_SYNC_ONE_MEGABYTE_DEFAULT = 512 * 1024 * 1024;
+
+export interface MainBranch {
+  readonly branch: string;
+  readonly sha: string;
+}
+
+interface MainChanges {
+  readonly commits: number;
+  readonly touchesOutsideInterlock: boolean;
+}
 
 function git(cwd: string, args: readonly string[]): Result<string, WorktreeRefusal> {
   try {
@@ -93,6 +134,51 @@ function commitsBeyondBase(
   const counted = git(repoRoot, ["rev-list", "--count", `${base}..${tip}`]);
   if (isErr(counted)) return counted;
   return ok(Number.parseInt(counted.value.trim(), 10));
+}
+
+function changedPaths(
+  repoRoot: string,
+  base: string,
+  main: string,
+): Result<readonly string[], WorktreeRefusal> {
+  const changed = git(repoRoot, ["diff", "--name-only", "--no-renames", base, main]);
+  if (isErr(changed)) return changed;
+  return ok(changed.value.split("\n").filter((path) => path.length > 0));
+}
+
+export function mainChangesSince(
+  repoRoot: string,
+  base: string,
+  main: string,
+): Result<MainChanges, WorktreeRefusal> {
+  const commits = commitsBeyondBase(repoRoot, base, main);
+  if (isErr(commits)) return commits;
+  const paths = changedPaths(repoRoot, base, main);
+  if (isErr(paths)) return paths;
+  return ok({
+    commits: commits.value,
+    touchesOutsideInterlock: paths.value.some(
+      (path) => path !== ".interlock" && !path.startsWith(".interlock/"),
+    ),
+  });
+}
+
+export function mainBranchOf(repoRoot: string): Result<MainBranch, WorktreeRefusal> {
+  const originHead = git(repoRoot, ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"]);
+  const originBranch = isOk(originHead)
+    ? originHead.value.trim().replace(/^origin\//, "")
+    : undefined;
+  const candidates = [originBranch, "main", "master"].filter(
+    (branch): branch is string => branch !== undefined && branch.length > 0,
+  );
+  for (const branch of candidates) {
+    const resolved = git(repoRoot, ["rev-parse", "--verify", `refs/heads/${branch}`]);
+    if (isOk(resolved)) return ok({ branch, sha: resolved.value.trim() });
+  }
+  return err({
+    kind: "main-branch-missing",
+    because: "no main branch ref: expected origin's default branch, main, or master",
+  });
 }
 
 export function uncommittedPaths(
@@ -198,6 +284,7 @@ function reuseWorktree(
   path: string,
   sha: string,
   branch: string,
+  mainBranch: string,
 ): Result<WorktreeOutcome, WorktreeRefusal> {
   const tip = git(repoRoot, ["rev-parse", branch]);
   if (isErr(tip)) return tip;
@@ -222,6 +309,24 @@ function reuseWorktree(
 
   const ahead = commitsBeyondBase(repoRoot, base.value, tipSha);
   if (isErr(ahead)) return ahead;
+  const mainChanges = mainChangesSince(repoRoot, base.value, sha);
+  if (isErr(mainChanges)) return mainChanges;
+  if (
+    ahead.value > 0 &&
+    mainChanges.value.commits > 0 &&
+    mainChanges.value.touchesOutsideInterlock
+  ) {
+    return err({
+      kind: "stale-base",
+      branch,
+      base: base.value,
+      mainBranch,
+      main: sha,
+      mainCommits: mainChanges.value.commits,
+      mainTouchesOutsideInterlock: true,
+      commitsBeyondBase: ahead.value,
+    });
+  }
   return ok(reused(path, base.value, dirtyCount, ahead.value));
 }
 
@@ -230,15 +335,28 @@ export function ensureNodeWorktree(
   path: string,
   sha: string,
   branch: string,
+  mainBranch = "main",
 ): Result<WorktreeOutcome, WorktreeRefusal> {
   if (existsSync(join(path, ".git"))) {
-    return reuseWorktree(repoRoot, path, sha, branch);
+    return reuseWorktree(repoRoot, path, sha, branch, mainBranch);
   }
-  const args = branchExists(repoRoot, branch)
+  const existingBranch = branchExists(repoRoot, branch);
+  const args = existingBranch
     ? ["worktree", "add", path, branch]
     : ["worktree", "add", "-b", branch, path, sha];
   const added = git(repoRoot, args);
-  return isOk(added) ? ok({ kind: "created", path, base: sha }) : added;
+  if (isErr(added)) return added;
+  if (!existingBranch) return ok({ kind: "created", path, base: sha });
+  const reattached = reuseWorktree(repoRoot, path, sha, branch, mainBranch);
+  if (isErr(reattached)) return reattached;
+  if (reattached.value.kind !== "reused") return ok(reattached.value);
+  return ok({
+    kind: "created",
+    path,
+    base: reattached.value.base,
+    uncommittedPaths: reattached.value.uncommittedPaths,
+    commitsBeyondBase: reattached.value.commitsBeyondBase,
+  });
 }
 
 const BRIEF_COMMIT_FOOTER = "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>";

@@ -4,7 +4,7 @@ import { basename, dirname, join, relative } from "node:path";
 import { type Clock, deadlineFrom, ms } from "@phyxiusjs/clock";
 import { err, isErr, isOk, ok, type Result } from "@phyxiusjs/fp";
 import { debriefFilePath } from "debrief";
-import { currentCommitSha, type GateDeclaration, sharedJournalDirectory } from "face";
+import { type GateDeclaration, sharedJournalDirectory } from "face";
 import {
   type HeldOn,
   heldOn,
@@ -71,6 +71,8 @@ import {
   explainWorktreeRefusal,
   isCommittedAtHead,
   isIgnoredPath,
+  mainBranchOf,
+  mainChangesSince,
   uncommittedPaths,
   type WorktreeOutcome,
   type WorktreeRefusal,
@@ -85,13 +87,14 @@ function isoOf(wallMs: number): string {
 }
 
 function priorWorkOf(worktree: WorktreeOutcome): PriorWork | undefined {
-  if (worktree.kind !== "reused") return undefined;
-  if (worktree.uncommittedPaths === 0 && worktree.commitsBeyondBase === 0) {
+  const uncommittedPaths = worktree.uncommittedPaths ?? 0;
+  const commitsBeyondBase = worktree.commitsBeyondBase ?? 0;
+  if (uncommittedPaths === 0 && commitsBeyondBase === 0) {
     return undefined;
   }
   return {
-    uncommittedPaths: worktree.uncommittedPaths,
-    commitsBeyondBase: worktree.commitsBeyondBase,
+    uncommittedPaths,
+    commitsBeyondBase,
   };
 }
 
@@ -324,16 +327,30 @@ export async function driveInteractiveSession(
     const recovered = await reconcileMachine(ledger, runtime, narrate, clock);
     if (isErr(recovered)) return { exitCode: 1, message: recovered.error };
 
-    const requestedGraphBaseSha = await currentCommitSha(repoRoot);
+    const main = mainBranchOf(repoRoot);
+    if (isErr(main)) {
+      const message = explainWorktreeRefusal(main.error);
+      narrate(message);
+      return { exitCode: 1, message };
+    }
+    const requestedGraphBaseSha = main.value.sha;
     const targetNode = { graph, id: node };
 
     const worktreePath = join(repoRoot, localConfig.worktreeRoot, node);
     const branch = `graph/${graph}/${node}`;
-    const worktree = ensureNodeWorktree(repoRoot, worktreePath, requestedGraphBaseSha, branch);
+    const worktree = ensureNodeWorktree(
+      repoRoot,
+      worktreePath,
+      requestedGraphBaseSha,
+      branch,
+      main.value.branch,
+    );
     if (isErr(worktree)) {
+      const message = `worktree refused: ${explainWorktreeRefusal(worktree.error)}`;
+      narrate(message);
       return {
         exitCode: 1,
-        message: `worktree refused: ${explainWorktreeRefusal(worktree.error)}`,
+        message,
       };
     }
     const graphBaseSha = worktree.value.base;
@@ -407,6 +424,7 @@ export async function driveInteractiveSession(
       startedAt: clock.now().wallMs,
     });
     narrate = recordingNarrate(ledger, clock, sessionId, narrate);
+    narrate(`main sampled: ${main.value.branch} at ${requestedGraphBaseSha}`);
 
     const lease = takeLease(ledger, clock, targetNode, sessionId, localConfig.leaseMs);
     stopLease = () => lease.stop();
@@ -435,6 +453,15 @@ export async function driveInteractiveSession(
       narrate(
         `branch base ${graphBaseSha.slice(0, 7)} is behind main ${requestedGraphBaseSha.slice(0, 7)}; the session rebases before it opens a pull request`,
       );
+      const commitsBeyondBase = worktree.value.commitsBeyondBase ?? 0;
+      if (commitsBeyondBase > 0) {
+        const changes = mainChangesSince(repoRoot, graphBaseSha, requestedGraphBaseSha);
+        if (isOk(changes) && changes.value.commits > 0 && !changes.value.touchesOutsideInterlock) {
+          narrate(
+            `main advanced by ${changes.value.commits} commit(s) since the branch base; changes are only under .interlock/, so the attempt proceeds on its existing base`,
+          );
+        }
+      }
     }
     const priorWork = priorWorkOf(worktree.value);
     if (priorWork !== undefined) {
