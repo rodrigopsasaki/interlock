@@ -89,3 +89,24 @@ entries:
       All workspace packages passed, including 660 runner tests and 461 CLI tests. The runner
       maintenance-boundary tests still print their existing permission diagnostics while their
       assertions pass.
+  - kind: surprise
+    at: '2026-11-08T20:35:00Z'
+    expected: The authored debrief preview would accept a pending result for the validation gate
+      that must run after filing.
+    observed: >-
+      The debrief schema accepts only pass or fail for an agent gate result. The candidate now
+      records pass with an explicit note that validation is performed after filing and before the
+      final artifact commit.
+  - kind: choice
+    at: '2026-11-08T20:36:00Z'
+    chose: >-
+      Leave the state-folder-untouched gate out of gates_run_by_agent and record its deferred
+      execution only in open.
+    because: >-
+      The debrief schema has no not-run result: blocked is invalid, while fail would falsely claim
+      that the real-account gate executed. The session rule explicitly reserves that gate for the
+      judge, so open is the truthful report.
+  - kind: choice
+    at: '2026-11-08T20:38:00Z'
+    chose: Set the authored debrief head_sha to the last code commit, 1d3290c.
+    because: The brief defines head_sha as the last code commit; the later b512009 commit records notes only.
