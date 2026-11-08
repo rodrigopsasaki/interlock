@@ -41,10 +41,12 @@ import {
 } from "./machineProvider.ts";
 import { recordingNarrate } from "./narration.ts";
 import { buildOpeningPrompt, type PriorWork, type SessionRole } from "./openingPrompt.ts";
+import { execFileSyncOwned } from "./ownedCommand.ts";
 import { deliverOpeningPrompt } from "./promptDelivery.ts";
 import { recordQuestionNotes } from "./questionNotes.ts";
 import type { RoleShape } from "./roleShape.ts";
 import { commitRunnerCode, commitRunnerDebrief } from "./runnerCommits.ts";
+import { type MarkerConflict, mergeRunnerMarker, runnerMarker } from "./runnerMarker.ts";
 import {
   type Agent,
   explainRuntimeRefusal,
@@ -93,16 +95,87 @@ function priorWorkOf(worktree: WorktreeOutcome): PriorWork | undefined {
   };
 }
 
+export interface PrepareLaunchOptions {
+  readonly narrate?: (line: string) => void;
+  readonly listCodexMcp?: (
+    cwd: string,
+    environment: Readonly<Record<string, string>>,
+  ) => Result<readonly string[], string>;
+}
+
+type LaunchRefusal = WorktreeRefusal | MarkerConflict;
+
+function explainLaunchRefusal(refusal: LaunchRefusal): string {
+  return refusal.kind === "marker-conflict"
+    ? `launch refused: ${refusal.key} is already set to a different value`
+    : explainWorktreeRefusal(refusal);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function codexMcpServers(value: unknown): Result<readonly string[], string> {
+  const entries = Array.isArray(value)
+    ? value
+    : isRecord(value) && Array.isArray(value["servers"])
+      ? value["servers"]
+      : undefined;
+  if (entries === undefined) return err("the output was not a server list");
+  const names: string[] = [];
+  for (const entry of entries) {
+    if (!isRecord(entry) || typeof entry["name"] !== "string") continue;
+    const transport = entry["transport"];
+    const transportType = isRecord(transport) ? transport["type"] : transport;
+    if (transportType === "stdio") names.push(entry["name"]);
+  }
+  return ok(names);
+}
+
+function discoverCodexMcpServers(
+  cwd: string,
+  environment: Readonly<Record<string, string>>,
+): Result<readonly string[], string> {
+  try {
+    const output = execFileSyncOwned("codex", ["mcp", "list", "--json"], {
+      cwd,
+      env: { ...process.env, ...environment },
+      encoding: "utf8",
+      maxBuffer: 8 * 1024 * 1024,
+    });
+    return codexMcpServers(JSON.parse(output));
+  } catch (error) {
+    return err(error instanceof Error ? error.message : "invalid JSON");
+  }
+}
+
 export function prepareLaunch(
   agentRuntime: ResolvedRuntime,
   worktreePath: string,
   environment: Readonly<Record<string, string>> = {},
-): Result<AgentLaunch, WorktreeRefusal> {
+  options: PrepareLaunchOptions = {},
+): Result<AgentLaunch, LaunchRefusal> {
+  let stdioMcpServers: readonly string[] = [];
+  if (agentRuntime.kind === "codex") {
+    const listed = (options.listCodexMcp ?? discoverCodexMcpServers)(worktreePath, environment);
+    if (isErr(listed)) {
+      options.narrate?.(`codex mcp list --json failed: ${listed.error}`);
+    } else if (listed.value.length === 0) {
+      options.narrate?.("codex mcp list --json returned no stdio servers");
+    } else {
+      stdioMcpServers = listed.value;
+      options.narrate?.(
+        `codex mcp list --json found ${String(stdioMcpServers.length)} stdio server(s)`,
+      );
+    }
+  }
+  const argsFor = (args: readonly string[]): readonly string[] =>
+    agentEnvironmentArgs(agentRuntime.kind, args, environment, stdioMcpServers);
   const template = agentRuntime.writableRootArgs;
   if (template === undefined) {
     return ok({
       program: agentRuntime.kind,
-      args: agentEnvironmentArgs(agentRuntime.kind, agentRuntime.args, environment),
+      args: argsFor(agentRuntime.args),
       cwd: worktreePath,
       environment,
       writableRoots: [],
@@ -113,7 +186,7 @@ export function prepareLaunch(
   if (layout.value.kind === "not-linked") {
     return ok({
       program: agentRuntime.kind,
-      args: agentEnvironmentArgs(agentRuntime.kind, agentRuntime.args, environment),
+      args: argsFor(agentRuntime.args),
       cwd: worktreePath,
       environment,
       writableRoots: [],
@@ -122,14 +195,10 @@ export function prepareLaunch(
   const writableRoots = [layout.value.commonGitDir, layout.value.gitDir];
   return ok({
     program: agentRuntime.kind,
-    args: agentEnvironmentArgs(
-      agentRuntime.kind,
-      [
-        ...agentRuntime.args,
-        ...writableRoots.flatMap((root) => expandWritableRootArgs(template, root)),
-      ],
-      environment,
-    ),
+    args: argsFor([
+      ...agentRuntime.args,
+      ...writableRoots.flatMap((root) => expandWritableRootArgs(template, root)),
+    ]),
     cwd: worktreePath,
     environment,
     writableRoots,
@@ -308,6 +377,16 @@ export async function driveInteractiveSession(
     }
     const graphBaseSha = worktree.value.base;
     const sessionId = randomUUID();
+    const markedEnvironment = mergeRunnerMarker(
+      machine.value.env,
+      runnerMarker(sessionId, graph, node),
+    );
+    if (isErr(markedEnvironment)) {
+      const message = explainLaunchRefusal(markedEnvironment.error);
+      narrate(message);
+      return { exitCode: 1, message };
+    }
+    const agentEnvironment = markedEnvironment.value;
     const worktreeHeadSha = worktreeHead(worktreePath);
     const journalEvents = await readRawEvents(ledger.directory());
     const inheritedFallback: SessionInheritance = {
@@ -567,7 +646,7 @@ export async function driveInteractiveSession(
           prompt,
           promptOnStdin: agentRuntime.prompt === "stdin",
           cwd: worktreePath,
-          env: machine.value.env,
+          env: agentEnvironment,
           timeoutMs: localConfig.runTimeoutMs,
           ...(admission === undefined ? {} : { admission }),
         };
@@ -694,18 +773,15 @@ export async function driveInteractiveSession(
       };
     }
 
-    const launch = prepareLaunch(agentRuntime, worktreePath, machine.value.env);
+    const launch = await prepareLaunch(agentRuntime, worktreePath, agentEnvironment, { narrate });
     if (isErr(launch)) {
-      const result = refuse(abandon("writable root"), explainWorktreeRefusal(launch.error));
+      const result = refuse(abandon("writable root"), explainLaunchRefusal(launch.error));
       lease.stop();
       abandonLease();
       return result;
     }
 
-    const openedPane = await runtime.openPane(
-      worktreePath,
-      machine.value.provider === "none" ? undefined : machine.value.env,
-    );
+    const openedPane = await runtime.openPane(worktreePath, agentEnvironment);
     if (isErr(openedPane)) {
       const result = refuse(abandon("pane open"), explainRuntimeRefusal(openedPane.error));
       lease.stop();

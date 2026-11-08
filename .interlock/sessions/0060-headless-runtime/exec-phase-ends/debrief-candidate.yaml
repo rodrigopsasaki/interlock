@@ -1,0 +1,67 @@
+interlock: debrief@v2
+graph: 0060-headless-runtime
+node: exec-phase-ends
+role: implementer
+graph_base_sha: 74d5769f3a765c255906b1b0c8a5e4a0a3174c89
+session_start_sha: 91d4b48e1005f362e0c1c60c188d4786445029da
+head_sha: 6d26dbbe4de5b1f9c53243ae77b13e3800dd379b
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: bounded-control-and-close
+    applies_to: { kind: path, path: packages/runner/src/execRuntime.ts }
+    what: Bound the full anchor control request, including connection establishment, and bound both launcher-close waits on the timeout path.
+    because: A control socket that never connects or a launcher close event that never arrives must not leave runExecPhase waiting forever after the child end or run timeout has already been observed.
+    rests_on:
+      - .interlock/graphs/0060-headless-runtime.yaml
+      - packages/runner/src/execRuntime.ts
+    hunks:
+      - packages/runner/src/execRuntime.ts:232-249
+      - packages/runner/src/execRuntime.ts:732-757
+  - id: short-ready-anchor
+    applies_to: { kind: path, path: packages/runner/src/execRuntime.ts }
+    what: Place each ephemeral control socket in the short per-user private temporary directory and publish the launcher anchor only after the control server is listening.
+    because: The worktree-relative socket path exceeded macOS's Unix-socket path budget and the old early anchor publication made a failed listen look ready, allowing the runner to wait on a dead anchor.
+    rests_on:
+      - .interlock/graphs/0060-headless-runtime.yaml
+      - packages/runner/src/execRuntime.ts
+      - packages/runner/src/execLauncher.ts
+    hunks:
+      - packages/runner/src/execRuntime.ts:527-532
+      - packages/runner/src/execLauncher.ts:151-154
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: All 8 workspace projects typechecked on Node 24.14.0 and pnpm 10.13.1; load was 9.81 at start and 9.43 near completion.
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: Biome passed with the two existing warnings in packages/runner/test/runnerCommits.test.ts; load was 9.31 at start and end.
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+    note: packages/*/src contained no comments; load was 6.05 at start and end.
+  - id: test
+    result: pass
+    invocation: pnpm test
+    note: All workspace packages passed, including runner 568 tests and cli 453 tests; load was 5.81 at start and 8.40 near completion.
+  - id: exec-phase-ends-proof
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/execRuntime.test.ts test/runnerMarker.test.ts --passWithNoTests=false
+    note: Both focused files passed, 12 tests total, on Node 24.14.0 and pnpm 10.13.1; final focused load was 7.60 at start and end.
+  - id: runner-suite
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
+    note: Three consecutive runs passed all 46 files and 568 tests; start/end one-minute loads were 7.30/9.21, 8.06/7.78, and 7.51/6.97.
+  - id: exec-phase-ends-types
+    result: pass
+    invocation: pnpm typecheck
+    note: The final typecheck rerun passed all 8 workspace projects on Node 24.14.0 and pnpm 10.13.1.
+open:
+  - The runner-marker landing branch's notes claimed 5 of 5 exec-runtime tests passed under load, but the pinned reproduction on that branch failed 4 of 5 exec-runtime tests and its marker child test. The prior judge's full-suite pass is consistent with a race that happened not to manifest then; this session found the long socket path, false early anchor readiness, and unbounded control waits, but has no evidence identifying the judge machine's exact timing difference.
+  - The focused proof passed three times as part of full runner-suite runs, but the recorded one-minute load was below 8 at the start of runs 1 and 3; no idle-machine run below load 3 occurred in this session. The load-qualified acceptance clause remains open.
+  - The full lint gate passes with two existing warnings in packages/runner/test/runnerCommits.test.ts; those unrelated warnings were not changed by this node.

@@ -123,6 +123,13 @@ export type { RoutingOptions } from "./providerRouting.ts";
 export { routeRuntime } from "./providerRouting.ts";
 export type { RoleShape } from "./roleShape.ts";
 export { roleShapeFor } from "./roleShape.ts";
+export {
+  type MarkerConflict,
+  mergeRunnerMarker,
+  RUNNER_MARKER_KEYS,
+  type RunnerMarker,
+  runnerMarker,
+} from "./runnerMarker.ts";
 export type {
   Agent,
   AgentIdentity,

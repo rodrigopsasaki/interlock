@@ -625,6 +625,82 @@ nodes:
         kind: command
         run: pnpm typecheck
 
+  - id: watch-paths-precise-fixed
+    role: implementer
+    depends_on: [watch-paths-precise, runner-marker]
+    acceptance: |
+      The record of two failures watch-paths-precise shipped and the fixes they need. That node cleared on a judge
+      whose gates ran on Homebrew's Node 26 against an older main, so its outcome is terminal and it cannot be run
+      again; this node is where the fix and the record live. Re-tested on 2026-11-08 on the repository's pinned
+      Node (v24.14.0, pnpm 10.13.1) with origin/main merged in, two runner tests failed that main itself passes:
+      - packages/runner/test/scopeGuard.test.ts "does not read owner-only watched files and compares their size and
+        mtimeMs": a same-size rewrite with the mtime restored was still reported as a change ({ ownerOnly: true,
+        path: "secret.txt", root: "watch path" }).
+      - packages/runner/test/absorbOutbox.test.ts "retains observed command evidence when an authored claim is
+        unrooted" ended held where it expects cleared (absorbOutbox.test.ts:124, :155), an interaction between
+        watch-paths-precise's change and what main brought in, such as fails-closed's change to delegated clearance.
+      The session merges graph/0060-headless-runtime/watch-paths-precise and origin/main, each with a signed merge;
+      origin/main then holds runner-marker, so execRuntime.test.ts's timed tests pass under load. It fixes both
+      failures at the cause, never by loosening what counts as a change for files that are not owner-only and never
+      by changing the absorbOutbox test's expectation unless the expectation itself is shown wrong. Every gate and
+      test runs with the repository's pinned pnpm and Node first on PATH, and the session records node --version
+      and pnpm --version in notes.yaml. Its debrief names both failures, their causes, the fix commits, the Node 26
+      clear of watch-paths-precise, and the counts of each gate below. No test is excluded or skipped.
+    gates:
+      - id: scope-guard-owner-only
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/scopeGuard.test.ts test/absorbOutbox.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: runner-suite
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: cli-suite
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: wppf-types
+        kind: command
+        run: pnpm typecheck
+
+  - id: exec-phase-ends
+    role: implementer
+    depends_on: [runner-marker]
+    acceptance: |
+      An exec phase's end is observed every time, so exec-runtime's tests pass however busy the machine is. On
+      2026-11-08, on the repository's pinned Node (v24.14.0), packages/runner/test/execRuntime.test.ts failed 4 of 5
+      tests on main f133860 ("records a completed child and normalizes both streams", "reaps a grandchild after the
+      program exits", "kills a TERM-ignoring group after the run timeout", "distinguishes launcher, node, and
+      profile-program start failures"), every one "Test timed out in 15000ms" or "5000ms". Back-to-back runs at load
+      6.6 to 12.3 failed the same 4 on main and on runner-marker's landing branch alike, so runner-marker's
+      event-driven exit observation did not change them, and runner-marker's own "passes the marker to an exec phase
+      child" timed out the same way. Yet runner-marker's judge cleared with its standing test gate running the full
+      runner suite: "test/execRuntime.test.ts (5 tests) 2404ms", 557 passed. Recorded as interlock#128.
+      - The session merges graph/0060-headless-runtime/runner-marker and origin/main with signed merges, then finds
+        why runExecPhase sometimes never observes the end of a phase (child exit, group empty or the run timeout
+        firing) and fixes it at the cause. Raising a test timeout, retrying a test, or skipping one is not a fix.
+      - Its debrief names: that runner-marker's notes claimed these tests passed 5 of 5 under load and that did not
+        reproduce; how runner-marker's judge cleared while they fail most of the time (the passing run above, and
+        whatever made it pass then); and, if any gate ran a narrower suite than the full runner suite or could pass
+        without these tests running, that gate gap, fixed in this node.
+      - Proof, recorded in notes.yaml with node --version, pnpm --version and the load average at the start and end of
+        each run: execRuntime.test.ts and runnerMarker.test.ts each pass three consecutive times while the full runner
+        suite runs alongside and the 1-minute load is 8 or more; and once on an idle machine (load under 3) if one
+        occurs during the session.
+      Every gate and test runs with the repository's pinned pnpm and Node first on PATH. No test is excluded.
+    gates:
+      - id: exec-phase-ends-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/execRuntime.test.ts test/runnerMarker.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: runner-suite
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: exec-phase-ends-types
+        kind: command
+        run: pnpm typecheck
+
   - id: exec-runtime
     role: implementer
     depends_on: []
