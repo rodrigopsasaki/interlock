@@ -1,0 +1,27 @@
+interlock: notes@v0
+node: capture-drains
+entries:
+  - kind: choice
+    at: "2026-11-08T19:00:00Z"
+    chose: Read the canonical brief, graph, design context, and current exec runtime before editing.
+    because: The acceptance is authoritative and the existing runtime must be changed at its transcript and finalization seams without weakening the existing session record contract.
+  - kind: choice
+    at: "2026-11-08T19:08:00Z"
+    chose: Keep the transcript shape at transcript@v0 while adding injectable sink, timer, and stream-delivery seams.
+    because: The acceptance requires additive test seams and every existing transcript reader must continue accepting the same artifact version.
+  - kind: surprise
+    at: "2026-11-08T19:09:00Z"
+    expected: The first typecheck would accept the closing line's inferred literal shape.
+    observed: TypeScript widened the object literal's interlock field when it was passed later, so the closing line needed an explicit ExecTranscriptLine annotation.
+  - kind: choice
+    at: "2026-11-08T19:20:00Z"
+    chose: Queue runner lines without awaiting them while capture is active, and let the writer continue after a failed line.
+    because: A held or failed stream write must not prevent the runner from reaching the bounded drain and terminal record, while later tail lines still need their ordered chance to be written.
+  - kind: surprise
+    at: "2026-11-08T19:21:00Z"
+    expected: The first deterministic capture suite would pass once the queue and timer seams were wired.
+    observed: Held writes initially blocked the runner before it could schedule the grace timer, and native launcher pipes closed without an end event; nonblocking runner enqueues and an explicit normal launcher-close boundary were required.
+  - kind: choice
+    at: "2026-11-08T19:24:00Z"
+    chose: Keep the native file sink and timers as production defaults while the focused suite supplies its own sink, stream delivery, and controlled timers.
+    because: The acceptance requires deterministic timing without shipping a test-only switch, and the seams remain ordinary runtime dependencies rather than test branches.

@@ -11,6 +11,7 @@ import { type OwnedProcess, spawnOwned } from "./ownedCommand.ts";
 export const SESSION_SHAPE = "session@v0";
 export const TRANSCRIPT_SHAPE = "transcript@v0";
 export const DEFAULT_DRAIN_GRACE_MS = 5_000;
+export const DEFAULT_CAPTURE_SETTLE_MS = 5_000;
 export const DEFAULT_TERM_GRACE_MS = 1_000;
 
 export type ExecPhaseKind = "work" | "debrief" | "review";
@@ -133,6 +134,26 @@ export interface ProgramExitObservation {
   readonly pollMs?: number;
 }
 
+export interface TranscriptSink {
+  append(path: string, line: ExecTranscriptLine): Promise<void>;
+}
+
+export interface CaptureTimers {
+  setTimeout(callback: () => void, delayMs: number): ReturnType<typeof setTimeout>;
+  clearTimeout(timer: ReturnType<typeof setTimeout>): void;
+}
+
+export interface CaptureStreamHandlers {
+  onData(stream: "stdout" | "stderr", chunk: string): void;
+  onEnd(stream: "stdout" | "stderr"): void;
+  onClose(stream: "stdout" | "stderr"): void;
+}
+
+export interface CaptureStreamDelivery {
+  readonly processCloseIsNormal?: boolean;
+  attach(child: OwnedProcess, handlers: CaptureStreamHandlers): void;
+}
+
 export interface ExecPhaseRequest {
   readonly runRoot: string;
   readonly id?: string;
@@ -157,6 +178,10 @@ export interface ExecPhaseRequest {
   readonly timeoutMs: number;
   readonly termGraceMs?: number;
   readonly drainGraceMs?: number;
+  readonly captureSettleMs?: number;
+  readonly transcriptSink?: TranscriptSink;
+  readonly captureTimers?: CaptureTimers;
+  readonly captureStreamDelivery?: CaptureStreamDelivery;
   readonly admission?: ExecAdmission;
   readonly nodeExecutable?: string;
   readonly launcherPath?: string;
@@ -239,6 +264,79 @@ async function appendTranscript(path: string, line: ExecTranscriptLine): Promise
     await handle.sync();
   } finally {
     await handle.close();
+  }
+}
+
+const nativeTranscriptSink: TranscriptSink = {
+  append: appendTranscript,
+};
+
+const nativeCaptureTimers: CaptureTimers = {
+  setTimeout: (callback, delayMs) => setTimeout(callback, delayMs),
+  clearTimeout: (timer) => clearTimeout(timer),
+};
+
+type PendingTranscriptWrite = {
+  readonly line: ExecTranscriptLine;
+  readonly resolve: (written: boolean) => void;
+};
+
+class TranscriptWriter {
+  private readonly queue: PendingTranscriptWrite[] = [];
+  private readonly idleWaiters: Array<() => void> = [];
+  private running = false;
+  private sealed = false;
+  private failedBecause: string | undefined;
+
+  constructor(
+    private readonly path: string,
+    private readonly sink: TranscriptSink,
+  ) {}
+
+  append(line: ExecTranscriptLine): Promise<boolean> {
+    if (this.sealed && line.stream !== "runner") return Promise.resolve(false);
+    return new Promise((resolve) => {
+      this.queue.push({ line, resolve });
+      void this.pump();
+    });
+  }
+
+  seal(): void {
+    this.sealed = true;
+  }
+
+  isSealed(): boolean {
+    return this.sealed;
+  }
+
+  failure(): string | undefined {
+    return this.failedBecause;
+  }
+
+  waitForIdle(): Promise<void> {
+    if (!this.running && this.queue.length === 0) return Promise.resolve();
+    return new Promise((resolve) => this.idleWaiters.push(resolve));
+  }
+
+  private async pump(): Promise<void> {
+    if (this.running) return;
+    this.running = true;
+    while (this.queue.length > 0) {
+      const pending = this.queue.shift();
+      if (pending === undefined) continue;
+      try {
+        await this.sink.append(this.path, pending.line);
+        pending.resolve(true);
+      } catch (error) {
+        const because = error instanceof Error ? error.message : String(error);
+        this.failedBecause ??= because;
+        process.stderr.write(`transcript write failed: ${because}\n`);
+        pending.resolve(false);
+      }
+    }
+    this.running = false;
+    const waiters = this.idleWaiters.splice(0);
+    for (const resolve of waiters) resolve();
   }
 }
 
@@ -430,35 +528,6 @@ function isSignal(value: unknown): value is NodeJS.Signals {
   );
 }
 
-function appendStream(
-  path: string,
-  stream: "stdout" | "stderr",
-  pending: { value: string },
-  chunk: string,
-): Promise<void> {
-  pending.value += chunk;
-  const lines = pending.value.split(/\r?\n/);
-  pending.value = lines.pop() ?? "";
-  return lines.reduce(
-    (promise, text) =>
-      promise.then(() =>
-        appendTranscript(path, { interlock: TRANSCRIPT_SHAPE, ts: now(), stream, text }),
-      ),
-    Promise.resolve(),
-  );
-}
-
-async function finishStream(
-  path: string,
-  stream: "stdout" | "stderr",
-  pending: { value: string },
-): Promise<void> {
-  if (pending.value.length === 0) return;
-  const text = pending.value;
-  pending.value = "";
-  await appendTranscript(path, { interlock: TRANSCRIPT_SHAPE, ts: now(), stream, text });
-}
-
 function initialRecord(
   request: ExecPhaseRequest,
   runDir: string,
@@ -495,7 +564,7 @@ function initialRecord(
     signal: null,
     reason: null,
     reaped: 0,
-    captureComplete: true,
+    captureComplete: false,
     asks: [],
     waitingOnAsk: false,
     transcriptPath: join(runDir, "transcript.jsonl"),
@@ -516,50 +585,228 @@ function launcherSpec(request: ExecPhaseRequest, secret: string): string {
   });
 }
 
-async function closeStreams(
-  child: OwnedProcess,
-  transcriptPath: string,
-  stdoutPending: { value: string },
-  stderrPending: { value: string },
-  drainGraceMs: number,
-): Promise<boolean> {
-  let stdoutClosed = false;
-  let stderrClosed = false;
-  const closed = new Promise<void>((resolve) => {
-    const check = (): void => {
-      if (stdoutClosed && stderrClosed) resolve();
-    };
+type CaptureStreamState = {
+  pending: string;
+  ended: boolean;
+  closedBeforeEnd: boolean;
+  outstanding: number;
+};
+
+type CaptureDrain = {
+  readonly complete: boolean;
+  readonly settled: boolean;
+  readonly reason: string | undefined;
+};
+
+class CaptureController {
+  private readonly streams: Record<"stdout" | "stderr", CaptureStreamState> = {
+    stdout: { pending: "", ended: false, closedBeforeEnd: false, outstanding: 0 },
+    stderr: { pending: "", ended: false, closedBeforeEnd: false, outstanding: 0 },
+  };
+  private drainResolver: (() => void) | undefined;
+  private drainReady = false;
+
+  constructor(
+    private readonly child: OwnedProcess,
+    private readonly writer: TranscriptWriter,
+    private readonly delivery: CaptureStreamDelivery,
+  ) {
+    this.delivery.attach(this.child, {
+      onData: (stream, chunk) => this.onData(stream, chunk),
+      onEnd: (stream) => this.onEnd(stream),
+      onClose: (stream) => this.onClose(stream),
+    });
+    if (this.delivery.processCloseIsNormal !== false) {
+      this.child.once("close", (_code, signal) => {
+        if (signal === null) {
+          this.onEnd("stdout");
+          this.onEnd("stderr");
+        }
+      });
+    }
+    if (this.child.stdout.readableEnded) this.onEnd("stdout");
+    if (this.child.stderr.readableEnded) this.onEnd("stderr");
+    if (this.child.stdout.destroyed && !this.child.stdout.readableEnded) this.onClose("stdout");
+    if (this.child.stderr.destroyed && !this.child.stderr.readableEnded) this.onClose("stderr");
+    this.checkDrain();
+  }
+
+  async drain(drainGraceMs: number, timers: CaptureTimers): Promise<CaptureDrain> {
+    const ready = new Promise<void>((resolve) => {
+      this.drainResolver = resolve;
+      this.checkDrain();
+    });
+    const expired = new Promise<void>((resolve) => {
+      const timer = timers.setTimeout(() => {
+        timers.clearTimeout(timer);
+        resolve();
+      }, drainGraceMs);
+    });
+    await Promise.race([ready, expired]);
+    if (this.drainReady) {
+      this.writer.seal();
+      return {
+        complete: this.isComplete(),
+        settled: true,
+        reason: this.reason(),
+      };
+    }
+    this.writer.seal();
+    this.child.stdout.destroy();
+    this.child.stderr.destroy();
+    return { complete: false, settled: false, reason: this.reason() };
+  }
+
+  complete(): boolean {
+    return this.isComplete();
+  }
+
+  reason(): string | undefined {
+    if (this.writer.failure() !== undefined)
+      return `transcript write failed: ${this.writer.failure()}`;
+    if (this.writer.isSealed() && !this.drainReady)
+      return "a stream did not end normally within the drain grace";
+    if (this.streams.stdout.closedBeforeEnd || this.streams.stderr.closedBeforeEnd)
+      return "a stream was destroyed before it ended normally";
+    return undefined;
+  }
+
+  private onData(stream: "stdout" | "stderr", chunk: string): void {
+    const state = this.streams[stream];
+    state.pending += chunk;
+    const lines = state.pending.split(/\r?\n/);
+    state.pending = lines.pop() ?? "";
+    for (const text of lines) this.enqueue(stream, text);
+  }
+
+  private onEnd(stream: "stdout" | "stderr"): void {
+    const state = this.streams[stream];
+    if (state.ended) return;
+    state.ended = true;
+    state.closedBeforeEnd = false;
+    if (state.pending.length > 0) {
+      const text = state.pending;
+      state.pending = "";
+      this.enqueue(stream, text);
+    }
+    this.checkDrain();
+  }
+
+  private onClose(stream: "stdout" | "stderr"): void {
+    const state = this.streams[stream];
+    if (!state.ended) state.closedBeforeEnd = true;
+    this.checkDrain();
+  }
+
+  private enqueue(stream: "stdout" | "stderr", text: string): void {
+    const state = this.streams[stream];
+    state.outstanding += 1;
+    void this.writer.append({ interlock: TRANSCRIPT_SHAPE, ts: now(), stream, text }).then(() => {
+      state.outstanding -= 1;
+      this.checkDrain();
+    });
+  }
+
+  private isComplete(): boolean {
+    return (
+      this.drainReady &&
+      !this.streams.stdout.closedBeforeEnd &&
+      !this.streams.stderr.closedBeforeEnd &&
+      this.writer.failure() === undefined
+    );
+  }
+
+  private checkDrain(): void {
+    if (
+      this.streams.stdout.ended &&
+      this.streams.stderr.ended &&
+      this.streams.stdout.outstanding === 0 &&
+      this.streams.stderr.outstanding === 0
+    ) {
+      this.drainReady = true;
+      this.drainResolver?.();
+      this.drainResolver = undefined;
+    }
+  }
+}
+
+const nativeCaptureStreamDelivery: CaptureStreamDelivery = {
+  attach: (child, handlers) => {
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk: string) => handlers.onData("stdout", chunk));
+    child.stderr.on("data", (chunk: string) => handlers.onData("stderr", chunk));
+    child.stdout.on("end", () => handlers.onEnd("stdout"));
+    child.stderr.on("end", () => handlers.onEnd("stderr"));
     child.stdout.on("close", () => {
-      stdoutClosed = true;
-      void finishStream(transcriptPath, "stdout", stdoutPending).then(check);
+      if (!child.stdout.readableAborted) handlers.onEnd("stdout");
+      handlers.onClose("stdout");
     });
     child.stderr.on("close", () => {
-      stderrClosed = true;
-      void finishStream(transcriptPath, "stderr", stderrPending).then(check);
+      if (!child.stderr.readableAborted) handlers.onEnd("stderr");
+      handlers.onClose("stderr");
     });
-    if (child.stdout.readableEnded || child.stdout.destroyed) {
-      stdoutClosed = true;
-      void finishStream(transcriptPath, "stdout", stdoutPending).then(check);
-    }
-    if (child.stderr.readableEnded || child.stderr.destroyed) {
-      stderrClosed = true;
-      void finishStream(transcriptPath, "stderr", stderrPending).then(check);
-    }
-    check();
+  },
+};
+
+async function waitForSettled(
+  writer: TranscriptWriter,
+  settleMs: number,
+  timers: CaptureTimers,
+): Promise<boolean> {
+  let settled = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return new Promise((resolve) => {
+    const finish = (value: boolean): void => {
+      if (settled) return;
+      settled = true;
+      if (timer !== undefined) timers.clearTimeout(timer);
+      resolve(value && writer.failure() === undefined);
+    };
+    timer = timers.setTimeout(() => finish(false), settleMs);
+    void writer.waitForIdle().then(() => finish(true));
   });
-  await Promise.race([closed, new Promise((resolve) => setTimeout(resolve, drainGraceMs))]);
-  if (!stdoutClosed || !stderrClosed) {
-    child.stdout.destroy();
-    child.stderr.destroy();
-    await appendTranscript(transcriptPath, {
-      interlock: TRANSCRIPT_SHAPE,
-      ts: now(),
-      stream: "runner",
-      text: "capture incomplete: a stream remained open outside the owned group",
-    });
-    return false;
-  }
-  return true;
+}
+
+async function waitForLauncherClose(
+  launcherExit: Promise<unknown>,
+  timeoutMs: number,
+  timers: CaptureTimers,
+): Promise<boolean> {
+  let settled = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return new Promise((resolve) => {
+    const finish = (value: boolean): void => {
+      if (settled) return;
+      settled = true;
+      if (timer !== undefined) timers.clearTimeout(timer);
+      resolve(value);
+    };
+    timer = timers.setTimeout(() => finish(false), timeoutMs);
+    void launcherExit.then(() => finish(true));
+  });
+}
+
+async function settleCapture(
+  capture: CaptureController,
+  writer: TranscriptWriter,
+  drainGraceMs: number,
+  settleMs: number,
+  timers: CaptureTimers,
+): Promise<CaptureDrain> {
+  const drained = await capture.drain(drainGraceMs, timers);
+  if (drained.settled) return drained;
+  const settled = await waitForSettled(writer, settleMs, timers);
+  return {
+    complete: drained.complete && settled,
+    settled,
+    reason:
+      writer.failure() === undefined
+        ? settled
+          ? drained.reason
+          : "a transcript write remained unsettled after the settle bound"
+        : `transcript write failed: ${writer.failure()}`,
+  };
 }
 
 export async function runExecPhase(
@@ -574,6 +821,10 @@ export async function runExecPhase(
   const uid = process.getuid?.() ?? process.pid;
   const socketPath = join(tmpdir(), `interlock-${uid}`, `${randomBytes(8).toString("hex")}.sock`);
   const record = initialRecord({ ...request, id, phaseId }, runDir, nonce, secret);
+  const writer = new TranscriptWriter(
+    transcriptPath,
+    request.transcriptSink ?? nativeTranscriptSink,
+  );
   try {
     await mkdir(runDir, { recursive: true, mode: 0o700 });
     await mkdir(dirname(socketPath), { recursive: true, mode: 0o700 });
@@ -582,7 +833,7 @@ export async function runExecPhase(
   } catch (error) {
     return err({ kind: "record", because: error instanceof Error ? error.message : String(error) });
   }
-  await appendTranscript(transcriptPath, {
+  void writer.append({
     interlock: TRANSCRIPT_SHAPE,
     ts: now(),
     stream: "runner",
@@ -591,19 +842,27 @@ export async function runExecPhase(
   if (request.admission !== undefined) {
     const admitted = await request.admission.admit();
     if (isErr(admitted)) {
-      const refused: ExecSessionRecord = {
-        ...record,
-        state: "failed",
-        endedAt: now(),
-        reason: admitted.error,
-      };
-      await publishRecord(runDir, refused);
-      await appendTranscript(transcriptPath, {
+      void writer.append({
         interlock: TRANSCRIPT_SHAPE,
         ts: now(),
         stream: "runner",
         text: admitted.error,
       });
+      void writer.append({
+        interlock: TRANSCRIPT_SHAPE,
+        ts: now(),
+        stream: "runner",
+        text: `ended failed; group confirmed empty; capture ${writer.failure() === undefined ? "complete" : "incomplete"}`,
+      });
+      await writer.waitForIdle();
+      const refused: ExecSessionRecord = {
+        ...record,
+        state: "failed",
+        endedAt: now(),
+        reason: admitted.error,
+        captureComplete: writer.failure() === undefined,
+      };
+      await publishRecord(runDir, refused);
       return err({ kind: "machine", because: admitted.error });
     }
   }
@@ -621,7 +880,21 @@ export async function runExecPhase(
     );
   } catch (error) {
     const reason = `could not start: ${error instanceof Error && "code" in error ? String(error.code) : "unknown"}`;
-    const failed: ExecSessionRecord = { ...record, state: "failed", endedAt: now(), reason };
+    void writer.append({ interlock: TRANSCRIPT_SHAPE, ts: now(), stream: "runner", text: reason });
+    void writer.append({
+      interlock: TRANSCRIPT_SHAPE,
+      ts: now(),
+      stream: "runner",
+      text: `ended failed; group confirmed empty; capture ${writer.failure() === undefined ? "complete" : "incomplete"}`,
+    });
+    await writer.waitForIdle();
+    const failed: ExecSessionRecord = {
+      ...record,
+      state: "failed",
+      endedAt: now(),
+      reason,
+      captureComplete: writer.failure() === undefined,
+    };
     await publishRecord(runDir, failed);
     if (request.admission !== undefined) await request.admission.release("never-started", "");
     return err({ kind: "launch", because: reason });
@@ -637,11 +910,19 @@ export async function runExecPhase(
     launcherExitCode = code;
   });
   child.stdin.on("error", () => {});
+  const capture = new CaptureController(
+    child,
+    writer,
+    request.captureStreamDelivery ?? nativeCaptureStreamDelivery,
+  );
+  const captureTimers = request.captureTimers ?? nativeCaptureTimers;
+  const drainGraceMs = request.drainGraceMs ?? DEFAULT_DRAIN_GRACE_MS;
+  const captureSettleMs = request.captureSettleMs ?? DEFAULT_CAPTURE_SETTLE_MS;
   child.stdin.write(`${launcherSpec(request, secret)}\n`);
 
   const anchorPath = join(runDir, "anchor.json");
   const anchorDeadline = Date.now() + 30_000;
-  await appendTranscript(transcriptPath, {
+  void writer.append({
     interlock: TRANSCRIPT_SHAPE,
     ts: now(),
     stream: "runner",
@@ -654,7 +935,7 @@ export async function runExecPhase(
     Date.now() < anchorDeadline
   )
     await new Promise<void>((resolve) => setImmediate(resolve));
-  await appendTranscript(transcriptPath, {
+  void writer.append({
     interlock: TRANSCRIPT_SHAPE,
     ts: now(),
     stream: "runner",
@@ -663,25 +944,67 @@ export async function runExecPhase(
   if (!existsSync(anchorPath)) {
     if (launcherStartError !== undefined) {
       const reason = `could not start: ${launcherStartError}`;
-      const failed: ExecSessionRecord = { ...record, state: "failed", endedAt: now(), reason };
-      await appendTranscript(transcriptPath, {
+      void writer.append({
         interlock: TRANSCRIPT_SHAPE,
         ts: now(),
         stream: "runner",
         text: reason,
       });
+      const captureResult = await settleCapture(
+        capture,
+        writer,
+        drainGraceMs,
+        captureSettleMs,
+        captureTimers,
+      );
+      const groupConfirmedEmpty =
+        child.pid === undefined
+          ? true
+          : await waitForGroupGone(child.pid, request.termGraceMs ?? DEFAULT_TERM_GRACE_MS);
+      const closingWrite = writer.append({
+        interlock: TRANSCRIPT_SHAPE,
+        ts: now(),
+        stream: "runner",
+        text: `ended failed; group ${groupConfirmedEmpty ? "confirmed empty" : "not confirmed empty"}; capture ${captureResult.complete ? "complete" : "incomplete"}${captureResult.reason === undefined ? "" : `: ${captureResult.reason}`}`,
+      });
+      const closingWritten = captureResult.settled ? await closingWrite : false;
+      const failed: ExecSessionRecord = {
+        ...record,
+        state: "failed",
+        endedAt: now(),
+        reason,
+        captureComplete: captureResult.complete && closingWritten,
+      };
       await publishRecord(runDir, failed);
       if (request.admission !== undefined) await request.admission.release("never-started", "");
       return err({ kind: "launch", because: reason });
     }
     const code = launcherExitCode ?? 1;
     const reason = `launcher failed before its anchor: exit ${code}`;
-    await appendTranscript(transcriptPath, {
+    void writer.append({
       interlock: TRANSCRIPT_SHAPE,
       ts: now(),
       stream: "runner",
       text: reason,
     });
+    const captureResult = await settleCapture(
+      capture,
+      writer,
+      drainGraceMs,
+      captureSettleMs,
+      captureTimers,
+    );
+    const groupConfirmedEmpty =
+      child.pid === undefined
+        ? true
+        : await waitForGroupGone(child.pid, request.termGraceMs ?? DEFAULT_TERM_GRACE_MS);
+    const closingWrite = writer.append({
+      interlock: TRANSCRIPT_SHAPE,
+      ts: now(),
+      stream: "runner",
+      text: `ended failed; group ${groupConfirmedEmpty ? "confirmed empty" : "not confirmed empty"}; capture ${captureResult.complete ? "complete" : "incomplete"}${captureResult.reason === undefined ? "" : `: ${captureResult.reason}`}`,
+    });
+    const closingWritten = captureResult.settled ? await closingWrite : false;
     const failed: ExecSessionRecord = {
       ...record,
       pid: child.pid ?? null,
@@ -689,6 +1012,7 @@ export async function runExecPhase(
       state: "failed",
       endedAt: now(),
       reason,
+      captureComplete: captureResult.complete && closingWritten,
     };
     await publishRecord(runDir, failed);
     if (request.admission !== undefined)
@@ -701,6 +1025,20 @@ export async function runExecPhase(
   const anchorValue: unknown = JSON.parse(readFileSync(anchorPath, "utf8"));
   if (!isAnchor(anchorValue, child.pid)) {
     const reason = "runner lost the process";
+    const captureResult = await settleCapture(
+      capture,
+      writer,
+      drainGraceMs,
+      captureSettleMs,
+      captureTimers,
+    );
+    const closingWrite = writer.append({
+      interlock: TRANSCRIPT_SHAPE,
+      ts: now(),
+      stream: "runner",
+      text: `ended failed; group not confirmed empty; capture ${captureResult.complete ? "complete" : "incomplete"}${captureResult.reason === undefined ? "" : `: ${captureResult.reason}`}`,
+    });
+    const closingWritten = captureResult.settled ? await closingWrite : false;
     const failed: ExecSessionRecord = {
       ...record,
       pid: child.pid ?? null,
@@ -708,6 +1046,7 @@ export async function runExecPhase(
       state: "failed",
       endedAt: now(),
       reason,
+      captureComplete: captureResult.complete && closingWritten,
     };
     await publishRecord(runDir, failed);
     return err({ kind: "lost-anchor", because: reason });
@@ -723,9 +1062,32 @@ export async function runExecPhase(
     const bound = await request.admission.bind(anchor);
     if (isErr(bound)) {
       await connectControl(socketPath, secret, "end");
-      await waitForGroupGone(anchor.pgid, request.termGraceMs ?? DEFAULT_TERM_GRACE_MS);
+      const groupConfirmedEmpty = await waitForGroupGone(
+        anchor.pgid,
+        request.termGraceMs ?? DEFAULT_TERM_GRACE_MS,
+      );
       const reason = bound.error;
-      current = { ...current, state: "failed", endedAt: now(), reason };
+      const captureResult = await settleCapture(
+        capture,
+        writer,
+        drainGraceMs,
+        captureSettleMs,
+        captureTimers,
+      );
+      const closingWrite = writer.append({
+        interlock: TRANSCRIPT_SHAPE,
+        ts: now(),
+        stream: "runner",
+        text: `ended failed; group ${groupConfirmedEmpty ? "confirmed empty" : "not confirmed empty"}; capture ${captureResult.complete ? "complete" : "incomplete"}${captureResult.reason === undefined ? "" : `: ${captureResult.reason}`}`,
+      });
+      const closingWritten = captureResult.settled ? await closingWrite : false;
+      current = {
+        ...current,
+        state: "failed",
+        endedAt: now(),
+        reason,
+        captureComplete: captureResult.complete && closingWritten,
+      };
       await publishRecord(runDir, current);
       await request.admission.release("group-empty", String(anchor.pgid));
       return err({ kind: "machine", because: reason });
@@ -735,18 +1097,6 @@ export async function runExecPhase(
   await publishRecord(runDir, go);
   current = go;
   child.stdin.write("go\n");
-  const stdoutPending = { value: "" };
-  const stderrPending = { value: "" };
-  child.stdout.setEncoding("utf8");
-  child.stderr.setEncoding("utf8");
-  child.stdout.on(
-    "data",
-    (chunk: string) => void appendStream(transcriptPath, "stdout", stdoutPending, chunk),
-  );
-  child.stderr.on(
-    "data",
-    (chunk: string) => void appendStream(transcriptPath, "stderr", stderrPending, chunk),
-  );
   let timedOut = false;
   let launcherConfirmedDead = false;
   const launcherExit = new Promise<{
@@ -762,7 +1112,7 @@ export async function runExecPhase(
   let exit = await waitForProgramExit(exitFile, request.timeoutMs, request.programExitObservation);
   if (exit === undefined) {
     timedOut = true;
-    await appendTranscript(transcriptPath, {
+    void writer.append({
       interlock: TRANSCRIPT_SHAPE,
       ts: now(),
       stream: "runner",
@@ -805,7 +1155,7 @@ export async function runExecPhase(
     );
   }
   if (exit === undefined) exit = { code: null, signal: "SIGKILL" };
-  await appendTranscript(transcriptPath, {
+  void writer.append({
     interlock: TRANSCRIPT_SHAPE,
     ts: now(),
     stream: "runner",
@@ -816,7 +1166,7 @@ export async function runExecPhase(
   const reconciledExit = readObservedProgramExit(exitFile, request.programExitObservation);
   if (reconciledExit !== undefined) exit = reconciledExit;
   const programError = exit.error;
-  await appendTranscript(transcriptPath, {
+  void writer.append({
     interlock: TRANSCRIPT_SHAPE,
     ts: now(),
     stream: "runner",
@@ -824,14 +1174,14 @@ export async function runExecPhase(
   });
   const members = await connectControl(socketPath, secret, "members");
   const reaped = isOk(members) ? members.value.length : 0;
-  await appendTranscript(transcriptPath, {
+  void writer.append({
     interlock: TRANSCRIPT_SHAPE,
     ts: now(),
     stream: "runner",
     text: `sampled ${String(reaped)} group member(s)`,
   });
   if (isOk(members) && members.value.length > 0) {
-    await appendTranscript(transcriptPath, {
+    void writer.append({
       interlock: TRANSCRIPT_SHAPE,
       ts: now(),
       stream: "runner",
@@ -844,7 +1194,7 @@ export async function runExecPhase(
     );
     if (!termGone) await connectControl(socketPath, secret, "KILL");
   }
-  await appendTranscript(transcriptPath, {
+  void writer.append({
     interlock: TRANSCRIPT_SHAPE,
     ts: now(),
     stream: "runner",
@@ -852,13 +1202,18 @@ export async function runExecPhase(
   });
   const endedByAnchor = await connectControl(socketPath, secret, "end");
   if (isErr(endedByAnchor)) await connectControl(socketPath, secret, "KILL");
-  await waitForGroupGone(anchor.pgid, request.termGraceMs ?? DEFAULT_TERM_GRACE_MS);
-  const captureComplete = await closeStreams(
-    child,
-    transcriptPath,
-    stdoutPending,
-    stderrPending,
-    request.drainGraceMs ?? DEFAULT_DRAIN_GRACE_MS,
+  const groupConfirmedEmpty = await waitForGroupGone(
+    anchor.pgid,
+    request.termGraceMs ?? DEFAULT_TERM_GRACE_MS,
+  );
+  if (request.captureStreamDelivery?.processCloseIsNormal !== false)
+    await waitForLauncherClose(launcherExit, drainGraceMs, captureTimers);
+  const captureResult = await settleCapture(
+    capture,
+    writer,
+    drainGraceMs,
+    captureSettleMs,
+    captureTimers,
   );
   const finalState: ExecPhaseState =
     programError !== undefined
@@ -868,6 +1223,16 @@ export async function runExecPhase(
         : exit.signal !== null || exit.code !== 0
           ? "failed"
           : "done";
+  const captureReason = captureResult.reason;
+  const closeLine: ExecTranscriptLine = {
+    interlock: TRANSCRIPT_SHAPE,
+    ts: now(),
+    stream: "runner" as const,
+    text: `ended ${finalState}; group ${groupConfirmedEmpty ? "confirmed empty" : "not confirmed empty"}; capture ${captureResult.complete ? "complete" : "incomplete"}${captureReason === undefined ? "" : `: ${captureReason}`}`,
+  };
+  const closingWrite = writer.append(closeLine);
+  const closingWritten = captureResult.settled ? await closingWrite : false;
+  const captureComplete = captureResult.complete && closingWritten;
   const final: ExecSessionRecord = {
     ...current,
     endedAt: now(),
@@ -887,12 +1252,6 @@ export async function runExecPhase(
     reaped,
     captureComplete,
   };
-  await appendTranscript(transcriptPath, {
-    interlock: TRANSCRIPT_SHAPE,
-    ts: now(),
-    stream: "runner",
-    text: `ended ${final.state}; group confirmed empty; capture ${captureComplete ? "complete" : "incomplete"}`,
-  });
   await publishRecord(runDir, final);
   if (request.admission !== undefined)
     await request.admission.release("group-empty", String(anchor.pgid));
