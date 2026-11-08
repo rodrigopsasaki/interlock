@@ -30,3 +30,19 @@ entries:
     at: "2026-11-08T16:25:01Z"
     chose: Keep the existing fresh-worktree outcome shape and report reattached branches as created with their actual merge-base base.
     because: Existing callers rely on created meaning a newly attached path, while the acceptance requires the reattachment to stop pretending its base is the sampled main.
+  - kind: choice
+    at: "2026-11-08T17:35:00Z"
+    chose: Update the CLI drive expectations to include the sampled-main narration and make the resumed code-branch scenario assert refusal before session start.
+    because: The acceptance makes the sampled ref part of the attempt transcript and replaces the former automatic continuation of a stale code branch with a named refusal.
+  - kind: surprise
+    at: "2026-11-08T17:36:00Z"
+    expected: The standing workspace test would exercise the changed runner behavior without legacy expectation failures.
+    observed: The root test exposed three old narration expectations and two old-base continuation expectations; the focused CLI suite now passes after those tests were aligned with the acceptance.
+  - kind: surprise
+    at: "2026-11-08T17:37:00Z"
+    expected: Pointing HOME and CODEX_HOME at scratch directories would preserve fixture Git commits automatically.
+    observed: Isolated HOME removed the fixture Git identity, so the isolated command needed explicit temporary Git identity and signing configuration under packages/runner/test/.runs; no owner configuration was read or changed.
+  - kind: choice
+    at: "2026-11-08T17:38:00Z"
+    chose: Run the focused CLI proof with HOME, CODEX_HOME, and Git configuration all under packages/runner/test/.runs.
+    because: The judging rule requires product-home isolation, and the temporary Git configuration keeps the proof self-contained while preserving real fixture commits.

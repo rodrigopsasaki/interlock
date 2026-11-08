@@ -207,6 +207,7 @@ function fixture(
     readonly withBrief?: boolean;
     readonly localYaml?: string;
     readonly graphYaml?: string;
+    readonly ignoreWorktrees?: boolean;
   } = {},
 ): string {
   directory = mkdtempSync(join(runsRoot, "run-"));
@@ -226,6 +227,8 @@ function fixture(
     });
     writeFileSync(join(directory, ".interlock", "sessions", "demo", "a", "brief.md"), demoBriefV1);
   }
+  if (options.ignoreWorktrees === true)
+    writeFileSync(join(directory, ".gitignore"), ".worktrees/\n");
   gitInitFixture(directory);
   commitAll(directory, "fixture content");
   return directory;
@@ -871,6 +874,7 @@ describe("interlock run", () => {
     const { rest, briefCommitLine } = extractBriefCommitLine(lines);
     expect(briefCommitLine).toMatch(/^brief committed [0-9a-f]+$/);
     expect(rest).toEqual([
+      `main sampled: main at ${headSha(cwd)}`,
       `leased a (session ${sessionId}, expires 1970-01-01T00:01:00.000Z)`,
       "no machine provider (provider: none)",
       `worktree at ${join(cwd, ".worktrees", "a")} on ${headSha(cwd)}`,
@@ -918,6 +922,7 @@ describe("interlock run", () => {
     const { rest, briefCommitLine } = extractBriefCommitLine(lines);
     expect(briefCommitLine).toMatch(/^brief committed [0-9a-f]+$/);
     expect(rest).toEqual([
+      `main sampled: main at ${headSha(cwd)}`,
       `leased a (session ${sessionId}, expires 1970-01-01T00:01:00.000Z)`,
       "no machine provider (provider: none)",
       `worktree at ${join(cwd, ".worktrees", "a")} on ${headSha(cwd)}`,
@@ -1075,9 +1080,10 @@ describe("interlock run", () => {
     expect(result.message).toBe("agent start refused: agent CLI crashed");
     const { rest, briefCommitLine } = extractBriefCommitLine(lines);
     expect(briefCommitLine).toMatch(/^brief committed [0-9a-f]+$/);
-    expect(rest).toHaveLength(9);
-    expect(rest[0]).toMatch(/^leased a \(session .+, expires 1970-01-01T00:01:00\.000Z\)$/);
-    expect(rest.slice(1)).toEqual([
+    expect(rest).toHaveLength(10);
+    expect(rest[0]).toBe(`main sampled: main at ${headSha(cwd)}`);
+    expect(rest[1]).toMatch(/^leased a \(session .+, expires 1970-01-01T00:01:00\.000Z\)$/);
+    expect(rest.slice(2)).toEqual([
       "no machine provider (provider: none)",
       `worktree at ${join(cwd, ".worktrees", "a")} on ${headSha(cwd)}`,
       "brief written",
@@ -1547,7 +1553,7 @@ describe("interlock run", () => {
     );
   }, 30_000);
 
-  it("keeps a resumed branch on its own base and narrates it, even though main moved on", async () => {
+  it("refuses a resumed branch whose code base is stale", async () => {
     const cwd = fixture();
     await runGraphApprove(["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"], { cwd });
     const branchBaseSha = headSha(cwd);
@@ -1575,11 +1581,9 @@ describe("interlock run", () => {
       narrate: (line) => lines.push(line),
     });
 
-    expect(result.exitCode).toBe(0);
-    expect(lines).toContain(
-      `branch base ${branchBaseSha.slice(0, 7)} is behind main ${mainHeadSha.slice(0, 7)}; the session rebases before it opens a pull request`,
-    );
-
+    expect(result.exitCode).toBe(1);
+    expect(result.message).toContain("stale base");
+    expect(result.message).toContain("changes outside .interlock/: yes");
     const journal = readFileSync(join(cwd, ".interlock", "ledger", "journal.jsonl"), "utf-8");
     const started = journal
       .trim()
@@ -1587,15 +1591,11 @@ describe("interlock run", () => {
       .map((line): unknown => JSON.parse(line))
       .filter(isLedgerEvent)
       .find((event) => event.kind === "session-started");
-    if (started === undefined || started.kind !== "session-started") {
-      throw new Error("expected a session-started event in the journal");
-    }
-    expect(started.graphBaseSha).toBe(branchBaseSha);
-    expect(started.graphBaseSha).not.toBe(mainHeadSha);
+    expect(started).toBeUndefined();
   }, 30_000);
 
   it("materializes the acceptance, records the brief and gates the node from the same approved declaration on a reused worktree with an older base", async () => {
-    const cwd = fixture();
+    const cwd = fixture({ ignoreWorktrees: true });
     await approve(cwd);
     const branchBaseSha = headSha(cwd);
     const worktreePath = join(cwd, ".worktrees", "a");
@@ -1627,7 +1627,7 @@ describe("interlock run", () => {
       runtime: { ...stubRuntime(), waitUntil: finishedWaitUntil(worktreePath) },
       narrate: (line) => lines.push(line),
     });
-    expect(result.exitCode).toBe(0);
+    expect(result.exitCode, result.message).toBe(0);
     expect(lines).toContain(
       "acceptance: the repository copy's acceptance for node a differs from the graph's; overwritten.",
     );
@@ -1733,7 +1733,7 @@ describe("interlock run: --runtime selection", () => {
       narrate: (line) => lines.push(line),
     });
 
-    expect(result.exitCode).toBe(0);
+    expect(result.exitCode, result.message).toBe(0);
     expect(lines).toContain("runtime luna (codex, luna-model)");
     const started = sessionStartedFrom(cwd);
     expect(started.session.runtime).toEqual({
@@ -1801,7 +1801,7 @@ describe("interlock run: --runtime selection", () => {
       narrate: (line) => lines.push(line),
     });
 
-    expect(result.exitCode).toBe(0);
+    expect(result.exitCode, result.message).toBe(0);
     expect(lines).toContain("runtime luna (codex, luna-model)");
     const started = sessionStartedFrom(cwd);
     expect(started.session.runtime).toEqual({
@@ -1831,7 +1831,7 @@ describe("interlock run: --runtime selection", () => {
       narrate: (line) => lines.push(line),
     });
 
-    expect(result.exitCode).toBe(0);
+    expect(result.exitCode, result.message).toBe(0);
     expect(lines).toContain("runtime default (claude, model undeclared)");
     const started = sessionStartedFrom(cwd);
     expect(started.session.runtime).toEqual({
