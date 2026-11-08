@@ -1,0 +1,59 @@
+interlock: notes@v0
+node: access-probe
+entries:
+  - kind: choice
+    at: "2026-11-08T04:00:00Z"
+    chose: Build the probe through the existing runtime catalogue, machine-provider, worktree, and ledger seams.
+    because: The acceptance requires equivalent launch preparation and durable probe evidence; reusing those seams preserves the repository's adapter and outbox boundaries.
+  - kind: surprise
+    at: "2026-11-08T04:00:00Z"
+    expected: The prior session would have left implementation changes and notes to resume.
+    observed: The worktree is clean and contains only the refreshed brief commit; notes.yaml and implementation changes are absent.
+  - kind: surprise
+    at: "2026-11-08T04:10:00Z"
+    expected: Every patch path would resolve inside this worktree.
+    observed: A ledger patch was initially addressed to the main checkout; the main checkout is clean, and the ledger changes were re-applied only in this worktree.
+  - kind: choice
+    at: "2026-11-08T04:20:00Z"
+    chose: Keep probe execution non-conversational and represent missing adapter equivalence as unavailable for every affected check.
+    because: The probe must measure the runtime's access without starting an agent or using a host shell, and an unavailable result is safer than claiming access the adapter cannot demonstrate.
+  - kind: choice
+    at: "2026-11-08T04:20:00Z"
+    chose: Store the measured profile, provider and environment fingerprints as a content-addressed probe-config artifact and reference it from event@v11.
+    because: Runtime configuration is outside the repository and can change without a file edit; retaining the hashed evidence keeps historical probe results inspectable without persisting environment values.
+  - kind: surprise
+    at: "2026-11-08T04:21:00Z"
+    expected: The existing opening-prompt focused test would assert the new mandatory sentence additively.
+    observed: Its legacy exact-string assertion fails because the required heavy-command sentence changes the prompt; the role coverage itself remains green.
+  - kind: surprise
+    at: "2026-11-08T04:22:00Z"
+    expected: The existing ledger replay test would accept the event shape version bump.
+    observed: Its one legacy assertion still expects event@v10; replay of the prior versions remains green, while event@v11 is now the current shape required by the acceptance.
+  - kind: choice
+    at: "2026-11-08T04:30:00Z"
+    chose: Regenerate docs/shapes.md from the schema registry after adding event@v11 and probe-config@v0.
+    because: The repository treats generated artifact references as part of the public shape surface, and the new versions must remain discoverable by schema tooling.
+  - kind: choice
+    at: "2026-11-08T04:35:00Z"
+    chose: Add focused runner, CLI and ledger probe tests and update the two legacy exact-shape assertions to the new required contracts.
+    because: The brief names those focused gates explicitly; keeping the tests in-tree proves the non-conversational path, empty-catalogue refusal, event compatibility and prompt instruction.
+  - kind: choice
+    at: "2026-11-08T04:28:00Z"
+    chose: Keep event@v10 replay acceptance unchanged except for refusing probe events, and place the heavy-command sentence after the existing role and filing handoff text.
+    because: Prior event@v10 records already carry provider attribution, and existing role prompt consumers rely on the established contiguous role paragraph; the acceptance requires the sentence, not a position for it.
+  - kind: choice
+    at: "2026-11-08T04:29:00Z"
+    chose: Copy a successful signed-commit fingerprint onto the probe event's top-level signedCommitKeyFingerprint field while retaining it on the check result.
+    because: The acceptance names the verifying fingerprint as event data as well as command output, and the top-level field makes that evidence directly queryable.
+  - kind: surprise
+    at: "2026-11-08T04:36:00Z"
+    expected: Existing schema tests would use event@v11 after the current event shape moved.
+    observed: A CLI test still validated an envelopeFor event against event@v10; the event@v11 validator is now used for current envelopes while event@v10 remains available for historical records.
+  - kind: choice
+    at: "2026-11-08T04:37:00Z"
+    chose: Base event@v11 schema validation on the complete event@v10 schema, then add probe to its kind union and a strict probe branch.
+    because: The current version must validate every existing event form while adding probe-specific required fields and check outcomes; a narrow generic schema would silently weaken old validation.
+  - kind: surprise
+    at: "2026-11-08T04:38:00Z"
+    expected: The schema package's current-shape references and generated shape page would follow EVENT_SHAPE automatically.
+    observed: Corpus tests and docs still named event@v10, so they required explicit current-version updates while historical v10 fixtures remained unchanged.

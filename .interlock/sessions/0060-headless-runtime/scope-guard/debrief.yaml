@@ -1,0 +1,105 @@
+interlock: debrief@v2
+graph: 0060-headless-runtime
+node: scope-guard
+role: implementer
+graph_base_sha: 552524be1381a7507b7acb552793901cd860720f
+session_start_sha: f91dc33ef8f2a51fee62cedb8be0cc3bdbb70bf3
+head_sha: 75581456b0f008c1e384c86cae87c506d52bd844
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: phase-scope-guard
+    what: >-
+      Snapshot the repository main checkout and configured watch paths immediately before and
+      after the work turn and runner-owned debrief prompt; hold the node on any changed path or
+      snapshot refusal, naming the session, phase and runtime profile without reverting the file.
+    because: >-
+      The acceptance makes outside writes a harness-observed hold, and an after-phase comparison
+      is still required when the runtime wait itself returns an error.
+    rests_on:
+      - packages/runner/src/sessionDrive.ts
+      - packages/runner/src/scopeGuard.ts
+      - .interlock/sessions/0060-headless-runtime/scope-guard/notes.yaml
+    hunks:
+      - packages/runner/src/sessionDrive.ts
+      - packages/runner/src/scopeGuard.ts
+  - id: main-checkout-snapshot
+    what: >-
+      Resolve the main checkout from the linked worktree's Git common directory, hash changed
+      tracked and untracked nonignored files, recursively hash watch-path files with size, and
+      exclude only the active linked worktree plus the permitted .interlock ledger and sessions
+      trees from the main-checkout comparison.
+    because: >-
+      Git status identifies the main checkout's pre-existing dirty baseline, while content hashes
+      distinguish unchanged dirt from a phase write and keep the runner from mutating evidence.
+    rests_on:
+      - packages/runner/src/scopeGuard.ts
+      - packages/runner/test/scopeGuard.test.ts
+    hunks:
+      - packages/runner/src/scopeGuard.ts
+      - packages/runner/test/scopeGuard.test.ts
+  - id: watch-path-contract
+    what: >-
+      Add optional distinct absolute watch_paths to local@v1, parse it without changing legacy
+      local@v0 behavior, document it in the example, and regenerate docs/shapes.md from the schema.
+    because: >-
+      The machine owner may name folders outside the repository, and the parser, JSON schema and
+      generated artifact reference must agree while preserving older configuration reads.
+    rests_on:
+      - packages/runner/src/localConfig.ts
+      - schemas/local@v1.json
+      - .interlock/local.example.yaml
+      - docs/shapes.md
+      - packages/runner/test/localConfig.test.ts
+    hunks:
+      - packages/runner/src/localConfig.ts
+      - schemas/local@v1.json
+      - .interlock/local.example.yaml
+      - docs/shapes.md
+      - packages/runner/test/localConfig.test.ts
+  - id: relative-path-guidance
+    what: >-
+      Tell every graph node role to give file and patch paths relative to the worktree, and export
+      the scope-guard primitives through the runner package surface.
+    because: >-
+      The prompt reduces the chance of an absolute-path write, while the exported typed seam keeps
+      the snapshot behavior testable and available to the runner without runtime-specific logic.
+    rests_on:
+      - packages/runner/src/openingPrompt.ts
+      - packages/runner/src/index.ts
+      - packages/runner/test/scopeGuard.test.ts
+    hunks:
+      - packages/runner/src/openingPrompt.ts
+      - packages/runner/src/index.ts
+      - packages/runner/test/scopeGuard.test.ts
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: All workspace packages typechecked successfully through mise exec on the final committed tree.
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: Biome exited successfully; it reported one existing warning and one existing informational diagnostic in packages/runner/test/runnerCommits.test.ts.
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+    note: packages/*/src contains no comments.
+  - id: test
+    result: pass
+    invocation: pnpm test
+    note: >-
+      The final serial workspace run passed all package suites: runner 545, schemas 1228, CLI 443,
+      plus the ledger, debrief, verifier, substrate and face suites.
+  - id: scope-guard-proof
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/scopeGuard.test.ts --passWithNoTests=false
+    note: 6 focused tests passed for main-checkout writes, tracked edits, watch paths, clean worktree-only writes, allowed interlock paths and all six node roles.
+  - id: scope-guard-types
+    result: pass
+    invocation: pnpm typecheck
+    note: The focused type gate is covered by the final workspace typecheck.
+open: []

@@ -14,7 +14,11 @@ import {
 } from "./localConfig.ts";
 import { parseStartupAnswers, type StartupAnswer } from "./startupAnswers.ts";
 import { isNonNegativeInteger, isRecord, isString, isStringArray, prop } from "./validate.ts";
-import { parseWritableRootArgs, type WritableRootTemplate } from "./writableRootArgs.ts";
+import {
+  parseProbeExec,
+  parseWritableRootArgs,
+  type WritableRootTemplate,
+} from "./writableRootArgs.ts";
 
 export const RUNTIME_CATALOGUE_SHAPE = "runtimes@v2";
 
@@ -35,6 +39,7 @@ export interface CatalogueRuntime {
   readonly readySettleMs: number;
   readonly promptRetries: number;
   readonly writableRootArgs: WritableRootTemplate | undefined;
+  readonly exec?: WritableRootTemplate;
 }
 
 export type RuntimeCatalogueRefusal =
@@ -82,6 +87,7 @@ const KNOWN_ENTRY_KEYS: ReadonlySet<string> = new Set([
   "ready_settle_ms",
   "prompt_retries",
   "writable_root_args",
+  "exec",
 ]);
 
 function isPositiveInteger(value: unknown): value is number {
@@ -218,6 +224,8 @@ function parseEntry(
   if (isErr(writableRootArgs)) {
     return err({ kind: "malformed", path, reason: writableRootArgs.error });
   }
+  const exec = parseProbeExec(prop(value, "exec"), `runtimes.${name}.exec`);
+  if (isErr(exec)) return err({ kind: "malformed", path, reason: exec.error });
 
   return ok({
     ...(provider === undefined ? {} : { provider }),
@@ -232,6 +240,7 @@ function parseEntry(
     readySettleMs: readySettleMsField ?? DEFAULT_READY_SETTLE_MS,
     promptRetries: promptRetriesField ?? DEFAULT_PROMPT_RETRIES,
     writableRootArgs: writableRootArgs.value,
+    ...(exec.value === undefined ? {} : { exec: exec.value }),
   });
 }
 
@@ -334,6 +343,7 @@ export interface ResolvedRuntime {
   readonly readySettleMs: number;
   readonly promptRetries: number;
   readonly writableRootArgs: WritableRootTemplate | undefined;
+  readonly exec?: WritableRootTemplate;
   readonly source: "catalogue" | "local.yaml";
   readonly chosenBy?: ChosenBy;
 }
@@ -385,6 +395,7 @@ export function mergeRuntimes(
       readySettleMs: entry.readySettleMs,
       promptRetries: entry.promptRetries,
       writableRootArgs: entry.writableRootArgs,
+      ...(entry.exec === undefined ? {} : { exec: entry.exec }),
       source: "catalogue",
     });
   }

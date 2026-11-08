@@ -876,13 +876,22 @@ No vocabulary entry for `event`.
 - `event@v8`: no field changes from the previous version.
 - `event@v9`: retyped `kind`.
 - `event@v10`: retyped `kind`.
+- `event@v11`: retyped `kind`; added `probeId` (optional); added `profile` (optional); added `configuration` (optional); added `implementationVersion` (optional); added `checks` (optional); added `signedCommitKeyFingerprint` (optional); added `derivation` (optional); added `at` (optional).
 
-### Fields (`event@v10`)
+### Fields (`event@v11`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `interlock` | the literal `"event@v10"` | yes |  |
-| `kind` | one of `"node-created"`, `"lease-taken"`, `"lease-renewed"`, `"lease-expired"`, `"session-started"`, `"note-appended"`, `"debrief-filed"`, `"gate-moved"`, `"receipt-written"`, `"outcome-set"`, `"outbox-intent-recorded"`, `"outbox-delivery-recorded"`, `"session-narrated"`, `"session-facts-observed"`, `"person-said"`, `"receipt-retracted"` | yes |  |
+| `interlock` | the literal `"event@v11"` | yes |  |
+| `kind` | one of `"node-created"`, `"lease-taken"`, `"lease-renewed"`, `"lease-expired"`, `"session-started"`, `"note-appended"`, `"debrief-filed"`, `"gate-moved"`, `"receipt-written"`, `"outcome-set"`, `"outbox-intent-recorded"`, `"outbox-delivery-recorded"`, `"session-narrated"`, `"session-facts-observed"`, `"person-said"`, `"receipt-retracted"`, `"probe"` | yes |  |
+| `probeId` | string | no |  |
+| `profile` | string | no |  |
+| `configuration` | string | no |  |
+| `implementationVersion` | string | no |  |
+| `checks` | array | no |  |
+| `signedCommitKeyFingerprint` | string | no |  |
+| `derivation` | derivation | no | Who produced a receipt or a mark: a gate run, a model, or a person. |
+| `at` | unknown | no |  |
 
 ### Examples
 
@@ -937,6 +946,10 @@ _No example of `event@v9` was found in the corpus._
 #### `event@v10`
 
 _No example of `event@v10` was found in the corpus._
+
+#### `event@v11`
+
+_No example of `event@v11` was found in the corpus._
 
 ## graph
 
@@ -1035,7 +1048,7 @@ No vocabulary entry for `local`.
 ### Versions
 
 - `local@v0`: the first version.
-- `local@v1`: added `owner_login` (optional); added `provider_order` (optional); added `last_resort` (optional).
+- `local@v1`: added `watch_paths` (optional); added `owner_login` (optional); added `provider_order` (optional); added `last_resort` (optional).
 
 ### Fields (`local@v1`)
 
@@ -1049,6 +1062,7 @@ No vocabulary entry for `local`.
 | `lease_ms` | number | yes |  |
 | `run_timeout_ms` | number | yes |  |
 | `answer_grace_ms` | number | no |  |
+| `watch_paths` | array of string matching `^/` | no |  |
 | `owner_login` | string matching `\S` | no |  |
 | `substrate` | object | yes | fields: address (string, required); handle (string, optional); key_file (string, optional); send_repository (boolean, optional) |
 | `provider_order` | array of string matching `\S` | no |  |
@@ -1117,6 +1131,10 @@ run_timeout_ms: 3600000
 
 # Optional. How long an idle or done stays open for the agent to resume after a person has answered a blocked turn, before it is judged settled. Defaults to 300000.
 # answer_grace_ms: 300000
+
+# Optional. Absolute folders whose files the runner watches for writes outside the worktree.
+# watch_paths:
+#   - "/path/to/another/folder"
 
 # The substrate address: "none" or an http(s) URL.
 substrate:

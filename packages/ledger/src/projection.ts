@@ -1,7 +1,7 @@
 import type { Brief } from "./brief.ts";
 import type { Debrief } from "./debrief.ts";
 import type { DelegatedDerivation, Derivation } from "./derivation.ts";
-import type { LedgerEvent } from "./event.ts";
+import type { LedgerEvent, ProbeEvent } from "./event.ts";
 import type { Gate } from "./gate.ts";
 import { type Node, nodeKey } from "./graph.ts";
 import type { Lease } from "./lease.ts";
@@ -61,6 +61,7 @@ export interface LedgerProjection {
   readonly sessions: ReadonlyMap<string, SessionView>;
   readonly outbox: ReadonlyMap<string, OutboxView>;
   readonly consumedCites: ReadonlyMap<string, DelegatedDerivation>;
+  readonly probes: ReadonlyMap<string, ProbeEvent>;
 }
 
 export interface OutboxView {
@@ -70,7 +71,13 @@ export interface OutboxView {
 }
 
 export function emptyProjection(): LedgerProjection {
-  return { nodes: new Map(), sessions: new Map(), outbox: new Map(), consumedCites: new Map() };
+  return {
+    nodes: new Map(),
+    sessions: new Map(),
+    outbox: new Map(),
+    consumedCites: new Map(),
+    probes: new Map(),
+  };
 }
 
 export function isInterrupted(view: SessionView): boolean {
@@ -160,6 +167,11 @@ function withConsumedReceipts(
 
 export function applyEvent(projection: LedgerProjection, event: LedgerEvent): LedgerProjection {
   switch (event.kind) {
+    case "probe": {
+      const probes = new Map(projection.probes);
+      probes.set(event.probeId, event);
+      return { ...projection, probes };
+    }
     case "node-created":
       return withNode(projection, event.node, (view) => view);
     case "lease-taken": {

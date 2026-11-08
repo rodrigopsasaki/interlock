@@ -17,3 +17,11 @@ entries:
     at: "2026-11-08T04:00:00Z"
     expected: mise exec would run the pinned Node 24 toolchain and the standing lint gate would reflect only this branch.
     observed: The environment reported Node 26.13.0 despite mise exec, and lint still reports two existing runner test findings outside this node; typecheck, comments, focused proofs, and the full workspace test pass.
+  - kind: question
+    at: "2026-11-08T05:43:45Z"
+    asked: May I merge origin/main into this branch with git merge -S --no-edit origin/main, without amending or forcing history?
+    options: [yes, no]
+  - kind: choice
+    at: "2026-11-08T06:35:05Z"
+    chose: Resolve the merge conflict in packages/ledger/src/projection.ts by retaining both the consumedCites projection and the origin/main probes projection, including both event imports and both empty projection maps.
+    because: The branch implementation must keep delegated cite consumption, while origin/main adds probe event projection; combining the independent fields preserves both sides' intent.

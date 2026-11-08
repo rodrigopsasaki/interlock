@@ -55,6 +55,10 @@ run_timeout_ms: 3600000
 # Optional. How long an idle or done stays open for the agent to resume after a person has answered a blocked turn, before it is judged settled. Defaults to 300000.
 # answer_grace_ms: 300000
 
+# Optional. Absolute folders whose files the runner watches for writes outside the worktree.
+# watch_paths:
+#   - "/path/to/another/folder"
+
 # The substrate address: "none" or an http(s) URL.
 substrate:
   address: none

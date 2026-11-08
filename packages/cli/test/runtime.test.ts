@@ -90,7 +90,7 @@ describe("runtime list: a valid catalogue", () => {
 
     expect(result.exitCode).toBe(0);
     expect(result.message).toBe(
-      "fast — kind claude, model fast-model-label, source catalogue, last attempt never run",
+      "fast — kind claude, model fast-model-label, source catalogue, last attempt never run, last probe never probed",
     );
   });
 
@@ -103,7 +103,7 @@ describe("runtime list: a valid catalogue", () => {
 
     expect(result.exitCode).toBe(0);
     expect(result.message).toBe(
-      "default — kind claude, model (none), source local.yaml, last attempt never run",
+      "default — kind claude, model (none), source local.yaml, last attempt never run, last probe never probed",
     );
   });
 
@@ -126,8 +126,8 @@ describe("runtime list: a valid catalogue", () => {
 
     expect(result.exitCode).toBe(0);
     expect(result.message.split("\n")).toEqual([
-      "fast — kind codex, model fast-model-label, source catalogue, last attempt never run",
-      "default — kind claude, model (none), source local.yaml, last attempt never run",
+      "fast — kind codex, model fast-model-label, source catalogue, last attempt never run, last probe never probed",
+      "default — kind claude, model (none), source local.yaml, last attempt never run, last probe never probed",
     ]);
   });
 
@@ -193,7 +193,7 @@ describe("runtime list: a valid catalogue", () => {
     expect(result.exitCode).toBe(0);
     expect(result.message).toBe(
       "fast — kind claude, model fast-model-label, source catalogue, " +
-        `last attempt s1 — cleared, ${new Date(12_345).toISOString()}`,
+        `last attempt s1 — cleared, ${new Date(12_345).toISOString()}, last probe never probed`,
     );
   });
 });

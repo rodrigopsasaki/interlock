@@ -5,7 +5,7 @@ import {
   type RuntimeAttempt,
   sharedJournalDirectory,
 } from "face";
-import { readReplay } from "ledger";
+import { readReplay, sha256 } from "ledger";
 import {
   explainLocalConfigRefusal,
   explainMergeRuntimesRefusal,
@@ -13,10 +13,13 @@ import {
   type LocalConfig,
   loadLocalConfig,
   loadRuntimeCatalogue,
+  type MachineAttempt,
   mergeRuntimes,
   type ResolvedRuntime,
+  resolveMachine,
 } from "runner";
 import type { CommandResult } from "../main.ts";
+import { probeConfiguration } from "./probe.ts";
 
 function renderLastAttempt(attempt: RuntimeAttempt | undefined): string {
   if (attempt === undefined) return "last attempt never run";
@@ -31,12 +34,43 @@ function renderLastAttempt(attempt: RuntimeAttempt | undefined): string {
 function renderRuntime(
   runtime: ResolvedRuntime,
   lastAttempts: ReadonlyMap<string, RuntimeAttempt>,
+  probe: string,
 ): string {
   const model = runtime.model ?? "(none)";
   return (
     `${runtime.name} — kind ${runtime.kind}, model ${model}, source ${runtime.source}, ` +
-    renderLastAttempt(lastAttempts.get(runtime.name))
+    renderLastAttempt(lastAttempts.get(runtime.name)) +
+    `, ${probe}`
   );
+}
+
+function latestProbes(
+  probes: ReadonlyMap<string, import("ledger").ProbeEvent>,
+): ReadonlyMap<string, import("ledger").ProbeEvent> {
+  const latest = new Map<string, import("ledger").ProbeEvent>();
+  for (const probe of probes.values()) {
+    const current = latest.get(probe.profile);
+    if (current === undefined || current.at < probe.at) latest.set(probe.profile, probe);
+  }
+  return latest;
+}
+
+function probeLine(
+  runtime: ResolvedRuntime,
+  probe: import("ledger").ProbeEvent | undefined,
+  machine: MachineAttempt | undefined,
+): string {
+  if (probe === undefined) return "last probe never probed";
+  if (machine === undefined)
+    return `last probe environment unknown, artifact ${probe.configuration}`;
+  const current = sha256(`${JSON.stringify(probeConfiguration(runtime, machine))}\n`);
+  const state =
+    probe.configuration === current && probe.implementationVersion === "runtime-probe@v1"
+      ? probe.checks.every((check) => check.state === "passed")
+        ? "passed"
+        : "did not pass"
+      : `historical (probed under an earlier configuration), artifact ${probe.configuration}`;
+  return `last probe ${state}, ${new Date(probe.at).toISOString()}`;
 }
 
 export async function runRuntimeList(
@@ -100,9 +134,20 @@ export async function runRuntimeList(
     };
   }
   const lastAttempts = lastAttemptByRuntimeName(replayed.value);
+  const probes = latestProbes(replayed.value.probes);
+  let machine: MachineAttempt | undefined;
+  if (probes.size > 0) {
+    const resolved = await resolveMachine(repoRoot);
+    if (isErr(resolved)) machine = undefined;
+    else machine = resolved.value;
+  }
 
   return {
     exitCode: 0,
-    message: runtimes.map((runtime) => renderRuntime(runtime, lastAttempts)).join("\n"),
+    message: runtimes
+      .map((runtime) =>
+        renderRuntime(runtime, lastAttempts, probeLine(runtime, probes.get(runtime.name), machine)),
+      )
+      .join("\n"),
   };
 }
