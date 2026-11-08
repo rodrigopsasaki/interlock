@@ -37,3 +37,11 @@ entries:
     at: "2026-11-08T14:37:00Z"
     chose: Keep shell environment policy arguments during overflow fallback and omit only generated mcp_servers env overrides.
     because: The marker is already inherited by MCP children, while other environment policy settings remain part of the established Codex launch contract.
+  - kind: surprise
+    at: "2026-11-08T14:39:00Z"
+    expected: The final full lint gate would remain blocked by the pre-existing runner commit fixture diagnostics seen before formatting.
+    observed: The final lint gate passed with only the same pre-existing informational warning and info in packages/runner/test/runnerCommits.test.ts; the changed files are clean.
+  - kind: surprise
+    at: "2026-11-08T14:40:00Z"
+    expected: The full workspace test would finish without environmental diagnostics.
+    observed: All workspace tests passed, while runner worktree-maintenance fixtures printed expected permission warnings from their locked Git fixture directories.
