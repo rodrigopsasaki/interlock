@@ -37,7 +37,7 @@ const answered = personSaid({
 });
 const bare = personSaid({ session: "s", by: "Rodrigo Sasaki", text: "go on", at: now });
 
-describe("isPersonSaid / parts/person-said.json (the event@v10 person-said)", () => {
+describe("isPersonSaid / parts/person-said.json (the event@v11 person-said)", () => {
   it("agree on a said with and without the question it answers", () => {
     for (const value of [answered, bare]) {
       expect(isPersonSaid(value)).toBe(true);
@@ -54,14 +54,14 @@ describe("isPersonSaid / parts/person-said.json (the event@v10 person-said)", ()
     }
   });
 
-  it("validate a person-said line at event@v10 and refuse it tagged event@v8", () => {
+  it("validate a person-said line at event@v11 and refuse it tagged event@v8", () => {
     const line: LedgerEvent = { kind: "person-said", session: "s", said: answered };
     expect(isLedgerEvent(envelopeFor(line))).toBe(true);
-    expect(valid("event@v10", envelopeFor(line))).toBe(true);
+    expect(valid("event@v11", envelopeFor(line))).toBe(true);
     expect(valid("event@v8", { ...line, interlock: "event@v8" })).toBe(false);
   });
 
-  it("validate a delivery recorded under a said's outbox identity at event@v10", () => {
+  it("validate a delivery recorded under a said's outbox identity at event@v11", () => {
     const delivery: LedgerEvent = {
       kind: "outbox-delivery-recorded",
       delivery: {
@@ -71,7 +71,7 @@ describe("isPersonSaid / parts/person-said.json (the event@v10 person-said)", ()
         derivation: derivation.gate("outbox", "runner@0", "interlock session say"),
       },
     };
-    expect(valid("event@v10", envelopeFor(delivery))).toBe(true);
+    expect(valid("event@v11", envelopeFor(delivery))).toBe(true);
   });
 });
 

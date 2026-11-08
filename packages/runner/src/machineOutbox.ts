@@ -24,9 +24,9 @@ export interface MachineHold {
   readonly env: Readonly<Record<string, string>>;
 }
 
-type Operation = "admit" | "close" | "release" | "agent";
+export type MachineOperation = "admit" | "close" | "release" | "agent";
 
-function idFor(operation: Operation, hold: MachineHold): string {
+function idFor(operation: MachineOperation, hold: MachineHold): string {
   return createHash("sha256")
     .update(JSON.stringify(["machine-provider", operation, hold.token, hold.pane]))
     .digest("hex");
@@ -52,7 +52,7 @@ export function machineIntent(
   ledger: Ledger,
   node: Node,
   session: string,
-  operation: Operation,
+  operation: MachineOperation,
   hold: MachineHold,
 ): Result<string, string> {
   const id = idFor(operation, hold);

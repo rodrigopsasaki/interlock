@@ -92,7 +92,13 @@ export {
   loadLocalConfig,
   localConfigPath,
 } from "./localConfig.ts";
-export { reconcileMachineOnStart } from "./machineOutbox.ts";
+export type { MachineHold } from "./machineOutbox.ts";
+export {
+  admitMachine,
+  machineDelivery,
+  machineIntent,
+  reconcileMachineOnStart,
+} from "./machineOutbox.ts";
 export type { MachineAttempt, MachineProvider } from "./machineProvider.ts";
 export {
   loadMachine,
@@ -126,6 +132,10 @@ export type {
   LiveWork,
   Pane,
   PaneFact,
+  PreparedLaunch,
+  ProbeCheck,
+  ProbeExecutor,
+  ProbeInvocation,
   Runtime,
   RuntimeObservation,
   RuntimeRefusal,
@@ -154,12 +164,34 @@ export {
   RUNTIME_CATALOGUE_SHAPE,
   runtimeCataloguePath,
 } from "./runtimeCatalogue.ts";
+export type {
+  ProbeExecutionOptions,
+  ProbeProcessResult,
+  ProbeProcessRunner,
+} from "./runtimeProbe.ts";
+export {
+  execProbeInvocation,
+  PROBE_CHECKS,
+  probePassed,
+  runProbeChecks,
+} from "./runtimeProbe.ts";
 export type { RuntimeSelectionRefusal } from "./runtimeSelection.ts";
 export {
   explainRuntimeSelectionRefusal,
   selectRuntime,
 } from "./runtimeSelection.ts";
 export { gitScope, gitTrackedFiles } from "./scope.ts";
+export type {
+  ScopeGuardChange,
+  ScopeSnapshot,
+  ScopeSnapshotEntry,
+  ScopeSnapshotRefusal,
+} from "./scopeGuard.ts";
+export {
+  changedScopePaths,
+  describeScopeChange,
+  snapshotScope,
+} from "./scopeGuard.ts";
 export type { BriefWriteOutcome, DeclaredNode, SessionBriefRefusal } from "./sessionBrief.ts";
 export {
   briefExists,
@@ -173,7 +205,7 @@ export type {
   DriveSessionOutcome,
   DriveSessionRequest,
 } from "./sessionDrive.ts";
-export { driveInteractiveSession } from "./sessionDrive.ts";
+export { driveInteractiveSession, prepareLaunch } from "./sessionDrive.ts";
 export type { SessionInheritance } from "./sessionRange.ts";
 export { findInheritedSessionStart } from "./sessionRange.ts";
 export {
@@ -216,3 +248,8 @@ export {
   runWorktreeSetup,
   SETUP_LOG_TAIL_BYTES,
 } from "./worktreeSetup.ts";
+export {
+  expandProbeExec,
+  PROBE_COMMAND_PLACEHOLDER,
+  parseProbeExec,
+} from "./writableRootArgs.ts";

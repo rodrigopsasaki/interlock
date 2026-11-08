@@ -1,6 +1,7 @@
 import type { Brief } from "./brief.ts";
 import type { Debrief } from "./debrief.ts";
-import type { LedgerEvent } from "./event.ts";
+import type { DelegatedDerivation, Derivation } from "./derivation.ts";
+import type { LedgerEvent, ProbeEvent } from "./event.ts";
 import type { Gate } from "./gate.ts";
 import { type Node, nodeKey } from "./graph.ts";
 import type { Lease } from "./lease.ts";
@@ -59,6 +60,8 @@ export interface LedgerProjection {
   readonly nodes: ReadonlyMap<string, NodeView>;
   readonly sessions: ReadonlyMap<string, SessionView>;
   readonly outbox: ReadonlyMap<string, OutboxView>;
+  readonly consumedCites: ReadonlyMap<string, DelegatedDerivation>;
+  readonly probes: ReadonlyMap<string, ProbeEvent>;
 }
 
 export interface OutboxView {
@@ -68,7 +71,13 @@ export interface OutboxView {
 }
 
 export function emptyProjection(): LedgerProjection {
-  return { nodes: new Map(), sessions: new Map(), outbox: new Map() };
+  return {
+    nodes: new Map(),
+    sessions: new Map(),
+    outbox: new Map(),
+    consumedCites: new Map(),
+    probes: new Map(),
+  };
 }
 
 export function isInterrupted(view: SessionView): boolean {
@@ -130,8 +139,39 @@ function withSaidDelivery(
   }));
 }
 
+function delegated(value: Derivation): DelegatedDerivation | undefined {
+  return value.kind === "human" && "citeKey" in value ? value : undefined;
+}
+
+function withConsumed(
+  projection: LedgerProjection,
+  derivation: Derivation | undefined,
+): LedgerProjection {
+  if (derivation === undefined) return projection;
+  const candidate = delegated(derivation);
+  if (candidate === undefined || projection.consumedCites.has(candidate.citeKey)) return projection;
+  const consumedCites = new Map(projection.consumedCites);
+  consumedCites.set(candidate.citeKey, candidate);
+  return { ...projection, consumedCites };
+}
+
+function withConsumedReceipts(
+  projection: LedgerProjection,
+  receipts: readonly Receipt[],
+): LedgerProjection {
+  return receipts.reduce(
+    (current, receipt) => withConsumed(current, receipt.derivation),
+    projection,
+  );
+}
+
 export function applyEvent(projection: LedgerProjection, event: LedgerEvent): LedgerProjection {
   switch (event.kind) {
+    case "probe": {
+      const probes = new Map(projection.probes);
+      probes.set(event.probeId, event);
+      return { ...projection, probes };
+    }
     case "node-created":
       return withNode(projection, event.node, (view) => view);
     case "lease-taken": {
@@ -230,41 +270,59 @@ export function applyEvent(projection: LedgerProjection, event: LedgerEvent): Le
         markCounts: event.markCounts,
       }));
     case "gate-moved":
-      return withNode(projection, event.node, (view) => {
-        const gates = new Map(view.gates);
-        gates.set(event.gate, event.to);
-        return { ...view, gates };
-      });
+      return withConsumed(
+        withNode(projection, event.node, (view) => {
+          const gates = new Map(view.gates);
+          gates.set(event.gate, event.to);
+          return { ...view, gates };
+        }),
+        event.to.kind === "satisfied" || event.to.kind === "waived"
+          ? event.to.receipt.derivation
+          : undefined,
+      );
     case "receipt-written":
-      return withNode(projection, event.node, (view) => ({
-        ...view,
-        receipts: [...view.receipts, event.receipt],
-      }));
+      return withConsumed(
+        withNode(projection, event.node, (view) => ({
+          ...view,
+          receipts: [...view.receipts, event.receipt],
+        })),
+        event.receipt.derivation,
+      );
     case "outcome-set":
-      return withNode(projection, event.node, (view) => ({
-        ...view,
-        outcome: event.outcome,
-        outcomeSetAtGeneration: view.leaseGeneration,
-      }));
+      return withConsumedReceipts(
+        withNode(projection, event.node, (view) => ({
+          ...view,
+          outcome: event.outcome,
+          outcomeSetAtGeneration: view.leaseGeneration,
+        })),
+        event.outcome.receipts,
+      );
     case "outbox-intent-recorded":
       if (!("effect" in event)) return withNode(projection, event.node, (view) => view);
-      return {
-        ...withNode(projection, event.node, (view) => view),
-        outbox: new Map([
-          ...projection.outbox,
-          [event.effect.id, { intent: event.effect, delivery: undefined, state: "uncertain" }],
-        ]),
-      };
+      return withConsumed(
+        {
+          ...withNode(projection, event.node, (view) => view),
+          outbox: new Map([
+            ...projection.outbox,
+            [event.effect.id, { intent: event.effect, delivery: undefined, state: "uncertain" }],
+          ]),
+        },
+        event.effect.derivation,
+      );
     case "outbox-delivery-recorded": {
       const current = projection.outbox.get(event.delivery.id);
-      if (current === undefined) return withSaidDelivery(projection, event.delivery);
+      if (current === undefined)
+        return withConsumed(
+          withSaidDelivery(projection, event.delivery),
+          event.delivery.derivation,
+        );
       const outbox = new Map(projection.outbox);
       outbox.set(event.delivery.id, {
         ...current,
         delivery: event.delivery,
         state: event.delivery.state,
       });
-      return { ...projection, outbox };
+      return withConsumed({ ...projection, outbox }, event.delivery.derivation);
     }
   }
 }

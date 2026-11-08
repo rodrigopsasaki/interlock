@@ -50,10 +50,12 @@ import {
   explainRuntimeRefusal,
   observeRuntime,
   type Pane,
+  type PreparedLaunch,
   type Runtime,
 } from "./runtime.ts";
 import { execRuntimeArgv, type ResolvedRuntime } from "./runtimeCatalogue.ts";
 import { gitTrackedFiles } from "./scope.ts";
+import { changedScopePaths, describeScopeChange, snapshotScope } from "./scopeGuard.ts";
 import { type BriefWriteOutcome, buildBrief } from "./sessionBrief.ts";
 import { findInheritedSessionStart, type SessionInheritance } from "./sessionRange.ts";
 import { lastNonEmptyLine, writeScreenSnapshot } from "./sessionScreen.ts";
@@ -91,31 +93,50 @@ function priorWorkOf(worktree: WorktreeOutcome): PriorWork | undefined {
   };
 }
 
-interface AgentLaunch {
-  readonly args: readonly string[];
-  readonly writableRoots: readonly string[];
-}
-
-function agentLaunch(
+export function prepareLaunch(
   agentRuntime: ResolvedRuntime,
   worktreePath: string,
+  environment: Readonly<Record<string, string>> = {},
 ): Result<AgentLaunch, WorktreeRefusal> {
   const template = agentRuntime.writableRootArgs;
-  if (template === undefined) return ok({ args: agentRuntime.args, writableRoots: [] });
+  if (template === undefined) {
+    return ok({
+      program: agentRuntime.kind,
+      args: agentEnvironmentArgs(agentRuntime.kind, agentRuntime.args, environment),
+      cwd: worktreePath,
+      environment,
+      writableRoots: [],
+    });
+  }
   const layout = worktreeGitLayout(worktreePath);
   if (isErr(layout)) return layout;
   if (layout.value.kind === "not-linked") {
-    return ok({ args: agentRuntime.args, writableRoots: [] });
+    return ok({
+      program: agentRuntime.kind,
+      args: agentEnvironmentArgs(agentRuntime.kind, agentRuntime.args, environment),
+      cwd: worktreePath,
+      environment,
+      writableRoots: [],
+    });
   }
   const writableRoots = [layout.value.commonGitDir, layout.value.gitDir];
   return ok({
-    args: [
-      ...agentRuntime.args,
-      ...writableRoots.flatMap((root) => expandWritableRootArgs(template, root)),
-    ],
+    program: agentRuntime.kind,
+    args: agentEnvironmentArgs(
+      agentRuntime.kind,
+      [
+        ...agentRuntime.args,
+        ...writableRoots.flatMap((root) => expandWritableRootArgs(template, root)),
+      ],
+      environment,
+    ),
+    cwd: worktreePath,
+    environment,
     writableRoots,
   });
 }
+
+type AgentLaunch = PreparedLaunch;
 
 export interface BeforeJudgeRefusal {
   readonly on: HeldOn;
@@ -417,6 +438,22 @@ export async function driveInteractiveSession(
       return result;
     }
 
+    const scopeGuardBecause = (phase: string, detail: string): string =>
+      `scope guard held node: session ${sessionId}, phase ${phase}, runtime profile ${agentRuntime.name}; ${detail}`;
+    const holdForScopeGuard = (phase: string, detail: string): DriveSessionOutcome => {
+      const because = scopeGuardBecause(phase, detail);
+      narrate(because);
+      const held = outcome.held(
+        [],
+        heldOn.gateFailure(because, "hold"),
+        because,
+        clock.now().wallMs + HELD_REVISIT_MS,
+      );
+      ledger.append({ kind: "outcome-set", node: targetNode, outcome: held });
+      abandonLease();
+      return { exitCode: 1, message: because };
+    };
+
     if (agentRuntime.kind === "exec") {
       const openingPrompt = buildOpeningPrompt(
         graph,
@@ -520,7 +557,31 @@ export async function driveInteractiveSession(
           ...(admission === undefined ? {} : { admission }),
         };
       };
+      const scopeBeforeWork = snapshotScope(worktreePath, localConfig.watchPaths ?? []);
+      if (isErr(scopeBeforeWork)) {
+        lease.stop();
+        return holdForScopeGuard(
+          "work phase",
+          `snapshot before phase failed for ${scopeBeforeWork.error.path}: ${scopeBeforeWork.error.because}`,
+        );
+      }
       const work = await runExecPhase(phaseRequest("work", openingPrompt, null));
+      const scopeAfterWork = snapshotScope(worktreePath, localConfig.watchPaths ?? []);
+      if (isErr(scopeAfterWork)) {
+        lease.stop();
+        return holdForScopeGuard(
+          "work phase",
+          `snapshot after phase failed for ${scopeAfterWork.error.path}: ${scopeAfterWork.error.because}`,
+        );
+      }
+      const workChanges = changedScopePaths(scopeBeforeWork.value, scopeAfterWork.value);
+      if (workChanges.length > 0) {
+        lease.stop();
+        return holdForScopeGuard(
+          "work phase",
+          `changed paths: ${workChanges.map(describeScopeChange).join(", ")}`,
+        );
+      }
       if (isErr(work)) {
         lease.stop();
         return refuse(abandon("wait"), work.error.because);
@@ -545,9 +606,36 @@ export async function driveInteractiveSession(
         `File your debrief and notes now, without committing. Run interlock debrief prepare ${graph} ${node} ` +
         `--to <candidate-path> --agent-runtime ${agentRuntime.name} --agent-model ${agentRuntime.model ?? "undeclared"}; ` +
         "author and file the candidate, then stop.";
+      const scopeBeforeDebrief = snapshotScope(worktreePath, localConfig.watchPaths ?? []);
+      if (isErr(scopeBeforeDebrief)) {
+        lease.stop();
+        return holdForScopeGuard(
+          "debrief phase",
+          `snapshot before phase failed for ${scopeBeforeDebrief.error.path}: ${scopeBeforeDebrief.error.because}`,
+        );
+      }
       const debrief = await runExecPhase(
         phaseRequest("debrief", debriefPrompt, `${sessionId}/work`),
       );
+      const scopeAfterDebrief = snapshotScope(worktreePath, localConfig.watchPaths ?? []);
+      if (isErr(scopeAfterDebrief)) {
+        lease.stop();
+        return holdForScopeGuard(
+          "debrief phase",
+          `snapshot after phase failed for ${scopeAfterDebrief.error.path}: ${scopeAfterDebrief.error.because}`,
+        );
+      }
+      const debriefChanges = changedScopePaths(
+        scopeBeforeDebrief.value,
+        scopeAfterDebrief.value,
+      );
+      if (debriefChanges.length > 0) {
+        lease.stop();
+        return holdForScopeGuard(
+          "debrief phase",
+          `changed paths: ${debriefChanges.map(describeScopeChange).join(", ")}`,
+        );
+      }
       if (isErr(debrief)) {
         lease.stop();
         return refuse(abandon("debrief wait"), debrief.error.because);
@@ -594,7 +682,7 @@ export async function driveInteractiveSession(
       };
     }
 
-    const launch = agentLaunch(agentRuntime, worktreePath);
+    const launch = prepareLaunch(agentRuntime, worktreePath, machine.value.env);
     if (isErr(launch)) {
       const result = refuse(abandon("writable root"), explainWorktreeRefusal(launch.error));
       lease.stop();
@@ -683,7 +771,7 @@ export async function driveInteractiveSession(
       lease.stop();
       return refuse(abandon("agent start"), agentIntent.error);
     }
-    const args = agentEnvironmentArgs(agentRuntime.kind, launch.value.args, machine.value.env);
+    const args = launch.value.args;
     const startedAgent = await runtime.startAgent(
       pane,
       agentRuntime.kind,
@@ -815,6 +903,14 @@ export async function driveInteractiveSession(
     const observing = runtime;
     const identity = { graph, node, session: sessionId };
     const observe = async () => (await observeRuntime(observing)).attempt(identity);
+    const scopeBeforeWork = snapshotScope(worktreePath, localConfig.watchPaths ?? []);
+    if (isErr(scopeBeforeWork)) {
+      lease.stop();
+      return holdForScopeGuard(
+        "work turn",
+        `snapshot before phase failed for ${scopeBeforeWork.error.path}: ${scopeBeforeWork.error.because}`,
+      );
+    }
     if (delivery.kind === "abandoned") {
       narrate("judging the abandoned delivery once the agent's work is shown finished");
     } else {
@@ -834,6 +930,22 @@ export async function driveInteractiveSession(
       () => recordQuestionNotes(ledger, sessionId, worktreePath, targetNode),
       delivery.kind === "abandoned" ? { alreadySettled: "idle" } : {},
     );
+    const scopeAfterWork = snapshotScope(worktreePath, localConfig.watchPaths ?? []);
+    if (isErr(scopeAfterWork)) {
+      lease.stop();
+      return holdForScopeGuard(
+        "work turn",
+        `snapshot after phase failed for ${scopeAfterWork.error.path}: ${scopeAfterWork.error.because}`,
+      );
+    }
+    const workChanges = changedScopePaths(scopeBeforeWork.value, scopeAfterWork.value);
+    if (workChanges.length > 0) {
+      lease.stop();
+      return holdForScopeGuard(
+        "work turn",
+        `changed paths: ${workChanges.map(describeScopeChange).join(", ")}`,
+      );
+    }
     if (isErr(waited)) {
       lease.stop();
       const result = refuse(abandon("wait"), explainRuntimeRefusal(waited.error));
@@ -855,6 +967,14 @@ export async function driveInteractiveSession(
       if (isErr(code)) {
         lease.stop();
         return refuse(commit("code commit"), code.error);
+      }
+      const scopeBeforeDebrief = snapshotScope(worktreePath, localConfig.watchPaths ?? []);
+      if (isErr(scopeBeforeDebrief)) {
+        lease.stop();
+        return holdForScopeGuard(
+          "debrief prompt",
+          `snapshot before phase failed for ${scopeBeforeDebrief.error.path}: ${scopeBeforeDebrief.error.because}`,
+        );
       }
       const sent = await runtime.prompt(
         agent,
@@ -890,6 +1010,22 @@ export async function driveInteractiveSession(
             : { uncommittedPaths: 0, debriefMissing: true },
         () => recordQuestionNotes(ledger, sessionId, worktreePath, targetNode),
       );
+      const scopeAfterDebrief = snapshotScope(worktreePath, localConfig.watchPaths ?? []);
+      if (isErr(scopeAfterDebrief)) {
+        lease.stop();
+        return holdForScopeGuard(
+          "debrief prompt",
+          `snapshot after phase failed for ${scopeAfterDebrief.error.path}: ${scopeAfterDebrief.error.because}`,
+        );
+      }
+      const debriefChanges = changedScopePaths(scopeBeforeDebrief.value, scopeAfterDebrief.value);
+      if (debriefChanges.length > 0) {
+        lease.stop();
+        return holdForScopeGuard(
+          "debrief prompt",
+          `changed paths: ${debriefChanges.map(describeScopeChange).join(", ")}`,
+        );
+      }
       if (isErr(filed)) {
         lease.stop();
         return refuse(abandon("debrief wait"), explainRuntimeRefusal(filed.error));

@@ -73,3 +73,11 @@ entries:
     at: "2026-11-08T03:42:00Z"
     chose: Keep the signed code commit 60cfb3d and make the debrief artifact the final commit without amending or forcing history.
     because: The coordinator confirmed the brief's standing authorization, and the session rules require the debrief commit to be last while preserving the code commit as the debrief head.
+  - kind: choice
+    at: "2026-11-08T07:45:00Z"
+    chose: Resolve the origin/main merge by retaining its exec probe template, retaining this node's additive exec profile fields beside it, using prepareLaunch for pane-era runtimes, and applying scope snapshots around both exec phases.
+    because: Graph 0062 owns the profile's exec field, while graph 0060 owns the headless fields; the scope-guard acceptance requires before-and-after snapshots for every exec phase and the pane path must keep origin/main's launch preparation.
+  - kind: surprise
+    at: "2026-11-08T07:45:01Z"
+    expected: The three merge conflicts would be isolated to the profile field, schema field, and pane launch selection.
+    observed: The exec branch also needed the scope-guard helper moved earlier so both headless phases could use the merged guard behavior.

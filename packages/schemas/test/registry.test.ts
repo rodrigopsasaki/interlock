@@ -27,6 +27,8 @@ describe("corpus: the schema registry", () => {
       "event@v8",
       "event@v9",
       "event@v10",
+      "event@v11",
+      "probe-config@v0",
       "config@v0",
       "local@v0",
       "local@v1",

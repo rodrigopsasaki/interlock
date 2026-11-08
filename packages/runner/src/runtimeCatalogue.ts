@@ -14,7 +14,11 @@ import {
 } from "./localConfig.ts";
 import { parseStartupAnswers, type StartupAnswer } from "./startupAnswers.ts";
 import { isNonNegativeInteger, isRecord, isString, isStringArray, prop } from "./validate.ts";
-import { parseWritableRootArgs, type WritableRootTemplate } from "./writableRootArgs.ts";
+import {
+  parseProbeExec,
+  parseWritableRootArgs,
+  type WritableRootTemplate,
+} from "./writableRootArgs.ts";
 
 export const RUNTIME_CATALOGUE_SHAPE = "runtimes@v2";
 
@@ -35,7 +39,7 @@ export interface CatalogueRuntime {
   readonly readySettleMs: number;
   readonly promptRetries: number;
   readonly writableRootArgs: WritableRootTemplate | undefined;
-  readonly exec?: readonly string[];
+  readonly exec?: WritableRootTemplate;
   readonly readOnlyArgs?: readonly string[];
   readonly mcpServers?: readonly string[];
   readonly mcpAllow?: readonly string[];
@@ -247,15 +251,9 @@ function parseEntry(
   if (isErr(writableRootArgs)) {
     return err({ kind: "malformed", path, reason: writableRootArgs.error });
   }
+  const exec = parseProbeExec(prop(value, "exec"), `runtimes.${name}.exec`);
+  if (isErr(exec)) return err({ kind: "malformed", path, reason: exec.error });
 
-  const execField = prop(value, "exec");
-  if (execField !== undefined && !isTemplate(execField, "{command}")) {
-    return err({
-      kind: "malformed",
-      path,
-      reason: `"runtimes.${name}.exec" must contain exactly one whole "{command}" element`,
-    });
-  }
   const readOnlyArgs = prop(value, "read_only_args");
   if (readOnlyArgs !== undefined && !isStringArray(readOnlyArgs)) {
     return err({
@@ -338,7 +336,7 @@ function parseEntry(
     readySettleMs: readySettleMsField ?? DEFAULT_READY_SETTLE_MS,
     promptRetries: promptRetriesField ?? DEFAULT_PROMPT_RETRIES,
     writableRootArgs: writableRootArgs.value,
-    ...(execField === undefined ? {} : { exec: execField }),
+    ...(exec.value === undefined ? {} : { exec: exec.value }),
     ...(readOnlyArgs === undefined ? {} : { readOnlyArgs }),
     ...(mcpServers === undefined ? {} : { mcpServers }),
     ...(mcpAllow === undefined ? {} : { mcpAllow }),
@@ -446,7 +444,7 @@ export interface ResolvedRuntime {
   readonly readySettleMs: number;
   readonly promptRetries: number;
   readonly writableRootArgs: WritableRootTemplate | undefined;
-  readonly exec?: readonly string[];
+  readonly exec?: WritableRootTemplate;
   readonly readOnlyArgs?: readonly string[];
   readonly mcpServers?: readonly string[];
   readonly mcpAllow?: readonly string[];

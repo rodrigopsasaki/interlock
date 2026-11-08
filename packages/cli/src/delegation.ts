@@ -210,28 +210,8 @@ export function delegatedReceipt(
       readonly target: DelegatedTarget;
     }
   | undefined {
-  for (const node of projection.nodes.values()) {
-    const receipts = [
-      ...node.receipts,
-      ...[...node.gates.values()]
-        .filter(
-          (value): value is Extract<typeof value, { readonly receipt: unknown }> =>
-            value.kind === "satisfied" || value.kind === "waived",
-        )
-        .map((value) => value.receipt),
-    ];
-    for (const receipt of receipts) {
-      const candidate = receipt.derivation;
-      if (candidate.kind === "human" && "citeKey" in candidate && candidate.citeKey === key) {
-        return { derivation: candidate, action: candidate.action, target: candidate.target };
-      }
-    }
-  }
-  for (const view of projection.outbox.values()) {
-    const candidate = view.intent.derivation;
-    if (candidate.kind === "human" && "citeKey" in candidate && candidate.citeKey === key) {
-      return { derivation: candidate, action: candidate.action, target: candidate.target };
-    }
-  }
-  return undefined;
+  const candidate = projection.consumedCites.get(key);
+  return candidate === undefined
+    ? undefined
+    : { derivation: candidate, action: candidate.action, target: candidate.target };
 }

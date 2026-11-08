@@ -28,6 +28,7 @@ import {
   type VerifiedCitation,
   verifyCitation,
 } from "./delegation.ts";
+import { pauseAfterDelegationCheck, withDelegationLock } from "./delegationLock.ts";
 import { parseFlag, parseFlagValue } from "./flags.ts";
 import {
   type GitHostAdapter,
@@ -487,127 +488,130 @@ export async function runPlanPublish(
   if (isErr(repository))
     return { exitCode: 1, message: `interlock plan publish: ${repository.error}.` };
   const journal = await sharedJournalDirectory(repoRoot);
-  const opened = await createLedger({
-    clock: options.clock ?? createSystemClock(),
-    directory: journal,
-  });
-  if (isErr(opened)) {
-    return {
-      exitCode: 1,
-      message: `${journal}: line ${opened.error.line} has an unrecognized ledger shape.`,
-    };
-  }
-  const ledger = opened.value;
-  try {
-    if (verified !== undefined) {
-      const used = delegatedReceipt(ledger.projection(), verified.key);
-      if (
-        used !== undefined &&
-        !(
-          used.action === "publish" &&
-          used.target.graph === graph &&
-          used.derivation.contentHash === graphHash
-        )
-      ) {
-        return {
-          exitCode: 1,
-          message: `interlock plan publish: this cite already authorized ${used.action} for ${used.target.graph}.`,
-        };
-      }
-    }
-    const node: Node = { graph, id: NODE_ID };
-    const source = publicationDerivation(
-      by,
-      forFlag.kind === "value" ? forFlag.value : undefined,
-      verified,
-      readingFlag.kind === "value" ? readingFlag.value : undefined,
-      graph,
-      graphHash,
-    );
-    const branch = `plan/${graph}`;
-    const pushPayload: PlanPushPayload = {
-      kind: "push",
-      graph,
-      sourceSha: committed.value.sourceSha,
-      branch,
-      refspec: `${committed.value.sourceSha}:refs/heads/${branch}`,
-    };
-    const push = await ensureIntent(
-      ledger,
-      effectId("push", graph, graphHash),
-      node,
-      repository.value,
-      "plan-publish/push",
-      pushPayload,
-      source,
-    );
-    if (isErr(push)) return { exitCode: 1, message: push.error };
-    if (!isPlanPushPayload(push.value.payload))
-      return { exitCode: 1, message: "interlock plan publish: retained push intent is invalid." };
-    const pushed = await dispatchPush(
-      ledger,
-      push.value.intent,
-      push.value.payload,
-      options.gitHost ?? githubAdapter,
-      repository.value,
-      repoRoot,
-    );
-    if (isErr(pushed)) return { exitCode: 1, message: pushed.error };
-
-    const citeLine =
-      verified === undefined ? "Cite: owner command" : `Cite: ${verified.cite.literal}`;
-    const body = [
-      `Arc: ${arc.value.id} (${arc.value.source})`,
-      "",
-      `Ask: ${graphDocument.value.ask ?? arc.value.ask}`,
-      citeLine,
-      "",
-      "Attribution:",
-      `Owner: ${forFlag.kind === "value" ? forFlag.value : by}`,
-      `Driver: ${by}`,
-      ...(readingFlag.kind === "value" ? [`Reading: ${readingFlag.value}`] : []),
-      "",
-    ].join("\n");
-    const pullPayload: PullRequestPayload = {
-      kind: "pull-request",
-      graph,
-      branch,
-      base: "main",
-      title: `Plan ${graph}`,
-      body,
-    };
-    const pull = await ensureIntent(
-      ledger,
-      effectId("pull-request", graph, graphHash),
-      node,
-      repository.value,
-      "plan-publish/pull-request",
-      pullPayload,
-      source,
-    );
-    if (isErr(pull)) return { exitCode: 1, message: pull.error };
-    if (!isPullRequestPayload(pull.value.payload))
+  return withDelegationLock(journal, async () => {
+    const opened = await createLedger({
+      clock: options.clock ?? createSystemClock(),
+      directory: journal,
+    });
+    if (isErr(opened)) {
       return {
         exitCode: 1,
-        message: "interlock plan publish: retained pull-request intent is invalid.",
+        message: `${journal}: line ${opened.error.line} has an unrecognized ledger shape.`,
       };
-    const pullRequest = await dispatchPullRequest(
-      ledger,
-      pull.value.intent,
-      pull.value.payload,
-      options.gitHost ?? githubAdapter,
-      repository.value,
-      repoRoot,
-    );
-    if (isErr(pullRequest)) return { exitCode: 1, message: pullRequest.error };
-    const reconciliation = hasExistingPublication(ledger, graph, graphHash)
-      ? "reconciled"
-      : "published";
-    return {
-      exitCode: 0,
-      message: `${graph}: plan ${reconciliation}; branch ${branch}; pull request ${pullRequest.value.key}.`,
-    };
-  } finally {
-    await ledger.close();
-  }
+    }
+    const ledger = opened.value;
+    try {
+      if (verified !== undefined) {
+        const used = delegatedReceipt(ledger.projection(), verified.key);
+        if (
+          used !== undefined &&
+          !(
+            used.action === "publish" &&
+            used.target.graph === graph &&
+            used.derivation.contentHash === graphHash
+          )
+        ) {
+          return {
+            exitCode: 1,
+            message: `interlock plan publish: this cite already authorized ${used.action} for ${used.target.graph}.`,
+          };
+        }
+        await pauseAfterDelegationCheck();
+      }
+      const node: Node = { graph, id: NODE_ID };
+      const source = publicationDerivation(
+        by,
+        forFlag.kind === "value" ? forFlag.value : undefined,
+        verified,
+        readingFlag.kind === "value" ? readingFlag.value : undefined,
+        graph,
+        graphHash,
+      );
+      const branch = `plan/${graph}`;
+      const pushPayload: PlanPushPayload = {
+        kind: "push",
+        graph,
+        sourceSha: committed.value.sourceSha,
+        branch,
+        refspec: `${committed.value.sourceSha}:refs/heads/${branch}`,
+      };
+      const push = await ensureIntent(
+        ledger,
+        effectId("push", graph, graphHash),
+        node,
+        repository.value,
+        "plan-publish/push",
+        pushPayload,
+        source,
+      );
+      if (isErr(push)) return { exitCode: 1, message: push.error };
+      if (!isPlanPushPayload(push.value.payload))
+        return { exitCode: 1, message: "interlock plan publish: retained push intent is invalid." };
+      const pushed = await dispatchPush(
+        ledger,
+        push.value.intent,
+        push.value.payload,
+        options.gitHost ?? githubAdapter,
+        repository.value,
+        repoRoot,
+      );
+      if (isErr(pushed)) return { exitCode: 1, message: pushed.error };
+
+      const citeLine =
+        verified === undefined ? "Cite: owner command" : `Cite: ${verified.cite.literal}`;
+      const body = [
+        `Arc: ${arc.value.id} (${arc.value.source})`,
+        "",
+        `Ask: ${graphDocument.value.ask ?? arc.value.ask}`,
+        citeLine,
+        "",
+        "Attribution:",
+        `Owner: ${forFlag.kind === "value" ? forFlag.value : by}`,
+        `Driver: ${by}`,
+        ...(readingFlag.kind === "value" ? [`Reading: ${readingFlag.value}`] : []),
+        "",
+      ].join("\n");
+      const pullPayload: PullRequestPayload = {
+        kind: "pull-request",
+        graph,
+        branch,
+        base: "main",
+        title: `Plan ${graph}`,
+        body,
+      };
+      const pull = await ensureIntent(
+        ledger,
+        effectId("pull-request", graph, graphHash),
+        node,
+        repository.value,
+        "plan-publish/pull-request",
+        pullPayload,
+        source,
+      );
+      if (isErr(pull)) return { exitCode: 1, message: pull.error };
+      if (!isPullRequestPayload(pull.value.payload))
+        return {
+          exitCode: 1,
+          message: "interlock plan publish: retained pull-request intent is invalid.",
+        };
+      const pullRequest = await dispatchPullRequest(
+        ledger,
+        pull.value.intent,
+        pull.value.payload,
+        options.gitHost ?? githubAdapter,
+        repository.value,
+        repoRoot,
+      );
+      if (isErr(pullRequest)) return { exitCode: 1, message: pullRequest.error };
+      const reconciliation = hasExistingPublication(ledger, graph, graphHash)
+        ? "reconciled"
+        : "published";
+      return {
+        exitCode: 0,
+        message: `${graph}: plan ${reconciliation}; branch ${branch}; pull request ${pullRequest.value.key}.`,
+      };
+    } finally {
+      await ledger.close();
+    }
+  });
 }

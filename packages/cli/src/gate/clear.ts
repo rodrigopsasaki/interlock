@@ -35,6 +35,7 @@ import {
   type VerifiedCitation,
   verifyCitation,
 } from "../delegation.ts";
+import { pauseAfterDelegationCheck, withDelegationLock } from "../delegationLock.ts";
 import { parseFlag, parseFlagValue } from "../flags.ts";
 import type { CommandResult } from "../main.ts";
 
@@ -154,95 +155,97 @@ export async function runGateClear(
   }
 
   const journal = await sharedJournalDirectory(repoRoot);
-  const clock = options.clock ?? createSystemClock();
-  const opened = await createLedger({ clock, directory: journal });
-  if (isErr(opened)) {
-    return {
-      exitCode: 1,
-      message: `${journal}: line ${opened.error.line} has shape tag "${opened.error.tag}", which this build does not recognize.`,
-    };
-  }
-  const ledger = opened.value;
-
-  try {
-    const targetNode: Node = { graph, id: node };
-    if (verified !== undefined && hash !== undefined) {
-      const used = delegatedReceipt(ledger.projection(), verified.key);
-      if (used !== undefined) {
-        return {
-          exitCode: 1,
-          message: `interlock gate clear: this cite already authorized ${used.action} for ${used.target.graph}${used.target.node === undefined ? "" : `/${used.target.node}`}${used.target.gate === undefined ? "" : `/${used.target.gate}`}.`,
-        };
+  return withDelegationLock(journal, async () => {
+    const clock = options.clock ?? createSystemClock();
+    const opened = await createLedger({ clock, directory: journal });
+    if (isErr(opened)) {
+      return {
+        exitCode: 1,
+        message: `${journal}: line ${opened.error.line} has shape tag "${opened.error.tag}", which this build does not recognize.`,
+      };
+    }
+    const ledger = opened.value;
+    try {
+      const targetNode: Node = { graph, id: node };
+      if (verified !== undefined && hash !== undefined) {
+        const used = delegatedReceipt(ledger.projection(), verified.key);
+        if (used !== undefined) {
+          return {
+            exitCode: 1,
+            message: `interlock gate clear: this cite already authorized ${used.action} for ${used.target.graph}${used.target.node === undefined ? "" : `/${used.target.node}`}${used.target.gate === undefined ? "" : `/${used.target.gate}`}.`,
+          };
+        }
+        await pauseAfterDelegationCheck();
       }
-    }
-    const current =
-      ledger.projection().nodes.get(nodeKey(targetNode))?.gates.get(gateId) ?? gate.pending();
-    if (current.kind === "satisfied" || current.kind === "waived") {
-      const staleDelegated =
-        hash !== undefined &&
-        current.kind === "satisfied" &&
-        current.receipt.derivation.kind === "human" &&
-        "contentHash" in current.receipt.derivation &&
-        current.receipt.derivation.contentHash !== hash;
-      if (!staleDelegated) {
-        return {
-          exitCode: 1,
-          message: `${node}/${gateId}: cannot move from ${current.kind}, which is terminal.`,
-        };
+      const current =
+        ledger.projection().nodes.get(nodeKey(targetNode))?.gates.get(gateId) ?? gate.pending();
+      if (current.kind === "satisfied" || current.kind === "waived") {
+        const staleDelegated =
+          hash !== undefined &&
+          current.kind === "satisfied" &&
+          current.receipt.derivation.kind === "human" &&
+          "contentHash" in current.receipt.derivation &&
+          current.receipt.derivation.contentHash !== hash;
+        if (!staleDelegated) {
+          return {
+            exitCode: 1,
+            message: `${node}/${gateId}: cannot move from ${current.kind}, which is terminal.`,
+          };
+        }
       }
-    }
 
-    const commitSha = await currentCommitSha(repoRoot);
-    const receiptDerivation =
-      verified === undefined ||
-      hash === undefined ||
-      forFlag.kind !== "value" ||
-      readingFlag.kind !== "value"
-        ? derivation.human(by)
-        : delegatedDerivation(
-            by,
-            forFlag.value,
-            verified,
-            readingFlag.value,
-            "clear",
-            { graph, node, gate: gateId },
-            hash,
-          );
-    const receipt = await createReceipt(
-      repoRoot,
-      gitScope(repoRoot),
-      gateId,
-      commitSha,
-      spend.none(),
-      duration.unknown(),
-      receiptDerivation,
-      { because },
-    );
-    if (isErr(receipt)) {
-      return { exitCode: 1, message: explainScopeRefusal(receipt.error) };
-    }
+      const commitSha = await currentCommitSha(repoRoot);
+      const receiptDerivation =
+        verified === undefined ||
+        hash === undefined ||
+        forFlag.kind !== "value" ||
+        readingFlag.kind !== "value"
+          ? derivation.human(by)
+          : delegatedDerivation(
+              by,
+              forFlag.value,
+              verified,
+              readingFlag.value,
+              "clear",
+              { graph, node, gate: gateId },
+              hash,
+            );
+      const receipt = await createReceipt(
+        repoRoot,
+        gitScope(repoRoot),
+        gateId,
+        commitSha,
+        spend.none(),
+        duration.unknown(),
+        receiptDerivation,
+        { because },
+      );
+      if (isErr(receipt)) {
+        return { exitCode: 1, message: explainScopeRefusal(receipt.error) };
+      }
 
-    const moved = proposeGateMove(declaredGates, gateId, current, gate.satisfied(receipt.value));
-    if (isErr(moved)) {
-      const refusal = moved.error;
-      const message =
-        refusal.kind === "undeclared-gate"
-          ? `${node}: gate "${gateId}" is not declared; declared gates are ${refusal.declared.join(", ") || "(none)"}.`
-          : `${node}/${gateId}: cannot move from ${refusal.from}, which is terminal.`;
-      return { exitCode: 1, message };
-    }
+      const moved = proposeGateMove(declaredGates, gateId, current, gate.satisfied(receipt.value));
+      if (isErr(moved)) {
+        const refusal = moved.error;
+        const message =
+          refusal.kind === "undeclared-gate"
+            ? `${node}: gate "${gateId}" is not declared; declared gates are ${refusal.declared.join(", ") || "(none)"}.`
+            : `${node}/${gateId}: cannot move from ${refusal.from}, which is terminal.`;
+        return { exitCode: 1, message };
+      }
 
-    ledger.append({
-      kind: "gate-moved",
-      node: targetNode,
-      gate: gateId,
-      to: moved.value,
-    });
-    return {
-      exitCode: 0,
-      message: `${node}/${gateId}: cleared by ${by} (receipt ${receipt.value.id}).`,
-    };
-  } finally {
-    await ledger.close();
-  }
+      ledger.append({
+        kind: "gate-moved",
+        node: targetNode,
+        gate: gateId,
+        to: moved.value,
+      });
+      return {
+        exitCode: 0,
+        message: `${node}/${gateId}: cleared by ${by} (receipt ${receipt.value.id}).`,
+      };
+    } finally {
+      await ledger.close();
+    }
+  });
 }

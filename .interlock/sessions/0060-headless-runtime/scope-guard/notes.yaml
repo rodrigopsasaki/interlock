@@ -1,0 +1,37 @@
+interlock: notes@v0
+node: scope-guard
+entries:
+  - kind: choice
+    at: "2026-11-08T05:20:00Z"
+    chose: Add a dedicated scope-guard snapshot module and wire it around the work and debrief agent phases.
+    because: The acceptance requires the same main-checkout and watch-path comparison before and after each phase, while keeping the runner's gate and worktree concerns separate.
+  - kind: choice
+    at: "2026-11-08T05:20:00Z"
+    chose: Treat an unavailable snapshot as a held node and report the phase, session, runtime profile, and refusal reason.
+    because: The acceptance says a snapshot that cannot be taken must hold rather than pass, and the resulting receipt needs enough context for a person to recover it.
+  - kind: surprise
+    at: "2026-11-08T05:36:00Z"
+    expected: The first focused fixture run would exercise the snapshot assertions immediately.
+    observed: The test fixture imports initially pointed at the wrong support module, then the helper returned a Result instead of its snapshot value; both were corrected and the focused proof passed.
+  - kind: choice
+    at: "2026-11-08T05:42:00Z"
+    chose: Compare the after-phase snapshot even when the runtime wait returns an error.
+    because: A failed or timed-out phase can still have written outside the worktree, and the scope guard must hold on that evidence instead of abandoning before the required comparison.
+  - kind: surprise
+    at: "2026-11-08T06:20:00Z"
+    expected: The standing runner tests would treat a fixture linked worktree as separate from the main checkout automatically.
+    observed: Fixture repositories do not ignore their linked worktree directory, so the guard initially saw the runner-created worktree as an outside write; the snapshot now excludes the active linked worktree path while still hashing other main-checkout changes.
+  - kind: surprise
+    at: "2026-11-08T06:25:00Z"
+    expected: The final root test gate would repeat the clean runner-suite result.
+    observed: The root run had two concurrent fixture failures involving process-wide Git/PATH state, while the runner suite itself passed 545 tests; the affected backfill and runner-commit files are being rerun in isolation before deciding whether the root gate is flaky.
+  - kind: choice
+    at: "2026-11-08T06:32:00Z"
+    chose: Declare watch_paths as an additive optional local@v1 schema field and regenerate docs/shapes.md from the schema reference generator.
+    because: The repository treats artifact schemas and docs/shapes.md as the source-backed public contract; a parser-only field would make the generated reference stale.
+  - kind: surprise
+    at: "2026-11-08T06:34:00Z"
+    expected: The final serial standing gate would preserve the isolated runner-suite result.
+    observed: >-
+      After the schema-backed docs correction, the final root test run passed all workspace suites:
+      runner 545, schemas 1228, CLI 443, and the remaining package suites.

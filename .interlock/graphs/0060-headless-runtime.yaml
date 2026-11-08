@@ -374,15 +374,130 @@ read: >
   I8: a review keeps its snapshot. I10: a person's stop (of a phase or of a whole attempt) is never gated, and
   neither is a person's release of a pane-era hold or of a cleanup obligation; a release is recorded as that
   person's override, never as proof that anything ended.
-  Order. Built after graph 0059 and graph 0056's machine-provider node; exec-runtime adapts that provider's admit to
+  Writes outside the worktree. On 2026-11-08 two agents typed absolute patch paths that dropped the worktree's
+  .worktrees/<node> segment (one added packages/runner/src/ownedCommand.ts to the main checkout): every shell call
+  ran in the worktree, with no cd and no lookup of the git top level or common directory, the opening prompt and
+  the brief name no main-checkout path, and under the full-access profile the write succeeded silently. The owner
+  ruled that access stays as it is, so the runner checks instead of fences. Node scope-guard: before every agent
+  phase the runner snapshots the repository's main checkout (its tracked changes, with a content hash per changed
+  path, and its untracked files, outside .interlock/ledger and .interlock/sessions) and each folder the machine's
+  owner lists in local.yaml watch_paths (path, size and content hash per file, .git excluded); after the phase it
+  takes the same snapshot and compares. Any difference holds the node, naming the session, the phase and the
+  runtime profile and listing every changed path; the runner never reverts anything, since the change may be the
+  owner's own or another session's, and with phases running at once each phase whose window covers a change is
+  named. The opening prompt says to give every file and patch path relative to the worktree, never absolute.
+  It runs on today's pane runtime (where the phases are the work turn and the debrief prompt of
+  sessionDrive.ts:675) and, after exec-runtime, on every exec phase, whose owned git executor it then uses.
+
+  Order. scope-guard builds first, ahead of exec-runtime's remaining work, and runner-records waits for it. Built after graph 0059 and graph 0056's machine-provider node; exec-runtime adapts that provider's admit to
   exec as described above. Every attempt opens with: run one heavy command at a time, never several in parallel or
   in the background; never clone the repository inside your worktree, use the worktree you were given. Out of
   scope: uninstalling herdr anywhere, touching a pane the runner did not open, and writing the machine's own
   runtimes.yaml (the owner's machine setup, done after this graph lands).
+
+  Runner marker (added 2026-11-08). Agents launched by the runner filed about 256 prompts in dialeto as the
+  owner's own words, because nothing told dialeto who launched them. runner-marker gives every launched agent,
+  and every stdio MCP server a codex agent starts, INTERLOCK_SESSION, INTERLOCK_GRAPH and INTERLOCK_NODE;
+  dialeto graph 0001-owner-voice-is-his reads it. A probe measured codex 0.162.1: setting the variable in codex's
+  own environment does not reach its MCP servers, while a per-launch -c mcp_servers.<name>.env.<KEY> override
+  does. Claude Code passes stdio servers its full environment. Gap left standing: the tmux adapter's openPane
+  (packages/runner/src/tmux/adapter.ts:29) takes no environment, so a tmux-pane claude session gets no marker
+  until herdr-gone retires panes; a codex session on tmux still gets it through its launch args.
+
+  Watch paths (added 2026-11-08). Listing the owner's Preston folder in watch_paths would hold every node: serve
+  writes its log, its Postgres data and its limits file there all the time, and the walk hashes every file,
+  reading provider.key and the .pgpass files to do it. Narrowing the entry to one file does not help, because a
+  file entry watches nothing as landed. watch-paths-precise fixes both; after it lands, the machine's local.yaml
+  lists that folder's config.json and runtime and machine config files by name. It touches scopeGuard.ts and
+  localConfig.ts only, so it builds without waiting for exec-runtime.
 gates:
   - id: approved
     kind: human
 nodes:
+  - id: scope-guard
+    role: implementer
+    depends_on: []
+    acceptance: |
+      Writes outside the worktree are caught, as this graph's read says. Before every agent phase of every attempt
+      (on today's pane runtime, the work turn and the debrief prompt that packages/runner/src/sessionDrive.ts:675
+      sends; once exec-runtime lands, every exec phase), the runner snapshots the repository's main checkout,
+      resolved from the worktree's git common directory: each tracked path with a change, with the sha256 of its
+      content, and each untracked, unignored file, excluding .interlock/ledger and .interlock/sessions; and each
+      folder listed in local.yaml watch_paths (an optional list of absolute paths the machine's owner names; none
+      by default): each file's path, size and sha256, .git excluded. After the phase it takes the same snapshot and
+      compares. Any added, removed or changed path holds the node (outcome held, with a because) naming the
+      session, the phase and the runtime profile, and lists every changed path, relative to its root; a runner
+      line says the same. The runner never reverts, deletes or stages anything it finds. A snapshot that cannot be
+      taken holds the node with that reason rather than passing. packages/runner/src/openingPrompt.ts gains one
+      sentence for every role: "Give every file and patch path relative to this worktree, never absolute."
+      Tests in packages/runner/test/scopeGuard.test.ts, with a fixture repository and a linked worktree and a
+      fixture agent turn:
+      - a phase that writes a new file into the main checkout holds the node, naming session, phase and runtime
+        and listing that path, and the file is still there afterwards;
+      - a phase that edits a tracked file in the main checkout holds the node and lists it, the edit kept;
+      - a phase that writes a file into a folder named in watch_paths holds the node and lists it;
+      - a phase that writes only in its worktree passes, and so does a main checkout that was already dirty
+        before the phase and is unchanged by it;
+      - writes under the main checkout's .interlock/ledger and .interlock/sessions are not counted;
+      - the opening prompt carries the sentence for every role (scout, planner, implementer, tester, reviewer,
+        verifier).
+      Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
+    gates:
+      - id: scope-guard-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/scopeGuard.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: scope-guard-types
+        kind: command
+        run: pnpm typecheck
+
+  - id: watch-paths-precise
+    role: implementer
+    depends_on: [scope-guard]
+    acceptance: |
+      watch_paths say exactly what they watch, and watching never reads a secret. Three defects in scope-guard as
+      landed (packages/runner/src/scopeGuard.ts on 5699f33) are fixed, and only scopeGuard.ts, localConfig.ts,
+      schemas/local@v1.json and their tests change:
+      - A single file. A watch_paths entry naming a file watches that file. Today the walk records it under the
+        empty relative path (:149) and the snapshot then skips empty paths (:184), so the entry silently watches
+        nothing. A file entry is recorded and reported by its own name. A file entry that does not exist is
+        watched for creation, as a folder's missing child is.
+      - Excludes. An entry is either an absolute path string, as today, or a mapping {path, exclude}, where
+        exclude is a list of distinct relative paths under that folder. A changed, added or removed file at or
+        under an excluded path is never counted, and is never opened or stat'ed beyond the directory listing that
+        names it. local@v1's schema and localConfig.ts accept both forms and refuse an exclude on a file entry,
+        an absolute or escaping exclude ("..") and duplicates, each with a sentence naming the entry. local@v0
+        files keep parsing unchanged.
+      - Owner-only files. A watched file whose mode grants nothing to group or others (mode & 0o077 is 0, as
+        0600 files are) is compared by size and mtime only and is never opened or read. Its snapshot entry
+        records size and mtimeMs with no sha256. A change that keeps both size and mtime is not detected for such
+        a file; the snapshot's describe line says so for every such file it watches. Files in the main checkout
+        keep today's sha256 comparison.
+      Tests in packages/runner/test/scopeGuard.test.ts, with a fixture repository, linked worktree and fixture
+      agent turn as scope-guard's own:
+      - a single-file entry: a phase that rewrites that file holds the node and names it; a phase that leaves it
+        alone passes; a phase that creates a missing watched file holds the node;
+      - a folder entry with exclude [logs, postgres]: a phase that writes logs/serve.log and postgres/x passes; a
+        phase that writes config.json in the same folder holds the node and lists only config.json;
+      - an owner-only (0600) watched file: the snapshot's file reader is injected and the test asserts it is never
+        called for that file's path; a phase that changes its size holds the node; a phase that rewrites it with
+        the same size and restores its mtime passes, and the describe line names the limit;
+      - localConfig refuses an exclude on a file entry, an absolute exclude, a ".." exclude and a duplicate
+        exclude, and accepts both entry forms under local@v1 and the string form under local@v0.
+      Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
+    gates:
+      - id: watch-paths-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/scopeGuard.test.ts test/localConfig.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: runner-suite
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: watch-paths-types
+        kind: command
+        run: pnpm typecheck
+
   - id: exec-runtime
     role: implementer
     depends_on: []
@@ -517,9 +632,49 @@ nodes:
         run: pnpm --fail-if-no-match --filter runner exec vitest run test/execRuntime.test.ts --passWithNoTests=false
         expect_output: 'Tests +[1-9][0-9]* passed'
 
-  - id: runner-records
+  - id: runner-marker
     role: implementer
     depends_on: [exec-runtime]
+    acceptance: |
+      Every agent the runner launches, and every MCP server that agent starts, can tell it was runner-launched and
+      for which session. sessionDrive.ts makes the session id at :300 (on 552524b); right after, the runner builds
+      one marker, INTERLOCK_SESSION=<session id>, INTERLOCK_GRAPH=<graph id>, INTERLOCK_NODE=<node id>, and merges
+      it over the machine environment wherever that environment goes today:
+      - into the env passed to prepareLaunch (:433), so a codex runtime's shell gets it through
+        agentEnvironmentArgs' shell_environment_policy.set overrides (packages/runner/src/codex/environment.ts);
+      - into the pane env at runtime.openPane (:441-444) always, including when machine.provider is none, where
+        today it passes undefined;
+      - into the child environment of every exec phase exec-runtime adds.
+      For a codex runtime, agentEnvironmentArgs also adds -c mcp_servers.<name>.env.<KEY>="<value>" for the three
+      marker keys, for each server that `codex mcp list --json` reports with a stdio transport, quoting the name
+      and key as it already quotes shell_environment_policy keys. Codex passes an MCP server only a default list
+      plus that server's env table and env_vars, and a per-launch env override merges into the table, so this
+      reaches the server without editing any codex config file. A `codex mcp list --json` that fails or returns
+      no stdio server leaves the args unchanged and a runner line says which. The marker never overwrites a key
+      the machine environment already sets with a different value; the runner refuses the launch, naming the key.
+      Tests in packages/runner/test/runnerMarker.test.ts:
+      - prepareLaunch for a codex runtime, given a fixture `codex mcp list --json` with two stdio servers and one
+        http server, yields the shell_environment_policy overrides and the mcp_servers.<name>.env overrides for
+        the two stdio servers only, each carrying the three marker values;
+      - a failing or empty `codex mcp list` leaves the codex args without mcp_servers overrides and says so;
+      - a claude runtime's pane, opened with provider none, receives the marker env;
+      - an exec phase's child process sees the marker in its environment;
+      - a machine env that already sets INTERLOCK_SESSION to another value refuses the launch, naming the key;
+      - end to end: a fake codex executable on PATH, given the launch args, starts a probe stdio server per its
+        mcp_servers overrides, and the probe's recorded environment contains the three marker keys.
+      Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
+    gates:
+      - id: runner-marker-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/runnerMarker.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: runner-marker-types
+        kind: command
+        run: pnpm typecheck
+
+  - id: runner-records
+    role: implementer
+    depends_on: [exec-runtime, scope-guard]
     acceptance: |
       Each phase's record generation (<run dir>/record/<n>.json) carries its own version tag, "interlock":
       "session@v0", every sessions@v0 field (this graph's read), the anchor's identity, the owning runner's

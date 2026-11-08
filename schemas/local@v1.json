@@ -68,6 +68,14 @@
     "answer_grace_ms": {
       "type": "number"
     },
+    "watch_paths": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^/"
+      }
+    },
     "owner_login": {
       "type": "string",
       "minLength": 1,

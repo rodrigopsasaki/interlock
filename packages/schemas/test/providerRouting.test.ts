@@ -101,8 +101,8 @@ describe("provider-routing shape versions", () => {
       expect(valid(tag, { ...local, last_resort: "" })).toBe(false);
     }
   });
-  it("event@v10 validates and replays the full choice; every historical event version still reads without attribution", () => {
-    expect(valid("event@v10", event)).toBe(true);
+  it("event@v11 validates and replays the full choice; every historical event version still reads without attribution", () => {
+    expect(valid("event@v11", event)).toBe(true);
     expect(parseLine(JSON.stringify(event)).kind).toBe("event");
     for (let version = 6; version <= 9; version += 1) {
       const tag = `event@v${version}`;
@@ -127,7 +127,7 @@ describe("provider-routing shape versions", () => {
         },
       };
       expect(isSessionRuntime(bad)).toBe(false);
-      expect(valid("event@v10", { ...event, session: { ...session, runtime: bad } })).toBe(false);
+      expect(valid("event@v11", { ...event, session: { ...session, runtime: bad } })).toBe(false);
     }
     expect(isSessionRuntime({ name: "p", kind: "fake", chosenBy: { kind: "last-resort" } })).toBe(
       false,

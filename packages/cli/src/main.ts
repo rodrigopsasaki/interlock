@@ -20,6 +20,7 @@ import { runInterlockPosition } from "./position.ts";
 import { runReceiptRetract } from "./receipt/retract.ts";
 import { runInterlockRun } from "./run.ts";
 import { runRuntimeList } from "./runtime/list.ts";
+import { runRuntimeProbe } from "./runtime/probe.ts";
 import { runSchemaReference } from "./schema/reference.ts";
 import { runSchemaValidate } from "./schema/validate.ts";
 import { runSessionSay } from "./session/say.ts";
@@ -110,6 +111,10 @@ export async function run(argv: readonly string[]): Promise<CommandResult> {
 
   if (group === "runtime" && action === "list") {
     return runRuntimeList(argv.slice(2));
+  }
+
+  if (group === "runtime" && action === "probe") {
+    return runRuntimeProbe(argv.slice(2));
   }
 
   if (group === "schema" && action === "validate") {

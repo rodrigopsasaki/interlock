@@ -1,0 +1,103 @@
+interlock: debrief@v2
+graph: 0061-delegation-fails-closed
+node: cite-stays-consumed
+role: implementer
+graph_base_sha: a9239f81fa7938d858c06e4bd8b270285e6ad3a0
+session_start_sha: 2d2ec5d1c1877725bd6b53d42f51c0305808be6a
+head_sha: b7f18cb51cdd6eb9b29eb007a6115038f42ebf09
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: append-only-consumed-cite-projection
+    what: Added consumedCites to the ledger projection and populate it monotonically from delegated derivations in gate-moved satisfied or waived gates, receipt-written events, outcome receipts, outbox intents, and outbox deliveries; delegatedReceipt now answers from that record.
+    because: A cite remains spent after a gate becomes pending, is replaced, or is retracted, and carrying events must consume it even when no explicit receipt-written event exists.
+    rests_on:
+      - packages/ledger/src/projection.ts
+      - packages/cli/src/delegation.ts
+      - packages/ledger/test/consumedCite.test.ts
+    applies_to: { kind: path, path: packages/ledger/src/projection.ts }
+    hunks:
+      - packages/ledger/src/projection.ts
+      - packages/cli/src/delegation.ts
+      - packages/ledger/test/consumedCite.test.ts
+  - id: serialized-delegated-spending
+    what: Added an exclusive shared-journal cite lock with a recorded holder PID, live-holder waiting, dead-holder takeover, and release; approval, gate clear, and plan publish open a fresh ledger replay inside the lock before checking and appending delegated authorization effects.
+    because: Separate processes must not pass a cite check from stale projections; exclusive create and fresh replay make the check-plus-append one serialized act while preserving pre-lock verification and receipt preparation.
+    rests_on:
+      - packages/cli/src/delegationLock.ts
+      - packages/cli/src/graph/approve.ts
+      - packages/cli/src/gate/clear.ts
+      - packages/cli/src/planPublish.ts
+      - packages/cli/test/concurrentCite.test.ts
+    applies_to: { kind: path, path: packages/cli/src/delegationLock.ts }
+    hunks:
+      - packages/cli/src/delegationLock.ts
+      - packages/cli/src/graph/approve.ts
+      - packages/cli/src/gate/clear.ts
+      - packages/cli/src/planPublish.ts
+      - packages/cli/test/concurrentCite.test.ts
+  - id: preserve-landed-reuse-rules
+    what: Kept approve and clear refusals for every consumed cite, while publication may reconcile only a consumed publish cite for the same graph and content hash; all other publication reuse remains refused.
+    because: The projection supplies lifetime, but each caller's established authorization rule remains its own contract, including recovery from an interrupted publication.
+    rests_on:
+      - packages/cli/src/graph/approve.ts
+      - packages/cli/src/gate/clear.ts
+      - packages/cli/src/planPublish.ts
+      - packages/cli/test/consumedCite.test.ts
+    applies_to: { kind: path, path: packages/cli/src/planPublish.ts }
+    hunks:
+      - packages/cli/src/graph/approve.ts
+      - packages/cli/src/gate/clear.ts
+      - packages/cli/src/planPublish.ts
+      - packages/cli/test/consumedCite.test.ts
+  - id: regression-proof
+    what: Added the node-named ledger, CLI, and concurrent cite proof files covering gate-only replay, outcome and delivery carrying events, pending/replaced/retracted reuse, serialized contention, and dead-holder recovery.
+    because: The acceptance names these proof gates as the harness evidence for append-only consumption and cross-process serialization.
+    rests_on:
+      - packages/ledger/test/consumedCite.test.ts
+      - packages/cli/test/consumedCite.test.ts
+      - packages/cli/test/concurrentCite.test.ts
+    applies_to: { kind: repository }
+    hunks:
+      - packages/ledger/test/consumedCite.test.ts
+      - packages/cli/test/consumedCite.test.ts
+      - packages/cli/test/concurrentCite.test.ts
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: All eight workspace TypeScript projects passed.
+  - id: lint
+    result: fail
+    invocation: mise exec -- pnpm lint
+    note: Touched files are clean; Biome still reports two existing findings in packages/runner/test/runnerCommits.test.ts outside this node's diff.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+    note: No comments were reported in packages/*/src.
+  - id: test
+    result: pass
+    invocation: mise exec -- pnpm test
+    note: The full workspace suite completed with 8 package suites, including 445 CLI tests and the new focused proofs; the environment printed existing fixture git and signing diagnostics, but no test failed.
+  - id: debrief-valid
+    result: pass
+    invocation: mise exec -- pnpm interlock debrief validate 0061-delegation-fails-closed cite-stays-consumed
+    note: Validation is run after filing this authored candidate and before the final commit.
+  - id: consumed-cite-ledger-proof
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter ledger exec vitest run test/consumedCite.test.ts --passWithNoTests=false
+    note: Two ledger tests passed.
+  - id: consumed-cite-cli-proof
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter cli exec vitest run test/consumedCite.test.ts --passWithNoTests=false
+    note: Three CLI tests passed for pending, replacement, and retraction.
+  - id: concurrent-cite-proof
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter cli exec vitest run test/concurrentCite.test.ts --passWithNoTests=false
+    note: One concurrency test passed, proving one append, one refusal, and dead-holder takeover.
+open:
+  - The standing lint gate remains held by two pre-existing runner test diagnostics outside this node's diff; the touched files pass the same Biome check.
+  - mise exec reported Node 26.13.0 against the repository's declared Node 24.14.0 engine during all commands.
