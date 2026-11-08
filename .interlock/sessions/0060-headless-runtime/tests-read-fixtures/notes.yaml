@@ -29,3 +29,11 @@ entries:
     at: "2026-11-08T07:55:58Z"
     expected: The standing lint gate would pass after the focused tests and typecheck.
     observed: Biome found one formatter change in the new frame fixture; existing runner test warnings were unrelated. The formatter output was applied to the changed test.
+  - kind: choice
+    at: "2026-11-08T08:00:00Z"
+    chose: Commit the tested implementation and session notes as a signed forward commit before running the full suite.
+    because: The brief requires incremental commits, preserves the proof boundary at a real code head, and forbids amending or force-pushing history.
+  - kind: surprise
+    at: "2026-11-08T08:05:00Z"
+    expected: The existing runner gate-output suite would remain unchanged after shared fixtures gained an .interlock directory.
+    observed: One test intentionally replaced its fixture .interlock directory with a file and failed before reaching the production assertion; the test now removes the boundary immediately before that deliberate corruption.
