@@ -48,3 +48,10 @@ entries:
       A launch can finish one phase and still leave an unresolved later group; cleanup must preserve
       the overlay on every uncertain or retained path and remove it only from explicit termination
       evidence.
+  - kind: surprise
+    at: '2026-11-08T17:54:18Z'
+    expected: The standing lint gate would be clean after the focused implementation checks.
+    observed: >-
+      Lint found two pre-existing errors in packages/runner/test/runnerCommits.test.ts, plus one
+      import ordering issue and formatting in the new files; the new-file issues were corrected,
+      while the unrelated existing errors remain outside this node's diff.

@@ -106,7 +106,8 @@ function writeOwnerJournal(
         interlock: "event@v9",
         kind: "outcome-set",
         node: { graph, id: node },
-        outcome: outcomeKind === "cleared" ? { kind: outcomeKind, receipts: [] } : { kind: outcomeKind },
+        outcome:
+          outcomeKind === "cleared" ? { kind: outcomeKind, receipts: [] } : { kind: outcomeKind },
       }),
     );
   }
@@ -177,7 +178,9 @@ describe("Codex home outside worktree", () => {
 
   it("uses the HOME state fallback when XDG_STATE_HOME is empty or absent", () => {
     const home = join(runsRoot, "fallback-home");
-    expect(interlockStateDirectory({ HOME: home })).toBe(join(home, ".local", "state", "interlock"));
+    expect(interlockStateDirectory({ HOME: home })).toBe(
+      join(home, ".local", "state", "interlock"),
+    );
     expect(interlockStateDirectory({ HOME: home, XDG_STATE_HOME: "" })).toBe(
       join(home, ".local", "state", "interlock"),
     );
@@ -187,7 +190,13 @@ describe("Codex home outside worktree", () => {
     const { repository, state, home } = fixture();
     writeFileSync(join(home, "config.toml"), overflowConfig());
     const journal = join(state, "journal.jsonl");
-    writeOwnerJournal(journal, "0060-headless-runtime", "codex-home-outside-worktree", "old-session", "cleared");
+    writeOwnerJournal(
+      journal,
+      "0060-headless-runtime",
+      "codex-home-outside-worktree",
+      "old-session",
+      "cleared",
+    );
     const oldOverlay = writeOwnedOverlay(state, journal, "old-session");
     const launch = prepareCodexLaunch([], repository, environment(repository, state, home), {
       listCodexMcp: () => ok(configuredNames()),
@@ -201,41 +210,59 @@ describe("Codex home outside worktree", () => {
     ["another attempt outcome", "cleared" as const, "new-session"],
     ["person override", undefined, undefined],
     ["lease expiry", undefined, undefined],
-  ])("keeps an overlay when termination evidence is only %s", (_name, outcomeKind, anotherSession) => {
-    const { repository, state, home } = fixture();
-    writeFileSync(join(home, "config.toml"), overflowConfig());
-    const journal = join(state, "journal.jsonl");
-    writeOwnerJournal(
-      journal,
-      "0060-headless-runtime",
-      "codex-home-outside-worktree",
-      "old-session",
-      outcomeKind,
-      anotherSession,
-    );
-    if (outcomeKind === undefined && anotherSession === undefined) {
-      writeFileSync(journal, `${readFileSync(journal, "utf8")}\n${JSON.stringify({ kind: "person-override" })}`);
-    }
-    const oldOverlay = writeOwnedOverlay(state, journal, "old-session");
-    const launch = prepareCodexLaunch([], repository, environment(repository, state, home), {
-      listCodexMcp: () => ok(configuredNames()),
-    });
-    expect(isOk(launch)).toBe(true);
-    expect(existsSync(oldOverlay)).toBe(true);
-    if (isOk(launch)) launch.value.cleanup(true);
-  });
+  ])(
+    "keeps an overlay when termination evidence is only %s",
+    (_name, outcomeKind, anotherSession) => {
+      const { repository, state, home } = fixture();
+      writeFileSync(join(home, "config.toml"), overflowConfig());
+      const journal = join(state, "journal.jsonl");
+      writeOwnerJournal(
+        journal,
+        "0060-headless-runtime",
+        "codex-home-outside-worktree",
+        "old-session",
+        outcomeKind,
+        anotherSession,
+      );
+      if (outcomeKind === undefined && anotherSession === undefined) {
+        writeFileSync(
+          journal,
+          `${readFileSync(journal, "utf8")}\n${JSON.stringify({ kind: "person-override" })}`,
+        );
+      }
+      const oldOverlay = writeOwnedOverlay(state, journal, "old-session");
+      const launch = prepareCodexLaunch([], repository, environment(repository, state, home), {
+        listCodexMcp: () => ok(configuredNames()),
+      });
+      expect(isOk(launch)).toBe(true);
+      expect(existsSync(oldOverlay)).toBe(true);
+      if (isOk(launch)) launch.value.cleanup(true);
+    },
+  );
 
   it("keeps an expired owner overlay while its child is still running", () => {
     const { repository, state, home } = fixture();
     writeFileSync(join(home, "config.toml"), overflowConfig());
     const journal = join(state, "live-child.jsonl");
-    writeOwnerJournal(journal, "0060-headless-runtime", "codex-home-outside-worktree", "live-child-session");
+    writeOwnerJournal(
+      journal,
+      "0060-headless-runtime",
+      "codex-home-outside-worktree",
+      "live-child-session",
+    );
     const oldOverlay = writeOwnedOverlay(state, journal, "live-child-session");
-    const child = spawn(process.execPath, ["-e", "setTimeout(() => {}, 30000)"], { stdio: "ignore" });
+    const child = spawn(process.execPath, ["-e", "setTimeout(() => {}, 30000)"], {
+      stdio: "ignore",
+    });
     try {
-      const launch = prepareCodexLaunch([], repository, environment(repository, state, home, "new-session"), {
-        listCodexMcp: () => ok(configuredNames()),
-      });
+      const launch = prepareCodexLaunch(
+        [],
+        repository,
+        environment(repository, state, home, "new-session"),
+        {
+          listCodexMcp: () => ok(configuredNames()),
+        },
+      );
       expect(isOk(launch)).toBe(true);
       expect(existsSync(oldOverlay)).toBe(true);
       if (isOk(launch)) launch.value.cleanup(true);
@@ -287,10 +314,15 @@ describe("Codex home outside worktree", () => {
     const unrelatedState = join(unrelatedRepository, "state");
     mkdirSync(unrelatedState);
     writeFileSync(join(home, "config.toml"), overflowConfig());
-    const result = prepareCodexLaunch([], repository, {
-      ...environment(repository, state, home),
-      XDG_STATE_HOME: unrelatedState,
-    }, { listCodexMcp: () => ok(configuredNames()) });
+    const result = prepareCodexLaunch(
+      [],
+      repository,
+      {
+        ...environment(repository, state, home),
+        XDG_STATE_HOME: unrelatedState,
+      },
+      { listCodexMcp: () => ok(configuredNames()) },
+    );
     expect(isErr(result)).toBe(true);
     if (isErr(result)) expect(result.error.because).toContain("inside another repository");
   });
@@ -303,10 +335,16 @@ describe("Codex home outside worktree", () => {
     writeFileSync(join(repository, "tracked.txt"), "fixture\n");
     fixtureGit(["add", "--", "tracked.txt"], { cwd: repository });
     fixtureGit(["commit", "--quiet", "-m", "fixture"], { cwd: repository });
-    fixtureGit(["worktree", "add", "--quiet", "-b", "fixture-agent", worktree, "HEAD"], { cwd: repository });
+    fixtureGit(["worktree", "add", "--quiet", "-b", "fixture-agent", worktree, "HEAD"], {
+      cwd: repository,
+    });
     try {
       writeFileSync(join(home, "config.toml"), overflowConfig("/bin/echo"));
-      const launch = prepareCodexLaunch([], worktree, environment(worktree, state, home, "real-codex-session"));
+      const launch = prepareCodexLaunch(
+        [],
+        worktree,
+        environment(worktree, state, home, "real-codex-session"),
+      );
       expect(isOk(launch)).toBe(true);
       if (!isOk(launch)) return;
       expect(launch.value.path).toBe("overlay");

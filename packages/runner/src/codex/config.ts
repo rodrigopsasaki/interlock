@@ -6,9 +6,9 @@ import {
   readFileSync,
   realpathSync,
   rmdirSync,
+  type Stats,
   statSync,
   symlinkSync,
-  type Stats,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
