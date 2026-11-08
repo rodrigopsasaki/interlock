@@ -1,6 +1,6 @@
-import { relative } from "node:path";
-import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { relative } from "node:path";
 import { type Clock, createSystemClock } from "@phyxiusjs/clock";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import { explainRoleTableRefusal, readRoleTable } from "debrief";

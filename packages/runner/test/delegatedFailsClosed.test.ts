@@ -4,9 +4,9 @@ import { join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
 import { isErr } from "@phyxiusjs/fp";
 import { nodeKey, type Receipt } from "ledger";
+import { noneClient } from "substrate";
 import { afterEach, describe, expect, it } from "vitest";
 import { judgeGates } from "../src/gateJudge.ts";
-import { noneClient } from "substrate";
 import { gitInitFixtureWithContent } from "./support/gitFixture.ts";
 import { memoryLedger } from "./support/memoryLedger.ts";
 
@@ -15,7 +15,6 @@ mkdirSync(runsRoot, { recursive: true });
 
 const node = { graph: "fixture", id: "n1" };
 const graphRelativePath = join(".interlock", "graphs", "fixture.yaml");
-const passCommand = `${process.execPath} -e process.exit(0)`;
 const removeGraphCommand = `${process.execPath} -e require("node:fs").unlinkSync(".interlock/graphs/fixture.yaml")`;
 const rewriteGraphCommand = `${process.execPath} -e require("node:fs").writeFileSync(".interlock/graphs/fixture.yaml","H2\\n")`;
 
@@ -119,12 +118,21 @@ describe("delegated graph clearance", () => {
   });
 
   it.each([
-    ["worktree graph is missing", (root: ReturnType<typeof fixture>) => unlinkSync(join(root.worktree, graphRelativePath))],
-    ["worktree graph is a directory", (root: ReturnType<typeof fixture>) => {
-      unlinkSync(join(root.worktree, graphRelativePath));
-      mkdirSync(join(root.worktree, graphRelativePath));
-    }],
-    ["authoritative graph is missing", (root: ReturnType<typeof fixture>) => unlinkSync(join(root.authoritative, graphRelativePath))],
+    [
+      "worktree graph is missing",
+      (root: ReturnType<typeof fixture>) => unlinkSync(join(root.worktree, graphRelativePath)),
+    ],
+    [
+      "worktree graph is a directory",
+      (root: ReturnType<typeof fixture>) => {
+        unlinkSync(join(root.worktree, graphRelativePath));
+        mkdirSync(join(root.worktree, graphRelativePath));
+      },
+    ],
+    [
+      "authoritative graph is missing",
+      (root: ReturnType<typeof fixture>) => unlinkSync(join(root.authoritative, graphRelativePath)),
+    ],
   ])("holds when %s", async (_name, change) => {
     const root = fixture();
     const { ledger } = seedDelegated(root.graphHash);
@@ -169,7 +177,12 @@ describe("delegated graph clearance", () => {
       derivation: { kind: "human", who: "Rodrigo Sasaki" },
     };
     ledger.append({ kind: "receipt-written", node, receipt });
-    ledger.append({ kind: "gate-moved", node, gate: "witnessed", to: { kind: "satisfied", receipt } });
+    ledger.append({
+      kind: "gate-moved",
+      node,
+      gate: "witnessed",
+      to: { kind: "satisfied", receipt },
+    });
     unlinkSync(join(root.worktree, graphRelativePath));
 
     const judged = await judgeGates(request(root, ledger, new Map([["witnessed", humanGate]])));

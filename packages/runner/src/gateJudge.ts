@@ -109,7 +109,10 @@ export interface GateJudgeRequest {
   readonly parsedGraphHash: string;
 }
 
-type LegacyGateJudgeRequest = Omit<GateJudgeRequest, "authoritativeGraphPath" | "parsedGraphHash"> & {
+type LegacyGateJudgeRequest = Omit<
+  GateJudgeRequest,
+  "authoritativeGraphPath" | "parsedGraphHash"
+> & {
   readonly authoritativeGraphPath?: string;
   readonly parsedGraphHash?: string;
 };
@@ -190,17 +193,16 @@ function heldBecause(
 
 async function graphHash(path: string): Promise<string | undefined> {
   try {
-    return createHash("sha256").update(await readFile(path)).digest("hex");
+    return createHash("sha256")
+      .update(await readFile(path))
+      .digest("hex");
   } catch {
     return undefined;
   }
 }
 
 function delegatedReceiptContentHash(receipt: Receipt): string | undefined {
-  if (
-    receipt.derivation.kind !== "human" ||
-    !("contentHash" in receipt.derivation)
-  ) {
+  if (receipt.derivation.kind !== "human" || !("contentHash" in receipt.derivation)) {
     return undefined;
   }
   return receipt.derivation.contentHash;
@@ -223,7 +225,9 @@ async function invalidateStaleDelegated(
   narrate: (line: string) => void,
 ): Promise<readonly string[]> {
   const authoritativeHash = await graphHash(authoritativeGraphPath);
-  const worktreeHash = await graphHash(join(worktree, ".interlock", "graphs", `${node.graph}.yaml`));
+  const worktreeHash = await graphHash(
+    join(worktree, ".interlock", "graphs", `${node.graph}.yaml`),
+  );
   const view = ledger.projection().nodes.get(nodeKey(node));
   const stale: string[] = [];
 
@@ -299,7 +303,9 @@ function holdOnStaleDelegation(
   });
 }
 
-export async function judgeGates(request: GateJudgeRequest): Promise<Result<Outcome, GateJudgeRefusal>>;
+export async function judgeGates(
+  request: GateJudgeRequest,
+): Promise<Result<Outcome, GateJudgeRefusal>>;
 export async function judgeGates(
   request: LegacyGateJudgeRequest,
 ): Promise<Result<Outcome, GateJudgeRefusal>>;

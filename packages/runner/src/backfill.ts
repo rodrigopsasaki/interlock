@@ -103,7 +103,8 @@ export async function backfillGraph(
   if (isErr(machine)) return err({ kind: "machine", because: machine.error });
   const env = withAutoMaintenanceDisabled({ ...process.env, ...machine.value.env });
   const authoritativeGraphPath =
-    requestedAuthoritativeGraphPath ?? join(repoRoot, ".interlock", "graphs", `${document.id}.yaml`);
+    requestedAuthoritativeGraphPath ??
+    join(repoRoot, ".interlock", "graphs", `${document.id}.yaml`);
 
   const mainSha = execFileSync("git", ["rev-parse", mainBranch], {
     cwd: repoRoot,
