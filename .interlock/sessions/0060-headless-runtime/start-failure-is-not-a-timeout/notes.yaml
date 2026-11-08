@@ -50,3 +50,11 @@ entries:
     at: "2026-11-08T18:21:00Z"
     chose: Remove the recreated launch-local directory again before staging session notes.
     because: It remained outside the implementation scope and could contaminate schema reads or be mistaken for a persisted artifact; its removal was confined to the exact worktree-local path.
+  - kind: surprise
+    at: "2026-11-08T18:27:00Z"
+    expected: The launch-local directory would stay absent after the focused gates and debrief commands.
+    observed: A codex-home-no28bz directory reappeared as an untracked artifact during later commands; the memory gate held no position for another irreversible deletion.
+  - kind: choice
+    at: "2026-11-08T18:28:00Z"
+    chose: Leave the reappeared codex-home-no28bz artifact untracked and exclude it from the final commit.
+    because: The session rules forbid staging codex-home folders, and no new authority was available to delete this newly recreated artifact; the debrief reports it as an open environment boundary.
