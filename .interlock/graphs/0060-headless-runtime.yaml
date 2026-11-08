@@ -582,6 +582,49 @@ nodes:
         kind: command
         run: pnpm typecheck
 
+  - id: gates-run-on-engines-node
+    role: implementer
+    depends_on: []
+    acceptance: |
+      A gate or a worktree setup command never runs on a Node outside the repository's engines. On 2026-11-08 every
+      judge that night ran its gates on Homebrew's Node 26.13.0, inherited from a login-shell PATH, in repositories
+      whose package.json pins engines node "24.14.0" (interlock) and ">=24 <25" (Preston); a gate's own output said
+      "Unsupported engine ... current: v26.13.0", and verdicts both ways rested on the wrong runtime.
+      - Before spawning any gate command (gateJudge.ts spawnGateCommand, :128-145) or any worktree_setup command
+        (worktreeSetup.ts, called from sessionDrive.ts:430), the runner resolves the node executable the command's
+        environment would find first on its PATH, runs it once for its version, and reads engines.node from the
+        package.json at the worktree root. When the repository declares no engines.node, nothing changes.
+      - Outside the range, no gate or setup command is spawned. The node is held with a named reason that gives the
+        version, the executable's absolute path and the range, for example "gate node v26.13.0 at
+        /opt/homebrew/bin/node is outside engines >=24 <25"; a runner line says the same. A node executable that
+        cannot be found or run is held the same way, naming that.
+      - The range check uses an existing semver implementation if the workspace already depends on one; otherwise a
+        small comparator set covering exact versions, >=, >, <=, < and space-joined conjunctions, with a refusal for
+        any range it cannot parse, so an unparseable range holds rather than passes.
+      - No PATH is rewritten and no Node is chosen on the owner's behalf: the fix is to refuse, and the hold says
+        which Node was found so the owner's setup can be corrected.
+      Tests in packages/runner/test/gatesRunOnEnginesNode.test.ts, with fixture node executables (scripts that print
+      a version) placed first on a fixture PATH:
+      - engines "24.14.0" with a fixture node printing v26.13.0: the judge spawns no gate, the node is held naming
+        v26.13.0, the fixture path and the range; with a fixture printing v24.14.0, the gates run;
+      - engines ">=24 <25" against v24.9.0 (runs), v25.0.0 (held) and v23.11.0 (held);
+      - no engines.node: gates run whatever the version;
+      - an unparseable range holds, naming the range; a missing node executable holds, naming the PATH searched;
+      - worktree_setup is refused the same way before any setup command runs.
+      Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
+    gates:
+      - id: engines-node-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/gatesRunOnEnginesNode.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: runner-suite
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: engines-node-types
+        kind: command
+        run: pnpm typecheck
+
   - id: exec-runtime
     role: implementer
     depends_on: []
