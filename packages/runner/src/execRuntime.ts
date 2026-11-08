@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync, watch, writeFileSync } from "nod
 import { mkdir, open, readFile, rm } from "node:fs/promises";
 import { connect } from "node:net";
 import { tmpdir } from "node:os";
-import { basename, dirname, join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { err, isErr, isOk, ok, type Result } from "@phyxiusjs/fp";
 import { type OwnedProcess, spawnOwned } from "./ownedCommand.ts";
@@ -112,6 +112,26 @@ export interface ExecAdmission {
   ): Promise<Result<void, string>>;
 }
 
+export interface ProgramExitWatcher {
+  on(event: "error", listener: () => void): ProgramExitWatcher;
+  close(): void;
+}
+
+export interface ProgramExitScheduler {
+  now(): number;
+  setTimeout(callback: () => void, delayMs: number): ReturnType<typeof setTimeout>;
+  clearTimeout(timer: ReturnType<typeof setTimeout>): void;
+}
+
+export interface ProgramExitObservation {
+  readonly watch?: (
+    path: string,
+    listener: (eventType: string, filename: string | Buffer | null) => void,
+  ) => ProgramExitWatcher;
+  readonly scheduler?: ProgramExitScheduler;
+  readonly pollMs?: number;
+}
+
 export interface ExecPhaseRequest {
   readonly runRoot: string;
   readonly id?: string;
@@ -139,6 +159,7 @@ export interface ExecPhaseRequest {
   readonly admission?: ExecAdmission;
   readonly nodeExecutable?: string;
   readonly launcherPath?: string;
+  readonly programExitObservation?: ProgramExitObservation;
 }
 
 export interface ExecPhaseOutcome {
@@ -292,6 +313,17 @@ type ProgramExit = {
   readonly error?: string;
 };
 
+const nativeProgramExitScheduler: ProgramExitScheduler = {
+  now: () => Date.now(),
+  setTimeout: (callback, delayMs) => setTimeout(callback, delayMs),
+  clearTimeout: (timer) => clearTimeout(timer),
+};
+
+const nativeProgramExitWatch = (
+  path: string,
+  listener: (eventType: string, filename: string | Buffer | null) => void,
+): ProgramExitWatcher => watch(path, listener);
+
 function readProgramExit(exitPath: string): ProgramExit | undefined {
   if (!existsSync(exitPath)) return undefined;
   const parsed: unknown = JSON.parse(readFileSync(exitPath, "utf8"));
@@ -306,42 +338,49 @@ function readProgramExit(exitPath: string): ProgramExit | undefined {
   return { code, signal };
 }
 
-async function waitForProgramExit(
+export async function waitForProgramExit(
   exitPath: string,
   timeoutMs: number,
+  observation: ProgramExitObservation | undefined,
 ): Promise<ProgramExit | undefined> {
   const existing = readProgramExit(exitPath);
   if (existing !== undefined) return Promise.resolve(existing);
+  const scheduler = observation?.scheduler ?? nativeProgramExitScheduler;
+  const observeWith = observation?.watch ?? nativeProgramExitWatch;
+  const pollMs = Math.max(1, observation?.pollMs ?? 50);
   return new Promise((resolve) => {
     let settled = false;
-    let watcher: ReturnType<typeof watch> | undefined;
-    let timer: NodeJS.Timeout | undefined;
+    let watcher: ProgramExitWatcher | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const finish = (result: ProgramExit | undefined): void => {
       if (settled) return;
       settled = true;
       watcher?.close();
-      if (timer !== undefined) clearTimeout(timer);
+      if (timer !== undefined) scheduler.clearTimeout(timer);
       resolve(result);
     };
     const observe = (): void => {
       const result = readProgramExit(exitPath);
       if (result !== undefined) finish(result);
     };
+    const deadline = scheduler.now() + timeoutMs;
+    const poll = (): void => {
+      if (settled) return;
+      observe();
+      if (settled) return;
+      const remaining = deadline - scheduler.now();
+      if (remaining <= 0) {
+        finish(undefined);
+        return;
+      }
+      timer = scheduler.setTimeout(poll, Math.min(pollMs, remaining));
+    };
     try {
-      watcher = watch(dirname(exitPath), (_event, filename) => {
-        if (filename === null || filename.toString() === "") {
-          observe();
-          return;
-        }
-        if (filename.toString() === basename(exitPath)) observe();
-      });
-      watcher.on("error", () => finish(undefined));
-    } catch {
-      finish(undefined);
-      return;
-    }
+      watcher = observeWith(dirname(exitPath), () => observe());
+      watcher.on("error", () => undefined);
+    } catch {}
     observe();
-    timer = setTimeout(() => finish(undefined), timeoutMs);
+    if (!settled) poll();
   });
 }
 
@@ -701,18 +740,18 @@ export async function runExecPhase(
     (chunk: string) => void appendStream(transcriptPath, "stderr", stderrPending, chunk),
   );
   let timedOut = false;
+  let launcherConfirmedDead = false;
   const launcherExit = new Promise<{
     readonly code: number | null;
     readonly signal: NodeJS.Signals | null;
   }>((resolve) => {
-    child.on("close", (code: number | null, signal: NodeJS.Signals | null) =>
-      resolve({ code, signal }),
-    );
+    child.on("close", (code: number | null, signal: NodeJS.Signals | null) => {
+      launcherConfirmedDead = true;
+      resolve({ code, signal });
+    });
   });
-  let exit = await Promise.race([
-    waitForProgramExit(join(runDir, "exit.json"), request.timeoutMs),
-    new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), request.timeoutMs)),
-  ]);
+  const exitFile = join(runDir, "exit.json");
+  let exit = await waitForProgramExit(exitFile, request.timeoutMs, request.programExitObservation);
   if (exit === undefined) {
     timedOut = true;
     await appendTranscript(transcriptPath, {
@@ -724,12 +763,11 @@ export async function runExecPhase(
     current = { ...current, reason: `run timeout ${request.timeoutMs}ms` };
     await publishRecord(runDir, current);
     await connectControl(socketPath, secret, "TERM");
-    exit = await Promise.race([
-      waitForProgramExit(join(runDir, "exit.json"), request.termGraceMs ?? DEFAULT_TERM_GRACE_MS),
-      new Promise<undefined>((resolve) =>
-        setTimeout(() => resolve(undefined), request.termGraceMs ?? DEFAULT_TERM_GRACE_MS),
-      ),
-    ]);
+    exit = await waitForProgramExit(
+      exitFile,
+      request.termGraceMs ?? DEFAULT_TERM_GRACE_MS,
+      request.programExitObservation,
+    );
     if (exit === undefined) {
       await connectControl(socketPath, secret, "KILL");
       await Promise.race([
@@ -739,8 +777,9 @@ export async function runExecPhase(
         ),
       ]);
       exit = await waitForProgramExit(
-        join(runDir, "exit.json"),
+        exitFile,
         request.drainGraceMs ?? DEFAULT_DRAIN_GRACE_MS,
+        request.programExitObservation,
       );
     }
   }
@@ -752,14 +791,23 @@ export async function runExecPhase(
       ),
     ]);
     exit = await waitForProgramExit(
-      join(runDir, "exit.json"),
+      exitFile,
       request.drainGraceMs ?? DEFAULT_DRAIN_GRACE_MS,
+      request.programExitObservation,
     );
   }
   if (exit === undefined) exit = { code: null, signal: "SIGKILL" };
-  const exitFile = join(runDir, "exit.json");
-  const exitRecord = existsSync(exitFile) ? JSON.parse(readFileSync(exitFile, "utf8")) : undefined;
-  const programError = isRecordWithString(exitRecord, "error") ? exitRecord["error"] : undefined;
+  await appendTranscript(transcriptPath, {
+    interlock: TRANSCRIPT_SHAPE,
+    ts: now(),
+    stream: "runner",
+    text: launcherConfirmedDead
+      ? "launcher confirmed dead; reconciling program exit evidence"
+      : "launcher death not confirmed after bounded exit wait; reconciling available program exit evidence",
+  });
+  const reconciledExit = readProgramExit(exitFile);
+  if (reconciledExit !== undefined) exit = reconciledExit;
+  const programError = exit.error;
   await appendTranscript(transcriptPath, {
     interlock: TRANSCRIPT_SHAPE,
     ts: now(),
@@ -804,26 +852,30 @@ export async function runExecPhase(
     stderrPending,
     request.drainGraceMs ?? DEFAULT_DRAIN_GRACE_MS,
   );
-  const finalState: ExecPhaseState = timedOut
-    ? "killed"
-    : programError !== undefined || exit.signal !== null || exit.code !== 0
+  const finalState: ExecPhaseState =
+    programError !== undefined
       ? "failed"
-      : "done";
+      : timedOut
+        ? "killed"
+        : exit.signal !== null || exit.code !== 0
+          ? "failed"
+          : "done";
   const final: ExecSessionRecord = {
     ...current,
     endedAt: now(),
     state: finalState,
     exitCode: exit.code,
     signal: exit.signal,
-    reason: timedOut
-      ? `run timeout ${request.timeoutMs}ms`
-      : programError === undefined
-        ? exit.signal === null && exit.code === 0
-          ? null
-          : exit.signal === null
-            ? `exit ${exit.code ?? 1}`
-            : `ended by ${exit.signal} from outside the runner`
-        : `program could not start: ${programError}`,
+    reason:
+      programError !== undefined
+        ? `program could not start: ${programError}`
+        : timedOut
+          ? `run timeout ${request.timeoutMs}ms`
+          : exit.signal === null && exit.code === 0
+            ? null
+            : exit.signal === null
+              ? `exit ${exit.code ?? 1}`
+              : `ended by ${exit.signal} from outside the runner`,
     reaped,
     captureComplete,
   };

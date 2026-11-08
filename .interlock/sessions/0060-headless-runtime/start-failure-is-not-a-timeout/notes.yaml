@@ -1,0 +1,20 @@
+interlock: notes@v0
+graph: 0060-headless-runtime
+node: start-failure-is-not-a-timeout
+entries:
+  - kind: surprise
+    at: "2026-11-08T18:00:00Z"
+    expected: The session directory would contain only the canonical brief and the files needed for this node.
+    observed: A launch-local codex-home-no28bz directory is already untracked beside the brief; it will remain untouched and unstaged.
+  - kind: choice
+    at: "2026-11-08T18:01:00Z"
+    chose: Keep start-failure evidence authoritative through final reconciliation and make watcher polling a bounded observation seam with native defaults.
+    because: The acceptance requires a recorded spawn error to outrank a timeout even when it arrives after the deadline, while watcher loss must never become an early timeout.
+  - kind: surprise
+    at: "2026-11-08T18:03:00Z"
+    expected: The first focused runner typecheck would accept the injected watcher fixture.
+    observed: Strict noUnusedParameters rejected the fixture's unused event name; renaming it to _event kept the adapter explicit and typecheckable.
+  - kind: surprise
+    at: "2026-11-08T18:05:00Z"
+    expected: The focused Biome check would accept the manually shaped multiline additions.
+    observed: Biome required its standard wrapping for the waiter call, final-state conditional, and fixture listener field; the formatter changed only those layouts.
