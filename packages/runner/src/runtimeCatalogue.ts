@@ -101,8 +101,12 @@ function isPositiveInteger(value: unknown): value is number {
 }
 
 function isTemplate(value: unknown, placeholder: string): value is readonly string[] {
-  return isStringArray(value) && value.length > 0 && value.every((part) => !part.includes("\0")) &&
-    value.filter((part) => part === placeholder).length === 1;
+  return (
+    isStringArray(value) &&
+    value.length > 0 &&
+    value.every((part) => !part.includes("\0")) &&
+    value.filter((part) => part === placeholder).length === 1
+  );
 }
 
 function isServerNames(value: unknown): value is readonly string[] {
@@ -453,7 +457,10 @@ export interface ResolvedRuntime {
 }
 
 export function execRuntimeArgv(
-  runtime: Pick<ResolvedRuntime, "args" | "readOnlyArgs" | "mcpServers" | "mcpAllow" | "mcpDisableArgs">,
+  runtime: Pick<
+    ResolvedRuntime,
+    "args" | "readOnlyArgs" | "mcpServers" | "mcpAllow" | "mcpDisableArgs"
+  >,
   prompt: string,
   review = false,
 ): readonly string[] {

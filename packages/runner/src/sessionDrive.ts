@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
-import { join, relative } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { type Clock, deadlineFrom, ms } from "@phyxiusjs/clock";
 import { err, isErr, isOk, ok, type Result } from "@phyxiusjs/fp";
 import { debriefFilePath } from "debrief";
@@ -17,6 +17,7 @@ import {
 } from "ledger";
 import type { SubstrateClient } from "substrate";
 import { agentEnvironmentArgs, needsPaneEnvironment } from "./codex/environment.ts";
+import { type ExecPhaseRequest, execRunRoot, runExecPhase } from "./execRuntime.ts";
 import { declaredGateIds, gateCommandTable } from "./gateCommand.ts";
 import { explainGateJudgeRefusal } from "./gateJudge.ts";
 import { createHerdrLaunchRuntime } from "./herdr/adapter.ts";
@@ -31,7 +32,13 @@ import {
   machineIntent,
   reconcileMachine,
 } from "./machineOutbox.ts";
-import { type MachineAttempt, providerArgv, resolveMachine } from "./machineProvider.ts";
+import {
+  type MachineAttempt,
+  providerArgv,
+  resolveMachine,
+  runProviderCommand,
+  validateExecMachine,
+} from "./machineProvider.ts";
 import { recordingNarrate } from "./narration.ts";
 import { buildOpeningPrompt, type PriorWork, type SessionRole } from "./openingPrompt.ts";
 import { deliverOpeningPrompt } from "./promptDelivery.ts";
@@ -45,7 +52,7 @@ import {
   type Pane,
   type Runtime,
 } from "./runtime.ts";
-import type { ResolvedRuntime } from "./runtimeCatalogue.ts";
+import { execRuntimeArgv, type ResolvedRuntime } from "./runtimeCatalogue.ts";
 import { gitTrackedFiles } from "./scope.ts";
 import { type BriefWriteOutcome, buildBrief } from "./sessionBrief.ts";
 import { findInheritedSessionStart, type SessionInheritance } from "./sessionRange.ts";
@@ -408,6 +415,183 @@ export async function driveInteractiveSession(
       lease.stop();
       abandonLease();
       return result;
+    }
+
+    if (agentRuntime.kind === "exec") {
+      const openingPrompt = buildOpeningPrompt(
+        graph,
+        node,
+        priorWork,
+        role,
+        briefWritten.value.openingView,
+        shape?.entry.prompt,
+        agentRuntime.commits,
+      );
+      const argv = execRuntimeArgv(agentRuntime, openingPrompt);
+      const program = argv[0];
+      if (program === undefined) {
+        lease.stop();
+        return refuse(abandon("runtime"), "exec runtime has no program argument");
+      }
+      const journalDirectory = await sharedJournalDirectory(repoRoot);
+      const provider = machine.value.provider;
+      if (provider !== "none") {
+        const valid = validateExecMachine(provider);
+        if (isErr(valid)) {
+          lease.stop();
+          return refuse(abandon("runtime"), valid.error);
+        }
+      }
+      const admissionFor = (phase: "work" | "debrief") => {
+        if (provider === "none") return undefined;
+        const token = `${sessionId}/${phase}`;
+        const values = (
+          extra: Readonly<Record<string, string>> = {},
+        ): Readonly<Record<string, string>> => ({
+          holder: `${graph}/${node} (${sessionId})`,
+          token,
+          pane: "",
+          workspace: "",
+          agent: agentRuntime.name,
+          worktree: worktreePath,
+          attempt: sessionId,
+          session: sessionId,
+          phase,
+          kind: "exec",
+          id: sessionId,
+          ...extra,
+        });
+        const run = async (command: readonly string[]): Promise<Result<void, string>> => {
+          const result = await runProviderCommand(command, worktreePath, {
+            ...process.env,
+            ...machine.value.env,
+          });
+          return result.code === 0
+            ? ok(undefined)
+            : err(result.output.split(/\r?\n/)[0] ?? `provider exited ${result.code}`);
+        };
+        return {
+          admit: () => run(providerArgv(provider.admit, values())),
+          bind: (identity: {
+            readonly pid: number;
+            readonly pgid: number;
+            readonly birth: string;
+            readonly boot: string;
+          }) =>
+            run(
+              providerArgv(
+                provider.bind ?? [],
+                values({
+                  pid: String(identity.pid),
+                  pgid: String(identity.pgid),
+                  birth: identity.birth,
+                  boot: identity.boot,
+                }),
+              ),
+            ),
+          release: (outcome: "never-started" | "group-empty" | "override", pgid: string) =>
+            run(providerArgv(provider.release, values({ outcome, pgid }))),
+        };
+      };
+      const phaseRequest = (
+        phase: "work" | "debrief",
+        prompt: string,
+        parentId: string | null,
+      ): ExecPhaseRequest => {
+        const admission = admissionFor(phase);
+        return {
+          runRoot: execRunRoot(dirname(dirname(journalDirectory))),
+          id: sessionId,
+          phase,
+          phaseId: phase,
+          parentId,
+          kind: "node",
+          graph,
+          node,
+          runtime: agentRuntime.name,
+          model: agentRuntime.model ?? "undeclared",
+          program,
+          args: argv.slice(1),
+          prompt,
+          promptOnStdin: agentRuntime.prompt === "stdin",
+          cwd: worktreePath,
+          env: machine.value.env,
+          timeoutMs: localConfig.runTimeoutMs,
+          ...(admission === undefined ? {} : { admission }),
+        };
+      };
+      const work = await runExecPhase(phaseRequest("work", openingPrompt, null));
+      if (isErr(work)) {
+        lease.stop();
+        return refuse(abandon("wait"), work.error.because);
+      }
+      const custody = {
+        worktree: worktreePath,
+        graph,
+        node,
+        session: sessionId,
+        runtime: agentRuntime.name,
+        model: agentRuntime.model,
+        ...(request.paths === undefined ? {} : { paths: request.paths }),
+      };
+      const committedCode =
+        agentRuntime.commits === "runner" ? commitRunnerCode(custody) : undefined;
+      if (committedCode !== undefined && isErr(committedCode)) {
+        lease.stop();
+        return refuse(commit("code commit"), committedCode.error);
+      }
+      const debriefPrompt =
+        `The work phase ended at ${work.value.record.endedAt ?? "an unknown head"}. ` +
+        `File your debrief and notes now, without committing. Run interlock debrief prepare ${graph} ${node} ` +
+        `--to <candidate-path> --agent-runtime ${agentRuntime.name} --agent-model ${agentRuntime.model ?? "undeclared"}; ` +
+        "author and file the candidate, then stop.";
+      const debrief = await runExecPhase(
+        phaseRequest("debrief", debriefPrompt, `${sessionId}/work`),
+      );
+      if (isErr(debrief)) {
+        lease.stop();
+        return refuse(abandon("debrief wait"), debrief.error.because);
+      }
+      if (committedCode !== undefined && isOk(committedCode)) {
+        const committed = await commitRunnerDebrief(custody, committedCode.value);
+        if (isErr(committed)) {
+          lease.stop();
+          return refuse(commit("debrief commit"), committed.error);
+        }
+        narrate(`debrief committed ${committed.value}`);
+      }
+      lease.stop();
+      const personEventsRead = await readRawEvents(await sharedJournalDirectory(repoRoot));
+      const gateIds = declaredGateIds(standingGates, nodeGates);
+      const judged = await judgeWorktree({
+        machine: machine.value,
+        ledger,
+        clock,
+        node: targetNode,
+        session: sessionId,
+        declaredGateIds: gateIds,
+        commandFor: gateCommandTable(standingGates, nodeGates),
+        worktree: worktreePath,
+        narrate,
+        runnerId: `${runnerIdPrefix}-${sessionId}`,
+        holdMs: HELD_REVISIT_MS,
+        substrate,
+        personEvents: isErr(personEventsRead) ? [] : personEventsRead.value,
+        onWorktreeRead: async () => {},
+      });
+      if (isErr(judged)) {
+        const message =
+          judged.error.kind === "worktree-status"
+            ? explainWorktreeRefusal(judged.error.refusal)
+            : judged.error.kind === "machine"
+              ? judged.error.because
+              : explainGateJudgeRefusal(judged.error.refusal);
+        return refuse(abandon("gates"), message);
+      }
+      return {
+        exitCode: 0,
+        message: `${node}: ${judged.value.kind} (session ${sessionId}, exec phases work/debrief).`,
+      };
     }
 
     const launch = agentLaunch(agentRuntime, worktreePath);

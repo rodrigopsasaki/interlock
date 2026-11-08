@@ -1,13 +1,14 @@
-import { spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import { parse } from "yaml";
+import { runOwnedCommand } from "./ownedCommand.ts";
 import { isRecord, isStringArray, prop } from "./validate.ts";
 
 export interface MachineProvider {
   readonly admit: readonly string[];
+  readonly bind?: readonly string[];
   readonly release: readonly string[];
   readonly env: readonly string[];
   readonly heavy: readonly string[];
@@ -48,17 +49,37 @@ export function parseMachine(value: unknown): Result<MachineProvider | "none", s
   if (!isRecord(provider) || Array.isArray(provider))
     return err("machine.provider must be a mapping or none");
   const admit = prop(provider, "admit");
+  const bind = prop(provider, "bind");
   const release = prop(provider, "release");
   const env = prop(provider, "env");
   const heavy = prop(provider, "heavy");
   const cite = prop(provider, "cite");
   if (!argv(admit)) return err("machine.provider.admit must be a nonempty argv of strings");
+  if (bind !== undefined && !argv(bind))
+    return err("machine.provider.bind must be a nonempty argv of strings");
   if (!argv(release)) return err("machine.provider.release must be a nonempty argv of strings");
   if (!argv(env)) return err("machine.provider.env must be a nonempty argv of strings");
   if (!argv(heavy)) return err("machine.provider.heavy must be a nonempty argv of strings");
   if (cite !== undefined && !argv(cite))
     return err("machine.provider.cite must be a nonempty argv of strings");
-  return ok({ admit, release, env, heavy, ...(cite === undefined ? {} : { cite }) });
+  return ok({
+    admit,
+    release,
+    env,
+    heavy,
+    ...(bind === undefined ? {} : { bind }),
+    ...(cite === undefined ? {} : { cite }),
+  });
+}
+
+export function validateExecMachine(provider: MachineProvider): Result<void, string> {
+  if (provider.bind === undefined) return err("exec phase requires machine.provider.bind");
+  const impossible = provider.admit.find(
+    (part) => part.includes("{pid}") || part.includes("{pane}"),
+  );
+  return impossible === undefined
+    ? ok(undefined)
+    : err(`exec phase cannot admit with ${impossible}; the value does not exist before spawn`);
 }
 
 export async function loadMachine(
@@ -96,26 +117,15 @@ export function runProviderCommand(
   cwd: string,
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<ProviderExit> {
-  return new Promise((resolve) => {
-    const [bin, ...args] = command;
-    if (bin === undefined) {
-      resolve({ code: -1, output: "empty provider command", stdout: "" });
-      return;
-    }
-    const child = spawn(bin, args, { cwd, env, timeout: 60_000 });
-    let output = "";
-    let stdout = "";
-    child.stdout.on("data", (chunk: Buffer) => {
-      stdout += chunk.toString("utf8");
-      output += chunk.toString("utf8");
-    });
-    child.stderr.on("data", (chunk: Buffer) => {
-      output += chunk.toString("utf8");
-    });
-    child.on("error", (error) => {
-      output += error.message;
-    });
-    child.on("close", (code) => resolve({ code: code ?? -1, output, stdout }));
+  if (command.length === 0)
+    return Promise.resolve({ code: -1, output: "empty provider command", stdout: "" });
+  return runOwnedCommand(command, cwd, env).then((result) => {
+    if (isErr(result)) return { code: -1, output: result.error, stdout: "" };
+    return {
+      code: result.value.code,
+      output: `${result.value.stdout}${result.value.stderr}`,
+      stdout: result.value.stdout,
+    };
   });
 }
 
@@ -161,7 +171,7 @@ export function providerArgv(
 ): readonly string[] {
   return command.map((part) =>
     part.replace(
-      /\{(holder|token|pid|pane|workspace|agent|worktree|attempt|kind|id)\}/g,
+      /\{(holder|token|pid|pane|workspace|agent|worktree|attempt|kind|id|session|phase|pgid|birth|boot|outcome)\}/g,
       (match, name: string) => values[name] ?? match,
     ),
   );

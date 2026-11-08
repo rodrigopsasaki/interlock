@@ -1,4 +1,3 @@
-import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -63,6 +62,7 @@ import {
   type GateOutputRefusal,
   retainGateOutput,
 } from "./gateOutput.ts";
+import { spawnOwned } from "./ownedCommand.ts";
 import { appendUnrecordedNotes } from "./questionNotes.ts";
 
 export const GATE_DERIVATION_VERSION = "runner@0";
@@ -132,7 +132,7 @@ function spawnGateCommand(
       resolve({ exitCode: -1, output, stdout: Buffer.alloc(0), stderr: Buffer.from(output) });
       return;
     }
-    const child = spawn(bin, tokens.slice(1), { cwd, env });
+    const child = spawnOwned([bin, ...tokens.slice(1)], cwd, env, false);
     let output = "";
     const stdout: Buffer[] = [];
     const stderr: Buffer[] = [];

@@ -5,3 +5,55 @@ entries:
     at: "2026-11-08T00:00:00Z"
     chose: Add the exec profile fields and launch preparation before replacing pane orchestration.
     because: The acceptance makes the catalogue and runtime boundary additive; parsing and template validation are independently testable and preserve existing pane profiles while the headless path is built.
+  - kind: choice
+    at: "2026-11-08T00:10:00Z"
+    chose: Keep exec admission validation in the machine-provider adapter and extend placeholder expansion without changing pane-era commands.
+    because: Exec phases need bind and cannot know pid or pane at admit, while existing machine profiles and command callers must remain readable and runnable unchanged.
+  - kind: choice
+    at: "2026-11-08T00:20:00Z"
+    chose: Keep the launcher alive after the child exits, observe exit.json for program completion, and end the anchor only after group membership is empty.
+    because: The anchor owns group signals and must outlive the program; using the launcher's exit as the program result would either publish done too early or time out every successful child.
+  - kind: surprise
+    at: "2026-11-08T00:20:01Z"
+    expected: The launcher's stdout and stderr close events would still be observable when the runner begins bounded draining.
+    observed: The launcher can exit before drain listeners are attached, so the runner must also recognize already-ended streams or it waits the full drain grace and falsely marks capture incomplete.
+  - kind: question
+    at: "2026-11-08T00:25:00Z"
+    asked: May I commit the current headless exec implementation and focused proof under the brief's explicit commit authorization, then continue with the runner integration?
+    options: [yes, no]
+  - kind: surprise
+    at: "2026-11-08T00:30:00Z"
+    expected: Every patch path would resolve inside the assigned worktree.
+    observed: Some early add-file patches omitted the worktree prefix and affected the main checkout; the owner restored main and the remaining work is confined to exec-runtime.
+  - kind: surprise
+    at: "2026-11-08T01:04:00Z"
+    expected: Files added below schemas/ would all be schemas or would be excluded by the registry.
+    observed: The schema registry loads every JSON file below schemas/, so the new example JSON files without schema identifiers collided with Ajv's empty key; the examples are unnecessary because the reference corpus already has its runtime example.
+  - kind: choice
+    at: "2026-11-08T01:06:00Z"
+    chose: Route machine-provider commands through the shared owned-command adapter instead of retaining a direct child-process import in the provider module.
+    because: The acceptance makes command ownership a runner-wide seam, and the provider is an adapter boundary where that seam can replace the old direct spawn without changing its wire result.
+  - kind: surprise
+    at: "2026-11-08T01:12:00Z"
+    expected: A short run timeout would still allow the launch handshake to publish its anchor.
+    observed: Reusing the run timeout as the anchor deadline caused a 100ms run to fail before launch; the launch handshake now has its own 30s bound and the run timeout starts after go.
+  - kind: surprise
+    at: "2026-11-08T01:14:00Z"
+    expected: Absolute patch paths would stay within the assigned worktree.
+    observed: The owner identified that absolute paths can silently target the main checkout; all subsequent patch and file paths are relative to this worktree.
+  - kind: surprise
+    at: "2026-11-08T01:15:00Z"
+    expected: Node's process.kill would accept the short TERM and KILL action names used on the control wire.
+    observed: Node requires SIGTERM and SIGKILL; the anchor therefore maps the wire actions, ignores group TERM so it can perform the later KILL/end step, and lets KILL terminate the anchor.
+  - kind: choice
+    at: "2026-11-08T01:23:00Z"
+    chose: Route exec profiles through the existing session setup, lease, worktree, runner-commit, debrief, and judge sequence, with work and debrief as two exec phases sharing the session id.
+    because: The phase sequence is the acceptance's replacement for the second pane prompt; reusing the established setup and judgment boundaries keeps graph approval, briefs, leases, and gates in their existing ledger path while the runtime boundary changes.
+  - kind: choice
+    at: "2026-11-08T01:26:00Z"
+    chose: Resolve exec runs from the parent of the ledger's .interlock directory before appending interlock/runs.
+    because: sharedJournalDirectory already resolves the common Git directory into <common>/.interlock/ledger; the graph's run contract is the sibling <common>/interlock/runs path shared by linked worktrees.
+  - kind: question
+    at: "2026-11-08T01:29:00Z"
+    asked: May I create the next signed commit for the worktree-scoped exec runtime changes now?
+    options: [yes, no]

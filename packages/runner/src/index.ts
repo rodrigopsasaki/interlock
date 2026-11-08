@@ -14,6 +14,32 @@ export { claudeLiveWork, liveWorkOfTranscript } from "./claude/liveWork.ts";
 export { withRenderedContextSlice } from "./contextSlice.ts";
 export { decidedNodeRefusal } from "./decidedNode.ts";
 export { unmetDependencies } from "./dependencies.ts";
+export type {
+  ExecAdmission,
+  ExecPhaseKind,
+  ExecPhaseOutcome,
+  ExecPhaseRequest,
+  ExecPhaseState,
+  ExecRuntimeRefusal,
+  ExecSessionAsk,
+  ExecSessionRecord,
+  ExecSessionView,
+  ExecTranscriptLine,
+} from "./execRuntime.ts";
+export {
+  DEFAULT_DRAIN_GRACE_MS,
+  DEFAULT_TERM_GRACE_MS,
+  execRunRoot,
+  execSocketPathLength,
+  execSocketSecretDigest,
+  listExecSessions,
+  readExecTranscript,
+  readLatestRecord,
+  removeExecRun,
+  runExecPhase,
+  SESSION_SHAPE,
+  TRANSCRIPT_SHAPE,
+} from "./execRuntime.ts";
 export type { GateCommand, PlaceholderRefusal } from "./gateCommand.ts";
 export {
   declaredGateIds,
@@ -76,6 +102,7 @@ export {
   providerArgv,
   resolveMachine,
   runProviderCommand,
+  validateExecMachine,
 } from "./machineProvider.ts";
 export { recordingNarrate } from "./narration.ts";
 export type { PriorWork, SessionRole } from "./openingPrompt.ts";
@@ -119,6 +146,7 @@ export type {
 } from "./runtimeCatalogue.ts";
 export {
   DEFAULT_RUNTIME_NAME,
+  execRuntimeArgv,
   explainMergeRuntimesRefusal,
   explainRuntimeCatalogueRefusal,
   loadRuntimeCatalogue,

@@ -37,6 +37,8 @@ describe("reference: docs/shapes.md stays fresh against the schemas", () => {
       "queue",
       "roles",
       "runtimes",
+      "sessions",
+      "transcript",
     ]);
   });
 
