@@ -444,12 +444,26 @@ scope:
   - .interlock/sessions/0060-headless-runtime/exec-runtime/brief.md
   - .interlock/sessions/0060-headless-runtime/herdr-gone/brief.md
   - .interlock/sessions/0060-headless-runtime/plan-reviews-are-sessions/brief.md
+  - .interlock/sessions/0060-headless-runtime/runner-marker/brief.md
   - .interlock/sessions/0060-headless-runtime/runner-records/brief.md
+  - .interlock/sessions/0060-headless-runtime/scope-guard/brief.md
+  - .interlock/sessions/0060-headless-runtime/scope-guard/debrief-candidate-final.yaml
+  - .interlock/sessions/0060-headless-runtime/scope-guard/debrief-candidate.yaml
+  - .interlock/sessions/0060-headless-runtime/scope-guard/debrief.yaml
+  - .interlock/sessions/0060-headless-runtime/scope-guard/notes.yaml
+  - .interlock/sessions/0060-headless-runtime/scope-guard/revisions/8fc5b5e70e7abb27d515f7a101f60106bf3c32c2ee8dc29dfc7029d4d177df44.yaml
+  - .interlock/sessions/0060-headless-runtime/watch-paths-precise/brief.md
   - .interlock/sessions/0061-delegation-fails-closed/cite-stays-consumed/brief.md
+  - .interlock/sessions/0061-delegation-fails-closed/cite-stays-consumed/debrief-candidate-merged.yaml
+  - .interlock/sessions/0061-delegation-fails-closed/cite-stays-consumed/debrief.yaml
+  - .interlock/sessions/0061-delegation-fails-closed/cite-stays-consumed/notes.yaml
+  - .interlock/sessions/0061-delegation-fails-closed/cite-stays-consumed/revisions/4a2d54500d355c7de1e8599c5c27b482e045b9164c9bcef9b6bdad65cc7a1995.yaml
   - .interlock/sessions/0061-delegation-fails-closed/fails-closed/brief.md
   - .interlock/sessions/0061-delegation-fails-closed/neutral-refusal/brief.md
   - .interlock/sessions/0061-delegation-fails-closed/retraction-holds-outcome/brief.md
   - .interlock/sessions/0062-same-access/access-probe/brief.md
+  - .interlock/sessions/0062-same-access/access-probe/debrief.yaml
+  - .interlock/sessions/0062-same-access/access-probe/notes.yaml
   - .interlock/sessions/readme-interlock-concept/readme/brief.md
   - .interlock/sessions/readme-interlock-concept/readme/debrief.yaml
   - .interlock/sessions/readme-interlock-concept/readme/notes.yaml
@@ -519,6 +533,7 @@ scope:
   - packages/cli/src/debrief/sessionIdentity.ts
   - packages/cli/src/debrief/validate.ts
   - packages/cli/src/delegation.ts
+  - packages/cli/src/delegationLock.ts
   - packages/cli/src/evidence.ts
   - packages/cli/src/face/dispatch.ts
   - packages/cli/src/face/focus.ts
@@ -547,6 +562,7 @@ scope:
   - packages/cli/src/repositoryOrigin.ts
   - packages/cli/src/run.ts
   - packages/cli/src/runtime/list.ts
+  - packages/cli/src/runtime/probe.ts
   - packages/cli/src/schema/reference.ts
   - packages/cli/src/schema/validate.ts
   - packages/cli/src/session/say.ts
@@ -556,6 +572,8 @@ scope:
   - packages/cli/test/backfill.test.ts
   - packages/cli/test/brief/validate.test.ts
   - packages/cli/test/citedApproval.test.ts
+  - packages/cli/test/concurrentCite.test.ts
+  - packages/cli/test/consumedCite.test.ts
   - packages/cli/test/debrief/derived.test.ts
   - packages/cli/test/debrief/preview.test.ts
   - packages/cli/test/debrief/recoverSessionStart.test.ts
@@ -596,6 +614,7 @@ scope:
   - packages/cli/test/resumeRange.test.ts
   - packages/cli/test/run.test.ts
   - packages/cli/test/runtime.test.ts
+  - packages/cli/test/runtimeProbe.test.ts
   - packages/cli/test/schema/reference.test.ts
   - packages/cli/test/schema/validate.test.ts
   - packages/cli/test/session/say.test.ts
@@ -711,6 +730,7 @@ scope:
   - packages/ledger/src/outbox.ts
   - packages/ledger/src/outcome.ts
   - packages/ledger/src/personSaid.ts
+  - packages/ledger/src/probe.ts
   - packages/ledger/src/projection.ts
   - packages/ledger/src/receipt.ts
   - packages/ledger/src/replay.ts
@@ -730,6 +750,7 @@ scope:
   - packages/ledger/src/validate.ts
   - packages/ledger/src/walk.ts
   - packages/ledger/test/applicability.test.ts
+  - packages/ledger/test/consumedCite.test.ts
   - packages/ledger/test/derivation.test.ts
   - packages/ledger/test/expectOutput.test.ts
   - packages/ledger/test/fixtures/journal-v1-approved.jsonl
@@ -742,6 +763,7 @@ scope:
   - packages/ledger/test/note.test.ts
   - packages/ledger/test/outboxDurability.test.ts
   - packages/ledger/test/outcome.test.ts
+  - packages/ledger/test/probeEvent.test.ts
   - packages/ledger/test/projection.test.ts
   - packages/ledger/test/receipt.test.ts
   - packages/ledger/test/replay.test.ts
@@ -788,8 +810,10 @@ scope:
   - packages/runner/src/runnerCommits.ts
   - packages/runner/src/runtime.ts
   - packages/runner/src/runtimeCatalogue.ts
+  - packages/runner/src/runtimeProbe.ts
   - packages/runner/src/runtimeSelection.ts
   - packages/runner/src/scope.ts
+  - packages/runner/src/scopeGuard.ts
   - packages/runner/src/sessionBrief.ts
   - packages/runner/src/sessionDrive.ts
   - packages/runner/src/sessionRange.ts
@@ -842,8 +866,10 @@ scope:
   - packages/runner/test/questionNotes.test.ts
   - packages/runner/test/refusalOutcomes.test.ts
   - packages/runner/test/runnerCommits.test.ts
+  - packages/runner/test/runtimeProbe.test.ts
   - packages/runner/test/runtimeSelection.test.ts
   - packages/runner/test/runtimes.test.ts
+  - packages/runner/test/scopeGuard.test.ts
   - packages/runner/test/scopeRefusal.test.ts
   - packages/runner/test/sessionBrief.test.ts
   - packages/runner/test/sessionScreen.test.ts
@@ -972,6 +998,7 @@ scope:
   - schemas/debrief@v2.json
   - schemas/event@v1.json
   - schemas/event@v10.json
+  - schemas/event@v11.json
   - schemas/event@v2.json
   - schemas/event@v3.json
   - schemas/event@v4.json
@@ -1035,6 +1062,7 @@ scope:
   - schemas/positions@v0.json
   - schemas/positions@v1.json
   - schemas/positions@v2.json
+  - schemas/probe-config@v0.json
   - schemas/queue@v0.json
   - schemas/roles@v0.json
   - schemas/runtimes@v0.json
@@ -1080,7 +1108,7 @@ walk:
   kind: none
   because: the substrate address is none, so there is nothing to ask
 graph_base_sha: a9239f81fa7938d858c06e4bd8b270285e6ad3a0
-session: 1abe2bc9-a155-4d32-b80b-70d30d52da34
+session: 15be0750-8294-4db7-9345-2d3cfc99c78d
 ---
 
 # Brief · node `exec-runtime` · graph `0060-headless-runtime`
