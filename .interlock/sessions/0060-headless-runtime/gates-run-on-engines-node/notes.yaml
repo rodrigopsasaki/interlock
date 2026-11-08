@@ -17,3 +17,15 @@ entries:
     at: "2026-11-08T10:08:00Z"
     expected: Hiding the mise state directory would keep it outside Vitest's recursive scan.
     observed: Vitest also scanned hidden directories under test/.runs; the fixture now creates one disposable mise directory per test process and removes it in afterAll.
+  - kind: choice
+    at: "2026-11-08T10:10:00Z"
+    chose: Commit the tested guard and focused proof as a signed forward commit before running the standing gates.
+    because: The brief requires incremental commits and the final debrief must name the last code commit without amending or forcing history.
+  - kind: surprise
+    at: "2026-11-08T10:13:00Z"
+    expected: The full workspace test gate would reproduce the focused runner results without unrelated failures.
+    observed: The new engines-node proof passed, but four existing execRuntime tests timed out; the runner suite reported 566 passed and 4 failed, so the standing test gate remains unresolved.
+  - kind: surprise
+    at: "2026-11-08T10:15:00Z"
+    expected: The standalone runner-suite gate would isolate the new proof from the workspace test failure.
+    observed: The standalone runner suite repeated the same four execRuntime timeouts and 566 passed, 4 failed result; the engines-node file itself passed 9 tests.
