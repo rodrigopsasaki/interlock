@@ -1251,35 +1251,58 @@ nodes:
 
   - id: mise-state-outside-repos
     role: implementer
-    depends_on: []
+    depends_on: [home-on-main]
     acceptance: |
-      No test leaves a symlink inside a repository whose target is outside it, so nothing walking a worktree (vitest
-      discovery, a judge, a scan) can follow a link into the owner's home.
+      No test leaves a symlink inside a repository whose target is outside it, at any moment of a run, interrupted or
+      not, so nothing walking a worktree (vitest discovery, a judge, a scan) can follow a link into the owner's home.
       Found 2026-11-08 judging start-failure-is-not-a-timeout: its focused gate failed with EPERM because vitest discovery
       walked packages/runner/test/.runs/<mise state>/trusted-configs/Users-rodrigosasaki-<hash> -> /Users/rodrigosasaki into
       the owner's ~/.Trash. The cause is on main at 70bcce8: four runner tests set MISE_STATE_DIR to a folder inside the
       repository (packages/runner/test/receiptCarriesItsRun.test.ts:12-15, gatesRunOnEnginesNode.test.ts:21-23 and :77,
-      submoduleReceipts.test.ts:20-23, gateJudge.test.ts:19-22). mise records every trusted and tracked config there as a
-      symlink, including the owner's home and ~/.config/mise/config.toml. Each test removes the folder in afterAll, but an
-      interrupted run leaves it, and while any run is going the link is inside the repository for any concurrent walk.
+      submoduleReceipts.test.ts:20-23, gateJudge.test.ts:19-22), and gates really invoke mise (packages/runner/src/
+      gateJudge.ts:403). mise records every trusted and tracked config there as a symlink, including the owner's home and
+      ~/.config/mise/config.toml. Teardown (receiptCarriesItsRun.test.ts:32 and the like) cannot protect a live or
+      interrupted run.
+      Depends on home-on-main: the Codex overlay that links entries from CODEX_HOME still lives under the cwd on main
+      (packages/runner/src/codex/config.ts:528, exercised by markerNeverDropped.test.ts:96), so moving tool homes out while
+      that overlay stays inside would itself create escaping links; home-on-main relocates the overlay and removes the
+      auth-failure skip in realCodexMarkerOverflow.test.ts. This node changes no product code.
       What changes:
-      - Every test that redirects mise state (MISE_STATE_DIR, and MISE_DATA_DIR or MISE_CONFIG_DIR if any test sets them)
-        puts it in a fresh folder under the system temp directory (os.tmpdir()), never under a repository, and removes it
-        afterwards. One shared test helper owns that, so the four files stop repeating it.
-      - The same holds for any other tool home or state a test redirects (HOME, XDG_*, CODEX_HOME and the like): if it can
-        record links to the owner's paths, it lives outside every repository.
-      - A check, scripts/runs-links-stay-inside.ts: lists, without following, every symlink anywhere in the repository
-        (node_modules included) whose resolved target leaves the repository, prints each by path and target and exits 1; with
-        none it prints "no symlink leaves the repository" and exits 0. It never changes or follows a link.
+      - One shared test helper allocates tool state (MISE_STATE_DIR, and MISE_DATA_DIR or MISE_CONFIG_DIR if set) as a
+        fresh, uniquely named folder under the system temp directory, checks before any tool runs that its real path is
+        outside the protected roots (the repository checkout, its .worktrees folder, and every git worktree of the
+        repository), and removes it afterwards. The four files use it.
+      - Inventory: every test that redirects a writable tool home or state (HOME, XDG_*, MISE_*, CODEX_HOME and the like;
+        at least realCodexMarkerLaunch.test.ts:41, realCodexMarkerOverflow.test.ts:66, lineFitsRealCodex.test.ts:198) is
+        listed in the debrief with where its state lives after this node; any that can record a link to an outside path
+        moves as a complete cwd and home tree under the system temp directory. Tests that make links between files inside
+        their own fixture (packages/schemas/test/corpus.files.test.ts:170, packages/debrief/test/revise.test.ts:220,
+        packages/cli/test/debrief/derived.test.ts:319) stay as they are.
+      - A check, scripts/runs-links-stay-inside.ts, takes the root to scan (default: its cwd) and prints it. It walks
+        directories without dereferencing any symlink (node_modules and .git included; a worktree's regular .git pointer
+        file is an ordinary file). For each symlink it resolves the target from the link's parent, expanding chains one
+        component at a time and stopping before any access outside the root; a dangling target and a cycle are judged by
+        the path they name. Containment is boundary-aware (/a/repo-other is not inside /a/repo). It prints every escaping
+        link as path and target and exits 1; it exits 2 with a named reason on any unreadable entry or incomplete scan;
+        with none it prints "no symlink leaves the repository" and exits 0. It never changes a link.
       - No test-only switch ships in product code.
       Tests:
-      - packages/runner/test/miseStateOutside.test.ts: the shared helper's folder is under os.tmpdir() and outside the
-        repository; after a test using it runs mise, no symlink under the repository leaves it; the check finds a planted
-        escaping link (made in a temp copy, never in the repository) and passes on a clean tree.
+      - packages/runner/test/miseStateOutside.test.ts:
+        - the helper's folders are unique, under the system temp directory, and outside every protected root, checked
+          before mise runs;
+        - while a test using the helper is mid-run with mise state live (observed before its cleanup), a scan of the
+          repository finds no escaping link; two concurrent helper allocations with a walk between them find none;
+        - a run interrupted before teardown (a child killed after mise wrote its state) leaves no escaping link in the
+          repository, by a scan afterwards;
+        - the check, on temp copies only (never the repository): absolute and relative escapes, internal links, chains,
+          a dangling outward link, a sibling-prefix path, ignored folders, node_modules, a missing root and an unreadable
+          entry each give the right exit code and output, and the printed root is the one given.
       - The four files above pass using the helper.
-      Gates: the standing test gate runs the full suite first; runs-links-proof then runs the check over the worktree the
-      suite just used. Every gate and test runs with the repository's pinned Node first on PATH. No test is excluded and none
-      is skipped.
+      Gates: the standing test gate runs the full suite first; runs-links-proof then scans the same worktree (its cwd). No
+      test is excluded and none is skipped; every Tests summary must show all tests passed. Tests create their own temporary
+      folders under the system temp directory and remove them; this is the one exception to the brief's
+      no-files-outside-the-worktree rule, and it covers test fixtures only. Every gate and test runs with the repository's
+      pinned Node first on PATH.
     gates:
       - id: mise-state-proof
         kind: command
