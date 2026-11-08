@@ -1,0 +1,7 @@
+interlock: notes@v0
+node: exec-runtime
+entries:
+  - kind: choice
+    at: "2026-11-08T00:00:00Z"
+    chose: Add the exec profile fields and launch preparation before replacing pane orchestration.
+    because: The acceptance makes the catalogue and runtime boundary additive; parsing and template validation are independently testable and preserve existing pane profiles while the headless path is built.
