@@ -1,0 +1,11 @@
+interlock: notes@v0
+node: watch-paths-precise-fixed
+entries:
+  - kind: surprise
+    at: "2026-11-08T12:00:00Z"
+    expected: The resumed session would have an existing notes.yaml beside its canonical brief.
+    observed: The worktree is clean and the session directory contains only brief.md; notes.yaml has not yet been created.
+  - kind: choice
+    at: "2026-11-08T12:01:00Z"
+    chose: Merge graph/0060-headless-runtime/watch-paths-precise and origin/main with signed forward merge commits before fixing the two reported runner failures.
+    because: The acceptance requires both source histories to be present and signed, and the failures must be reproduced on the combined tree before their causes are corrected.
