@@ -1052,6 +1052,55 @@ nodes:
         kind: command
         run: pnpm typecheck
 
+  - id: start-failure-is-not-a-timeout
+    role: implementer
+    depends_on: []
+    acceptance: |
+      An exec phase whose program cannot start is recorded as a start failure, never as a run timeout, however late the
+      evidence arrives. packages/runner/test/execRuntime.test.ts ("distinguishes launcher, node, and profile-program start
+      failures", timeoutMs 2_000 at :150) failed in a judge on 2026-11-08 with "run timeout 2000ms" where it expects
+      "program could not start: ENOENT". Reproduced in a scratch copy with a synthetic delay, not load: when the
+      launcher's exit.json carrying the spawn error is written 2.5 s after "go", the phase is recorded as "run timeout
+      2000ms" (with no delay it is ENOENT). Two causes, both in code:
+      - packages/runner/src/execRuntime.ts:712-715 races waitForProgramExit against timeoutMs, and the final reason
+        (:818-826) puts timedOut ahead of programError, so a start failure that lands after the deadline is lost even
+        though its exit.json says so.
+      - waitForProgramExit (:309-346) notices exit.json only through a directory watcher event naming it, plus one read
+        at the start; the launcher writes exit.json atomically through a temp file and a rename
+        (packages/runner/src/execLauncher.ts:28-31, :215-219). On macOS the directory watch can coalesce or delay events
+        and may name only the temp file, so a promptly written exit.json can go unnoticed until the deadline.
+      What changes:
+      - The outcome is decided by evidence: after the deadline, before TERM, the runner reads exit.json once more; a
+        recorded spawn error makes the phase a start failure ("program could not start: <code>") with the deadline noted
+        in the transcript, not a timeout. A program that really started and ran past the deadline is still a run
+        timeout.
+      - waitForProgramExit does not depend on one watcher event: it also re-reads exit.json at a bounded interval (and on
+        any event in the folder), so a missed or coalesced event delays observation by at most that interval.
+      - No test-only switch ships in the launcher or the runner; tests reach the timing through injected seams (the
+        watcher and the clock or delay), or through fixture programs.
+      Tests:
+      - packages/runner/test/startFailureNotTimeout.test.ts: a spawn error written after the deadline, before TERM, is
+        recorded as a start failure; a watcher that delivers no event (an injected watcher that drops every event) still
+        observes exit.json within the poll interval; a program that starts and runs past the deadline is still recorded
+        as a run timeout; the existing execRuntime.test.ts case passes unchanged.
+      Every gate and test runs with the repository's pinned Node first on PATH. No test is excluded.
+    gates:
+      - id: start-failure-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/startFailureNotTimeout.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: exec-runtime-still
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/execRuntime.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: runner-suite
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: start-failure-types
+        kind: command
+        run: pnpm typecheck
+
   - id: exec-runtime
     role: implementer
     depends_on: []
