@@ -542,6 +542,46 @@ nodes:
         kind: command
         run: pnpm typecheck
 
+  - id: scope-guard-sees-folders
+    role: implementer
+    depends_on: []
+    acceptance: |
+      The scope guard sees inside a folder git lists as one entry, and its hold cannot be cleared by a judge alone.
+      On 2026-11-08 every Preston run's first snapshot failed: the main checkout holds untracked .worktrees-retired/
+      folders containing nested repositories, git status --untracked-files=all (packages/runner/src/scopeGuard.ts:74-77)
+      lists each as one entry ending in "/", and fileEntry (scopeGuard.ts:110-120) refuses it as "not a regular file".
+      Two sessions (0047 review-draws, 0044 serve-stops-when-its-database-goes) were held at their work turn with
+      nothing protected, and interlock judge later cleared one of them over that hold without checking anything.
+      - Folders: an untracked entry ending in "/" is walked the way a watch_paths folder is (collectWatchFiles,
+        skipping .git), each file recorded by its path under the entry, so a write inside such a folder is caught
+        and an untouched one is quiet. A symbolic link is recorded as a link, never followed. The snapshot never
+        refuses on a directory entry.
+      - Holds: a node whose outcome is held by the scope guard is not cleared by interlock judge alone. The judge
+        refuses to clear it, naming the guard's reason and paths, unless one of two things happened since: the
+        guard's comparison is run again for that session at the judged head and finds no change outside the
+        worktree, recorded as a receipt; or a person clears it with interlock gate clear-style verb naming the
+        session and the paths and a because. A snapshot failure counts as a hold here, not as a pass.
+      Tests in packages/runner/test/scopeGuard.test.ts and packages/cli/test (the judge):
+      - a main checkout with an untracked folder that holds a nested repository: the snapshot succeeds; a phase that
+        writes a file inside that folder holds the node and names the file; a phase that leaves it alone passes;
+      - a symbolic link inside such a folder is recorded as a link and its target is never read;
+      - a node held by the guard (a stray write, and separately a snapshot failure): interlock judge refuses to clear
+        it and names the reason; after a recorded re-run of the comparison that finds nothing, judge clears it; after
+        a person's named clear, judge clears it.
+      Strict TypeScript, no type assertions, no non-null operators. No push, no merge; the human merges.
+    gates:
+      - id: scope-guard-folders-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/scopeGuard.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: runner-suite
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: scope-guard-folders-types
+        kind: command
+        run: pnpm typecheck
+
   - id: exec-runtime
     role: implementer
     depends_on: []
