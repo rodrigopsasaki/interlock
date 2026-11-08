@@ -57,3 +57,19 @@ entries:
     at: "2026-11-08T01:29:00Z"
     asked: May I create the next signed commit for the worktree-scoped exec runtime changes now?
     options: [yes, no]
+  - kind: surprise
+    at: "2026-11-08T03:37:45Z"
+    expected: The standing repository test gate would run against the worktree's isolated state.
+    observed: The full test gate reached two CLI session-show failures while reading the shared main checkout ledger, including an unsupported event@v11 line; runner, schema, and exec-runtime tests passed.
+  - kind: surprise
+    at: "2026-11-08T03:39:00Z"
+    expected: The required debrief prepare command would derive the session start from the worktree's readable journal.
+    observed: It refused because the shared main checkout journal is corrupt at line 5182 with an unsupported event@v11 shape; the candidate must be authored locally and the derived filing/graph validation limitation remains open.
+  - kind: surprise
+    at: "2026-11-08T03:41:00Z"
+    expected: file-derived would link the validated candidate into debrief.yaml after the preview.
+    observed: It refused at the same journal parse before linking; the final debrief is therefore copied as the validated authored document with the refusal recorded here and in open.
+  - kind: choice
+    at: "2026-11-08T03:42:00Z"
+    chose: Keep the signed code commit 60cfb3d and make the debrief artifact the final commit without amending or forcing history.
+    because: The coordinator confirmed the brief's standing authorization, and the session rules require the debrief commit to be last while preserving the code commit as the debrief head.

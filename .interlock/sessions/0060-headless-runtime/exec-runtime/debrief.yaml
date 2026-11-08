@@ -1,0 +1,75 @@
+interlock: debrief@v2
+graph: 0060-headless-runtime
+node: exec-runtime
+role: implementer
+graph_base_sha: a9239f81fa7938d858c06e4bd8b270285e6ad3a0
+session_start_sha: 2c307185edc2b8766f097c5d7ebd09ccffb619b5
+head_sha: 60cfb3d4fd07960be92cc9adbfc095b6d5b5b71a
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: exec-catalogue-contract
+    what: Keep the exec runtime additions additive to runtimes@v2 and let machine configuration own argv and MCP templates.
+    because: The profile parser preserves the existing provider and routable contract while validating only the new exec fields, so the runner remains unaware of provider-specific names and flags.
+    rests_on: [notes:choice-00:00, notes:choice-00:10]
+    hunks: [packages/runner/src/runtimeCatalogue.ts:25-44, packages/runner/src/runtimeCatalogue.ts:251-356]
+    applies_to:
+      kind: path
+      path: packages/runner/src/runtimeCatalogue.ts
+  - id: detached-phase-containment
+    what: Run each exec phase through a detached launcher that records its anchor before go, owns group signals, and publishes transcript-backed terminal state.
+    because: A phase must stay running until the group is confirmed empty, and its transcript end line must precede publication of the terminal record.
+    rests_on: [notes:choice-00:20, notes:surprise-01:15]
+    hunks: [packages/runner/src/execLauncher.ts:48-60, packages/runner/src/execLauncher.ts:92-225, packages/runner/src/execRuntime.ts:482-509, packages/runner/src/execRuntime.ts:678-795]
+    applies_to:
+      kind: path
+      path: packages/runner/src/execRuntime.ts
+  - id: phase-sequence
+    what: Reuse the runner's worktree, commit, debrief, and judge path while replacing the second prompt with work and debrief exec phases sharing one session id.
+    because: This keeps approval, leases, declared-path custody, and graph judgment in the existing runner flow while making phase parentage explicit for the app.
+    rests_on: [notes:choice-01:23, notes:choice-01:26]
+    hunks: [packages/runner/src/sessionDrive.ts:430-570]
+    applies_to:
+      kind: path
+      path: packages/runner/src/sessionDrive.ts
+  - id: owned-command-boundary
+    what: Route runner process starts and provider commands through the owned-command adapter, and expose the exec session and transcript view through the sessions CLI.
+    because: The runner needs one process-start seam and the app contract reads durable sessions and transcript lines instead of runtime state.
+    rests_on: [notes:choice-01:06]
+    hunks: [packages/runner/src/ownedCommand.ts:1-75, packages/cli/src/sessions.ts:1-80, schemas/sessions@v0.json:1-47]
+    applies_to:
+      kind: repository
+  - id: focused-exec-proof
+    what: Add fixture-only exec tests for normal streams, refusal before spawn, grandchild reaping, timeout escalation, and launch/program failure distinctions.
+    because: These tests exercise the durable record and transcript behavior without depending on a real agent runtime.
+    rests_on: []
+    hunks: [packages/runner/test/execRuntime.test.ts:27-180]
+    applies_to:
+      kind: path
+      path: packages/runner/test/execRuntime.test.ts
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+  - id: test
+    result: fail
+    invocation: mise exec -- pnpm test
+    note: Runner and schema suites passed; two CLI session-show tests failed because the shared main checkout ledger contains unsupported event@v11 at line 5182.
+  - id: exec-runtime-proof
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter runner exec vitest run test/execRuntime.test.ts --passWithNoTests=false
+open:
+  - "The full test gate remains unresolved: packages/cli/test/session/show.test.ts has two failures caused by the shared main checkout ledger being corrupt at line 5182 with event@v11, outside this worktree's permitted write scope."
+  - "The acceptance's dead-runner recovery, launch-nonce recovery, orphan obligations, admission release overrides, and monotonic recovery paths are not implemented in this diff."
+  - "Provider bind and release calls are routed through the command seam but are not yet durable outbox effects with lost-ack replay."
+  - "The acceptance's command-level launcher anchors, owned git executor for verifier and face, and helper-sleeper proofs remain open."
+  - "Ask answering, detached-grandchild and escaped-stream proofs, review-session defaults, and full live-session admission behavior remain open beyond the focused fixture coverage."
