@@ -960,6 +960,54 @@ nodes:
         kind: command
         run: pnpm typecheck
 
+  - id: home-on-main
+    role: implementer
+    depends_on: [codex-home-outside-worktree, line-fits]
+    acceptance: |
+      codex-home-outside-worktree's acceptance, built on main as it is now. That node cleared on a worktree cut from
+      49b3a80 (the plan merge of #139), before marker-never-dropped (ce12af1) and line-fits (1d4790c) landed, because its
+      first launch was refused at the line limit after creating the worktree and the resumed run reused it. Its agent
+      re-implemented the overlay inside that stale base, so its branch (graph/0060-headless-runtime/codex-home-outside-
+      worktree, head cb52d88) conflicts with main in packages/runner/src/codex/config.ts, runtime.ts, sessionDrive.ts and
+      two tests, and cannot land. This node does the same work on main's code.
+      - Change main's createOverlay and its callers (packages/runner/src/codex/config.ts, sessionDrive.ts), do not
+        replace them: keep marker-never-dropped's configured-server delivery, refusals and symlink layout, and line-fits'
+        move of the runner's shell_environment_policy entries into the overlay profile.
+      - Everything codex-home-outside-worktree's acceptance asks, word for word: the machine state directory
+        ($XDG_STATE_HOME/interlock or ~/.local/state/interlock, mode 0700, resolved in one place), overlays under
+        <state>/codex-homes/<graph>/<node>/<session> recording their owner journal, physical containment refused inside
+        any git worktree or repository including symlink aliases, removal only on confirmed termination or a freshly
+        read owner journal recording it, never traversing a symlink at any level, the tmux adapter carrying the
+        prepared environment or refusing, and the write-through contract.
+      - Tests: carry over the cleared branch's packages/runner/test/codexHomeOutsideWorktree.test.ts and
+        tmuxOverlay.test.ts (git show cb52d88:<path>), adjusted only where main's code differs, keeping every case:
+        placement, in-repo and alias refusals, unrelated-repository refusal, HOME fallback, removal on confirmed
+        termination, the three keep cases, sentinel symlinks at each traversal level, and both checkouts clean after a
+        real codex launch. Every fixture home is built under the OS temp folder; nothing links to the owner's real
+        codex home. main's markerNeverDropped, realCodexMarkerOverflow, lineFits and lineFitsRealCodex tests still
+        pass unchanged except where the overlay's location is asserted.
+      Every gate and test runs with the repository's pinned Node first on PATH. No test is excluded.
+    gates:
+      - id: overlay-outside-worktree-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/codexHomeOutsideWorktree.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: tmux-overlay-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/tmuxOverlay.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: marker-and-line-still
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/markerNeverDropped.test.ts test/realCodexMarkerOverflow.test.ts test/lineFits.test.ts test/lineFitsRealCodex.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: runner-suite
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: home-on-main-types
+        kind: command
+        run: pnpm typecheck
+
   - id: exec-runtime
     role: implementer
     depends_on: []
