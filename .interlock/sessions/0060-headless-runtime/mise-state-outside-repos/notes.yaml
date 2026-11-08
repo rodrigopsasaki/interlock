@@ -69,3 +69,16 @@ entries:
       The test's fixed threshold was invalid for this longer worktree name, while the reduced
       payload still leaves the unmarked command below 1024 bytes and the marked command at or above
       the same boundary.
+  - kind: surprise
+    at: '2026-11-08T20:27:52Z'
+    expected: The full workspace gate would be clean after the runner suite passed.
+    observed: >-
+      The CLI fixture guard rejected the new tool-state helper's direct child-process Git reads;
+      those reads are being routed through the repository's approved fixture Git adapter before the
+      final workspace gate is rerun.
+  - kind: choice
+    at: '2026-11-08T20:27:52Z'
+    chose: Route protected-root discovery through test/support/gitFixture.ts.
+    because: >-
+      The helper needs read-only Git worktree information, and the repository's fixture adapter is
+      the established audited boundary that also suppresses Git auto-maintenance for fixture calls.

@@ -1,7 +1,7 @@
-import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { fixtureGit } from "../../../../test/support/gitFixture.ts";
 
 export interface ToolState {
   readonly directory: string;
@@ -10,14 +10,11 @@ export interface ToolState {
 }
 
 function repositoryRoot(): string {
-  return execFileSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8" }).trim();
+  return fixtureGit(["rev-parse", "--show-toplevel"]).trim();
 }
 
 function worktreeRoots(root: string): readonly string[] {
-  const output = execFileSync("git", ["worktree", "list", "--porcelain"], {
-    cwd: root,
-    encoding: "utf8",
-  });
+  const output = fixtureGit(["worktree", "list", "--porcelain"], { cwd: root });
   return output
     .split(/\r?\n/)
     .filter((line) => line.startsWith("worktree "))
@@ -28,10 +25,7 @@ function worktreeRoots(root: string): readonly string[] {
 
 function protectedRoots(root: string): readonly string[] {
   const checkout = realpathSync(root);
-  const commonDirectory = execFileSync("git", ["rev-parse", "--git-common-dir"], {
-    cwd: checkout,
-    encoding: "utf8",
-  }).trim();
+  const commonDirectory = fixtureGit(["rev-parse", "--git-common-dir"], { cwd: checkout }).trim();
   const repository = dirname(resolve(checkout, commonDirectory));
   const worktrees = join(repository, ".worktrees");
   return [repository, checkout, worktrees, ...worktreeRoots(checkout)].map((path) => resolve(path));
