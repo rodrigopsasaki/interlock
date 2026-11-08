@@ -105,3 +105,11 @@ entries:
     because: >-
       Serial execution separates suite-level resource contention from behavior without changing
       production code or excluding any test.
+  - kind: surprise
+    at: '2026-11-08T18:31:00Z'
+    expected: The serial runner suite would preserve the repaired dependency links for its whole
+      run.
+    observed: >-
+      Serial execution still left the same three machine-provider failures and later lost the
+      repository-local tinypool worker entry while install-oriented tests ran; no new overlay or
+      marker failure appeared.
