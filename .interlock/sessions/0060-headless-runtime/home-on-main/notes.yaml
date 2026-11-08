@@ -159,3 +159,26 @@ entries:
     because: >-
       The carried-over assertion intentionally verifies the inherited session marker value; unique
       temporary HOME and XDG_STATE_HOME roots already prevent overlay identity collisions.
+  - kind: surprise
+    at: '2026-11-08T19:08:00Z'
+    expected: The exact runner suite would reproduce the judge's single carried-over marker failure
+      after its fixture was isolated.
+    observed: >-
+      The markerConfiguredServers file passed 3/3, while the isolated full runner command reported
+      557/626 passed and 69 failures across unrelated machine-provider, setup, gate, backfill,
+      absorb, and timeout cases; the command's own report did not identify another marker failure.
+  - kind: choice
+    at: '2026-11-08T19:08:00Z'
+    chose: Keep the production overlay implementation and the marker assertion unchanged beyond fixture isolation.
+    because: >-
+      The reproduced refusal was caused by persistent state reuse, the focused test passes after
+      isolation, and changing unrelated code or weakening the assertion would not address the
+      observed failure.
+  - kind: surprise
+    at: '2026-11-08T19:09:00Z'
+    expected: A temporary empty HOME would let mise execute the repository's pinned tools without
+      additional setup.
+    observed: >-
+      mise attempted to install repository-configured tools into the package test .runs state;
+      that probe was interrupted and its scratch directories are being removed, with no owner home
+      or owner configuration used.
