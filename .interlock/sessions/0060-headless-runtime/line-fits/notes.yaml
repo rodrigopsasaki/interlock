@@ -61,3 +61,19 @@ entries:
     at: "2026-11-08T15:31:00Z"
     expected: The standing lint gate would remain green after the loopback test was formatted.
     observed: Biome reported one new import-order error in lineFitsRealCodex.test.ts alongside the two pre-existing runnerCommits.test.ts diagnostics; the import order was corrected before continuing.
+  - kind: surprise
+    at: "2026-11-08T15:38:00Z"
+    expected: The standing workspace test would judge the committed worktree without unrelated generated artifacts.
+    observed: The schema corpus test read the existing untracked launch-local codex-home-shDV73 session logs and failed two corpus assertions; the generated directory is being removed before the rerun and will not be staged.
+  - kind: choice
+    at: "2026-11-08T15:45:00Z"
+    chose: Rerun the standing workspace gate with the stale inherited CODEX_HOME variable unset after removing its launch-local target.
+    because: The process environment still pointed at the removed generated home, causing the machine-provider fixture to fail before its own assertions; unsetting that ambient path restores the gate's isolated fixture inputs without changing repository state.
+  - kind: surprise
+    at: "2026-11-08T15:53:00Z"
+    expected: The prepared debrief candidate would parse on the first preview.
+    observed: The workspace-test gate note contained an unquoted colon in a YAML plain scalar; quoting that note made the candidate parseable without changing its claim.
+  - kind: choice
+    at: "2026-11-08T15:57:00Z"
+    chose: Add the successful debrief-valid receipt to the fresh authored candidate and revise the filed debrief once more.
+    because: The final handoff must carry the validation proof for the authored debrief and notes, not only the implementation and test receipts.
