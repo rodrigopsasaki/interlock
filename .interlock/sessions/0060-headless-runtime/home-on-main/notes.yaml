@@ -182,3 +182,15 @@ entries:
       mise attempted to install repository-configured tools into the package test .runs state;
       that probe was interrupted and its scratch directories are being removed, with no owner home
       or owner configuration used.
+  - kind: surprise
+    at: '2026-11-08T19:12:00Z'
+    expected: The fresh candidate's prepared session_start_sha would be accepted by debrief revise.
+    observed: >-
+      revise rejected the prepared start because the filed debrief binds this continuing session to
+      72132ef3771e5197047def85eee65c30ae178942; the candidate was corrected to that existing identity.
+  - kind: choice
+    at: '2026-11-08T19:12:00Z'
+    chose: Preserve the existing filed debrief's session_start_sha in the correction candidate.
+    because: >-
+      A revise must select a correction for the same filed session; changing its start identity would
+      make the candidate a different session rather than a correction.

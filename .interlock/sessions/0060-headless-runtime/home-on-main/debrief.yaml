@@ -4,7 +4,7 @@ node: home-on-main
 role: implementer
 graph_base_sha: 70bcce800291c2dae52343f653e175fa440f32fb
 session_start_sha: 72132ef3771e5197047def85eee65c30ae178942
-head_sha: a734179270280c0e4eac7c653a502c4764e07401
+head_sha: 43d9cd87ab8f8d51cf42aeb8417fd5aed59c470a
 derivation:
   kind: agent
   runtime: codex
@@ -65,6 +65,16 @@ decisions:
       - packages/runner/test/lineFits.test.ts:1-220
       - packages/runner/test/lineFitsRealCodex.test.ts:1-280
       - vitest.config.base.ts:13-18
+  - id: configured-marker-fixture-isolation
+    what: Isolate the configured marker-server long-line fixture with temporary HOME and XDG_STATE_HOME roots, a temporary CODEX_HOME, and a Git ceiling while preserving the inherited session marker assertion.
+    because: The launch error was an existing overlay path caused by the fixture falling back to persistent state; the test must exercise overlay delivery without reading or reusing an owner home.
+    rests_on:
+      - ".interlock/graphs/0060-headless-runtime.yaml (Acceptance: carried-over marker tests adapted to main)"
+      - notes:choice-2026-11-08T19:02:00Z
+      - notes:surprise-2026-11-08T19:01:00Z
+      - packages/runner/test/markerConfiguredServers.test.ts:1-140
+    hunks:
+      - packages/runner/test/markerConfiguredServers.test.ts:1-140
 gates_run_by_agent:
   - id: typecheck
     result: pass
@@ -109,15 +119,15 @@ gates_run_by_agent:
   - id: runner-suite
     result: fail
     invocation: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
-    note: Parallel and serial attempts both failed in existing command-heavy runner tests; the serial attempt reported the same machine-provider profile assertion and lost the local tinypool worker during install-oriented tests.
+    note: The exact isolated run reported 557/626 passed and 69 failures; markerConfiguredServers.test.ts passed 3/3, while failures included unrelated machine-provider expectations and command, setup, gate, absorb, and backfill timeouts.
   - id: home-on-main-types
     result: pass
     invocation: pnpm typecheck
-    note: The final workspace typecheck passed again.
+    note: The final workspace typecheck passed again before this correction was prepared.
   - id: debrief-valid
     result: pass
     invocation: pnpm interlock debrief validate 0060-headless-runtime home-on-main
-    note: The filed debrief and notes will be validated before the final artifact commit.
+    note: The revised debrief will be validated before its final artifact commit.
 open:
   - "The standing test gate remains unresolved: pnpm test reached packages/runner and reported 69 failures or timeouts, while the focused acceptance proofs passed."
-  - "The runner-suite gate remains unresolved for the same command-heavy machine-provider and setup/gate tests; its install-oriented tests also remove the local tinypool worker entry during the run."
+  - "The runner-suite gate remains unresolved: the exact isolated command reported 557/626 passed and 69 failures; the corrected configured marker-server test passed 3/3, and the remaining failures are outside this node's diff."
