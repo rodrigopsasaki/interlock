@@ -194,3 +194,10 @@ entries:
     because: >-
       A revise must select a correction for the same filed session; changing its start identity would
       make the candidate a different session rather than a correction.
+  - kind: choice
+    at: '2026-11-08T19:35:00Z'
+    chose: >-
+      Run the repository formatter only on packages/runner/test/markerConfiguredServers.test.ts.
+    because: >-
+      The judge identified one formatting error in that file and explicitly limited this correction
+      to the formatter's output for that path.

@@ -121,12 +121,9 @@ describe("configured Codex marker servers", () => {
       join(home, "config.toml"),
       names.map((name) => `[mcp_servers.${name}]\ncommand = "${name}"\n`).join("\n"),
     );
-    const launch = prepareLaunch(
-      runtime(),
-      root,
-      environment(home),
-      { listCodexMcp: () => ok(names) },
-    );
+    const launch = prepareLaunch(runtime(), root, environment(home), {
+      listCodexMcp: () => ok(names),
+    });
     expect(isOk(launch)).toBe(true);
     if (!isOk(launch)) return;
     expect(["codex", ...launch.value.args].join(" ").length).toBeLessThan(1024);
