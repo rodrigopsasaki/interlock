@@ -898,40 +898,59 @@ nodes:
     role: implementer
     depends_on: [marker-never-dropped]
     acceptance: |
-      A codex launch that takes the overlay path fits the terminal line whatever the repository path or node id.
-      prepareCodexLaunch (packages/runner/src/codex/config.ts, the overlayArgs line before the second lineBytes
-      check) rebuilds argv with agentEnvironmentArgs("codex", args, environment, []), which drops only the MCP marker
-      overrides: the shell_environment_policy.set.<KEY> overrides for every launch variable (NODE_OPTIONS, the machine
-      provider's VITEST limits, INTERLOCK_SESSION, INTERLOCK_GRAPH, INTERLOCK_NODE) and the runtime's own
-      `-c key=value` arguments stay on the line. A gilb launch measured 993 of 1024 bytes on the overlay path, and
-      interlock's codex-home-outside-worktree launch (2026-11-08 13:42 UTC) was refused: "launch refused for hypha,
-      node_repl, computer-use, dialeto: Codex launch line remains at or above 1024 UTF-8 bytes". Any interlock node
-      whose id is longer than about a dozen characters cannot launch on codex.
-      - On the overlay path every setting codex can read from its config goes into the generated overlay profile
-        instead of argv: the shell_environment_policy.set entries and each runtime `-c key=value` argument, written as
-        the TOML they denote, with the same values. The line keeps only what codex cannot take from config (the
-        program, `--profile <generated>`, and flags with no config key), and the debrief names each flag kept and why.
-      - Values are unchanged: a test launches real codex through the overlay and reads, from a shell command codex
-        runs and from a fixture MCP child, the same NODE_OPTIONS, VITEST limits and three marker values the argv path
-        delivers.
-      - The argv path is unchanged when the full line fits.
-      - The refusal stays, now reached only when the irreducible line (program, profile selector, flags with no config
-        key) is itself at or over the limit.
+      A codex launch that takes the overlay path fits the terminal line for the runner's own launch shapes, without
+      changing what any setting means. prepareCodexLaunch (packages/runner/src/codex/config.ts, the overlayArgs line
+      before the second lineBytes check) rebuilds argv with agentEnvironmentArgs("codex", args, environment, []), which
+      drops only the MCP marker overrides; the runner's generated shell_environment_policy.set.<KEY> overrides
+      (packages/runner/src/codex/environment.ts:16: NODE_OPTIONS, the machine provider's VITEST limits,
+      INTERLOCK_SESSION, INTERLOCK_GRAPH, INTERLOCK_NODE, about 600 bytes) stay on the line. A gilb launch measured 993
+      of 1024 bytes on the overlay path, and interlock's codex-home-outside-worktree launch (2026-11-08 13:42 UTC) was
+      refused: "launch refused for hypha, node_repl, computer-use, dialeto: Codex launch line remains at or above 1024
+      UTF-8 bytes".
+      - On the overlay path, the runner's generated shell_environment_policy.set entries move into the generated
+        overlay profile, written as one [shell_environment_policy.set] table placed where it cannot fall inside
+        another table of the selected profile, each value a TOML basic string equal to the value argv carried. Nothing
+        else moves: the runtime's own `-c` arguments, every flag, --add-dir, and any positional arguments (exec mode,
+        prompts) stay on argv exactly as they are.
+      - Precedence is preserved. Command-line overrides outrank the project layer, and profiles sit below it, so a key
+        that the effective trusted project configuration, or a `-c` among the runtime's own arguments, also sets in
+        shell_environment_policy.set stays on argv. The shell sees the same value for every moved key as on the argv
+        path. shell_environment_policy.set merges by key with lower layers, so base-only variables survive.
+      - The refusal stays, reached only when the line is still at or over the limit after the move; it names the
+        servers, as today.
+      - The debrief states each key that moved and each that stayed, with its reason.
       Tests:
-      - packages/runner/test/lineFits.test.ts: with a repository path and node id long enough that today's overlay line
-        is refused (at least 1100 bytes of argv before the move), the prepared overlay line is under 1024 UTF-8 bytes,
-        the overlay profile holds every moved setting with its value, and an irreducible line over the limit is still
-        refused by name; real codex started through that overlay runs a shell command that prints the launch
-        variables and starts a fixture MCP child that records its environment, and both match.
+      - packages/runner/test/lineFits.test.ts: with the shape that was refused (the interlock repository path, graph
+        0060-headless-runtime, a node id of at least 27 characters, the machine provider's full environment), the
+        prepared overlay line is under 1024 UTF-8 bytes and the overlay profile holds each moved key with its exact
+        value; a selected profile that ends in a table keeps its tables intact; a trusted project config that sets
+        NODE_OPTIONS keeps NODE_OPTIONS on argv; a runtime `-c shell_environment_policy.set.X=...` keeps X on argv; a
+        base-config-only variable survives in the effective map; an irreducible line over the limit is still refused
+        by name; the argv path is unchanged when the full line fits.
+      - packages/runner/test/lineFitsRealCodex.test.ts: real codex launched through the overlay of that shape runs a
+        command through a model-free path codex offers that applies the resolved shell_environment_policy (for
+        example the app-server command/exec request), with the policy's inherit set to "none" in the fixture home so
+        an inherited variable cannot pass for a moved one; the command's output carries NODE_OPTIONS, the VITEST
+        limits and the three markers with their values, and a fixture MCP child records the three markers. If codex
+        offers no model-free command path that applies the policy, the test instead drives codex against a local
+        deterministic provider fixture on loopback that asks for one shell call; the debrief names which path was used.
       Every gate and test runs with the repository's pinned Node first on PATH. No test is excluded.
     gates:
       - id: line-fits-proof
         kind: command
         run: pnpm --fail-if-no-match --filter runner exec vitest run test/lineFits.test.ts --passWithNoTests=false
         expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: line-fits-real-codex
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/lineFitsRealCodex.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
       - id: marker-never-dropped-still
         kind: command
-        run: pnpm --fail-if-no-match --filter runner exec vitest run test/markerNeverDropped.test.ts test/realCodexMarkerOverflow.test.ts --passWithNoTests=false
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/markerNeverDropped.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: real-codex-overflow-still
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/realCodexMarkerOverflow.test.ts --passWithNoTests=false
         expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
       - id: runner-suite
         kind: command
