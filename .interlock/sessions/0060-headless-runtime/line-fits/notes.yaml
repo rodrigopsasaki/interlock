@@ -37,3 +37,23 @@ entries:
     at: "2026-11-08T14:17:00Z"
     chose: Revise the authored debrief after filing to add the debrief-valid gate receipt.
     because: The filed debrief and notes validate successfully, and the final report should include that proof without changing the implementation head.
+  - kind: choice
+    at: "2026-11-08T15:05:00Z"
+    chose: Drive the real Codex proof through a loopback Responses provider whose first response is a shell_call and whose second request is inspected for the shell output.
+    because: The acceptance requires a credential-free provider path, moved values to be observed by the shell execution, and no skipped test; the Responses wire is the installed Codex runtime's supported custom-provider protocol.
+  - kind: surprise
+    at: "2026-11-08T15:06:00Z"
+    expected: The first focused test command would execute from this worktree.
+    observed: A command was initially given the main checkout's package path, found no test files, and created only a redirected log there; the log was removed immediately and no source or test artifact was changed outside this worktree.
+  - kind: surprise
+    at: "2026-11-08T15:10:00Z"
+    expected: The replacement real-Codex test would resolve the same fp package import as the existing focused suite.
+    observed: The preexisting test imported the unavailable package name @phyxius/fp while this workspace exposes @phyxiusjs/fp; the replacement uses the workspace package name.
+  - kind: surprise
+    at: "2026-11-08T15:18:00Z"
+    expected: A streamed Responses response containing a shell_call item would make the installed Codex CLI execute the command.
+    observed: Codex accepted the provider response but completed without a follow-up request; its request advertises the shell executor as the exec_command function, so the fixture now returns that function_call shape.
+  - kind: choice
+    at: "2026-11-08T15:22:00Z"
+    chose: Run Codex with sentinel inherited values that differ from every moved policy and marker value while leaving the overlay profile unchanged.
+    because: The real proof must demonstrate inherit = "none" and policy application, rather than passing because the child inherited the expected values from the test process.
