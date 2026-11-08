@@ -1008,6 +1008,50 @@ nodes:
         kind: command
         run: pnpm typecheck
 
+  - id: base-is-current
+    role: implementer
+    depends_on: []
+    acceptance: |
+      A leased attempt always starts from current main, or is refused by name. Today ensureNodeWorktree reuses an
+      existing worktree (packages/runner/src/worktree.ts:231-235), and reuseWorktree (:196-226) moves it to the current
+      main sha only when the branch has no commits of its own; a branch with commits keeps its old base silently. The
+      runner commits the brief into the worktree before a launch can be refused (sessionDrive.ts, commitBriefIfChanged),
+      so a first launch refused before the agent starts leaves a branch one commit ahead on that day's main, and every
+      later resume reuses that base. codex-home-outside-worktree (2026-11-08) was refused at 13:42 on 49b3a80, resumed at
+      15:04 on the same base after marker-never-dropped and line-fits had landed, cleared, and could not land: its merge
+      with main conflicted across five files.
+      - Before leasing, a reused worktree whose base is behind current main and whose branch has its own commits merges
+        current main in, as a signed merge commit made by the runner, narrated and recorded in the ledger with the old and
+        new base. A merge that conflicts aborts cleanly (no partial merge left in the worktree) and the attempt is
+        refused by name, naming the conflicting paths, before any agent starts.
+      - A launch refused before the agent starts leaves nothing a later launch silently reuses: when the branch holds only
+        runner-written commits (the brief), the refused launch removes that worktree and branch, so the next launch cuts a
+        fresh one from current main; when it holds anything else, the merge rule above applies on the next launch.
+      - A resume of a worktree whose branch has only runner-written commits and a stale base is reset to current main, as
+        today for a branch with no commits.
+      - Uncommitted work in a worktree that needs a merge refuses by name, as dirty-behind-base does today; it is never
+        stashed or discarded.
+      Tests:
+      - packages/runner/test/baseIsCurrent.test.ts, with real git fixtures: a worktree whose branch has an agent commit on
+        an old main is merged with current main before leasing, by a signed merge commit, and the ledger records old and
+        new base; a conflicting branch is refused by name with its paths and the worktree is left with no merge in
+        progress; a launch refused before the agent starts (forced by a fixture refusal after the brief commit) leaves no
+        worktree or branch, and the next launch starts on current main; a dirty worktree that needs a merge is refused
+        and its files are untouched.
+      Every gate and test runs with the repository's pinned Node first on PATH. No test is excluded.
+    gates:
+      - id: base-is-current-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/baseIsCurrent.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: runner-suite
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: base-is-current-types
+        kind: command
+        run: pnpm typecheck
+
   - id: exec-runtime
     role: implementer
     depends_on: []
