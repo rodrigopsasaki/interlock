@@ -27,6 +27,10 @@ gates:
   kind: command
   run: pnpm --fail-if-no-match --filter cli exec vitest run test/consumedCite.test.ts --passWithNoTests=false
   expect_output: 'Tests +[1-9][0-9]* passed'
+- id: concurrent-cite-proof
+  kind: command
+  run: pnpm --fail-if-no-match --filter cli exec vitest run test/concurrentCite.test.ts --passWithNoTests=false
+  expect_output: 'Tests +[1-9][0-9]* passed'
 scope:
 - .gitignore
 - .interlock/config.yaml
@@ -1006,11 +1010,26 @@ edit it.
 > consumed for the life of the ledger. The ledger projection keeps a consumed-cite record keyed by citeKey that
 > only grows, filled from every event that carries a delegated derivation (gate-moved to satisfied or waived,
 > receipt-written, outbox intents); no later gate-moved, receipt-retracted or outcome-set removes it.
-> delegatedReceipt in packages/cli/src/delegation.ts answers from that record, so approve, clear and plan-publish
-> all refuse a consumed cite whatever the gate now reads.
+> Delegated receipts carried inside outcomes (cleared and held receipts) and derivations carried inside outbox
+> deliveries count as carrying events. delegatedReceipt in packages/cli/src/delegation.ts answers from that record
+> whatever the gate now reads. Each caller keeps its landed reuse rule: graph approve and gate clear refuse any
+> consumed cite; plan publish refuses a consumed cite unless it is the same publication (action publish, same
+> graph, same contentHash), so an interrupted publish still reconciles.
+> Spending a cite is serialized across processes: approve, clear and publish take one exclusive lock in the shared
+> journal directory (created with exclusive create; a lock whose recorded holder process is gone is broken and
+> taken over), open a fresh replay inside it, run the consumption check, append the authorization and release.
+> Verification and receipt preparation may run before the lock; the check and the append never run outside it.
 > Tests:
 > - packages/ledger/test/consumedCite.test.ts: replaying only gate-moved events (no explicit receipt-written)
 >   keeps a delegated cite consumed after the gate moves to pending, after it is replaced by another satisfied
 >   receipt, and after receipt-retracted; an owner's own receipt (no citeKey) never enters the record;
+> - packages/ledger/test/consumedCite.test.ts also: a delegated receipt that appears only inside an outcome, and a
+>   derivation that appears only inside an outbox delivery, both consume their cite;
 > - packages/cli/test/consumedCite.test.ts: a delegated clear whose gate was then moved to pending, replaced and
->   retracted (each case separately) refuses reuse of the same cite for another act and for other content.
+>   retracted (each case separately) refuses reuse of the same cite for another act and for other content; an
+>   already-consumed publication cite reconciles the same publication (same graph, same hash) and is refused for
+>   another graph, another hash and another action;
+> - packages/cli/test/concurrentCite.test.ts: two callers spend one cite on two different acts, the first held
+>   inside the lock by an injected pause between its check and its append while the second starts; exactly one
+>   act is appended and the other is refused naming the consumed cite; a stale lock left by a dead holder is
+>   taken over.

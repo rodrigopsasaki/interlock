@@ -1001,12 +1001,18 @@ edit it.
 > A delegated human clearance (a satisfied human gate whose receipt derivation carries a contentHash) counts only
 > while Interlock can show its graph content is unchanged. judgeGates, and judgeWorktree which forwards to it,
 > take the authoritative graph path as a required field, and every caller supplies it: packages/cli/src/judge.ts and packages/runner/src/sessionDrive.ts
-> the root graph file, packages/runner/src/backfill.ts the root graph file whose declarations it judges. A
-> delegated clearance stands only when both the authoritative copy and the judged worktree copy are readable and
-> both hash to its bound contentHash. Otherwise (either copy missing or unreadable, or either hash different) the
+> the root graph file, packages/runner/src/backfill.ts the root graph file whose declarations it judges. Each
+> caller reads the graph bytes once, parses those bytes and passes the hash of exactly those bytes with the
+> declarations, so the declarations judged are bound to their content. A delegated clearance stands only when the
+> authoritative copy and the judged worktree copy are both readable and both hash to its bound contentHash, and
+> the parsed-bytes hash equals it too. Otherwise (either copy missing or unreadable, or either hash different) the
 > gate moves back to pending with the same move and narration a stale clearance gets today. The final view reads
 > both copies again after the command gates have run and applies the same rule, so a gate command that changes or
-> removes the graph leaves the delegated clearance pending in the resolved outcome. A clearance without a
+> removes the graph leaves the delegated clearance pending in the resolved outcome. Every exit from judgeGates
+> applies the rule too: a refusal (scope, output, placeholder) or a thrown read failure, including createReceipt
+> failing on a tracked graph a command removed, first re-reads both copies, moves every delegated clearance that
+> no longer stands to pending and sets the node held on it, then returns the refusal; a read failure inside
+> createReceipt becomes a scope refusal, never an uncaught throw. A clearance without a
 > contentHash is never held by this rule. Because the cite stays consumed (cite-stays-consumed), the hold never
 > frees it. Restoring the graph to the bound content, or the owner's own clearance, clears the gate again.
 > Tests:
@@ -1016,4 +1022,10 @@ edit it.
 >   a backfill-shaped call; it is held when a passing gate command removes the graph during judgment, and when
 >   one rewrites it; with both copies unchanged it still counts; an owner's own clearance (no contentHash) still
 >   counts with the graph removed; after a hold, restoring the bound graph clears the node again, and so does the
->   owner's own clearance.
+>   owner's own clearance;
+> - packages/runner/test/delegatedFailsClosed.test.ts also, at caller level: a judge that parsed H2 while both
+>   files were then restored to H1 before judgment holds an H1-bound delegated clearance (parsed-bytes hash
+>   differs), for judgeWorktree and for a backfill-shaped call; on a real git fixture with the graph tracked and
+>   judged through judgeWorktree with gitScope, a passing gate command that removes the graph leaves the node held,
+>   never cleared, and judgment returns a refusal rather than throwing; a placeholder refusal after a delegated
+>   clearance was already moved to pending leaves the node held, not cleared.

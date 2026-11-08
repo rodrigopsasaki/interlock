@@ -998,12 +998,15 @@ edit it.
 
 ## Acceptance (verbatim from the graph)
 
-> Retracting a delegated receipt withdraws what it authorized. When `interlock receipt retract` retracts the
-> satisfied receipt of a node whose outcome is cleared, it appends, after receipt-retracted, an outcome-set that
-> holds the node on that gate awaiting a person, with the same held shape gateJudge gives a pending human gate. A
-> retraction on a node that is not cleared changes no outcome. The retracted cite stays consumed.
+> Retracting a delegated receipt withdraws what it authorized, as a consequence of replaying the retraction
+> itself. In packages/ledger/src/projection.ts, a receipt-retracted that moves a gate to pending also replaces a
+> cleared outcome on that node with a held outcome on that gate awaiting a person (expiry 0, so it is due for
+> revisit at once); a retraction on a node that is not cleared, or one that does not match the satisfied receipt,
+> changes no outcome. `interlock receipt retract` appends only receipt-retracted, as today: one append, nothing to
+> interrupt. Retractions already in a journal take effect on the next replay. The retracted cite stays consumed.
 > Tests:
 > - packages/cli/test/retractionHoldsOutcome.test.ts: on a fixture ledger with a cleared node whose human gate
 >   holds a delegated receipt, retraction and replay show the node held (not cleared), position reports it held,
->   and unmetDependencies for a dependent names it; retracting on a node that is not cleared leaves its outcome
->   untouched.
+>   and unmetDependencies for a dependent names it; a journal that ends immediately after receipt-retracted
+>   (no later event of any kind) replays the same way; retracting on a node that is not cleared leaves its outcome
+>   untouched; after retraction the retracted cite is refused for a new clear.
