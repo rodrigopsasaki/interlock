@@ -48,6 +48,7 @@ import {
 } from "./runtime.ts";
 import type { ResolvedRuntime } from "./runtimeCatalogue.ts";
 import { gitTrackedFiles } from "./scope.ts";
+import { changedScopePaths, describeScopeChange, snapshotScope } from "./scopeGuard.ts";
 import { type BriefWriteOutcome, buildBrief } from "./sessionBrief.ts";
 import { findInheritedSessionStart, type SessionInheritance } from "./sessionRange.ts";
 import { lastNonEmptyLine, writeScreenSnapshot } from "./sessionScreen.ts";
@@ -651,6 +652,29 @@ export async function driveInteractiveSession(
     const observing = runtime;
     const identity = { graph, node, session: sessionId };
     const observe = async () => (await observeRuntime(observing)).attempt(identity);
+    const scopeGuardBecause = (phase: string, detail: string): string =>
+      `scope guard held node: session ${sessionId}, phase ${phase}, runtime profile ${agentRuntime.name}; ${detail}`;
+    const holdForScopeGuard = (phase: string, detail: string): DriveSessionOutcome => {
+      const because = scopeGuardBecause(phase, detail);
+      narrate(because);
+      const held = outcome.held(
+        [],
+        heldOn.gateFailure(because, "hold"),
+        because,
+        clock.now().wallMs + HELD_REVISIT_MS,
+      );
+      ledger.append({ kind: "outcome-set", node: targetNode, outcome: held });
+      abandonLease();
+      return { exitCode: 1, message: because };
+    };
+    const scopeBeforeWork = snapshotScope(worktreePath, localConfig.watchPaths ?? []);
+    if (isErr(scopeBeforeWork)) {
+      lease.stop();
+      return holdForScopeGuard(
+        "work turn",
+        `snapshot before phase failed for ${scopeBeforeWork.error.path}: ${scopeBeforeWork.error.because}`,
+      );
+    }
     if (delivery.kind === "abandoned") {
       narrate("judging the abandoned delivery once the agent's work is shown finished");
     } else {
@@ -670,6 +694,22 @@ export async function driveInteractiveSession(
       () => recordQuestionNotes(ledger, sessionId, worktreePath, targetNode),
       delivery.kind === "abandoned" ? { alreadySettled: "idle" } : {},
     );
+    const scopeAfterWork = snapshotScope(worktreePath, localConfig.watchPaths ?? []);
+    if (isErr(scopeAfterWork)) {
+      lease.stop();
+      return holdForScopeGuard(
+        "work turn",
+        `snapshot after phase failed for ${scopeAfterWork.error.path}: ${scopeAfterWork.error.because}`,
+      );
+    }
+    const workChanges = changedScopePaths(scopeBeforeWork.value, scopeAfterWork.value);
+    if (workChanges.length > 0) {
+      lease.stop();
+      return holdForScopeGuard(
+        "work turn",
+        `changed paths: ${workChanges.map(describeScopeChange).join(", ")}`,
+      );
+    }
     if (isErr(waited)) {
       lease.stop();
       const result = refuse(abandon("wait"), explainRuntimeRefusal(waited.error));
@@ -691,6 +731,14 @@ export async function driveInteractiveSession(
       if (isErr(code)) {
         lease.stop();
         return refuse(commit("code commit"), code.error);
+      }
+      const scopeBeforeDebrief = snapshotScope(worktreePath, localConfig.watchPaths ?? []);
+      if (isErr(scopeBeforeDebrief)) {
+        lease.stop();
+        return holdForScopeGuard(
+          "debrief prompt",
+          `snapshot before phase failed for ${scopeBeforeDebrief.error.path}: ${scopeBeforeDebrief.error.because}`,
+        );
       }
       const sent = await runtime.prompt(
         agent,
@@ -726,6 +774,22 @@ export async function driveInteractiveSession(
             : { uncommittedPaths: 0, debriefMissing: true },
         () => recordQuestionNotes(ledger, sessionId, worktreePath, targetNode),
       );
+      const scopeAfterDebrief = snapshotScope(worktreePath, localConfig.watchPaths ?? []);
+      if (isErr(scopeAfterDebrief)) {
+        lease.stop();
+        return holdForScopeGuard(
+          "debrief prompt",
+          `snapshot after phase failed for ${scopeAfterDebrief.error.path}: ${scopeAfterDebrief.error.because}`,
+        );
+      }
+      const debriefChanges = changedScopePaths(scopeBeforeDebrief.value, scopeAfterDebrief.value);
+      if (debriefChanges.length > 0) {
+        lease.stop();
+        return holdForScopeGuard(
+          "debrief prompt",
+          `changed paths: ${debriefChanges.map(describeScopeChange).join(", ")}`,
+        );
+      }
       if (isErr(filed)) {
         lease.stop();
         return refuse(abandon("debrief wait"), explainRuntimeRefusal(filed.error));

@@ -1048,7 +1048,7 @@ No vocabulary entry for `local`.
 ### Versions
 
 - `local@v0`: the first version.
-- `local@v1`: added `owner_login` (optional); added `provider_order` (optional); added `last_resort` (optional).
+- `local@v1`: added `watch_paths` (optional); added `owner_login` (optional); added `provider_order` (optional); added `last_resort` (optional).
 
 ### Fields (`local@v1`)
 
@@ -1062,6 +1062,7 @@ No vocabulary entry for `local`.
 | `lease_ms` | number | yes |  |
 | `run_timeout_ms` | number | yes |  |
 | `answer_grace_ms` | number | no |  |
+| `watch_paths` | array of string matching `^/` | no |  |
 | `owner_login` | string matching `\S` | no |  |
 | `substrate` | object | yes | fields: address (string, required); handle (string, optional); key_file (string, optional); send_repository (boolean, optional) |
 | `provider_order` | array of string matching `\S` | no |  |
@@ -1130,6 +1131,10 @@ run_timeout_ms: 3600000
 
 # Optional. How long an idle or done stays open for the agent to resume after a person has answered a blocked turn, before it is judged settled. Defaults to 300000.
 # answer_grace_ms: 300000
+
+# Optional. Absolute folders whose files the runner watches for writes outside the worktree.
+# watch_paths:
+#   - "/path/to/another/folder"
 
 # The substrate address: "none" or an http(s) URL.
 substrate:

@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import { isValidSubstrateAddress } from "substrate";
 import { parse as parseYaml, YAMLParseError } from "yaml";
@@ -34,6 +34,7 @@ export interface LocalConfig {
   readonly leaseMs: number;
   readonly runTimeoutMs: number;
   readonly answerGraceMs: number;
+  readonly watchPaths?: readonly string[];
   readonly ownerLogin?: string;
   readonly substrateAddress: string;
   readonly substrateKeyFile?: string;
@@ -70,6 +71,7 @@ const FIELD_GUIDE =
   "run_timeout_ms (the wall timeout waiting for the agent to go idle, blocked or done), " +
   "answer_grace_ms (optional; once a person has answered a blocked turn, how long an idle or " +
   "done that follows stays open for the agent to resume before it is judged settled), " +
+  "watch_paths (optional; absolute folders whose files are watched for writes outside the worktree), " +
   'substrate.address ("none" or an http(s) URL), ' +
   "substrate.key_file (optional; a path to a file whose first line is a bearer token sent as " +
   "Authorization: Bearer ... on every call to substrate.address).";
@@ -253,6 +255,21 @@ function parseShape(parsed: unknown, path: string): Result<LocalConfig, LocalCon
   }
   const answerGraceMs = answerGraceMsField ?? DEFAULT_ANSWER_GRACE_MS;
 
+  const watchPathsField = prop(parsed, "watch_paths");
+  if (
+    watchPathsField !== undefined &&
+    (!isStringArray(watchPathsField) ||
+      watchPathsField.some((watchPath) => !isAbsolute(watchPath)) ||
+      new Set(watchPathsField).size !== watchPathsField.length)
+  ) {
+    return err({
+      kind: "malformed",
+      path,
+      reason: '"watch_paths" must be a list of distinct absolute paths',
+    });
+  }
+  const watchPaths = watchPathsField;
+
   const ownerLogin = prop(parsed, "owner_login");
   if (ownerLogin !== undefined && (!isString(ownerLogin) || ownerLogin.trim() === "")) {
     return err({
@@ -318,6 +335,7 @@ function parseShape(parsed: unknown, path: string): Result<LocalConfig, LocalCon
     leaseMs,
     runTimeoutMs,
     answerGraceMs,
+    ...(watchPaths === undefined ? {} : { watchPaths }),
     ...(ownerLogin === undefined ? {} : { ownerLogin }),
     substrateAddress,
     substrateSendRepository: substrateSendRepository ?? false,
