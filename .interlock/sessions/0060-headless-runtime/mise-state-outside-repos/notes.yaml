@@ -184,7 +184,13 @@ entries:
       required debrief revise command, which retains the prior bytes in revisions.
   - kind: choice
     at: '2026-11-08T21:21:00Z'
-    chose: Use debrief revise with session-start recovery for the authored candidate.
+    chose: Use debrief revise for the authored candidate while retaining the prior session start.
     because: >-
       This is a correction to an already-filed debrief, and revise is the repository's custody path
-      that archives the previous bytes while accepting the current continuation's derived session start.
+      that archives the previous bytes while preserving the prior identity.
+  - kind: surprise
+    at: '2026-11-08T21:22:00Z'
+    expected: Session-start recovery would accept the continuation candidate against the prior debrief.
+    observed: >-
+      Recovery correctly refused because the prior debrief's session_start_sha is already a commit;
+      the correction must retain that prior session start and use revise without recovery.
