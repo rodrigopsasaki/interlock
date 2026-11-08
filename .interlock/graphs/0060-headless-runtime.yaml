@@ -960,6 +960,199 @@ nodes:
         kind: command
         run: pnpm typecheck
 
+  - id: home-on-main
+    role: implementer
+    depends_on: [codex-home-outside-worktree, line-fits]
+    acceptance: |
+      codex-home-outside-worktree's acceptance, built on main as it is now. That node cleared on a worktree cut from
+      49b3a80 (the plan merge of #139), before marker-never-dropped (ce12af1) and line-fits (1d4790c) landed, because its
+      first launch was refused at the line limit after creating the worktree and the resumed run reused it. Its agent
+      re-implemented the overlay inside that stale base, so its branch (graph/0060-headless-runtime/codex-home-outside-
+      worktree, head cb52d88) conflicts with main in packages/runner/src/codex/config.ts, runtime.ts, sessionDrive.ts and
+      two tests, and cannot land. This node does the same work on main's code.
+      - Precedence where the two disagree: main's marker-never-dropped and line-fits behaviour wins (a regular generated
+        base config and profile, symlinks for the shared entries, line-fits' move of the runner's shell_environment_policy
+        entries); the cleared branch's link of config.toml does not carry over. Change main's createOverlay and its
+        callers, do not replace them.
+      - Everything codex-home-outside-worktree's acceptance asks: the machine state directory ($XDG_STATE_HOME/interlock
+        or ~/.local/state/interlock, mode 0700, resolved in one place), overlays under
+        <state>/codex-homes/<graph>/<node>/<session> recording their owner journal, physical containment refused inside
+        any git worktree or repository including symlink aliases, never traversing a symlink at any level, the tmux
+        adapter carrying the prepared environment (its test asserts delivery), and the write-through contract.
+      - Removal only on confirmed termination, made explicit. The overlay cleanup takes termination evidence as an
+        argument, never a default: main's argumentless cleanup (runtime.ts:53) and its unconditional call
+        (sessionDrive.ts:1220) change so that a pane retained for drilldown, an unconfirmed pane close and an unresolved
+        exec group keep the overlay, and only a confirmed group termination removes it, on both the pane and the exec
+        launch paths. A later prepare removes another session's overlay only when that session's own journal, freshly
+        read, records its confirmed termination; a held outcome, another attempt's outcome, a lease expiry or a person's
+        override is not that evidence.
+      - Tests: carry over the cleared branch's packages/runner/test/codexHomeOutsideWorktree.test.ts and
+        tmuxOverlay.test.ts (git show cb52d88:<path>), keeping every case (placement, in-repo and alias refusals,
+        unrelated-repository refusal, HOME fallback, removal on confirmed termination, the three keep cases, sentinel
+        symlinks at each traversal level, both checkouts clean after a real codex launch), with these named adaptations:
+        termination fixtures give session-specific journal evidence, and negatives for a held outcome, another attempt's
+        outcome and a person's override keep the overlay; cleanup calls pass termination evidence; the `as const` at
+        :349 goes, per AGENTS.md. Add cases for a retained pane, a failed close and an unresolved exec group, each keeping
+        the overlay.
+      - main's markerNeverDropped, realCodexMarkerOverflow, lineFits and lineFitsRealCodex tests keep their behavioural
+        assertions, adapted only to use temporary fixture roots with isolated HOME, XDG_STATE_HOME and CODEX_HOME (no test
+        touches the owner's state or codex home) and confirmation-aware cleanup calls. realCodexMarkerOverflow's
+        MCP-child test loses its skip on an authentication failure (:109): missing child evidence fails, whatever the
+        reason, as codex-home-outside-worktree's acceptance requires.
+      Every gate and test runs with the repository's pinned Node first on PATH. No test is excluded.
+    gates:
+      - id: overlay-outside-worktree-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/codexHomeOutsideWorktree.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: tmux-overlay-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/tmuxOverlay.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: marker-never-dropped-still
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/markerNeverDropped.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: real-codex-child-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/realCodexMarkerOverflow.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: line-fits-still
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/lineFits.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: line-fits-real-still
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/lineFitsRealCodex.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: runner-suite
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: home-on-main-types
+        kind: command
+        run: pnpm typecheck
+
+  - id: base-is-current
+    role: implementer
+    depends_on: []
+    acceptance: |
+      An attempt never starts on a base that main has moved past without saying so: it is refused by name before
+      leasing, and a person directs the recovery. Today ensureNodeWorktree (packages/runner/src/worktree.ts:231-241)
+      reuses an existing worktree, and reuseWorktree (:196-226) moves it to the sampled main only when the branch has no
+      commits of its own, keeping the old base otherwise (sessionDrive.ts:433-437 narrates it, nothing stops it); an
+      existing branch without its worktree is reattached and reported as `created` on the requested base without its
+      ancestry being read (:237-241). The runner commits the brief (sessionDrive.ts:458) before a launch can be refused,
+      so a first launch refused before the agent starts leaves a branch ahead on that day's main.
+      codex-home-outside-worktree (2026-11-08) was refused at 13:42 on 49b3a80, resumed at 15:04 on the same base after
+      marker-never-dropped and line-fits had landed, cleared, and could not land. Automatic recovery (merging main in,
+      or removing a refused launch's worktree) is not safe here: it races judges, mixes agent and runner commits, can
+      lose a brief or dirty setup state, and breaks inherited debrief ranges (sessionRange.ts:126-130, :237-241,
+      :308-309). This node changes no worktree; it refuses and names.
+      - "Main" is the repository's main branch ref, resolved explicitly (not the caller's HEAD, which
+        currentCommitSha reads at packages/face/src/root.ts:78-79), and the sampled sha is recorded.
+      - Every existing branch is read truthfully, reused worktree or reattached: its actual merge base with the sampled
+        main and its commits beyond it.
+      - Before leasing, an attempt whose branch has commits beyond a base that main has moved past refuses by name, with
+        the branch, its base, the sampled main sha, how many commits main gained since, and whether any of them touch
+        files outside .interlock/; the refusal names the person-directed recovery (inspect the branch; then either
+        relaunch on a fresh worktree after the branch is kept under an attempt ref, or merge main by hand as a signed
+        commit). A branch with no commits of its own is reset to the sampled main, as today. When main gained only
+        changes under .interlock/ (plans, briefs, ledgers), the attempt proceeds and the transcript says so.
+      - A decided node (cleared or otherwise terminal) is never touched: no reset, no merge, no re-judgment; run.ts:203
+        already refuses decided nodes, and the standalone judge gains the same boundary for a stale base, saying so
+        instead of judging.
+      Tests:
+      - packages/runner/test/baseIsCurrent.test.ts, with real git fixtures: a reused worktree whose branch has an agent
+        commit on an old main with a code change since is refused by name before any lease or agent, and its worktree,
+        index, untracked files and branch are byte-for-byte unchanged; the same with only .interlock/ changes on main
+        proceeds and says so; a branch with no own commits is reset to main; a reattached branch reports its true base
+        and is refused the same way; "main" resolves to the main ref when the caller's checkout is on another branch;
+        a cleared node with a stale base is neither run nor judged, with the refusal naming why.
+      Every gate and test runs with the repository's pinned Node first on PATH. No test is excluded.
+    gates:
+      - id: base-is-current-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/baseIsCurrent.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: runner-suite
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: base-is-current-types
+        kind: command
+        run: pnpm typecheck
+
+  - id: start-failure-is-not-a-timeout
+    role: implementer
+    depends_on: []
+    acceptance: |
+      An exec phase whose program cannot start is recorded as a start failure, never as a run timeout, whenever the
+      launcher has recorded that spawn error by the time the launcher is confirmed dead. Evidence the launcher never wrote
+      (it was killed before persisting it) cannot be recovered and is out of scope. packages/runner/test/execRuntime.test.ts ("distinguishes launcher, node, and profile-program start
+      failures", timeoutMs 2_000 at :150) failed in a judge on 2026-11-08 with "run timeout 2000ms" where it expects
+      "program could not start: ENOENT". Reproduced in a scratch copy with a synthetic delay, not load: when the
+      launcher's exit.json carrying the spawn error is written 2.5 s after "go", the phase is recorded as "run timeout
+      2000ms" (with no delay it is ENOENT). Two causes, both in code:
+      - packages/runner/src/execRuntime.ts:712-715 races waitForProgramExit against timeoutMs, and the final reason
+        (:818-826) puts timedOut ahead of programError, so a start failure that lands after the deadline is lost even
+        though its exit.json says so.
+      - waitForProgramExit (:309-346) notices exit.json only through a directory watcher event naming it, plus one read
+        at the start; the launcher writes exit.json atomically through a temp file and a rename
+        (packages/runner/src/execLauncher.ts:28-31, :215-219). There is one more eager read (:343) and unnamed events
+        are handled, but there is no periodic or deadline-final read, so a coalesced or missed event (FSEvents coalesces;
+        Node documents watcher caveats) can leave a promptly written exit.json unnoticed until the deadline. That the 11-08
+        failure delivered only the temp filename is a possible mechanism, not an established one.
+      - When the watcher errors or cannot be created, waitForProgramExit (:338) resolves undefined and the caller (:716)
+        reads that as the deadline, so a watcher failure becomes an immediate false timeout well before timeoutMs.
+      What changes:
+      - The outcome is decided by evidence, reconciled at finalization: the runner retains any observed ProgramExit.error,
+        and before the terminal state and reason are computed it re-reads exit.json after the launcher is confirmed dead
+        (or after the last bounded wait if its death cannot be confirmed, which the transcript then says). This covers
+        evidence that arrives before TERM, during TERM grace, and during the later bounded exit waits (:727, :761). A
+        recorded spawn error (the explicit `error` field) takes precedence over timedOut in BOTH the state (:807, failed,
+        never killed) and the reason (:818, "program could not start: <code>"), with the deadline noted in the transcript.
+        Only the explicit `error` field overrides the timeout: a program that spawned (handoff.json written,
+        execLauncher.ts:209) and exits nonzero after the deadline is still killed with a run-timeout reason.
+      - waitForProgramExit does not depend on one watcher event: it re-reads exit.json at a bounded interval and on any
+        event in the folder, and reads only exit.json, never the event's filename (atomicJson's rename means exit.json is
+        either absent or complete). When watching fails (creation throws or the watcher emits error), polling and the
+        deadline continue; a watcher failure never resolves the wait early. One waiter owns its deadline and cleanup; the
+        redundant timeout races are removed.
+      - No test-only switch ships in the launcher or the runner; tests reach the timing through injected seams (the
+        watcher and the clock or scheduler, with native production defaults), or through fixture programs.
+      Tests:
+      - packages/runner/test/startFailureNotTimeout.test.ts, deterministic (injected seams, no wall-clock sleeps for
+        ordering), each asserting both `state` and the reason:
+        - a spawn error written after the deadline, before TERM: state failed, reason "program could not start: <code>";
+        - a spawn error written during TERM grace: same;
+        - a spawn error written during the later bounded exit wait: same;
+        - a successful spawn that exits nonzero after the deadline: state killed, run-timeout reason;
+        - a program that starts and runs past the deadline: state killed, run-timeout reason;
+        - an injected watcher that drops every event still observes exit.json within the poll interval;
+        - a watcher whose creation throws, and one that emits error, neither resolves before timeoutMs and both still
+          observe exit.json by polling.
+      - The existing execRuntime.test.ts start-failure case also asserts the failed state, not only the reason.
+      Out of scope, recorded for a separate node: execRuntime.ts:485 marks streams closed before finishStream() completes
+      and data-handler writes (:695) are untracked, so captureComplete can be true with writes pending.
+      Every gate and test runs with the repository's pinned Node first on PATH. No test is excluded and none is skipped.
+    gates:
+      - id: start-failure-proof
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/startFailureNotTimeout.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: exec-runtime-still
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/execRuntime.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: runner-suite
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: start-failure-types
+        kind: command
+        run: pnpm typecheck
+
   - id: exec-runtime
     role: implementer
     depends_on: []
