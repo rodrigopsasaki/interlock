@@ -1,0 +1,19 @@
+interlock: notes@v0
+node: gates-run-on-engines-node
+entries:
+  - kind: choice
+    at: "2026-11-08T10:01:34Z"
+    chose: Put the engines check in one runner helper and call it immediately before setup or gate execution.
+    because: The same refusal must protect both command paths, preserve the command environment's PATH, and leave repositories without engines.node unchanged.
+  - kind: surprise
+    at: "2026-11-08T10:05:00Z"
+    expected: The comparator parser would accept the range syntax used by the acceptance example.
+    observed: The focused proof showed that `>=24 <25` uses major-only operands, so comparator parsing now fills missing minor and patch components with zero.
+  - kind: surprise
+    at: "2026-11-08T10:06:00Z"
+    expected: The focused rerun would start with the same disposable mise state as the first run.
+    observed: Vitest scanned the prior visible mise state directory and hit an inaccessible .Trash entry; the fixture now keeps mise state in a hidden test-run directory, and the visible stale scratch was removed.
+  - kind: surprise
+    at: "2026-11-08T10:08:00Z"
+    expected: Hiding the mise state directory would keep it outside Vitest's recursive scan.
+    observed: Vitest also scanned hidden directories under test/.runs; the fixture now creates one disposable mise directory per test process and removes it in afterAll.
