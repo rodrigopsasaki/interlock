@@ -29,3 +29,7 @@ entries:
     at: "2026-11-08T06:32:00Z"
     chose: Declare watch_paths as an additive optional local@v1 schema field and regenerate docs/shapes.md from the schema reference generator.
     because: The repository treats artifact schemas and docs/shapes.md as the source-backed public contract; a parser-only field would make the generated reference stale.
+  - kind: surprise
+    at: "2026-11-08T06:34:00Z"
+    expected: The final serial standing gate would preserve the isolated runner-suite result.
+    observed: After the schema-backed docs correction, the final root test run passed all workspace suites: runner 545, schemas 1228, CLI 443, and the remaining package suites.
