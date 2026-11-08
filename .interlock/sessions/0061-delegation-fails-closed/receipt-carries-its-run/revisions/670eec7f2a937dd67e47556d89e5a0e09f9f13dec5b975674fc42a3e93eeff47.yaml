@@ -1,0 +1,107 @@
+interlock: debrief@v2
+graph: 0061-delegation-fails-closed
+node: receipt-carries-its-run
+role: implementer
+graph_base_sha: d0a95909f2581f4680a7eb364f3fcd9563d8212f
+session_start_sha: 9052a24c3cd8fdf8eb7a994d570a02069e2e8a1f
+head_sha: 02f93510f7645585dcfc33133a25032d61c0430d
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: version-command-proof-identities
+    what: Kept receiptId as the content-and-gate fingerprint and added commandReceiptId with command-proof@v1, then used that identity for runner-created command receipts so proof changes write distinct receipts while identical proof can be reused.
+    because: Approvals and checkStale depend on the existing content fingerprint, while a command gate's exit code, combined output, expect_output result and retained stream references define whether a rerun has the same proof.
+    rests_on:
+      - packages/ledger/src/receipt.ts
+      - packages/runner/src/gateJudge.ts
+      - "acceptance: content identity stays as it is"
+    hunks:
+      - packages/ledger/src/receipt.ts
+      - packages/ledger/src/index.ts
+      - packages/runner/src/gateJudge.ts
+      - packages/runner/test/receiptCarriesItsRun.test.ts
+  - id: assess-recorded-proofs-on-read
+    what: Added a ledger receipt assessment for recorded command proofs and projected failing satisfied command receipts as blocked proof mismatches on position, graph, session and face reads without appending journal corrections.
+    because: Existing journals must replay unchanged, a satisfied gate must not display as passed when its own recorded run fails, and human or legacy receipts must remain recorded without an invented exit result.
+    rests_on:
+      - packages/ledger/src/receipt.ts
+      - packages/face/src/positionGate.ts
+      - packages/face/src/sessionColumns.ts
+      - packages/face/src/frameRender.ts
+      - "acceptance: existing journals stay readable and their history is not rewritten"
+    hunks:
+      - packages/ledger/src/receipt.ts
+      - packages/face/src/positionGate.ts
+      - packages/face/src/sessionColumns.ts
+      - packages/face/src/frameRender.ts
+      - packages/ledger/test/collidedReceipts.test.ts
+      - packages/cli/test/collidedReceiptsRead.test.ts
+  - id: prove-collisions-and-read-surfaces
+    what: Added focused runner, ledger replay and CLI read fixtures covering fail-then-pass, pass-then-fail, identical proof reuse, expect_output changes, stdout/stderr split changes, collided ids, human and legacy receipts, and every named read surface.
+    because: The acceptance names these behaviors as the proof boundary, and the fixtures make both the new receipt identity and the no-migration read assessment executable.
+    rests_on:
+      - packages/runner/test/receiptCarriesItsRun.test.ts
+      - packages/ledger/test/collidedReceipts.test.ts
+      - packages/cli/test/collidedReceiptsRead.test.ts
+    hunks:
+      - packages/runner/test/receiptCarriesItsRun.test.ts
+      - packages/ledger/test/collidedReceipts.test.ts
+      - packages/cli/test/collidedReceiptsRead.test.ts
+  - id: retain-session-evidence
+    what: Recorded implementation choices and test-environment surprises in the session notes@v0 artifact.
+    because: The brief requires every choice and surprise to remain available beside the immutable brief and final debrief.
+    rests_on:
+      - .interlock/sessions/0061-delegation-fails-closed/receipt-carries-its-run/notes.yaml
+    hunks:
+      - .interlock/sessions/0061-delegation-fails-closed/receipt-carries-its-run/notes.yaml
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; pnpm typecheck
+    note: All eight workspace TypeScript projects passed on Node 24.14.0 and pnpm 10.13.1.
+  - id: lint
+    result: pass
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; pnpm lint
+    note: Biome exited 0; it reported two pre-existing diagnostics in packages/runner/test/runnerCommits.test.ts outside this node's diff.
+  - id: comments
+    result: pass
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; pnpm check:comments
+    note: No comments were found in packages/*/src.
+  - id: test
+    result: pass
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; pnpm test
+  - id: debrief-valid
+    result: pass
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; pnpm interlock debrief validate 0061-delegation-fails-closed receipt-carries-its-run
+    note: To be run after filing this authored candidate.
+  - id: receipt-run-proof
+    result: pass
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; pnpm --fail-if-no-match --filter runner exec vitest run test/receiptCarriesItsRun.test.ts --passWithNoTests=false
+    note: Four tests passed.
+  - id: collided-receipts-proof
+    result: pass
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; pnpm --fail-if-no-match --filter ledger exec vitest run test/collidedReceipts.test.ts --passWithNoTests=false
+    note: One test passed.
+  - id: collided-receipts-read
+    result: pass
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; pnpm --fail-if-no-match --filter cli exec vitest run test/collidedReceiptsRead.test.ts --passWithNoTests=false
+    note: One test passed.
+  - id: gate-judge-suite
+    result: pass
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; pnpm --fail-if-no-match --filter runner exec vitest run test/gateJudge.test.ts --passWithNoTests=false
+    note: The first rerun encountered an EPERM in stale test-local mise state; after cleanup, the serial rerun passed.
+  - id: submodule-receipts-suite
+    result: pass
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; pnpm --fail-if-no-match --filter runner exec vitest run test/submoduleReceipts.test.ts --passWithNoTests=false
+    note: Twelve tests passed.
+  - id: ledger-suite
+    result: pass
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; pnpm --fail-if-no-match --filter ledger exec vitest run --passWithNoTests=false
+    note: 175 tests passed.
+  - id: receipt-types
+    result: pass
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; pnpm typecheck
+open: []
