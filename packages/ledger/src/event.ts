@@ -1,5 +1,6 @@
 import { type Brief, isBrief } from "./brief.ts";
 import { type Debrief, isDebrief } from "./debrief.ts";
+import { type Derivation, isDerivation } from "./derivation.ts";
 import { type Gate, isGate } from "./gate.ts";
 import { isNode, type Node } from "./graph.ts";
 import { isMarkCounts, type MarkCounts } from "./mark.ts";
@@ -16,7 +17,6 @@ import { isReceipt, type Receipt } from "./receipt.ts";
 import { isEpochMs, isSession, isSessionRuntime, type Session, sessionRuntime } from "./session.ts";
 import { isSessionFacts, type SessionFacts } from "./sessionFacts.ts";
 import { isRecord, isString, prop } from "./validate.ts";
-import { isDerivation, type Derivation } from "./derivation.ts";
 import { isWalk, type Walk } from "./walk.ts";
 
 type BaseLedgerEvent =

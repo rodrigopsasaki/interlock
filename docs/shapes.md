@@ -876,13 +876,22 @@ No vocabulary entry for `event`.
 - `event@v8`: no field changes from the previous version.
 - `event@v9`: retyped `kind`.
 - `event@v10`: retyped `kind`.
+- `event@v11`: retyped `kind`; added `probeId` (optional); added `profile` (optional); added `configuration` (optional); added `implementationVersion` (optional); added `checks` (optional); added `signedCommitKeyFingerprint` (optional); added `derivation` (optional); added `at` (optional).
 
-### Fields (`event@v10`)
+### Fields (`event@v11`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `interlock` | the literal `"event@v10"` | yes |  |
-| `kind` | one of `"node-created"`, `"lease-taken"`, `"lease-renewed"`, `"lease-expired"`, `"session-started"`, `"note-appended"`, `"debrief-filed"`, `"gate-moved"`, `"receipt-written"`, `"outcome-set"`, `"outbox-intent-recorded"`, `"outbox-delivery-recorded"`, `"session-narrated"`, `"session-facts-observed"`, `"person-said"`, `"receipt-retracted"` | yes |  |
+| `interlock` | the literal `"event@v11"` | yes |  |
+| `kind` | string | yes |  |
+| `probeId` | string | no |  |
+| `profile` | string | no |  |
+| `configuration` | string | no |  |
+| `implementationVersion` | string | no |  |
+| `checks` | array | no |  |
+| `signedCommitKeyFingerprint` | string | no |  |
+| `derivation` | derivation | no | Who produced a receipt or a mark: a gate run, a model, or a person. |
+| `at` | unknown | no |  |
 
 ### Examples
 
@@ -937,6 +946,10 @@ _No example of `event@v9` was found in the corpus._
 #### `event@v10`
 
 _No example of `event@v10` was found in the corpus._
+
+#### `event@v11`
+
+_No example of `event@v11` was found in the corpus._
 
 ## graph
 

@@ -4,40 +4,36 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { createSystemClock } from "@phyxiusjs/clock";
 import { err, isErr, ok } from "@phyxiusjs/fp";
-import {
-  findRepoRoot,
-  sharedJournalDirectory,
-  currentCommitSha,
-} from "face";
+import { currentCommitSha, findRepoRoot, sharedJournalDirectory } from "face";
 import {
   createLedger,
   derivation,
+  type ProbeConfig,
   readProbeConfig,
   retainProbeConfig,
   sha256,
-  type ProbeConfig,
 } from "ledger";
 import {
+  admitMachine,
   explainLocalConfigRefusal,
   explainMergeRuntimesRefusal,
   explainRuntimeCatalogueRefusal,
-  admitMachine,
   loadLocalConfig,
   loadRuntimeCatalogue,
-  mergeRuntimes,
+  type MachineAttempt,
   machineDelivery,
   machineIntent,
-  providerArgv,
-  prepareLaunch,
-  probePassed,
-  resolveMachine,
-  runProbeChecks,
-  type MachineAttempt,
+  mergeRuntimes,
   type ProbeExecutor,
   type ProbeProcessRunner,
+  prepareLaunch,
+  probePassed,
+  providerArgv,
   type ResolvedRuntime,
+  resolveMachine,
+  runProbeChecks,
+  runProviderCommand,
 } from "runner";
-import { runProviderCommand } from "runner";
 import type { CommandResult } from "../main.ts";
 
 const IMPLEMENTATION_VERSION = "runtime-probe@v1";
@@ -47,13 +43,12 @@ export interface RuntimeProbeOptions {
   readonly machine?: MachineAttempt;
   readonly processRunner?: ProbeProcessRunner;
   readonly adapter?: ProbeExecutor;
-  readonly runnerSignedCommit?: () => Promise<import("@phyxiusjs/fp").Result<string | undefined, string>>;
+  readonly runnerSignedCommit?: () => Promise<
+    import("@phyxiusjs/fp").Result<string | undefined, string>
+  >;
 }
 
-export function probeConfiguration(
-  runtime: ResolvedRuntime,
-  machine: MachineAttempt,
-): ProbeConfig {
+export function probeConfiguration(runtime: ResolvedRuntime, machine: MachineAttempt): ProbeConfig {
   const profile: Record<string, string> = {};
   for (const [key, value] of Object.entries(runtime)) {
     profile[key] = sha256(JSON.stringify(value));
@@ -85,13 +80,13 @@ function removeProbeWorktree(repoRoot: string, path: string, branch: string): vo
         cwd: repoRoot,
         stdio: ["ignore", "ignore", "ignore"],
       });
-    } catch {
-      return;
-    }
+    } catch {}
   }
 }
 
-async function signRunnerCommit(path: string): Promise<import("@phyxiusjs/fp").Result<string | undefined, string>> {
+async function signRunnerCommit(
+  path: string,
+): Promise<import("@phyxiusjs/fp").Result<string | undefined, string>> {
   try {
     execFileSync("git", ["commit", "--allow-empty", "-S", "-m", "interlock runtime probe"], {
       cwd: path,
@@ -108,7 +103,10 @@ async function signRunnerCommit(path: string): Promise<import("@phyxiusjs/fp").R
   }
 }
 
-function renderResults(profile: string, results: Awaited<ReturnType<typeof runProbeChecks>>): string {
+function renderResults(
+  profile: string,
+  results: Awaited<ReturnType<typeof runProbeChecks>>,
+): string {
   return results
     .map((result) => {
       const detail =
@@ -153,7 +151,8 @@ async function probeOne(
   try {
     addProbeWorktree(repoRoot, path, branch, head);
     const launch = prepareLaunch(runtime, path, machine.env);
-    if (isErr(launch)) return { exitCode: 1, message: `probe launch refused: ${launch.error.kind}` };
+    if (isErr(launch))
+      return { exitCode: 1, message: `probe launch refused: ${launch.error.kind}` };
     let admissionReason: string | undefined;
     if (machine.provider !== "none") {
       const values = {
@@ -205,19 +204,18 @@ async function probeOne(
         { check: "signed-commit", state: "unavailable", reason: admissionReason },
       ];
     } else {
-    results = await runProbeChecks({
-      runtime,
-      launch: launch.value,
-      ...(options.processRunner === undefined ? {} : { processRunner: options.processRunner }),
-      ...(options.adapter === undefined ? {} : { adapter: options.adapter }),
-      ...((options.runnerSignedCommit ??
-        (runtime.commits === "runner" ? () => signRunnerCommit(path) : undefined)) === undefined
-        ? {}
-        : {
-            runnerSignedCommit:
-              options.runnerSignedCommit ?? (() => signRunnerCommit(path)),
-          }),
-    });
+      results = await runProbeChecks({
+        runtime,
+        launch: launch.value,
+        ...(options.processRunner === undefined ? {} : { processRunner: options.processRunner }),
+        ...(options.adapter === undefined ? {} : { adapter: options.adapter }),
+        ...((options.runnerSignedCommit ??
+          (runtime.commits === "runner" ? () => signRunnerCommit(path) : undefined)) === undefined
+          ? {}
+          : {
+              runnerSignedCommit: options.runnerSignedCommit ?? (() => signRunnerCommit(path)),
+            }),
+      });
     }
     ledger.append({
       kind: "probe",
@@ -249,7 +247,8 @@ export async function runRuntimeProbe(
     return { exitCode: 1, message: `${cwd}: no .interlock directory found.` };
   }
   const catalogue = await loadRuntimeCatalogue();
-  if (isErr(catalogue)) return { exitCode: 1, message: explainRuntimeCatalogueRefusal(catalogue.error) };
+  if (isErr(catalogue))
+    return { exitCode: 1, message: explainRuntimeCatalogueRefusal(catalogue.error) };
   const localResult = await loadLocalConfig(repoRoot);
   const local = isErr(localResult)
     ? localResult.error.kind === "missing"
@@ -264,9 +263,12 @@ export async function runRuntimeProbe(
   if (args[0] === "show") {
     const journal = await sharedJournalDirectory(repoRoot);
     const fingerprint = args[1];
-    if (fingerprint === undefined) return { exitCode: 1, message: "runtime probe show needs a fingerprint." };
+    if (fingerprint === undefined)
+      return { exitCode: 1, message: "runtime probe show needs a fingerprint." };
     const config = readProbeConfig(journal, fingerprint);
-    return isErr(config) ? { exitCode: 1, message: config.error } : { exitCode: 0, message: config.value };
+    return isErr(config)
+      ? { exitCode: 1, message: config.error }
+      : { exitCode: 0, message: config.value };
   }
   const all = args.includes("--all");
   const json = args.includes("--json");
@@ -274,8 +276,13 @@ export async function runRuntimeProbe(
   if (!all && requested === undefined) {
     return { exitCode: 1, message: "no runtimes declared; cannot probe an empty catalogue." };
   }
-  const names = all ? [...merged.value.runtimes.keys()] : requested === undefined ? [] : [requested];
-  if (names.length === 0) return { exitCode: 1, message: "no runtimes declared; cannot probe an empty catalogue." };
+  const names = all
+    ? [...merged.value.runtimes.keys()]
+    : requested === undefined
+      ? []
+      : [requested];
+  if (names.length === 0)
+    return { exitCode: 1, message: "no runtimes declared; cannot probe an empty catalogue." };
   const resolvedMachine =
     options.machine === undefined ? await resolveMachine(repoRoot) : ok(options.machine);
   if (isErr(resolvedMachine)) return { exitCode: 1, message: resolvedMachine.error };

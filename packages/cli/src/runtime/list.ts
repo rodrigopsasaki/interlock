@@ -5,7 +5,7 @@ import {
   type RuntimeAttempt,
   sharedJournalDirectory,
 } from "face";
-import { readReplay } from "ledger";
+import { readReplay, sha256 } from "ledger";
 import {
   explainLocalConfigRefusal,
   explainMergeRuntimesRefusal,
@@ -13,14 +13,13 @@ import {
   type LocalConfig,
   loadLocalConfig,
   loadRuntimeCatalogue,
-  mergeRuntimes,
-  resolveMachine,
   type MachineAttempt,
+  mergeRuntimes,
   type ResolvedRuntime,
+  resolveMachine,
 } from "runner";
-import { probeConfiguration } from "./probe.ts";
-import { sha256 } from "ledger";
 import type { CommandResult } from "../main.ts";
+import { probeConfiguration } from "./probe.ts";
 
 function renderLastAttempt(attempt: RuntimeAttempt | undefined): string {
   if (attempt === undefined) return "last attempt never run";
@@ -40,7 +39,8 @@ function renderRuntime(
   const model = runtime.model ?? "(none)";
   return (
     `${runtime.name} — kind ${runtime.kind}, model ${model}, source ${runtime.source}, ` +
-    renderLastAttempt(lastAttempts.get(runtime.name)) + `, ${probe}`
+    renderLastAttempt(lastAttempts.get(runtime.name)) +
+    `, ${probe}`
   );
 }
 
@@ -61,11 +61,15 @@ function probeLine(
   machine: MachineAttempt | undefined,
 ): string {
   if (probe === undefined) return "last probe never probed";
-  if (machine === undefined) return `last probe environment unknown, artifact ${probe.configuration}`;
+  if (machine === undefined)
+    return `last probe environment unknown, artifact ${probe.configuration}`;
   const current = sha256(`${JSON.stringify(probeConfiguration(runtime, machine))}\n`);
-  const state = probe.configuration === current && probe.implementationVersion === "runtime-probe@v1"
-    ? probe.checks.every((check) => check.state === "passed") ? "passed" : "did not pass"
-    : `historical (probed under an earlier configuration), artifact ${probe.configuration}`;
+  const state =
+    probe.configuration === current && probe.implementationVersion === "runtime-probe@v1"
+      ? probe.checks.every((check) => check.state === "passed")
+        ? "passed"
+        : "did not pass"
+      : `historical (probed under an earlier configuration), artifact ${probe.configuration}`;
   return `last probe ${state}, ${new Date(probe.at).toISOString()}`;
 }
 
@@ -141,7 +145,9 @@ export async function runRuntimeList(
   return {
     exitCode: 0,
     message: runtimes
-      .map((runtime) => renderRuntime(runtime, lastAttempts, probeLine(runtime, probes.get(runtime.name), machine)))
+      .map((runtime) =>
+        renderRuntime(runtime, lastAttempts, probeLine(runtime, probes.get(runtime.name), machine)),
+      )
       .join("\n"),
   };
 }

@@ -1,12 +1,7 @@
 import { spawn } from "node:child_process";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import type { ProbeCheckResult } from "ledger";
-import type {
-  PreparedLaunch,
-  ProbeCheck,
-  ProbeExecutor,
-  ProbeInvocation,
-} from "./runtime.ts";
+import type { PreparedLaunch, ProbeCheck, ProbeExecutor, ProbeInvocation } from "./runtime.ts";
 import type { ResolvedRuntime } from "./runtimeCatalogue.ts";
 import { expandProbeExec } from "./writableRootArgs.ts";
 
@@ -23,9 +18,7 @@ export interface ProbeProcessResult {
   readonly output: string;
 }
 
-export type ProbeProcessRunner = (
-  invocation: ProbeInvocation,
-) => Promise<ProbeProcessResult>;
+export type ProbeProcessRunner = (invocation: ProbeInvocation) => Promise<ProbeProcessResult>;
 
 export interface ProbeExecutionOptions {
   readonly runtime: ResolvedRuntime;
@@ -63,7 +56,10 @@ function defaultProcessRunner(invocation: ProbeInvocation): Promise<ProbeProcess
   });
 }
 
-function missingArgument(expected: readonly string[], actual: readonly string[]): string | undefined {
+function missingArgument(
+  expected: readonly string[],
+  actual: readonly string[],
+): string | undefined {
   for (let index = 0; index < expected.length; index += 1) {
     const want = expected[index];
     const got = actual[index];
@@ -135,7 +131,11 @@ export async function runProbeChecks(
   for (const check of PROBE_CHECKS) {
     if (check === "signed-commit" && options.runtime.commits === "runner") {
       if (options.runnerSignedCommit === undefined) {
-        results.push({ check, state: "unavailable", reason: "runner custody has no signing executor" });
+        results.push({
+          check,
+          state: "unavailable",
+          reason: "runner custody has no signing executor",
+        });
       } else {
         const signed = await options.runnerSignedCommit();
         results.push(

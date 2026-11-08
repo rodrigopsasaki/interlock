@@ -136,16 +136,22 @@ export {
   RUNTIME_CATALOGUE_SHAPE,
   runtimeCataloguePath,
 } from "./runtimeCatalogue.ts";
+export type {
+  ProbeExecutionOptions,
+  ProbeProcessResult,
+  ProbeProcessRunner,
+} from "./runtimeProbe.ts";
+export {
+  execProbeInvocation,
+  PROBE_CHECKS,
+  probePassed,
+  runProbeChecks,
+} from "./runtimeProbe.ts";
 export type { RuntimeSelectionRefusal } from "./runtimeSelection.ts";
 export {
   explainRuntimeSelectionRefusal,
   selectRuntime,
 } from "./runtimeSelection.ts";
-export {
-  PROBE_COMMAND_PLACEHOLDER,
-  expandProbeExec,
-  parseProbeExec,
-} from "./writableRootArgs.ts";
 export { gitScope, gitTrackedFiles } from "./scope.ts";
 export type { BriefWriteOutcome, DeclaredNode, SessionBriefRefusal } from "./sessionBrief.ts";
 export {
@@ -161,17 +167,6 @@ export type {
   DriveSessionRequest,
 } from "./sessionDrive.ts";
 export { driveInteractiveSession, prepareLaunch } from "./sessionDrive.ts";
-export type {
-  ProbeExecutionOptions,
-  ProbeProcessResult,
-  ProbeProcessRunner,
-} from "./runtimeProbe.ts";
-export {
-  PROBE_CHECKS,
-  execProbeInvocation,
-  probePassed,
-  runProbeChecks,
-} from "./runtimeProbe.ts";
 export type { SessionInheritance } from "./sessionRange.ts";
 export { findInheritedSessionStart } from "./sessionRange.ts";
 export {
@@ -214,3 +209,8 @@ export {
   runWorktreeSetup,
   SETUP_LOG_TAIL_BYTES,
 } from "./worktreeSetup.ts";
+export {
+  expandProbeExec,
+  PROBE_COMMAND_PLACEHOLDER,
+  parseProbeExec,
+} from "./writableRootArgs.ts";

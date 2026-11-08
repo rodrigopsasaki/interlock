@@ -45,10 +45,7 @@ export function retainProbeConfig(
   }
 }
 
-export function readProbeConfig(
-  directory: string,
-  fingerprint: string,
-): Result<string, string> {
+export function readProbeConfig(directory: string, fingerprint: string): Result<string, string> {
   try {
     return ok(readFileSync(probeConfigPath(directory, fingerprint), "utf8"));
   } catch (error) {

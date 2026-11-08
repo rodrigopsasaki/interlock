@@ -114,10 +114,14 @@ export function prepareLaunch(
   const writableRoots = [layout.value.commonGitDir, layout.value.gitDir];
   return ok({
     program: agentRuntime.kind,
-    args: agentEnvironmentArgs(agentRuntime.kind, [
-      ...agentRuntime.args,
-      ...writableRoots.flatMap((root) => expandWritableRootArgs(template, root)),
-    ], environment),
+    args: agentEnvironmentArgs(
+      agentRuntime.kind,
+      [
+        ...agentRuntime.args,
+        ...writableRoots.flatMap((root) => expandWritableRootArgs(template, root)),
+      ],
+      environment,
+    ),
     cwd: worktreePath,
     environment,
     writableRoots,
