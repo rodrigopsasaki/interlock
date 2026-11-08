@@ -29,3 +29,19 @@ entries:
     at: "2026-11-08T19:30:00Z"
     expected: The first debrief prepare command would load the changed runner source under the repository's direct Node entrypoint.
     observed: Node 24 strip-only execution rejected the new parameter-property syntax even though TypeScript typecheck passed; the new classes now use explicit fields and constructors.
+  - kind: surprise
+    at: "2026-11-08T19:38:00Z"
+    expected: The isolated workspace test would keep its temporary HOME and CODEX_HOME visible to child processes.
+    observed: Relative mktemp paths were resolved from package subdirectories, so the full test reported missing CODEX_HOME and cleanup collisions; the receipt is unresolved and will be repeated with absolute paths inside test/.runs.
+  - kind: choice
+    at: "2026-11-08T19:45:00Z"
+    chose: Revise the filed debrief candidate to include the passing debrief-valid receipt, then validate the revised artifact again.
+    because: The final debrief should report every declared gate that was actually run, including validation of its own debrief and notes artifacts.
+  - kind: choice
+    at: "2026-11-08T20:00:00Z"
+    chose: Rerun the focused capture-drain proof after the strip-only constructor correction and before the final artifact commit.
+    because: The implementation changed after the earlier focused receipt, so the final handoff should carry proof from the actual code head.
+  - kind: surprise
+    at: "2026-11-08T20:01:00Z"
+    expected: The shell wrapper would preserve and print the focused test exit status.
+    observed: zsh reserves status as a read-only variable, so the wrapper stopped after the test command; the test output was still written to its package-local run file.
