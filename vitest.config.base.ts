@@ -16,6 +16,5 @@ export const baseConfig = defineConfig({
     environment: "node",
     exclude: ["**/node_modules/**", "**/.runs/**"],
     setupFiles: ["../../vitest.setup.ts"],
-    exclude: ["**/node_modules/**", "**/.runs/**"],
   },
 });
