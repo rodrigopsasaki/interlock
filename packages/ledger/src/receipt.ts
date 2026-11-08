@@ -39,6 +39,13 @@ export interface Receipt {
   readonly proof: Readonly<Record<string, unknown>>;
 }
 
+export const COMMAND_RECEIPT_ID_VERSION = "command-proof@v1";
+
+export type ReceiptRunAssessment =
+  | { readonly kind: "not-recorded" }
+  | { readonly kind: "satisfied" }
+  | { readonly kind: "failed"; readonly because: string };
+
 export type ScopeEntry =
   | { readonly kind: "file"; readonly path: string }
   | { readonly kind: "gitlink"; readonly path: string; readonly commit: string };
@@ -160,6 +167,47 @@ export async function receiptId(
     updateFramed(hash, content);
   }
   return ok(hash.digest("hex"));
+}
+
+export async function commandReceiptId(
+  root: string,
+  input: ScopeInput,
+  gate: string,
+  proof: Readonly<Record<string, unknown>>,
+): Promise<Result<string, ScopeRefusal>> {
+  const contentId = await receiptId(root, input, gate);
+  if (isErr(contentId)) return contentId;
+  const hash = createHash("sha256");
+  hash.update(COMMAND_RECEIPT_ID_VERSION);
+  hash.update("\u0000");
+  hash.update(contentId.value);
+  hash.update("\u0000");
+  hash.update(JSON.stringify(proof));
+  return ok(hash.digest("hex"));
+}
+
+export function assessReceipt(receipt: Receipt): ReceiptRunAssessment {
+  if (receipt.derivation.kind !== "gate") return { kind: "not-recorded" };
+  const exitCode = receipt.proof["exitCode"];
+  if (typeof exitCode !== "number" || !Number.isSafeInteger(exitCode)) {
+    return { kind: "not-recorded" };
+  }
+  const outputMatched = receipt.proof["outputMatched"];
+  if (outputMatched !== undefined && typeof outputMatched !== "boolean") {
+    return { kind: "not-recorded" };
+  }
+  if (exitCode !== 0) return { kind: "failed", because: `exit ${exitCode}` };
+  if (outputMatched === false) {
+    const pattern = receipt.proof["pattern"];
+    return {
+      kind: "failed",
+      because:
+        typeof pattern === "string"
+          ? `output did not match /${pattern}/`
+          : "output did not match the gate criterion",
+    };
+  }
+  return { kind: "satisfied" };
 }
 
 export async function createReceipt(
