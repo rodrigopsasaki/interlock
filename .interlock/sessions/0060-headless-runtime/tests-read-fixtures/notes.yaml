@@ -49,3 +49,11 @@ entries:
     at: "2026-11-08T08:15:00Z"
     expected: The fixture vocabulary would produce the same contiguous missing-term sentence as the full repository.
     observed: The fixture's schema registry terms differ from the full corpus vocabulary, so the test now checks each required missing term independently while still asserting the command's report.
+  - kind: choice
+    at: "2026-11-08T08:25:00Z"
+    chose: Author and file the debrief from a fresh candidate at the final code head, retaining the candidate beside the filed debrief.
+    because: The brief requires an authored debrief whose decisions are rooted in the produced hunks and whose head_sha names the last code commit before the final debrief commit.
+  - kind: surprise
+    at: "2026-11-08T08:25:00Z"
+    expected: mise exec would select the repository's pinned Node version without an engine warning.
+    observed: The environment selected Node v26.13.0 while package.json requests v24.14.0; all standing and focused gates still passed under mise exec, so the mismatch is reported in debrief open.
