@@ -25,3 +25,7 @@ entries:
     at: "2026-11-08T12:13:00Z"
     chose: Leave absorbOutbox logic and expectation unchanged after the required merges and focused reproduction passed both absorb tests.
     because: Changing a passing expectation or delegated-clearance behavior without a current failing trace would be an unrooted alteration; the existing test continues to prove observed command evidence is retained while the node clears.
+  - kind: choice
+    at: "2026-11-08T12:15:00Z"
+    chose: Run every gate with mise-provided Node v24.14.0 and pnpm 10.13.1 first on PATH, recording each result under the runner test runs directory.
+    because: The acceptance attributes the earlier clear to the wrong Node and requires pinned-tool evidence for every gate and test.
