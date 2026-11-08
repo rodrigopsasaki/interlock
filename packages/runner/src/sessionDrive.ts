@@ -625,10 +625,7 @@ export async function driveInteractiveSession(
           `snapshot after phase failed for ${scopeAfterDebrief.error.path}: ${scopeAfterDebrief.error.because}`,
         );
       }
-      const debriefChanges = changedScopePaths(
-        scopeBeforeDebrief.value,
-        scopeAfterDebrief.value,
-      );
+      const debriefChanges = changedScopePaths(scopeBeforeDebrief.value, scopeAfterDebrief.value);
       if (debriefChanges.length > 0) {
         lease.stop();
         return holdForScopeGuard(

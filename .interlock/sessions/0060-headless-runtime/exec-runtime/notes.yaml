@@ -81,3 +81,11 @@ entries:
     at: "2026-11-08T07:45:01Z"
     expected: The three merge conflicts would be isolated to the profile field, schema field, and pane launch selection.
     observed: The exec branch also needed the scope-guard helper moved earlier so both headless phases could use the merged guard behavior.
+  - kind: choice
+    at: "2026-11-08T07:55:00Z"
+    chose: Keep the merged session-driver formatting correction as a forward signed commit after the merge.
+    because: The required lint gate rejected only the new multiline formatting, while typecheck, comments, full tests, and the focused exec proof passed.
+  - kind: surprise
+    at: "2026-11-08T07:56:00Z"
+    expected: The full test output would contain only successful test diagnostics.
+    observed: The existing worktree-maintenance tests printed Git lock-permission diagnostics for intentionally locked maintenance tasks, but the full gate exited 0 with all 173 files and 2848 tests passing.
