@@ -4,7 +4,7 @@ node: gates-run-on-engines-node
 role: implementer
 graph_base_sha: 2f2dd92b914a07de53bb24ef5cc78bac3974816e
 session_start_sha: c599aa90d3e2684374ed86cbe2ad0803d484a52c
-head_sha: 25c23c35f53cc0b0af0de90fe82f6e99d6fea583
+head_sha: f72abcc65e3fe1ecdbf16000ca2cc34ef9dc88e0
 derivation:
   kind: agent
   runtime: codex
@@ -36,10 +36,10 @@ decisions:
       kind: path
       path: packages/runner/src/worktreeSetup.ts
   - id: engines-node-proof
-    what: Add fixture executables at the front of PATH covering exact matches and mismatches, space-joined ranges, absent engines, unparseable ranges, missing Node, and setup refusal, while preserving the existing setup refusal type narrowing.
-    because: The acceptance needs proof that the runner both avoids spawning outside the range and still runs commands for allowed or unspecified engines without depending on the host Node version.
-    rests_on: [notes:choice-10:01:34, notes:surprise-10:05:00, notes:surprise-10:06:00, notes:surprise-10:08:00]
-    hunks: [packages/runner/test/gatesRunOnEnginesNode.test.ts:1-194, packages/runner/test/worktreeSetup.test.ts:41-112]
+    what: Add fixture executables at the front of PATH covering exact matches and mismatches, space-joined ranges, absent engines, unparseable ranges, missing Node, and setup refusal, with generated shell content kept statically readable to the fixture guard.
+    because: The acceptance needs proof that the runner both avoids spawning outside the range and still runs commands for allowed or unspecified engines without depending on the host Node version; literal fixture scripts keep the repository's process guard auditable.
+    rests_on: [notes:choice-10:01:34, notes:surprise-10:05:00, notes:surprise-10:06:00, notes:surprise-10:08:00, notes:choice-10:43:13]
+    hunks: [packages/runner/test/gatesRunOnEnginesNode.test.ts:1-200, packages/runner/test/worktreeSetup.test.ts:41-113]
     applies_to:
       kind: path
       path: packages/runner/test/gatesRunOnEnginesNode.test.ts
@@ -51,7 +51,7 @@ gates_run_by_agent:
   - id: lint
     result: pass
     invocation: pnpm lint
-    note: Biome exited successfully with two pre-existing warnings in packages/runner/test/runnerCommits.test.ts.
+    note: Biome exited successfully with one pre-existing warning and one info in packages/runner/test/runnerCommits.test.ts.
   - id: comments
     result: pass
     invocation: pnpm check:comments
@@ -59,11 +59,11 @@ gates_run_by_agent:
   - id: debrief-valid
     result: pass
     invocation: pnpm interlock debrief validate 0060-headless-runtime gates-run-on-engines-node
-    note: The filed debrief and notes validated as debrief@v2 and notes@v0.
+    note: The revised filed debrief and notes validated as debrief@v2 and notes@v0.
   - id: test
     result: fail
     invocation: pnpm test
-    note: The new engines-node proof passed, but four existing execRuntime tests timed out; the workspace run reported 566 runner tests passed and 4 failed.
+    note: The corrected engines-node proof passed, but four existing execRuntime tests timed out; the workspace run reported 566 runner tests passed and 4 failed.
   - id: engines-node-proof
     result: pass
     invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/gatesRunOnEnginesNode.test.ts --passWithNoTests=false
@@ -78,4 +78,4 @@ gates_run_by_agent:
     note: The final workspace typecheck passed.
 open:
   - The standing workspace test gate remains unresolved because four existing packages/runner/test/execRuntime.test.ts tests timed out in both the workspace and standalone runner-suite runs; the engines-node proof passed independently.
-  - The lint gate exited successfully but retained two pre-existing warnings in packages/runner/test/runnerCommits.test.ts.
+  - The lint gate exited successfully but retained one pre-existing warning and one info in packages/runner/test/runnerCommits.test.ts.

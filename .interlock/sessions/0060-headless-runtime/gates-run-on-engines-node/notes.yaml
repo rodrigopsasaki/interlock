@@ -61,3 +61,11 @@ entries:
     at: "2026-11-08T11:04:00Z"
     expected: The explicit runner-suite gate would differ from the earlier full workspace runner result after the fixture-only correction.
     observed: It passed 45 test files and 566 of 570 tests, with the same four execRuntime timeouts; typecheck and comments passed, while lint exited zero with the existing one warning and one info.
+  - kind: surprise
+    at: "2026-11-08T11:10:00Z"
+    expected: The fresh candidate could be filed through the first-filing file-derived command.
+    observed: The node already had a filed debrief, so file-derived rejected the candidate identity; the correction was selected through debrief revise, and the filed debrief then validated successfully.
+  - kind: choice
+    at: "2026-11-08T11:10:30Z"
+    chose: Add the passing debrief validation receipt to the authored correction candidate and revise the filed debrief again before the final commit.
+    because: The final debrief should include the validation result for its own canonical bytes while retaining the earlier filed debrief as a revision history.
