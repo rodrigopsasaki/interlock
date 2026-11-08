@@ -29,3 +29,15 @@ entries:
     at: "2026-11-08T10:15:00Z"
     expected: The standalone runner-suite gate would isolate the new proof from the workspace test failure.
     observed: The standalone runner suite repeated the same four execRuntime timeouts and 566 passed, 4 failed result; the engines-node file itself passed 9 tests.
+  - kind: choice
+    at: "2026-11-08T10:18:00Z"
+    chose: Author the debrief with four narrow decisions covering the shared guard, gate hold, setup hold, and fixture proof, and keep the two unresolved execRuntime test results in open.
+    because: The debrief must manifest the produced hunks and report the runner receipts honestly without claiming that unrelated timed-out tests passed.
+  - kind: surprise
+    at: "2026-11-08T10:20:00Z"
+    expected: file-derived would accept the candidate's head_sha as the last source commit while session notes had a later signed commit.
+    observed: file-derived requires candidate identity to match the current HEAD, so the candidate now names the later notes commit even though the source hunks were produced in e87cb6b.
+  - kind: choice
+    at: "2026-11-08T10:22:00Z"
+    chose: Revise the filed debrief candidate to include the passing debrief-valid receipt, then validate the revised filed artifact again.
+    because: The final debrief should report every declared gate that was actually run, including the validation of its own artifact.
