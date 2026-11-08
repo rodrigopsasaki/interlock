@@ -1,5 +1,12 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { isOk } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
@@ -54,6 +61,62 @@ describe("real Codex marker overflow delivery", () => {
       if (!isRecord(transport)) continue;
       expect(transport["env"]).toEqual({
         INTERLOCK_SESSION: "real-overflow-session",
+        INTERLOCK_GRAPH: "0060-headless-runtime",
+        INTERLOCK_NODE: "marker-never-dropped",
+      });
+    }
+    launch.value.cleanup();
+    expect(readFileSync(join(home, "config.toml"), "utf8")).toContain(names[0]);
+  });
+
+  it("records marker values in real MCP children started by Codex exec", ({ skip }) => {
+    directory = mkdtempSync(join(runsRoot, "real-codex-mcp-overflow-"));
+    const home = join(directory, "codex-home");
+    mkdirSync(home);
+    const fixture = join(import.meta.dirname, "fixtures", "codex", "recordMcpEnvironment.mjs");
+    const names = Array.from({ length: 4 }, (_, index) => `overflow_${index}_${"x".repeat(120)}`);
+    const outputPaths = names.map((name) => join(directory, `${name}.json`));
+    writeFileSync(
+      join(home, "config.toml"),
+      names
+        .map(
+          (name, index) =>
+            `[mcp_servers.${name}]\ncommand = ${JSON.stringify(process.execPath)}\nargs = [${JSON.stringify(fixture)}, ${JSON.stringify(outputPaths[index])}]\n`,
+        )
+        .join("\n"),
+    );
+    const environment = {
+      INTERLOCK_SESSION: "real-mcp-session",
+      INTERLOCK_GRAPH: "0060-headless-runtime",
+      INTERLOCK_NODE: "marker-never-dropped",
+      CODEX_HOME: home,
+    };
+    const launch = prepareCodexLaunch([], directory, environment);
+    expect(isOk(launch)).toBe(true);
+    if (!isOk(launch)) return;
+    expect(launch.value.path).toBe("overlay");
+    let commandError: unknown;
+    try {
+      execFileSync("codex", [...launch.value.args, "exec", "--skip-git-repo-check", "marker proof"], {
+        cwd: directory,
+        env: { ...process.env, ...launch.value.environment },
+        input: "\u0003",
+        encoding: "utf8",
+        timeout: 15_000,
+      });
+    } catch (error) {
+      commandError = error;
+    }
+    if (!outputPaths.every((output) => existsSync(output))) {
+      const detail = commandError instanceof Error ? commandError.message : String(commandError);
+      if (!/401|unauthorized|missing bearer|not logged in/i.test(detail)) {
+        throw commandError;
+      }
+      skip("Codex is not logged in and did not start the MCP fixture before the model call.");
+    }
+    for (const output of outputPaths) {
+      expect(JSON.parse(readFileSync(output, "utf8"))).toEqual({
+        INTERLOCK_SESSION: "real-mcp-session",
         INTERLOCK_GRAPH: "0060-headless-runtime",
         INTERLOCK_NODE: "marker-never-dropped",
       });

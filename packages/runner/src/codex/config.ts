@@ -2,9 +2,11 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   statSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
@@ -417,9 +419,20 @@ function createOverlay(
   try {
     mkdirSync(root, { recursive: true, mode: 0o700 });
     const home = mkdtempSync(join(root, "codex-home-"));
-    writeFileSync(join(home, "config.toml"), snapshot.baseText, { mode: 0o600 });
     const safeSession = session.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 24) || "session";
     const profile = `interlock-${safeSession}`;
+    const generated = new Set(["config.toml", `${profile}.config.toml`]);
+    if (existsSync(configHome(environment))) {
+      for (const entry of readdirSync(configHome(environment), { withFileTypes: true })) {
+        if (generated.has(entry.name)) continue;
+        symlinkSync(
+          join(configHome(environment), entry.name),
+          join(home, entry.name),
+          entry.isDirectory() ? "dir" : "file",
+        );
+      }
+    }
+    writeFileSync(join(home, "config.toml"), snapshot.baseText, { mode: 0o600 });
     const sourceProfile = snapshot.profileText ?? "";
     writeFileSync(
       join(home, `${profile}.config.toml`),

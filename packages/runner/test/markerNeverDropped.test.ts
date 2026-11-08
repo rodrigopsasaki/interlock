@@ -1,4 +1,14 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { isErr, isOk, ok } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
@@ -81,6 +91,48 @@ describe("Codex marker delivery policy", () => {
     expect(profileText).toContain('INTERLOCK_SESSION = "session"');
     result.value.cleanup();
     expect(existsSync(overlayHome)).toBe(false);
+  });
+
+  it("links owner auth and state through the overlay without copying credentials", () => {
+    const root = fixtureRoot("marker-owner-home");
+    const names = Array.from({ length: 12 }, (_, index) => `server_${index}_${"x".repeat(48)}`);
+    const home = codexHome(
+      root,
+      names.map((name) => `[mcp_servers.${name}]\ncommand = "fixture"\n`).join("\n"),
+    );
+    const authPath = join(home, "auth.json");
+    const lockPath = join(home, "auth.lock");
+    const sessionsPath = join(home, "sessions");
+    writeFileSync(authPath, '{"token":"fixture-secret"}\n');
+    writeFileSync(lockPath, "locked\n");
+    mkdirSync(sessionsPath);
+    writeFileSync(join(sessionsPath, "history.jsonl"), "history\n");
+    const result = prepareCodexLaunch([], root, environment(home), {
+      listCodexMcp: () => ok(names),
+    });
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) return;
+    const overlayHome = result.value.environment["CODEX_HOME"];
+    expect(overlayHome).toBeDefined();
+    if (overlayHome === undefined) return;
+    expect(lstatSync(join(overlayHome, "auth.json")).isSymbolicLink()).toBe(true);
+    expect(statSync(join(overlayHome, "auth.json")).ino).toBe(statSync(authPath).ino);
+    expect(lstatSync(join(overlayHome, "auth.lock")).isSymbolicLink()).toBe(true);
+    expect(lstatSync(join(overlayHome, "sessions")).isSymbolicLink()).toBe(true);
+    writeFileSync(join(overlayHome, "auth.json"), '{"token":"updated"}\n');
+    expect(readFileSync(authPath, "utf8")).toBe('{"token":"updated"}\n');
+    const regularEntries = readdirSync(overlayHome, { withFileTypes: true })
+      .filter((entry) => entry.isFile())
+      .map((entry) => entry.name);
+    expect(regularEntries).toContain("config.toml");
+    expect(regularEntries).toContain("interlock-session.config.toml");
+    expect(regularEntries).not.toContain("auth.json");
+    expect(regularEntries).not.toContain("auth.lock");
+    result.value.cleanup();
+    expect(existsSync(overlayHome)).toBe(false);
+    expect(readFileSync(authPath, "utf8")).toBe('{"token":"updated"}\n');
+    expect(existsSync(sessionsPath)).toBe(true);
+    expect(readFileSync(join(sessionsPath, "history.jsonl"), "utf8")).toBe("history\n");
   });
 
   it("refuses an irreducible launch line at the byte limit", () => {

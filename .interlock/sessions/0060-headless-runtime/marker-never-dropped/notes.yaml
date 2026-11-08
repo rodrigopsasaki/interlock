@@ -61,3 +61,23 @@ entries:
     at: "2026-11-08T12:25:00Z"
     expected: The filed debrief would validate against the notes committed with the final gate counts.
     observed: The unquoted colon in the final note's chose scalar made notes.yaml invalid YAML; the scalar was quoted before rerunning validation.
+  - kind: surprise
+    at: "2026-11-08T13:50:00Z"
+    expected: The installed Codex app-server would accept the prepared launch's profile selector.
+    observed: Codex rejected --profile for app-server because that selector is limited to runtime commands and codex mcp.
+  - kind: choice
+    at: "2026-11-08T13:51:00Z"
+    chose: Make the overlay base config select its generated profile, then omit only the unsupported --profile argument when starting app-server in the real proof.
+    because: The pane and exec runtime commands still receive the prepared selector, while app-server reads the same launch-local home and must get the generated marker profile through its supported config path.
+  - kind: surprise
+    at: "2026-11-08T13:53:00Z"
+    expected: A generated profile could be selected from overlay config.toml for app-server.
+    observed: Codex rejects the legacy profile key in config.toml, so app-server cannot consume the generated profile that way; the proof now exercises the normal runtime command that accepts --profile.
+  - kind: choice
+    at: "2026-11-08T13:55:00Z"
+    chose: Use real codex exec with the prepared profile and assert the fixture child files before treating an authentication failure as skippable.
+    because: Codex starts the configured MCP children before its model request, so the proof observes actual child environments without owner credentials while preserving a narrow skip only when an unauthenticated runtime starts no fixture.
+  - kind: surprise
+    at: "2026-11-08T13:56:00Z"
+    expected: The no-credential fixture Codex launch would fail before starting MCP children.
+    observed: Codex retried the model request with 401 Unauthorized, but all four local MCP fixture children recorded the three marker values first.
