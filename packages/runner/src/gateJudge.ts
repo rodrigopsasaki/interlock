@@ -62,6 +62,7 @@ import {
   type GateOutputRefusal,
   retainGateOutput,
 } from "./gateOutput.ts";
+import { checkNodeEngine } from "./nodeEngine.ts";
 import { spawnOwned } from "./ownedCommand.ts";
 import { appendUnrecordedNotes } from "./questionNotes.ts";
 
@@ -336,6 +337,7 @@ export async function judgeGates(
   const parsedGraphHash = request.parsedGraphHash;
 
   const gateMovedThisRun: LedgerEvent[] = [];
+  let nodeEngineChecked = false;
 
   await invalidateStaleDelegated(
     ledger,
@@ -362,6 +364,22 @@ export async function judgeGates(
 
     if (current.kind === "satisfied" && current.receipt.spend.kind !== "none") {
       continue;
+    }
+
+    if (!nodeEngineChecked) {
+      const nodeEngine = await checkNodeEngine(worktree, "gate", env, heavy);
+      if (isErr(nodeEngine)) {
+        narrate(nodeEngine.error.because);
+        const held = outcome.held(
+          [],
+          heldOn.gateFailure(nodeEngine.error.because, "hold"),
+          nodeEngine.error.because,
+          clock.now().wallMs + holdMs,
+        );
+        ledger.append({ kind: "outcome-set", node, outcome: held });
+        return ok(held);
+      }
+      nodeEngineChecked = true;
     }
 
     const substituted = substituteGateCommand(gateCommand?.run ?? "", node);

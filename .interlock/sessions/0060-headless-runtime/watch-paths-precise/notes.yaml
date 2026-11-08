@@ -1,0 +1,35 @@
+interlock: notes@v0
+node: watch-paths-precise
+entries:
+  - kind: choice
+    at: "2026-11-08T08:03:08Z"
+    chose: Model watch_paths as either an absolute string or a local@v1 folder mapping with an explicit exclude list, while retaining the string form for local@v0.
+    because: The acceptance adds folder exclusions without changing how existing local@v0 files parse.
+  - kind: choice
+    at: "2026-11-08T08:03:08Z"
+    chose: Represent a watched file relative to its parent directory and record a missing file entry before it exists.
+    because: A file watch must have a stable named snapshot entry across absence, creation and replacement; the prior root-relative walk produced an empty path that was discarded.
+  - kind: choice
+    at: "2026-11-08T08:03:08Z"
+    chose: Skip excluded paths from recursive descent before lstat or file reading, and carry owner-only size and mtimeMs comparisons without a file reader call.
+    because: Exclusions must not inspect descendants beyond the directory listing, while owner-only files must avoid opening secrets and still detect size or mtime changes.
+  - kind: surprise
+    at: "2026-11-08T08:04:00Z"
+    expected: The first serial typecheck wrapper would preserve its exit code through a temporary shell variable.
+    observed: zsh refused the variable name `status` because it is read-only; the command stopped before running TypeScript and was rerun with a different variable name.
+  - kind: surprise
+    at: "2026-11-08T08:08:00Z"
+    expected: Rewriting an owner-only fixture file and restoring its mtime through a JavaScript Date would reproduce the original timestamp.
+    observed: Date conversion dropped sub-millisecond precision, so the snapshot detected the mtime change as designed; the fixture now restores numeric seconds from the original mtimeMs.
+  - kind: choice
+    at: "2026-11-08T08:09:00Z"
+    chose: Regenerate docs/shapes.md after changing schemas/local@v1.json.
+    because: The repository's schema reference test requires the committed generated page to match the schema, and the CLI documents that regeneration is the supported update path.
+  - kind: question
+    at: "2026-11-08T08:10:00Z"
+    asked: May I create the authorized forward signed implementation commit in this worktree, including the source, tests, schema, generated reference and notes, without amending or pushing?
+    options: [yes, no]
+  - kind: surprise
+    at: "2026-11-08T08:11:00Z"
+    expected: The standing lint gate would report only the files changed by this session.
+    observed: Biome passed with one pre-existing warning and one informational finding in packages/runner/test/runnerCommits.test.ts, outside this diff.

@@ -1,0 +1,71 @@
+interlock: notes@v0
+node: gates-run-on-engines-node
+entries:
+  - kind: choice
+    at: "2026-11-08T10:01:34Z"
+    chose: Put the engines check in one runner helper and call it immediately before setup or gate execution.
+    because: The same refusal must protect both command paths, preserve the command environment's PATH, and leave repositories without engines.node unchanged.
+  - kind: surprise
+    at: "2026-11-08T10:05:00Z"
+    expected: The comparator parser would accept the range syntax used by the acceptance example.
+    observed: The focused proof showed that `>=24 <25` uses major-only operands, so comparator parsing now fills missing minor and patch components with zero.
+  - kind: surprise
+    at: "2026-11-08T10:06:00Z"
+    expected: The focused rerun would start with the same disposable mise state as the first run.
+    observed: Vitest scanned the prior visible mise state directory and hit an inaccessible .Trash entry; the fixture now keeps mise state in a hidden test-run directory, and the visible stale scratch was removed.
+  - kind: surprise
+    at: "2026-11-08T10:08:00Z"
+    expected: Hiding the mise state directory would keep it outside Vitest's recursive scan.
+    observed: Vitest also scanned hidden directories under test/.runs; the fixture now creates one disposable mise directory per test process and removes it in afterAll.
+  - kind: choice
+    at: "2026-11-08T10:10:00Z"
+    chose: Commit the tested guard and focused proof as a signed forward commit before running the standing gates.
+    because: The brief requires incremental commits and the final debrief must name the last code commit without amending or forcing history.
+  - kind: surprise
+    at: "2026-11-08T10:13:00Z"
+    expected: The full workspace test gate would reproduce the focused runner results without unrelated failures.
+    observed: The new engines-node proof passed, but four existing execRuntime tests timed out; the runner suite reported 566 passed and 4 failed, so the standing test gate remains unresolved.
+  - kind: surprise
+    at: "2026-11-08T10:15:00Z"
+    expected: The standalone runner-suite gate would isolate the new proof from the workspace test failure.
+    observed: The standalone runner suite repeated the same four execRuntime timeouts and 566 passed, 4 failed result; the engines-node file itself passed 9 tests.
+  - kind: choice
+    at: "2026-11-08T10:18:00Z"
+    chose: Author the debrief with four narrow decisions covering the shared guard, gate hold, setup hold, and fixture proof, and keep the two unresolved execRuntime test results in open.
+    because: The debrief must manifest the produced hunks and report the runner receipts honestly without claiming that unrelated timed-out tests passed.
+  - kind: surprise
+    at: "2026-11-08T10:20:00Z"
+    expected: file-derived would accept the candidate's head_sha as the last source commit while session notes had a later signed commit.
+    observed: file-derived requires candidate identity to match the current HEAD, so the candidate now names the later notes commit even though the source hunks were produced in e87cb6b.
+  - kind: choice
+    at: "2026-11-08T10:22:00Z"
+    chose: Revise the filed debrief candidate to include the passing debrief-valid receipt, then validate the revised filed artifact again.
+    because: The final debrief should report every declared gate that was actually run, including the validation of its own artifact.
+  - kind: choice
+    at: "2026-11-08T10:43:13Z"
+    chose: Write the fixture node and setup scripts from literal lines and pass their variable data through the fixture environment.
+    because: The fixture guard can read literal generated shell content, while environment variables preserve the version and setup-marker behavior without weakening the guard.
+  - kind: surprise
+    at: "2026-11-08T10:44:30Z"
+    expected: The focused CLI test would write its output to the repository scratch path and return its exit status.
+    observed: The repository has package-local scratch directories, so the first command could not open test/.runs/fixtureGuard.test.log; zsh also reserved the temporary variable name status, and no test ran.
+  - kind: surprise
+    at: "2026-11-08T10:52:00Z"
+    expected: The full workspace test would provide a clean standing receipt after the fixture-only correction.
+    observed: The full run passed 566 of 570 runner tests and repeated the four pre-existing execRuntime timeouts; the corrected engines-node proof passed its 9 tests within that run.
+  - kind: choice
+    at: "2026-11-08T10:58:00Z"
+    chose: Run the standing typecheck, lint, comments, and explicit runner-suite gates after the fixture correction before revising the debrief.
+    because: The final debrief must be based on post-change harness receipts, including the repository-wide checks and the runner gate named by the acceptance.
+  - kind: surprise
+    at: "2026-11-08T11:04:00Z"
+    expected: The explicit runner-suite gate would differ from the earlier full workspace runner result after the fixture-only correction.
+    observed: It passed 45 test files and 566 of 570 tests, with the same four execRuntime timeouts; typecheck and comments passed, while lint exited zero with the existing one warning and one info.
+  - kind: surprise
+    at: "2026-11-08T11:10:00Z"
+    expected: The fresh candidate could be filed through the first-filing file-derived command.
+    observed: The node already had a filed debrief, so file-derived rejected the candidate identity; the correction was selected through debrief revise, and the filed debrief then validated successfully.
+  - kind: choice
+    at: "2026-11-08T11:10:30Z"
+    chose: Add the passing debrief validation receipt to the authored correction candidate and revise the filed debrief again before the final commit.
+    because: The final debrief should include the validation result for its own canonical bytes while retaining the earlier filed debrief as a revision history.

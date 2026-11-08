@@ -533,6 +533,19 @@ export async function driveInteractiveSession(
       machine.value.heavy,
     );
     if (isErr(setUp)) {
+      if (setUp.error.kind === "node-engine") {
+        const because = setUp.error.because;
+        narrate(because);
+        const held = outcome.held(
+          [],
+          heldOn.gateFailure(because, "hold"),
+          because,
+          clock.now().wallMs + HELD_REVISIT_MS,
+        );
+        ledger.append({ kind: "outcome-set", node: targetNode, outcome: held });
+        abandonLease();
+        return { exitCode: 0, message: `${node}: held (${because}).` };
+      }
       const result = refuse(abandon("worktree setup"), explainWorktreeSetupRefusal(setUp.error));
       lease.stop();
       abandonLease();
