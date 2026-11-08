@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { isOk, ok } from "@phyxiusjs/fp";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { configuredCodexMcpServers } from "../src/codex/config.ts";
 import type { ResolvedRuntime } from "../src/runtimeCatalogue.ts";
 import { prepareLaunch } from "../src/sessionDrive.ts";
@@ -9,6 +9,16 @@ import { prepareLaunch } from "../src/sessionDrive.ts";
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
 let directory: string | undefined;
+const previousGitCeiling = process.env["GIT_CEILING_DIRECTORIES"];
+
+beforeAll(() => {
+  process.env["GIT_CEILING_DIRECTORIES"] = join(runsRoot, "..");
+});
+
+afterAll(() => {
+  if (previousGitCeiling === undefined) delete process.env["GIT_CEILING_DIRECTORIES"];
+  else process.env["GIT_CEILING_DIRECTORIES"] = previousGitCeiling;
+});
 
 afterEach(() => {
   if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
@@ -29,6 +39,18 @@ function runtime(args: readonly string[] = ["--quiet"]): ResolvedRuntime {
     readySettleMs: 0,
     promptRetries: 0,
     writableRootArgs: undefined,
+  };
+}
+
+function environment(home: string): Readonly<Record<string, string>> {
+  const root = join(home, "..");
+  return {
+    HOME: join(root, "home"),
+    XDG_STATE_HOME: join(root, "state"),
+    INTERLOCK_SESSION: "session",
+    INTERLOCK_GRAPH: "graph",
+    INTERLOCK_NODE: "node",
+    CODEX_HOME: home,
   };
 }
 
@@ -102,12 +124,7 @@ describe("configured Codex marker servers", () => {
     const launch = prepareLaunch(
       runtime(),
       root,
-      {
-        INTERLOCK_SESSION: "session",
-        INTERLOCK_GRAPH: "graph",
-        INTERLOCK_NODE: "node",
-        CODEX_HOME: home,
-      },
+      environment(home),
       { listCodexMcp: () => ok(names) },
     );
     expect(isOk(launch)).toBe(true);

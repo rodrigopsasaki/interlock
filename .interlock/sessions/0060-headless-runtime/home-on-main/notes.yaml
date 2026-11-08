@@ -140,3 +140,22 @@ entries:
       file-derived rejected that candidate because its identity must match the current derived
       proof HEAD, which includes the append-only notes commits; the candidate is being corrected
       to the current session HEAD before filing.
+  - kind: choice
+    at: '2026-11-08T19:00:00Z'
+    chose: Expose the failing launch refusal before changing the carried-over marker test.
+    because: >-
+      The acceptance requires the exact error to distinguish a fixture-isolation defect from a
+      production launch defect, and the test currently returns before displaying the refusal.
+  - kind: surprise
+    at: '2026-11-08T19:01:00Z'
+    expected: The failing launch would report a production line-fitting or marker-delivery error.
+    observed: >-
+      The launch refused because the Codex overlay path already existed; the test had omitted
+      isolated HOME and XDG_STATE_HOME, so the new overlay state default reused a persistent
+      state location rather than its temporary fixture.
+  - kind: choice
+    at: '2026-11-08T19:02:00Z'
+    chose: Keep the marker values session, graph, and node while isolating only their fixture roots.
+    because: >-
+      The carried-over assertion intentionally verifies the inherited session marker value; unique
+      temporary HOME and XDG_STATE_HOME roots already prevent overlay identity collisions.
