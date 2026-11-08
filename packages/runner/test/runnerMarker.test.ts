@@ -1,5 +1,13 @@
-import { spawnSync } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import {
+  chmodSync,
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { err, isOk, ok } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -100,10 +108,7 @@ describe("runner marker", () => {
     const bin = join(root, "bin");
     mkdirSync(bin);
     const codex = join(bin, "codex");
-    writeFileSync(
-      codex,
-      `#!/usr/bin/env node\n${readFileSync(join(import.meta.dirname, "fixtures", "exec", "codexProbe.mjs"), "utf8")}`,
-    );
+    copyFileSync(join(import.meta.dirname, "fixtures", "exec", "codexProbe.mjs"), codex);
     chmodSync(codex, 0o755);
     const output = join(root, "probe.jsonl");
     const environment = {
@@ -123,12 +128,13 @@ describe("runner marker", () => {
     });
     expect(isOk(launch)).toBe(true);
     if (!isOk(launch)) return;
-    const started = spawnSync(codex, [...launch.value.args], {
-      cwd: root,
-      env: { ...process.env, ...launch.value.environment },
-      encoding: "utf8",
-    });
-    expect(started.status).toBe(0);
+    expect(() =>
+      execFileSync(process.execPath, [codex, ...launch.value.args], {
+        cwd: root,
+        env: { ...process.env, ...launch.value.environment },
+        encoding: "utf8",
+      }),
+    ).not.toThrow();
     expect(JSON.parse(readFileSync(output, "utf8"))).toEqual({
       INTERLOCK_SESSION: "session",
       INTERLOCK_GRAPH: "graph",
