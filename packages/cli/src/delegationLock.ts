@@ -46,7 +46,7 @@ async function acquire(directory: string): Promise<string> {
       } catch {
         record = undefined;
       }
-      if (!isLockRecord(record) || !isAlive(record.pid)) {
+      if (isLockRecord(record) && !isAlive(record.pid)) {
         try {
           await unlink(path);
         } catch (unlinkError) {

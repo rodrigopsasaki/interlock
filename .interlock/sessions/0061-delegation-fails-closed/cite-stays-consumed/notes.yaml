@@ -9,3 +9,7 @@ entries:
     at: "2026-11-08T03:45:00Z"
     chose: Keep the exclusive cite lock in the CLI adapter and leave verification and receipt preparation outside it, while opening the ledger and performing the reuse check and append inside it.
     because: The brief explicitly bounds the lock to shared-journal spending and permits pre-lock verification; this preserves the existing adapters and makes the fresh replay the authority for each spend.
+  - kind: surprise
+    at: "2026-11-08T03:46:22Z"
+    expected: A newly created lock file would be readable before a competing caller inspected it.
+    observed: The concurrent regression exposed a short create-and-write window where the second caller could misread the incomplete file as a dead lock and take it over; incomplete lock records now wait, while a valid record with a dead PID is taken over.
