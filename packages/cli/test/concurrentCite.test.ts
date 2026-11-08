@@ -34,13 +34,19 @@ function fixture(): { readonly cwd: string; readonly machine: string } {
       "",
     ].join("\n"),
   );
-  writeFileSync(join(directory, ".interlock", "config.yaml"), "interlock: config@v0\nstanding_gates: []\n");
+  writeFileSync(
+    join(directory, ".interlock", "config.yaml"),
+    "interlock: config@v0\nstanding_gates: []\n",
+  );
   writeFileSync(
     join(directory, ".interlock", "local.yaml"),
     "interlock: local@v1\nruntime:\n  kind: claude\n  worktree_root: .worktrees\n  lease_ms: 1000\n  run_timeout_ms: 1000\nsubstrate:\n  address: none\nowner_login: owner\n",
   );
   const provider = join(directory, "cite-provider.mjs");
-  writeFileSync(provider, "process.stdout.write(JSON.stringify({verified:true,author:'owner',words:'words',at:'2026-11-08T00:00:00Z'}));\n");
+  writeFileSync(
+    provider,
+    "process.stdout.write(JSON.stringify({verified:true,author:'owner',words:'words',at:'2026-11-08T00:00:00Z'}));\n",
+  );
   const machine = join(directory, "machine.yaml");
   writeFileSync(
     machine,
@@ -98,10 +104,17 @@ describe("delegated cite locking", () => {
     if (results.every((result) => result.exitCode === 0)) throw new Error(JSON.stringify(results));
     expect(results.filter((result) => result.exitCode === 0)).toHaveLength(1);
     expect(results.filter((result) => result.exitCode === 1)).toHaveLength(1);
-    expect(results.find((result) => result.exitCode === 1)?.message).toContain("already authorized clear");
-    expect(readFileSync(join(cwd, ".interlock", "ledger", "journal.jsonl"), "utf8").match(/gate-moved/g)).toHaveLength(1);
+    expect(results.find((result) => result.exitCode === 1)?.message).toContain(
+      "already authorized clear",
+    );
+    expect(
+      readFileSync(join(cwd, ".interlock", "ledger", "journal.jsonl"), "utf8").match(/gate-moved/g),
+    ).toHaveLength(1);
 
-    writeFileSync(join(cwd, ".interlock", "ledger", ".cite-spend.lock"), JSON.stringify({ pid: 999999, at: 0 }));
+    writeFileSync(
+      join(cwd, ".interlock", "ledger", ".cite-spend.lock"),
+      JSON.stringify({ pid: 999999, at: 0 }),
+    );
     const takeover = await runGateClear(args("b"), { cwd, machinePath: machine });
     expect(takeover.exitCode).toBe(1);
     expect(takeover.message).toContain("already authorized clear");

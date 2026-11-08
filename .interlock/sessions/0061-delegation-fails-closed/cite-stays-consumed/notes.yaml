@@ -13,3 +13,7 @@ entries:
     at: "2026-11-08T03:46:22Z"
     expected: A newly created lock file would be readable before a competing caller inspected it.
     observed: The concurrent regression exposed a short create-and-write window where the second caller could misread the incomplete file as a dead lock and take it over; incomplete lock records now wait, while a valid record with a dead PID is taken over.
+  - kind: surprise
+    at: "2026-11-08T04:00:00Z"
+    expected: mise exec would run the pinned Node 24 toolchain and the standing lint gate would reflect only this branch.
+    observed: The environment reported Node 26.13.0 despite mise exec, and lint still reports two existing runner test findings outside this node; typecheck, comments, focused proofs, and the full workspace test pass.

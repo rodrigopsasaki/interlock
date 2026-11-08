@@ -152,7 +152,10 @@ function withConsumedReceipts(
   projection: LedgerProjection,
   receipts: readonly Receipt[],
 ): LedgerProjection {
-  return receipts.reduce((current, receipt) => withConsumed(current, receipt.derivation), projection);
+  return receipts.reduce(
+    (current, receipt) => withConsumed(current, receipt.derivation),
+    projection,
+  );
 }
 
 export function applyEvent(projection: LedgerProjection, event: LedgerEvent): LedgerProjection {
@@ -257,9 +260,9 @@ export function applyEvent(projection: LedgerProjection, event: LedgerEvent): Le
     case "gate-moved":
       return withConsumed(
         withNode(projection, event.node, (view) => {
-        const gates = new Map(view.gates);
-        gates.set(event.gate, event.to);
-        return { ...view, gates };
+          const gates = new Map(view.gates);
+          gates.set(event.gate, event.to);
+          return { ...view, gates };
         }),
         event.to.kind === "satisfied" || event.to.kind === "waived"
           ? event.to.receipt.derivation
@@ -284,16 +287,23 @@ export function applyEvent(projection: LedgerProjection, event: LedgerEvent): Le
       );
     case "outbox-intent-recorded":
       if (!("effect" in event)) return withNode(projection, event.node, (view) => view);
-      return withConsumed({
-        ...withNode(projection, event.node, (view) => view),
-        outbox: new Map([
-          ...projection.outbox,
-          [event.effect.id, { intent: event.effect, delivery: undefined, state: "uncertain" }],
-        ]),
-      }, event.effect.derivation);
+      return withConsumed(
+        {
+          ...withNode(projection, event.node, (view) => view),
+          outbox: new Map([
+            ...projection.outbox,
+            [event.effect.id, { intent: event.effect, delivery: undefined, state: "uncertain" }],
+          ]),
+        },
+        event.effect.derivation,
+      );
     case "outbox-delivery-recorded": {
       const current = projection.outbox.get(event.delivery.id);
-      if (current === undefined) return withConsumed(withSaidDelivery(projection, event.delivery), event.delivery.derivation);
+      if (current === undefined)
+        return withConsumed(
+          withSaidDelivery(projection, event.delivery),
+          event.delivery.derivation,
+        );
       const outbox = new Map(projection.outbox);
       outbox.set(event.delivery.id, {
         ...current,

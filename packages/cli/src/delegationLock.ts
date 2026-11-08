@@ -74,11 +74,7 @@ export async function withDelegationLock<T>(
     return await operation();
   } finally {
     await unlink(path).catch((error: unknown) => {
-      if (
-        !(error instanceof Error) ||
-        !("code" in error) ||
-        error.code !== "ENOENT"
-      ) {
+      if (!(error instanceof Error) || !("code" in error) || error.code !== "ENOENT") {
         throw error;
       }
     });

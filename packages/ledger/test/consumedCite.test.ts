@@ -41,8 +41,19 @@ describe("consumed cite projection", () => {
       { kind: "gate-moved", node, gate: "witnessed", to: { kind: "satisfied", receipt: first } },
       { kind: "gate-moved", node, gate: "witnessed", to: { kind: "pending" } },
       { kind: "gate-moved", node, gate: "witnessed", to: { kind: "satisfied", receipt: second } },
-      { kind: "receipt-retracted", node, gate: "witnessed", receiptId: "receipt-second", by: "owner", because: "retract" },
-      { kind: "receipt-written", node, receipt: { ...receipt("owner"), derivation: derivation.human("owner") } },
+      {
+        kind: "receipt-retracted",
+        node,
+        gate: "witnessed",
+        receiptId: "receipt-second",
+        by: "owner",
+        because: "retract",
+      },
+      {
+        kind: "receipt-written",
+        node,
+        receipt: { ...receipt("owner"), derivation: derivation.human("owner") },
+      },
     ]);
 
     expect(projection.consumedCites.has("first")).toBe(true);

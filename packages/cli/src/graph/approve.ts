@@ -30,8 +30,8 @@ import {
   type VerifiedCitation,
   verifyCitation,
 } from "../delegation.ts";
-import { parseFlag, parseFlagValue } from "../flags.ts";
 import { pauseAfterDelegationCheck, withDelegationLock } from "../delegationLock.ts";
+import { parseFlag, parseFlagValue } from "../flags.ts";
 import type { CommandResult } from "../main.ts";
 
 function missingDelegationValue(flag: string): CommandResult {
@@ -188,7 +188,12 @@ export async function runGraphApprove(
       return { exitCode: 1, message: explainScopeRefusal(receipt.error) };
     }
 
-    const moved = proposeGateMove(declaredGates, "approved", current, gate.satisfied(receipt.value));
+    const moved = proposeGateMove(
+      declaredGates,
+      "approved",
+      current,
+      gate.satisfied(receipt.value),
+    );
     if (isErr(moved)) {
       await ledger.close();
       const refusal = moved.error;

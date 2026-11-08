@@ -2,10 +2,10 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { join } from "node:path";
 import { createSystemClock } from "@phyxiusjs/clock";
 import { isErr } from "@phyxiusjs/fp";
+import { createLedger, derivation, gate } from "ledger";
 import { afterEach, describe, expect, it } from "vitest";
 import { runGateClear } from "../src/gate/clear.ts";
 import { runReceiptRetract } from "../src/receipt/retract.ts";
-import { createLedger, derivation, gate } from "ledger";
 import { gitInitFixture } from "./graph/gitFixture.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
@@ -101,15 +101,26 @@ function args(node: string, cite: string): string[] {
 }
 
 async function movePending(cwd: string): Promise<void> {
-  const opened = await createLedger({ clock: createSystemClock(), directory: join(cwd, ".interlock", "ledger") });
+  const opened = await createLedger({
+    clock: createSystemClock(),
+    directory: join(cwd, ".interlock", "ledger"),
+  });
   if (isErr(opened)) throw new Error("expected ledger");
   const ledger = opened.value;
-  ledger.append({ kind: "gate-moved", node: { graph: "demo", id: "a" }, gate: "witnessed", to: gate.pending() });
+  ledger.append({
+    kind: "gate-moved",
+    node: { graph: "demo", id: "a" },
+    gate: "witnessed",
+    to: gate.pending(),
+  });
   await ledger.close();
 }
 
 async function replaceWithOwnerReceipt(cwd: string): Promise<void> {
-  const opened = await createLedger({ clock: createSystemClock(), directory: join(cwd, ".interlock", "ledger") });
+  const opened = await createLedger({
+    clock: createSystemClock(),
+    directory: join(cwd, ".interlock", "ledger"),
+  });
   if (isErr(opened)) throw new Error("expected ledger");
   const ledger = opened.value;
   ledger.append({
@@ -142,12 +153,17 @@ describe("consumed delegated cites", () => {
     if (state === "pending") await movePending(cwd);
     if (state === "replaced") await replaceWithOwnerReceipt(cwd);
     if (state === "retracted") {
-      const retracted = await runReceiptRetract(["demo", "a", "witnessed", "--by", "owner", "--because", "retract"], { cwd });
+      const retracted = await runReceiptRetract(
+        ["demo", "a", "witnessed", "--by", "owner", "--because", "retract"],
+        { cwd },
+      );
       expect(retracted.exitCode).toBe(0);
     }
     const reused = await runGateClear(args("b", state), { cwd, machinePath: machine });
     expect(reused.exitCode).toBe(1);
     expect(reused.message).toContain("already authorized clear");
-    expect(readFileSync(join(cwd, ".interlock", "ledger", "journal.jsonl"), "utf8")).toContain("said:" + state);
+    expect(readFileSync(join(cwd, ".interlock", "ledger", "journal.jsonl"), "utf8")).toContain(
+      `said:${state}`,
+    );
   });
 });
