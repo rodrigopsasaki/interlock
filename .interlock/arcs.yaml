@@ -43,7 +43,7 @@ arcs:
     source: 2026-11-06 15:43 UTC, project chat (the arc's full words, through 17:13 UTC, are in preston's .interlock/arcs.yaml)
     graphs:
       - interlock/0056-machine-provider
-      - interlock/0057-own-sessions
+      - interlock/0057-own-sessions (folded into interlock/0060-headless-runtime, 2026-11-06 21:52 UTC)
       - preston/0034-machine-limits
       - preston/0035-limits-smart
 
@@ -70,6 +70,17 @@ arcs:
     graphs:
       - interlock/0059-submodule-receipts
       - interlock/0059-submodule-receipts-2 (re-plan of its gitlinks-hash-commit node after a cancel, 2026-11-07)
+
+  - id: herdr-only-for-visuals
+    title: Herdr was only for visuals
+    ask: "If herdr is only there for visuals then we don't need it. That's what I mean. I used herdr when working on interlock but Preston had no interface, that's not true anymore"
+    source: 2026-11-06 21:52 UTC, project chat (cmsg_01BN1q6CYuBjcZAFT6C2pgFd3pJA1iGhhHyHPYPy1QAvvH)
+    also_said:
+      - words: "I thought we needed it to manage sessions, but if we don't, then let's scrap it. I want Preston's install to be as lean as possible. We already have a UI, a server, an MCP and a postgres"
+        source: 2026-11-06 21:54 UTC, project chat (cmsg_01BN1q6CYuBjcZAFT6C2pgFd59MV43pQgzhM6JeEnLuYQT)
+    graphs:
+      - interlock/0060-headless-runtime
+      - preston/0038-lean-install
 
   - id: interlock-runs-any-runtime
     title: Interlock runs any runtime
