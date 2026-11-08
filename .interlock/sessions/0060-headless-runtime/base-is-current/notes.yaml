@@ -70,3 +70,7 @@ entries:
     at: "2026-11-08T18:10:00Z"
     expected: The passing workspace test would leave no session-local Codex overlay behind.
     observed: Runtime tests recreated .interlock/sessions/0060-headless-runtime/base-is-current/codex-home-sUO6F8; it was removed before debrief filing and is excluded from all staging.
+  - kind: choice
+    at: "2026-11-08T18:20:00Z"
+    chose: Remove process CODEX_HOME forwarding from sessionDrive while retaining the machine-provider test fixture isolation.
+    because: base-is-current accepts stale-base admission behavior, not agent Codex-home selection; forwarding the launcher's process home belongs to home-on-main and can expose the person's selected home to an agent.
