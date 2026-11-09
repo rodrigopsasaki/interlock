@@ -299,3 +299,40 @@ nodes:
         kind: command
         run: node scripts/gates/slow-tests.ts
         expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1.5 s'
+
+  - id: interlock-says-what-it-carries
+    role: implementer
+    depends_on: [exec-profiles-can-be-probed]
+    acceptance: |
+      `interlock capabilities --json` states which selected, setup-facing exec-runtime contracts this interlock
+      implements, so a substrate's setup can check the installed interlock instead of trusting a list of graph names.
+      Found on 2026-11-09: the substrate's setup keeps a waiting entry for this graph that it may only drop by checking
+      the installed interlock, and interlock offers no way to ask; a strict loader proves new keys are understood, but an
+      older interlock would pass a literal "{writable_roots}" args element through unexpanded. A capability means the
+      binary implements the contract, not that this machine currently has access to anything.
+      - the command prints `{"interlock":"capabilities@v0","capabilities":[...]}` with these stable ids:
+        "exec.pane-independent" (an exec launch and its run-start recovery never need the pane runtime;
+        sessionDrive.ts:329, run.ts:183), "exec.writable-roots-slot" (runtimeCatalogue.ts:599),
+        "exec.mcp-exclusive" (:613), "exec.environment-passthrough" (:626), "exec.headless-args-probe" (:633 with
+        runtimeProbe.ts:202), "probe.real-checks" (runtimeProbe.ts:277 and the shipped check bodies), and "runtimes@v2"
+        (the catalogue formats this binary reads, from RUNTIME_CATALOGUE_SHAPE and the formats it still accepts,
+        runtimeCatalogue.ts:26, :476). These are a selection, not every change this graph made; ids are additive and
+        never renamed.
+      - each id is an exported constant declared beside its principal implementation and collected by the command, so
+        ownership is visible where the feature lives; the advertised contract itself stays proven by this graph's
+        behavioural tests, which this node does not replace. Nothing in the command is a hand-written list of strings.
+      - the shape is published as schemas/capabilities@v0.json following schemas/sessions@v0.json's metadata, with
+        `capabilities` an array of unique nonempty strings (no enum, so later additive ids validate), and docs/shapes.md
+        is regenerated, not hand-edited.
+      - dispatched like the other top-level commands (main.ts:93), returning a CommandResult; `--json` prints the
+        envelope, plain prints one id per line.
+      - it reads nothing of the machine: no catalogue, ledger, herdr, machine provider or repository.
+      Tests, packages/cli/test/capabilities.test.ts, through main.run(["capabilities","--json"]): the output validates
+      against the schema and lists exactly the ids above; it succeeds from a directory with no .interlock and a temp HOME,
+      and the catalogue, ledger, machine-provider and herdr entry points are not called (asserted with spies or
+      injected readers); the plain form prints the ids one per line; each id equals its exported constant.
+    gates:
+      - id: capabilities-tests
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/capabilities.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
