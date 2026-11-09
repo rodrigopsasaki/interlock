@@ -173,3 +173,52 @@ nodes:
         kind: command
         run: pnpm --fail-if-no-match --filter cli exec vitest run test/execProbe.test.ts --passWithNoTests=false
         expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: tests-stand-alone
+    role: implementer
+    depends_on: [exec-carries-roots-mcp-and-env]
+    acceptance: |
+      Two runner tests depend on their surroundings instead of only on the code they test; both become deterministic,
+      so a full-suite result means the code, not the machine or the checkout path.
+      Found on 2026-11-09 while judging exec-carries-roots-mcp-and-env, and sharpened by this node's vet:
+      - packages/runner/test/markerNeverDropped.test.ts "counts UTF-8 bytes rather than JavaScript characters" (:168)
+        derives HOME, XDG_STATE_HOME and CODEX_HOME from its fixture root under the worktree (:44), and all three are
+        serialized into the codex command (src environment.ts:16), so every character of worktree path adds three bytes:
+        the pre-marker line measured 1037 bytes against the 1024-byte CODEX_CANONICAL_LINE_LIMIT from a long worktree
+        path and passed from a short one. exec-carries-roots-mcp-and-env's branch shortens its filler (250 to 220), which
+        only moves the cliff. The test also never requires the marked line to stay under 1024 characters, so a production
+        change from bytes back to `.length` could still pass it.
+      - packages/runner/test/receiptCarriesItsRun.test.ts timed out at vitest's 5 s default in the full suite on a loaded
+        machine and passed alone. Each judgment spawns `mise exec -- <cmd>` through spawnOwned and waits for close
+        (gateJudge.ts:130, :403), and output retention launches `git rev-parse --git-common-dir` (gateOutput.ts:116);
+        each case also initializes and commits a git fixture (:36). The clock is already controlled (:51); its
+        "ignoring duration" case compares two zero durations from an unadvanced clock (:102), and its matching case
+        changes output bytes as well as the pattern (:116). Contention is not an accepted explanation.
+      What changes:
+      - marker test: its fixture root is a short directory under the system temp folder, independent of the worktree
+        path; the filler is computed from the actual serialization: with an empty filler, B is the unmarked command's
+        UTF-8 bytes and D the marked minus unmarked bytes; fillerLength = 1024 - (D - 15) - B, so the unmarked line is
+        exactly D - 15 bytes under the limit and the marked line crosses it by exactly 15 bytes; it asserts both exact
+        byte counts, that the marked line is under 1024 JavaScript characters, and that fillerLength is not negative. A
+        separate case covers a base already at or over the limit and asserts today's behaviour for it (the overlay path
+        or its refusal, whichever production does), so no path length is untested.
+      - receipt test: GateJudgeRequest gains an optional typed command runner, defaulting to today's spawnGateCommand
+        and receiving the full wrapper argv (so a fake can check it), returning { exitCode, output, stdout, stderr }; and
+        an optional resolved output-storage directory, defaulting to today's resolution, used by the real
+        storeGateOutput. The test fakes only execution results: proof construction, output hashing and storage,
+        commandReceiptId, deduplication and gate selection stay real. Its fixture needs no git repository. The fake
+        runner advances the controlled clock by different amounts for identical proof, and the case requires one
+        receipt; a new case gives identical bytes with different patterns and requires distinct receipts.
+      - production behaviour is unchanged; no timeout is raised; no case is skipped or weakened.
+      Evidence, in notes.yaml, each tied to this node's head sha with exit status, totals and the output file kept:
+      the receipt test's cases each finish under 1 s of real time alone; `pnpm test` passes three times in a row on that
+      head, run one at a time.
+    gates:
+      - id: marker-stands-alone
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/markerNeverDropped.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: receipt-stands-alone
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/receiptCarriesItsRun.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
