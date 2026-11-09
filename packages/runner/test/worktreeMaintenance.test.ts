@@ -24,6 +24,7 @@ import {
   worktreeGitLayout,
 } from "../src/worktree.ts";
 import { gitInitFixtureWithContent, headSha } from "./support/gitFixture.ts";
+import { slowIntegration } from "./support/slowIntegration.ts";
 
 // The supported boundary this file proves, on the installed Git: auto-maintenance launched by
 // an unsuppressed `git commit` in a retained node worktree (the maintenance control; the runner's
@@ -275,26 +276,33 @@ describe("the runner's worktrees against Git's default auto-maintenance", () => 
     expect(packsIn(fixture.commonGitDir)).not.toEqual(packsBefore);
   });
 
-  it("writes the detached tasks only into the common object store, never into a node or backfill worktree or admin directory", () => {
-    const fixture = maintenanceFixture();
-    const { afterDetach } = unsuppressedCommitInNodeWorktree(fixture);
-    const backfill = backfillWorktree(fixture);
-    writeLooseObjects(fixture.node, 64, "after the unsuppressed commit");
-    const packsBefore = packsIn(fixture.commonGitDir);
+  slowIntegration(
+    "writes the detached tasks only into the common object store, never into a node or backfill worktree or admin directory",
+    {
+      budgetMs: 10_000,
+      reason: "integrates Git maintenance, linked worktrees and detached task cleanup",
+    },
+    async () => {
+      const fixture = maintenanceFixture();
+      const { afterDetach } = unsuppressedCommitInNodeWorktree(fixture);
+      const backfill = backfillWorktree(fixture);
+      writeLooseObjects(fixture.node, 64, "after the unsuppressed commit");
+      const packsBefore = packsIn(fixture.commonGitDir);
 
-    lock(fixture.node, fixture.nodeAdmin, backfill.path, backfill.admin);
-    fixtureGit(
-      ["maintenance", "run", "--no-detach", ...afterDetach.map((task) => `--task=${task}`)],
-      { cwd: fixture.node },
-    );
-    unlock(fixture.node, fixture.nodeAdmin, backfill.path, backfill.admin);
+      lock(fixture.node, fixture.nodeAdmin, backfill.path, backfill.admin);
+      fixtureGit(
+        ["maintenance", "run", "--no-detach", ...afterDetach.map((task) => `--task=${task}`)],
+        { cwd: fixture.node },
+      );
+      unlock(fixture.node, fixture.nodeAdmin, backfill.path, backfill.admin);
 
-    expect(afterDetach).not.toEqual([]);
-    expect(packsIn(fixture.commonGitDir)).not.toEqual(packsBefore);
-    expect(readdirSync(join(fixture.commonGitDir, "objects", "info", "commit-graphs"))).not.toEqual(
-      [],
-    );
-  });
+      expect(afterDetach).not.toEqual([]);
+      expect(packsIn(fixture.commonGitDir)).not.toEqual(packsBefore);
+      expect(
+        readdirSync(join(fixture.commonGitDir, "objects", "info", "commit-graphs")),
+      ).not.toEqual([]);
+    },
+  );
 
   it("catches, under the same lock-down, the foreground reflog-expire writing a sibling backfill worktree's admin directory", () => {
     const fixture = maintenanceFixture();

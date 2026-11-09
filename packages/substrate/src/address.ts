@@ -1,5 +1,5 @@
 import type { Repository, SubstrateClient } from "./client.ts";
-import { httpClient } from "./httpClient.ts";
+import { type AbortScheduler, httpClient } from "./httpClient.ts";
 import { noneClient } from "./noneClient.ts";
 
 const HTTP_ADDRESS = /^https?:\/\//;
@@ -12,7 +12,8 @@ export function substrateClientFor(
   address: string,
   keyFile?: string,
   repository?: Repository,
+  abortScheduler?: AbortScheduler,
 ): SubstrateClient {
   if (address === "none") return noneClient();
-  return httpClient(address, keyFile, repository);
+  return httpClient(address, keyFile, repository, abortScheduler);
 }

@@ -1,0 +1,143 @@
+interlock: debrief@v2
+graph: 0063-exec-carries-the-contract
+node: judge-tests-stand-alone
+role: implementer
+graph_base_sha: e04c7a3a30638dda4a0a6cc34edc314f7d15e6b9
+session_start_sha: 88c84119b45ad59887952f803dda1fe8fd802896
+head_sha: 27e8e306394215d5cad32156b286a57d7df20758
+derivation:
+  kind: agent
+  runtime: codex
+  model: GPT-5
+discoveries: []
+decisions:
+  - id: seam-gate-execution-for-logic-tests
+    what: Added injectable gate command execution and output storage, and forwarded those seams through judgeWorktree, session drive, and CLI judge/run while leaving production defaults unchanged.
+    because: The receipt-idempotence case is logic about gate identity and duplicate facts; replacing only process execution and retained output removes Git and process timing from that proof without changing the production gate path.
+    applies_to: { kind: path, path: packages/runner/src/judgeWorktree.ts }
+    rests_on:
+      - packages/runner/src/gateJudge.ts
+      - packages/runner/src/judgeWorktree.ts:20-40
+      - packages/runner/src/sessionDrive.ts
+      - packages/runner/test/gateJudge.test.ts:67-105
+    hunks:
+      - packages/runner/src/gateJudge.ts
+      - packages/runner/src/judgeWorktree.ts:20-40
+      - packages/runner/src/sessionDrive.ts
+      - packages/cli/src/judge.ts
+      - packages/cli/src/run.ts
+      - packages/runner/test/gateJudge.test.ts:67-105
+  - id: seam-node-engine-version-checks
+    what: Added an injectable Node-version runner and forwarded it through gate judging and worktree setup; the engine still executes the real mise-prefixed command by default.
+    because: The engines.node cases assert version policy, so their logic proof needs to control only the version result while preserving the same refusal and acceptance branches used by gates and setup.
+    applies_to: { kind: path, path: packages/runner/src/nodeEngine.ts }
+    rests_on:
+      - packages/runner/src/nodeEngine.ts:145-180
+      - packages/runner/src/worktreeSetup.ts
+      - packages/runner/test/gatesRunOnEnginesNode.test.ts
+    hunks:
+      - packages/runner/src/nodeEngine.ts:145-180
+      - packages/runner/src/worktreeSetup.ts
+      - packages/runner/src/gateJudge.ts
+      - packages/runner/test/gatesRunOnEnginesNode.test.ts
+  - id: deterministic-herdr-deadlines
+    what: Added HerdrTiming injection with dynamic system timer lookup, and used scoped fake timers plus socket checkpoints for retry and deadline cases.
+    because: The adapter's real HerdrCall and Unix-socket protocol remain under test, while clock, sleep and deadline scheduling no longer require wall time or depend on a loaded timer reference.
+    applies_to: { kind: path, path: packages/runner/src/herdr/adapter.ts }
+    rests_on:
+      - packages/runner/src/herdr/adapter.ts:58-73
+      - packages/runner/src/herdr/adapter.ts:328-354
+      - packages/runner/test/herdr/adapter.test.ts
+    hunks:
+      - packages/runner/src/herdr/adapter.ts:58-73
+      - packages/runner/src/herdr/adapter.ts:328-354
+      - packages/runner/test/herdr/adapter.test.ts
+  - id: deterministic-substrate-abort
+    what: Added an AbortScheduler seam through the HTTP substrate client and used it to finish the hanging absorb case without waiting for the five-second production timeout.
+    because: The test remains an absorb integration against the HTTP client, but its fixed deadline is scheduled by the fixture so the logic assertion cannot fail because the machine is busy.
+    applies_to: { kind: path, path: packages/substrate/src/httpClient.ts }
+    rests_on:
+      - packages/substrate/src/httpClient.ts:21-32
+      - packages/substrate/src/httpClient.ts:87-119
+      - packages/substrate/src/address.ts:11-19
+      - packages/substrate/test/absorb.test.ts
+    hunks:
+      - packages/substrate/src/httpClient.ts:21-32
+      - packages/substrate/src/httpClient.ts:87-119
+      - packages/substrate/src/httpClient.ts:121-189
+      - packages/substrate/src/address.ts:11-19
+      - packages/substrate/test/absorb.test.ts
+  - id: direct-cli-logic-fixtures
+    what: Extracted correction context selection as a pure function and seeded undecided ledger/session state directly for the lease and explicit-session judge cases, so each test asserts the branch named by its identity.
+    because: These cases prove selector and judge decisions, not complete session construction; direct state and pure inputs remove unrelated process, Git and wall-clock work while correcting the two hollow assertions.
+    applies_to: { kind: path, path: packages/cli/src/plan.ts }
+    rests_on:
+      - packages/cli/src/plan.ts:112-117
+      - packages/cli/test/plan.test.ts:560-564
+      - packages/cli/test/judge.test.ts:325-367
+      - packages/cli/test/judge.test.ts:427-468
+    hunks:
+      - packages/cli/src/plan.ts:112-117
+      - packages/cli/test/plan.test.ts:560-564
+      - packages/cli/test/judge.test.ts:325-367
+      - packages/cli/test/judge.test.ts:427-468
+  - id: declare-and-audit-integration-budgets
+    what: Added the shared slowIntegration helper, declared every measured integration case with a deadline-derived budget and one-line reason, and added a serial JSON-report gate that rejects missing, skipped, undeclared, over-budget or vanished cases.
+    because: The acceptance requires real integrations to stay real and visible while logic tests avoid wall time; Vitest metadata carries each declaration beside its duration, allowing the gate to enforce the contract case by case.
+    applies_to: { kind: path, path: scripts/gates/slow-tests.ts }
+    rests_on:
+      - packages/runner/test/support/slowIntegration.ts:3-21
+      - scripts/gates/slow-tests.ts:21-196
+      - scripts/gates/slow-tests.ts:273-365
+      - packages/runner/test/realCodexMarkerOverflow.test.ts:78-92
+      - packages/cli/test/execWithoutHerdr.test.ts:263-470
+    hunks:
+      - packages/runner/test/support/slowIntegration.ts
+      - packages/cli/test/support/slowIntegration.ts
+      - packages/face/test/support/slowIntegration.ts
+      - packages/substrate/test/support/slowIntegration.ts
+      - scripts/gates/slow-tests.ts
+      - packages/runner/test/realCodexMarkerOverflow.test.ts:78-92
+      - packages/runner/test/lineFitsRealCodex.test.ts:209-223
+      - packages/runner/test/worktreeMaintenance.test.ts:279-291
+      - packages/runner/test/runnerCommits.test.ts:210-224
+      - packages/runner/test/submoduleReceipts.test.ts:92-106
+      - packages/substrate/test/absorb.test.ts:157-171
+      - packages/cli/test/run.test.ts:675-689
+      - packages/cli/test/face/landedCache.test.ts:101-115
+      - packages/cli/test/resumeRange.test.ts:141-155
+      - packages/cli/test/judge.test.ts:193-207
+      - packages/cli/test/debrief/recoverSessionStart.test.ts:183-197
+      - packages/cli/test/execWithoutHerdr.test.ts:263-470
+      - packages/face/test/noSyncGit.test.ts:101-115
+      - packages/cli/test/evidence.test.ts:361-375
+  - id: preserve-session-evidence
+    what: Recorded the baseline case identities and durations, implementation choices, surprises and final gate receipts in notes@v0.
+    because: The acceptance requires the before manifest and runner-observed proof to remain available beside the immutable brief, including the exact implementation head used for the final suite runs.
+    applies_to: { kind: path, path: .interlock/sessions/0063-exec-carries-the-contract/judge-tests-stand-alone/notes.yaml }
+    rests_on:
+      - .interlock/sessions/0063-exec-carries-the-contract/judge-tests-stand-alone/notes.yaml
+    hunks:
+      - .interlock/sessions/0063-exec-carries-the-contract/judge-tests-stand-alone/notes.yaml
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; pnpm typecheck
+    note: Node v24.14.0 and pnpm v10.13.1; output is packages/runner/test/.runs/final-typecheck.txt.
+  - id: lint
+    result: pass
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; pnpm lint
+    note: Biome exited 0 with two pre-existing non-failing diagnostics in packages/runner/test/runnerCommits.test.ts; output is packages/runner/test/.runs/final-lint.txt.
+  - id: comments
+    result: pass
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; pnpm check:comments
+    note: packages/*/src contained no comments; output is packages/runner/test/.runs/final-comments.txt.
+  - id: test
+    result: pass
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; pnpm test
+    note: Three serial runs on implementation head 814d437 each passed 202 test files and 3155 tests; outputs are packages/runner/test/.runs/full-suite-final-1.txt, packages/runner/test/.runs/full-suite-final-2.txt and packages/runner/test/.runs/full-suite-final-3.txt.
+  - id: slow-tests-accounted
+    result: pass
+    invocation: export PATH="$(dirname "$(mise which pnpm)"):$(dirname "$(mise which node)"):$PATH"; node scripts/gates/slow-tests.ts
+    note: "Output is packages/runner/test/.runs/slow-tests-final-head.txt: slow tests accounted: 20 declared, 3135 logic under 1.5 s."
+open: []

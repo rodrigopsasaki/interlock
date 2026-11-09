@@ -22,7 +22,7 @@ gates:
   - id: slow-tests-accounted
     kind: command
     run: node scripts/gates/slow-tests.ts
-    expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1.5 s'
+    expect_output: "slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1.5 s"
 scope:
   - .gitignore
   - .interlock/arcs.yaml
@@ -591,7 +591,19 @@ scope:
   - .interlock/sessions/0063-exec-carries-the-contract/exec-never-needs-herdr/notes.yaml
   - .interlock/sessions/0063-exec-carries-the-contract/exec-never-needs-herdr/revisions/529cd8f2aca2e1f83614c07d58fb6d1072f314fa7b93511bd75f640d05358a36.yaml
   - .interlock/sessions/0063-exec-carries-the-contract/exec-profiles-can-be-probed/brief.md
+  - .interlock/sessions/0063-exec-carries-the-contract/exec-profiles-can-be-probed/debrief-candidate.yaml
+  - .interlock/sessions/0063-exec-carries-the-contract/exec-profiles-can-be-probed/debrief-followup-candidate.yaml
+  - .interlock/sessions/0063-exec-carries-the-contract/exec-profiles-can-be-probed/debrief.yaml
+  - .interlock/sessions/0063-exec-carries-the-contract/exec-profiles-can-be-probed/notes.yaml
+  - .interlock/sessions/0063-exec-carries-the-contract/exec-profiles-can-be-probed/revisions/272af398511af77ad463206cb350b2def5c66e06af5fc541e091798aa54aa5b6.yaml
+  - .interlock/sessions/0063-exec-carries-the-contract/exec-profiles-can-be-probed/revisions/c497fceeba4af345d84f692d38ad774d0ab7069e70594f855ef3e3f82c33f4f3.yaml
+  - .interlock/sessions/0063-exec-carries-the-contract/exec-profiles-can-be-probed/revisions/ef1aa70699ebebaf73cf88bca3f496f44a0d407fea81137470dc7400b8afdbf8.yaml
+  - .interlock/sessions/0063-exec-carries-the-contract/judge-tests-stand-alone/brief.md
   - .interlock/sessions/0063-exec-carries-the-contract/tests-stand-alone/brief.md
+  - .interlock/sessions/0063-exec-carries-the-contract/tests-stand-alone/debrief-candidate.yaml
+  - .interlock/sessions/0063-exec-carries-the-contract/tests-stand-alone/debrief.yaml
+  - .interlock/sessions/0063-exec-carries-the-contract/tests-stand-alone/notes.yaml
+  - .interlock/sessions/0063-exec-carries-the-contract/tests-stand-alone/revisions/41f78389cbee165dd3090eccef715f7280cd3595ed4f155d9846f50085e97c3b.yaml
   - .interlock/sessions/readme-interlock-concept/readme/brief.md
   - .interlock/sessions/readme-interlock-concept/readme/debrief.yaml
   - .interlock/sessions/readme-interlock-concept/readme/notes.yaml
@@ -716,6 +728,7 @@ scope:
   - packages/cli/test/debrief/revise.test.ts
   - packages/cli/test/debrief/validate.test.ts
   - packages/cli/test/evidence.test.ts
+  - packages/cli/test/execProbe.test.ts
   - packages/cli/test/execWithoutHerdr.test.ts
   - packages/cli/test/face/dispatch.test.ts
   - packages/cli/test/face/fixtures/fakeBin.ts
@@ -948,6 +961,11 @@ scope:
   - packages/runner/src/openingPrompt.ts
   - packages/runner/src/openingView.ts
   - packages/runner/src/ownedCommand.ts
+  - packages/runner/src/probe-bin/interlock-probe-git-metadata
+  - packages/runner/src/probe-bin/interlock-probe-loopback
+  - packages/runner/src/probe-bin/interlock-probe-shm
+  - packages/runner/src/probe-bin/interlock-probe-signed-commit
+  - packages/runner/src/probe-bin/interlock-probe-worktree-file
   - packages/runner/src/promptDelivery.ts
   - packages/runner/src/providerRouting.ts
   - packages/runner/src/questionNotes.ts
@@ -988,6 +1006,7 @@ scope:
   - packages/runner/test/debriefAuthoringGuidance.test.ts
   - packages/runner/test/delegatedFailsClosed.test.ts
   - packages/runner/test/execContract.test.ts
+  - packages/runner/test/execProbe.test.ts
   - packages/runner/test/execRuntime.test.ts
   - packages/runner/test/execWithoutHerdr.test.ts
   - packages/runner/test/fixtures/claude/repo-worktrees-node/completed.jsonl
@@ -1294,8 +1313,8 @@ substrate:
 walk:
   kind: none
   because: the substrate address is none, so there is nothing to ask
-graph_base_sha: fadc8e677cc10fba15f7548d8c1034d809bb3ee3
-session: 3b9299d7-be56-4168-a1f5-af7dcc6b786e
+graph_base_sha: e04c7a3a30638dda4a0a6cc34edc314f7d15e6b9
+session: 1afbd112-14bb-4212-90da-a342c3b1ab76
 ---
 
 # Brief · node `judge-tests-stand-alone` · graph `0063-exec-carries-the-contract`

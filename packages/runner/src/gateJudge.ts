@@ -64,7 +64,7 @@ import {
   retainGateOutput,
   storeGateOutput,
 } from "./gateOutput.ts";
-import { checkNodeEngine } from "./nodeEngine.ts";
+import { checkNodeEngine, type NodeVersionRunner } from "./nodeEngine.ts";
 import { spawnOwned } from "./ownedCommand.ts";
 import { appendUnrecordedNotes } from "./questionNotes.ts";
 
@@ -107,6 +107,7 @@ export interface GateJudgeRequest {
   readonly personEvents?: readonly LedgerEvent[];
   readonly env?: NodeJS.ProcessEnv;
   readonly heavy?: readonly string[];
+  readonly nodeVersionRunner?: NodeVersionRunner;
   readonly commandRunner?: GateCommandRunner;
   readonly outputDirectory?: string;
   readonly narrate: (line: string) => void;
@@ -342,6 +343,7 @@ export async function judgeGates(
     personEvents = [],
     env = process.env,
     heavy = [],
+    nodeVersionRunner,
     commandRunner = spawnGateCommand,
     outputDirectory,
     narrate,
@@ -381,7 +383,7 @@ export async function judgeGates(
     }
 
     if (!nodeEngineChecked) {
-      const nodeEngine = await checkNodeEngine(worktree, "gate", env, heavy);
+      const nodeEngine = await checkNodeEngine(worktree, "gate", env, heavy, nodeVersionRunner);
       if (isErr(nodeEngine)) {
         narrate(nodeEngine.error.because);
         const held = outcome.held(

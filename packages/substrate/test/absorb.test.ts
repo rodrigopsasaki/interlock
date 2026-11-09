@@ -6,6 +6,7 @@ import {
   startFakeSubstrateServer,
 } from "./support/fakeSubstrateServer.ts";
 import { fixtureDebrief, fixtureItem, fixtureNotes, fixtureReceipt } from "./support/fixtures.ts";
+import { slowIntegration } from "./support/slowIntegration.ts";
 
 function hasKey(value: unknown, key: string): boolean {
   return typeof value === "object" && value !== null && Object.hasOwn(value, key);
@@ -153,18 +154,30 @@ describe("absorb", () => {
     });
   });
 
-  it("degrades to a narrated refusal instead of acknowledged, judgement still able to complete, when the address stops answering mid-run", async () => {
-    server = await startFakeSubstrateServer();
-    server.hangOn("absorb");
+  slowIntegration(
+    "degrades to a narrated refusal instead of acknowledged, judgement still able to complete, when the address stops answering mid-run",
+    {
+      budgetMs: 10_000,
+      reason: "integrates an HTTP substrate that stops answering during absorb",
+    },
+    async () => {
+      server = await startFakeSubstrateServer();
+      server.hangOn("absorb");
 
-    const client = substrateClientFor(server.url);
-    const outcome = await client.absorb(node, fixtureDebrief, fixtureNotes, [fixtureReceipt]);
+      const client = substrateClientFor(server.url, undefined, undefined, {
+        schedule(abort) {
+          abort();
+          return () => {};
+        },
+      });
+      const outcome = await client.absorb(node, fixtureDebrief, fixtureNotes, [fixtureReceipt]);
 
-    expect(outcome.kind).toBe("refused");
-    expect(narrateAbsorb(server.url, outcome)).toMatch(
-      new RegExp(`^absorb ${server.url}: refused, `),
-    );
-  }, 8_000);
+      expect(outcome.kind).toBe("refused");
+      expect(narrateAbsorb(server.url, outcome)).toMatch(
+        new RegExp(`^absorb ${server.url}: refused, `),
+      );
+    },
+  );
 
   it("reports a textual Context slice reference comparison apart from the response", async () => {
     server = await startFakeSubstrateServer();

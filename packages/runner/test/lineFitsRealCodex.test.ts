@@ -3,8 +3,9 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { join } from "node:path";
 import { isOk } from "@phyxiusjs/fp";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect } from "vitest";
 import { prepareCodexLaunch } from "../src/codex/config.ts";
+import { slowIntegration } from "./support/slowIntegration.ts";
 import { isolatedHomeEnvironment } from "./support/toolState.ts";
 
 type JsonObject = Record<string, unknown>;
@@ -205,96 +206,103 @@ async function runCodex(
 }
 
 describe("real Codex line fitting", () => {
-  it("runs a provider shell call with moved policy and marker values", async () => {
-    const isolation = isolatedHomeEnvironment("line-fit-real-codex");
-    const root = isolation.root;
-    directory = root;
-    const home = join(root, "codex-home");
-    mkdirSync(home);
-    const output = join(root, "mcp-environment.json");
-    const fixture = join(import.meta.dirname, "fixtures", "codex", "recordShellEnvironment.mjs");
-    const names = Array.from({ length: 12 }, (_, index) => `line_fit_${index}_${"x".repeat(48)}`);
-    const requests: JsonObject[] = [];
-    const provider = await startProvider(requests);
-    writeFileSync(
-      join(home, "config.toml"),
-      [
-        'model_provider = "line-fit-fixture"',
-        'model = "line-fit-fixture"',
-        '[shell_environment_policy]\ninherit = "none"',
-        `[model_providers.line-fit-fixture]\nname = "line-fit-fixture"\nbase_url = ${JSON.stringify(provider.url)}\nwire_api = "responses"\nenv_key = "LINE_FIT_API_KEY"`,
-        ...names.map((name, index) => {
-          if (index !== 0) return `[mcp_servers.${name}]\ncommand = "/bin/echo"`;
-          return `[mcp_servers.${name}]\ncommand = ${JSON.stringify(process.execPath)}\nargs = [${JSON.stringify(fixture)}, ${JSON.stringify(output)}]`;
-        }),
-      ].join("\n\n"),
-    );
-    const environment = {
-      ...isolation.environment,
-      NODE_OPTIONS: "--max-old-space-size=3072",
-      VITEST_MAX_WORKERS: "4",
-      VITEST_MAX_THREADS: "4",
-      VITEST_MAX_FORKS: "4",
-      VITEST_MIN_THREADS: "1",
-      VITEST_MIN_FORKS: "1",
-      INTERLOCK_SESSION: "line-fit-real-session",
-      INTERLOCK_GRAPH: "0060-headless-runtime",
-      INTERLOCK_NODE: "line-fits-real-codex",
-      CODEX_HOME: home,
-      LINE_FIT_API_KEY: "fixture-key",
-    };
-    try {
-      const launch = prepareCodexLaunch([], root, environment);
-      expect(isOk(launch)).toBe(true);
-      if (!isOk(launch)) return;
-      expect(launch.value.path).toBe("overlay");
-      const overlayHome = launch.value.environment["CODEX_HOME"];
-      const profile = launch.value.args[launch.value.args.length - 1];
-      expect(overlayHome).toBeDefined();
-      expect(profile).toBeDefined();
-      if (overlayHome === undefined || profile === undefined) return;
-      const profileText = readFileSync(join(overlayHome, `${profile}.config.toml`), "utf8");
-      expect(profileText).toContain('NODE_OPTIONS = "--max-old-space-size=3072"');
-      expect(profileText).toContain('VITEST_MAX_WORKERS = "4"');
-      const inheritedEnvironment = {
-        ...launch.value.environment,
-        NODE_OPTIONS: "inherited-node-options",
-        VITEST_MAX_WORKERS: "inherited-workers",
-        VITEST_MAX_THREADS: "inherited-threads",
-        VITEST_MAX_FORKS: "inherited-forks",
-        VITEST_MIN_THREADS: "inherited-min-threads",
-        VITEST_MIN_FORKS: "inherited-min-forks",
-        INTERLOCK_SESSION: "inherited-session",
-        INTERLOCK_GRAPH: "inherited-graph",
-        INTERLOCK_NODE: "inherited-node",
-      };
-      const result = await runCodex(
-        [...launch.value.args, "exec", "--skip-git-repo-check", "line fit proof"],
-        root,
-        inheritedEnvironment,
+  slowIntegration(
+    "runs a provider shell call with moved policy and marker values",
+    {
+      budgetMs: 45_000,
+      reason: "integrates a loopback provider, real Codex shell call and fixture MCP child",
+    },
+    async () => {
+      const isolation = isolatedHomeEnvironment("line-fit-real-codex");
+      const root = isolation.root;
+      directory = root;
+      const home = join(root, "codex-home");
+      mkdirSync(home);
+      const output = join(root, "mcp-environment.json");
+      const fixture = join(import.meta.dirname, "fixtures", "codex", "recordShellEnvironment.mjs");
+      const names = Array.from({ length: 12 }, (_, index) => `line_fit_${index}_${"x".repeat(48)}`);
+      const requests: JsonObject[] = [];
+      const provider = await startProvider(requests);
+      writeFileSync(
+        join(home, "config.toml"),
+        [
+          'model_provider = "line-fit-fixture"',
+          'model = "line-fit-fixture"',
+          '[shell_environment_policy]\ninherit = "none"',
+          `[model_providers.line-fit-fixture]\nname = "line-fit-fixture"\nbase_url = ${JSON.stringify(provider.url)}\nwire_api = "responses"\nenv_key = "LINE_FIT_API_KEY"`,
+          ...names.map((name, index) => {
+            if (index !== 0) return `[mcp_servers.${name}]\ncommand = "/bin/echo"`;
+            return `[mcp_servers.${name}]\ncommand = ${JSON.stringify(process.execPath)}\nargs = [${JSON.stringify(fixture)}, ${JSON.stringify(output)}]`;
+          }),
+        ].join("\n\n"),
       );
-      expect(result.code, `${result.stdout}\n${result.stderr}\n${JSON.stringify(requests)}`).toBe(
-        0,
-      );
-      expect(requests, JSON.stringify(requests)).toHaveLength(2);
-      const followUp = JSON.stringify(requests[1]);
-      expect(followUp).toContain("NODE_OPTIONS=--max-old-space-size=3072");
-      expect(followUp).toContain("VITEST_MAX_WORKERS=4");
-      expect(followUp).toContain("VITEST_MAX_THREADS=4");
-      expect(followUp).toContain("VITEST_MAX_FORKS=4");
-      expect(followUp).toContain("VITEST_MIN_THREADS=1");
-      expect(followUp).toContain("VITEST_MIN_FORKS=1");
-      expect(followUp).toContain("INTERLOCK_SESSION=line-fit-real-session");
-      expect(followUp).toContain("INTERLOCK_GRAPH=0060-headless-runtime");
-      expect(followUp).toContain("INTERLOCK_NODE=line-fits-real-codex");
-      expect(JSON.parse(readFileSync(output, "utf8"))).toMatchObject({
+      const environment = {
+        ...isolation.environment,
+        NODE_OPTIONS: "--max-old-space-size=3072",
+        VITEST_MAX_WORKERS: "4",
+        VITEST_MAX_THREADS: "4",
+        VITEST_MAX_FORKS: "4",
+        VITEST_MIN_THREADS: "1",
+        VITEST_MIN_FORKS: "1",
         INTERLOCK_SESSION: "line-fit-real-session",
         INTERLOCK_GRAPH: "0060-headless-runtime",
         INTERLOCK_NODE: "line-fits-real-codex",
-      });
-      launch.value.cleanup(true);
-    } finally {
-      await provider.close();
-    }
-  }, 30_000);
+        CODEX_HOME: home,
+        LINE_FIT_API_KEY: "fixture-key",
+      };
+      try {
+        const launch = prepareCodexLaunch([], root, environment);
+        expect(isOk(launch)).toBe(true);
+        if (!isOk(launch)) return;
+        expect(launch.value.path).toBe("overlay");
+        const overlayHome = launch.value.environment["CODEX_HOME"];
+        const profile = launch.value.args[launch.value.args.length - 1];
+        expect(overlayHome).toBeDefined();
+        expect(profile).toBeDefined();
+        if (overlayHome === undefined || profile === undefined) return;
+        const profileText = readFileSync(join(overlayHome, `${profile}.config.toml`), "utf8");
+        expect(profileText).toContain('NODE_OPTIONS = "--max-old-space-size=3072"');
+        expect(profileText).toContain('VITEST_MAX_WORKERS = "4"');
+        const inheritedEnvironment = {
+          ...launch.value.environment,
+          NODE_OPTIONS: "inherited-node-options",
+          VITEST_MAX_WORKERS: "inherited-workers",
+          VITEST_MAX_THREADS: "inherited-threads",
+          VITEST_MAX_FORKS: "inherited-forks",
+          VITEST_MIN_THREADS: "inherited-min-threads",
+          VITEST_MIN_FORKS: "inherited-min-forks",
+          INTERLOCK_SESSION: "inherited-session",
+          INTERLOCK_GRAPH: "inherited-graph",
+          INTERLOCK_NODE: "inherited-node",
+        };
+        const result = await runCodex(
+          [...launch.value.args, "exec", "--skip-git-repo-check", "line fit proof"],
+          root,
+          inheritedEnvironment,
+        );
+        expect(result.code, `${result.stdout}\n${result.stderr}\n${JSON.stringify(requests)}`).toBe(
+          0,
+        );
+        expect(requests, JSON.stringify(requests)).toHaveLength(2);
+        const followUp = JSON.stringify(requests[1]);
+        expect(followUp).toContain("NODE_OPTIONS=--max-old-space-size=3072");
+        expect(followUp).toContain("VITEST_MAX_WORKERS=4");
+        expect(followUp).toContain("VITEST_MAX_THREADS=4");
+        expect(followUp).toContain("VITEST_MAX_FORKS=4");
+        expect(followUp).toContain("VITEST_MIN_THREADS=1");
+        expect(followUp).toContain("VITEST_MIN_FORKS=1");
+        expect(followUp).toContain("INTERLOCK_SESSION=line-fit-real-session");
+        expect(followUp).toContain("INTERLOCK_GRAPH=0060-headless-runtime");
+        expect(followUp).toContain("INTERLOCK_NODE=line-fits-real-codex");
+        expect(JSON.parse(readFileSync(output, "utf8"))).toMatchObject({
+          INTERLOCK_SESSION: "line-fit-real-session",
+          INTERLOCK_GRAPH: "0060-headless-runtime",
+          INTERLOCK_NODE: "line-fits-real-codex",
+        });
+        launch.value.cleanup(true);
+      } finally {
+        await provider.close();
+      }
+    },
+  );
 });

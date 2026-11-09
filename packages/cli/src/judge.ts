@@ -26,6 +26,7 @@ import {
   explainJudgeWorktreeRefusal,
   explainLocalConfigRefusal,
   explainStandingGatesRefusal,
+  type GateCommandRunner,
   gateCommandTable,
   HELD_REVISIT_MS,
   judgeWorktree,
@@ -51,6 +52,8 @@ export async function runInterlockJudge(
   options: {
     readonly cwd?: string;
     readonly clock?: Clock;
+    readonly commandRunner?: GateCommandRunner;
+    readonly outputDirectory?: string;
     readonly narrate?: (line: string) => void;
   } = {},
 ): Promise<CommandResult> {
@@ -212,6 +215,10 @@ export async function runInterlockJudge(
       holdMs: HELD_REVISIT_MS,
       substrate,
       personEvents: isErr(personEventsRead) ? [] : personEventsRead.value,
+      ...(options.commandRunner === undefined ? {} : { commandRunner: options.commandRunner }),
+      ...(options.outputDirectory === undefined
+        ? {}
+        : { outputDirectory: options.outputDirectory }),
     });
     if (isErr(judged)) {
       const line = `judge refused: ${explainJudgeWorktreeRefusal(judged.error)}`;

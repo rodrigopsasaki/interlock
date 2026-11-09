@@ -13,6 +13,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { fixtureGit } from "../../../../test/support/gitFixture.ts";
 import { runInterlockFace } from "../../src/face/run.ts";
 import { runInterlockPosition } from "../../src/position.ts";
+import { slowIntegration } from "../support/slowIntegration.ts";
 import {
   type ClearedNode,
   countingGit,
@@ -97,95 +98,109 @@ async function freshReadCounts(repository: LandedRepository, heads = headsOf(rep
 }
 
 describe("landed cache: world refreshes through the face lifecycle", () => {
-  it("reads main once per refresh, judges only what moved, retries a failed key and never reads for a screen-only redraw", async () => {
-    const repository = fixture();
-    const { root } = repository;
-    const rootSha = git(root, "rev-list", "--max-parents=0", "HEAD");
-    const counter = countingGit();
-    let cleared = [...repository.cleared];
-    const drain = () => countsOf(counter.calls.splice(0));
-    const drainHeads = () => {
-      const heads = judgedHeads(counter.calls);
-      counter.calls.splice(0);
-      return heads;
-    };
+  slowIntegration(
+    "reads main once per refresh, judges only what moved, retries a failed key and never reads for a screen-only redraw",
+    {
+      budgetMs: 10_000,
+      reason: "integrates the Git-backed face lifecycle fixture with refresh and cache retries",
+    },
+    async () => {
+      const repository = fixture();
+      const { root } = repository;
+      const rootSha = git(root, "rev-list", "--max-parents=0", "HEAD");
+      const counter = countingGit();
+      let cleared = [...repository.cleared];
+      const drain = () => countsOf(counter.calls.splice(0));
+      const drainHeads = () => {
+        const heads = judgedHeads(counter.calls);
+        counter.calls.splice(0);
+        return heads;
+      };
 
-    async function* lifecycle(): AsyncIterable<FaceKey> {
-      expect(drain()).toMatchObject({ snapshots: 1, judgments: 4 });
+      async function* lifecycle(): AsyncIterable<FaceKey> {
+        expect(drain()).toMatchObject({ snapshots: 1, judgments: 4 });
 
-      yield key("r");
-      expect(drain()).toEqual({ snapshots: 1, perNode: 0, judgments: 0 });
+        yield key("r");
+        expect(drain()).toEqual({ snapshots: 1, perNode: 0, judgments: 0 });
 
-      yield key("?");
-      expect(drain()).toEqual({ snapshots: 0, perNode: 0, judgments: 0 });
-      yield key("?");
-      expect(drain()).toEqual({ snapshots: 0, perNode: 0, judgments: 0 });
+        yield key("?");
+        expect(drain()).toEqual({ snapshots: 0, perNode: 0, judgments: 0 });
+        yield key("?");
+        expect(drain()).toEqual({ snapshots: 0, perNode: 0, judgments: 0 });
 
-      const [first] = cleared;
-      if (first === undefined) throw new Error("expected a cleared node");
-      const rerun = withNewHead(root, first);
-      cleared = [rerun, ...cleared.slice(1)];
-      writeLandedJournal(root, cleared);
-      yield key("r");
-      expect(countsOf(counter.calls)).toMatchObject({ snapshots: 1, judgments: 1 });
-      expect(drainHeads()).toEqual([rerun.head]);
+        const [first] = cleared;
+        if (first === undefined) throw new Error("expected a cleared node");
+        const rerun = withNewHead(root, first);
+        cleared = [rerun, ...cleared.slice(1)];
+        writeLandedJournal(root, cleared);
+        yield key("r");
+        expect(countsOf(counter.calls)).toMatchObject({ snapshots: 1, judgments: 1 });
+        expect(drainHeads()).toEqual([rerun.head]);
 
-      const [, , , last] = cleared;
-      if (last === undefined) throw new Error("expected four cleared nodes");
-      const rebased = withNewBase(last, rootSha);
-      cleared = [...cleared.slice(0, 3), rebased];
-      writeLandedJournal(root, cleared);
-      yield key("r");
-      expect(countsOf(counter.calls)).toMatchObject({ snapshots: 1, judgments: 1 });
-      expect(drainHeads()).toEqual([rebased.head]);
+        const [, , , last] = cleared;
+        if (last === undefined) throw new Error("expected four cleared nodes");
+        const rebased = withNewBase(last, rootSha);
+        cleared = [...cleared.slice(0, 3), rebased];
+        writeLandedJournal(root, cleared);
+        yield key("r");
+        expect(countsOf(counter.calls)).toMatchObject({ snapshots: 1, judgments: 1 });
+        expect(drainHeads()).toEqual([rebased.head]);
 
-      moveMain(root);
-      yield key("r");
-      expect(drain()).toMatchObject({ snapshots: 1, judgments: 4 });
+        moveMain(root);
+        yield key("r");
+        expect(drain()).toMatchObject({ snapshots: 1, judgments: 4 });
 
-      const [, flaky] = cleared;
-      if (flaky === undefined) throw new Error("expected a second cleared node");
-      moveMain(root, "docs/again.md");
-      counter.failNext(
-        (call) => call.args[0] === "cat-file" && (call.input ?? "").startsWith(flaky.head),
-      );
-      yield key("r");
-      expect(drain()).toMatchObject({ snapshots: 1, judgments: 4 });
-      expect(cachedHeads(root)).not.toContain(flaky.head);
+        const [, flaky] = cleared;
+        if (flaky === undefined) throw new Error("expected a second cleared node");
+        moveMain(root, "docs/again.md");
+        counter.failNext(
+          (call) => call.args[0] === "cat-file" && (call.input ?? "").startsWith(flaky.head),
+        );
+        yield key("r");
+        expect(drain()).toMatchObject({ snapshots: 1, judgments: 4 });
+        expect(cachedHeads(root)).not.toContain(flaky.head);
 
-      yield key("r");
-      expect(countsOf(counter.calls)).toMatchObject({ snapshots: 1, judgments: 1 });
-      expect(drainHeads()).toEqual([flaky.head]);
+        yield key("r");
+        expect(countsOf(counter.calls)).toMatchObject({ snapshots: 1, judgments: 1 });
+        expect(drainHeads()).toEqual([flaky.head]);
 
-      yield key("r");
-      expect(drain()).toEqual({ snapshots: 1, perNode: 0, judgments: 0 });
-      expect(cachedHeads(root)).toContain(flaky.head);
+        yield key("r");
+        expect(drain()).toEqual({ snapshots: 1, perNode: 0, judgments: 0 });
+        expect(cachedHeads(root)).toContain(flaky.head);
 
-      yield key("q");
-    }
+        yield key("q");
+      }
 
-    const result = await runInterlockFace([], {
-      cwd: root,
-      stdout: screen(),
-      git: counter.run,
-      keys: lifecycle(),
-    });
-    expect(result.exitCode).toBe(0);
-  });
+      const result = await runInterlockFace([], {
+        cwd: root,
+        stdout: screen(),
+        git: counter.run,
+        keys: lifecycle(),
+      });
+      expect(result.exitCode).toBe(0);
+    },
+  );
 });
 
 describe("landed cache: across processes, on disk", () => {
-  it("serves a judgment made by another process without a per-node read", async () => {
-    const repository = fixture();
-    execFileSync(process.execPath, [bin, "position", "--json", "--repo", repository.root], {
-      cwd: repository.root,
-      encoding: "utf-8",
-    });
-    expect(cacheFileOf(repository.root).version).toBe(LANDED_CACHE_VERSION);
-    const { counts, landed } = await freshReadCounts(repository);
-    expect(counts).toEqual({ snapshots: 1, perNode: 0, judgments: 0 });
-    expect(landed).toEqual(repository.cleared.map((node) => onMainByAncestry(node.head)));
-  });
+  slowIntegration(
+    "serves a judgment made by another process without a per-node read",
+    {
+      budgetMs: 10_000,
+      reason: "integrates a separate position process with the on-disk landed cache",
+    },
+    async () => {
+      const repository = fixture();
+      execFileSync(process.execPath, [bin, "position", "--json", "--repo", repository.root], {
+        cwd: repository.root,
+        encoding: "utf-8",
+      });
+      expect(cacheFileOf(repository.root).version).toBe(LANDED_CACHE_VERSION);
+      const { counts, landed } = await freshReadCounts(repository);
+      expect(counts).toEqual({ snapshots: 1, perNode: 0, judgments: 0 });
+      expect(landed).toEqual(repository.cleared.map((node) => onMainByAncestry(node.head)));
+    },
+  );
 
   it("keeps its cache under a folder that ignores itself, so a repository it reads never needs an ignore line", async () => {
     const repository = fixture();

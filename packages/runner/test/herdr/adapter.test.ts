@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { basename, join, relative } from "node:path";
 import { isErr, type Result } from "@phyxiusjs/fp";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { fixtureGit, initFixtureRepository } from "../../../../test/support/gitFixture.ts";
 import {
   createHerdrRuntime,
@@ -28,6 +28,7 @@ let directory: string | undefined;
 let server: FakeHerdrServer | undefined;
 
 afterEach(async () => {
+  vi.useRealTimers();
   await server?.close();
   server = undefined;
   if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
@@ -49,6 +50,18 @@ async function fixture(): Promise<FakeHerdrServer> {
   }
   server = await startFakeHerdrServer(socketPath);
   return server;
+}
+
+async function flushIo(): Promise<void> {
+  await new Promise<void>((resolve) => setImmediate(resolve));
+}
+
+async function waitForCall(fake: FakeHerdrServer, method: string, count = 1): Promise<void> {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    if (fake.calls.filter((call) => call.method === method).length >= count) return;
+    await flushIo();
+  }
+  throw new Error(`fake herdr did not receive ${method} call ${count}`);
 }
 
 const GIT_ENV = {
@@ -345,6 +358,7 @@ describe("herdr adapter", () => {
   });
 
   it("times out when the agent never reaches a requested state", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
     const fake = await fixture();
     fake.agentStatus = "working";
     const created = await createHerdrRuntime(fake.socketPath);
@@ -354,12 +368,16 @@ describe("herdr adapter", () => {
     const agent = await created.value.startAgent(pane.value, "claude", []);
     if (isErr(agent)) throw new Error("expected an agent");
 
-    const waited = await created.value.waitUntil(agent.value, ["idle", "done"], 1_000);
+    const pending = created.value.waitUntil(agent.value, ["idle", "done"], 1_000);
+    await waitForCall(fake, "agent.get");
+    await vi.advanceTimersByTimeAsync(1_000);
+    const waited = await pending;
     expect(isErr(waited)).toBe(true);
     if (isErr(waited)) expect(waited.error.kind).toBe("timeout");
   });
 
   it("sends herdr a whole-millisecond timeout_ms when the caller's budget is fractional", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
     const fake = await fixture();
     fake.agentStatus = "working";
     const created = await createHerdrRuntime(fake.socketPath, 30_000, 60_000, 100);
@@ -369,7 +387,11 @@ describe("herdr adapter", () => {
     const agent = await created.value.startAgent(pane.value, "claude", []);
     if (isErr(agent)) throw new Error("expected an agent");
 
-    await created.value.waitUntil(agent.value, ["idle", "done"], 250.75);
+    const pending = created.value.waitUntil(agent.value, ["idle", "done"], 250.75);
+    await waitForCall(fake, "agent.get");
+    await waitForCall(fake, "agent.wait");
+    await vi.advanceTimersByTimeAsync(251);
+    await pending;
     const waits = fake.calls.filter((call) => call.method === "agent.wait");
     expect(waits.length).toBeGreaterThan(0);
     for (const call of waits) expect(Number.isInteger(call.params["timeout_ms"])).toBe(true);
@@ -391,6 +413,7 @@ describe("herdr adapter", () => {
   });
 
   it("loops past a slice herdr never answers, returning the status the next agent.get reports", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
     const fake = await fixture();
     fake.agentStatus = "working";
     fake.withholdNextCall("agent.wait");
@@ -404,13 +427,21 @@ describe("herdr adapter", () => {
     const agent = await created.value.startAgent(pane.value, "claude", []);
     if (isErr(agent)) throw new Error("expected an agent");
 
-    const waited = await created.value.waitUntil(agent.value, ["idle", "blocked", "done"], 7_000);
+    const pending = created.value.waitUntil(agent.value, ["idle", "blocked", "done"], 7_000);
+    await waitForCall(fake, "agent.get");
+    await flushIo();
+    await waitForCall(fake, "agent.wait");
+    await vi.advanceTimersByTimeAsync(5_100);
+    await flushIo();
+    await waitForCall(fake, "agent.get", 2);
+    const waited = await pending;
     expect(waited).toEqual({ _tag: "Ok", value: "idle" });
     expect(fake.calls.filter((call) => call.method === "agent.wait")).toHaveLength(1);
     expect(fake.calls.filter((call) => call.method === "agent.get")).toHaveLength(2);
-  }, 10_000);
+  });
 
   it("refuses with a timeout naming the caller's budget once two slices pass with nothing changing", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
     const fake = await fixture();
     fake.agentStatus = "working";
     fake.delayAgentWaitToRequestedTimeout = true;
@@ -421,7 +452,17 @@ describe("herdr adapter", () => {
     const agent = await created.value.startAgent(pane.value, "claude", []);
     if (isErr(agent)) throw new Error("expected an agent");
 
-    const waited = await created.value.waitUntil(agent.value, ["idle", "done"], 100);
+    const pending = created.value.waitUntil(agent.value, ["idle", "done"], 100);
+    await waitForCall(fake, "agent.get");
+    await flushIo();
+    await waitForCall(fake, "agent.wait");
+    await vi.advanceTimersByTimeAsync(60);
+    await flushIo();
+    await waitForCall(fake, "agent.get", 2);
+    await flushIo();
+    await waitForCall(fake, "agent.wait", 2);
+    await vi.advanceTimersByTimeAsync(40);
+    const waited = await pending;
     expect(isErr(waited)).toBe(true);
     if (isErr(waited)) {
       expect(waited.error).toEqual({
@@ -432,12 +473,13 @@ describe("herdr adapter", () => {
       });
     }
     expect(fake.calls.filter((call) => call.method === "agent.wait")).toHaveLength(2);
-  }, 10_000);
+  });
 
   // Real herdr answers a timed-out agent.wait with a remote error whose code is "timeout", not
   // a status payload. That error is the slice elapsing, exactly like an unanswered call: the
   // loop keeps going, and the status it eventually returns comes from the next agent.get.
   it("reads two herdr-timeout errors from agent.wait as elapsed slices, returning the status agent.get reports next", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
     const fake = await fixture();
     fake.agentStatus = "working";
     fake.delayAgentWaitToRequestedTimeout = true;
@@ -451,7 +493,17 @@ describe("herdr adapter", () => {
     const agent = await created.value.startAgent(pane.value, "claude", []);
     if (isErr(agent)) throw new Error("expected an agent");
 
-    const waited = await created.value.waitUntil(agent.value, ["idle", "blocked", "done"], 7_000);
+    const pending = created.value.waitUntil(agent.value, ["idle", "blocked", "done"], 7_000);
+    await waitForCall(fake, "agent.get");
+    await flushIo();
+    await waitForCall(fake, "agent.wait");
+    await vi.advanceTimersByTimeAsync(100);
+    await flushIo();
+    await waitForCall(fake, "agent.get", 2);
+    await flushIo();
+    await waitForCall(fake, "agent.wait", 2);
+    await vi.advanceTimersByTimeAsync(100);
+    const waited = await pending;
     expect(waited).toEqual({ _tag: "Ok", value: "idle" });
     expect(fake.calls.filter((call) => call.method === "agent.wait")).toHaveLength(2);
   }, 10_000);
@@ -655,18 +707,25 @@ describe("herdr adapter", () => {
     const created = await createHerdrRuntime(fake.socketPath, 100);
     if (isErr(created)) throw new Error("expected a runtime");
 
-    fake.withholdNextCall("workspace.create");
-    const pane = await created.value.openPane("/repo");
+    const firstPane = await created.value.openPane("/repo/first");
+    expect(isErr(firstPane)).toBe(false);
+
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    fake.withholdNextCall("workspace.list");
+    const pending = created.value.openPane("/repo");
+    await vi.advanceTimersByTimeAsync(100);
+    const pane = await pending;
     expect(isErr(pane)).toBe(true);
     if (isErr(pane))
       expect(pane.error).toEqual({
         kind: "call-timeout",
-        method: "workspace.create",
+        method: "workspace.list",
         timeoutMs: 100,
       });
   });
 
   it("retries agent.start on agent_pane_busy until the pane's shell is ready", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
     const fake = await fixture();
     const created = await createHerdrRuntime(fake.socketPath);
     if (isErr(created)) throw new Error("expected a runtime");
@@ -679,9 +738,15 @@ describe("herdr adapter", () => {
       2,
     );
     let waits = 0;
-    const agent = await created.value.startAgent(pane.value, "claude", [], () => {
+    const pending = created.value.startAgent(pane.value, "claude", [], () => {
       waits += 1;
     });
+    await waitForCall(fake, "agent.start");
+    await vi.advanceTimersByTimeAsync(500);
+    await waitForCall(fake, "agent.start", 2);
+    await vi.advanceTimersByTimeAsync(1_000);
+    await waitForCall(fake, "agent.start", 3);
+    const agent = await pending;
 
     expect(isErr(agent)).toBe(false);
     expect(waits).toBe(1);

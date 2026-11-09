@@ -7,6 +7,7 @@ import { debriefRevisionsDirectory, reviseDebrief } from "debrief";
 import { afterEach, describe, expect, it } from "vitest";
 import { fixtureGit, initFixtureRepository } from "../../../../test/support/gitFixture.ts";
 import { recoverSessionStart } from "../../src/debrief/recoverSessionStart.ts";
+import { slowIntegration } from "../support/slowIntegration.ts";
 
 const runsRoot = join(import.meta.dirname, "..", ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -179,50 +180,57 @@ describe("recover session start", () => {
     ).toContain("original");
   });
 
-  it("refuses later arbitrary commits, committed brief edits, and missing or duplicate starts", async () => {
-    const source = fixture();
-    writeFileSync(
-      source.candidate,
-      debrief(source.head, source.head, "later").replace(BASE_PLACEHOLDER, source.base),
-    );
-    const laterBefore = authoredBytes(source);
-    const later = await recover(source);
-    expect(isErr(later)).toBe(true);
-    expectUnchanged(source, laterBefore);
+  slowIntegration(
+    "refuses later arbitrary commits, committed brief edits, and missing or duplicate starts",
+    {
+      budgetMs: 10_000,
+      reason: "integrates Git history, committed brief bytes and ledger start recovery",
+    },
+    async () => {
+      const source = fixture();
+      writeFileSync(
+        source.candidate,
+        debrief(source.head, source.head, "later").replace(BASE_PLACEHOLDER, source.base),
+      );
+      const laterBefore = authoredBytes(source);
+      const later = await recover(source);
+      expect(isErr(later)).toBe(true);
+      expectUnchanged(source, laterBefore);
 
-    writeFileSync(
-      source.candidate,
-      debrief(source.start, source.base, "wrong head").replace(BASE_PLACEHOLDER, source.base),
-    );
-    const headBefore = authoredBytes(source);
-    const wrongHead = await recover(source);
-    expect(isErr(wrongHead)).toBe(true);
-    expectUnchanged(source, headBefore);
+      writeFileSync(
+        source.candidate,
+        debrief(source.start, source.base, "wrong head").replace(BASE_PLACEHOLDER, source.base),
+      );
+      const headBefore = authoredBytes(source);
+      const wrongHead = await recover(source);
+      expect(isErr(wrongHead)).toBe(true);
+      expectUnchanged(source, headBefore);
 
-    writeFileSync(join(source.session, "brief.md"), brief(source.base, SESSION, "changed\n"));
-    const changedHead = commit(source.root, "change brief");
-    writeFileSync(
-      source.candidate,
-      debrief(source.start, changedHead, "corrected").replace(BASE_PLACEHOLDER, source.base),
-    );
-    const changedBefore = authoredBytes(source);
-    const changed = await recover(source);
-    expect(isErr(changed)).toBe(true);
-    expectUnchanged(source, changedBefore);
+      writeFileSync(join(source.session, "brief.md"), brief(source.base, SESSION, "changed\n"));
+      const changedHead = commit(source.root, "change brief");
+      writeFileSync(
+        source.candidate,
+        debrief(source.start, changedHead, "corrected").replace(BASE_PLACEHOLDER, source.base),
+      );
+      const changedBefore = authoredBytes(source);
+      const changed = await recover(source);
+      expect(isErr(changed)).toBe(true);
+      expectUnchanged(source, changedBefore);
 
-    writeStarted(source.root, source.base, "foreign");
-    const missingBefore = authoredBytes(source);
-    const missing = await recover(source);
-    expect(isErr(missing)).toBe(true);
-    expectUnchanged(source, missingBefore);
+      writeStarted(source.root, source.base, "foreign");
+      const missingBefore = authoredBytes(source);
+      const missing = await recover(source);
+      expect(isErr(missing)).toBe(true);
+      expectUnchanged(source, missingBefore);
 
-    writeStarted(source.root, source.base);
-    writeStarted(source.root, source.base, SESSION, true);
-    const duplicateBefore = authoredBytes(source);
-    const duplicate = await recover(source);
-    expect(isErr(duplicate)).toBe(true);
-    expectUnchanged(source, duplicateBefore);
-  });
+      writeStarted(source.root, source.base);
+      writeStarted(source.root, source.base, SESSION, true);
+      const duplicateBefore = authoredBytes(source);
+      const duplicate = await recover(source);
+      expect(isErr(duplicate)).toBe(true);
+      expectUnchanged(source, duplicateBefore);
+    },
+  );
 
   it("refuses missing or mismatched graph-base evidence and a torn journal", async () => {
     const source = fixture();

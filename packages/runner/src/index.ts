@@ -70,7 +70,7 @@ export {
   retainGateOutput,
   storeGateOutput,
 } from "./gateOutput.ts";
-export type { LiveWorkSource } from "./herdr/adapter.ts";
+export type { HerdrTiming, LiveWorkSource } from "./herdr/adapter.ts";
 export {
   createHerdrRuntime,
   DEFAULT_LIVE_WORK_SOURCES,
@@ -116,6 +116,7 @@ export {
   validateExecMachine,
 } from "./machineProvider.ts";
 export { recordingNarrate } from "./narration.ts";
+export type { NodeEngineRefusal, NodeVersionRunner } from "./nodeEngine.ts";
 export type { PriorWork, SessionRole } from "./openingPrompt.ts";
 export { buildOpeningPrompt } from "./openingPrompt.ts";
 export { renderOpeningView } from "./openingView.ts";

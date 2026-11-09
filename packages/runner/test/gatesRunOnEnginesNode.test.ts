@@ -9,7 +9,7 @@ import {
 } from "node:fs";
 import { delimiter, join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
-import { isErr } from "@phyxiusjs/fp";
+import { isErr, ok } from "@phyxiusjs/fp";
 import { noneClient } from "substrate";
 import { afterAll, afterEach, describe, expect, it } from "vitest";
 import type { GateCommand } from "../src/gateCommand.ts";
@@ -98,6 +98,15 @@ async function judge(root: string, env: NodeJS.ProcessEnv, proof: string, narrat
     runnerId: "runner",
     holdMs: 60_000,
     substrate: noneClient(),
+    nodeVersionRunner: async (_argv, _cwd, versionEnv) =>
+      Promise.resolve(
+        ok({
+          code: 0,
+          signal: null,
+          stdout: `${versionEnv["FIXTURE_NODE_VERSION"] ?? ""}\n`,
+          stderr: "",
+        }),
+      ),
     env: { ...toolState.environment, ...env },
     narrate: (line) => narrate.push(line),
   });
@@ -186,7 +195,22 @@ describe("gates and worktree setup respect engines.node", () => {
   it("refuses worktree setup before its command runs", async () => {
     const current = fixture("24.14.0", "v26.13.0");
 
-    const result = await runWorktreeSetup([current.setup], current.root, () => {}, current.env);
+    const result = await runWorktreeSetup(
+      [current.setup],
+      current.root,
+      () => {},
+      current.env,
+      [],
+      async (_argv, _cwd, versionEnv) =>
+        Promise.resolve(
+          ok({
+            code: 0,
+            signal: null,
+            stdout: `${versionEnv["FIXTURE_NODE_VERSION"] ?? ""}\n`,
+            stderr: "",
+          }),
+        ),
+    );
 
     expect(isErr(result)).toBe(true);
     if (!isErr(result)) return;
