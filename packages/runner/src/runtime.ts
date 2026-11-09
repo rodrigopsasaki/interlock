@@ -59,6 +59,21 @@ export interface ProbeInvocation {
   readonly environment: Readonly<Record<string, string>>;
 }
 
+export interface ProbeProcessIdentity {
+  readonly pid: number;
+  readonly pgid: number;
+  readonly birth: string;
+  readonly boot: string;
+}
+
+export interface ProbeProcessLifecycle {
+  bind(identity: ProbeProcessIdentity): Promise<Result<void, string>>;
+  release(
+    outcome: "never-started" | "group-empty" | "override",
+    pgid: string,
+  ): Promise<Result<void, string>>;
+}
+
 export type ProbeExecutor = (
   launch: PreparedLaunch,
   check: ProbeCheck,

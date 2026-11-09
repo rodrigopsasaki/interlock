@@ -1,0 +1,40 @@
+#!/usr/bin/env node
+import { spawnSync } from "node:child_process";
+
+if (process.env["INTERLOCK_PROBE_DENY_SHM"] !== undefined) {
+  process.stderr.write("shared memory denied by probe environment\n");
+  process.exit(1);
+}
+
+const created = spawnSync("ipcmk", ["-M", "1"], { encoding: "utf8" });
+if (created.error === undefined && created.status === 0) {
+  const id = `${created.stdout}${created.stderr}`.match(/\b(\d+)\s*$/m)?.[1];
+  if (id === undefined) {
+    process.stderr.write("ipcmk did not report a shared memory id\n");
+    process.exit(1);
+  }
+  const removed = spawnSync("ipcrm", ["-m", id], { encoding: "utf8" });
+  if (removed.error !== undefined || removed.status !== 0) {
+    process.stderr.write(
+      removed.error?.message ?? (removed.stderr || `ipcrm exited ${removed.status ?? 1}\n`),
+    );
+    process.exit(1);
+  }
+  process.exit(0);
+}
+
+const python = spawnSync(
+  "python3",
+  [
+    "-c",
+    "import ctypes\nlibc=ctypes.CDLL(None, use_errno=True)\nsegment=libc.shmget(0, 1, 0o600 | 0o1000)\nif segment < 0: raise OSError(ctypes.get_errno(), 'shmget')\nif libc.shmctl(segment, 0, None) < 0: raise OSError(ctypes.get_errno(), 'shmctl')",
+  ],
+  { encoding: "utf8" },
+);
+if (python.error !== undefined || python.status !== 0) {
+  process.stderr.write(
+    python.error?.message ??
+      (python.stderr || created.error?.message || `shared memory probe exited ${python.status ?? 1}\n`),
+  );
+  process.exit(1);
+}

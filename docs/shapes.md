@@ -1349,7 +1349,7 @@ No vocabulary entry for `runtimes`.
 | field | type | required | description |
 | --- | --- | --- | --- |
 | `interlock` | the literal `"runtimes@v2"` | yes |  |
-| `runtimes` | object | no | Each entry accepts optional writable_root_args, mcp_exclusive, environment_passthrough and environment_forward_args fields for exec preparation. |
+| `runtimes` | object | no | Each entry accepts optional writable_root_args, mcp_exclusive, environment_passthrough, environment_forward_args and headless_args fields for exec preparation. |
 
 ### Examples
 

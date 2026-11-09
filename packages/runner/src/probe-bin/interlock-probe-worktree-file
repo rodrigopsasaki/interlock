@@ -1,0 +1,15 @@
+#!/usr/bin/env node
+import { unlinkSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+
+const path = join(process.cwd(), ".interlock-probe-file");
+try {
+  writeFileSync(path, `${process.pid}\n`, { flag: "wx" });
+  unlinkSync(path);
+} catch (error) {
+  process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+  try {
+    unlinkSync(path);
+  } catch {}
+  process.exitCode = 1;
+}

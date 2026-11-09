@@ -1,0 +1,31 @@
+interlock: notes@v0
+node: exec-profiles-can-be-probed
+entries:
+  - kind: choice
+    at: "2026-11-09T19:10:00Z"
+    chose: Extend the existing shared launch and probe seams, adding only the headless split and the real shipped check executables required by this node.
+    because: The acceptance requires probes to receive the same roots, MCP policy, environment and provider lifecycle as an exec attempt, while existing runtime probe behavior and historical artifacts must remain readable.
+  - kind: choice
+    at: "2026-11-09T19:10:01Z"
+    chose: Keep probe configuration values hashed and add the effective forwarded environment values to the configuration fingerprint without retaining their values.
+    because: A changed forwarded value must make an earlier pass historical, while the probe artifact must not store environment secrets.
+  - kind: surprise
+    at: "2026-11-09T19:18:00Z"
+    expected: The first compile would accept the generic Result construction used for an optional process lifecycle.
+    observed: The fp Result helper accepts one type parameter, so the optional branch was narrowed by inference instead; the pinned typecheck then passed.
+  - kind: choice
+    at: "2026-11-09T19:22:00Z"
+    chose: Resolve shipped check commands through a probe-bin directory prepended only to the child process PATH, while keeping the probe invocation argv named interlock-probe-<check>.
+    because: The profile program must receive and execute the same named check body without a host-shell fallback, and the command implementation must remain an Interlock-owned executable.
+  - kind: choice
+    at: "2026-11-09T19:24:00Z"
+    chose: Use a portable SysV shared-memory command that prefers ipcmk/ipcrm and falls back to direct libc calls through the machine's Python runtime.
+    because: The check must exercise shmget/shmctl while remaining runnable on this host, where util-linux's ipcmk is absent; failures still surface as refused output.
+  - kind: surprise
+    at: "2026-11-09T19:31:00Z"
+    expected: The fixture agent's last argv element would remain the probe command after adding forwarded environment argument names.
+    observed: The shared preparation appends forwarding arguments after the headless tail, so the fixture now locates the named check explicitly and proves those trailing access arguments remain present.
+  - kind: choice
+    at: "2026-11-09T19:40:00Z"
+    chose: Admit, bind and release each non-runner-custody probe check as its own provider-held process, with the release intent built after bind carries the observed identity.
+    because: Each check is a separate real child process; per-check effects keep the provider's identity and release lifecycle aligned, including when a check exits unsuccessfully.

@@ -1,7 +1,15 @@
 import { spawn } from "node:child_process";
+import { delimiter } from "node:path";
+import { fileURLToPath } from "node:url";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import type { ProbeCheckResult } from "ledger";
-import type { PreparedLaunch, ProbeCheck, ProbeExecutor, ProbeInvocation } from "./runtime.ts";
+import type {
+  PreparedLaunch,
+  ProbeCheck,
+  ProbeExecutor,
+  ProbeInvocation,
+  ProbeProcessLifecycle,
+} from "./runtime.ts";
 import type { ResolvedRuntime } from "./runtimeCatalogue.ts";
 import { expandProbeExec } from "./writableRootArgs.ts";
 
@@ -18,12 +26,18 @@ export interface ProbeProcessResult {
   readonly output: string;
 }
 
-export type ProbeProcessRunner = (invocation: ProbeInvocation) => Promise<ProbeProcessResult>;
+export type ProbeProcessRunner = (
+  invocation: ProbeInvocation,
+  lifecycle?: ProbeProcessLifecycle,
+) => Promise<ProbeProcessResult>;
 
 export interface ProbeExecutionOptions {
   readonly runtime: ResolvedRuntime;
   readonly launch: PreparedLaunch;
   readonly processRunner?: ProbeProcessRunner;
+  readonly processLifecycleFor?: (
+    check: ProbeCheck,
+  ) => Promise<Result<ProbeProcessLifecycle | undefined, string>>;
   readonly adapter?: ProbeExecutor;
   readonly runnerSignedCommit?: () => Promise<Result<string | undefined, string>>;
 }
@@ -32,28 +46,107 @@ function commandFor(check: ProbeCheck): string {
   return `interlock-probe-${check}`;
 }
 
-function defaultProcessRunner(invocation: ProbeInvocation): Promise<ProbeProcessResult> {
+function probeBinDirectory(): string {
+  return fileURLToPath(new URL("./probe-bin/", import.meta.url));
+}
+
+function defaultProcessRunner(
+  invocation: ProbeInvocation,
+  lifecycle?: ProbeProcessLifecycle,
+): Promise<ProbeProcessResult> {
   return new Promise((resolve) => {
     const [program, ...args] = invocation.argv;
     if (program === undefined) {
       resolve({ code: -1, output: "probe executor produced an empty argv" });
       return;
     }
+    const inheritedPath = invocation.environment["PATH"] ?? process.env["PATH"] ?? "";
     const child = spawn(program, args, {
       cwd: invocation.cwd,
-      env: { ...process.env, ...invocation.environment },
+      env: {
+        ...process.env,
+        ...invocation.environment,
+        PATH: [probeBinDirectory(), inheritedPath]
+          .filter((part) => part.length > 0)
+          .join(delimiter),
+      },
+      detached: true,
       shell: false,
     });
     let output = "";
+    let identityBound = false;
+    let released = false;
+    let releaseFailed = false;
+    const release = async (
+      outcome: "never-started" | "group-empty" | "override",
+      pgid: string,
+    ): Promise<void> => {
+      if (lifecycle === undefined || released) return;
+      released = true;
+      const releasedResult = await lifecycle.release(outcome, pgid);
+      if (isErr(releasedResult)) {
+        releaseFailed = true;
+        output += `\n${releasedResult.error}`;
+      }
+    };
+    const finish = (value: ProbeProcessResult): void => {
+      resolve(value);
+    };
     child.stdout.on("data", (chunk: Buffer) => {
       output += chunk.toString("utf8");
     });
     child.stderr.on("data", (chunk: Buffer) => {
       output += chunk.toString("utf8");
     });
-    child.on("error", (error) => resolve({ code: -1, output: error.message }));
-    child.on("close", (code) => resolve({ code: code ?? -1, output }));
+    child.on("spawn", () => {
+      if (lifecycle === undefined || child.pid === undefined) {
+        identityBound = true;
+        return;
+      }
+      void lifecycle
+        .bind({
+          pid: child.pid,
+          pgid: child.pid,
+          birth: `${child.pid}-${Date.now()}`,
+          boot: `${process.platform}-${process.ppid}`,
+        })
+        .then((bound) => {
+          if (isErr(bound)) {
+            child.kill("SIGTERM");
+            output += `\n${bound.error}`;
+            return;
+          }
+          identityBound = true;
+        });
+    });
+    child.on("error", (error) => {
+      void release("never-started", child.pid === undefined ? "" : String(child.pid)).then(() =>
+        finish({ code: -1, output: error.message }),
+      );
+    });
+    child.on("close", (code) => {
+      void release(
+        identityBound ? "group-empty" : "never-started",
+        child.pid === undefined ? "" : String(child.pid),
+      ).then(() => finish({ code: releaseFailed ? -1 : (code ?? -1), output }));
+    });
   });
+}
+
+function expectedExecArguments(
+  runtime: ResolvedRuntime,
+  launch: PreparedLaunch,
+  command: string,
+): readonly string[] | undefined {
+  if (runtime.kind !== "exec") return undefined;
+  const headless = runtime.headlessArgs;
+  if (headless === undefined) return undefined;
+  const promptIndex = runtime.args.length + headless.before.length;
+  const expected = [launch.program, ...launch.args];
+  if (promptIndex < 1 || promptIndex >= expected.length || expected[promptIndex] !== "{prompt}") {
+    return undefined;
+  }
+  return expected.map((part, index) => (index === promptIndex ? command : part));
 }
 
 function missingArgument(
@@ -81,6 +174,23 @@ export function execProbeInvocation(
 ): Result<ProbeInvocation, string> {
   const template = runtime.exec;
   if (template === undefined) return err("profile has no exec probe executor");
+  const expectedHeadless = expectedExecArguments(runtime, launch, commandFor(check));
+  if (runtime.kind === "exec" && runtime.headlessArgs === undefined) {
+    return err("exec profile has no headless_args; probe access split is undeclared");
+  }
+  if (runtime.kind === "exec" && expectedHeadless === undefined) {
+    return err("exec profile headless_args does not identify one whole {prompt} argument");
+  }
+  if (expectedHeadless !== undefined) {
+    const actual = expandProbeExec(template, commandFor(check));
+    const difference = missingArgument(expectedHeadless, actual);
+    if (difference !== undefined) return err(difference);
+    return ok({
+      argv: expandProbeExec(template, commandFor(check)),
+      cwd: launch.cwd,
+      environment: launch.environment,
+    });
+  }
   const declaredArgs = runtime.kind === "exec" ? runtime.args.slice(1) : runtime.args;
   const expectedProfile = [launch.program, ...declaredArgs];
   const actualProfile = [...template.before, ...template.after];
@@ -154,7 +264,26 @@ export async function runProbeChecks(
       results.push({ check, state: "unavailable", reason: invocation.error });
       continue;
     }
-    results.push(resultFor(check, await processRunner(invocation.value)));
+    const lifecycle =
+      options.processLifecycleFor === undefined
+        ? ok(undefined)
+        : await options.processLifecycleFor(check);
+    if (isErr(lifecycle)) {
+      results.push({ check, state: "unavailable", reason: lifecycle.error });
+      continue;
+    }
+    let processResult: ProbeProcessResult;
+    try {
+      processResult = await processRunner(invocation.value, lifecycle.value);
+    } catch (error) {
+      results.push({
+        check,
+        state: "refused",
+        error: error instanceof Error ? error.message : String(error),
+      });
+      continue;
+    }
+    results.push(resultFor(check, processResult));
   }
   return results;
 }
