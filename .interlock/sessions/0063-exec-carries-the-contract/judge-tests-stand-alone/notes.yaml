@@ -93,3 +93,13 @@ entries:
       exit_status: 0
       output: packages/runner/test/.runs/slow-tests-final-2.txt
       result: "slow tests accounted: 20 declared, 3135 logic under 1.5 s"
+  - kind: choice
+    at: "2026-11-09T19:27:00Z"
+    chose: Treat three serial root full-suite passes on the committed implementation as the final suite proof.
+    because: The acceptance requires three consecutive `pnpm test` runs on the same head, and each completed successfully without a background runner.
+    evidence:
+      head_sha: b00d5e0
+      runs:
+        - {command: "pnpm test", exit_status: 0, output: packages/runner/test/.runs/full-suite-1.txt, test_files: 202, tests: 3155}
+        - {command: "pnpm test", exit_status: 0, output: packages/runner/test/.runs/full-suite-2.txt, test_files: 202, tests: 3155}
+        - {command: "pnpm test", exit_status: 0, output: packages/runner/test/.runs/full-suite-3.txt, test_files: 202, tests: 3155}
