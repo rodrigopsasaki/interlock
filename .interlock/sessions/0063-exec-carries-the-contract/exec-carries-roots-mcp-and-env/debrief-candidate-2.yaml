@@ -1,0 +1,151 @@
+interlock: debrief@v2
+graph: 0063-exec-carries-the-contract
+node: exec-carries-roots-mcp-and-env
+role: implementer
+graph_base_sha: 79ff0d5bb4e25b576844e42efcbc474caf8a389e
+session_start_sha: 196c30aec1e889180bc3a6dd2539e62bcec8471d
+head_sha: 4fe305e5239353705a1ce010436ee25cf13e7ba9
+derivation:
+  kind: agent
+  runtime: codex
+  model: GPT-5
+discoveries: []
+decisions:
+  - id: catalogue-contract
+    applies_to: { kind: path, path: packages/runner/src/runtimeCatalogue.ts }
+    what: >-
+      Extended runtimes@v2 loading and merge to carry opt-in writable-root placeholders, exclusive
+      MCP disable-and-allow templates, and named environment forwarding with valid-name and
+      marker-collision refusals; preserved the legacy mcp_disable_args form as mutually exclusive.
+    because: >-
+      The exec contract must reject unsafe catalogue combinations before spawning while keeping
+      all existing catalogue versions readable and keeping forwarded values out of argv.
+    rests_on:
+      - packages/runner/src/runtimeCatalogue.ts
+      - packages/runner/src/writableRootArgs.ts
+    hunks:
+      - packages/runner/src/runtimeCatalogue.ts:32-59
+      - packages/runner/src/runtimeCatalogue.ts:93-177
+      - packages/runner/src/runtimeCatalogue.ts:302-452
+      - packages/runner/src/runtimeCatalogue.ts:540-620
+      - packages/runner/src/runtimeCatalogue.ts:647-688
+      - packages/runner/src/writableRootArgs.ts:1-74
+    produces:
+      - packages/runner/src/runtimeCatalogue.ts
+      - packages/runner/src/writableRootArgs.ts
+  - id: prepared-exec-argv
+    applies_to: { kind: path, path: packages/runner/src/sessionDrive.ts }
+    what: >-
+      Made exec argv expansion part of prepareLaunch and routed the work and debrief phases through
+      that prepared result, expanding roots only at {writable_roots}, applying the phase MCP policy,
+      and forwarding only names whose effective inherited environment is set; probe equivalence
+      now accounts for exec profiles whose first args element is the program.
+    because: >-
+      Launches and the next probe must receive the same access contract, while profiles that write
+      none of the new opt-in fields must retain today's argv and environment behavior.
+    rests_on:
+      - packages/runner/src/sessionDrive.ts
+      - packages/runner/src/runtimeCatalogue.ts
+      - packages/runner/src/runtimeProbe.ts
+      - packages/runner/src/writableRootArgs.ts
+    hunks:
+      - packages/runner/src/sessionDrive.ts:105-196
+      - packages/runner/src/sessionDrive.ts:566-620
+      - packages/runner/src/runtimeCatalogue.ts:567-620
+      - packages/runner/src/runtimeProbe.ts:79-99
+      - packages/runner/src/writableRootArgs.ts:1-74
+    produces:
+      - packages/runner/src/sessionDrive.ts
+      - packages/runner/src/runtimeCatalogue.ts
+      - packages/runner/src/runtimeProbe.ts
+      - packages/runner/src/writableRootArgs.ts
+  - id: published-runtime-shape
+    applies_to: { kind: path, path: schemas/runtimes@v2.json }
+    what: >-
+      Published the additive runtimes@v2 schema constraints and regenerated docs/shapes.md from the
+      schema, with the runtime example demonstrating writable roots, exclusive MCP and named
+      environment forwarding.
+    because: >-
+      The catalogue keys are public artifact fields, so their schema, generated reference and
+      example must agree while the schema refuses the legacy/exclusive MCP combination and marker
+      environment names.
+    rests_on:
+      - schemas/runtimes@v2.json
+      - docs/shapes.md
+      - runtimes.example.yaml
+    hunks:
+      - schemas/runtimes@v2.json:1-205
+      - docs/shapes.md:1345-1423
+      - runtimes.example.yaml:43-55
+    produces:
+      - schemas/runtimes@v2.json
+      - docs/shapes.md
+      - runtimes.example.yaml
+  - id: contract-proof
+    what: >-
+      Added focused exec contract proofs for writable-root opt-in and legacy byte preservation,
+      exclusive MCP empty/full/subset allow lists with an ambient-server exclusion, name-only
+      environment forwarding and unset omission, shared preparation, and a fixture program that
+      starts a filtered shell where only the forwarded name is visible.
+    because: >-
+      The acceptance assigns these cases to runner contract fixtures, and the process boundary
+      proof verifies that forwarding affects the child shell rather than only the prepared argv.
+    rests_on:
+      - packages/runner/test/execContract.test.ts
+    hunks:
+      - packages/runner/test/execContract.test.ts:80-112
+      - packages/runner/test/execContract.test.ts:141-204
+      - packages/runner/test/execContract.test.ts:238-245
+    produces:
+      - packages/runner/test/execContract.test.ts
+  - id: schema-proof
+    applies_to: { kind: path, path: packages/schemas/test/runtimesV2.test.ts }
+    what: >-
+      Added runtimes@v2 schema tests for an old catalogue shape, a catalogue using every new field,
+      the exclusive/legacy MCP refusal, and the interlock-marker environment refusal.
+    because: >-
+      The published schema must independently preserve old catalogues and reject the same unsafe
+      combinations that the loader refuses.
+    rests_on:
+      - packages/schemas/test/runtimesV2.test.ts
+      - schemas/runtimes@v2.json
+    hunks:
+      - packages/schemas/test/runtimesV2.test.ts:11-78
+      - schemas/runtimes@v2.json:103-158
+      - schemas/runtimes@v2.json:184-193
+    produces:
+      - packages/schemas/test/runtimesV2.test.ts
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: Node 24.14.0 and pnpm 10.13.1; all workspace packages passed strict TypeScript checking after the new fixtures.
+  - id: lint
+    result: fail
+    invocation: pnpm lint
+    note: >-
+      The touched files are formatted; the gate still reports the two pre-existing
+      runnerCommits.test.ts diagnostics (one warning and one info/error report).
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+    note: packages/*/src reported no comments.
+  - id: test
+    result: fail
+    invocation: pnpm test
+    note: >-
+      The workspace run passed 60 of 62 files and 672 of 674 tests, but retained two unrelated
+      runner failures: markerNeverDropped UTF-8 line-length assertion and receiptCarriesItsRun
+      timeout. The new execContract file passed all 10 tests in this run.
+  - id: exec-contract-tests
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/execContract.test.ts --passWithNoTests=false
+    note: 10 focused contract tests passed.
+  - id: schemas
+    result: pass
+    invocation: pnpm --filter schemas exec vitest run test/runtimesV2.test.ts --passWithNoTests=false
+    note: 4 runtimes@v2 schema contract tests passed.
+open:
+  - >-
+    The full workspace test gate remains unresolved because of the unrelated markerNeverDropped
+    assertion and receiptCarriesItsRun timeout; the requested exec contract and schema gates pass.

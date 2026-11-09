@@ -59,3 +59,10 @@ entries:
     observed: >-
       zsh rejected the temporary variable name "status" as read-only after the test itself passed;
       the rerun uses a different variable name.
+  - kind: surprise
+    at: '2026-11-09T16:55:54Z'
+    expected: The post-change workspace test gate would pass after the focused contract and schema suites passed.
+    observed: >-
+      The full workspace suite reported two unrelated runner failures: a pre-existing marker line
+      length assertion and a receipt identity test timeout; the new execContract suite passed all
+      10 tests within that run.
