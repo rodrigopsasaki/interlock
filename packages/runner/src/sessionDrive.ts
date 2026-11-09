@@ -296,6 +296,27 @@ export async function driveInteractiveSession(
         return { exitCode: 1, message: checked.error };
       }
     }
+    if (agentRuntime.kind !== "exec") {
+      const createdRuntime =
+        injectedRuntime === undefined ? await createHerdrLaunchRuntime() : ok(injectedRuntime);
+      if (isErr(createdRuntime)) {
+        const message =
+          createdRuntime.error.kind === "not-ready"
+            ? explainRuntimeRefusal(createdRuntime.error)
+            : `runtime preflight refused: ${explainRuntimeRefusal(createdRuntime.error)}`;
+        narrate(message);
+        return { exitCode: 1, message };
+      }
+      runtime = createdRuntime.value;
+      if (runtime.checkServer !== undefined) {
+        const checked = await runtime.checkServer();
+        if (isErr(checked)) {
+          const message = explainRuntimeRefusal(checked.error);
+          narrate(message);
+          return { exitCode: 1, message };
+        }
+      }
+    }
     const main = mainBranchOf(repoRoot);
     if (isErr(main)) {
       const message = explainWorktreeRefusal(main.error);
@@ -748,24 +769,9 @@ export async function driveInteractiveSession(
       };
     }
 
-    const createdRuntime =
-      injectedRuntime === undefined ? await createHerdrLaunchRuntime() : ok(injectedRuntime);
-    if (isErr(createdRuntime)) {
-      const message =
-        createdRuntime.error.kind === "not-ready"
-          ? explainRuntimeRefusal(createdRuntime.error)
-          : `runtime preflight refused: ${explainRuntimeRefusal(createdRuntime.error)}`;
-      narrate(message);
-      return { exitCode: 1, message };
-    }
-    runtime = createdRuntime.value;
-    if (runtime.checkServer !== undefined) {
-      const checked = await runtime.checkServer();
-      if (isErr(checked)) {
-        const message = explainRuntimeRefusal(checked.error);
-        narrate(message);
-        return { exitCode: 1, message };
-      }
+    if (runtime === undefined) {
+      lease.stop();
+      return refuse(abandon("runtime"), "pane runtime was not prepared");
     }
 
     if (

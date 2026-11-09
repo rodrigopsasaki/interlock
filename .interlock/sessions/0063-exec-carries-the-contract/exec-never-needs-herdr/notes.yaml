@@ -31,3 +31,21 @@ entries:
     because: >-
       The acceptance is a runtime boundary, so the proof must exercise the session driver and CLI
       without starting a real agent or relying on herdr availability.
+  - kind: surprise
+    at: '2026-11-09T11:50:00Z'
+    expected: The post-commit typecheck would accept the new focused CLI test on the first pass.
+    observed: >-
+      TypeScript rejected an unused `describe` import in the new test; the import was removed
+      before rerunning the gate.
+  - kind: surprise
+    at: '2026-11-09T11:55:00Z'
+    expected: The standing lint gate would report no findings from the focused regression files.
+    observed: >-
+      Lint passed but reported one new fixture-string warning and two existing warnings in
+      runnerCommits.test.ts; the focused warning was removed before the gate is rerun.
+  - kind: surprise
+    at: '2026-11-09T12:05:00Z'
+    expected: Moving herdr preflight behind the runtime branch would preserve all existing refusal timing.
+    observed: >-
+      The full suite's refusalOutcomes regression showed that pane preflight must still refuse before
+      worktree or ledger side effects; the fix keeps that early boundary for non-exec runtimes only.

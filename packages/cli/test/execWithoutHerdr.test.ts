@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, expect, it } from "vitest";
 import { runGraphApprove } from "../src/graph/approve.ts";
 import { runInterlockRun } from "../src/run.ts";
 import { commitAll, gitInitFixture } from "./graph/gitFixture.ts";
@@ -111,7 +111,11 @@ it("runs both exec phases without herdr and gives each phase its own argv prompt
   promptRecordPath = record;
   writeFileSync(
     script,
-    'import { appendFileSync } from "node:fs";\nappendFileSync(process.env.INTERLOCK_EXEC_PROMPTS, `${JSON.stringify(process.argv.at(-1))}\\n`);\n',
+    [
+      'import { appendFileSync } from "node:fs";',
+      'appendFileSync(process.env.INTERLOCK_EXEC_PROMPTS, JSON.stringify(process.argv.at(-1)) + "\\n");',
+      "",
+    ].join("\n"),
   );
   const catalogue = join(cwd, "runtimes.yaml");
   writeFileSync(catalogue, execCatalogue(process.execPath, script));
