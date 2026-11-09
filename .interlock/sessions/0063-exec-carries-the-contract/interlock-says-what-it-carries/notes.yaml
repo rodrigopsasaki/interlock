@@ -43,3 +43,25 @@ entries:
     at: "2026-11-09T23:10:20Z"
     chose: Narrow the implementation decision's runtimeCatalogue citation to the constants hunk and omit the unchanged argv body.
     because: Debrief hunks must manifest this node's diff; the existing argv body supports context but was not produced by this session.
+  - kind: choice
+    at: "2026-11-09T23:20:00Z"
+    chose: >-
+      Strengthen the capabilities test with spies on the catalogue, journal,
+      ledger, machine-provider and herdr entry points, and compare exported
+      constants against a separate literal contract list.
+    because: >-
+      Availability from an empty directory does not prove that those readers
+      were not attempted, and deriving the expected list from constants would
+      allow a renamed contract string to pass.
+  - kind: choice
+    at: "2026-11-09T23:20:01Z"
+    chose: Allocate the capabilities test's temporary directory under os.tmpdir().
+    because: The requested isolation must not depend on the repository's test scratch directory or its .interlock ancestor.
+  - kind: surprise
+    at: "2026-11-09T23:24:00Z"
+    expected: The focused test's new namespace imports would satisfy the repository formatter.
+    observed: The full lint gate found one new import-order error in capabilities.test.ts; the same two unrelated runner notices remained.
+  - kind: choice
+    at: "2026-11-09T23:24:01Z"
+    chose: Reorder the runner namespace import before its named imports.
+    because: This is the formatter's required import grouping and changes no test behavior.
