@@ -105,9 +105,16 @@ export interface PrepareLaunchOptions {
     environment: Readonly<Record<string, string>>,
   ) => Result<readonly string[], string>;
   readonly journalPath?: string;
+  readonly prompt?: string;
+  readonly review?: boolean;
+  readonly forwardEnvironment?: Readonly<Record<string, string | undefined>>;
 }
 
-type LaunchRefusal = WorktreeRefusal | MarkerConflict | CodexLaunchRefusal;
+type LaunchRefusal =
+  | WorktreeRefusal
+  | MarkerConflict
+  | CodexLaunchRefusal
+  | { readonly kind: "launch-refusal"; readonly because: string };
 
 function explainLaunchRefusal(refusal: LaunchRefusal): string {
   if (refusal.kind === "marker-conflict") {
@@ -117,6 +124,7 @@ function explainLaunchRefusal(refusal: LaunchRefusal): string {
     const names = refusal.servers.length === 0 ? "Codex" : refusal.servers.join(", ");
     return `launch refused for ${names}: ${refusal.because}`;
   }
+  if (refusal.kind === "launch-refusal") return refusal.because;
   return explainWorktreeRefusal(refusal);
 }
 
@@ -127,24 +135,46 @@ export function prepareLaunch(
   options: PrepareLaunchOptions = {},
 ): Result<AgentLaunch, LaunchRefusal> {
   const template = agentRuntime.writableRootArgs;
-  const writableRoots =
-    template === undefined
-      ? []
-      : (() => {
-          const layout = worktreeGitLayout(worktreePath);
-          if (isErr(layout) || layout.value.kind === "not-linked") return [];
-          return [layout.value.commonGitDir, layout.value.gitDir];
-        })();
-  if (template !== undefined && writableRoots.length === 0) {
+  const execUsesWritableRoots =
+    agentRuntime.kind === "exec" && agentRuntime.args.includes("{writable_roots}");
+  const needsWritableRoots =
+    agentRuntime.kind === "exec" ? execUsesWritableRoots : template !== undefined;
+  const writableRoots = !needsWritableRoots
+    ? []
+    : (() => {
+        const layout = worktreeGitLayout(worktreePath);
+        if (isErr(layout) || layout.value.kind === "not-linked") return [];
+        return [layout.value.commonGitDir, layout.value.gitDir];
+      })();
+  if (needsWritableRoots && writableRoots.length === 0) {
     const layout = worktreeGitLayout(worktreePath);
     if (isErr(layout)) return layout;
   }
-  const launchArgs = [
-    ...agentRuntime.args,
-    ...(template === undefined
-      ? []
-      : writableRoots.flatMap((root) => expandWritableRootArgs(template, root))),
-  ];
+  const launchArgs =
+    agentRuntime.kind === "exec"
+      ? execRuntimeArgv(agentRuntime, options.prompt ?? "{prompt}", options.review ?? false, {
+          writableRoots,
+          environment: { ...(options.forwardEnvironment ?? process.env), ...environment },
+        })
+      : [
+          ...agentRuntime.args,
+          ...(template === undefined
+            ? []
+            : writableRoots.flatMap((root) => expandWritableRootArgs(template, root))),
+        ];
+  if (agentRuntime.kind === "exec") {
+    const [program, ...args] = launchArgs;
+    if (program === undefined) {
+      return err({ kind: "launch-refusal", because: "exec runtime has no program argument" });
+    }
+    return ok({
+      program,
+      args,
+      cwd: worktreePath,
+      environment,
+      writableRoots,
+    });
+  }
   if (agentRuntime.kind === "codex") {
     const prepared = prepareCodexLaunch(launchArgs, worktreePath, environment, {
       ...(options.narrate === undefined ? {} : { narrate: options.narrate }),
@@ -536,16 +566,22 @@ export async function driveInteractiveSession(
         shape?.entry.prompt,
         agentRuntime.commits,
       );
-      const openingArgv = execRuntimeArgv(agentRuntime, openingPrompt);
-      const program = openingArgv[0];
-      if (program === undefined) {
+      const journalDirectory = await sharedJournalDirectory(repoRoot);
+      const preparedLaunch = prepareLaunch(agentRuntime, worktreePath, agentEnvironment, {
+        narrate,
+        journalPath: join(journalDirectory, "journal.jsonl"),
+        prompt: openingPrompt,
+        forwardEnvironment: process.env,
+      });
+      if (isErr(preparedLaunch)) {
         lease.stop();
-        return refuse(abandon("runtime"), "exec runtime has no program argument");
+        return refuse(abandon("runtime"), explainLaunchRefusal(preparedLaunch.error));
       }
-      let phaseArgs: readonly string[] = openingArgv.slice(1);
-      let phaseEnvironment: Readonly<Record<string, string>> = agentEnvironment;
+      const program = preparedLaunch.value.program;
+      let phaseArgs: readonly string[] = preparedLaunch.value.args;
+      let phaseEnvironment: Readonly<Record<string, string>> = preparedLaunch.value.environment;
+      launchCleanup = preparedLaunch.value.cleanup;
       if (basename(program) === "codex") {
-        const journalDirectory = await sharedJournalDirectory(repoRoot);
         const prepared = prepareCodexLaunch(phaseArgs, worktreePath, agentEnvironment, {
           narrate,
           program,
@@ -559,7 +595,6 @@ export async function driveInteractiveSession(
         phaseEnvironment = prepared.value.environment;
         launchCleanup = prepared.value.cleanup;
       }
-      const journalDirectory = await sharedJournalDirectory(repoRoot);
       const provider = machine.value.provider;
       if (provider !== "none") {
         const valid = validateExecMachine(provider);

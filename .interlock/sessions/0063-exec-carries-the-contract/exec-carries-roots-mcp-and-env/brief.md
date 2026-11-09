@@ -21,8 +21,9 @@ gates:
     run: pnpm interlock debrief validate {graph} {node}
   - id: exec-contract-tests
     kind: command
-    run: pnpm --fail-if-no-match --filter runner exec vitest run test/execContract.test.ts --passWithNoTests=false
-    expect_output: 'Tests +[1-9][0-9]* passed'
+    run: pnpm --fail-if-no-match --filter runner exec vitest run
+      test/execContract.test.ts --passWithNoTests=false
+    expect_output: Tests +[1-9][0-9]* passed
 scope:
   - .gitignore
   - .interlock/arcs.yaml
@@ -83,6 +84,7 @@ scope:
   - .interlock/graphs/0060-headless-runtime.yaml
   - .interlock/graphs/0061-delegation-fails-closed.yaml
   - .interlock/graphs/0062-same-access.yaml
+  - .interlock/graphs/0063-exec-carries-the-contract.yaml
   - .interlock/graphs/readme-interlock-concept.yaml
   - .interlock/local.example.yaml
   - .interlock/queue.yaml
@@ -383,6 +385,11 @@ scope:
   - .interlock/sessions/0052-count-tells-the-truth/retire/brief.md
   - .interlock/sessions/0053-graph-arc/arc-required/brief.md
   - .interlock/sessions/0053-graph-arc/arcs-v1/brief.md
+  - .interlock/sessions/0053-graph-arc/arcs-v1/debrief-candidate-2.yaml
+  - .interlock/sessions/0053-graph-arc/arcs-v1/debrief-candidate-3.yaml
+  - .interlock/sessions/0053-graph-arc/arcs-v1/debrief.yaml
+  - .interlock/sessions/0053-graph-arc/arcs-v1/notes.yaml
+  - .interlock/sessions/0053-graph-arc/arcs-v1/revisions/c906609f3fac5ed4023258a42b1cde94878467bc6ab23f351e7548471df4fd2b.yaml
   - .interlock/sessions/0053-graph-arc/briefs-before-approval/brief.md
   - .interlock/sessions/0053-graph-arc/registry-reads/brief.md
   - .interlock/sessions/0054-provider-routing/provider-routing/brief.md
@@ -440,15 +447,144 @@ scope:
   - .interlock/sessions/0059-submodule-receipts/resume-keeps-range/notes.yaml
   - .interlock/sessions/0059-submodule-receipts/resume-keeps-range/revisions/3708d457dd183b86d278497a6e7f53142315a2fecc9c05a7cd4512e37fcf8034.yaml
   - .interlock/sessions/0059-submodule-receipts/resume-keeps-range/revisions/f8052a9f854f5e0b182b7c3d30680fb458bdb9a6d7bb82a840e9cb731ec873f3.yaml
+  - .interlock/sessions/0060-headless-runtime/base-is-current/brief.md
+  - .interlock/sessions/0060-headless-runtime/base-is-current/debrief-candidate-3.yaml
+  - .interlock/sessions/0060-headless-runtime/base-is-current/debrief-candidate-final.yaml
+  - .interlock/sessions/0060-headless-runtime/base-is-current/debrief-candidate-revert.yaml
+  - .interlock/sessions/0060-headless-runtime/base-is-current/debrief.yaml
+  - .interlock/sessions/0060-headless-runtime/base-is-current/notes.yaml
+  - .interlock/sessions/0060-headless-runtime/base-is-current/revisions/5c0fd4e926f8182b1dde414b8236f6152f1fc4f1ba92013c6f299c659d9dc8dd.yaml
+  - .interlock/sessions/0060-headless-runtime/base-is-current/revisions/ba550eb1a52daa0dcb529f52479292ed5b2bad7b54c45d6f7ff66f65deef0928.yaml
+  - .interlock/sessions/0060-headless-runtime/capture-drains/brief.md
+  - .interlock/sessions/0060-headless-runtime/capture-drains/debrief-candidate.yaml
+  - .interlock/sessions/0060-headless-runtime/capture-drains/debrief.yaml
+  - .interlock/sessions/0060-headless-runtime/capture-drains/notes.yaml
+  - .interlock/sessions/0060-headless-runtime/capture-drains/revisions/837fa6d5210d21857c2790e12f0c5d59e3825870e1be4d537552add9cf07abb1.yaml
+  - .interlock/sessions/0060-headless-runtime/codex-home-outside-worktree/brief.md
+  - .interlock/sessions/0060-headless-runtime/exec-phase-ends/brief.md
+  - .interlock/sessions/0060-headless-runtime/exec-phase-ends/debrief-candidate.yaml
+  - .interlock/sessions/0060-headless-runtime/exec-phase-ends/debrief.yaml
+  - .interlock/sessions/0060-headless-runtime/exec-phase-ends/notes.yaml
   - .interlock/sessions/0060-headless-runtime/exec-runtime/brief.md
+  - .interlock/sessions/0060-headless-runtime/exec-runtime/debrief-candidate-merge.yaml
+  - .interlock/sessions/0060-headless-runtime/exec-runtime/debrief-candidate.yaml
+  - .interlock/sessions/0060-headless-runtime/exec-runtime/debrief.yaml
+  - .interlock/sessions/0060-headless-runtime/exec-runtime/notes.yaml
+  - .interlock/sessions/0060-headless-runtime/exec-runtime/revisions/809578e35464737611e13f2ab6f2d6e8f88ed0bca9a0958b53063bda79261f02.yaml
+  - .interlock/sessions/0060-headless-runtime/gates-run-on-engines-node/brief.md
+  - .interlock/sessions/0060-headless-runtime/gates-run-on-engines-node/debrief-candidate-f72abcc.yaml
+  - .interlock/sessions/0060-headless-runtime/gates-run-on-engines-node/debrief-candidate.yaml
+  - .interlock/sessions/0060-headless-runtime/gates-run-on-engines-node/debrief.yaml
+  - .interlock/sessions/0060-headless-runtime/gates-run-on-engines-node/notes.yaml
+  - .interlock/sessions/0060-headless-runtime/gates-run-on-engines-node/revisions/9212c23d067b8b89fb644a6f809ab7151fc6088788dc8322ba0c77755e9902aa.yaml
+  - .interlock/sessions/0060-headless-runtime/gates-run-on-engines-node/revisions/9a67eb766ad3afa70ba6342991cff45db4c80ed06417defafe105e060d1f561c.yaml
+  - .interlock/sessions/0060-headless-runtime/gates-run-on-engines-node/revisions/f455da514abdf715444251b60b9f3c4991b0919e65b4304c59b55d708a536d3a.yaml
   - .interlock/sessions/0060-headless-runtime/herdr-gone/brief.md
+  - .interlock/sessions/0060-headless-runtime/home-on-main/brief.md
+  - .interlock/sessions/0060-headless-runtime/home-on-main/debrief-candidate.yaml
+  - .interlock/sessions/0060-headless-runtime/home-on-main/debrief-correction.yaml
+  - .interlock/sessions/0060-headless-runtime/home-on-main/debrief-lint-correction.yaml
+  - .interlock/sessions/0060-headless-runtime/home-on-main/debrief.yaml
+  - .interlock/sessions/0060-headless-runtime/home-on-main/notes.yaml
+  - .interlock/sessions/0060-headless-runtime/home-on-main/revisions/210470c617bd9f57de3ba8d9760ef17a3e670571f9b389cbe497d0c41d1ffaba.yaml
+  - .interlock/sessions/0060-headless-runtime/home-on-main/revisions/379f10a62e339a2cb4ebf16eccf27894aea003d55f29c281c626987ea6ce04d4.yaml
+  - .interlock/sessions/0060-headless-runtime/line-fits/brief.md
+  - .interlock/sessions/0060-headless-runtime/line-fits/debrief-candidate-2.yaml
+  - .interlock/sessions/0060-headless-runtime/line-fits/debrief-candidate.yaml
+  - .interlock/sessions/0060-headless-runtime/line-fits/debrief.yaml
+  - .interlock/sessions/0060-headless-runtime/line-fits/notes.yaml
+  - .interlock/sessions/0060-headless-runtime/line-fits/revisions/2962572d5e985ff94939b3ace8127464e4268cb4866e018c1ef019a844d392f8.yaml
+  - .interlock/sessions/0060-headless-runtime/line-fits/revisions/396db4cf94aa2655fa2f1821d4d4345c35e6928f4f0301b674eeeadccc8ea17a.yaml
+  - .interlock/sessions/0060-headless-runtime/line-fits/revisions/cafe72e249f95b93453ca931e5c7a4da2efa670b13c146df8c21ce8d34ec30d5.yaml
+  - .interlock/sessions/0060-headless-runtime/marker-configured-servers-only/brief.md
+  - .interlock/sessions/0060-headless-runtime/marker-configured-servers-only/debrief-candidate.yaml
+  - .interlock/sessions/0060-headless-runtime/marker-configured-servers-only/debrief.yaml
+  - .interlock/sessions/0060-headless-runtime/marker-configured-servers-only/notes.yaml
+  - .interlock/sessions/0060-headless-runtime/marker-configured-servers-only/revisions/eeac35b76c30e5e684ffcf48ba51aed25dfe04ec8dc6519683abf88f25248572.yaml
+  - .interlock/sessions/0060-headless-runtime/marker-never-dropped/brief.md
+  - .interlock/sessions/0060-headless-runtime/marker-never-dropped/debrief-candidate-final.yaml
+  - .interlock/sessions/0060-headless-runtime/marker-never-dropped/debrief-candidate-repair.yaml
+  - .interlock/sessions/0060-headless-runtime/marker-never-dropped/debrief-candidate.yaml
+  - .interlock/sessions/0060-headless-runtime/marker-never-dropped/debrief.yaml
+  - .interlock/sessions/0060-headless-runtime/marker-never-dropped/notes.yaml
+  - .interlock/sessions/0060-headless-runtime/marker-never-dropped/revisions/c07c5b5b3eae23360f222e092f57b9ead0146589f16eee453cc74cb157468e09.yaml
+  - .interlock/sessions/0060-headless-runtime/marker-never-dropped/revisions/cb443a2cbcda10510d3ac59104d52c3a5672fed9c90c37b000559e5f56ec2c13.yaml
+  - .interlock/sessions/0060-headless-runtime/mise-state-outside-repos/brief.md
+  - .interlock/sessions/0060-headless-runtime/mise-state-outside-repos/debrief-candidate-5.yaml
+  - .interlock/sessions/0060-headless-runtime/mise-state-outside-repos/debrief-candidate-6.yaml
+  - .interlock/sessions/0060-headless-runtime/mise-state-outside-repos/debrief-candidate-7.yaml
+  - .interlock/sessions/0060-headless-runtime/mise-state-outside-repos/debrief-candidate.yaml
+  - .interlock/sessions/0060-headless-runtime/mise-state-outside-repos/debrief.yaml
+  - .interlock/sessions/0060-headless-runtime/mise-state-outside-repos/notes.yaml
+  - .interlock/sessions/0060-headless-runtime/mise-state-outside-repos/revisions/4f1332515c9b6c2b6ba8e363c239600aec72a48c6911106a753865a0052b275c.yaml
+  - .interlock/sessions/0060-headless-runtime/mise-state-outside-repos/revisions/9ce836d844b6dd1103a6f3fb66b39364a2eff3d1154adbb0f963c17c96abb7e0.yaml
+  - .interlock/sessions/0060-headless-runtime/mise-state-outside-repos/revisions/b48a3bda8c764c9b291040c7b668395553a3774bf8fb8de472c2e0f4954f2df7.yaml
   - .interlock/sessions/0060-headless-runtime/plan-reviews-are-sessions/brief.md
+  - .interlock/sessions/0060-headless-runtime/runner-marker/brief.md
+  - .interlock/sessions/0060-headless-runtime/runner-marker/debrief-candidate-2.yaml
+  - .interlock/sessions/0060-headless-runtime/runner-marker/debrief.yaml
+  - .interlock/sessions/0060-headless-runtime/runner-marker/notes.yaml
+  - .interlock/sessions/0060-headless-runtime/runner-marker/revisions/f2fc4ecbb6c454075bb2eae33fb078d81bee883b4bccc4a4d1632e3c29ecc710.yaml
   - .interlock/sessions/0060-headless-runtime/runner-records/brief.md
+  - .interlock/sessions/0060-headless-runtime/scope-guard-sees-folders/brief.md
+  - .interlock/sessions/0060-headless-runtime/scope-guard/brief.md
+  - .interlock/sessions/0060-headless-runtime/scope-guard/debrief-candidate-final.yaml
+  - .interlock/sessions/0060-headless-runtime/scope-guard/debrief-candidate.yaml
+  - .interlock/sessions/0060-headless-runtime/scope-guard/debrief.yaml
+  - .interlock/sessions/0060-headless-runtime/scope-guard/notes.yaml
+  - .interlock/sessions/0060-headless-runtime/scope-guard/revisions/8fc5b5e70e7abb27d515f7a101f60106bf3c32c2ee8dc29dfc7029d4d177df44.yaml
+  - .interlock/sessions/0060-headless-runtime/start-failure-is-not-a-timeout/brief.md
+  - .interlock/sessions/0060-headless-runtime/start-failure-is-not-a-timeout/debrief-candidate.yaml
+  - .interlock/sessions/0060-headless-runtime/start-failure-is-not-a-timeout/debrief-correction-candidate.yaml
+  - .interlock/sessions/0060-headless-runtime/start-failure-is-not-a-timeout/debrief.yaml
+  - .interlock/sessions/0060-headless-runtime/start-failure-is-not-a-timeout/notes.yaml
+  - .interlock/sessions/0060-headless-runtime/start-failure-is-not-a-timeout/revisions/91d30bb9a6e03f8039fe62633636ef970c62d18e4c4bd97fd4bd663aeb635f60.yaml
+  - .interlock/sessions/0060-headless-runtime/tests-read-fixtures/brief.md
+  - .interlock/sessions/0060-headless-runtime/tests-read-fixtures/debrief-candidate.yaml
+  - .interlock/sessions/0060-headless-runtime/tests-read-fixtures/debrief.yaml
+  - .interlock/sessions/0060-headless-runtime/tests-read-fixtures/notes.yaml
+  - .interlock/sessions/0060-headless-runtime/watch-paths-precise-fixed/brief.md
+  - .interlock/sessions/0060-headless-runtime/watch-paths-precise-fixed/debrief-candidate.yaml
+  - .interlock/sessions/0060-headless-runtime/watch-paths-precise-fixed/debrief.yaml
+  - .interlock/sessions/0060-headless-runtime/watch-paths-precise-fixed/notes.yaml
+  - .interlock/sessions/0060-headless-runtime/watch-paths-precise/brief.md
+  - .interlock/sessions/0060-headless-runtime/watch-paths-precise/debrief-candidate.yaml
+  - .interlock/sessions/0060-headless-runtime/watch-paths-precise/debrief.yaml
+  - .interlock/sessions/0060-headless-runtime/watch-paths-precise/notes.yaml
+  - .interlock/sessions/0060-headless-runtime/watch-paths-precise/revisions/bc692a9ee61bad5bcfb8b7100b5cd276a09f5e642d202e923967fec97505a227.yaml
   - .interlock/sessions/0061-delegation-fails-closed/cite-stays-consumed/brief.md
+  - .interlock/sessions/0061-delegation-fails-closed/cite-stays-consumed/debrief-candidate-merged.yaml
+  - .interlock/sessions/0061-delegation-fails-closed/cite-stays-consumed/debrief.yaml
+  - .interlock/sessions/0061-delegation-fails-closed/cite-stays-consumed/notes.yaml
+  - .interlock/sessions/0061-delegation-fails-closed/cite-stays-consumed/revisions/4a2d54500d355c7de1e8599c5c27b482e045b9164c9bcef9b6bdad65cc7a1995.yaml
   - .interlock/sessions/0061-delegation-fails-closed/fails-closed/brief.md
+  - .interlock/sessions/0061-delegation-fails-closed/fails-closed/debrief-candidate.yaml
+  - .interlock/sessions/0061-delegation-fails-closed/fails-closed/debrief.yaml
+  - .interlock/sessions/0061-delegation-fails-closed/fails-closed/notes.yaml
+  - .interlock/sessions/0061-delegation-fails-closed/fails-closed/revisions/67860d0dff6d8a518d92a69396e55ad7e6ba369990b37dfa014201f355aac55f.yaml
   - .interlock/sessions/0061-delegation-fails-closed/neutral-refusal/brief.md
+  - .interlock/sessions/0061-delegation-fails-closed/neutral-refusal/debrief-candidate.yaml
+  - .interlock/sessions/0061-delegation-fails-closed/neutral-refusal/debrief.yaml
+  - .interlock/sessions/0061-delegation-fails-closed/neutral-refusal/notes.yaml
+  - .interlock/sessions/0061-delegation-fails-closed/receipt-carries-its-run/brief.md
+  - .interlock/sessions/0061-delegation-fails-closed/receipt-carries-its-run/debrief-candidate.yaml
+  - .interlock/sessions/0061-delegation-fails-closed/receipt-carries-its-run/debrief.yaml
+  - .interlock/sessions/0061-delegation-fails-closed/receipt-carries-its-run/notes.yaml
+  - .interlock/sessions/0061-delegation-fails-closed/receipt-carries-its-run/revisions/670eec7f2a937dd67e47556d89e5a0e09f9f13dec5b975674fc42a3e93eeff47.yaml
   - .interlock/sessions/0061-delegation-fails-closed/retraction-holds-outcome/brief.md
+  - .interlock/sessions/0061-delegation-fails-closed/retraction-holds-outcome/debrief-candidate.yaml
+  - .interlock/sessions/0061-delegation-fails-closed/retraction-holds-outcome/debrief.yaml
+  - .interlock/sessions/0061-delegation-fails-closed/retraction-holds-outcome/notes.yaml
   - .interlock/sessions/0062-same-access/access-probe/brief.md
+  - .interlock/sessions/0062-same-access/access-probe/debrief.yaml
+  - .interlock/sessions/0062-same-access/access-probe/notes.yaml
+  - .interlock/sessions/0063-exec-carries-the-contract/exec-carries-roots-mcp-and-env/brief.md
+  - .interlock/sessions/0063-exec-carries-the-contract/exec-never-needs-herdr/brief.md
+  - .interlock/sessions/0063-exec-carries-the-contract/exec-never-needs-herdr/debrief.yaml
+  - .interlock/sessions/0063-exec-carries-the-contract/exec-never-needs-herdr/notes.yaml
+  - .interlock/sessions/0063-exec-carries-the-contract/exec-never-needs-herdr/revisions/529cd8f2aca2e1f83614c07d58fb6d1072f314fa7b93511bd75f640d05358a36.yaml
+  - .interlock/sessions/0063-exec-carries-the-contract/exec-profiles-can-be-probed/brief.md
+  - .interlock/sessions/0063-exec-carries-the-contract/tests-stand-alone/brief.md
   - .interlock/sessions/readme-interlock-concept/readme/brief.md
   - .interlock/sessions/readme-interlock-concept/readme/debrief.yaml
   - .interlock/sessions/readme-interlock-concept/readme/notes.yaml
@@ -508,6 +644,10 @@ scope:
   - docs/shapes.md
   - package.json
   - packages/cli/package.json
+  - packages/cli/src/arcs/command.ts
+  - packages/cli/src/arcs/migrate.ts
+  - packages/cli/src/arcs/reader.ts
+  - packages/cli/src/arcs/resolve.ts
   - packages/cli/src/backfill.ts
   - packages/cli/src/bin.ts
   - packages/cli/src/brief/validate.ts
@@ -518,6 +658,7 @@ scope:
   - packages/cli/src/debrief/sessionIdentity.ts
   - packages/cli/src/debrief/validate.ts
   - packages/cli/src/delegation.ts
+  - packages/cli/src/delegationLock.ts
   - packages/cli/src/evidence.ts
   - packages/cli/src/face/dispatch.ts
   - packages/cli/src/face/focus.ts
@@ -546,21 +687,29 @@ scope:
   - packages/cli/src/repositoryOrigin.ts
   - packages/cli/src/run.ts
   - packages/cli/src/runtime/list.ts
+  - packages/cli/src/runtime/probe.ts
   - packages/cli/src/schema/reference.ts
   - packages/cli/src/schema/validate.ts
   - packages/cli/src/session/say.ts
   - packages/cli/src/session/show.ts
+  - packages/cli/src/sessions.ts
   - packages/cli/src/sweep.ts
   - packages/cli/src/verify.ts
+  - packages/cli/test/arcs/migrate.test.ts
+  - packages/cli/test/arcs/resolve.test.ts
   - packages/cli/test/backfill.test.ts
   - packages/cli/test/brief/validate.test.ts
   - packages/cli/test/citedApproval.test.ts
+  - packages/cli/test/collidedReceiptsRead.test.ts
+  - packages/cli/test/concurrentCite.test.ts
+  - packages/cli/test/consumedCite.test.ts
   - packages/cli/test/debrief/derived.test.ts
   - packages/cli/test/debrief/preview.test.ts
   - packages/cli/test/debrief/recoverSessionStart.test.ts
   - packages/cli/test/debrief/revise.test.ts
   - packages/cli/test/debrief/validate.test.ts
   - packages/cli/test/evidence.test.ts
+  - packages/cli/test/execWithoutHerdr.test.ts
   - packages/cli/test/face/dispatch.test.ts
   - packages/cli/test/face/fixtures/fakeBin.ts
   - packages/cli/test/face/fixtures/manyLinesBin.ts
@@ -583,6 +732,7 @@ scope:
   - packages/cli/test/judge.test.ts
   - packages/cli/test/judgeProvider.test.ts
   - packages/cli/test/main.test.ts
+  - packages/cli/test/neutralRefusal.test.ts
   - packages/cli/test/noComments.test.ts
   - packages/cli/test/noComments/fixtures/biomeIgnoreOnly.ts
   - packages/cli/test/noComments/fixtures/hasComment.ts
@@ -593,8 +743,10 @@ scope:
   - packages/cli/test/position.test.ts
   - packages/cli/test/repositoryOrigin.test.ts
   - packages/cli/test/resumeRange.test.ts
+  - packages/cli/test/retractionHoldsOutcome.test.ts
   - packages/cli/test/run.test.ts
   - packages/cli/test/runtime.test.ts
+  - packages/cli/test/runtimeProbe.test.ts
   - packages/cli/test/schema/reference.test.ts
   - packages/cli/test/schema/validate.test.ts
   - packages/cli/test/session/say.test.ts
@@ -710,6 +862,7 @@ scope:
   - packages/ledger/src/outbox.ts
   - packages/ledger/src/outcome.ts
   - packages/ledger/src/personSaid.ts
+  - packages/ledger/src/probe.ts
   - packages/ledger/src/projection.ts
   - packages/ledger/src/receipt.ts
   - packages/ledger/src/replay.ts
@@ -729,6 +882,8 @@ scope:
   - packages/ledger/src/validate.ts
   - packages/ledger/src/walk.ts
   - packages/ledger/test/applicability.test.ts
+  - packages/ledger/test/collidedReceipts.test.ts
+  - packages/ledger/test/consumedCite.test.ts
   - packages/ledger/test/derivation.test.ts
   - packages/ledger/test/expectOutput.test.ts
   - packages/ledger/test/fixtures/journal-v1-approved.jsonl
@@ -741,6 +896,7 @@ scope:
   - packages/ledger/test/note.test.ts
   - packages/ledger/test/outboxDurability.test.ts
   - packages/ledger/test/outcome.test.ts
+  - packages/ledger/test/probeEvent.test.ts
   - packages/ledger/test/projection.test.ts
   - packages/ledger/test/receipt.test.ts
   - packages/ledger/test/replay.test.ts
@@ -758,12 +914,15 @@ scope:
   - packages/runner/src/briefRewrite.ts
   - packages/runner/src/claude/headroom.ts
   - packages/runner/src/claude/liveWork.ts
+  - packages/runner/src/codex/config.ts
   - packages/runner/src/codex/environment.ts
   - packages/runner/src/codex/headroom.ts
   - packages/runner/src/contextSlice.ts
   - packages/runner/src/debriefAuthoringGuidance.ts
   - packages/runner/src/decidedNode.ts
   - packages/runner/src/dependencies.ts
+  - packages/runner/src/execLauncher.ts
+  - packages/runner/src/execRuntime.ts
   - packages/runner/src/gateCommand.ts
   - packages/runner/src/gateJudge.ts
   - packages/runner/src/gateOutput.ts
@@ -778,17 +937,22 @@ scope:
   - packages/runner/src/machineOutbox.ts
   - packages/runner/src/machineProvider.ts
   - packages/runner/src/narration.ts
+  - packages/runner/src/nodeEngine.ts
   - packages/runner/src/openingPrompt.ts
   - packages/runner/src/openingView.ts
+  - packages/runner/src/ownedCommand.ts
   - packages/runner/src/promptDelivery.ts
   - packages/runner/src/providerRouting.ts
   - packages/runner/src/questionNotes.ts
   - packages/runner/src/roleShape.ts
   - packages/runner/src/runnerCommits.ts
+  - packages/runner/src/runnerMarker.ts
   - packages/runner/src/runtime.ts
   - packages/runner/src/runtimeCatalogue.ts
+  - packages/runner/src/runtimeProbe.ts
   - packages/runner/src/runtimeSelection.ts
   - packages/runner/src/scope.ts
+  - packages/runner/src/scopeGuard.ts
   - packages/runner/src/sessionBrief.ts
   - packages/runner/src/sessionDrive.ts
   - packages/runner/src/sessionRange.ts
@@ -810,8 +974,14 @@ scope:
   - packages/runner/test/backfill.test.ts
   - packages/runner/test/backfillMaintenance.test.ts
   - packages/runner/test/baseHoldsGraph.test.ts
+  - packages/runner/test/baseIsCurrent.test.ts
   - packages/runner/test/briefRewrite.test.ts
+  - packages/runner/test/captureDrains.test.ts
+  - packages/runner/test/codexHomeOutsideWorktree.test.ts
   - packages/runner/test/debriefAuthoringGuidance.test.ts
+  - packages/runner/test/delegatedFailsClosed.test.ts
+  - packages/runner/test/execRuntime.test.ts
+  - packages/runner/test/execWithoutHerdr.test.ts
   - packages/runner/test/fixtures/claude/repo-worktrees-node/completed.jsonl
   - packages/runner/test/fixtures/claude/repo-worktrees-node/empty.jsonl
   - packages/runner/test/fixtures/claude/repo-worktrees-node/incomplete.jsonl
@@ -824,25 +994,50 @@ scope:
   - packages/runner/test/fixtures/claude/repo-worktrees-node/subagent-reported-running.jsonl
   - packages/runner/test/fixtures/claude/repo-worktrees-node/tool-in-flight.jsonl
   - packages/runner/test/fixtures/claude/repo-worktrees-node/unparseable.jsonl
+  - packages/runner/test/fixtures/codex/config.toml
+  - packages/runner/test/fixtures/codex/real-mcp-list.json
+  - packages/runner/test/fixtures/codex/recordMcpEnvironment.mjs
+  - packages/runner/test/fixtures/codex/recordShellEnvironment.mjs
+  - packages/runner/test/fixtures/exec/appendEnvironment.mjs
+  - packages/runner/test/fixtures/exec/codexProbe.mjs
+  - packages/runner/test/fixtures/exec/earlyFailLauncher.mjs
+  - packages/runner/test/fixtures/exec/ignoreTerm.mjs
+  - packages/runner/test/fixtures/exec/manyLines.mjs
+  - packages/runner/test/fixtures/exec/reapGrandchild.mjs
+  - packages/runner/test/fixtures/exec/recordEnvironment.mjs
+  - packages/runner/test/fixtures/exec/waitForMarker.mjs
+  - packages/runner/test/fixtures/exec/writeStreams.mjs
   - packages/runner/test/fixtures/herdr-socket-schema.json
   - packages/runner/test/gateCommand.test.ts
   - packages/runner/test/gateJudge.test.ts
+  - packages/runner/test/gatesRunOnEnginesNode.test.ts
   - packages/runner/test/gitCeiling.test.ts
   - packages/runner/test/herdr/adapter.test.ts
   - packages/runner/test/herdr/fakeServer.ts
   - packages/runner/test/lease.test.ts
+  - packages/runner/test/lineFits.test.ts
+  - packages/runner/test/lineFitsRealCodex.test.ts
   - packages/runner/test/liveSmoke.test.ts
   - packages/runner/test/localConfig.test.ts
   - packages/runner/test/machineProvider.test.ts
+  - packages/runner/test/markerConfiguredServers.test.ts
+  - packages/runner/test/markerNeverDropped.test.ts
+  - packages/runner/test/miseStateOutside.test.ts
   - packages/runner/test/narration.test.ts
   - packages/runner/test/openingPrompt.test.ts
   - packages/runner/test/promptDelivery.test.ts
   - packages/runner/test/providerRouting.test.ts
   - packages/runner/test/questionNotes.test.ts
+  - packages/runner/test/realCodexMarkerLaunch.test.ts
+  - packages/runner/test/realCodexMarkerOverflow.test.ts
+  - packages/runner/test/receiptCarriesItsRun.test.ts
   - packages/runner/test/refusalOutcomes.test.ts
   - packages/runner/test/runnerCommits.test.ts
+  - packages/runner/test/runnerMarker.test.ts
+  - packages/runner/test/runtimeProbe.test.ts
   - packages/runner/test/runtimeSelection.test.ts
   - packages/runner/test/runtimes.test.ts
+  - packages/runner/test/scopeGuard.test.ts
   - packages/runner/test/scopeRefusal.test.ts
   - packages/runner/test/sessionBrief.test.ts
   - packages/runner/test/sessionScreen.test.ts
@@ -850,13 +1045,16 @@ scope:
   - packages/runner/test/sessionWait.test.ts
   - packages/runner/test/settled.test.ts
   - packages/runner/test/standingGates.test.ts
+  - packages/runner/test/startFailureNotTimeout.test.ts
   - packages/runner/test/submoduleReceipts.test.ts
   - packages/runner/test/support/driveFixture.ts
   - packages/runner/test/support/gitFixture.ts
   - packages/runner/test/support/memoryLedger.ts
+  - packages/runner/test/support/toolState.ts
   - packages/runner/test/support/writableRootForms.ts
   - packages/runner/test/sweep.test.ts
   - packages/runner/test/tmux/adapter.test.ts
+  - packages/runner/test/tmuxOverlay.test.ts
   - packages/runner/test/worktree.test.ts
   - packages/runner/test/worktreeMaintenance.test.ts
   - packages/runner/test/worktreeSetup.test.ts
@@ -880,6 +1078,7 @@ scope:
   - packages/schemas/src/reference/vocabulary.ts
   - packages/schemas/src/registry.ts
   - packages/schemas/src/validate.ts
+  - packages/schemas/test/arcs.test.ts
   - packages/schemas/test/askedInWords.test.ts
   - packages/schemas/test/brief.test.ts
   - packages/schemas/test/commits.test.ts
@@ -962,6 +1161,7 @@ scope:
   - pnpm-workspace.yaml
   - runtimes.example.yaml
   - schemas/arcs@v0.json
+  - schemas/arcs@v1.json
   - schemas/brief@v0.json
   - schemas/brief@v1.json
   - schemas/commits@v0.json
@@ -971,6 +1171,7 @@ scope:
   - schemas/debrief@v2.json
   - schemas/event@v1.json
   - schemas/event@v10.json
+  - schemas/event@v11.json
   - schemas/event@v2.json
   - schemas/event@v3.json
   - schemas/event@v4.json
@@ -1034,12 +1235,15 @@ scope:
   - schemas/positions@v0.json
   - schemas/positions@v1.json
   - schemas/positions@v2.json
+  - schemas/probe-config@v0.json
   - schemas/queue@v0.json
   - schemas/roles@v0.json
   - schemas/runtimes@v0.json
   - schemas/runtimes@v1.json
   - schemas/runtimes@v2.json
   - schemas/session-facts@v0.json
+  - schemas/session@v0.json
+  - schemas/sessions@v0.json
   - schemas/substrate/absorb.request.json
   - schemas/substrate/absorb.response.json
   - schemas/substrate/capabilities.response.json
@@ -1065,8 +1269,11 @@ scope:
   - schemas/substrate/ratify.response.json
   - schemas/substrate/why.request.json
   - schemas/substrate/why.response.json
+  - schemas/transcript@v0.json
   - scripts/check-readme.ts
   - scripts/noComments.ts
+  - scripts/runs-links-stay-inside.ts
+  - scripts/state-folder-untouched.ts
   - scripts/warmPosition.ts
   - test/fixtures/machine-none.yaml
   - test/support/gitFixture.ts
@@ -1078,8 +1285,8 @@ substrate:
 walk:
   kind: none
   because: the substrate address is none, so there is nothing to ask
-graph_base_sha: 447b4affdc00eed2dd330680adc7e5913e2e79bd
-session: 4c69242c-77e8-41fd-831b-6cb7fb028814
+graph_base_sha: 79ff0d5bb4e25b576844e42efcbc474caf8a389e
+session: 344471d1-d65a-4344-8a09-8c150056fbfa
 ---
 
 # Brief · node `exec-carries-roots-mcp-and-env` · graph `0063-exec-carries-the-contract`
