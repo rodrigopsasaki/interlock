@@ -1083,7 +1083,7 @@ walk:
   kind: none
   because: the substrate address is none, so there is nothing to ask
 graph_base_sha: 447b4affdc00eed2dd330680adc7e5913e2e79bd
-session: b94aa708-048a-4c44-bc0f-ef454935090e
+session: 9d3eb16a-50e8-4515-ae4f-693a9aa361e8
 ---
 
 # Brief · node `exec-never-needs-herdr` · graph `0063-exec-carries-the-contract`
@@ -1129,20 +1129,29 @@ edit it.
 
 ## Acceptance (verbatim from the graph)
 
-> An exec launch, both its work and its debrief phases, and an exec review where one exists, never creates the herdr
-> launch runtime, never checks a herdr server and never looks herdr up on PATH; pane launches are unchanged and still
-> refuse when herdr is not ready, with today's message.
-> - driveSession decides pane or exec from the resolved runtime before any herdr preflight, and only the pane path
->   creates and checks the herdr runtime; the exec path's session records, lease, admission, bind, release and
->   transcript are unchanged.
-> - `interlock sessions --json` and `interlock judge --session` work for an exec session with herdr absent.
-> Tests, packages/runner/test/execWithoutHerdr.test.ts and packages/cli/test/execWithoutHerdr.test.ts: in a fixture
-> repository with an approved fixture graph, an exec profile whose program is a fixture script, a temp HOME with no
-> herdr socket, and PATH rebuilt so that no directory on it contains a `herdr` executable (the test asserts this
-> before launching), `interlock run <graph> <node> --runtime <exec profile>` succeeds: the fixture script records
-> that both phases ran, the session ends with a successful exit, and `interlock sessions --json` listed it while it
-> ran; the same setup with a pane profile is refused with the herdr-not-ready message; an injected herdr runtime
-> that fails on creation or check is never called for an exec launch.
+> An exec launch, both its work and its debrief phases, never creates the herdr launch runtime, never connects to a
+> herdr socket and never looks herdr up on PATH; pane launches are unchanged and still refuse when herdr is not ready,
+> with today's message.
+> - driveSession decides pane or exec from the resolved runtime before any herdr preflight; only the pane path
+>   creates and checks the herdr runtime.
+> - machine recovery at run start: pending pane-era intents stay recorded exactly as they are (never resolved,
+>   dropped or guessed delivered, I7) and are reported as unresolved; their recovery runs only when a pane runtime is
+>   selected, so an exec launch proceeds without herdr.
+> - each exec phase receives its own prompt in both delivery forms: with "{prompt}" the debrief phase's argv carries
+>   the debrief prompt, with `prompt: stdin` its stdin does.
+> - `interlock sessions --json` and `interlock judge --session` stay herdr-free (regression checks).
+> Out of scope: session steering, position and graph status still read herdr (say.ts:69, position.ts:196,
+> herdrStatus.ts:43); there is no exec review launcher today.
+> Tests, packages/runner/test/execWithoutHerdr.test.ts and packages/cli/test/execWithoutHerdr.test.ts, with PATH
+> rebuilt so that no directory on it holds a `herdr` executable and no herdr socket under the temp HOME (both
+> asserted before launching), and node, git, a shell, ps and a fixture `mise` passthrough available:
+> `interlock run <graph> <node> --runtime <exec profile>` succeeds for a "{prompt}" profile and for a stdin
+> profile; the fixture program records each phase's prompt and the two differ as the work and debrief prompts;
+> after a synchronization barrier `interlock sessions --json` lists the running session by profile name; the work
+> and debrief phase records end done with exit zero; with a pending pane-era intent in the ledger the exec launch
+> still succeeds and the intent remains recorded and reported unresolved; a held, unleased exec session is judged
+> with `interlock judge --session`; the same setup with a pane profile is refused with the herdr-not-ready message;
+> an injected herdr runtime that fails on creation or check is never called for an exec launch.
 
 <!-- interlock: debrief-authoring-guidance@v1:start -->
 ## Debrief authoring

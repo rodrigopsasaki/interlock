@@ -21,11 +21,11 @@ gates:
     run: pnpm interlock debrief validate {graph} {node}
   - id: exec-probe-runner-tests
     kind: command
-    run: pnpm --fail-if-no-match --filter runner exec vitest run test/runtimeProbe.test.ts --passWithNoTests=false
+    run: pnpm --fail-if-no-match --filter runner exec vitest run test/execProbe.test.ts --passWithNoTests=false
     expect_output: 'Tests +[1-9][0-9]* passed'
   - id: exec-probe-cli-tests
     kind: command
-    run: pnpm --fail-if-no-match --filter cli exec vitest run test/runtimeProbe.test.ts --passWithNoTests=false
+    run: pnpm --fail-if-no-match --filter cli exec vitest run test/execProbe.test.ts --passWithNoTests=false
     expect_output: 'Tests +[1-9][0-9]* passed'
 scope:
   - .gitignore
@@ -1083,7 +1083,7 @@ walk:
   kind: none
   because: the substrate address is none, so there is nothing to ask
 graph_base_sha: 447b4affdc00eed2dd330680adc7e5913e2e79bd
-session: 0a59bc85-8f34-4be9-8a03-61a2da770c8b
+session: 0cc3e339-7ef5-4699-ae07-76900180a613
 ---
 
 # Brief · node `exec-profiles-can-be-probed` · graph `0063-exec-carries-the-contract`
@@ -1129,22 +1129,31 @@ edit it.
 
 ## Acceptance (verbatim from the graph)
 
-> `interlock runtime probe <exec profile>` runs graph 0062's checks through the exec profile's own program and access
-> arguments and reports passed, failed or unavailable as it does for pane profiles; an exec profile is never
-> reported passed by a probe that ran outside its program.
-> - preparing a probe for an exec profile takes the program and access arguments from the profile's args with the
->   headless prompt parts removed: the whole "{prompt}" element, or nothing when the profile reads `prompt: stdin`;
->   execProbeInvocation's equivalence compares the probe template against that, so a template written as the
->   profile's program and access arguments around one whole `{command}` passes, and one that drops or changes an
->   access argument is refused with today's difference message.
-> - the probe of an exec profile gets the same writable-root expansion, machine environment and provider admission
->   as an exec attempt does after exec-carries-roots-mcp-and-env (until then, as the exec attempt does today), from
->   one shared preparation, not a copy.
-> - runtimes@v2 is unchanged; existing pane profiles and their probes read and behave exactly as before.
-> Tests, packages/runner/test/runtimeProbe.test.ts and packages/cli/test/runtimeProbe.test.ts (extended): an exec
-> profile with "{prompt}" and one with `prompt: stdin`, each with a fixture program that records its argv and runs
-> the check command, pass the probe; a template missing an access argument is refused naming it; a fixture program
-> that fails the shared-memory check reports failed; existing pane-profile probe tests pass unchanged.
+> `interlock runtime probe <exec profile>` runs graph 0062's checks, for real, through the exec profile's own program
+> and access arguments, under the same preparation an exec attempt gets, and reports passed, failed or unavailable;
+> it never reports passed for a check that did not run its real body inside the profile's access.
+> - the checks are real: `interlock-probe-<check>` resolves to executables Interlock ships (create and remove a SysV
+>   shared memory segment, bind 127.0.0.1:0, create and remove a file in the probe worktree, commit on its branch);
+>   a check whose body fails reports failed with its output; pane-profile probes run the same bodies.
+> - the access arguments are declared, not inferred: an exec profile may split its args into its program and access
+>   arguments (`args`) and an optional `headless_args` holding the non-conversational prompt tail with the whole
+>   "{prompt}" (an exec profile with headless_args may omit "{prompt}" from args; the launch argv is args, then
+>   headless_args). The probe template must expand with the program at argv[0] (a "{command}" before the program is
+>   refused before anything spawns) and equal args around one whole "{command}"; a profile without headless_args has
+>   no declared access split and its probe reports unavailable with that reason, never passed.
+> - the probe uses the shared preparation of exec-carries-roots-mcp-and-env, including exec provider validation,
+>   bind with the real probe process identity, and release and launch cleanup on every exit path.
+> - probe provenance includes a hash of the effective forwarded environment values (values never stored), so a
+>   changed forwarded variable reads the earlier pass as historical; the probe implementation version is bumped.
+> - runtimes@v2 gains headless_args additively, with loader, schema, docs/shapes.md and tests.
+> Tests, packages/runner/test/execProbe.test.ts and packages/cli/test/execProbe.test.ts (new), using fixture agent
+> programs that run the check command inside a deliberately restricted fixture (one denies the shared-memory body
+> by environment the test controls): an exec profile with headless_args passes every real check; the restricted
+> one reports the shared-memory check failed; a template missing an access argument, or with "{command}" before
+> the program, is refused before spawning; a profile without headless_args reports unavailable; roots, the MCP
+> policy and forwarded environment reach the probed process; provider bind and release are recorded with the probe
+> process identity and release runs when a check throws; changing a forwarded value makes the earlier pass
+> historical; existing probe tests pass unchanged.
 
 <!-- interlock: debrief-authoring-guidance@v1:start -->
 ## Debrief authoring

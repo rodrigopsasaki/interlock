@@ -1079,7 +1079,7 @@ walk:
   kind: none
   because: the substrate address is none, so there is nothing to ask
 graph_base_sha: 447b4affdc00eed2dd330680adc7e5913e2e79bd
-session: 740a0c43-c041-4c68-a9fe-c1f28e58233d
+session: 4c69242c-77e8-41fd-831b-6cb7fb028814
 ---
 
 # Brief · node `exec-carries-roots-mcp-and-env` · graph `0063-exec-carries-the-contract`
@@ -1125,25 +1125,33 @@ edit it.
 
 ## Acceptance (verbatim from the graph)
 
-> An exec launch carries the same profile contract a pane launch does: its writable roots, its MCP policy and the
-> environment its profile names, so a profile behaves the same whichever path runs it.
-> - writable roots: the exec argv includes the profile's writable_root_args expanded for the attempt's worktree,
->   through the same expansion prepareLaunch uses, placed where the kind's headless command accepts them.
-> - MCP policy: a profile can say "only these servers" for a CLI that disables servers with a single flag taking
->   no name: runtimes@v2 gains an optional form for that (a published, additive schema change in
->   schemas/runtimes@v2.json and docs/shapes.md, every existing catalogue still reading), applied on the exec path
->   when the profile's allowed servers are fewer than all; the existing "{name}" form keeps its meaning.
-> - environment passthrough: a profile may name environment variables (an optional additive key) that reach the
->   exec agent's process and the shells it starts, from the runner's environment, alongside the machine provider's;
->   a name not set in the runner's environment is simply absent, never invented.
-> - review launches on the exec path get the same three, with read_only_args as today.
-> - every existing catalogue, pane launch and exec launch without the new keys is byte-for-byte unchanged.
-> Tests, packages/runner/test/execContract.test.ts: with fixture exec profiles whose program records its argv and
-> environment, a work launch's argv carries the expanded writable roots for its worktree path, a single-flag MCP
-> policy appears when allowed servers are fewer than declared and not otherwise, a named variable set in the
-> runner's environment reaches the program and a shell the program starts (the fixture starts one through the
-> profile's own shell-forwarding path), and a catalogue without the new keys produces exactly
-> today's argv; schema tests validate old and new catalogues.
+> An exec launch carries the profile's writable roots, an exclusive MCP policy and named environment passthrough,
+> through one shared preparation that the probe (next node) also uses. Every new behaviour is opt-in by a key or
+> placeholder the profile writes; a catalogue that writes none of them launches exactly today's argv.
+> - writable roots: an exec profile's args may hold one whole "{writable_roots}" element; there the runner places
+>   the profile's writable_root_args expanded through prepareLaunch's expansion (the common git directory first, the
+>   per-worktree git directory second, each as one argument). A profile without the element launches as today even
+>   when it declares writable_root_args.
+> - MCP: an optional key `mcp_exclusive: { disable_all: [argv], allow_each: [argv with one whole "{name}"] }`. When
+>   present, disable_all is emitted once and allow_each once per server the phase allows (mcp_allow, or all of
+>   mcp_servers), so ambient servers are excluded; with no allowed servers only disable_all is emitted. The existing
+>   "{name}" mcp_disable_args form keeps its meaning and may not be combined with mcp_exclusive (refused at load).
+> - environment: an optional key `environment_passthrough: [names]` (distinct valid variable names) and an optional
+>   `environment_forward_args: [argv with one whole "{name}"]`, emitted once per listed name, names only, never
+>   values (values reach the process by inheritance). A listed name unset in the runner's environment is not
+>   forwarded and not invented; machine-provider values keep precedence; a name colliding with an interlock marker
+>   variable is refused at load.
+> - runtimes@v2 gains these optional keys additively: loader, schemas/runtimes@v2.json, docs/shapes.md and old and
+>   new catalogue tests; every existing catalogue still reads.
+> - no product name appears outside adapters; no basename branch is added.
+> Tests, packages/runner/test/execContract.test.ts (new), with fixture exec profiles whose program records argv,
+> argument positions and environment: the expanded roots appear at the "{writable_roots}" position for the
+> attempt's worktree; an exclusive MCP policy emits disable_all once and allow_each per allowed server for empty,
+> full and subset allow lists, with an ambient server configured in the fixture never allowed; listed variables set
+> in the runner's environment are emitted through environment_forward_args and reach a shell the fixture program
+> starts with a filtered environment that keeps only forwarded names, while an unlisted variable does not reach that
+> shell; catalogues without the new keys produce today's argv byte for byte; schema tests validate old and new
+> catalogues and refuse the combinations above.
 
 <!-- interlock: debrief-authoring-guidance@v1:start -->
 ## Debrief authoring

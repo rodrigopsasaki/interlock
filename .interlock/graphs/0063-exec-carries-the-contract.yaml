@@ -1,7 +1,7 @@
 interlock: graph@v0
 id: 0063-exec-carries-the-contract
 arc: agents-set-up-as-one
-ask: A headless exec profile carries the whole agent contract Preston's setup writes, can be probed like any other profile, and launches without herdr, so the agents Preston sets up as one actually run.
+ask: A headless exec profile carries the whole agent contract the substrate's setup writes, can be probed like any other profile, and launches without herdr, so the agents the substrate sets up as one actually run.
 derivation:
   kind: model
   model: gilb
@@ -19,35 +19,43 @@ read: >
   needed it to manage sessions, but if we don't, then let's scrap it. I want Preston's install to be as lean as
   possible. We already have a UI, a server, an MCP and a postgres".
 
-  What went wrong. Graph 0060 gave Interlock a headless runtime (kind exec), and the substrate's graph 0042 made
-  Preston's setup write every agent's profile. On 2026-11-09, rendering a fixture config with Preston's render and
-  reading it with this repository at 447b4af showed that Preston wrote a shape Interlock could not read (fixed on the
-  substrate's side by its node render-emits-exec), and that vet found five things only Interlock can fix, because
-  the exec path does less than the pane path for the same profile:
+  What went wrong. Graph 0060 gave Interlock a headless runtime (kind exec), and the substrate's graph 0042 made the
+  substrate's setup write every agent's profile. On 2026-11-09, reading the substrate's rendered profiles with this
+  repository at 447b4af showed a shape Interlock could not read (fixed on the substrate's side), and that work's vet
+  found five things only Interlock can fix:
   - probing: `interlock runtime probe` prepares every profile through prepareLaunch (packages/cli/src/runtime/probe.ts
     :156), which takes an exec profile's program to be "exec"; execProbeInvocation (packages/runner/src/runtimeProbe.ts
     :77) then requires the probe template, minus `{command}`, to equal that program plus the profile's whole args,
-    which for an exec profile includes the headless command and "{prompt}". No useful exec probe passes, so Preston's
-    setup cannot prove an exec profile's access (graph 0062's probe, the one setup runs).
-  - herdr: driveSession creates the herdr launch runtime and checks its server (packages/runner/src/sessionDrive.ts
-    :300-317) before it reaches the exec branch (:542), so an exec launch is refused when herdr is not installed or
-    not running, though it never uses a pane.
+    which for an exec profile includes the headless command and "{prompt}". No useful exec probe passes, so the
+    substrate's setup cannot prove an exec profile's access (graph 0062's probe, the one setup runs). Worse, the
+    checks are only labels: the probe runs `interlock-probe-<check>` (runtimeProbe.ts:31) and counts any exit zero as
+    passed (:120); no implementation of those commands exists, so a probe proves dispatch, not access.
+  - herdr: driveSession creates the herdr launch runtime and checks its server socket (packages/runner/src/
+    sessionDrive.ts:300-317, herdr/adapter.ts:313) before it reaches the exec branch (:542), so an exec launch is
+    refused when herdr is not running, though it never uses a pane; and the CLI's machine recovery runs before runtime
+    selection and can create the herdr runtime for pending pane-era intents (packages/cli/src/run.ts:171,
+    machineOutbox.ts:306). Separately, an argv-delivered exec debrief reuses the opening prompt's argv, so only stdin
+    delivery receives the debrief prompt (sessionDrive.ts:552, :653).
   - writable roots: the exec branch builds its argv with execRuntimeArgv (packages/runner/src/runtimeCatalogue.ts:457)
-    and never expands the profile's writable_root_args for the attempt's worktree, which prepareLaunch does for panes
-    (sessionDrive.ts:123-). A profile whose sandbox scopes writes to named roots cannot write its own worktree headless.
+    and never expands the profile's writable_root_args, which prepareLaunch does for panes (sessionDrive.ts:129): the
+    common and per-worktree git directories, so a sandboxed exec agent cannot commit.
   - MCP policy: mcp_disable_args must hold exactly one whole "{name}" element (runtimeCatalogue.ts:281) and disables
-    only servers declared in mcp_servers and outside mcp_allow (:467), so a kind whose CLI disables servers with one
-    flag that takes no name cannot express "only these servers", and servers configured outside the profile are never
-    accounted for.
-  - environment passthrough: an exec launch inherits the runner's environment plus the machine provider's
-    (sessionDrive.ts:583); a profile cannot name the variables that must reach the agent's own shells, which the pane
-    path's adapters carry as arguments.
-  The idle timeout is out of scope: exec uses the repository-wide run timeout, and Preston names that limit itself.
+    only declared servers outside mcp_allow (:467), so a CLI that disables servers with one nameless flag cannot say
+    "only these servers", and servers configured outside the profile (ambient) are never excluded.
+  - environment passthrough: an exec process inherits the runner's environment plus the machine provider's
+    (execRuntime.ts:583), but an agent CLI may filter the environment of the shells it starts; a profile cannot name
+    variables to keep there without a product-specific branch (sessionDrive.ts:560), which the wall forbids.
+  The idle timeout is out of scope: exec uses the repository-wide run timeout, and the substrate names that limit itself.
 
-  Every test in this graph runs with temp homes (mkdtemp under the system temp folder; HOME, XDG_CONFIG_HOME and
-  TMPDIR pointed there), fixture agent programs written by the test, fixture machine-provider scripts, and a fresh
-  fixture repository; no real agent CLI runs, no herdr is started or stopped, and no file of the owner's is read or
-  written. A test asserts every path it hands the runner is under its temp directory.
+  Every test in this graph runs with temp homes (mkdtemp under the system temp folder; HOME, XDG_CONFIG_HOME, state
+  and TMPDIR pointed there), an explicit child environment carrying no inherited INTERLOCK_*, GIT_* or agent-home
+  variables, fixture agent programs written by the test, fixture machine-provider scripts that record env, admit,
+  bind and release, a fixture git identity with no hooks or signing, and a fresh fixture repository (committed graph
+  on main, config, local.yaml with substrate address none, brief, current-content approval); no real agent CLI runs,
+  no herdr is started or stopped, and no file of the owner's is read or written. A test asserts every path it hands
+  the runner is under its temp directory. A run passes a test only when its phase records are done with exit zero
+  and its receipts are the expected ones; a runner exit of zero alone proves nothing (execRuntime.ts:1222,
+  sessionDrive.ts:779). New behaviour is tested in new files, so no gate passes on today's code.
 
 gates:
   - id: approved
@@ -57,20 +65,29 @@ nodes:
   - id: exec-never-needs-herdr
     role: implementer
     acceptance: |
-      An exec launch, both its work and its debrief phases, and an exec review where one exists, never creates the herdr
-      launch runtime, never checks a herdr server and never looks herdr up on PATH; pane launches are unchanged and still
-      refuse when herdr is not ready, with today's message.
-      - driveSession decides pane or exec from the resolved runtime before any herdr preflight, and only the pane path
-        creates and checks the herdr runtime; the exec path's session records, lease, admission, bind, release and
-        transcript are unchanged.
-      - `interlock sessions --json` and `interlock judge --session` work for an exec session with herdr absent.
-      Tests, packages/runner/test/execWithoutHerdr.test.ts and packages/cli/test/execWithoutHerdr.test.ts: in a fixture
-      repository with an approved fixture graph, an exec profile whose program is a fixture script, a temp HOME with no
-      herdr socket, and PATH rebuilt so that no directory on it contains a `herdr` executable (the test asserts this
-      before launching), `interlock run <graph> <node> --runtime <exec profile>` succeeds: the fixture script records
-      that both phases ran, the session ends with a successful exit, and `interlock sessions --json` listed it while it
-      ran; the same setup with a pane profile is refused with the herdr-not-ready message; an injected herdr runtime
-      that fails on creation or check is never called for an exec launch.
+      An exec launch, both its work and its debrief phases, never creates the herdr launch runtime, never connects to a
+      herdr socket and never looks herdr up on PATH; pane launches are unchanged and still refuse when herdr is not ready,
+      with today's message.
+      - driveSession decides pane or exec from the resolved runtime before any herdr preflight; only the pane path
+        creates and checks the herdr runtime.
+      - machine recovery at run start: pending pane-era intents stay recorded exactly as they are (never resolved,
+        dropped or guessed delivered, I7) and are reported as unresolved; their recovery runs only when a pane runtime is
+        selected, so an exec launch proceeds without herdr.
+      - each exec phase receives its own prompt in both delivery forms: with "{prompt}" the debrief phase's argv carries
+        the debrief prompt, with `prompt: stdin` its stdin does.
+      - `interlock sessions --json` and `interlock judge --session` stay herdr-free (regression checks).
+      Out of scope: session steering, position and graph status still read herdr (say.ts:69, position.ts:196,
+      herdrStatus.ts:43); there is no exec review launcher today.
+      Tests, packages/runner/test/execWithoutHerdr.test.ts and packages/cli/test/execWithoutHerdr.test.ts, with PATH
+      rebuilt so that no directory on it holds a `herdr` executable and no herdr socket under the temp HOME (both
+      asserted before launching), and node, git, a shell, ps and a fixture `mise` passthrough available:
+      `interlock run <graph> <node> --runtime <exec profile>` succeeds for a "{prompt}" profile and for a stdin
+      profile; the fixture program records each phase's prompt and the two differ as the work and debrief prompts;
+      after a synchronization barrier `interlock sessions --json` lists the running session by profile name; the work
+      and debrief phase records end done with exit zero; with a pending pane-era intent in the ledger the exec launch
+      still succeeds and the intent remains recorded and reported unresolved; a held, unleased exec session is judged
+      with `interlock judge --session`; the same setup with a pane profile is refused with the herdr-not-ready message;
+      an injected herdr runtime that fails on creation or check is never called for an exec launch.
     gates:
       - id: exec-herdr-runner-tests
         kind: command
@@ -81,61 +98,78 @@ nodes:
         run: pnpm --fail-if-no-match --filter cli exec vitest run test/execWithoutHerdr.test.ts --passWithNoTests=false
         expect_output: 'Tests +[1-9][0-9]* passed'
 
-  - id: exec-profiles-can-be-probed
+  - id: exec-carries-roots-mcp-and-env
     role: implementer
     depends_on: [exec-never-needs-herdr]
     acceptance: |
-      `interlock runtime probe <exec profile>` runs graph 0062's checks through the exec profile's own program and access
-      arguments and reports passed, failed or unavailable as it does for pane profiles; an exec profile is never
-      reported passed by a probe that ran outside its program.
-      - preparing a probe for an exec profile takes the program and access arguments from the profile's args with the
-        headless prompt parts removed: the whole "{prompt}" element, or nothing when the profile reads `prompt: stdin`;
-        execProbeInvocation's equivalence compares the probe template against that, so a template written as the
-        profile's program and access arguments around one whole `{command}` passes, and one that drops or changes an
-        access argument is refused with today's difference message.
-      - the probe of an exec profile gets the same writable-root expansion, machine environment and provider admission
-        as an exec attempt does after exec-carries-roots-mcp-and-env (until then, as the exec attempt does today), from
-        one shared preparation, not a copy.
-      - runtimes@v2 is unchanged; existing pane profiles and their probes read and behave exactly as before.
-      Tests, packages/runner/test/runtimeProbe.test.ts and packages/cli/test/runtimeProbe.test.ts (extended): an exec
-      profile with "{prompt}" and one with `prompt: stdin`, each with a fixture program that records its argv and runs
-      the check command, pass the probe; a template missing an access argument is refused naming it; a fixture program
-      that fails the shared-memory check reports failed; existing pane-profile probe tests pass unchanged.
-    gates:
-      - id: exec-probe-runner-tests
-        kind: command
-        run: pnpm --fail-if-no-match --filter runner exec vitest run test/runtimeProbe.test.ts --passWithNoTests=false
-        expect_output: 'Tests +[1-9][0-9]* passed'
-      - id: exec-probe-cli-tests
-        kind: command
-        run: pnpm --fail-if-no-match --filter cli exec vitest run test/runtimeProbe.test.ts --passWithNoTests=false
-        expect_output: 'Tests +[1-9][0-9]* passed'
-
-  - id: exec-carries-roots-mcp-and-env
-    role: implementer
-    depends_on: [exec-profiles-can-be-probed]
-    acceptance: |
-      An exec launch carries the same profile contract a pane launch does: its writable roots, its MCP policy and the
-      environment its profile names, so a profile behaves the same whichever path runs it.
-      - writable roots: the exec argv includes the profile's writable_root_args expanded for the attempt's worktree,
-        through the same expansion prepareLaunch uses, placed where the kind's headless command accepts them.
-      - MCP policy: a profile can say "only these servers" for a CLI that disables servers with a single flag taking
-        no name: runtimes@v2 gains an optional form for that (a published, additive schema change in
-        schemas/runtimes@v2.json and docs/shapes.md, every existing catalogue still reading), applied on the exec path
-        when the profile's allowed servers are fewer than all; the existing "{name}" form keeps its meaning.
-      - environment passthrough: a profile may name environment variables (an optional additive key) that reach the
-        exec agent's process and the shells it starts, from the runner's environment, alongside the machine provider's;
-        a name not set in the runner's environment is simply absent, never invented.
-      - review launches on the exec path get the same three, with read_only_args as today.
-      - every existing catalogue, pane launch and exec launch without the new keys is byte-for-byte unchanged.
-      Tests, packages/runner/test/execContract.test.ts: with fixture exec profiles whose program records its argv and
-      environment, a work launch's argv carries the expanded writable roots for its worktree path, a single-flag MCP
-      policy appears when allowed servers are fewer than declared and not otherwise, a named variable set in the
-      runner's environment reaches the program and a shell the program starts (the fixture starts one through the
-      profile's own shell-forwarding path), and a catalogue without the new keys produces exactly
-      today's argv; schema tests validate old and new catalogues.
+      An exec launch carries the profile's writable roots, an exclusive MCP policy and named environment passthrough,
+      through one shared preparation that the probe (next node) also uses. Every new behaviour is opt-in by a key or
+      placeholder the profile writes; a catalogue that writes none of them launches exactly today's argv.
+      - writable roots: an exec profile's args may hold one whole "{writable_roots}" element; there the runner places
+        the profile's writable_root_args expanded through prepareLaunch's expansion (the common git directory first, the
+        per-worktree git directory second, each as one argument). A profile without the element launches as today even
+        when it declares writable_root_args.
+      - MCP: an optional key `mcp_exclusive: { disable_all: [argv], allow_each: [argv with one whole "{name}"] }`. When
+        present, disable_all is emitted once and allow_each once per server the phase allows (mcp_allow, or all of
+        mcp_servers), so ambient servers are excluded; with no allowed servers only disable_all is emitted. The existing
+        "{name}" mcp_disable_args form keeps its meaning and may not be combined with mcp_exclusive (refused at load).
+      - environment: an optional key `environment_passthrough: [names]` (distinct valid variable names) and an optional
+        `environment_forward_args: [argv with one whole "{name}"]`, emitted once per listed name, names only, never
+        values (values reach the process by inheritance). A listed name unset in the runner's environment is not
+        forwarded and not invented; machine-provider values keep precedence; a name colliding with an interlock marker
+        variable is refused at load.
+      - runtimes@v2 gains these optional keys additively: loader, schemas/runtimes@v2.json, docs/shapes.md and old and
+        new catalogue tests; every existing catalogue still reads.
+      - no product name appears outside adapters; no basename branch is added.
+      Tests, packages/runner/test/execContract.test.ts (new), with fixture exec profiles whose program records argv,
+      argument positions and environment: the expanded roots appear at the "{writable_roots}" position for the
+      attempt's worktree; an exclusive MCP policy emits disable_all once and allow_each per allowed server for empty,
+      full and subset allow lists, with an ambient server configured in the fixture never allowed; listed variables set
+      in the runner's environment are emitted through environment_forward_args and reach a shell the fixture program
+      starts with a filtered environment that keeps only forwarded names, while an unlisted variable does not reach that
+      shell; catalogues without the new keys produce today's argv byte for byte; schema tests validate old and new
+      catalogues and refuse the combinations above.
     gates:
       - id: exec-contract-tests
         kind: command
         run: pnpm --fail-if-no-match --filter runner exec vitest run test/execContract.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: exec-profiles-can-be-probed
+    role: implementer
+    depends_on: [exec-carries-roots-mcp-and-env]
+    acceptance: |
+      `interlock runtime probe <exec profile>` runs graph 0062's checks, for real, through the exec profile's own program
+      and access arguments, under the same preparation an exec attempt gets, and reports passed, failed or unavailable;
+      it never reports passed for a check that did not run its real body inside the profile's access.
+      - the checks are real: `interlock-probe-<check>` resolves to executables Interlock ships (create and remove a SysV
+        shared memory segment, bind 127.0.0.1:0, create and remove a file in the probe worktree, commit on its branch);
+        a check whose body fails reports failed with its output; pane-profile probes run the same bodies.
+      - the access arguments are declared, not inferred: an exec profile may split its args into its program and access
+        arguments (`args`) and an optional `headless_args` holding the non-conversational prompt tail with the whole
+        "{prompt}" (an exec profile with headless_args may omit "{prompt}" from args; the launch argv is args, then
+        headless_args). The probe template must expand with the program at argv[0] (a "{command}" before the program is
+        refused before anything spawns) and equal args around one whole "{command}"; a profile without headless_args has
+        no declared access split and its probe reports unavailable with that reason, never passed.
+      - the probe uses the shared preparation of exec-carries-roots-mcp-and-env, including exec provider validation,
+        bind with the real probe process identity, and release and launch cleanup on every exit path.
+      - probe provenance includes a hash of the effective forwarded environment values (values never stored), so a
+        changed forwarded variable reads the earlier pass as historical; the probe implementation version is bumped.
+      - runtimes@v2 gains headless_args additively, with loader, schema, docs/shapes.md and tests.
+      Tests, packages/runner/test/execProbe.test.ts and packages/cli/test/execProbe.test.ts (new), using fixture agent
+      programs that run the check command inside a deliberately restricted fixture (one denies the shared-memory body
+      by environment the test controls): an exec profile with headless_args passes every real check; the restricted
+      one reports the shared-memory check failed; a template missing an access argument, or with "{command}" before
+      the program, is refused before spawning; a profile without headless_args reports unavailable; roots, the MCP
+      policy and forwarded environment reach the probed process; provider bind and release are recorded with the probe
+      process identity and release runs when a check throws; changing a forwarded value makes the earlier pass
+      historical; existing probe tests pass unchanged.
+    gates:
+      - id: exec-probe-runner-tests
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/execProbe.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: exec-probe-cli-tests
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/execProbe.test.ts --passWithNoTests=false
         expect_output: 'Tests +[1-9][0-9]* passed'
