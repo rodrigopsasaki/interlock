@@ -67,3 +67,56 @@ entries:
     because: >-
       The graph acceptance covers both argv and stdin delivery forms; exercising stdin in the same
       herdr-free fixture makes the phase contract proof cover both forms before handoff.
+  - kind: choice
+    at: '2026-11-09T13:00:00Z'
+    chose: Extend the CLI fixture coverage to all five acceptance cases and assert both exec phase records are done with exit zero.
+    because: >-
+      The acceptance assigns these cases to this node's own CLI and runner test files; broader
+      fixture coverage is not an acceptable substitute for direct proof of pending outbox recovery,
+      synchronization listing, hand judgement, pane refusal, and skipped injected herdr preflight.
+  - kind: surprise
+    at: '2026-11-09T13:05:00Z'
+    expected: The expanded CLI test module would collect after the import changes.
+    observed: >-
+      The import rewrite omitted Vitest's afterEach symbol, so collection failed before any test
+      body ran; the missing import was restored before the focused rerun.
+  - kind: surprise
+    at: '2026-11-09T13:10:00Z'
+    expected: The temporary HOME and rebuilt PATH would still let the runner create its fixture commits.
+    observed: >-
+      The first focused execution reached runner brief creation but Git had no identity after HOME
+      isolation, so all exec launches stopped before phase execution; the fixture now supplies only
+      non-owner Git identity/config variables.
+  - kind: surprise
+    at: '2026-11-09T13:20:00Z'
+    expected: Making the exec fixture dirty would leave a held result available for a later judge call.
+    observed: >-
+      The runner judged that dirty worktree during the launch and returned the held refusal itself;
+      the test now completes the exec launch cleanly, then adds the uncommitted file before invoking
+      judge --session so the session is held and unleased at the intended boundary.
+  - kind: surprise
+    at: '2026-11-09T13:25:00Z'
+    expected: A clean successful exec launch could be judged again after adding a dirty file.
+    observed: >-
+      The successful launch records a terminal cleared outcome, which judge correctly refuses before
+      reading the worktree; the fixture now records an explicit held outcome after the lease ends,
+      then exercises judge --session against that unleased session.
+  - kind: surprise
+    at: '2026-11-09T13:30:00Z'
+    expected: lease.stop would immediately make the session unleased in the ledger projection.
+    observed: >-
+      The lease handle cancels heartbeats but leaves the recorded expiry as the liveness boundary;
+      the judge fixture advances its controlled clock beyond that expiry before calling --session.
+  - kind: choice
+    at: '2026-11-09T13:35:00Z'
+    chose: Add a runner-level direct-drive regression that injects a failing herdr runtime and checks both exec phase records.
+    because: >-
+      The CLI fixtures prove the command boundary, while the runner test must prove the session
+      driver itself skips injected herdr checks and still records work and debrief completion.
+  - kind: surprise
+    at: '2026-11-09T13:40:00Z'
+    expected: The runner direct-drive fixture would ignore its common Git run artifacts by default.
+    observed: >-
+      Its scope guard saw the shared interlock run records as changed paths because the generic
+      fixture lacked the CLI fixture's interlock ignore rule; the runner fixture now commits that
+      rule before driving.
