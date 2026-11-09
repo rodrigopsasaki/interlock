@@ -1,0 +1,13 @@
+#!/usr/bin/env node
+import { execFileSync } from "node:child_process";
+
+try {
+  execFileSync("git", ["commit", "--allow-empty", "-m", "interlock runtime probe"], {
+    cwd: process.cwd(),
+    stdio: "pipe",
+  });
+} catch (error) {
+  const detail = error instanceof Error ? error.message : String(error);
+  process.stderr.write(`${detail}\n`);
+  process.exitCode = 1;
+}

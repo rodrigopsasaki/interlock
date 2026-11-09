@@ -1,0 +1,100 @@
+interlock: debrief@v2
+graph: 0063-exec-carries-the-contract
+node: exec-profiles-can-be-probed
+role: implementer
+graph_base_sha: c5172aa5c39895e2b816757d377ae953ec63d45d
+session_start_sha: 3127f64640ff551b6f3cb965f60d12f4ceeb2f0f
+head_sha: e48faaf8f8a704518947302e5cb0a50738dcf106
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5-codex
+discoveries: []
+decisions:
+  - id: additive-headless-args-contract
+    what: Added headless_args as an additive runtimes@v2 template, parsed it with the whole {prompt} contract, and appended its expanded tail in the shared exec launch preparation while preserving prior catalogue fields.
+    because: The acceptance makes the access split explicit and requires existing runtime artifacts and readers to remain valid while headless profiles may omit {prompt} from args.
+    rests_on:
+      - "Acceptance (verbatim from the graph): runtimes@v2 gains headless_args additively"
+    applies_to: { kind: path, path: packages/runner/src/runtimeCatalogue.ts }
+    hunks:
+      - packages/runner/src/runtimeCatalogue.ts
+      - schemas/runtimes@v2.json
+      - docs/shapes.md
+      - packages/schemas/test/runtimesV2.test.ts
+  - id: refuse-undeclared-or-mismatched-access
+    what: Made exec probes derive their expected argv from the prepared program, declared args, and headless_args, refusing a command before the program, a missing access argument, an invalid prompt position, or a profile without headless_args before spawning.
+    because: A probe may report passed only when the real check body runs through the profile's declared access, so an inferred or malformed split must be unavailable without starting a process.
+    rests_on:
+      - "Acceptance (verbatim from the graph): the probe template must expand with the program at argv[0]"
+    applies_to: { kind: path, path: packages/runner/src/runtimeProbe.ts }
+    hunks:
+      - packages/runner/src/runtimeProbe.ts
+      - packages/runner/test/execProbe.test.ts
+  - id: ship-real-probe-bodies
+    what: Shipped executable interlock-probe-{shm,loopback,worktree-file,git-metadata,signed-commit} bodies and placed their directory first in the child PATH; nonzero process output becomes a refused check result.
+    because: The acceptance names real shared-memory, loopback, worktree-file, metadata, and signed-commit checks, and the profile must execute those bodies without a host-shell substitute.
+    rests_on:
+      - "Acceptance (verbatim from the graph): the checks are real"
+    applies_to: { kind: path, path: packages/runner/src/probe-bin }
+    hunks:
+      - packages/runner/src/probe-bin/interlock-probe-shm
+      - packages/runner/src/probe-bin/interlock-probe-loopback
+      - packages/runner/src/probe-bin/interlock-probe-worktree-file
+      - packages/runner/src/probe-bin/interlock-probe-git-metadata
+      - packages/runner/src/probe-bin/interlock-probe-signed-commit
+      - packages/runner/src/runtimeProbe.ts
+      - packages/runner/test/execProbe.test.ts
+      - packages/cli/test/execProbe.test.ts
+  - id: per-process-provider-lifecycle
+    what: Extended the runtime probe lifecycle contract with process identity and made the CLI admit, bind, and release every non-runner-custody check around the actual child, including release on failed checks and launch cleanup on every exit path.
+    because: The shared preparation requires provider binding to use the real probe process identity and requires release and launch cleanup even when a check throws or refuses.
+    rests_on:
+      - "Acceptance (verbatim from the graph): the probe uses the shared preparation of exec-carries-roots-mcp-and-env"
+    applies_to: { kind: path, path: packages/cli/src/runtime/probe.ts }
+    hunks:
+      - packages/runner/src/runtime.ts
+      - packages/runner/src/index.ts
+      - packages/runner/src/runtimeProbe.ts
+      - packages/cli/src/runtime/probe.ts
+      - packages/cli/test/execProbe.test.ts
+  - id: hash-forwarded-environment-provenance
+    what: Added hashes of effective forwarded environment values to probe configuration provenance and bumped the implementation version used by probe records and probe listing comparisons.
+    because: Changing a forwarded value must make an earlier pass historical without storing the value itself, and the persisted probe implementation must identify the new behavior.
+    rests_on:
+      - "Acceptance (verbatim from the graph): probe provenance includes a hash of the effective forwarded environment values"
+    applies_to: { kind: path, path: packages/cli/src/runtime/probe.ts }
+    hunks:
+      - packages/cli/src/runtime/probe.ts
+      - packages/cli/src/runtime/list.ts
+      - packages/cli/test/execProbe.test.ts
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: All eight workspace TypeScript projects passed; output was retained in packages/runner/test/.runs/exec-profiles-standing-typecheck.txt.
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: Biome exited 0; only pre-existing diagnostics in packages/runner/test/runnerCommits.test.ts were reported, and output was retained in packages/runner/test/.runs/exec-profiles-standing-lint.txt.
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+    note: No comments were reported in packages/*/src; output was retained in packages/runner/test/.runs/exec-profiles-standing-comments.txt.
+  - id: test
+    result: pass
+    invocation: pnpm test
+    note: The full workspace suite completed with all package test files and tests passing; output was retained in packages/runner/test/.runs/exec-profiles-standing-test.txt.
+  - id: exec-probe-runner-tests
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/execProbe.test.ts --passWithNoTests=false
+    note: One runner test file passed all five tests; output was retained in packages/runner/test/.runs/exec-probe-runner-gate.txt.
+  - id: exec-probe-cli-tests
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter cli exec vitest run test/execProbe.test.ts --passWithNoTests=false
+    note: One CLI test file passed both tests; output was retained in packages/cli/test/.runs/exec-probe-cli-gate.txt.
+  - id: debrief-valid
+    result: pass
+    invocation: pnpm interlock debrief validate 0063-exec-carries-the-contract exec-profiles-can-be-probed
+    note: The filed debrief and notes validated as debrief@v2 and notes@v0; output was retained in packages/runner/test/.runs/exec-profiles-debrief-valid.txt.
+open: []

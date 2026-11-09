@@ -27,6 +27,7 @@ describe("runtimes@v2 schema", () => {
             kind: "exec",
             model: "m",
             args: ["program", "{writable_roots}"],
+            headless_args: ["--headless", "{prompt}"],
             writable_root_args: ["--root", "{path}"],
             mcp_servers: ["one", "two"],
             mcp_allow: ["one"],

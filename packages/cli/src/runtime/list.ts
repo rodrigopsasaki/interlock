@@ -19,7 +19,7 @@ import {
   resolveMachine,
 } from "runner";
 import type { CommandResult } from "../main.ts";
-import { probeConfiguration } from "./probe.ts";
+import { IMPLEMENTATION_VERSION, probeConfiguration } from "./probe.ts";
 
 function renderLastAttempt(attempt: RuntimeAttempt | undefined): string {
   if (attempt === undefined) return "last attempt never run";
@@ -65,7 +65,7 @@ function probeLine(
     return `last probe environment unknown, artifact ${probe.configuration}`;
   const current = sha256(`${JSON.stringify(probeConfiguration(runtime, machine))}\n`);
   const state =
-    probe.configuration === current && probe.implementationVersion === "runtime-probe@v1"
+    probe.configuration === current && probe.implementationVersion === IMPLEMENTATION_VERSION
       ? probe.checks.every((check) => check.state === "passed")
         ? "passed"
         : "did not pass"

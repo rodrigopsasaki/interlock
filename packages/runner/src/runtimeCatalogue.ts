@@ -43,6 +43,7 @@ export interface CatalogueRuntime {
   readonly promptRetries: number;
   readonly writableRootArgs: WritableRootTemplate | undefined;
   readonly exec?: WritableRootTemplate;
+  readonly headlessArgs?: WritableRootTemplate;
   readonly readOnlyArgs?: readonly string[];
   readonly mcpServers?: readonly string[];
   readonly mcpAllow?: readonly string[];
@@ -104,6 +105,7 @@ const KNOWN_ENTRY_KEYS: ReadonlySet<string> = new Set([
   "prompt_retries",
   "writable_root_args",
   "exec",
+  "headless_args",
   "read_only_args",
   "mcp_servers",
   "mcp_allow",
@@ -308,6 +310,12 @@ function parseEntry(
   }
   const exec = parseProbeExec(prop(value, "exec"), `runtimes.${name}.exec`);
   if (isErr(exec)) return err({ kind: "malformed", path, reason: exec.error });
+  const headlessArgs = parseArgumentTemplate(
+    prop(value, "headless_args"),
+    `runtimes.${name}.headless_args`,
+    "{prompt}",
+  );
+  if (isErr(headlessArgs)) return err({ kind: "malformed", path, reason: headlessArgs.error });
 
   const readOnlyArgs = prop(value, "read_only_args");
   if (readOnlyArgs !== undefined && !isStringArray(readOnlyArgs)) {
@@ -394,7 +402,7 @@ function parseEntry(
       });
     }
     const hasPromptArg = args.some((part) => part === "{prompt}");
-    if (!hasPromptArg && prompt !== "stdin") {
+    if (!hasPromptArg && headlessArgs.value === undefined && prompt !== "stdin") {
       return err({
         kind: "malformed",
         path,
@@ -439,6 +447,7 @@ function parseEntry(
     promptRetries: promptRetriesField ?? DEFAULT_PROMPT_RETRIES,
     writableRootArgs: writableRootArgs.value,
     ...(exec.value === undefined ? {} : { exec: exec.value }),
+    ...(headlessArgs.value === undefined ? {} : { headlessArgs: headlessArgs.value }),
     ...(readOnlyArgs === undefined ? {} : { readOnlyArgs }),
     ...(mcpServers === undefined ? {} : { mcpServers }),
     ...(mcpAllow === undefined ? {} : { mcpAllow }),
@@ -552,6 +561,7 @@ export interface ResolvedRuntime {
   readonly promptRetries: number;
   readonly writableRootArgs: WritableRootTemplate | undefined;
   readonly exec?: WritableRootTemplate;
+  readonly headlessArgs?: WritableRootTemplate;
   readonly readOnlyArgs?: readonly string[];
   readonly mcpServers?: readonly string[];
   readonly mcpAllow?: readonly string[];
@@ -575,7 +585,10 @@ export function execRuntimeArgv(
     | "mcpExclusive"
     | "environmentPassthrough"
     | "environmentForwardArgs"
-  > & { readonly writableRootArgs?: WritableRootTemplate | undefined },
+  > & {
+    readonly writableRootArgs?: WritableRootTemplate | undefined;
+    readonly headlessArgs?: WritableRootTemplate | undefined;
+  },
   prompt: string,
   review = false,
   options: {
@@ -617,7 +630,9 @@ export function execRuntimeArgv(
         ? []
         : expandWritableRootArgs(runtime.environmentForwardArgs, name),
     );
-  return [...args, ...readOnly, ...mcp, ...forwarded];
+  const headless =
+    runtime.headlessArgs === undefined ? [] : expandWritableRootArgs(runtime.headlessArgs, prompt);
+  return [...args, ...headless, ...readOnly, ...mcp, ...forwarded];
 }
 
 export type MergeRuntimesRefusal =
@@ -668,6 +683,7 @@ export function mergeRuntimes(
       promptRetries: entry.promptRetries,
       writableRootArgs: entry.writableRootArgs,
       ...(entry.exec === undefined ? {} : { exec: entry.exec }),
+      ...(entry.headlessArgs === undefined ? {} : { headlessArgs: entry.headlessArgs }),
       ...(entry.readOnlyArgs === undefined ? {} : { readOnlyArgs: entry.readOnlyArgs }),
       ...(entry.mcpServers === undefined ? {} : { mcpServers: entry.mcpServers }),
       ...(entry.mcpAllow === undefined ? {} : { mcpAllow: entry.mcpAllow }),
