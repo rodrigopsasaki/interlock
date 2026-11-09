@@ -173,3 +173,36 @@ nodes:
         kind: command
         run: pnpm --fail-if-no-match --filter cli exec vitest run test/execProbe.test.ts --passWithNoTests=false
         expect_output: 'Tests +[1-9][0-9]* passed'
+
+  - id: tests-stand-alone
+    role: implementer
+    depends_on: [exec-carries-roots-mcp-and-env]
+    acceptance: |
+      Two runner tests depend on their surroundings instead of only on the code they test; both become deterministic,
+      so a full-suite result means the code, not the machine or the checkout path.
+      Found on 2026-11-09 while judging exec-carries-roots-mcp-and-env:
+      - packages/runner/test/markerNeverDropped.test.ts "counts UTF-8 bytes rather than JavaScript characters" builds
+        its fixture environment from paths under the worktree, so the line before the marker grows with the worktree
+        path: it measured 1037 bytes against the 1024-byte CODEX_CANONICAL_LINE_LIMIT from a long worktree path and
+        passed from a short one. That node shortened the filler from 250 to 220 characters, which only moves the cliff.
+      - packages/runner/test/receiptCarriesItsRun.test.ts "command receipt identity" timed out at vitest's 5 s default
+        inside the full suite on a loaded machine and passed alone; its cases spawn real processes through the gate
+        runner. Contention is not an accepted explanation: what the test waits on in wall time is the defect.
+      What changes:
+      - the marker test computes its filler from the actual fixture environment and path lengths, so the line before
+        the marker is exactly a fixed margin below the limit and the line with the marker crosses it by a fixed margin,
+        whatever the checkout path; the 1024-byte limit and every assertion keep their meaning.
+      - the receipt-identity test is made deterministic: find what in it waits on wall time (process spawns through
+        the gate runner, its `mise exec` wrapper, any clock or timer) and replace that with an injected process runner or
+        clock already offered by the code under test, or the smallest seam that offers one, so its cases do not depend
+        on machine load; no timeout is raised and no case is skipped or weakened.
+      - production behaviour is unchanged.
+      Evidence: the marker test passes from two worktree paths whose lengths differ by at least 60 characters (a test
+      may create both under the system temp folder); the receipt test's cases each finish under 1 s alone; `pnpm test`
+      passes three times in a row on this node's head with the full suite, run one at a time, recorded in notes with
+      their totals.
+    gates:
+      - id: stand-alone-tests
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/markerNeverDropped.test.ts test/receiptCarriesItsRun.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
