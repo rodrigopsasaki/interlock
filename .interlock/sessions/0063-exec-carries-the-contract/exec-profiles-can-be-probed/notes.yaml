@@ -29,3 +29,7 @@ entries:
     at: "2026-11-09T19:40:00Z"
     chose: Admit, bind and release each non-runner-custody probe check as its own provider-held process, with the release intent built after bind carries the observed identity.
     because: Each check is a separate real child process; per-check effects keep the provider's identity and release lifecycle aligned, including when a check exits unsuccessfully.
+  - kind: choice
+    at: "2026-11-09T20:10:00Z"
+    chose: Author the debrief as a small decision manifest grouped by the additive schema, real command, lifecycle, and provenance hunks.
+    because: The final artifact must let a later session re-read every produced change and distinguish the graph acceptance from the implementation decisions that satisfy it.
