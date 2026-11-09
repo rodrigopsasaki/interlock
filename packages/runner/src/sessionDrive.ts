@@ -82,6 +82,8 @@ import {
 import { explainWorktreeSetupRefusal, runWorktreeSetup } from "./worktreeSetup.ts";
 import { expandWritableRootArgs } from "./writableRootArgs.ts";
 
+export const EXEC_PANE_INDEPENDENT_CAPABILITY = "exec.pane-independent";
+
 function isoOf(wallMs: number): string {
   return new Date(wallMs).toISOString();
 }

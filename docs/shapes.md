@@ -190,6 +190,39 @@ substrate:
   address: none
 ```
 
+## capabilities
+
+No vocabulary entry for `capabilities`.
+
+### Versions
+
+- `capabilities@v0`: the first version.
+
+### Fields (`capabilities@v0`)
+
+| field | type | required | description |
+| --- | --- | --- | --- |
+| `interlock` | the literal `"capabilities@v0"` | yes |  |
+| `capabilities` | array of string | yes |  |
+
+### Examples
+
+#### `capabilities@v0`
+
+Source: `packages/cli/test/fixtures/capabilities.yaml`
+
+```yaml
+interlock: capabilities@v0
+capabilities:
+  - exec.pane-independent
+  - exec.writable-roots-slot
+  - exec.mcp-exclusive
+  - exec.environment-passthrough
+  - exec.headless-args-probe
+  - probe.real-checks
+  - runtimes@v2
+```
+
 ## commits
 
 No vocabulary entry for `commits`.

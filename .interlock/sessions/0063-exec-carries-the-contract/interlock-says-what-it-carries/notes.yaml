@@ -1,0 +1,33 @@
+interlock: notes@v0
+node: interlock-says-what-it-carries
+entries:
+  - kind: choice
+    at: "2026-11-09T22:59:55Z"
+    chose: >-
+      Publish one exported capability constant beside each selected exec-runtime
+      implementation, collect those constants in a pure top-level capabilities
+      command, and publish capabilities@v0 with a generated shapes reference.
+    because: >-
+      The acceptance makes ownership visible at the implementation seam while
+      forbidding a hand-written string list, and the command must read nothing
+      from the machine, catalogue, ledger, herdr or repository.
+  - kind: surprise
+    at: "2026-11-09T23:00:20Z"
+    expected: The package's ignored test/.runs directory would already exist for focused output.
+    observed: The directory was absent, so the first focused command did not start; no test output was produced.
+  - kind: choice
+    at: "2026-11-09T23:02:10Z"
+    chose: Use a YAML capability fixture as the generated reference source.
+    because: The corpus parser treats JSON files as YAML input, so the fixture extension should match the language rendered in docs/shapes.md.
+  - kind: surprise
+    at: "2026-11-09T23:03:30Z"
+    expected: The standing lint gate would be silent for this focused diff.
+    observed: Lint exited successfully but retained one warning and one info in an unrelated existing runner test file; the new files had no findings.
+  - kind: surprise
+    at: "2026-11-09T23:04:10Z"
+    expected: The schema reference suite's fixed missing-vocabulary list would already include the new published artifact.
+    observed: The suite failed one assertion because capabilities is a new artifact term; the other three reference tests passed.
+  - kind: choice
+    at: "2026-11-09T23:04:11Z"
+    chose: Add capabilities to the schema reference test's expected missing-vocabulary terms.
+    because: The new shape intentionally has no closed-vocabulary row, and the assertion must enumerate the generated corpus result without hiding that gap.
