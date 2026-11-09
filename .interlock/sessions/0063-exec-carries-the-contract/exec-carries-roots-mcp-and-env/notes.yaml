@@ -1,0 +1,41 @@
+interlock: notes@v0
+node: exec-carries-roots-mcp-and-env
+entries:
+  - kind: choice
+    at: '2026-11-09T15:00:00Z'
+    chose: >-
+      Extend prepareLaunch as the shared launch-preparation seam and route exec phases through it,
+      keeping legacy argv unchanged unless an exec profile opts into a new placeholder or policy.
+    because: >-
+      The acceptance requires the probe and exec launch to use one preparation, while the existing
+      pane path already owns writable-root expansion and product adapters must remain isolated.
+  - kind: choice
+    at: '2026-11-09T15:01:00Z'
+    chose: >-
+      Represent exclusive MCP and environment forwarding as parsed catalogue templates carried
+      through catalogue merge and expanded only during exec preparation.
+    because: >-
+      Parsing the closed forms at load time makes invalid combinations fail before a process
+      starts, and keeping names rather than values in argv preserves inherited environment
+      precedence.
+  - kind: surprise
+    at: '2026-11-09T15:05:00Z'
+    expected: The package test run directory would already exist for the first captured typecheck.
+    observed: >-
+      The focused package did not yet have its ignored test/.runs directory in this worktree, so
+      the captured command could not start; no package command ran and the directory is being
+      created before retrying.
+  - kind: choice
+    at: '2026-11-09T15:12:00Z'
+    chose: >-
+      Inspect environment forwarding against the runner process environment merged beneath
+      machine-provider values, while returning only the existing launch environment to the child.
+    because: >-
+      Exec children inherit the runner environment in the process boundary, and provider values
+      must override it; the argv contract forwards only variable names and never their values.
+  - kind: surprise
+    at: '2026-11-09T15:15:00Z'
+    expected: The first contract fixture catalogue would parse with its compact argv list.
+    observed: >-
+      The YAML fixture parser rejected the generated compact mapping around the prompt placeholder;
+      the fixture now uses a block argv list and the focused suite passes all 9 tests.
