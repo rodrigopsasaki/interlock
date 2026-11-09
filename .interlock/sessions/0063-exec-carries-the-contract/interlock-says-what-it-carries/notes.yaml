@@ -31,3 +31,15 @@ entries:
     at: "2026-11-09T23:04:11Z"
     chose: Add capabilities to the schema reference test's expected missing-vocabulary terms.
     because: The new shape intentionally has no closed-vocabulary row, and the assertion must enumerate the generated corpus result without hiding that gap.
+  - kind: surprise
+    at: "2026-11-09T23:07:50Z"
+    expected: The first standing full-test invocation would return its final summary through the command session.
+    observed: It stopped after partial runner output without a final summary; no process remained, so that run was not used as proof. A directly tracked rerun completed with exit code 0 and a final summary.
+  - kind: choice
+    at: "2026-11-09T23:07:51Z"
+    chose: Use the directly tracked standing-gate rerun as the full-test proof and proceed to debrief authoring.
+    because: The rerun recorded exit code 0 after all eight workspace packages completed, while the interrupted invocation did not establish a result.
+  - kind: choice
+    at: "2026-11-09T23:10:20Z"
+    chose: Narrow the implementation decision's runtimeCatalogue citation to the constants hunk and omit the unchanged argv body.
+    because: Debrief hunks must manifest this node's diff; the existing argv body supports context but was not produced by this session.

@@ -1,0 +1,151 @@
+interlock: debrief@v2
+graph: 0063-exec-carries-the-contract
+node: interlock-says-what-it-carries
+role: implementer
+graph_base_sha: d211075817d3914a215e00cae8bd8cc33add79b6
+session_start_sha: 1a29748c16f128f5312944ee706df48e33a62fb2
+head_sha: b8885671e784723495b32c459d9d2bf985806aac
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: implementation-owned-capabilities
+    what: >-
+      Exported one stable capability constant beside each selected exec-runtime
+      implementation, including the pane-independent launch seam, writable-root
+      slot, exclusive MCP, environment passthrough, headless probe arguments,
+      real probe checks and runtimes@v2 catalogue format, then re-exported them
+      from runner for the CLI to collect.
+    because: >-
+      The acceptance requires ownership to remain visible at the implementation
+      seam and says the command's ids must not be a hand-written list of strings.
+    rests_on:
+      - "brief:Acceptance (verbatim from the graph)"
+      - "docs/design/0001-interlock.md (I6 and artifact compatibility)"
+    hunks:
+      - "packages/runner/src/sessionDrive.ts:85"
+      - "packages/runner/src/runtimeCatalogue.ts:26-32"
+      - "packages/runner/src/runtimeProbe.ts:16-24"
+      - "packages/runner/src/index.ts:171-185"
+      - "packages/runner/src/index.ts:191-197"
+      - "packages/runner/src/index.ts:228-232"
+    produces:
+      - "packages/runner/src/sessionDrive.ts"
+      - "packages/runner/src/runtimeCatalogue.ts"
+      - "packages/runner/src/runtimeProbe.ts"
+      - "packages/runner/src/index.ts"
+  - id: pure-capabilities-command
+    what: >-
+      Added capabilities.ts as a machine-independent CommandResult producer:
+      it collects imported implementation constants, emits the capabilities@v0
+      JSON envelope for --json, emits one id per line otherwise, and dispatches
+      through the existing top-level main.run command table.
+    because: >-
+      Substrate setup needs to ask the installed binary what it implements even
+      outside a repository, and the acceptance forbids reads of catalogue,
+      ledger, herdr, machine provider or repository state.
+    rests_on:
+      - "brief:Acceptance (command dispatch and machine independence)"
+    hunks:
+      - "packages/cli/src/capabilities.ts:1-35"
+      - "packages/cli/src/main.ts:1-5"
+      - "packages/cli/src/main.ts:66-72"
+    produces:
+      - "packages/cli/src/capabilities.ts"
+      - "packages/cli/src/main.ts"
+  - id: capabilities-shape-reference
+    what: >-
+      Published schemas/capabilities@v0.json with required interlock metadata
+      and an open array of unique nonempty strings, added a validated YAML
+      corpus source, updated the missing-vocabulary expectation, and regenerated
+      docs/shapes.md through the schema reference command.
+    because: >-
+      Capability ids are additive contract data, so the artifact must validate
+      later ids without an enum while preserving the repository's generated
+      shape-reference workflow.
+    rests_on:
+      - "brief:Acceptance (capabilities@v0 and generated docs)"
+      - "schemas/sessions@v0.json:1-8"
+    hunks:
+      - "schemas/capabilities@v0.json:1-21"
+      - "packages/schemas/src/reference/corpus.ts:70-74"
+      - "packages/schemas/test/reference.test.ts:25-30"
+      - "packages/cli/test/fixtures/capabilities.yaml:1-9"
+      - "docs/shapes.md:193-224"
+    produces:
+      - "schemas/capabilities@v0.json"
+      - "packages/schemas/src/reference/corpus.ts"
+      - "packages/schemas/test/reference.test.ts"
+      - "packages/cli/test/fixtures/capabilities.yaml"
+      - "docs/shapes.md"
+  - id: isolated-capability-proof
+    what: >-
+      Added CLI tests that invoke main.run for JSON and plain forms from a
+      temporary directory with no .interlock and a temporary HOME, validate the
+      JSON result against capabilities@v0, compare the exact seven ids to their
+      exported constants, and assert the plain form is one id per line.
+    because: >-
+      The acceptance asks for exact output, schema validity, constant ownership
+      and success without repository or machine entry points; an isolated
+      invocation makes any unintended repository read fail directly.
+    rests_on:
+      - "brief:Acceptance (Tests)"
+      - "packages/schemas/src/registry.ts:30-48"
+    hunks:
+      - "packages/cli/test/capabilities.test.ts:1-82"
+    produces:
+      - "packages/cli/test/capabilities.test.ts"
+  - id: session-trail
+    what: >-
+      Appended typed choices and surprises to the session's notes@v0 artifact,
+      including the missing scratch directory, generated-reference language,
+      pre-existing lint messages, schema-reference expectation, and the
+      directly tracked full-test rerun.
+    because: >-
+      The brief requires every choice and surprise to retain its way back, and
+      the notes distinguish observed command behavior from the implementation
+      claims in this debrief.
+    rests_on:
+      - "brief:Deliverable 2"
+      - "docs/design/0001-interlock.md (I8)"
+    hunks:
+      - ".interlock/sessions/0063-exec-carries-the-contract/interlock-says-what-it-carries/notes.yaml:1-41"
+    produces:
+      - ".interlock/sessions/0063-exec-carries-the-contract/interlock-says-what-it-carries/notes.yaml"
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: "pnpm typecheck"
+    note: "Node 24.14.0 and pnpm 10.13.1; all eight workspace packages typechecked successfully."
+  - id: lint
+    result: pass
+    invocation: "pnpm lint"
+    note: "Exit 0. The existing runnerCommits.test.ts warning and info remained; no new-file findings were reported."
+  - id: comments
+    result: pass
+    invocation: "pnpm check:comments"
+    note: "packages/*/src: no comments found."
+  - id: test
+    result: pass
+    invocation: "pnpm test"
+    note: "All eight workspace packages passed: ledger 175, debrief 98, verifier 62, substrate 91, face 186, runner 681, schemas 1392 and cli 473 tests."
+  - id: capabilities-tests
+    result: pass
+    invocation: "pnpm --fail-if-no-match --filter cli exec vitest run test/capabilities.test.ts --passWithNoTests=false"
+    note: "2 tests passed."
+  - id: schema-reference
+    result: pass
+    invocation: "pnpm --fail-if-no-match --filter schemas exec vitest run test/reference.test.ts --passWithNoTests=false"
+    note: "4 schema-reference tests passed after adding capabilities to the generated missing-vocabulary list."
+  - id: debrief-valid
+    result: pass
+    invocation: "pnpm interlock debrief validate 0063-exec-carries-the-contract interlock-says-what-it-carries"
+    note: "Run after this filed debrief and notes artifact are present, before the final commit."
+open:
+  - >-
+    The generated shape reference reports capabilities as an artifact term with
+    no AGENTS.md vocabulary row. This is an intentional gap: the acceptance
+    requires the new artifact and AGENTS.md is outside this node's scope; the
+    schema and command use capabilities exactly as the accepted contract names it.
