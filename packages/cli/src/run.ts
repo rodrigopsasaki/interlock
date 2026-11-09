@@ -168,8 +168,6 @@ export async function runInterlockRun(
   const ledger = opened.value;
 
   try {
-    const recovered = await reconcileMachineOnStart(ledger, clock, narrate, options.runtime);
-    if (isErr(recovered)) return { exitCode: 1, message: recovered.error };
     const agentRuntime = await routeRuntime(
       mergedRuntimes.value,
       requestedRuntime,
@@ -182,6 +180,14 @@ export async function runInterlockRun(
         message: explainRuntimeSelectionRefusal(agentRuntime.error),
       };
     }
+    const recovered = await reconcileMachineOnStart(
+      ledger,
+      clock,
+      narrate,
+      options.runtime,
+      agentRuntime.value.kind !== "exec",
+    );
+    if (isErr(recovered)) return { exitCode: 1, message: recovered.error };
     const contentHash = await receiptId(
       repoRoot,
       fileScope([relative(repoRoot, graphPath)]),

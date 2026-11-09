@@ -1,0 +1,33 @@
+interlock: notes@v0
+node: exec-never-needs-herdr
+entries:
+  - kind: choice
+    at: '2026-11-09T11:30:00Z'
+    chose: >-
+      Select the resolved runtime before machine recovery, report pending pane-era machine intents
+      as unresolved for exec, and keep recovery plus herdr preflight on the pane path.
+    because: >-
+      Exec must not create, check or connect to herdr, while pane recovery must retain its existing
+      outbox custody and behavior. Runtime selection is the seam that makes that distinction before
+      either side can perform a runtime-specific effect.
+  - kind: choice
+    at: '2026-11-09T11:31:00Z'
+    chose: >-
+      Rebuild exec argv independently for the work and debrief phases from the phase prompt.
+    because: >-
+      A whole prompt placeholder is phase data, so caching the work-expanded argv would violate the
+      contract by delivering the work prompt to the debrief program.
+  - kind: surprise
+    at: '2026-11-09T11:35:00Z'
+    expected: The captured typecheck wrapper would print its result after the command completed.
+    observed: >-
+      zsh treats `status` as a read-only special variable, so the wrapper exited while assigning
+      the command result; the typecheck output remained safely captured in the run file.
+  - kind: choice
+    at: '2026-11-09T11:40:00Z'
+    chose: >-
+      Add focused runner and CLI regressions around phase-specific prompts and the exec launch
+      path, using only fixture programs and temporary test roots.
+    because: >-
+      The acceptance is a runtime boundary, so the proof must exercise the session driver and CLI
+      without starting a real agent or relying on herdr availability.
