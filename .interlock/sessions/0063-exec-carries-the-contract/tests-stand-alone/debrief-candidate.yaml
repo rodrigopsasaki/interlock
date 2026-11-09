@@ -1,0 +1,148 @@
+interlock: debrief@v2
+graph: 0063-exec-carries-the-contract
+node: tests-stand-alone
+role: implementer
+graph_base_sha: 2116d3bd8b8f03c7c2bf56c0840da1b6c461567b
+session_start_sha: 73a6f21bf05ef27238d5fe7c2c644cb98d277c3a
+head_sha: 9ea96999dffb86e4624f0817b7f75db8e6a190d7
+derivation:
+  kind: agent
+  runtime: codex
+  model: GPT-5
+discoveries: []
+decisions:
+  - id: gate-runner-seam
+    applies_to: { kind: path, path: packages/runner/src/gateJudge.ts }
+    what: >-
+      Added an optional typed GateCommandRunner that receives the complete mise exec wrapper argv,
+      with the existing spawnGateCommand behavior as its default, and an optional output directory
+      that uses the real storeGateOutput path when supplied while preserving today's worktree-based
+      retention by default.
+    because: >-
+      The receipt proof needs to control only execution and storage location; keeping command
+      substitution, output hashing, commandReceiptId, deduplication, gate selection, and default
+      spawning in judgeGates preserves production behavior and the receipt contract.
+    rests_on:
+      - packages/runner/src/gateJudge.ts:93-128
+      - packages/runner/src/gateJudge.ts:146-178
+      - packages/runner/src/gateJudge.ts:333-347
+      - packages/runner/src/gateJudge.ts:415-439
+    hunks:
+      - packages/runner/src/gateJudge.ts:93-128
+      - packages/runner/src/gateJudge.ts:146-178
+      - packages/runner/src/gateJudge.ts:333-347
+      - packages/runner/src/gateJudge.ts:415-439
+      - packages/runner/src/index.ts:46-58
+    produces:
+      - packages/runner/src/gateJudge.ts
+      - packages/runner/src/index.ts
+  - id: marker-boundary
+    applies_to: { kind: path, path: packages/runner/test/markerNeverDropped.test.ts }
+    what: >-
+      Made the marker fixture root a short system-temporary directory and computed its filler from
+      the actual serialized unmarked byte count and marker delta, asserting the exact under-limit
+      unmarked line, the marked line crossing by 15 bytes, the nonnegative filler, and the marked
+      line remaining under 1024 JavaScript characters; retained the separate base-at-limit refusal
+      case.
+    because: >-
+      The old fixture made HOME, XDG_STATE_HOME, and CODEX_HOME depend on checkout path length and
+      only asserted a broad byte boundary. The new proof isolates the UTF-8 byte policy from the
+      worktree and prevents a character-count implementation from passing.
+    rests_on:
+      - packages/runner/test/markerNeverDropped.test.ts:140-167
+      - packages/runner/test/markerNeverDropped.test.ts:169-198
+    hunks:
+      - packages/runner/test/markerNeverDropped.test.ts:40-43
+      - packages/runner/test/markerNeverDropped.test.ts:169-198
+    produces:
+      - packages/runner/test/markerNeverDropped.test.ts
+  - id: receipt-identity-fixture
+    applies_to: { kind: path, path: packages/runner/test/receiptCarriesItsRun.test.ts }
+    what: >-
+      Replaced real command and Git-fixture work with a typed fake runner that advances one
+      controlled clock, checks the full wrapper argv, and returns execution bytes; the test uses a
+      temporary output directory with real gate-output storage and covers pass/fail identity,
+      duration-insensitive deduplication, output matching, and distinct receipts for identical
+      bytes under different patterns.
+    because: >-
+      The receipt test must isolate execution latency and repository metadata while leaving proof
+      construction, output hashing and storage, commandReceiptId, deduplication, and gate selection
+      real; the cases therefore test the identity contract without a loaded-machine timeout.
+    rests_on:
+      - packages/runner/test/receiptCarriesItsRun.test.ts:1-70
+      - packages/runner/test/receiptCarriesItsRun.test.ts:73-155
+    hunks:
+      - packages/runner/test/receiptCarriesItsRun.test.ts:1-70
+      - packages/runner/test/receiptCarriesItsRun.test.ts:73-155
+    produces:
+      - packages/runner/test/receiptCarriesItsRun.test.ts
+  - id: durable-evidence
+    applies_to: { kind: path, path: .interlock/sessions/0063-exec-carries-the-contract/tests-stand-alone/notes.yaml }
+    what: >-
+      Recorded every implementation choice and observed surprise, then retained pinned-toolchain
+      focused, standing, and three consecutive full-suite results with output paths and totals tied
+      to code head 9ea96999dffb86e4624f0817b7f75db8e6a190d7.
+    because: >-
+      The runner needs a way back from the compressed debrief to the exact commands and the one
+      observed existing timeout, while the acceptance requires honest proof that runs 4, 5, and 6
+      passed without raising a timeout or weakening a case.
+    rests_on:
+      - .interlock/sessions/0063-exec-carries-the-contract/tests-stand-alone/notes.yaml:1-47
+    hunks:
+      - .interlock/sessions/0063-exec-carries-the-contract/tests-stand-alone/notes.yaml:1-47
+    produces:
+      - .interlock/sessions/0063-exec-carries-the-contract/tests-stand-alone/notes.yaml
+gates_run_by_agent:
+  - id: marker-stands-alone
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/markerNeverDropped.test.ts --passWithNoTests=false
+    note: >-
+      Exit 0 on head 9ea96999dffb86e4624f0817b7f75db8e6a190d7; 1 file and 6 tests passed. Output:
+      packages/runner/test/.runs/tests-stand-alone-marker-final.txt.
+  - id: receipt-stands-alone
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/receiptCarriesItsRun.test.ts --passWithNoTests=false
+    note: >-
+      Exit 0 on head 9ea96999dffb86e4624f0817b7f75db8e6a190d7; 1 file and 4 tests passed in 19ms
+      of test time. Output: packages/runner/test/.runs/tests-stand-alone-receipt-final.txt.
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: >-
+      Exit 0 with Node 24.14.0 and pnpm 10.13.1 on head 9ea96999dffb86e4624f0817b7f75db8e6a190d7.
+      Output: packages/runner/test/.runs/tests-stand-alone-typecheck-final.txt.
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: >-
+      Exit 0 on head 9ea96999dffb86e4624f0817b7f75db8e6a190d7 after the receipt-test import and
+      formatting correction. Output: packages/runner/test/.runs/tests-stand-alone-lint-final.txt.
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+    note: >-
+      Exit 0 on head 9ea96999dffb86e4624f0817b7f75db8e6a190d7. Output:
+      packages/runner/test/.runs/tests-stand-alone-comments-final.txt.
+  - id: test
+    result: pass
+    invocation: pnpm test
+    note: >-
+      Runs 4, 5, and 6 each exited 0 on head 9ea96999dffb86e4624f0817b7f75db8e6a190d7.
+      Each reported ledger 175, debrief 98, verifier 62, substrate 91, face 186, runner 674,
+      schemas 1379, and cli 468 tests passed. Outputs:
+      packages/runner/test/.runs/tests-stand-alone-test-4.txt,
+      packages/runner/test/.runs/tests-stand-alone-test-5.txt,
+      packages/runner/test/.runs/tests-stand-alone-test-6.txt.
+  - id: debrief-valid
+    result: pass
+    invocation: pnpm interlock debrief validate 0063-exec-carries-the-contract tests-stand-alone
+    note: >-
+      Exit 0; canonical debrief.yaml is valid as debrief@v2 and notes.yaml is valid as notes@v0.
+      Output: packages/runner/test/.runs/tests-stand-alone-debrief-valid.txt.
+open:
+  - >-
+    A third attempted full-suite run is retained at
+    packages/runner/test/.runs/tests-stand-alone-test-3.txt; it exited nonzero because the
+    existing gateJudge.test.ts receipt-idempotence case exceeded Vitest's 5 s default. The new
+    marker and receipt suites passed in that run, production timeout behavior was not changed, and
+    the required consecutive full-suite evidence is runs 4, 5, and 6.
