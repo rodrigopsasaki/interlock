@@ -349,4 +349,5 @@ arcs:
           (cmsg_01BN1q6CYuBjcZAFT6C2pgFd5bnNWZaUhxvR6PTUp3SGxc)
     graphs:
       - interlock/0062-same-access
+      - interlock/0063-exec-carries-the-contract
       - preston/0042-agents-as-one
