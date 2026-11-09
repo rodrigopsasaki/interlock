@@ -103,3 +103,23 @@ entries:
         - {command: "pnpm test", exit_status: 0, output: packages/runner/test/.runs/full-suite-1.txt, test_files: 202, tests: 3155}
         - {command: "pnpm test", exit_status: 0, output: packages/runner/test/.runs/full-suite-2.txt, test_files: 202, tests: 3155}
         - {command: "pnpm test", exit_status: 0, output: packages/runner/test/.runs/full-suite-3.txt, test_files: 202, tests: 3155}
+  - kind: surprise
+    at: "2026-11-09T22:00:00Z"
+    expected: The final comments receipt wrapper could store the command exit code in a local shell variable.
+    observed: zsh rejected the variable name `status` as read-only after the comments command ran, so that wrapper produced no receipt summary; the gate will be rerun with a non-special variable and its actual exit status recorded.
+  - kind: choice
+    at: "2026-11-09T22:35:00Z"
+    chose: Close the implementation evidence with standing gates and three serial full-suite runs on the committed implementation head before authoring the debrief.
+    because: The acceptance requires runner-produced proof for typecheck, lint, comments, slow-test accounting and three consecutive full-suite passes; the notes retain each command's exit status and output file.
+    evidence:
+      head_sha: 814d437
+      toolchain: {node: v24.14.0, pnpm: v10.13.1}
+      gates:
+        - {command: "pnpm typecheck", exit_status: 0, output: packages/runner/test/.runs/final-typecheck.txt}
+        - {command: "pnpm lint", exit_status: 0, output: packages/runner/test/.runs/final-lint.txt, diagnostics: "two pre-existing non-failing diagnostics in packages/runner/test/runnerCommits.test.ts"}
+        - {command: "pnpm check:comments", exit_status: 0, output: packages/runner/test/.runs/final-comments.txt}
+        - {command: "node scripts/gates/slow-tests.ts", exit_status: 0, output: packages/runner/test/.runs/slow-tests-final-head.txt, result: "slow tests accounted: 20 declared, 3135 logic under 1.5 s"}
+      full_suite:
+        - {command: "pnpm test", exit_status: 0, output: packages/runner/test/.runs/full-suite-final-1.txt, test_files: 202, tests: 3155}
+        - {command: "pnpm test", exit_status: 0, output: packages/runner/test/.runs/full-suite-final-2.txt, test_files: 202, tests: 3155}
+        - {command: "pnpm test", exit_status: 0, output: packages/runner/test/.runs/full-suite-final-3.txt, test_files: 202, tests: 3155}
