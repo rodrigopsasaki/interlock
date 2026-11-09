@@ -584,6 +584,7 @@ scope:
   - .interlock/sessions/0063-exec-carries-the-contract/exec-never-needs-herdr/notes.yaml
   - .interlock/sessions/0063-exec-carries-the-contract/exec-never-needs-herdr/revisions/529cd8f2aca2e1f83614c07d58fb6d1072f314fa7b93511bd75f640d05358a36.yaml
   - .interlock/sessions/0063-exec-carries-the-contract/exec-profiles-can-be-probed/brief.md
+  - .interlock/sessions/0063-exec-carries-the-contract/tests-stand-alone/brief.md
   - .interlock/sessions/readme-interlock-concept/readme/brief.md
   - .interlock/sessions/readme-interlock-concept/readme/debrief.yaml
   - .interlock/sessions/readme-interlock-concept/readme/notes.yaml
@@ -1285,7 +1286,7 @@ walk:
   kind: none
   because: the substrate address is none, so there is nothing to ask
 graph_base_sha: 79ff0d5bb4e25b576844e42efcbc474caf8a389e
-session: 1abcd30f-d69e-4eaf-8212-5b79ac350bfb
+session: d3982a42-4c1d-48c8-b72b-02917fd8bf11
 ---
 
 # Brief · node `exec-carries-roots-mcp-and-env` · graph `0063-exec-carries-the-contract`
