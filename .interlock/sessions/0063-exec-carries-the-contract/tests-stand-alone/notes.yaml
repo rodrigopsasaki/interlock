@@ -1,0 +1,15 @@
+interlock: notes@v0
+node: tests-stand-alone
+entries:
+  - kind: choice
+    at: "2026-11-09T18:52:05Z"
+    chose: Keep the production gate path unchanged by making the command runner and output-storage directory optional request seams with today's implementations as defaults.
+    because: The acceptance requires the receipt test to fake only execution and isolate output storage while preserving proof construction, hashing, command identity, deduplication, and gate selection.
+  - kind: choice
+    at: "2026-11-09T18:52:05Z"
+    chose: Build the marker boundary from the actual serialized unmarked and marked argv lines using a short system-temporary fixture root.
+    because: The byte cliff must be independent of the checkout path while proving both UTF-8 byte counts and the separate JavaScript-character boundary.
+  - kind: choice
+    at: "2026-11-09T18:52:05Z"
+    chose: Remove the receipt test's Git fixture and use a temporary output-storage directory supplied to the real gate-output retention path.
+    because: The test is about receipt identity and should not spend time on repository initialization or resolve the checkout's Git metadata.

@@ -9,6 +9,7 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { isErr, isOk, ok } from "@phyxiusjs/fp";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
@@ -36,8 +37,8 @@ afterEach(() => {
   directory = undefined;
 });
 
-function fixtureRoot(name: string): string {
-  directory = mkdtempSync(join(runsRoot, `${name}-`));
+function fixtureRoot(_name: string): string {
+  directory = mkdtempSync(join(tmpdir(), "i-"));
   return directory;
 }
 
@@ -165,19 +166,31 @@ describe("Codex marker delivery policy", () => {
     expect(result.error.because).toContain("remains at or above");
   });
 
-  it("counts UTF-8 bytes rather than JavaScript characters", () => {
+  it("counts UTF-8 bytes rather than JavaScript characters at the computed boundary", () => {
     const root = fixtureRoot("marker-utf8");
     const home = codexHome(root, '[mcp_servers.fixture]\ncommand = "fixture"\n');
     const values = environment(home);
-    const base = agentEnvironmentArgs("codex", ["x".repeat(220), "é".repeat(30)], values, []);
-    const withMarker = agentEnvironmentArgs("codex", ["x".repeat(220), "é".repeat(30)], values, [
-      "fixture",
-    ]);
-    expect(["codex", ...base].join(" ").length).toBeLessThan(CODEX_CANONICAL_LINE_LIMIT);
-    expect(Buffer.byteLength(["codex", ...withMarker].join(" "), "utf8")).toBeGreaterThanOrEqual(
-      CODEX_CANONICAL_LINE_LIMIT,
-    );
-    const result = prepareCodexLaunch(["x".repeat(220), "é".repeat(30)], root, values, {
+    const suffix = "é".repeat(30);
+    const line = (filler: string, servers: readonly string[]): string =>
+      ["codex", ...agentEnvironmentArgs("codex", [filler, suffix], values, servers)].join(" ");
+    const unmarkedBase = line("", []);
+    const markedBase = line("", ["fixture"]);
+    const baseBytes = Buffer.byteLength(unmarkedBase, "utf8");
+    const markerDeltaBytes = Buffer.byteLength(markedBase, "utf8") - baseBytes;
+    const fillerLength = CODEX_CANONICAL_LINE_LIMIT - (markerDeltaBytes - 15) - baseBytes;
+    expect(fillerLength).toBeGreaterThanOrEqual(0);
+
+    const filler = "x".repeat(fillerLength);
+    const unmarked = line(filler, []);
+    const marked = line(filler, ["fixture"]);
+    const unmarkedBytes = Buffer.byteLength(unmarked, "utf8");
+    const markedBytes = Buffer.byteLength(marked, "utf8");
+    expect(unmarkedBytes).toBe(CODEX_CANONICAL_LINE_LIMIT - (markerDeltaBytes - 15));
+    expect(markedBytes).toBe(unmarkedBytes + markerDeltaBytes);
+    expect(markedBytes).toBe(CODEX_CANONICAL_LINE_LIMIT + 15);
+    expect(marked.length).toBeLessThan(CODEX_CANONICAL_LINE_LIMIT);
+
+    const result = prepareCodexLaunch([filler, suffix], root, values, {
       listCodexMcp: () => ok(["fixture"]),
     });
     expect(isOk(result)).toBe(true);
