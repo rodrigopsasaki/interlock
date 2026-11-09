@@ -169,15 +169,15 @@ describe("Codex marker delivery policy", () => {
     const root = fixtureRoot("marker-utf8");
     const home = codexHome(root, '[mcp_servers.fixture]\ncommand = "fixture"\n');
     const values = environment(home);
-    const base = agentEnvironmentArgs("codex", ["x".repeat(250), "é".repeat(30)], values, []);
-    const withMarker = agentEnvironmentArgs("codex", ["x".repeat(250), "é".repeat(30)], values, [
+    const base = agentEnvironmentArgs("codex", ["x".repeat(220), "é".repeat(30)], values, []);
+    const withMarker = agentEnvironmentArgs("codex", ["x".repeat(220), "é".repeat(30)], values, [
       "fixture",
     ]);
     expect(["codex", ...base].join(" ").length).toBeLessThan(CODEX_CANONICAL_LINE_LIMIT);
     expect(Buffer.byteLength(["codex", ...withMarker].join(" "), "utf8")).toBeGreaterThanOrEqual(
       CODEX_CANONICAL_LINE_LIMIT,
     );
-    const result = prepareCodexLaunch(["x".repeat(250), "é".repeat(30)], root, values, {
+    const result = prepareCodexLaunch(["x".repeat(220), "é".repeat(30)], root, values, {
       listCodexMcp: () => ok(["fixture"]),
     });
     expect(isOk(result)).toBe(true);

@@ -66,3 +66,41 @@ entries:
       The full workspace suite reported two unrelated runner failures: a pre-existing marker line
       length assertion and a receipt identity test timeout; the new execContract suite passed all
       10 tests within that run.
+  - kind: surprise
+    at: '2026-11-09T14:30:00Z'
+    expected: The marker regression would come from the new exec launch-preparation fields reaching Codex marker argv.
+    observed: >-
+      The failing assertion runs agentEnvironmentArgs before prepareLaunch; its synthetic HOME and
+      XDG_STATE_HOME include the long worktree path, making the pre-marker JavaScript-character
+      count 1037. The new exec fields do not participate in this path.
+  - kind: choice
+    at: '2026-11-09T14:31:00Z'
+    chose: >-
+      Shorten only the UTF-8 marker fixture's filler argv so its pre-marker line retains a stable
+      margin across worktree paths, while leaving the 1024-byte bound and expectations unchanged.
+    because: >-
+      Production Codex environment serialization is existing behavior and changing it would alter
+      today's argv contract; the test's purpose is the UTF-8 transition, not a worktree-path limit.
+  - kind: surprise
+    at: '2026-11-09T14:35:00Z'
+    expected: The isolated full-suite run would exercise fixture Git commits normally.
+    observed: >-
+      The temporary HOME had no Git identity, so fixture commit tests failed and cascaded into 52
+      failures; the marker suite passed. This was test-environment setup noise, not a product result.
+  - kind: choice
+    at: '2026-11-09T14:36:00Z'
+    chose: >-
+      Repeat the standing test gate with the same isolated HOME and explicit fixture-only Git
+      author and committer variables, so temporary fixture commits do not depend on owner config.
+    because: >-
+      The first isolated run could not serve as gate proof because its empty HOME manufactured
+      failures unrelated to the changed files; the corrected run preserves isolation and supplies
+      only the identity the fixtures require.
+  - kind: surprise
+    at: '2026-11-09T14:40:00Z'
+    expected: The corrected isolated full suite would reduce the standing failures to the judge-observed receipt timeout.
+    observed: >-
+      MarkerNeverDropped and execContract passed, and receiptCarriesItsRun passed in 10.369 seconds,
+      but the isolated workspace suite still reported 50 runner failures across unrelated maintenance,
+      outbox, gate and setup tests. The temporary HOME changes the repository-wide test environment
+      beyond the marker fix; the earlier judge-observed receipt timeout under normal suite load remains open.
