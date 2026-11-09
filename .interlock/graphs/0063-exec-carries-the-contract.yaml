@@ -222,3 +222,80 @@ nodes:
         kind: command
         run: pnpm --fail-if-no-match --filter runner exec vitest run test/receiptCarriesItsRun.test.ts --passWithNoTests=false
         expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+
+  - id: judge-tests-stand-alone
+    role: implementer
+    depends_on: [tests-stand-alone]
+    acceptance: |
+      No logic test waits on wall time, and every integration test that does takes real time says what it integrates and
+      carries a budget derived from its own deadlines, so a busy machine cannot fail a test whose subject is logic, and a
+      slow integration test is visible and bounded rather than hidden behind the 5 s default.
+      Found on 2026-11-09: in a full-suite run on tests-stand-alone's head, gateJudge.test.ts "running the same gate twice
+      over the same content writes one receipt identity and no duplicate" exceeded vitest's 5 s default under load, the
+      same defect tests-stand-alone fixed in receiptCarriesItsRun. Contention is not an accepted explanation. A sweep
+      measured every test in every package with vitest's JSON reporter on main fadc8e6 (one package at a time, quiet
+      machine): 73 tests take 1 s or more; these 39 in 18 files take 1.5 s or more, the band where the 2.44 s case already
+      timed out under load (counts and each file's slowest case; the implementer re-measures first and records every
+      case's full identity and duration in notes):
+        - packages/runner/test/realCodexMarkerOverflow.test.ts: 1 case(s), slowest 15.82s ("records marker values in real MCP children started by Codex exec")
+        - packages/runner/test/herdr/adapter.test.ts: 2 case(s), slowest 5.11s ("loops past a slice herdr never answers, returning the status the next ")
+        - packages/substrate/test/absorb.test.ts: 1 case(s), slowest 5.01s ("degrades to a narrated refusal instead of acknowledged, judgement stil")
+        - packages/cli/test/run.test.ts: 4 case(s), slowest 3.55s ("sends a concise prompt projection after committing a complete 3000-pat")
+        - packages/cli/test/face/landedCache.test.ts: 2 case(s), slowest 3.20s ("reads main once per refresh, judges only what moved, retries a failed ")
+        - packages/cli/test/resumeRange.test.ts: 3 case(s), slowest 3.19s ("keeps the predecessor code and writes the runner provenance")
+        - packages/runner/test/worktreeMaintenance.test.ts: 1 case(s), slowest 2.72s ("writes the detached tasks only into the common object store, never int")
+        - packages/cli/test/plan.test.ts: 7 case(s), slowest 2.67s ("inherits a correction's context selector unless an explicit replacemen")
+        - packages/runner/test/gateJudge.test.ts: 1 case(s), slowest 2.44s ("running the same gate twice over the same content writes one receipt i")
+        - packages/runner/test/lineFitsRealCodex.test.ts: 1 case(s), slowest 2.34s ("runs a provider shell call with moved policy and marker values")
+        - packages/runner/test/gatesRunOnEnginesNode.test.ts: 2 case(s), slowest 2.16s ("checks a space-joined range against v24.9.0")
+        - packages/cli/test/judge.test.ts: 4 case(s), slowest 2.15s ("binds an enabled origin through judge's actual absorb client")
+        - packages/runner/test/runnerCommits.test.ts: 1 case(s), slowest 1.87s ("commits entries in order, signs and adds both attempt trailers and aut")
+        - packages/cli/test/debrief/recoverSessionStart.test.ts: 1 case(s), slowest 1.86s ("refuses later arbitrary commits, committed brief edits, and missing or")
+        - packages/cli/test/execWithoutHerdr.test.ts: 5 case(s), slowest 1.82s ("judges a held unleased exec session with --session")
+        - packages/face/test/noSyncGit.test.ts: 1 case(s), slowest 1.81s ("runs a two-repository position read with no synchronous child and at m")
+        - packages/runner/test/submoduleReceipts.test.ts: 1 case(s), slowest 1.55s ("is judged into a receipt without throwing")
+        - packages/cli/test/evidence.test.ts: 1 case(s), slowest 1.55s ("reads the corrected handoff from replay after supported revision and r")
+      Classification, from this node's vet (file:line on fadc8e6), applied case by case, never by file:
+      - logic, made deterministic: gateJudge.test.ts:68 (receipt identity; use the gate judge's commandRunner and
+        outputDirectory seams, drop the git fixture); herdr/adapter.test.ts:393 and :669 (retry and deadline over a fake
+        socket; inject a clock and sleep into the adapter, keeping its real HerdrCall); substrate absorb.test.ts:156 (a
+        fixed 5 s HTTP abort; inject the abort scheduler at httpClient.ts:138); gatesRunOnEnginesNode.test.ts:136 and its
+        sibling (version policy; add a narrow execution dependency to checkNodeEngine at nodeEngine.ts:153);
+        landedCache.test.ts:100 (refresh and retry counts; its existing git injection); plan.test.ts selector and
+        correction rules, judge.test.ts decided-node, lease and session-selection checks (seed ledger state directly
+        rather than running whole sessions); resumeRange chain selection over supplied history facts where separable.
+      - integration, kept real with a budget: run.test.ts:674 (3000-path committed brief), judge.test.ts:192 (run to
+        absorb), landedCache.test.ts:178 (cache across real processes), resumeRange's ancestry, historical bytes and
+        trailers, recoverSessionStart.test.ts:182, worktreeMaintenance.test.ts:278, runnerCommits.test.ts:209 (real
+        signed commits), execWithoutHerdr's exec phases, noSyncGit.test.ts:100, submoduleReceipts.test.ts:91 (git index;
+        fake only its incidental gate command), evidence.test.ts:360, and the real codex tests realCodexMarkerOverflow
+        :77 and lineFitsRealCodex :208.
+      - the gate judge's commandRunner and outputDirectory are forwarded through judgeWorktree (judgeWorktree.ts:14, :96)
+        and the CLI and session-drive options, so CLI logic tests can use them.
+      - two hollow cases are fixed: judge.test.ts:317 claims lease coverage and :409 session-override coverage, but both
+        assert "outcome is cleared" because judge.ts:159 returns first; they seed undecided fixtures and assert the
+        branch their names claim.
+      - realCodexMarkerOverflow waits on a 15 s watchdog after its MCP children already wrote their evidence: it observes
+        the evidence, terminates and reaps promptly, and keeps a bounded startup watchdog. The real codex tests run with an
+        explicit allowlisted environment instead of inheriting process.env (toolState.ts:106); they stay credential-free
+        (temp CODEX_HOME, fixture MCP children, a loopback provider), which is this graph's one exception to "no real
+        agent CLI", stated here because these tests predate it.
+      How slow tests are declared and gated:
+      - a test helper declares a slow integration test: it sets that test's actual vitest timeout and records, as test
+        metadata the JSON reporter carries, the budget and a one-line reason naming what it integrates. The budget is
+        derived from the test's own constituent deadlines (watchdogs, child timeouts) plus a stated cleanup allowance, and
+        is at least twice the measured duration across three runs. No vitest config, per-file or global testTimeout or
+        hookTimeout changes; no blanket helper over whole files.
+      - scripts/gates/slow-tests.ts runs each package's vitest with a JSON report into a fresh temp folder, one package at
+        a time, recording worker settings; it fails, naming each offender, when any expected package's report is missing,
+        empty, invalid or from a failed run; when any test is skipped; when a test of 1.5 s or more is not declared through
+        the helper; when a declared test's measured duration exceeds half its budget; or when a declared test no longer
+        exists. On success it prints "slow tests accounted: N declared, M logic under 1.5 s".
+      Evidence, in notes.yaml, tied to this node's head sha with exit status, totals and output files kept: the full
+      before list with identities; the slow-tests gate passing; `pnpm test` passing three times in a row on that head, one
+      at a time.
+    gates:
+      - id: slow-tests-accounted
+        kind: command
+        run: node scripts/gates/slow-tests.ts
+        expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1.5 s'
