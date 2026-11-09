@@ -113,6 +113,19 @@ entries:
     because: >-
       The CLI fixtures prove the command boundary, while the runner test must prove the session
       driver itself skips injected herdr checks and still records work and debrief completion.
+  - kind: choice
+    at: '2026-11-09T13:55:00Z'
+    chose: Refile the debrief from a fresh candidate rooted at the committed test-and-notes head, with the five acceptance cases closed in the open list.
+    because: >-
+      The prior debrief accurately described the earlier prompt-only proof but left acceptance cases
+      that this node now directly exercises; the final debrief must point at 9fcefba and report no
+      untested acceptance item from the graph's required fixture set.
+  - kind: surprise
+    at: '2026-11-09T14:00:00Z'
+    expected: The fresh candidate could be prepared under the ignored package test runs directory.
+    observed: >-
+      Debrief preparation refused a candidate outside this session directory before writing it; the
+      candidate is being prepared in the session directory and will be removed after filing.
   - kind: surprise
     at: '2026-11-09T13:40:00Z'
     expected: The runner direct-drive fixture would ignore its common Git run artifacts by default.
