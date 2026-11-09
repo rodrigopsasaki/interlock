@@ -55,8 +55,22 @@ const PANE_READY_MAX_BACKOFF_MS = 2_000;
 
 const AGENT_WAIT_SLICE_TIMEOUT_CODE = "timeout";
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+export interface HerdrTiming {
+  readonly now: () => number;
+  readonly sleep: (ms: number) => Promise<void>;
+  readonly setTimeout: (callback: () => void, ms: number) => ReturnType<typeof setTimeout>;
+  readonly clearTimeout: (timer: ReturnType<typeof setTimeout>) => void;
+}
+
+const systemTiming: HerdrTiming = {
+  now: () => Date.now(),
+  sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  setTimeout: (callback, ms) => setTimeout(callback, ms),
+  clearTimeout: (timer) => clearTimeout(timer),
+};
+
+function sleep(ms: number, timing: HerdrTiming): Promise<void> {
+  return timing.sleep(ms);
 }
 
 function isPaneBusyRefusal(
@@ -245,6 +259,7 @@ function callHerdr(
   method: string,
   params: Readonly<Record<string, unknown>>,
   timeoutMs: number,
+  timing: HerdrTiming,
 ): Promise<Result<Record<string, unknown>, RuntimeRefusal>> {
   return new Promise((resolve) => {
     const id = randomUUID();
@@ -255,12 +270,12 @@ function callHerdr(
     const settle = (result: Result<Record<string, unknown>, RuntimeRefusal>) => {
       if (settled) return;
       settled = true;
-      clearTimeout(deadline);
+      timing.clearTimeout(deadline);
       socket.destroy();
       resolve(result);
     };
 
-    const deadline = setTimeout(() => {
+    const deadline = timing.setTimeout(() => {
       settle(err({ kind: "call-timeout", method, timeoutMs }));
     }, timeoutMs);
 
@@ -316,6 +331,7 @@ export async function createHerdrRuntime(
   paneReadyTimeoutMs: number = AGENT_START_TIMEOUT_MS,
   waitSliceMs: number = WAIT_SLICE_MS,
   liveWorkSources: Readonly<Record<string, LiveWorkSource>> = DEFAULT_LIVE_WORK_SOURCES,
+  timing: HerdrTiming = systemTiming,
 ): Promise<Result<Runtime, RuntimeRefusal>> {
   const verified = await verifyHerdrSocket(socketPath);
   if (isErr(verified)) return verified;
@@ -324,9 +340,9 @@ export async function createHerdrRuntime(
     method: string,
     params: Readonly<Record<string, unknown>>,
     timeoutMs: number = defaultCallTimeoutMs,
-  ) => callHerdr(socketPath, method, params, timeoutMs);
+  ) => callHerdr(socketPath, method, params, timeoutMs, timing);
 
-  return ok(herdrRuntime(call, paneReadyTimeoutMs, waitSliceMs, liveWorkSources));
+  return ok(herdrRuntime(call, paneReadyTimeoutMs, waitSliceMs, liveWorkSources, timing));
 }
 
 export function herdrRuntime(
@@ -334,6 +350,7 @@ export function herdrRuntime(
   paneReadyTimeoutMs: number = AGENT_START_TIMEOUT_MS,
   waitSliceMs: number = WAIT_SLICE_MS,
   liveWorkSources: Readonly<Record<string, LiveWorkSource>> = DEFAULT_LIVE_WORK_SOURCES,
+  timing: HerdrTiming = systemTiming,
 ): Runtime {
   const attemptStartAgent = async (
     name: string,
@@ -370,7 +387,7 @@ export function herdrRuntime(
       }
       if (attempt === 1) onWaitingForPane?.();
       const delayMs = Math.min(backoffMs, remainingBudgetMs);
-      await sleep(delayMs);
+      await sleep(delayMs, timing);
       waitedMs += delayMs;
       backoffMs = Math.min(backoffMs * 2, PANE_READY_MAX_BACKOFF_MS);
     }
@@ -504,11 +521,11 @@ export function herdrRuntime(
     },
 
     async waitUntil(agent: Agent, until: readonly AgentStatus[], timeoutMs: number) {
-      const startedAtMs = Date.now();
+      const startedAtMs = timing.now();
       let lastStatus: AgentStatus = "unknown";
 
       for (;;) {
-        const elapsedBeforeGetMs = Date.now() - startedAtMs;
+        const elapsedBeforeGetMs = timing.now() - startedAtMs;
         if (elapsedBeforeGetMs >= timeoutMs) {
           return err({ kind: "timeout", until, timeoutMs, status: lastStatus });
         }
@@ -524,7 +541,7 @@ export function herdrRuntime(
           }
         }
 
-        const remainingMs = timeoutMs - (Date.now() - startedAtMs);
+        const remainingMs = timeoutMs - (timing.now() - startedAtMs);
         if (remainingMs <= 0) {
           return err({ kind: "timeout", until, timeoutMs, status: lastStatus });
         }

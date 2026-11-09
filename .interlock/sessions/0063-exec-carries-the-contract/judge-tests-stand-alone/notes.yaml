@@ -1,0 +1,95 @@
+interlock: notes@v0
+node: judge-tests-stand-alone
+entries:
+  - kind: choice
+    at: "2026-11-09T20:10:00Z"
+    chose: Re-measure the acceptance's listed slow cases before editing and preserve integration boundaries while making logic cases deterministic.
+    because: The acceptance requires case-by-case classification from current evidence, budgets derived from real deadlines, and no blanket timeout changes.
+  - kind: surprise
+    at: "2026-11-09T20:12:00Z"
+    expected: The runner JSON baseline would be written after the package completed.
+    observed: The runner baseline stopped in worktreeMaintenance because its fixture could not lock a nested Git worktree reference under the package run directory, so no JSON report was produced; a follow-up inspection command also used the login shell's Node instead of the pinned PATH and will be corrected before any Node command.
+  - kind: surprise
+    at: "2026-11-09T20:17:00Z"
+    expected: The serial selected-file measurement would finish within the tool poll and expose a report.
+    observed: The shell command continued running after the poll returned and its Vitest process was still active without a session handle; I terminated that process group before continuing so no background test runner remained.
+  - kind: choice
+    at: "2026-11-09T20:35:00Z"
+    chose: Record slow integration budgets in Vitest metadata through one shared helper that also sets each test's actual timeout.
+    because: The JSON reporter carries test metadata and duration together, so the gate can validate declaration, reason, existence and budget without a global timeout or file-wide wrapper.
+  - kind: choice
+    at: "2026-11-09T20:36:00Z"
+    chose: Forward the existing gate command-runner and output-directory seams through judgeWorktree, session drive, and CLI run/judge options.
+    because: Logic tests must replace only process execution and output storage while production callers keep today's defaults and receipt construction.
+  - kind: surprise
+    at: "2026-11-09T20:55:00Z"
+    expected: Injected Herdr timers would let the adapter tests advance deadlines without wall-clock waits.
+    observed: Capturing the global timer functions when the module loaded bypassed Vitest fake timers, and advancing a whole budget before socket responses hid intermediate calls; dynamic timer lookup plus explicit I/O checkpoints made the tests deterministic.
+  - kind: choice
+    at: "2026-11-09T20:56:00Z"
+    chose: Keep HerdrCall real and use the injected timing seam with scoped fake timers and socket-call checkpoints in the deadline and retry tests.
+    because: This preserves the adapter's actual Unix-socket request and response behavior while making only its clock, sleep and deadline scheduling deterministic.
+  - kind: surprise
+    at: "2026-11-09T21:03:00Z"
+    expected: The package-script inspection would use the pinned Node PATH guard.
+    observed: A read-only shell loop invoked the login shell's default Node before the guard was applied; it produced no writes or owner-path access, and all subsequent Node, pnpm and test commands use the required pinned PATH export and version checks.
+  - kind: choice
+    at: "2026-11-09T21:18:00Z"
+    chose: Declare the landed-cache world-refresh case with a bounded integration budget while retaining its existing injected Git reader.
+    because: The case exercises a real Git-backed fixture and crossed the 1.5 second accounting threshold under the serial package sweep; its explicit cache reason and budget preserve the graph's integration boundary and make the variance visible.
+  - kind: choice
+    at: "2026-11-09T21:24:00Z"
+    chose: Preserve the baseline sweep as a case-by-case manifest and use its reports as the before evidence for the deterministic logic seams and bounded integrations.
+    because: The acceptance requires every slow case's full identity and duration, not file-level summaries; the individual JSON reports were produced one package at a time with one worker and remain under the package test runs directory.
+    evidence:
+      baseline_head_sha: e04c7a3a30638dda4a0a6cc34edc314f7d15e6b9
+      worker_settings: "--maxWorkers=1 --minWorkers=1"
+      cases:
+        - {path: packages/runner/test/realCodexMarkerOverflow.test.ts, identity: "real Codex marker overflow delivery records marker values in real MCP children started by Codex exec", duration_ms: 15670.814083}
+        - {path: packages/runner/test/herdr/adapter.test.ts, identity: "herdr adapter loops past a slice herdr never answers, returning the status the next agent.get reports", duration_ms: 5107.438709}
+        - {path: packages/runner/test/herdr/adapter.test.ts, identity: "herdr adapter retries agent.start on agent_pane_busy until the pane's shell is ready", duration_ms: 1519.810958}
+        - {path: packages/substrate/test/absorb.test.ts, identity: "absorb degrades to a narrated refusal instead of acknowledged, judgement still able to complete, when the address stops answering mid-run", duration_ms: 5009.428834}
+        - {path: packages/cli/test/run.test.ts, identity: "interlock run sends a concise prompt projection after committing a complete 3000-path canonical brief", duration_ms: 4139.15375}
+        - {path: packages/cli/test/run.test.ts, identity: "interlock run materializes the acceptance, records the brief and gates the node from the same approved declaration on a reused worktree with an older base", duration_ms: 1068.885083}
+        - {path: packages/cli/test/run.test.ts, identity: "interlock run leases, worktrees, drives the injected runtime and gates a real node end to end, closing the pane on clear", duration_ms: 809.980125}
+        - {path: packages/cli/test/run.test.ts, identity: "interlock run bases the worktree on the repository's HEAD at run time, not the approval receipt's commit", duration_ms: 895.905625}
+        - {path: packages/cli/test/face/landedCache.test.ts, identity: "landed cache: world refreshes through the face lifecycle reads main once per refresh, judges only what moved, retries a failed key and never reads for a screen-only redraw", duration_ms: 1172.030166}
+        - {path: packages/cli/test/face/landedCache.test.ts, identity: "landed cache: across processes, on disk serves a judgment made by another process without a per-node read", duration_ms: 600.035375}
+        - {path: packages/cli/test/resumeRange.test.ts, identity: "resumed debrief ranges keeps the predecessor code and writes the runner provenance", duration_ms: 1607.092958}
+        - {path: packages/cli/test/resumeRange.test.ts, identity: "resumed debrief ranges carries the first start through a chain while both attempts stay open", duration_ms: 1244.497334}
+        - {path: packages/cli/test/resumeRange.test.ts, identity: "resumed debrief ranges keeps its own start when the predecessor has a debrief or outcome", duration_ms: 810.937667}
+        - {path: packages/runner/test/worktreeMaintenance.test.ts, identity: "the runner's worktrees against Git's default auto-maintenance writes the detached tasks only into the common object store, never into a node or backfill worktree or admin directory", duration_ms: 1111.087917}
+        - {path: packages/cli/test/plan.test.ts, identity: "interlock plan uses an explicit context selector without narrowing the committed planning authority", duration_ms: 659.697084}
+        - {path: packages/cli/test/plan.test.ts, identity: "interlock plan uses an empty context selector as an explicit repository-level query", duration_ms: 625.775917}
+        - {path: packages/cli/test/plan.test.ts, identity: "interlock plan carries the previous ask forward when --correction omits --ask", duration_ms: 1244.978}
+        - {path: packages/cli/test/plan.test.ts, identity: "interlock plan inherits a correction's context selector unless an explicit replacement is given", duration_ms: 2070.412708}
+        - {path: packages/cli/test/plan.test.ts, identity: "interlock plan uses omitted context selection for an explicit correction with no previous planner brief", duration_ms: 642.602583}
+        - {path: packages/cli/test/plan.test.ts, identity: "interlock plan uses omitted context selection for an explicit correction with a valid legacy planner brief", duration_ms: 666.936417}
+        - {path: packages/cli/test/plan.test.ts, identity: "interlock plan refuses an inherited correction selector that is no longer tracked before creating a session", duration_ms: 1010.00525}
+        - {path: packages/runner/test/gateJudge.test.ts, identity: "receipt-idempotent running the same gate twice over the same content writes one receipt identity and no duplicate fact", duration_ms: 2132.3085}
+        - {path: packages/runner/test/lineFitsRealCodex.test.ts, identity: "real Codex line fitting runs a provider shell call with moved policy and marker values", duration_ms: 1902.001208}
+        - {path: packages/runner/test/gatesRunOnEnginesNode.test.ts, identity: "gates and worktree setup respect engines.node runs an exact-version match", duration_ms: 2112.916958}
+        - {path: packages/runner/test/gatesRunOnEnginesNode.test.ts, identity: "gates and worktree setup respect engines.node checks a space-joined range against v24.9.0", duration_ms: 2148.305875}
+        - {path: packages/cli/test/judge.test.ts, identity: "interlock judge binds an enabled origin through judge's actual absorb client", duration_ms: 971.888667}
+        - {path: packages/cli/test/judge.test.ts, identity: "interlock judge refuses to re-judge a cleared node with a clean worktree", duration_ms: 924.392375}
+        - {path: packages/cli/test/judge.test.ts, identity: "interlock judge refuses a node whose lease has not expired", duration_ms: 872.477167}
+        - {path: packages/cli/test/judge.test.ts, identity: "interlock judge lets --session override the ledger's latest session", duration_ms: 900.239709}
+        - {path: packages/runner/test/runnerCommits.test.ts, identity: "commits entries in order, signs and adds both attempt trailers and authorship, then falls back", duration_ms: 796.018333}
+        - {path: packages/cli/test/debrief/recoverSessionStart.test.ts, identity: "recover session start refuses later arbitrary commits, committed brief edits, and missing or duplicate starts", duration_ms: 711.408875}
+        - {path: packages/cli/test/execWithoutHerdr.test.ts, identity: "runs both exec phases without herdr and gives each phase its own argv prompt", duration_ms: 822.03075}
+        - {path: packages/cli/test/execWithoutHerdr.test.ts, identity: "runs both exec phases with their own stdin prompt", duration_ms: 808.319833}
+        - {path: packages/cli/test/execWithoutHerdr.test.ts, identity: "keeps a pending pane intent unresolved while exec runs without herdr", duration_ms: 788.135542}
+        - {path: packages/cli/test/execWithoutHerdr.test.ts, identity: "lists a running exec session after the sessions synchronization barrier", duration_ms: 789.033917}
+        - {path: packages/cli/test/execWithoutHerdr.test.ts, identity: "judges a held unleased exec session with --session", duration_ms: 827.495333}
+        - {path: packages/face/test/noSyncGit.test.ts, identity: "no blocking git on the read path runs a two-repository position read with no synchronous child and at most the shared bound of git children", duration_ms: 1935.310209}
+        - {path: packages/runner/test/submoduleReceipts.test.ts, identity: "a scope that holds a gitlink is judged into a receipt without throwing", duration_ms: 1284.743333}
+        - {path: packages/cli/test/evidence.test.ts, identity: "interlock evidence reads the corrected handoff from replay after supported revision and rejudge", duration_ms: 719.332417}
+  - kind: choice
+    at: "2026-11-09T21:34:00Z"
+    chose: Require the slow-tests gate to run all eight packages serially with one Vitest worker and report every declared integration plus every logic case below 1.5 seconds.
+    because: The gate must detect missing, failed, skipped, invalid, undeclared, over-budget and vanished tests from the JSON reporter rather than trusting a worker's summary.
+    evidence:
+      command: node scripts/gates/slow-tests.ts
+      exit_status: 0
+      output: packages/runner/test/.runs/slow-tests-final-2.txt
+      result: "slow tests accounted: 20 declared, 3135 logic under 1.5 s"

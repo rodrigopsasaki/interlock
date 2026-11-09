@@ -2,7 +2,7 @@ import { constants } from "node:fs";
 import { access, readFile } from "node:fs/promises";
 import { delimiter, isAbsolute, join, resolve } from "node:path";
 import { err, ok, type Result } from "@phyxiusjs/fp";
-import { runOwnedCommand } from "./ownedCommand.ts";
+import { type OwnedCommandResult, runOwnedCommand } from "./ownedCommand.ts";
 
 type Version = {
   readonly major: number;
@@ -19,6 +19,12 @@ export type NodeEngineRefusal = {
   readonly kind: "node-engine";
   readonly because: string;
 };
+
+export type NodeVersionRunner = (
+  argv: readonly string[],
+  cwd: string,
+  env: NodeJS.ProcessEnv,
+) => Promise<Result<OwnedCommandResult, string>>;
 
 type JsonObject = { readonly [key: string]: unknown };
 
@@ -141,6 +147,7 @@ export async function checkNodeEngine(
   phase: "gate" | "worktree setup",
   env: NodeJS.ProcessEnv,
   heavy: readonly string[],
+  runVersion: NodeVersionRunner = runOwnedCommand,
 ): Promise<Result<void, NodeEngineRefusal>> {
   const range = await engineRange(worktree);
   if (range === undefined) return ok(undefined);
@@ -150,7 +157,7 @@ export async function checkNodeEngine(
     return refusal(`${phase} node could not be found on PATH ${env["PATH"] ?? "(empty)"}`);
   }
 
-  const versionResult = await runOwnedCommand(
+  const versionResult = await runVersion(
     [...heavy, "mise", "exec", "--", executable, "--version"],
     worktree,
     env,

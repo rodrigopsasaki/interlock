@@ -15,6 +15,7 @@ import { runGraphApprove } from "../src/graph/approve.ts";
 import { runInterlockJudge } from "../src/judge.ts";
 import { runInterlockRun } from "../src/run.ts";
 import { commitAll, gitInitFixture } from "./graph/gitFixture.ts";
+import { slowIntegration } from "./support/slowIntegration.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -189,47 +190,54 @@ const debriefYaml = [
 ].join("\n");
 
 describe("interlock judge", () => {
-  it("binds an enabled origin through judge's actual absorb client", async () => {
-    server = await startFakeSubstrateServer();
-    server.responseFor("context", { items: [], vocabulary: "reference@v1" });
-    server.responseFor("absorb", {
-      decisions_absorbed: [],
-      discoveries: [],
-      gaps: [],
-    });
-    const cwd = fixture(localYamlFor(server.url));
-    fixtureGit(["remote", "add", "origin", "git@forge.example:owner/name.git"], { cwd });
-    await approve(cwd);
-    const ran = await runInterlockRun(["demo", "a"], {
-      cwd,
-      clock: createControlledClock({ initialTime: 0 }),
-      runtime: stubRuntime(),
-    });
-    const sessionId = sessionIdFrom(ran.message);
-    const worktreePath = join(cwd, ".worktrees", "a");
-    mkdirSync(join(worktreePath, ".interlock", "sessions", "demo", "a"), {
-      recursive: true,
-    });
-    writeFileSync(
-      join(worktreePath, ".interlock", "sessions", "demo", "a", "debrief.yaml"),
-      debriefYaml,
-    );
-    commitAll(worktreePath, "file the debrief");
+  slowIntegration(
+    "binds an enabled origin through judge's actual absorb client",
+    {
+      budgetMs: 15_000,
+      reason: "integrates CLI judge, real worktree absorption and an enabled substrate origin",
+    },
+    async () => {
+      server = await startFakeSubstrateServer();
+      server.responseFor("context", { items: [], vocabulary: "reference@v1" });
+      server.responseFor("absorb", {
+        decisions_absorbed: [],
+        discoveries: [],
+        gaps: [],
+      });
+      const cwd = fixture(localYamlFor(server.url));
+      fixtureGit(["remote", "add", "origin", "git@forge.example:owner/name.git"], { cwd });
+      await approve(cwd);
+      const ran = await runInterlockRun(["demo", "a"], {
+        cwd,
+        clock: createControlledClock({ initialTime: 0 }),
+        runtime: stubRuntime(),
+      });
+      const sessionId = sessionIdFrom(ran.message);
+      const worktreePath = join(cwd, ".worktrees", "a");
+      mkdirSync(join(worktreePath, ".interlock", "sessions", "demo", "a"), {
+        recursive: true,
+      });
+      writeFileSync(
+        join(worktreePath, ".interlock", "sessions", "demo", "a", "debrief.yaml"),
+        debriefYaml,
+      );
+      commitAll(worktreePath, "file the debrief");
 
-    await runInterlockJudge(["demo", "a"], {
-      cwd,
-      clock: createControlledClock({ initialTime: 61_000 }),
-    });
+      await runInterlockJudge(["demo", "a"], {
+        cwd,
+        clock: createControlledClock({ initialTime: 61_000 }),
+      });
 
-    expect(server.calls.at(-1)?.body).toMatchObject({
-      repository: {
-        owner: "owner",
-        name: "name",
-        origin_url: "ssh://forge.example/owner/name.git",
-      },
-    });
-    expect(sessionId).toBeDefined();
-  }, 30_000);
+      expect(server.calls.at(-1)?.body).toMatchObject({
+        repository: {
+          owner: "owner",
+          name: "name",
+          origin_url: "ssh://forge.example/owner/name.git",
+        },
+      });
+      expect(sessionId).toBeDefined();
+    },
+  );
 
   it("refuses without a graph and node", async () => {
     const result = await runInterlockJudge([]);
@@ -318,18 +326,45 @@ describe("interlock judge", () => {
     const cwd = fixture();
     await approve(cwd);
     const clock = createControlledClock({ initialTime: 0 });
-
-    const ran = await runInterlockRun(["demo", "a"], {
-      cwd,
-      clock,
-      runtime: stubRuntime(),
+    const worktreePath = join(cwd, ".worktrees", "a");
+    mkdirSync(worktreePath, { recursive: true });
+    gitInitFixture(worktreePath);
+    writeFileSync(join(worktreePath, "work.txt"), "undecided\n");
+    commitAll(worktreePath, "undecided worktree");
+    const ledger = unwrap(
+      await createLedger({
+        clock,
+        directory: await sharedJournalDirectory(cwd),
+      }),
+    );
+    ledger.append({
+      kind: "session-started",
+      session: {
+        id: "live-session",
+        node: { graph: "demo", id: "a" },
+        runtime: sessionRuntime.unknown(),
+      },
+      brief: {
+        graph: "demo",
+        node: "a",
+        role: "worker",
+        acceptance: "",
+        gates: ["own-gate"],
+        scope: [],
+      },
     });
-    expect(ran.exitCode).toBe(0);
+    ledger.append({
+      kind: "lease-taken",
+      node: { graph: "demo", id: "a" },
+      session: "live-session",
+      expiry: 60_000,
+    });
+    await ledger.close();
     const judged = await runInterlockJudge(["demo", "a"], { cwd, clock });
 
     expect(judged.exitCode).not.toBe(0);
-    expect(judged.message).toContain("outcome is cleared");
-  }, 30_000);
+    expect(judged.message).toContain("is leased by session live-session");
+  });
 
   it("refuses a node with no worktree", async () => {
     const cwd = fixture();
@@ -409,49 +444,46 @@ describe("interlock judge", () => {
   it("lets --session override the ledger's latest session", async () => {
     const cwd = fixture();
     await approve(cwd);
-
-    const first = await runInterlockRun(["demo", "a"], {
-      cwd,
-      clock: createControlledClock({ initialTime: 0 }),
-      runtime: stubRuntime(),
-    });
-    expect(first.exitCode).toBe(0);
-    const firstSessionId = sessionIdFrom(first.message);
     const worktreePath = join(cwd, ".worktrees", "a");
-    settle(worktreePath);
-
+    mkdirSync(worktreePath, { recursive: true });
+    gitInitFixture(worktreePath);
+    writeFileSync(join(worktreePath, "work.txt"), "undecided\n");
+    commitAll(worktreePath, "undecided worktree");
+    const firstSessionId = "first-session";
     const secondSessionId = "second-session";
-    const later = unwrap(
+    const ledger = unwrap(
       await createLedger({
-        clock: createControlledClock({ initialTime: 100_000 }),
+        clock: createControlledClock({ initialTime: 0 }),
         directory: await sharedJournalDirectory(cwd),
       }),
     );
-    later.append({
-      kind: "session-started",
-      session: {
-        id: secondSessionId,
-        node: { graph: "demo", id: "a" },
-        runtime: sessionRuntime.unknown(),
-      },
-      brief: {
-        graph: "demo",
-        node: "a",
-        role: "worker",
-        acceptance: "",
-        gates: [],
-        scope: [],
-      },
-    });
-    await later.close();
+    for (const session of [firstSessionId, secondSessionId])
+      ledger.append({
+        kind: "session-started",
+        session: {
+          id: session,
+          node: { graph: "demo", id: "a" },
+          runtime: sessionRuntime.unknown(),
+        },
+        brief: {
+          graph: "demo",
+          node: "a",
+          role: "worker",
+          acceptance: "",
+          gates: ["own-gate"],
+          scope: [],
+        },
+      });
+    await ledger.close();
     expect(secondSessionId).not.toBe(firstSessionId);
 
     const judged = await runInterlockJudge(["demo", "a", "--session", firstSessionId], {
       cwd,
-      clock: createControlledClock({ initialTime: 200_000 }),
+      clock: createControlledClock({ initialTime: 0 }),
     });
 
-    expect(judged.exitCode).not.toBe(0);
-    expect(judged.message).toContain("outcome is cleared");
-  }, 30_000);
+    expect(judged.exitCode).toBe(0);
+    expect(judged.message).toContain(`session ${firstSessionId}`);
+    expect(judged.message).not.toContain(`session ${secondSessionId}`);
+  });
 });

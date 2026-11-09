@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { runInterlockPosition } from "../../cli/src/position.ts";
 import { type LandedRepository, landedRepository } from "../../cli/test/face/landedFixture.ts";
 import { GIT_CHILDREN_BOUND } from "../src/mainLine.ts";
+import { slowIntegration } from "./support/slowIntegration.ts";
 
 const observed = vi.hoisted(() => {
   const sync: string[] = [];
@@ -97,35 +98,42 @@ describe("no blocking git on the read path", () => {
     ).toEqual([]);
   });
 
-  it("runs a two-repository position read with no synchronous child and at most the shared bound of git children", async () => {
-    const first = repository("left");
-    const second = repository("right");
-    const clearedNodes = first.cleared.length + second.cleared.length;
-    expect(clearedNodes).toBeGreaterThan(GIT_CHILDREN_BOUND);
-    expect(observed.sync.some((call) => call.startsWith("execFileSync git"))).toBe(true);
-    observed.sync.splice(0);
-    observed.inFlight = 0;
-    observed.most = 0;
-    observed.spawned = 0;
+  slowIntegration(
+    "runs a two-repository position read with no synchronous child and at most the shared bound of git children",
+    {
+      budgetMs: 10_000,
+      reason: "integrates two repository position reads with bounded asynchronous Git children",
+    },
+    async () => {
+      const first = repository("left");
+      const second = repository("right");
+      const clearedNodes = first.cleared.length + second.cleared.length;
+      expect(clearedNodes).toBeGreaterThan(GIT_CHILDREN_BOUND);
+      expect(observed.sync.some((call) => call.startsWith("execFileSync git"))).toBe(true);
+      observed.sync.splice(0);
+      observed.inFlight = 0;
+      observed.most = 0;
+      observed.spawned = 0;
 
-    const result = await runInterlockPosition(
-      ["--json", "--repo", first.root, "--repo", second.root],
-      { cwd: first.root },
-    );
+      const result = await runInterlockPosition(
+        ["--json", "--repo", first.root, "--repo", second.root],
+        { cwd: first.root },
+      );
 
-    expect(result.exitCode).toBe(0);
-    expect(observed.sync).toEqual([]);
-    expect(observed.spawned).toBeGreaterThan(clearedNodes);
-    expect(observed.most).toBeGreaterThan(1);
-    expect(observed.most).toBeLessThanOrEqual(GIT_CHILDREN_BOUND);
-    expect(observed.inFlight).toBe(0);
-    const parsed: unknown = JSON.parse(result.message);
-    expect(parsed).toMatchObject({
-      repositories: [
-        { state: "found", journal: { state: "read" } },
-        { state: "found", journal: { state: "read" } },
-      ],
-    });
-    expect(JSON.stringify(parsed).match(/"kind":"on-main"/g)).toHaveLength(clearedNodes);
-  });
+      expect(result.exitCode).toBe(0);
+      expect(observed.sync).toEqual([]);
+      expect(observed.spawned).toBeGreaterThan(clearedNodes);
+      expect(observed.most).toBeGreaterThan(1);
+      expect(observed.most).toBeLessThanOrEqual(GIT_CHILDREN_BOUND);
+      expect(observed.inFlight).toBe(0);
+      const parsed: unknown = JSON.parse(result.message);
+      expect(parsed).toMatchObject({
+        repositories: [
+          { state: "found", journal: { state: "read" } },
+          { state: "found", journal: { state: "read" } },
+        ],
+      });
+      expect(JSON.stringify(parsed).match(/"kind":"on-main"/g)).toHaveLength(clearedNodes);
+    },
+  );
 });

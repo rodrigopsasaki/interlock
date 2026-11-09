@@ -6,6 +6,7 @@ import { findInheritedSessionStart } from "runner";
 import { afterEach, describe, expect, it } from "vitest";
 import { fixtureGit, initFixtureRepository } from "../../../test/support/gitFixture.ts";
 import { runDebriefPrepare } from "../src/debrief/derived.ts";
+import { slowIntegration } from "./support/slowIntegration.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -137,74 +138,88 @@ function prepare(root: string): string {
 }
 
 describe("resumed debrief ranges", () => {
-  it("keeps the predecessor code and writes the runner provenance", async () => {
-    const source = fixture();
-    addBCode(source);
-    const runnerDecision = findInheritedSessionStart(
-      source.root,
-      [source.events[0]].filter((event): event is LedgerEvent => event !== undefined),
-      graph,
-      node,
-      source.graphBase,
-      source.aHead,
-      "runner-session-B",
-    );
-    expect(runnerDecision).toEqual({
-      kind: "inherited",
-      inheritedStartSha: source.aStart,
-      predecessorSession: "A",
-    });
-    const head = git(source.root, ["rev-parse", "HEAD"]);
-    const current = source.events.find(
-      (event): event is Extract<LedgerEvent, { readonly kind: "session-started" }> =>
-        event.kind === "session-started" && event.session.id === "B",
-    );
-    if (current === undefined) throw new Error("fixture did not append B session");
-    const inherited = findInheritedSessionStart(
-      source.root,
-      source.events,
-      graph,
-      node,
-      source.graphBase,
-      head,
-      "B",
-      current,
-    );
-    expect(inherited).toEqual({
-      kind: "inherited",
-      inheritedStartSha: source.aStart,
-      predecessorSession: "A",
-    });
-    const candidate = prepare(source.root);
-    const result = await runDebriefPrepare(
-      [graph, node, "--to", candidate, "--agent-runtime", "fixture", "--agent-model", "model"],
-      { cwd: source.root },
-    );
-    expect(result.exitCode, result.message).toBe(0);
-    expect(readFileSync(candidate, "utf-8")).toContain(`session_start_sha: ${source.aStart}`);
-  });
+  slowIntegration(
+    "keeps the predecessor code and writes the runner provenance",
+    {
+      budgetMs: 15_000,
+      reason: "integrates Git ancestry, historical session bytes and runner provenance trailers",
+    },
+    async () => {
+      const source = fixture();
+      addBCode(source);
+      const runnerDecision = findInheritedSessionStart(
+        source.root,
+        [source.events[0]].filter((event): event is LedgerEvent => event !== undefined),
+        graph,
+        node,
+        source.graphBase,
+        source.aHead,
+        "runner-session-B",
+      );
+      expect(runnerDecision).toEqual({
+        kind: "inherited",
+        inheritedStartSha: source.aStart,
+        predecessorSession: "A",
+      });
+      const head = git(source.root, ["rev-parse", "HEAD"]);
+      const current = source.events.find(
+        (event): event is Extract<LedgerEvent, { readonly kind: "session-started" }> =>
+          event.kind === "session-started" && event.session.id === "B",
+      );
+      if (current === undefined) throw new Error("fixture did not append B session");
+      const inherited = findInheritedSessionStart(
+        source.root,
+        source.events,
+        graph,
+        node,
+        source.graphBase,
+        head,
+        "B",
+        current,
+      );
+      expect(inherited).toEqual({
+        kind: "inherited",
+        inheritedStartSha: source.aStart,
+        predecessorSession: "A",
+      });
+      const candidate = prepare(source.root);
+      const result = await runDebriefPrepare(
+        [graph, node, "--to", candidate, "--agent-runtime", "fixture", "--agent-model", "model"],
+        { cwd: source.root },
+      );
+      expect(result.exitCode, result.message).toBe(0);
+      expect(readFileSync(candidate, "utf-8")).toContain(`session_start_sha: ${source.aStart}`);
+    },
+  );
 
-  it("carries the first start through a chain while both attempts stay open", async () => {
-    const source = fixture();
-    addBCode(source);
-    writeFileSync(
-      join(source.root, ".interlock", "sessions", graph, node, "brief.md"),
-      brief("C", source.graphBase),
-    );
-    const cStart = commit(source.root, "chore: write C brief");
-    writeFileSync(join(source.root, "c.ts"), "export const c = true;\n");
-    commit(source.root, "feat: C code\n\nAttempt: C");
-    source.events.push(started("C", source.graphBase, source.aStart, "B"));
-    writeJournal(source.root, source.events);
-    const candidate = prepare(source.root);
-    const result = await runDebriefPrepare(
-      [graph, node, "--to", candidate, "--agent-runtime", "fixture", "--agent-model", "model"],
-      { cwd: source.root },
-    );
-    expect(result.exitCode, result.message).toBe(0);
-    expect(readFileSync(candidate, "utf-8")).toContain(`session_start_sha: ${source.aStart}`);
-    expect(cStart).not.toBe(source.bStart);
-  });
+  slowIntegration(
+    "carries the first start through a chain while both attempts stay open",
+    {
+      budgetMs: 15_000,
+      reason: "integrates chained Git session ancestry and historical runner provenance bytes",
+    },
+    async () => {
+      const source = fixture();
+      addBCode(source);
+      writeFileSync(
+        join(source.root, ".interlock", "sessions", graph, node, "brief.md"),
+        brief("C", source.graphBase),
+      );
+      const cStart = commit(source.root, "chore: write C brief");
+      writeFileSync(join(source.root, "c.ts"), "export const c = true;\n");
+      commit(source.root, "feat: C code\n\nAttempt: C");
+      source.events.push(started("C", source.graphBase, source.aStart, "B"));
+      writeJournal(source.root, source.events);
+      const candidate = prepare(source.root);
+      const result = await runDebriefPrepare(
+        [graph, node, "--to", candidate, "--agent-runtime", "fixture", "--agent-model", "model"],
+        { cwd: source.root },
+      );
+      expect(result.exitCode, result.message).toBe(0);
+      expect(readFileSync(candidate, "utf-8")).toContain(`session_start_sha: ${source.aStart}`);
+      expect(cStart).not.toBe(source.bStart);
+    },
+  );
 
   it("keeps its own start when the predecessor has a debrief or outcome", async () => {
     const source = fixture(true);

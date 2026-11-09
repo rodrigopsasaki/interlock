@@ -109,6 +109,13 @@ function explainUntrackedContextScope(path: string): string {
   return `interlock plan: --context-scope path "${path}" is not an exact tracked path.`;
 }
 
+export function contextScopeForCorrection(
+  previous: readonly string[] | undefined,
+  replacement: readonly string[] | undefined,
+): readonly string[] | undefined {
+  return replacement ?? previous;
+}
+
 async function readIfExists(path: string): Promise<Result<string | undefined, string>> {
   try {
     return ok(await readFile(path, "utf-8"));
@@ -335,7 +342,10 @@ export async function runInterlockPlan(
             return err(explainBriefRefusal(previousBrief.error));
           }
         } else if (previousBrief.value.kind === "v1") {
-          selectedContextScope = previousBrief.value.frontMatter.contextScope;
+          selectedContextScope = contextScopeForCorrection(
+            previousBrief.value.frontMatter.contextScope,
+            selectedContextScope,
+          );
         }
       }
 

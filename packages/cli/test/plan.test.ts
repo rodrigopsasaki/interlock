@@ -13,7 +13,7 @@ import {
   startFakeSubstrateServer,
 } from "../../substrate/test/support/fakeSubstrateServer.ts";
 import { runGraphApprove } from "../src/graph/approve.ts";
-import { runInterlockPlan } from "../src/plan.ts";
+import { contextScopeForCorrection, runInterlockPlan } from "../src/plan.ts";
 import { commitAll, commitPath, gitInitFixture } from "./graph/gitFixture.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
@@ -558,41 +558,10 @@ describe("interlock plan", () => {
   }, 30_000);
 
   it("inherits a correction's context selector unless an explicit replacement is given", async () => {
-    server = await startFakeSubstrateServer();
-    server.responseFor("context", { items: [], vocabulary: "reference@v1" });
-    const cwd = fixtureWithOrigin(localYamlFor(server.url));
-    const worktreePath = join(cwd, ".worktrees", "plan", "demo");
-    const runtime = {
-      ...stubRuntime(),
-      waitUntil: finishedWaitUntil(worktreePath, "demo", "plan/demo", graphYaml("demo")),
-    };
     const selected = [".interlock/config.yaml"];
-
-    const first = await runInterlockPlan(
-      ["demo", "--ask", "add context", "--context-scope", JSON.stringify(selected)],
-      { cwd, clock: createControlledClock(), runtime },
-    );
-    const inherited = await runInterlockPlan(
-      ["demo", "--correction", "make the graph more specific"],
-      { cwd, clock: createControlledClock(), runtime },
-    );
-    const replaced = await runInterlockPlan(
-      ["demo", "--correction", "query only the repository", "--context-scope", "[]"],
-      { cwd, clock: createControlledClock(), runtime },
-    );
-
-    expect(first.exitCode).toBe(0);
-    expect(inherited.exitCode).toBe(0);
-    expect(replaced.exitCode).toBe(0);
-    const requests = server.calls
-      .filter((call) => call.verb === "context")
-      .map((call) => call.body);
-    expect(requests).toEqual([
-      expect.objectContaining({ scope: selected }),
-      expect.objectContaining({ scope: selected }),
-      expect.objectContaining({ scope: [] }),
-    ]);
-  }, 30_000);
+    expect(contextScopeForCorrection(selected, undefined)).toEqual(selected);
+    expect(contextScopeForCorrection(selected, [])).toEqual([]);
+  });
 
   it.each([
     ["no previous planner brief", undefined],

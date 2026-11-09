@@ -26,6 +26,7 @@ import { parse } from "yaml";
 import { fixtureGit, initFixtureRepository } from "../../../test/support/gitFixture.ts";
 import { runDebriefRevise } from "../src/debrief/revise.ts";
 import { runInterlockEvidence } from "../src/evidence.ts";
+import { slowIntegration } from "./support/slowIntegration.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -357,75 +358,82 @@ describe("interlock evidence", () => {
     expect(first).toEqual(second);
   });
 
-  it("reads the corrected handoff from replay after supported revision and rejudge", async () => {
-    const { dir, from, to } = fixtureRepo();
-    const session = join(dir, ".interlock", "sessions", node.graph, node.id);
-    mkdirSync(session, { recursive: true });
-    writeFileSync(join(session, "brief.md"), handoffBrief(from));
-    writeFileSync(
-      join(session, "debrief.yaml"),
-      handoffDebrief(from, to, "recorded src/widget.ts:1", "src/widget.ts:1-1"),
-    );
-    writeFileSync(join(session, "notes.yaml"), handoffNotes);
-    const candidate = join(session, "corrected.yaml");
-    writeFileSync(
-      candidate,
-      handoffDebrief(from, to, "recorded corrected src/widget.ts:2-3", "src/widget.ts:2-3"),
-    );
+  slowIntegration(
+    "reads the corrected handoff from replay after supported revision and rejudge",
+    {
+      budgetMs: 10_000,
+      reason: "integrates replayed ledger revisions, corrected handoff bytes and rejudging",
+    },
+    async () => {
+      const { dir, from, to } = fixtureRepo();
+      const session = join(dir, ".interlock", "sessions", node.graph, node.id);
+      mkdirSync(session, { recursive: true });
+      writeFileSync(join(session, "brief.md"), handoffBrief(from));
+      writeFileSync(
+        join(session, "debrief.yaml"),
+        handoffDebrief(from, to, "recorded src/widget.ts:1", "src/widget.ts:1-1"),
+      );
+      writeFileSync(join(session, "notes.yaml"), handoffNotes);
+      const candidate = join(session, "corrected.yaml");
+      writeFileSync(
+        candidate,
+        handoffDebrief(from, to, "recorded corrected src/widget.ts:2-3", "src/widget.ts:2-3"),
+      );
 
-    const ledger = await openLedger(dir);
-    ledger.append({
-      kind: "session-started",
-      session: { id: "s1", node, runtime: sessionRuntime.unknown() },
-      brief: { ...brief, gates: ["always-pass"] },
-    });
-    const judge = () =>
-      judgeGates({
-        ledger,
-        clock: createControlledClock(),
-        node,
-        session: "s1",
-        declaredGateIds: ["always-pass"],
-        commandFor: new Map([
-          ["always-pass", { kind: "command", run: `${process.execPath} -e process.exit(0)` }],
-        ]),
-        worktree: dir,
-        scopeRoot: dir,
-        scopePaths: ["src/widget.ts"],
-        commitSha: to,
-        runnerId: "runner-1",
-        holdMs: 60_000,
-        substrate: noneClient(),
-        narrate: () => {},
+      const ledger = await openLedger(dir);
+      ledger.append({
+        kind: "session-started",
+        session: { id: "s1", node, runtime: sessionRuntime.unknown() },
+        brief: { ...brief, gates: ["always-pass"] },
       });
+      const judge = () =>
+        judgeGates({
+          ledger,
+          clock: createControlledClock(),
+          node,
+          session: "s1",
+          declaredGateIds: ["always-pass"],
+          commandFor: new Map([
+            ["always-pass", { kind: "command", run: `${process.execPath} -e process.exit(0)` }],
+          ]),
+          worktree: dir,
+          scopeRoot: dir,
+          scopePaths: ["src/widget.ts"],
+          commitSha: to,
+          runnerId: "runner-1",
+          holdMs: 60_000,
+          substrate: noneClient(),
+          narrate: () => {},
+        });
 
-    const first = await judge();
-    if (isErr(first)) throw new Error("expected first judgment to clear");
-    const revised = await runDebriefRevise([node.graph, node.id, "--from", candidate], {
-      cwd: dir,
-    });
-    expect(revised.exitCode).toBe(0);
-    expect(revised.message).toContain("selected");
+      const first = await judge();
+      if (isErr(first)) throw new Error("expected first judgment to clear");
+      const revised = await runDebriefRevise([node.graph, node.id, "--from", candidate], {
+        cwd: dir,
+      });
+      expect(revised.exitCode).toBe(0);
+      expect(revised.message).toContain("selected");
 
-    const corrected = await judge();
-    if (isErr(corrected)) throw new Error("expected corrected judgment to clear");
-    const unchanged = await judge();
-    if (isErr(unchanged)) throw new Error("expected unchanged judgment to clear");
-    await ledger.close();
+      const corrected = await judge();
+      if (isErr(corrected)) throw new Error("expected corrected judgment to clear");
+      const unchanged = await judge();
+      if (isErr(unchanged)) throw new Error("expected unchanged judgment to clear");
+      await ledger.close();
 
-    const raw = unwrap(await readRawEvents(await sharedJournalDirectory(dir)));
-    const filings = raw.filter((event) => isDebriefFiledForSession(event, "s1"));
-    const notes = raw.filter((event) => event.kind === "note-appended" && event.session === "s1");
-    expect(filings).toHaveLength(2);
-    expect(notes).toHaveLength(1);
-    expect(filings[0]?.debrief.decisions[0]?.what).toBe("recorded src/widget.ts:1");
-    expect(filings[1]?.debrief.decisions[0]?.what).toBe("recorded corrected src/widget.ts:2-3");
+      const raw = unwrap(await readRawEvents(await sharedJournalDirectory(dir)));
+      const filings = raw.filter((event) => isDebriefFiledForSession(event, "s1"));
+      const notes = raw.filter((event) => event.kind === "note-appended" && event.session === "s1");
+      expect(filings).toHaveLength(2);
+      expect(notes).toHaveLength(1);
+      expect(filings[0]?.debrief.decisions[0]?.what).toBe("recorded src/widget.ts:1");
+      expect(filings[1]?.debrief.decisions[0]?.what).toBe("recorded corrected src/widget.ts:2-3");
 
-    const evidence = await runInterlockEvidence([node.graph, node.id], { cwd: dir });
-    expect(evidence.exitCode).toBe(0);
-    expect(evidence.message).toContain("recorded corrected src/widget.ts:2-3");
-    expect(evidence.message).not.toContain("statement: recorded src/widget.ts:1");
-  }, 20_000);
+      const evidence = await runInterlockEvidence([node.graph, node.id], { cwd: dir });
+      expect(evidence.exitCode).toBe(0);
+      expect(evidence.message).toContain("recorded corrected src/widget.ts:2-3");
+      expect(evidence.message).not.toContain("statement: recorded src/widget.ts:1");
+    },
+  );
 
   it("carries a person's waiver into evidence as a professed decision", async () => {
     const { dir, from, to } = fixtureRepo();
