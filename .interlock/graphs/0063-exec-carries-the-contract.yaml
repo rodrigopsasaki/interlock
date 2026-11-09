@@ -299,3 +299,29 @@ nodes:
         kind: command
         run: node scripts/gates/slow-tests.ts
         expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1.5 s'
+
+  - id: interlock-says-what-it-carries
+    role: implementer
+    depends_on: [exec-profiles-can-be-probed]
+    acceptance: |
+      `interlock capabilities --json` states, from the code that implements them, which exec-runtime features this
+      interlock carries, so a substrate's setup can check the installed interlock instead of trusting a list of graph
+      names. Found on 2026-11-09: the substrate's setup keeps an "interlock-0063" entry it can only remove by checking the
+      installed interlock, and interlock offers no way to ask; a strict loader proves new keys are understood, but an
+      older interlock would pass a literal "{writable_roots}" args element through unexpanded.
+      - the command prints `{"interlock":"capabilities@v0","capabilities":[...]}` with one stable id per feature this
+        graph landed: "exec.no-herdr", "exec.writable-roots-slot", "exec.mcp-exclusive",
+        "exec.environment-passthrough", "exec.headless-args-probe", "probe.real-checks"; plus "runtimes@v2" for the
+        catalogue shape. Each id is declared beside the code that implements it (one exported constant per feature,
+        collected by the command), so removing a feature's code removes its id; nothing is hand-listed in the command.
+      - the shape is published in schemas/capabilities@v0.json and docs/shapes.md; ids are additive, never renamed.
+      - it reads nothing of the machine: no catalogue, ledger, herdr or provider; it runs outside a repository.
+      Tests, packages/cli/test/capabilities.test.ts: the JSON validates against the schema and lists exactly the ids
+      above; it runs from a directory with no .interlock and from a temp HOME; each id's constant is imported from its
+      implementing module (asserted by import, so a feature moved or deleted fails the test); `interlock capabilities`
+      without --json prints the ids one per line.
+    gates:
+      - id: capabilities-tests
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/capabilities.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
