@@ -4,7 +4,7 @@ node: exec-profiles-can-be-probed
 role: implementer
 graph_base_sha: c5172aa5c39895e2b816757d377ae953ec63d45d
 session_start_sha: 3127f64640ff551b6f3cb965f60d12f4ceeb2f0f
-head_sha: e48faaf8f8a704518947302e5cb0a50738dcf106
+head_sha: c48f8825fe913c4f18e221938b199db39afcea00
 derivation:
   kind: agent
   runtime: codex
@@ -68,33 +68,54 @@ decisions:
       - packages/cli/src/runtime/probe.ts
       - packages/cli/src/runtime/list.ts
       - packages/cli/test/execProbe.test.ts
+  - id: prepared-contract-reaches-child
+    what: Matched the exec probe template against the unexpanded declared skeleton, then launched the fully prepared argv so expanded writable roots, exclusive MCP arguments, and forwarded names remain in the child contract while the headless prompt is replaced at its shifted position.
+    because: Root expansion can add arguments before the headless tail and MCP/forwarding preparation adds arguments after it; validation must stay declared while execution must preserve the complete preparation.
+    rests_on:
+      - "Acceptance (verbatim from the graph): the shared preparation ... reaches the probed process"
+    applies_to: { kind: path, path: packages/runner/src/runtimeProbe.ts }
+    hunks:
+      - packages/runner/src/runtimeProbe.ts
+      - packages/runner/test/execProbe.test.ts
+      - packages/cli/test/execProbe.test.ts
+  - id: release-on-throw-and-history-proof
+    what: Releases a lifecycle that was bound before a process runner throws, supplies effective forwarded values when only the runner environment defines them, and adds CLI proof that a thrown child releases its identity and removes the prepared probe worktree while a changed forwarded value makes runtime list historical without retaining the value.
+    because: The acceptance requires release and cleanup on every exit path and requires the earlier pass to become historical when effective forwarded state changes, with values never persisted.
+    rests_on:
+      - "Acceptance (verbatim from the graph): release runs when a check throws"
+      - "Acceptance (verbatim from the graph): changing a forwarded value makes the earlier pass historical"
+    applies_to: { kind: path, path: packages/cli/test/execProbe.test.ts }
+    hunks:
+      - packages/runner/src/runtimeProbe.ts
+      - packages/runner/test/execProbe.test.ts
+      - packages/cli/test/execProbe.test.ts
 gates_run_by_agent:
   - id: typecheck
     result: pass
     invocation: pnpm typecheck
-    note: All eight workspace TypeScript projects passed; output was retained in packages/runner/test/.runs/exec-profiles-standing-typecheck.txt.
+    note: All eight workspace TypeScript projects passed; output was retained in packages/runner/test/.runs/exec-profiles-followup-typecheck.txt.
   - id: lint
     result: pass
     invocation: pnpm lint
-    note: Biome exited 0; only pre-existing diagnostics in packages/runner/test/runnerCommits.test.ts were reported, and output was retained in packages/runner/test/.runs/exec-profiles-standing-lint.txt.
+    note: Biome exited 0; only pre-existing diagnostics in packages/runner/test/runnerCommits.test.ts were reported, and output was retained in packages/runner/test/.runs/exec-profiles-followup-lint.txt.
   - id: comments
     result: pass
     invocation: pnpm check:comments
-    note: No comments were reported in packages/*/src; output was retained in packages/runner/test/.runs/exec-profiles-standing-comments.txt.
+    note: No comments were reported in packages/*/src; output was retained in packages/runner/test/.runs/exec-profiles-followup-comments.txt.
   - id: test
     result: pass
     invocation: pnpm test
-    note: The full workspace suite completed with all package test files and tests passing; output was retained in packages/runner/test/.runs/exec-profiles-standing-test.txt.
+    note: "The final full workspace suite passed: ledger 175, debrief 98, verifier 62, substrate 91, face 186, runner 681, schemas 1387, and CLI 471 tests; output was retained in packages/runner/test/.runs/exec-profiles-followup-test-final.txt."
   - id: exec-probe-runner-tests
     result: pass
     invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/execProbe.test.ts --passWithNoTests=false
-    note: One runner test file passed all five tests; output was retained in packages/runner/test/.runs/exec-probe-runner-gate.txt.
+    note: One runner test file passed all seven tests; output was retained in packages/runner/test/.runs/exec-probe-runner-gate-followup.txt.
   - id: exec-probe-cli-tests
     result: pass
     invocation: pnpm --fail-if-no-match --filter cli exec vitest run test/execProbe.test.ts --passWithNoTests=false
-    note: One CLI test file passed both tests; output was retained in packages/cli/test/.runs/exec-probe-cli-gate.txt.
+    note: One CLI test file passed all three tests; output was retained in packages/cli/test/.runs/exec-probe-cli-gate-followup.txt.
   - id: debrief-valid
     result: pass
     invocation: pnpm interlock debrief validate 0063-exec-carries-the-contract exec-profiles-can-be-probed
-    note: The filed debrief and notes validated as debrief@v2 and notes@v0; output was retained in packages/runner/test/.runs/exec-profiles-debrief-valid.txt.
+    note: The revised debrief and notes validated as debrief@v2 and notes@v0; output was retained in packages/runner/test/.runs/exec-profiles-followup-debrief-valid.txt.
 open: []

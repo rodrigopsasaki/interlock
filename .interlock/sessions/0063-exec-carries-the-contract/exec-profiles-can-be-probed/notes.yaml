@@ -49,3 +49,7 @@ entries:
     at: "2026-11-09T20:38:00Z"
     expected: The first follow-up standing run would pass after the focused tests passed.
     observed: Typecheck rejected a bind promise callback that returned void, and lint found formatting in the new source and test; both were corrected before the final focused and standing checks passed.
+  - kind: choice
+    at: "2026-11-09T20:45:00Z"
+    chose: Refile a fresh debrief candidate carrying the original implementation manifest plus the follow-up proof decisions and final gate receipts, then revise the filed artifact from that candidate.
+    because: The debrief head_sha must name the new code commit while retaining the way back to both the original and corrected authored artifacts.
