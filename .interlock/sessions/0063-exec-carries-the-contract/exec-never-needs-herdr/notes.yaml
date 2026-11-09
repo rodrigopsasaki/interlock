@@ -61,3 +61,9 @@ entries:
     observed: >-
       Debrief preview rejected a mistyped full SHA for the code commit; the exact value is being
       used in a fresh candidate after this notes correction.
+  - kind: choice
+    at: '2026-11-09T12:50:00Z'
+    chose: Add a second CLI fixture for stdin-delivered exec phase prompts before filing the debrief.
+    because: >-
+      The graph acceptance covers both argv and stdin delivery forms; exercising stdin in the same
+      herdr-free fixture makes the phase contract proof cover both forms before handoff.

@@ -104,6 +104,20 @@ function execCatalogue(program: string, script: string): string {
   ].join("\n");
 }
 
+function stdinExecCatalogue(program: string, script: string): string {
+  return [
+    "interlock: runtimes@v2",
+    "runtimes:",
+    "  fixture:",
+    "    kind: exec",
+    "    commits: agent",
+    `    args: [${JSON.stringify(program)}, ${JSON.stringify(script)}]`,
+    "    model: fixture",
+    "    prompt: stdin",
+    "",
+  ].join("\n");
+}
+
 it("runs both exec phases without herdr and gives each phase its own argv prompt", async () => {
   const cwd = fixture();
   const script = join(cwd, "record-prompts.mjs");
@@ -134,6 +148,41 @@ it("runs both exec phases without herdr and gives each phase its own argv prompt
     .map((line) => JSON.parse(line));
   expect(prompts).toHaveLength(2);
   expect(prompts[0]).not.toBe(prompts[1]);
+  expect(prompts[0]).toContain("fixture exec node");
+  expect(prompts[1]).toContain("File your debrief");
+}, 30_000);
+
+it("runs both exec phases with their own stdin prompt", async () => {
+  const cwd = fixture();
+  const script = join(cwd, "record-stdin.mjs");
+  const record = join(runsRoot, `stdin-prompts-${process.pid}.txt`);
+  promptRecordPath = record;
+  writeFileSync(
+    script,
+    [
+      'import { appendFileSync } from "node:fs";',
+      'let prompt = "";',
+      'process.stdin.setEncoding("utf8");',
+      'process.stdin.on("data", (chunk) => { prompt += chunk; });',
+      'process.stdin.on("end", () => appendFileSync(process.env.INTERLOCK_EXEC_PROMPTS, JSON.stringify(prompt) + "\\n"));',
+      "",
+    ].join("\n"),
+  );
+  const catalogue = join(cwd, "runtimes.yaml");
+  writeFileSync(catalogue, stdinExecCatalogue(process.execPath, script));
+  commitAll(cwd, "add stdin exec fixture");
+  process.env["INTERLOCK_RUNTIMES"] = catalogue;
+  process.env["INTERLOCK_EXEC_PROMPTS"] = record;
+  await runGraphApprove(["demo", "--by", "Rodrigo Sasaki", "--because", "fixture"], { cwd });
+
+  const result = await runInterlockRun(["demo", "a", "--runtime", "fixture"], { cwd });
+
+  expect(result.exitCode).toBe(0);
+  const prompts = readFileSync(record, "utf8")
+    .trimEnd()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  expect(prompts).toHaveLength(2);
   expect(prompts[0]).toContain("fixture exec node");
   expect(prompts[1]).toContain("File your debrief");
 }, 30_000);
