@@ -1,0 +1,51 @@
+interlock: notes@v0
+node: tests-stand-alone
+entries:
+  - kind: choice
+    at: "2026-11-09T18:52:05Z"
+    chose: Keep the production gate path unchanged by making the command runner and output-storage directory optional request seams with today's implementations as defaults.
+    because: The acceptance requires the receipt test to fake only execution and isolate output storage while preserving proof construction, hashing, command identity, deduplication, and gate selection.
+  - kind: choice
+    at: "2026-11-09T18:52:05Z"
+    chose: Build the marker boundary from the actual serialized unmarked and marked argv lines using a short system-temporary fixture root.
+    because: The byte cliff must be independent of the checkout path while proving both UTF-8 byte counts and the separate JavaScript-character boundary.
+  - kind: choice
+    at: "2026-11-09T18:52:05Z"
+    chose: Remove the receipt test's Git fixture and use a temporary output-storage directory supplied to the real gate-output retention path.
+    because: The test is about receipt identity and should not spend time on repository initialization or resolve the checkout's Git metadata.
+  - kind: surprise
+    at: "2026-11-09T19:00:00Z"
+    expected: The first standing lint run would expose only the repository's existing runner test diagnostics.
+    observed: It also found import ordering and formatting in the rewritten receipt test; after fixing those two diagnostics, the lint gate exited zero.
+  - kind: choice
+    at: "2026-11-09T19:00:00Z"
+    chose: Keep the existing runner test diagnostics unchanged and correct only the new receipt-test import order and formatting.
+    because: The node scope does not include unrelated test cleanup, and the focused change must leave the shared repository's existing warnings intact while satisfying the lint gate.
+  - kind: surprise
+    at: "2026-11-09T19:05:00Z"
+    expected: The third serial full-suite run would pass like the first two runs on head 9ea9699.
+    observed: The existing gateJudge.test.ts receipt-idempotence case timed out at Vitest's 5 s default; the new marker and receipt files still passed, and no production timeout was changed.
+  - kind: choice
+    at: "2026-11-09T19:09:55Z"
+    chose: Retain the final focused and standing gate outputs under packages/runner/test/.runs and tie their observations to code head 9ea96999dffb86e4624f0817b7f75db8e6a190d7.
+    because: The debrief must hand the runner durable evidence with exit status, totals, and a path back to every check rather than compressing proof into an assertion.
+  - kind: choice
+    at: "2026-11-09T19:09:55Z"
+    chose: Use full-suite runs 4, 5, and 6 as the required consecutive evidence sequence.
+    because: Runs 4 through 6 each passed all workspace suites after the one observed existing gateJudge timeout, without changing production timeouts or weakening a test.
+    evidence:
+      head_sha: 9ea96999dffb86e4624f0817b7f75db8e6a190d7
+      runs:
+        - path: packages/runner/test/.runs/tests-stand-alone-test-4.txt
+          exit_status: 0
+          totals: ledger 175, debrief 98, verifier 62, substrate 91, face 186, runner 674, schemas 1379, cli 468
+        - path: packages/runner/test/.runs/tests-stand-alone-test-5.txt
+          exit_status: 0
+          totals: ledger 175, debrief 98, verifier 62, substrate 91, face 186, runner 674, schemas 1379, cli 468
+        - path: packages/runner/test/.runs/tests-stand-alone-test-6.txt
+          exit_status: 0
+          totals: ledger 175, debrief 98, verifier 62, substrate 91, face 186, runner 674, schemas 1379, cli 468
+  - kind: choice
+    at: "2026-11-09T19:13:02Z"
+    chose: Revise the filed debrief through the authored candidate to add the debrief-valid receipt, then validate the revised canonical debrief again.
+    because: The validation gate ran after the first filing; retaining its successful receipt in the authored report keeps the final gate inventory complete and preserves the prior canonical debrief as a revision.

@@ -46,7 +46,12 @@ export {
   gateCommandTable,
   substituteGateCommand,
 } from "./gateCommand.ts";
-export type { GateJudgeRefusal, GateJudgeRequest } from "./gateJudge.ts";
+export type {
+  GateCommandResult,
+  GateCommandRunner,
+  GateJudgeRefusal,
+  GateJudgeRequest,
+} from "./gateJudge.ts";
 export {
   explainGateJudgeRefusal,
   GATE_DERIVATION_VERSION,

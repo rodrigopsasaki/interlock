@@ -62,6 +62,7 @@ import {
   explainGateOutputRefusal,
   type GateOutputRefusal,
   retainGateOutput,
+  storeGateOutput,
 } from "./gateOutput.ts";
 import { checkNodeEngine } from "./nodeEngine.ts";
 import { spawnOwned } from "./ownedCommand.ts";
@@ -106,10 +107,25 @@ export interface GateJudgeRequest {
   readonly personEvents?: readonly LedgerEvent[];
   readonly env?: NodeJS.ProcessEnv;
   readonly heavy?: readonly string[];
+  readonly commandRunner?: GateCommandRunner;
+  readonly outputDirectory?: string;
   readonly narrate: (line: string) => void;
   readonly authoritativeGraphPath: string;
   readonly parsedGraphHash: string;
 }
+
+export interface GateCommandResult {
+  readonly exitCode: number;
+  readonly output: string;
+  readonly stdout: Buffer;
+  readonly stderr: Buffer;
+}
+
+export type GateCommandRunner = (
+  argv: readonly string[],
+  cwd: string,
+  env: NodeJS.ProcessEnv,
+) => Promise<GateCommandResult>;
 
 type LegacyGateJudgeRequest = Omit<
   GateJudgeRequest,
@@ -128,23 +144,18 @@ function tokenize(command: string): readonly string[] {
 }
 
 function spawnGateCommand(
-  tokens: readonly string[],
+  argv: readonly string[],
   cwd: string,
   env: NodeJS.ProcessEnv,
-): Promise<{
-  readonly exitCode: number;
-  readonly output: string;
-  readonly stdout: Buffer;
-  readonly stderr: Buffer;
-}> {
+): Promise<GateCommandResult> {
   return new Promise((resolve) => {
-    const bin = tokens[0];
+    const bin = argv[0];
     if (bin === undefined) {
       const output = "no command configured for this gate";
       resolve({ exitCode: -1, output, stdout: Buffer.alloc(0), stderr: Buffer.from(output) });
       return;
     }
-    const child = spawnOwned([bin, ...tokens.slice(1)], cwd, env, false);
+    const child = spawnOwned(argv, cwd, env, false);
     let output = "";
     const stdout: Buffer[] = [];
     const stderr: Buffer[] = [];
@@ -331,6 +342,8 @@ export async function judgeGates(
     personEvents = [],
     env = process.env,
     heavy = [],
+    commandRunner = spawnGateCommand,
+    outputDirectory,
     narrate,
   } = request;
   const authoritativeGraphPath =
@@ -400,7 +413,7 @@ export async function judgeGates(
     }
 
     const before = clock.now().monoMs;
-    const { exitCode, output, stdout, stderr } = await spawnGateCommand(
+    const { exitCode, output, stdout, stderr } = await commandRunner(
       [...heavy, "mise", "exec", "--", ...tokenize(substituted.value)],
       worktree,
       env,
@@ -420,7 +433,10 @@ export async function judgeGates(
             pattern: pattern.source,
           };
 
-    const retained = await retainGateOutput(worktree, stdout, stderr);
+    const retained =
+      outputDirectory === undefined
+        ? await retainGateOutput(worktree, stdout, stderr)
+        : await storeGateOutput(outputDirectory, stdout, stderr);
     if (isErr(retained)) {
       const stale = await invalidateStaleDelegated(
         ledger,
