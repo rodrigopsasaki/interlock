@@ -308,6 +308,7 @@ export async function reconcileMachineOnStart(
   clock: Clock,
   narrate: (line: string) => void,
   runtime?: Runtime,
+  recover = true,
 ): Promise<Result<void, string>> {
   const needed = [...ledger.projection().outbox.values()].some((view) => {
     if (
@@ -334,6 +335,10 @@ export async function reconcileMachineOnStart(
       : !acknowledged(ledger, idFor("agent", hold));
   });
   if (!needed) return ok(undefined);
+  if (!recover) {
+    narrate("machine recovery unresolved: pending pane-era intents remain recorded");
+    return ok(undefined);
+  }
   const created = runtime === undefined ? await createHerdrLaunchRuntime() : ok(runtime);
   if (isErr(created)) {
     const message = `machine holds kept: ${explainRuntimeRefusal(created.error)}`;

@@ -1,0 +1,111 @@
+interlock: debrief@v2
+graph: 0063-exec-carries-the-contract
+node: exec-never-needs-herdr
+role: implementer
+graph_base_sha: 9055c07668165ab5dd55e54360e9edd1c2710b88
+session_start_sha: 475056873e6a7a597514f9b6a4a20c502f837edb
+head_sha: 9fcefbacdd42552495129b497463d8dd9d5fc3ab
+derivation:
+  kind: agent
+  runtime: codex
+  model: GPT-5
+discoveries: []
+decisions:
+  - id: runtime-branch-before-herdr
+    what: >-
+      Resolve the runtime branch before herdr preflight: exec sessions skip herdr creation and
+      server checks, while pane sessions retain the early preflight refusal and pane recovery.
+    because: >-
+      Exec profiles must run without herdr, while pane launches must preserve today's not-ready
+      message and machine custody. The session driver is the shared seam where the runtime-specific
+      behavior can be separated before either launch path performs its effects.
+    applies_to: { kind: path, path: packages/runner/src/sessionDrive.ts }
+    rests_on:
+      - packages/runner/src/sessionDrive.ts:299-318
+      - packages/runner/src/sessionDrive.ts:772-788
+    hunks:
+      - packages/runner/src/sessionDrive.ts:299-318
+      - packages/runner/src/sessionDrive.ts:772-788
+  - id: exec-recovery-stays-unresolved
+    what: >-
+      Select the resolved runtime before run-start machine recovery and disable recovery for exec,
+      narrating pending pane-era intents as unresolved while retaining their outbox records.
+    because: >-
+      An exec launch has no herdr runtime with which to reconcile a pane-era effect, so it must not
+      resolve, drop or guess delivery. Pane launches remain the only path that recovers those intents.
+    applies_to: { kind: path, path: packages/cli/src/run.ts }
+    rests_on:
+      - packages/cli/src/run.ts:171-190
+      - packages/runner/src/machineOutbox.ts:306-348
+      - packages/cli/test/execWithoutHerdr.test.ts:335-387
+    hunks:
+      - packages/cli/src/run.ts:171-190
+      - packages/runner/src/machineOutbox.ts:306-348
+      - packages/cli/test/execWithoutHerdr.test.ts:335-387
+  - id: phase-prompt-boundary
+    what: >-
+      Build every exec phase request from its own prompt, replacing the opening prompt in the argv
+      copy and passing the same phase prompt separately for stdin delivery.
+    because: >-
+      Work and debrief are distinct contract phases. Reusing the opening argv would deliver the
+      work prompt to debrief, while stdin delivery depends on the request's phase prompt.
+    applies_to: { kind: path, path: packages/runner/src/sessionDrive.ts }
+    rests_on:
+      - packages/runner/src/sessionDrive.ts:529-647
+      - packages/cli/test/execWithoutHerdr.test.ts:262-333
+      - packages/runner/test/execWithoutHerdr.test.ts:125-132
+    hunks:
+      - packages/runner/src/sessionDrive.ts:529-647
+      - packages/cli/test/execWithoutHerdr.test.ts:262-333
+      - packages/runner/test/execWithoutHerdr.test.ts:125-132
+  - id: acceptance-fixtures-own-the-proof
+    what: >-
+      Keep the complete herdr-free acceptance proof in the node's CLI and runner test files: PATH
+      and temporary HOME assertions, pending-intent preservation, running-session listing, held
+      session judgement, pane refusal, injected-runtime non-use, and done zero phase records.
+    because: >-
+      The graph names these cases as this node's acceptance, so a broader fixture suite cannot stand
+      in for direct proof. The CLI tests exercise the command boundaries and the runner test exercises
+      direct session driving under the same isolated runtime conditions.
+    applies_to: { kind: path, path: packages/cli/test/execWithoutHerdr.test.ts }
+    rests_on:
+      - packages/cli/test/execWithoutHerdr.test.ts:190-249
+      - packages/cli/test/execWithoutHerdr.test.ts:335-524
+      - packages/runner/test/execWithoutHerdr.test.ts:70-185
+    hunks:
+      - packages/cli/test/execWithoutHerdr.test.ts:190-249
+      - packages/cli/test/execWithoutHerdr.test.ts:335-524
+      - packages/runner/test/execWithoutHerdr.test.ts:70-185
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: Node v24.14.0 and pnpm v10.13.1 were first on PATH; all workspace typechecks passed.
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: Biome exited 0; only pre-existing runnerCommits.test.ts findings remained.
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+    note: packages/*/src reported no comments.
+  - id: test
+    result: pass
+    invocation: pnpm test
+    note: >-
+      The full workspace suite passed: runner 61 files/664 tests, schemas 23 files/1367 tests,
+      CLI 51 files/468 tests, and the other workspace packages passed; existing Git maintenance
+      diagnostics were non-failing.
+  - id: debrief-valid
+    result: pass
+    invocation: pnpm interlock debrief validate 0063-exec-carries-the-contract exec-never-needs-herdr
+    note: The filed canonical debrief validates before the final artifact commit.
+  - id: exec-herdr-runner-tests
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/execWithoutHerdr.test.ts --passWithNoTests=false
+    note: Focused runner file passed 2 tests.
+  - id: exec-herdr-cli-tests
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter cli exec vitest run test/execWithoutHerdr.test.ts --passWithNoTests=false
+    note: Focused CLI file passed 7 tests, including all five requested acceptance cases.
+open: []
