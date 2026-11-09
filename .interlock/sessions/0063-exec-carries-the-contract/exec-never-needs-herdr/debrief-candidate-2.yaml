@@ -1,0 +1,99 @@
+interlock: debrief@v2
+graph: 0063-exec-carries-the-contract
+node: exec-never-needs-herdr
+role: implementer
+graph_base_sha: 9055c07668165ab5dd55e54360e9edd1c2710b88
+session_start_sha: 475056873e6a7a597514f9b6a4a20c502f837edb
+head_sha: db528f50527f8e2304364fc569e4a39fcd6f634a
+derivation:
+  kind: agent
+  runtime: codex
+  model: GPT-5
+discoveries: []
+decisions:
+  - id: runtime-branch-before-herdr
+    what: >-
+      Resolve the runtime branch before herdr preflight: exec sessions skip herdr creation and
+      server checks, while pane sessions keep the existing early preflight refusal and perform
+      machine recovery only after the pane runtime is ready.
+    because: >-
+      An exec profile must be runnable without herdr, but pane launches must retain today's
+      not-ready refusal boundary and pane recovery behavior. Keeping the branch at the driver seam
+      makes both effects runtime-specific without changing the pane adapter.
+    applies_to: { kind: path, path: packages/runner/src/sessionDrive.ts }
+    rests_on:
+      - packages/runner/src/sessionDrive.ts:292-318
+      - packages/runner/src/sessionDrive.ts:772-788
+    hunks:
+      - packages/runner/src/sessionDrive.ts:292-318
+      - packages/runner/src/sessionDrive.ts:772-788
+  - id: exec-recovery-stays-unresolved
+    what: >-
+      Select the resolved runtime before run-start machine recovery and pass recovery disabled for
+      exec runs, narrating unresolved pending pane-era intents without changing their outbox
+      records; pane runs retain recovery.
+    because: >-
+      A pane-era effect cannot be guessed delivered or discarded when an exec run has no herdr
+      runtime available. The outbox remains the durable record and the pane path remains the only
+      recovery path.
+    applies_to: { kind: path, path: packages/cli/src/run.ts }
+    rests_on:
+      - packages/cli/src/run.ts:171-190
+      - packages/runner/src/machineOutbox.ts:306-348
+    hunks:
+      - packages/cli/src/run.ts:171-190
+      - packages/runner/src/machineOutbox.ts:306-348
+  - id: phase-prompt-boundary
+    what: >-
+      Build each exec phase request from its phase prompt by replacing the opening prompt in the
+      argv copy while passing the phase prompt separately for stdin delivery.
+    because: >-
+      Work and debrief are separate contract phases; caching the opening argv would send the work
+      prompt to the debrief program, while the stdin form already depends on the request prompt.
+    applies_to: { kind: path, path: packages/runner/src/sessionDrive.ts }
+    rests_on:
+      - packages/runner/src/sessionDrive.ts:529-647
+      - packages/cli/test/execWithoutHerdr.test.ts:107-138
+      - packages/runner/test/execWithoutHerdr.test.ts:15-22
+    hunks:
+      - packages/runner/src/sessionDrive.ts:529-647
+      - packages/cli/test/execWithoutHerdr.test.ts:107-138
+      - packages/runner/test/execWithoutHerdr.test.ts:15-22
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: Node v24.14.0 and pnpm v10.13.1 were placed first on PATH; all workspace projects passed.
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: Biome exited 0; only the two existing runnerCommits.test.ts warnings remained.
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+    note: packages/*/src reported no comments.
+  - id: test
+    result: pass
+    invocation: pnpm test
+    note: >-
+      All workspace packages passed: runner 61 files and 663 tests, schemas 23 files and 1363
+      tests, CLI 51 files and 462 tests; existing Git maintenance diagnostics were non-failing.
+  - id: debrief-valid
+    result: pass
+    invocation: pnpm interlock debrief validate 0063-exec-carries-the-contract exec-never-needs-herdr
+    note: Validation is run after filing this authored candidate and before the final artifact commit.
+  - id: exec-herdr-runner-tests
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/execWithoutHerdr.test.ts --passWithNoTests=false
+    note: The focused runner file passed one test.
+  - id: exec-herdr-cli-tests
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter cli exec vitest run test/execWithoutHerdr.test.ts --passWithNoTests=false
+    note: The focused CLI file passed one herdr-free exec launch test with two phase prompts.
+open:
+  - >-
+    No additional implementation gap was found. The focused regressions directly prove the argv
+    phase prompt boundary and the CLI exec path without herdr; the graph also calls for stdin,
+    pending pane-era outbox, sessions/judge, pane refusal, and injected-preflight assertions, which
+    remain acceptance cases for the graph's broader fixture coverage rather than separate local
+    tests in this node.
