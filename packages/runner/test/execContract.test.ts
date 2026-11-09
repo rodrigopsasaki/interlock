@@ -1,4 +1,5 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { isErr, isOk } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
@@ -85,19 +86,17 @@ describe("exec launch contract", () => {
     { allow: ["two"], expected: ["--disable-all", "--allow", "two"] },
   ])("expands exclusive MCP policy for $allow", async ({ allow, expected }) => {
     const runtime = await loaded([
-      "    mcp_servers: [one, two]",
+      "    mcp_servers: [one, two, ambient]",
       `    mcp_allow: [${allow.join(", ")}]`,
       "    mcp_exclusive:",
       "      disable_all: [--disable-all]",
       '      allow_each: ["--allow", "{name}"]',
     ]);
-    expect(execRuntimeArgv(runtime, "prompt")).toEqual([
-      "fixture-agent",
-      "--prompt",
-      "prompt",
-      ...expected,
-    ]);
-    expect(execRuntimeArgv(runtime, "prompt")).not.toContain("ambient");
+    const argv = execRuntimeArgv(runtime, "prompt");
+    expect(argv).toEqual(["fixture-agent", "--prompt", "prompt", ...expected]);
+    expect(argv.filter((argument) => argument === "--disable-all")).toHaveLength(1);
+    expect(argv).not.toContain("ambient");
+    for (const server of allow) expect(argv).toContain(server);
   });
 
   it("forwards names without copying values or inventing unset variables", async () => {
@@ -136,6 +135,71 @@ describe("exec launch contract", () => {
         "--forward",
         "KEEP_NAME",
       ]);
+    }
+  });
+
+  it("forwards a listed variable to a shell while excluding an unlisted variable", async () => {
+    const visibleName = "EXEC_CONTRACT_VISIBLE";
+    const unlistedName = "EXEC_CONTRACT_UNLISTED";
+    const previousVisible = process.env[visibleName];
+    const previousUnlisted = process.env[unlistedName];
+    process.env[visibleName] = "visible-value";
+    process.env[unlistedName] = "hidden-value";
+    try {
+      const loadedRuntime = await loaded([
+        `    environment_passthrough: [${visibleName}]`,
+        '    environment_forward_args: ["--forward", "{name}"]',
+      ]);
+      const testDirectory = directory;
+      if (testDirectory === undefined) throw new Error("fixture directory was not created");
+      const fixturePath = join(testDirectory, "filtered-shell.mjs");
+      const outputPath = join(testDirectory, "filtered-shell-output.json");
+      writeFileSync(
+        fixturePath,
+        [
+          'import { spawn } from "node:child_process";',
+          'import { writeFileSync } from "node:fs";',
+          "const outputPath = process.argv[2];",
+          'const forwarded = new Set(process.argv.flatMap((argument, index, args) => argument === "--forward" && args[index + 1] !== undefined ? [args[index + 1]] : []));',
+          "const environment = Object.fromEntries([...forwarded].flatMap((name) => { const value = process.env[name]; return value === undefined ? [] : [[name, value]]; }));",
+          'const child = spawn("/bin/sh", ["-c", "env"], { env: environment });',
+          'let output = "";',
+          'child.stdout.on("data", (chunk) => { output += chunk; });',
+          'child.on("close", (code) => { writeFileSync(outputPath, JSON.stringify({ code, output })); process.exit(code ?? 1); });',
+        ].join("\n"),
+      );
+      const runtime: ResolvedRuntime = {
+        ...loadedRuntime,
+        args: [process.execPath, fixturePath, outputPath, "{prompt}"],
+      };
+      const launch = prepareLaunch(
+        runtime,
+        testDirectory,
+        {},
+        {
+          prompt: "prompt",
+          forwardEnvironment: process.env,
+        },
+      );
+      expect(isOk(launch)).toBe(true);
+      if (!isOk(launch)) return;
+      const child = spawn(launch.value.program, launch.value.args, {
+        cwd: testDirectory,
+        env: { ...process.env, ...launch.value.environment },
+      });
+      const exitCode = await new Promise<number>((resolve, reject) => {
+        child.on("error", reject);
+        child.on("close", (code) => resolve(code ?? 1));
+      });
+      expect(exitCode).toBe(0);
+      const shellResult = readFileSync(outputPath, "utf8");
+      expect(shellResult).toContain(`${visibleName}=visible-value`);
+      expect(shellResult).not.toContain(unlistedName);
+    } finally {
+      if (previousVisible === undefined) delete process.env[visibleName];
+      else process.env[visibleName] = previousVisible;
+      if (previousUnlisted === undefined) delete process.env[unlistedName];
+      else process.env[unlistedName] = previousUnlisted;
     }
   });
 

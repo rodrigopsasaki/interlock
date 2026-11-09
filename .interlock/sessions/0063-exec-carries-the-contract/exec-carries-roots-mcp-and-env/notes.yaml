@@ -39,3 +39,23 @@ entries:
     observed: >-
       The YAML fixture parser rejected the generated compact mapping around the prompt placeholder;
       the fixture now uses a block argv list and the focused suite passes all 9 tests.
+  - kind: choice
+    at: '2026-11-09T16:51:26Z'
+    chose: >-
+      Add explicit contract proofs for ambient MCP exclusion, shell-visible environment forwarding,
+      and runtimes@v2 schema compatibility and refusals.
+    because: >-
+      The acceptance requires these behaviors to be independently observable in fixtures, not only
+      inferred from argv expansion or loader tests.
+  - kind: choice
+    at: '2026-11-09T16:51:26Z'
+    chose: Remove the earlier debrief candidate in a forward commit before refiling a fresh candidate.
+    because: >-
+      The requested debrief must describe the new code head, while the stale authored candidate is
+      no longer the source for that filing.
+  - kind: surprise
+    at: '2026-11-09T16:52:53Z'
+    expected: The focused gate wrapper would preserve the test command's exit code.
+    observed: >-
+      zsh rejected the temporary variable name "status" as read-only after the test itself passed;
+      the rerun uses a different variable name.
