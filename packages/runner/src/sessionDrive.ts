@@ -296,40 +296,27 @@ export async function driveInteractiveSession(
         return { exitCode: 1, message: checked.error };
       }
     }
-
-    const createdRuntime =
-      injectedRuntime === undefined ? await createHerdrLaunchRuntime() : ok(injectedRuntime);
-    if (isErr(createdRuntime)) {
-      const message =
-        createdRuntime.error.kind === "not-ready"
-          ? explainRuntimeRefusal(createdRuntime.error)
-          : `runtime preflight refused: ${explainRuntimeRefusal(createdRuntime.error)}`;
-      narrate(message);
-      return { exitCode: 1, message };
-    }
-    runtime = createdRuntime.value;
-    if (runtime.checkServer !== undefined) {
-      const checked = await runtime.checkServer();
-      if (isErr(checked)) {
-        const message = explainRuntimeRefusal(checked.error);
+    if (agentRuntime.kind !== "exec") {
+      const createdRuntime =
+        injectedRuntime === undefined ? await createHerdrLaunchRuntime() : ok(injectedRuntime);
+      if (isErr(createdRuntime)) {
+        const message =
+          createdRuntime.error.kind === "not-ready"
+            ? explainRuntimeRefusal(createdRuntime.error)
+            : `runtime preflight refused: ${explainRuntimeRefusal(createdRuntime.error)}`;
         narrate(message);
         return { exitCode: 1, message };
       }
+      runtime = createdRuntime.value;
+      if (runtime.checkServer !== undefined) {
+        const checked = await runtime.checkServer();
+        if (isErr(checked)) {
+          const message = explainRuntimeRefusal(checked.error);
+          narrate(message);
+          return { exitCode: 1, message };
+        }
+      }
     }
-
-    if (
-      machine.value.provider !== "none" &&
-      needsPaneEnvironment(agentRuntime.kind) &&
-      runtime.paneEnvironment !== true
-    ) {
-      const message =
-        "machine.provider.env cannot reach this agent: runtime offers no pane environment";
-      narrate(message);
-      return { exitCode: 1, message };
-    }
-    const recovered = await reconcileMachine(ledger, runtime, narrate, clock);
-    if (isErr(recovered)) return { exitCode: 1, message: recovered.error };
-
     const main = mainBranchOf(repoRoot);
     if (isErr(main)) {
       const message = explainWorktreeRefusal(main.error);
@@ -549,13 +536,13 @@ export async function driveInteractiveSession(
         shape?.entry.prompt,
         agentRuntime.commits,
       );
-      const argv = execRuntimeArgv(agentRuntime, openingPrompt);
-      const program = argv[0];
+      const openingArgv = execRuntimeArgv(agentRuntime, openingPrompt);
+      const program = openingArgv[0];
       if (program === undefined) {
         lease.stop();
         return refuse(abandon("runtime"), "exec runtime has no program argument");
       }
-      let phaseArgs: readonly string[] = argv.slice(1);
+      let phaseArgs: readonly string[] = openingArgv.slice(1);
       let phaseEnvironment: Readonly<Record<string, string>> = agentEnvironment;
       if (basename(program) === "codex") {
         const journalDirectory = await sharedJournalDirectory(repoRoot);
@@ -650,7 +637,7 @@ export async function driveInteractiveSession(
           runtime: agentRuntime.name,
           model: agentRuntime.model ?? "undeclared",
           program,
-          args: phaseArgs,
+          args: phaseArgs.map((part) => (part === openingPrompt ? prompt : part)),
           prompt,
           promptOnStdin: agentRuntime.prompt === "stdin",
           cwd: worktreePath,
@@ -781,6 +768,24 @@ export async function driveInteractiveSession(
         message: `${node}: ${judged.value.kind} (session ${sessionId}, exec phases work/debrief).`,
       };
     }
+
+    if (runtime === undefined) {
+      lease.stop();
+      return refuse(abandon("runtime"), "pane runtime was not prepared");
+    }
+
+    if (
+      machine.value.provider !== "none" &&
+      needsPaneEnvironment(agentRuntime.kind) &&
+      runtime.paneEnvironment !== true
+    ) {
+      const message =
+        "machine.provider.env cannot reach this agent: runtime offers no pane environment";
+      narrate(message);
+      return { exitCode: 1, message };
+    }
+    const recovered = await reconcileMachine(ledger, runtime, narrate, clock);
+    if (isErr(recovered)) return { exitCode: 1, message: recovered.error };
 
     const journalPath =
       agentRuntime.kind === "codex"
