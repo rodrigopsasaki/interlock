@@ -10,6 +10,7 @@
     },
     "runtimes": {
       "type": "object",
+      "description": "Each entry accepts optional writable_root_args, mcp_exclusive, environment_passthrough and environment_forward_args fields for exec preparation.",
       "propertyNames": {
         "pattern": "^[a-z][a-z0-9_-]{0,31}$"
       },
@@ -181,6 +182,10 @@
         ],
         "additionalProperties": true,
         "not": {
+          "properties": {
+            "mcp_exclusive": {},
+            "mcp_disable_args": {}
+          },
           "required": [
             "mcp_exclusive",
             "mcp_disable_args"
