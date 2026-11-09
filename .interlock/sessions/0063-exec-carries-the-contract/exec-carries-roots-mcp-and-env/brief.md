@@ -1285,7 +1285,7 @@ walk:
   kind: none
   because: the substrate address is none, so there is nothing to ask
 graph_base_sha: 79ff0d5bb4e25b576844e42efcbc474caf8a389e
-session: c4ce3cf3-1268-488e-8030-81ac7eb3ca6e
+session: 1abcd30f-d69e-4eaf-8212-5b79ac350bfb
 ---
 
 # Brief · node `exec-carries-roots-mcp-and-env` · graph `0063-exec-carries-the-contract`
