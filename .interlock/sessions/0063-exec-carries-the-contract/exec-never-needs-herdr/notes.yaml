@@ -49,3 +49,9 @@ entries:
     observed: >-
       The full suite's refusalOutcomes regression showed that pane preflight must still refuse before
       worktree or ledger side effects; the fix keeps that early boundary for non-exec runtimes only.
+  - kind: choice
+    at: '2026-11-09T12:40:00Z'
+    chose: Author the first debrief candidate as an agent run using runtime codex and model GPT-5.
+    because: >-
+      This session is an implementer agent session, and the candidate derivation must identify the
+      runtime and model that produced its claims before the final debrief is filed.
