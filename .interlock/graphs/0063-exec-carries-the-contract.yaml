@@ -304,22 +304,33 @@ nodes:
     role: implementer
     depends_on: [exec-profiles-can-be-probed]
     acceptance: |
-      `interlock capabilities --json` states, from the code that implements them, which exec-runtime features this
-      interlock carries, so a substrate's setup can check the installed interlock instead of trusting a list of graph
-      names. Found on 2026-11-09: the substrate's setup keeps an "interlock-0063" entry it can only remove by checking the
-      installed interlock, and interlock offers no way to ask; a strict loader proves new keys are understood, but an
-      older interlock would pass a literal "{writable_roots}" args element through unexpanded.
-      - the command prints `{"interlock":"capabilities@v0","capabilities":[...]}` with one stable id per feature this
-        graph landed: "exec.no-herdr", "exec.writable-roots-slot", "exec.mcp-exclusive",
-        "exec.environment-passthrough", "exec.headless-args-probe", "probe.real-checks"; plus "runtimes@v2" for the
-        catalogue shape. Each id is declared beside the code that implements it (one exported constant per feature,
-        collected by the command), so removing a feature's code removes its id; nothing is hand-listed in the command.
-      - the shape is published in schemas/capabilities@v0.json and docs/shapes.md; ids are additive, never renamed.
-      - it reads nothing of the machine: no catalogue, ledger, herdr or provider; it runs outside a repository.
-      Tests, packages/cli/test/capabilities.test.ts: the JSON validates against the schema and lists exactly the ids
-      above; it runs from a directory with no .interlock and from a temp HOME; each id's constant is imported from its
-      implementing module (asserted by import, so a feature moved or deleted fails the test); `interlock capabilities`
-      without --json prints the ids one per line.
+      `interlock capabilities --json` states which selected, setup-facing exec-runtime contracts this interlock
+      implements, so a substrate's setup can check the installed interlock instead of trusting a list of graph names.
+      Found on 2026-11-09: the substrate's setup keeps a waiting entry for this graph that it may only drop by checking
+      the installed interlock, and interlock offers no way to ask; a strict loader proves new keys are understood, but an
+      older interlock would pass a literal "{writable_roots}" args element through unexpanded. A capability means the
+      binary implements the contract, not that this machine currently has access to anything.
+      - the command prints `{"interlock":"capabilities@v0","capabilities":[...]}` with these stable ids:
+        "exec.pane-independent" (an exec launch and its run-start recovery never need the pane runtime;
+        sessionDrive.ts:329, run.ts:183), "exec.writable-roots-slot" (runtimeCatalogue.ts:599),
+        "exec.mcp-exclusive" (:613), "exec.environment-passthrough" (:626), "exec.headless-args-probe" (:633 with
+        runtimeProbe.ts:202), "probe.real-checks" (runtimeProbe.ts:277 and the shipped check bodies), and "runtimes@v2"
+        (the catalogue formats this binary reads, from RUNTIME_CATALOGUE_SHAPE and the formats it still accepts,
+        runtimeCatalogue.ts:26, :476). These are a selection, not every change this graph made; ids are additive and
+        never renamed.
+      - each id is an exported constant declared beside its principal implementation and collected by the command, so
+        ownership is visible where the feature lives; the advertised contract itself stays proven by this graph's
+        behavioural tests, which this node does not replace. Nothing in the command is a hand-written list of strings.
+      - the shape is published as schemas/capabilities@v0.json following schemas/sessions@v0.json's metadata, with
+        `capabilities` an array of unique nonempty strings (no enum, so later additive ids validate), and docs/shapes.md
+        is regenerated, not hand-edited.
+      - dispatched like the other top-level commands (main.ts:93), returning a CommandResult; `--json` prints the
+        envelope, plain prints one id per line.
+      - it reads nothing of the machine: no catalogue, ledger, herdr, machine provider or repository.
+      Tests, packages/cli/test/capabilities.test.ts, through main.run(["capabilities","--json"]): the output validates
+      against the schema and lists exactly the ids above; it succeeds from a directory with no .interlock and a temp HOME,
+      and the catalogue, ledger, machine-provider and herdr entry points are not called (asserted with spies or
+      injected readers); the plain form prints the ids one per line; each id equals its exported constant.
     gates:
       - id: capabilities-tests
         kind: command
