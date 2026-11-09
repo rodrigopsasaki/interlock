@@ -13,3 +13,11 @@ entries:
     at: "2026-11-09T18:52:05Z"
     chose: Remove the receipt test's Git fixture and use a temporary output-storage directory supplied to the real gate-output retention path.
     because: The test is about receipt identity and should not spend time on repository initialization or resolve the checkout's Git metadata.
+  - kind: surprise
+    at: "2026-11-09T19:00:00Z"
+    expected: The first standing lint run would expose only the repository's existing runner test diagnostics.
+    observed: It also found import ordering and formatting in the rewritten receipt test; after fixing those two diagnostics, the lint gate exited zero.
+  - kind: choice
+    at: "2026-11-09T19:00:00Z"
+    chose: Keep the existing runner test diagnostics unchanged and correct only the new receipt-test import order and formatting.
+    because: The node scope does not include unrelated test cleanup, and the focused change must leave the shared repository's existing warnings intact while satisfying the lint gate.

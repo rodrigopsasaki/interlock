@@ -5,7 +5,7 @@ import { isErr } from "@phyxiusjs/fp";
 import { nodeKey } from "ledger";
 import { noneClient } from "substrate";
 import { afterEach, describe, expect, it } from "vitest";
-import { judgeGates, type GateCommandRunner } from "../src/gateJudge.ts";
+import { type GateCommandRunner, judgeGates } from "../src/gateJudge.ts";
 import { memoryLedgerWithLog } from "./support/memoryLedger.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
@@ -146,9 +146,9 @@ describe("command receipt identity", () => {
       return result(0, "same");
     };
 
-    expect(
-      (await judge(root, ledger, clock, commandRunner, "fixture --proof", /same/)).kind,
-    ).toBe("cleared");
+    expect((await judge(root, ledger, clock, commandRunner, "fixture --proof", /same/)).kind).toBe(
+      "cleared",
+    );
     expect(
       (await judge(root, ledger, clock, commandRunner, "fixture --proof", /same|other/)).kind,
     ).toBe("cleared");
