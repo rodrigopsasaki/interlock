@@ -50,6 +50,77 @@ describe("headless exec probes", () => {
     );
   });
 
+  it("passes prepared roots, MCP policy, and forwarded names to the probed process", () => {
+    const configured = runtime({
+      args: ["fixture-agent", "{writable_roots}"],
+      writableRootArgs: { before: ["--root"], after: [] },
+      mcpServers: ["filesystem", "database"],
+      mcpAllow: ["filesystem"],
+      mcpExclusive: {
+        disableAll: ["--disable-all-mcp"],
+        allowEach: { before: ["--allow-mcp"], after: [] },
+      },
+      environmentPassthrough: ["KEEP_NAME"],
+      environmentForwardArgs: { before: ["--forward"], after: [] },
+      exec: {
+        before: ["fixture-agent", "--headless"],
+        after: [
+          "--prompt",
+          "--disable-all-mcp",
+          "--allow-mcp",
+          "filesystem",
+          "--forward",
+          "KEEP_NAME",
+        ],
+      },
+    });
+    const result = execProbeInvocation(
+      configured,
+      {
+        ...launch,
+        args: [
+          "--root",
+          "/common",
+          "--root",
+          "/worktree/.git",
+          "--headless",
+          "{prompt}",
+          "--prompt",
+          "--disable-all-mcp",
+          "--allow-mcp",
+          "filesystem",
+          "--forward",
+          "KEEP_NAME",
+        ],
+        environment: { KEEP_NAME: "kept" },
+        writableRoots: ["/common", "/worktree/.git"],
+      },
+      "loopback",
+    );
+
+    expect(result).toEqual(
+      ok({
+        argv: [
+          "fixture-agent",
+          "--root",
+          "/common",
+          "--root",
+          "/worktree/.git",
+          "--headless",
+          "interlock-probe-loopback",
+          "--prompt",
+          "--disable-all-mcp",
+          "--allow-mcp",
+          "filesystem",
+          "--forward",
+          "KEEP_NAME",
+        ],
+        cwd: "/worktree",
+        environment: { KEEP_NAME: "kept" },
+      }),
+    );
+  });
+
   it("refuses a headless probe template that puts the command before the program", async () => {
     const processRuns: string[][] = [];
     const results = await runProbeChecks({
@@ -100,6 +171,48 @@ describe("headless exec probes", () => {
       error: "shared memory denied",
     });
     expect(results.every((result) => result.state === "refused")).toBe(true);
+  });
+
+  it("releases a bound probe when its process runner throws", async () => {
+    const identities: {
+      readonly pid: number;
+      readonly pgid: number;
+      readonly birth: string;
+      readonly boot: string;
+    }[] = [];
+    const releases: { readonly outcome: string; readonly pgid: string }[] = [];
+    const results = await runProbeChecks({
+      runtime: runtime(),
+      launch,
+      processLifecycleFor: async () =>
+        ok({
+          bind: async (identity) => {
+            identities.push(identity);
+            return ok(undefined);
+          },
+          release: async (outcome, pgid) => {
+            releases.push({ outcome, pgid });
+            return ok(undefined);
+          },
+        }),
+      processRunner: async (_invocation, lifecycle) => {
+        if (lifecycle === undefined) throw new Error("missing lifecycle");
+        await lifecycle.bind({ pid: 41, pgid: 41, birth: "birth", boot: "boot" });
+        throw new Error("probe process threw");
+      },
+    });
+
+    expect(results).toHaveLength(5);
+    expect(results.every((result) => result.state === "refused")).toBe(true);
+    expect(results[0]).toEqual({ check: "shm", state: "refused", error: "probe process threw" });
+    expect(identities).toHaveLength(5);
+    expect(releases).toEqual([
+      { outcome: "override", pgid: "" },
+      { outcome: "override", pgid: "" },
+      { outcome: "override", pgid: "" },
+      { outcome: "override", pgid: "" },
+      { outcome: "override", pgid: "" },
+    ]);
   });
 
   it("keeps invalid templates from reaching a process runner", () => {

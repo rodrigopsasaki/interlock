@@ -10,7 +10,7 @@ import type {
   ProbeInvocation,
   ProbeProcessLifecycle,
 } from "./runtime.ts";
-import type { ResolvedRuntime } from "./runtimeCatalogue.ts";
+import { execRuntimeArgv, type ResolvedRuntime } from "./runtimeCatalogue.ts";
 import { expandProbeExec } from "./writableRootArgs.ts";
 
 export const PROBE_CHECKS: readonly ProbeCheck[] = [
@@ -50,6 +50,19 @@ function probeBinDirectory(): string {
   return fileURLToPath(new URL("./probe-bin/", import.meta.url));
 }
 
+function effectiveProbeEnvironment(
+  runtime: ResolvedRuntime,
+  launch: PreparedLaunch,
+): Readonly<Record<string, string>> {
+  const environment = { ...launch.environment };
+  for (const name of runtime.environmentPassthrough ?? []) {
+    if (environment[name] === undefined && process.env[name] !== undefined) {
+      environment[name] = process.env[name];
+    }
+  }
+  return environment;
+}
+
 function defaultProcessRunner(
   invocation: ProbeInvocation,
   lifecycle?: ProbeProcessLifecycle,
@@ -77,6 +90,7 @@ function defaultProcessRunner(
     let identityBound = false;
     let released = false;
     let releaseFailed = false;
+    let binding: Promise<Result<void, string>> | undefined;
     const release = async (
       outcome: "never-started" | "group-empty" | "override",
       pgid: string,
@@ -103,7 +117,7 @@ function defaultProcessRunner(
         identityBound = true;
         return;
       }
-      void lifecycle
+      binding = lifecycle
         .bind({
           pid: child.pid,
           pgid: child.pid,
@@ -114,21 +128,26 @@ function defaultProcessRunner(
           if (isErr(bound)) {
             child.kill("SIGTERM");
             output += `\n${bound.error}`;
-            return;
+            return bound;
           }
           identityBound = true;
+          return bound;
         });
     });
     child.on("error", (error) => {
-      void release("never-started", child.pid === undefined ? "" : String(child.pid)).then(() =>
-        finish({ code: -1, output: error.message }),
-      );
+      void (binding ?? Promise.resolve(ok(undefined)))
+        .then(() => release("never-started", child.pid === undefined ? "" : String(child.pid)))
+        .then(() => finish({ code: -1, output: error.message }));
     });
     child.on("close", (code) => {
-      void release(
-        identityBound ? "group-empty" : "never-started",
-        child.pid === undefined ? "" : String(child.pid),
-      ).then(() => finish({ code: releaseFailed ? -1 : (code ?? -1), output }));
+      void (binding ?? Promise.resolve(ok(undefined)))
+        .then(() =>
+          release(
+            identityBound ? "group-empty" : "never-started",
+            child.pid === undefined ? "" : String(child.pid),
+          ),
+        )
+        .then(() => finish({ code: releaseFailed ? -1 : (code ?? -1), output }));
     });
   });
 }
@@ -141,12 +160,25 @@ function expectedExecArguments(
   if (runtime.kind !== "exec") return undefined;
   const headless = runtime.headlessArgs;
   if (headless === undefined) return undefined;
-  const promptIndex = runtime.args.length + headless.before.length;
-  const expected = [launch.program, ...launch.args];
-  if (promptIndex < 1 || promptIndex >= expected.length || expected[promptIndex] !== "{prompt}") {
+  const environment = effectiveProbeEnvironment(runtime, launch);
+  const expected = execRuntimeArgv(runtime, command, false, {
+    environment,
+  });
+  const preparedPrompt = execRuntimeArgv(runtime, "{prompt}", false, {
+    environment,
+  });
+  const promptIndex = preparedPrompt.indexOf("{prompt}");
+  const expansion = launch.args.length + 1 - preparedPrompt.length;
+  const prepared = [launch.program, ...launch.args];
+  const expandedPromptIndex = promptIndex + expansion;
+  if (
+    promptIndex < 1 ||
+    expandedPromptIndex >= prepared.length ||
+    prepared[expandedPromptIndex] !== "{prompt}"
+  ) {
     return undefined;
   }
-  return expected.map((part, index) => (index === promptIndex ? command : part));
+  return expected;
 }
 
 function missingArgument(
@@ -185,10 +217,18 @@ export function execProbeInvocation(
     const actual = expandProbeExec(template, commandFor(check));
     const difference = missingArgument(expectedHeadless, actual);
     if (difference !== undefined) return err(difference);
+    const prepared = [launch.program, ...launch.args];
+    const environment = effectiveProbeEnvironment(runtime, launch);
+    const preparedPrompt = execRuntimeArgv(runtime, "{prompt}", false, { environment });
+    const promptIndex = preparedPrompt.indexOf("{prompt}");
+    const expansion = prepared.length - preparedPrompt.length;
+    const expandedPromptIndex = promptIndex + expansion;
     return ok({
-      argv: expandProbeExec(template, commandFor(check)),
+      argv: prepared.map((part, index) =>
+        index === expandedPromptIndex ? commandFor(check) : part,
+      ),
       cwd: launch.cwd,
-      environment: launch.environment,
+      environment,
     });
   }
   const declaredArgs = runtime.kind === "exec" ? runtime.args.slice(1) : runtime.args;
@@ -276,6 +316,9 @@ export async function runProbeChecks(
     try {
       processResult = await processRunner(invocation.value, lifecycle.value);
     } catch (error) {
+      if (lifecycle.value !== undefined) {
+        await lifecycle.value.release("override", "");
+      }
       results.push({
         check,
         state: "refused",

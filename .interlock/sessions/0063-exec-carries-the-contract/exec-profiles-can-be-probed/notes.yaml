@@ -33,3 +33,19 @@ entries:
     at: "2026-11-09T20:10:00Z"
     chose: Author the debrief as a small decision manifest grouped by the additive schema, real command, lifecycle, and provenance hunks.
     because: The final artifact must let a later session re-read every produced change and distinguish the graph acceptance from the implementation decisions that satisfy it.
+  - kind: choice
+    at: "2026-11-09T20:35:00Z"
+    chose: Validate the probe template against the unexpanded declared exec skeleton while launching the complete prepared argv, locating the headless prompt by the expansion delta.
+    because: Writable roots expand into multiple arguments before the headless tail, while MCP and forwarded arguments follow it; both must reach the real process without making the template infer those values.
+  - kind: choice
+    at: "2026-11-09T20:36:00Z"
+    chose: Fill only declared forwarded environment names from the runner environment when the prepared machine environment has no override.
+    because: The probe must hash and deliver the effective forwarded value, while unrelated process environment values remain outside the invocation contract.
+  - kind: choice
+    at: "2026-11-09T20:37:00Z"
+    chose: Cover the missing acceptance paths with runner and CLI fixtures for prepared roots/MCP/forwarding, thrown checks, release identity, worktree cleanup, and historical runtime listing.
+    because: The acceptance names those observable boundaries, so the proof must exercise the shipped child process and retained probe configuration rather than only helper return values.
+  - kind: surprise
+    at: "2026-11-09T20:38:00Z"
+    expected: The first follow-up standing run would pass after the focused tests passed.
+    observed: Typecheck rejected a bind promise callback that returned void, and lint found formatting in the new source and test; both were corrected before the final focused and standing checks passed.
