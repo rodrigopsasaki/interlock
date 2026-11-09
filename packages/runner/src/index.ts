@@ -148,6 +148,8 @@ export type {
   ProbeCheck,
   ProbeExecutor,
   ProbeInvocation,
+  ProbeProcessIdentity,
+  ProbeProcessLifecycle,
   Runtime,
   RuntimeObservation,
   RuntimeRefusal,

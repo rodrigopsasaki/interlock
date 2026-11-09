@@ -25,7 +25,9 @@ import {
   machineDelivery,
   machineIntent,
   mergeRuntimes,
+  PROBE_CHECKS,
   type ProbeExecutor,
+  type ProbeProcessLifecycle,
   type ProbeProcessRunner,
   prepareLaunch,
   probePassed,
@@ -34,10 +36,11 @@ import {
   resolveMachine,
   runProbeChecks,
   runProviderCommand,
+  validateExecMachine,
 } from "runner";
 import type { CommandResult } from "../main.ts";
 
-const IMPLEMENTATION_VERSION = "runtime-probe@v1";
+export const IMPLEMENTATION_VERSION = "runtime-probe@v2";
 
 export interface RuntimeProbeOptions {
   readonly cwd?: string;
@@ -56,11 +59,17 @@ export function probeConfiguration(runtime: ResolvedRuntime, machine: MachineAtt
     const serialized = JSON.stringify(value);
     profile[key] = sha256(serialized === undefined ? "undefined" : serialized);
   }
+  const forwarded = Object.fromEntries(
+    (runtime.environmentPassthrough ?? []).flatMap((name) => {
+      const value = machine.env[name] ?? process.env[name];
+      return value === undefined ? [] : [[name, sha256(value)]];
+    }),
+  );
   return {
     interlock: "probe-config@v0",
     profile,
     provider: { value: sha256(JSON.stringify(machine.provider)) },
-    environment: { value: sha256(JSON.stringify(machine.env)) },
+    environment: forwarded,
   };
 }
 
@@ -127,6 +136,132 @@ function renderJson(profile: string, results: Awaited<ReturnType<typeof runProbe
   return JSON.stringify({ profile, checks: results });
 }
 
+function unavailableProbeResults(reason: string): Awaited<ReturnType<typeof runProbeChecks>> {
+  return PROBE_CHECKS.map((check): Awaited<ReturnType<typeof runProbeChecks>>[number] => ({
+    check,
+    state: "unavailable",
+    reason,
+  }));
+}
+
+function probeLifecycleFor(
+  ledger: import("ledger").Ledger,
+  node: { readonly graph: string; readonly id: string },
+  probeId: string,
+  profile: string,
+  machine: MachineAttempt,
+  cwd: string,
+):
+  | ((
+      check: import("runner").ProbeCheck,
+    ) => Promise<import("@phyxiusjs/fp").Result<ProbeProcessLifecycle | undefined, string>>)
+  | undefined {
+  if (machine.provider === "none") return undefined;
+  const provider = machine.provider;
+  return async (check) => {
+    const token = `${probeId}/${check}`;
+    const pane = `probe-${probeId}/${check}`;
+    const values = (
+      extra: Readonly<Record<string, string>> = {},
+    ): Readonly<Record<string, string>> => ({
+      holder: `runtime probe ${profile}`,
+      token,
+      pid: "",
+      pgid: "",
+      birth: "",
+      boot: "",
+      pane,
+      workspace: cwd,
+      agent: profile,
+      worktree: cwd,
+      attempt: probeId,
+      session: probeId,
+      phase: check,
+      kind: "exec",
+      id: probeId,
+      ...extra,
+    });
+    const hold: MachineHold = {
+      token,
+      pane,
+      cwd,
+      release: [],
+      env: machine.env,
+    };
+    const admitted = await admitMachine(
+      ledger,
+      node,
+      probeId,
+      hold,
+      providerArgv(provider.admit, values()),
+    );
+    if (isErr(admitted)) return err(admitted.error);
+    let identity:
+      | {
+          readonly pid: number;
+          readonly pgid: number;
+          readonly birth: string;
+          readonly boot: string;
+        }
+      | undefined;
+    let released = false;
+    const run = async (
+      command: readonly string[],
+    ): Promise<import("@phyxiusjs/fp").Result<void, string>> => {
+      const result = await runProviderCommand(command, cwd, { ...process.env, ...machine.env });
+      return result.code === 0
+        ? ok(undefined)
+        : err(result.output || `machine provider exited ${result.code}`);
+    };
+    const lifecycle: ProbeProcessLifecycle = {
+      bind: async (next) => {
+        identity = next;
+        return run(
+          providerArgv(
+            provider.bind ?? [],
+            values({
+              pid: String(next.pid),
+              pgid: String(next.pgid),
+              birth: next.birth,
+              boot: next.boot,
+            }),
+          ),
+        );
+      },
+      release: async (outcome, pgid) => {
+        if (released) return ok(undefined);
+        released = true;
+        const processIdentity = identity;
+        const releaseValues = values({
+          pid: processIdentity === undefined ? "" : String(processIdentity.pid),
+          pgid: processIdentity === undefined ? pgid : String(processIdentity.pgid),
+          birth: processIdentity?.birth ?? "",
+          boot: processIdentity?.boot ?? "",
+          outcome,
+        });
+        const releaseHold: MachineHold = {
+          ...hold,
+          release: providerArgv(provider.release, releaseValues),
+        };
+        const intent = machineIntent(ledger, node, probeId, "release", releaseHold);
+        if (isErr(intent)) return intent;
+        const result = await runProviderCommand(releaseHold.release, cwd, {
+          ...process.env,
+          ...machine.env,
+        });
+        return machineDelivery(
+          ledger,
+          intent.value,
+          result.code === 0
+            ? ok(result)
+            : err(result.output || `machine provider exited ${result.code}`),
+        );
+      },
+    };
+    return ok(lifecycle);
+  };
+}
+
 async function probeOne(
   repoRoot: string,
   profile: string,
@@ -151,56 +286,27 @@ async function probeOne(
   const path = join(repoRoot, ".interlock", "probe-runs", `${profile}-${probeId}`);
   mkdirSync(join(repoRoot, ".interlock", "probe-runs"), { recursive: true });
   let results: Awaited<ReturnType<typeof runProbeChecks>> = [];
+  let launchCleanup: (() => void) | undefined;
   try {
     addProbeWorktree(repoRoot, path, branch, head);
     const launch = prepareLaunch(runtime, path, machine.env);
     if (isErr(launch))
       return { exitCode: 1, message: `probe launch refused: ${launch.error.kind}` };
-    let admissionReason: string | undefined;
-    let releaseHold: MachineHold | undefined;
-    if (machine.provider !== "none") {
-      const values = {
-        holder: `runtime probe ${profile}`,
-        token: probeId,
-        pid: "",
-        pane: `probe-${probeId}`,
-        workspace: path,
-        agent: runtime.name,
-        worktree: path,
-        attempt: probeId,
-      };
-      const hold = {
-        token: probeId,
-        pane: `probe-${probeId}`,
-        cwd: path,
-        release: providerArgv(machine.provider.release, values),
-        env: machine.env,
-      };
-      const admitted = await admitMachine(
-        ledger,
-        node,
-        probeId,
-        hold,
-        providerArgv(machine.provider.admit, values),
-      );
-      if (isErr(admitted)) admissionReason = admitted.error;
-      if (admissionReason === undefined) releaseHold = hold;
+    launchCleanup =
+      launch.value.cleanup === undefined ? undefined : () => launch.value.cleanup?.(true);
+    if (runtime.kind === "exec" && machine.provider !== "none") {
+      const valid = validateExecMachine(machine.provider);
+      if (isErr(valid)) results = unavailableProbeResults(valid.error);
     }
-    if (admissionReason !== undefined) {
-      results = [
-        { check: "shm", state: "unavailable", reason: admissionReason },
-        { check: "loopback", state: "unavailable", reason: admissionReason },
-        { check: "worktree-file", state: "unavailable", reason: admissionReason },
-        { check: "git-metadata", state: "unavailable", reason: admissionReason },
-        { check: "signed-commit", state: "unavailable", reason: admissionReason },
-      ];
-    } else {
+    if (results.length === 0) {
       const adapter = options.adapter ?? options.adapterFor?.(runtime.kind);
+      const processLifecycleFor = probeLifecycleFor(ledger, node, probeId, profile, machine, path);
       results = await runProbeChecks({
         runtime,
         launch: launch.value,
         ...(options.processRunner === undefined ? {} : { processRunner: options.processRunner }),
         ...(adapter === undefined ? {} : { adapter }),
+        ...(processLifecycleFor === undefined ? {} : { processLifecycleFor }),
         ...((options.runnerSignedCommit ??
           (runtime.commits === "runner" ? () => signRunnerCommit(path) : undefined)) === undefined
           ? {}
@@ -208,20 +314,6 @@ async function probeOne(
               runnerSignedCommit: options.runnerSignedCommit ?? (() => signRunnerCommit(path)),
             }),
       });
-    }
-    if (releaseHold !== undefined) {
-      const releaseIntent = machineIntent(ledger, node, probeId, "release", releaseHold);
-      if (!isErr(releaseIntent)) {
-        const released = await runProviderCommand(releaseHold.release, releaseHold.cwd, {
-          ...process.env,
-          ...releaseHold.env,
-        });
-        machineDelivery(
-          ledger,
-          releaseIntent.value,
-          released.code === 0 ? ok(released) : err(released.output),
-        );
-      }
     }
     const signedCommit = results.find((result) => result.check === "signed-commit");
     const signedCommitKeyFingerprint =
@@ -240,6 +332,7 @@ async function probeOne(
   } catch (error) {
     return { exitCode: 1, message: error instanceof Error ? error.message : String(error) };
   } finally {
+    launchCleanup?.();
     removeProbeWorktree(repoRoot, path, branch);
     await ledger.close();
   }
