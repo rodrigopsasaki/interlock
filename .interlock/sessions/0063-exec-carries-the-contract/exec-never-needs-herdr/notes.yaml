@@ -55,3 +55,9 @@ entries:
     because: >-
       This session is an implementer agent session, and the candidate derivation must identify the
       runtime and model that produced its claims before the final debrief is filed.
+  - kind: surprise
+    at: '2026-11-09T12:45:00Z'
+    expected: The authored candidate's full head SHA would match the code commit used for its rooted range.
+    observed: >-
+      Debrief preview rejected a mistyped full SHA for the code commit; the exact value is being
+      used in a fresh candidate after this notes correction.
