@@ -183,7 +183,7 @@ describe("exec launch contract", () => {
       );
       expect(isOk(launch)).toBe(true);
       if (!isOk(launch)) return;
-      const child = spawn(launch.value.program, launch.value.args, {
+      const child = spawn(process.execPath, launch.value.args, {
         cwd: testDirectory,
         env: { ...process.env, ...launch.value.environment },
       });

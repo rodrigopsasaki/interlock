@@ -120,3 +120,11 @@ entries:
       The final node debrief must remain a manifest of the entire node diff; replacing earlier rooted
       decisions with a current-session-only range would erase the contract implementation from the
       debrief merely because this correction was made in a resumed session.
+  - kind: choice
+    at: '2026-11-09T17:35:00Z'
+    chose: >-
+      Start the shell-forwarding fixture with process.execPath while retaining the prepared launch
+      argv, environment and working directory.
+    because: >-
+      The fixture guard can statically read process.execPath as the literal Node command, while the
+      prepared runtime already places that same executable in the profile's first argv position.
