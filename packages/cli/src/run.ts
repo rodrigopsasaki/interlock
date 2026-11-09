@@ -26,6 +26,7 @@ import {
   explainRuntimeSelectionRefusal,
   explainSessionBriefRefusal,
   explainStandingGatesRefusal,
+  type GateCommandRunner,
   loadLocalConfig,
   loadRuntimeCatalogue,
   loadStandingGates,
@@ -48,6 +49,8 @@ export async function runInterlockRun(
   options: {
     readonly cwd?: string;
     readonly clock?: Clock;
+    readonly commandRunner?: GateCommandRunner;
+    readonly outputDirectory?: string;
     readonly runtime?: Runtime;
     readonly narrate?: (line: string) => void;
   } = {},
@@ -261,6 +264,10 @@ export async function runInterlockRun(
       ledger,
       clock,
       narrate,
+      ...(options.commandRunner === undefined ? {} : { commandRunner: options.commandRunner }),
+      ...(options.outputDirectory === undefined
+        ? {}
+        : { outputDirectory: options.outputDirectory }),
       ...(options.runtime === undefined ? {} : { runtime: options.runtime }),
       runnerIdPrefix: "run",
       composeBrief,

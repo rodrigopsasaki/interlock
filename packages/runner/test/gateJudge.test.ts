@@ -66,8 +66,12 @@ interface GateOutputCase {
 
 describe("receipt-idempotent", () => {
   it("running the same gate twice over the same content writes one receipt identity and no duplicate fact", async () => {
-    const root = fixture();
+    directory = mkdtempSync(join(runsRoot, "gate-idempotent-"));
+    const root = directory;
+    const outputDirectory = join(root, "outputs");
+    mkdirSync(outputDirectory);
     const ledger = memoryLedger();
+    let commandRuns = 0;
     const options = {
       ledger,
       clock: createControlledClock(),
@@ -77,12 +81,22 @@ describe("receipt-idempotent", () => {
       commandFor: new Map([["always-pass", { kind: "command", run: passCommand }]]),
       worktree: root,
       scopeRoot: root,
-      scopePaths: ["content.txt"],
+      scopePaths: [],
       commitSha: "deadbeef",
       runnerId: "run-1",
       holdMs: 60_000,
       substrate,
       env: toolState.environment,
+      commandRunner: async () => {
+        commandRuns += 1;
+        return {
+          exitCode: 0,
+          output: "",
+          stdout: Buffer.alloc(0),
+          stderr: Buffer.alloc(0),
+        };
+      },
+      outputDirectory,
       narrate: () => {},
     };
 
@@ -99,6 +113,7 @@ describe("receipt-idempotent", () => {
     const afterSecond = ledger.projection().nodes.get(nodeKey(node));
     expect(afterSecond?.receipts).toHaveLength(1);
     expect(afterSecond?.receipts[0]?.id).toBe(receiptId);
+    expect(commandRuns).toBe(2);
   });
 });
 

@@ -16,6 +16,7 @@ import { judgeGates } from "../src/gateJudge.ts";
 import { gitScope } from "../src/scope.ts";
 import { commitAll, gitInitFixtureWithContent, headSha } from "./support/gitFixture.ts";
 import { memoryLedger } from "./support/memoryLedger.ts";
+import { slowIntegration } from "./support/slowIntegration.ts";
 import { allocateToolState } from "./support/toolState.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
@@ -88,30 +89,37 @@ describe("a scope that holds a gitlink", () => {
     );
   });
 
-  it("is judged into a receipt without throwing", async () => {
-    const fixture = submoduleFixture();
-    const ledger = memoryLedger();
-    const judged = await judgeGates({
-      ledger,
-      clock: createControlledClock(),
-      node,
-      session: "s1",
-      declaredGateIds: ["always-pass"],
-      commandFor: new Map([["always-pass", { kind: "command", run: passCommand }]]),
-      worktree: fixture.parent,
-      scopeRoot: fixture.parent,
-      scopePaths: gitScope(fixture.parent),
-      commitSha: headSha(fixture.parent),
-      runnerId: "run-1",
-      holdMs: 60_000,
-      substrate: noneClient(),
-      env: toolState.environment,
-      narrate: () => {},
-    });
-    if (isErr(judged)) throw new Error("expected an outcome");
-    expect(judged.value.kind).toBe("cleared");
-    expect(ledger.projection().nodes.get(nodeKey(node))?.receipts).toHaveLength(1);
-  });
+  slowIntegration(
+    "is judged into a receipt without throwing",
+    {
+      budgetMs: 10_000,
+      reason: "integrates a Git index containing a submodule gitlink with gate judging",
+    },
+    async () => {
+      const fixture = submoduleFixture();
+      const ledger = memoryLedger();
+      const judged = await judgeGates({
+        ledger,
+        clock: createControlledClock(),
+        node,
+        session: "s1",
+        declaredGateIds: ["always-pass"],
+        commandFor: new Map([["always-pass", { kind: "command", run: passCommand }]]),
+        worktree: fixture.parent,
+        scopeRoot: fixture.parent,
+        scopePaths: gitScope(fixture.parent),
+        commitSha: headSha(fixture.parent),
+        runnerId: "run-1",
+        holdMs: 60_000,
+        substrate: noneClient(),
+        env: toolState.environment,
+        narrate: () => {},
+      });
+      if (isErr(judged)) throw new Error("expected an outcome");
+      expect(judged.value.kind).toBe("cleared");
+      expect(ledger.projection().nodes.get(nodeKey(node))?.receipts).toHaveLength(1);
+    },
+  );
 
   it("changes its receipt id when a submodule bump is committed, and not when only the working checkout changes", async () => {
     const fixture = submoduleFixture();

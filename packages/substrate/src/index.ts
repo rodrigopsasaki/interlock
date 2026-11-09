@@ -20,6 +20,7 @@ export type {
   EvidenceSession,
 } from "./evidence.ts";
 export { evidenceOf, personEventsFor } from "./evidence.ts";
+export type { AbortScheduler } from "./httpClient.ts";
 export { httpClient } from "./httpClient.ts";
 export type { AbsorbNarration } from "./narrate.ts";
 export { narrateAbsorb, narrateContext } from "./narrate.ts";

@@ -20,7 +20,7 @@ import { type CodexLaunchRefusal, prepareCodexLaunch } from "./codex/config.ts";
 import { needsPaneEnvironment } from "./codex/environment.ts";
 import { type ExecPhaseRequest, execRunRoot, runExecPhase } from "./execRuntime.ts";
 import { declaredGateIds, gateCommandTable } from "./gateCommand.ts";
-import { explainGateJudgeRefusal } from "./gateJudge.ts";
+import { explainGateJudgeRefusal, type GateCommandRunner } from "./gateJudge.ts";
 import { createHerdrLaunchRuntime } from "./herdr/adapter.ts";
 import { HELD_REVISIT_MS, judgeWorktree } from "./judgeWorktree.ts";
 import { takeLease } from "./lease.ts";
@@ -41,6 +41,7 @@ import {
   validateExecMachine,
 } from "./machineProvider.ts";
 import { recordingNarrate } from "./narration.ts";
+import type { NodeVersionRunner } from "./nodeEngine.ts";
 import { buildOpeningPrompt, type PriorWork, type SessionRole } from "./openingPrompt.ts";
 import { deliverOpeningPrompt } from "./promptDelivery.ts";
 import { recordQuestionNotes } from "./questionNotes.ts";
@@ -230,6 +231,9 @@ export interface DriveSessionRequest {
   readonly substrate: SubstrateClient;
   readonly ledger: Ledger;
   readonly clock: Clock;
+  readonly nodeVersionRunner?: NodeVersionRunner;
+  readonly commandRunner?: GateCommandRunner;
+  readonly outputDirectory?: string;
   readonly narrate: (line: string) => void;
   readonly runtime?: Runtime;
   readonly runnerIdPrefix: string;
@@ -519,6 +523,7 @@ export async function driveInteractiveSession(
       narrate,
       { ...process.env, ...machine.value.env },
       machine.value.heavy,
+      request.nodeVersionRunner,
     );
     if (isErr(setUp)) {
       if (setUp.error.kind === "node-engine") {
@@ -787,6 +792,13 @@ export async function driveInteractiveSession(
         holdMs: HELD_REVISIT_MS,
         substrate,
         personEvents: isErr(personEventsRead) ? [] : personEventsRead.value,
+        ...(request.nodeVersionRunner === undefined
+          ? {}
+          : { nodeVersionRunner: request.nodeVersionRunner }),
+        ...(request.commandRunner === undefined ? {} : { commandRunner: request.commandRunner }),
+        ...(request.outputDirectory === undefined
+          ? {}
+          : { outputDirectory: request.outputDirectory }),
         onWorktreeRead: async () => {},
       });
       if (isErr(judged)) {
@@ -1238,6 +1250,13 @@ export async function driveInteractiveSession(
       holdMs: HELD_REVISIT_MS,
       substrate,
       personEvents: isErr(personEventsRead) ? [] : personEventsRead.value,
+      ...(request.nodeVersionRunner === undefined
+        ? {}
+        : { nodeVersionRunner: request.nodeVersionRunner }),
+      ...(request.commandRunner === undefined ? {} : { commandRunner: request.commandRunner }),
+      ...(request.outputDirectory === undefined
+        ? {}
+        : { outputDirectory: request.outputDirectory }),
       onWorktreeRead,
     });
     if (isErr(judged)) {

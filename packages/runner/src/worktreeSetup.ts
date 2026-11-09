@@ -3,7 +3,12 @@ import { link, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import { sharedJournalDirectory } from "face";
-import { checkNodeEngine, explainNodeEngineRefusal, type NodeEngineRefusal } from "./nodeEngine.ts";
+import {
+  checkNodeEngine,
+  explainNodeEngineRefusal,
+  type NodeEngineRefusal,
+  type NodeVersionRunner,
+} from "./nodeEngine.ts";
 import { spawnOwned } from "./ownedCommand.ts";
 
 export const SETUP_LOG_TAIL_BYTES = 64 * 1024;
@@ -110,12 +115,13 @@ export async function runSetupCommand(
   cwd: string,
   env: NodeJS.ProcessEnv = process.env,
   heavy: readonly string[] = [],
+  runVersion: NodeVersionRunner | undefined = undefined,
 ): Promise<Result<void, WorktreeSetupRefusal>> {
   const tokens = tokenize(command);
   if (tokens.length === 0) {
     return err({ kind: "command-failed", command, exit: { kind: "exit", code: -1 }, tail: "" });
   }
-  const nodeEngine = await checkNodeEngine(cwd, "worktree setup", env, heavy);
+  const nodeEngine = await checkNodeEngine(cwd, "worktree setup", env, heavy, runVersion);
   if (isErr(nodeEngine)) return nodeEngine;
   const { exit, tail } = await spawnSetupCommand(tokens, cwd, env, heavy);
   if (exit.kind === "exit" && exit.code === 0) return ok(undefined);
@@ -135,10 +141,11 @@ export async function runWorktreeSetup(
   narrate: (line: string) => void,
   env: NodeJS.ProcessEnv = process.env,
   heavy: readonly string[] = [],
+  runVersion: NodeVersionRunner | undefined = undefined,
 ): Promise<Result<void, WorktreeSetupRefusal>> {
   for (const command of commands) {
     narrate(`worktree setup: ${command}`);
-    const setup = await runSetupCommand(command, worktreePath, env, heavy);
+    const setup = await runSetupCommand(command, worktreePath, env, heavy, runVersion);
     if (isErr(setup)) return setup;
   }
   return ok(undefined);

@@ -25,6 +25,7 @@ import { runInterlockJudge } from "../src/judge.ts";
 import { runInterlockRun } from "../src/run.ts";
 import { runSessions } from "../src/sessions.ts";
 import { commitAll, gitInitFixture } from "./graph/gitFixture.ts";
+import { slowIntegration } from "./support/slowIntegration.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -259,214 +260,249 @@ function sessionIdFromLedger(ledger: Ledger): string {
   return latest.session;
 }
 
-it("runs both exec phases without herdr and gives each phase its own argv prompt", async () => {
-  const cwd = fixture();
-  const script = join(cwd, "record-prompts.mjs");
-  const record = join(runsRoot, `prompts-${process.pid}.txt`);
-  promptRecordPath = record;
-  writeFileSync(
-    script,
-    [
-      'import { appendFileSync } from "node:fs";',
-      'appendFileSync(process.env.INTERLOCK_EXEC_PROMPTS, JSON.stringify(process.argv.at(-1)) + "\\n");',
-      "",
-    ].join("\n"),
-  );
-  const catalogue = join(cwd, "runtimes.yaml");
-  writeFileSync(catalogue, execCatalogue(process.execPath, script));
-  commitAll(cwd, "add exec fixture");
-  process.env["INTERLOCK_RUNTIMES"] = catalogue;
-  process.env["INTERLOCK_EXEC_PROMPTS"] = record;
-  await runGraphApprove(["demo", "--by", "Rodrigo Sasaki", "--because", "fixture"], { cwd });
-  herdrFreeEnvironment();
+slowIntegration(
+  "runs both exec phases without herdr and gives each phase its own argv prompt",
+  {
+    budgetMs: 15_000,
+    reason: "integrates both real exec phases, child argv prompts and session completion",
+  },
+  async () => {
+    const cwd = fixture();
+    const script = join(cwd, "record-prompts.mjs");
+    const record = join(runsRoot, `prompts-${process.pid}.txt`);
+    promptRecordPath = record;
+    writeFileSync(
+      script,
+      [
+        'import { appendFileSync } from "node:fs";',
+        'appendFileSync(process.env.INTERLOCK_EXEC_PROMPTS, JSON.stringify(process.argv.at(-1)) + "\\n");',
+        "",
+      ].join("\n"),
+    );
+    const catalogue = join(cwd, "runtimes.yaml");
+    writeFileSync(catalogue, execCatalogue(process.execPath, script));
+    commitAll(cwd, "add exec fixture");
+    process.env["INTERLOCK_RUNTIMES"] = catalogue;
+    process.env["INTERLOCK_EXEC_PROMPTS"] = record;
+    await runGraphApprove(["demo", "--by", "Rodrigo Sasaki", "--because", "fixture"], { cwd });
+    herdrFreeEnvironment();
 
-  const result = await runInterlockRun(["demo", "a", "--runtime", "fixture"], { cwd });
+    const result = await runInterlockRun(["demo", "a", "--runtime", "fixture"], { cwd });
 
-  expect(result.exitCode).toBe(0);
-  await assertDoneExecPhases(cwd);
-  expect(existsSync(record)).toBe(true);
-  const prompts = readFileSync(record, "utf8")
-    .trimEnd()
-    .split("\n")
-    .map((line) => JSON.parse(line));
-  expect(prompts).toHaveLength(2);
-  expect(prompts[0]).not.toBe(prompts[1]);
-  expect(prompts[0]).toContain("fixture exec node");
-  expect(prompts[1]).toContain("File your debrief");
-}, 30_000);
+    expect(result.exitCode).toBe(0);
+    await assertDoneExecPhases(cwd);
+    expect(existsSync(record)).toBe(true);
+    const prompts = readFileSync(record, "utf8")
+      .trimEnd()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    expect(prompts).toHaveLength(2);
+    expect(prompts[0]).not.toBe(prompts[1]);
+    expect(prompts[0]).toContain("fixture exec node");
+    expect(prompts[1]).toContain("File your debrief");
+  },
+);
 
-it("runs both exec phases with their own stdin prompt", async () => {
-  const cwd = fixture();
-  const script = join(cwd, "record-stdin.mjs");
-  const record = join(runsRoot, `stdin-prompts-${process.pid}.txt`);
-  promptRecordPath = record;
-  writeFileSync(
-    script,
-    [
-      'import { appendFileSync } from "node:fs";',
-      'let prompt = "";',
-      'process.stdin.setEncoding("utf8");',
-      'process.stdin.on("data", (chunk) => { prompt += chunk; });',
-      'process.stdin.on("end", () => appendFileSync(process.env.INTERLOCK_EXEC_PROMPTS, JSON.stringify(prompt) + "\\n"));',
-      "",
-    ].join("\n"),
-  );
-  const catalogue = join(cwd, "runtimes.yaml");
-  writeFileSync(catalogue, stdinExecCatalogue(process.execPath, script));
-  commitAll(cwd, "add stdin exec fixture");
-  process.env["INTERLOCK_RUNTIMES"] = catalogue;
-  process.env["INTERLOCK_EXEC_PROMPTS"] = record;
-  await runGraphApprove(["demo", "--by", "Rodrigo Sasaki", "--because", "fixture"], { cwd });
-  herdrFreeEnvironment();
+slowIntegration(
+  "runs both exec phases with their own stdin prompt",
+  {
+    budgetMs: 15_000,
+    reason: "integrates both real exec phases, child stdin prompts and session completion",
+  },
+  async () => {
+    const cwd = fixture();
+    const script = join(cwd, "record-stdin.mjs");
+    const record = join(runsRoot, `stdin-prompts-${process.pid}.txt`);
+    promptRecordPath = record;
+    writeFileSync(
+      script,
+      [
+        'import { appendFileSync } from "node:fs";',
+        'let prompt = "";',
+        'process.stdin.setEncoding("utf8");',
+        'process.stdin.on("data", (chunk) => { prompt += chunk; });',
+        'process.stdin.on("end", () => appendFileSync(process.env.INTERLOCK_EXEC_PROMPTS, JSON.stringify(prompt) + "\\n"));',
+        "",
+      ].join("\n"),
+    );
+    const catalogue = join(cwd, "runtimes.yaml");
+    writeFileSync(catalogue, stdinExecCatalogue(process.execPath, script));
+    commitAll(cwd, "add stdin exec fixture");
+    process.env["INTERLOCK_RUNTIMES"] = catalogue;
+    process.env["INTERLOCK_EXEC_PROMPTS"] = record;
+    await runGraphApprove(["demo", "--by", "Rodrigo Sasaki", "--because", "fixture"], { cwd });
+    herdrFreeEnvironment();
 
-  const result = await runInterlockRun(["demo", "a", "--runtime", "fixture"], { cwd });
+    const result = await runInterlockRun(["demo", "a", "--runtime", "fixture"], { cwd });
 
-  expect(result.exitCode).toBe(0);
-  await assertDoneExecPhases(cwd);
-  const prompts = readFileSync(record, "utf8")
-    .trimEnd()
-    .split("\n")
-    .map((line) => JSON.parse(line));
-  expect(prompts).toHaveLength(2);
-  expect(prompts[0]).toContain("fixture exec node");
-  expect(prompts[1]).toContain("File your debrief");
-}, 30_000);
+    expect(result.exitCode).toBe(0);
+    await assertDoneExecPhases(cwd);
+    const prompts = readFileSync(record, "utf8")
+      .trimEnd()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    expect(prompts).toHaveLength(2);
+    expect(prompts[0]).toContain("fixture exec node");
+    expect(prompts[1]).toContain("File your debrief");
+  },
+);
 
-it("keeps a pending pane intent unresolved while exec runs without herdr", async () => {
-  const cwd = fixture();
-  const script = join(cwd, "record-pending.mjs");
-  writeFileSync(script, "process.exit(0);\n");
-  const catalogue = join(cwd, "runtimes.yaml");
-  writeFileSync(catalogue, execCatalogue(process.execPath, script));
-  commitAll(cwd, "add pending exec fixture");
-  process.env["INTERLOCK_RUNTIMES"] = catalogue;
-  await runGraphApprove(["demo", "--by", "Rodrigo Sasaki", "--because", "fixture"], { cwd });
+slowIntegration(
+  "keeps a pending pane intent unresolved while exec runs without herdr",
+  {
+    budgetMs: 15_000,
+    reason: "integrates exec phases with a retained pending pane outbox intent",
+  },
+  async () => {
+    const cwd = fixture();
+    const script = join(cwd, "record-pending.mjs");
+    writeFileSync(script, "process.exit(0);\n");
+    const catalogue = join(cwd, "runtimes.yaml");
+    writeFileSync(catalogue, execCatalogue(process.execPath, script));
+    commitAll(cwd, "add pending exec fixture");
+    process.env["INTERLOCK_RUNTIMES"] = catalogue;
+    await runGraphApprove(["demo", "--by", "Rodrigo Sasaki", "--because", "fixture"], { cwd });
 
-  const journal = await sharedJournalDirectory(cwd);
-  const opened = await createLedger({
-    clock: createControlledClock({ initialTime: 0 }),
-    directory: journal,
-  });
-  if (isErr(opened)) throw new Error(String(opened.error));
-  const hold: MachineHold = {
-    token: "pane-session/work",
-    pane: "pane-1",
-    cwd,
-    release: ["fixture-release"],
-    env: {},
-  };
-  const intent = machineIntent(
-    opened.value,
-    { graph: "demo", id: "a" },
-    "pane-session",
-    "admit",
-    hold,
-  );
-  if (isErr(intent)) throw new Error(intent.error);
-  await opened.value.close();
+    const journal = await sharedJournalDirectory(cwd);
+    const opened = await createLedger({
+      clock: createControlledClock({ initialTime: 0 }),
+      directory: journal,
+    });
+    if (isErr(opened)) throw new Error(String(opened.error));
+    const hold: MachineHold = {
+      token: "pane-session/work",
+      pane: "pane-1",
+      cwd,
+      release: ["fixture-release"],
+      env: {},
+    };
+    const intent = machineIntent(
+      opened.value,
+      { graph: "demo", id: "a" },
+      "pane-session",
+      "admit",
+      hold,
+    );
+    if (isErr(intent)) throw new Error(intent.error);
+    await opened.value.close();
 
-  const narration: string[] = [];
-  herdrFreeEnvironment();
-  const result = await runInterlockRun(["demo", "a", "--runtime", "fixture"], {
-    cwd,
-    narrate: (line) => narration.push(line),
-  });
+    const narration: string[] = [];
+    herdrFreeEnvironment();
+    const result = await runInterlockRun(["demo", "a", "--runtime", "fixture"], {
+      cwd,
+      narrate: (line) => narration.push(line),
+    });
 
-  expect(result.exitCode).toBe(0);
-  expect(narration).toContain(
-    "machine recovery unresolved: pending pane-era intents remain recorded",
-  );
-  await assertDoneExecPhases(cwd);
-  const after = await createLedger({
-    clock: createControlledClock({ initialTime: 1 }),
-    directory: journal,
-  });
-  if (isErr(after)) throw new Error(String(after.error));
-  expect(after.value.projection().outbox.has(intent.value)).toBe(true);
-  await after.value.close();
-}, 30_000);
+    expect(result.exitCode).toBe(0);
+    expect(narration).toContain(
+      "machine recovery unresolved: pending pane-era intents remain recorded",
+    );
+    await assertDoneExecPhases(cwd);
+    const after = await createLedger({
+      clock: createControlledClock({ initialTime: 1 }),
+      directory: journal,
+    });
+    if (isErr(after)) throw new Error(String(after.error));
+    expect(after.value.projection().outbox.has(intent.value)).toBe(true);
+    await after.value.close();
+  },
+);
 
-it("lists a running exec session after the sessions synchronization barrier", async () => {
-  const cwd = fixture();
-  const barrier = join(runsRoot, `barrier-${process.pid}`);
-  const script = join(cwd, "barrier.mjs");
-  writeFileSync(
-    script,
-    [
-      'import { existsSync, writeFileSync } from "node:fs";',
-      "const barrier = process.env.INTERLOCK_EXEC_BARRIER;",
-      "if (barrier !== undefined) {",
-      '  writeFileSync(barrier + ".started", "started");',
-      '  while (!existsSync(barrier + ".release")) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20);',
-      "}",
-      "",
-    ].join("\n"),
-  );
-  const catalogue = join(cwd, "runtimes.yaml");
-  writeFileSync(catalogue, execCatalogue(process.execPath, script));
-  commitAll(cwd, "add barrier exec fixture");
-  process.env["INTERLOCK_RUNTIMES"] = catalogue;
-  process.env["INTERLOCK_EXEC_BARRIER"] = barrier;
-  await runGraphApprove(["demo", "--by", "Rodrigo Sasaki", "--because", "fixture"], { cwd });
-  herdrFreeEnvironment();
+slowIntegration(
+  "lists a running exec session after the sessions synchronization barrier",
+  {
+    budgetMs: 20_000,
+    reason: "integrates a blocked child process, synchronization barrier and live session listing",
+  },
+  async () => {
+    const cwd = fixture();
+    const barrier = join(runsRoot, `barrier-${process.pid}`);
+    const script = join(cwd, "barrier.mjs");
+    writeFileSync(
+      script,
+      [
+        'import { existsSync, writeFileSync } from "node:fs";',
+        "const barrier = process.env.INTERLOCK_EXEC_BARRIER;",
+        "if (barrier !== undefined) {",
+        '  writeFileSync(barrier + ".started", "started");',
+        '  while (!existsSync(barrier + ".release")) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20);',
+        "}",
+        "",
+      ].join("\n"),
+    );
+    const catalogue = join(cwd, "runtimes.yaml");
+    writeFileSync(catalogue, execCatalogue(process.execPath, script));
+    commitAll(cwd, "add barrier exec fixture");
+    process.env["INTERLOCK_RUNTIMES"] = catalogue;
+    process.env["INTERLOCK_EXEC_BARRIER"] = barrier;
+    await runGraphApprove(["demo", "--by", "Rodrigo Sasaki", "--because", "fixture"], { cwd });
+    herdrFreeEnvironment();
 
-  const running = runInterlockRun(["demo", "a", "--runtime", "fixture"], { cwd });
-  for (let attempt = 0; attempt < 100 && !existsSync(`${barrier}.started`); attempt += 1) {
-    await new Promise((resolve) => setTimeout(resolve, 20));
-  }
-  expect(existsSync(`${barrier}.started`)).toBe(true);
-  const listed = await runSessions(["--json"], { cwd });
-  expect(listed.exitCode).toBe(0);
-  expect(listed.message).toContain('"runtime":"fixture"');
-  expect(listed.message).toContain('"state":"running"');
-  writeFileSync(`${barrier}.release`, "release");
-  const result = await running;
+    const running = runInterlockRun(["demo", "a", "--runtime", "fixture"], { cwd });
+    for (let attempt = 0; attempt < 100 && !existsSync(`${barrier}.started`); attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    expect(existsSync(`${barrier}.started`)).toBe(true);
+    const listed = await runSessions(["--json"], { cwd });
+    expect(listed.exitCode).toBe(0);
+    expect(listed.message).toContain('"runtime":"fixture"');
+    expect(listed.message).toContain('"state":"running"');
+    writeFileSync(`${barrier}.release`, "release");
+    const result = await running;
 
-  expect(result.exitCode).toBe(0);
-  await assertDoneExecPhases(cwd);
-}, 30_000);
+    expect(result.exitCode).toBe(0);
+    await assertDoneExecPhases(cwd);
+  },
+);
 
-it("judges a held unleased exec session with --session", async () => {
-  const cwd = fixture();
-  const script = join(cwd, "hold.mjs");
-  writeFileSync(script, ["process.exit(0);", ""].join("\n"));
-  const catalogue = join(cwd, "runtimes.yaml");
-  writeFileSync(catalogue, execCatalogue(process.execPath, script));
-  commitAll(cwd, "add held exec fixture");
-  process.env["INTERLOCK_RUNTIMES"] = catalogue;
-  await runGraphApprove(["demo", "--by", "Rodrigo Sasaki", "--because", "fixture"], { cwd });
-  herdrFreeEnvironment();
+slowIntegration(
+  "judges a held unleased exec session with --session",
+  {
+    budgetMs: 15_000,
+    reason: "integrates exec completion, held ledger state and explicit session judging",
+  },
+  async () => {
+    const cwd = fixture();
+    const script = join(cwd, "hold.mjs");
+    writeFileSync(script, ["process.exit(0);", ""].join("\n"));
+    const catalogue = join(cwd, "runtimes.yaml");
+    writeFileSync(catalogue, execCatalogue(process.execPath, script));
+    commitAll(cwd, "add held exec fixture");
+    process.env["INTERLOCK_RUNTIMES"] = catalogue;
+    await runGraphApprove(["demo", "--by", "Rodrigo Sasaki", "--because", "fixture"], { cwd });
+    herdrFreeEnvironment();
 
-  const result = await runInterlockRun(["demo", "a", "--runtime", "fixture"], { cwd });
-  expect(result.exitCode).toBe(0);
-  await assertDoneExecPhases(cwd);
+    const result = await runInterlockRun(["demo", "a", "--runtime", "fixture"], { cwd });
+    expect(result.exitCode).toBe(0);
+    await assertDoneExecPhases(cwd);
 
-  const journal = await sharedJournalDirectory(cwd);
-  const opened = await createLedger({
-    clock: createControlledClock({ initialTime: 1 }),
-    directory: journal,
-  });
-  if (isErr(opened)) throw new Error(String(opened.error));
-  const session = sessionIdFromLedger(opened.value);
-  opened.value.append({
-    kind: "outcome-set",
-    node: { graph: "demo", id: "a" },
-    outcome: outcome.held(
-      [],
-      heldOn.uncommittedWork(1),
-      "fixture leaves a held, unleased exec session",
-      86_400_001,
-    ),
-  });
-  await opened.value.close();
-  writeFileSync(join(cwd, ".worktrees", "a", "held-by-exec.txt"), "held\n");
-  const judged = await runInterlockJudge(["demo", "a", "--session", session], {
-    cwd,
-    clock: createControlledClock({ initialTime: Date.now() + 120_000 }),
-  });
-  expect(judged.exitCode).toBe(0);
-  expect(judged.message).toContain(`session ${session}, judged by hand`);
-}, 30_000);
+    const journal = await sharedJournalDirectory(cwd);
+    const opened = await createLedger({
+      clock: createControlledClock({ initialTime: 1 }),
+      directory: journal,
+    });
+    if (isErr(opened)) throw new Error(String(opened.error));
+    const session = sessionIdFromLedger(opened.value);
+    opened.value.append({
+      kind: "outcome-set",
+      node: { graph: "demo", id: "a" },
+      outcome: outcome.held(
+        [],
+        heldOn.uncommittedWork(1),
+        "fixture leaves a held, unleased exec session",
+        86_400_001,
+      ),
+    });
+    await opened.value.close();
+    writeFileSync(join(cwd, ".worktrees", "a", "held-by-exec.txt"), "held\n");
+    const judged = await runInterlockJudge(["demo", "a", "--session", session], {
+      cwd,
+      clock: createControlledClock({ initialTime: Date.now() + 120_000 }),
+    });
+    expect(judged.exitCode).toBe(0);
+    expect(judged.message).toContain(`session ${session}, judged by hand`);
+  },
+);
 
 it("keeps pane launches on today's herdr-not-ready refusal", async () => {
   const cwd = fixture();

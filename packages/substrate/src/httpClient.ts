@@ -20,6 +20,17 @@ import { toWireDebrief, toWireNotes } from "./wire.ts";
 
 const CALL_TIMEOUT_MS = 5_000;
 
+export interface AbortScheduler {
+  readonly schedule: (abort: () => void, timeoutMs: number) => () => void;
+}
+
+const systemAbortScheduler: AbortScheduler = {
+  schedule(abort, timeoutMs) {
+    const timer = setTimeout(abort, timeoutMs);
+    return () => clearTimeout(timer);
+  },
+};
+
 function endpoint(address: string, verb: string): string {
   return `${address.replace(/\/+$/, "")}/substrate@v1/${verb}`;
 }
@@ -78,9 +89,10 @@ async function call(
   verb: string,
   spec: RequestSpec,
   bearerToken: string | undefined,
+  abortScheduler: AbortScheduler,
 ): Promise<Result<unknown, string>> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), CALL_TIMEOUT_MS);
+  const cancel = abortScheduler.schedule(() => controller.abort(), CALL_TIMEOUT_MS);
   try {
     const response = await fetch(endpoint(address, verb), {
       method: spec.method,
@@ -102,7 +114,7 @@ async function call(
     const because = error instanceof Error ? error.message : String(error);
     return err(`${verb} ${address}: ${because}`);
   } finally {
-    clearTimeout(timer);
+    cancel();
   }
 }
 
@@ -112,6 +124,7 @@ async function post(
   headers: Record<string, string>,
   body: unknown,
   bearerToken: string | undefined,
+  abortScheduler: AbortScheduler,
 ): Promise<Result<unknown, string>> {
   return call(
     address,
@@ -122,6 +135,7 @@ async function post(
       body,
     },
     bearerToken,
+    abortScheduler,
   );
 }
 
@@ -131,12 +145,13 @@ async function dispatch(
   headers: Record<string, string>,
   request: string,
   bearerToken: string | undefined,
+  abortScheduler: AbortScheduler,
 ): Promise<
   | { readonly kind: "response"; readonly raw: Buffer }
   | { readonly kind: "uncertain"; readonly because: string }
 > {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), CALL_TIMEOUT_MS);
+  const cancel = abortScheduler.schedule(() => controller.abort(), CALL_TIMEOUT_MS);
   try {
     const response = await fetch(target, {
       method: "POST",
@@ -153,7 +168,7 @@ async function dispatch(
   } catch {
     return { kind: "uncertain", because: "absorb transport did not confirm a response" };
   } finally {
-    clearTimeout(timer);
+    cancel();
   }
 }
 
@@ -162,14 +177,16 @@ async function get(
   verb: string,
   headers: Record<string, string>,
   bearerToken: string | undefined,
+  abortScheduler: AbortScheduler,
 ): Promise<Result<unknown, string>> {
-  return call(address, verb, { method: "GET", headers }, bearerToken);
+  return call(address, verb, { method: "GET", headers }, bearerToken, abortScheduler);
 }
 
 export function httpClient(
   address: string,
   keyFile?: string,
   repository?: Repository,
+  abortScheduler: AbortScheduler = systemAbortScheduler,
 ): SubstrateClient {
   let cachedCapabilities: readonly string[] | undefined;
 
@@ -182,6 +199,7 @@ export function httpClient(
       "capabilities",
       headers.value.headers,
       headers.value.bearerToken,
+      abortScheduler,
     );
     if (isErr(response)) return [];
     const body = response.value;
@@ -218,6 +236,7 @@ export function httpClient(
             }),
       },
       headers.value.bearerToken,
+      abortScheduler,
     );
     if (isErr(response)) return { kind: "refused", because: response.error };
     const body = response.value;
@@ -297,6 +316,7 @@ export function httpClient(
       headers.value.headers,
       prepared.request,
       headers.value.bearerToken,
+      abortScheduler,
     );
     if (received.kind === "uncertain") return received;
     let body: unknown;

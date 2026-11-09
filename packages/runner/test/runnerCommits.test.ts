@@ -44,6 +44,7 @@ import {
   selectedRuntime,
 } from "./support/driveFixture.ts";
 import { memoryLedgerWithLog } from "./support/memoryLedger.ts";
+import { slowIntegration } from "./support/slowIntegration.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -206,43 +207,50 @@ it("prompts runner custody explicitly while agent custody keeps today's instruct
   expect(buildOpeningPrompt("g", "n")).toContain("commit as you go");
 });
 
-it("commits entries in order, signs and adds both attempt trailers and authorship, then falls back", () => {
-  const { root, request, base } = repository();
-  write(root, "first.txt", "first\n");
-  write(root, "second.txt", "second\n");
-  write(root, "tracked.txt", "after\n");
-  write(root, "ignored.txt", "ignored\n");
-  plan(
-    root,
-    [
-      { message: "feat: first because ordered", paths: ["first.txt"] },
-      { message: "feat: second because ordered", paths: ["second.txt"] },
-    ],
-    "fix: keep remainder",
-  );
-  const log = recordGit();
-  const code = value(commitRunnerCode(request));
-  expect(subjects(root, base)).toEqual([
-    "feat: first because ordered",
-    "feat: second because ordered",
-    "fix: keep remainder",
-  ]);
-  for (const sha of git(root, ["rev-list", `${base}..${code.head}`]).split("\n")) {
-    const raw = git(root, ["cat-file", "commit", sha]);
-    expect(raw).toContain("gpgsig -----BEGIN PGP SIGNATURE-----");
-    expect(raw).toContain("Attempt: attempt-1");
-    expect(raw).toContain("Runtime: fixture (fixture-model)");
-    expect(raw).toContain("Co-Authored-By: Fixture Model <fixture@example.invalid>");
-  }
-  expect(git(root, ["diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"])).toBe(
-    "tracked.txt",
-  );
-  const calls = readFileSync(log, "utf-8").split("\n");
-  expect(calls).not.toContain("-A");
-  expect(calls).not.toContain(".");
-  expect(calls).toContain("--literal-pathspecs");
-  expect(calls).toContain("-S");
-});
+slowIntegration(
+  "commits entries in order, signs and adds both attempt trailers and authorship, then falls back",
+  {
+    budgetMs: 10_000,
+    reason: "integrates real signed Git commits, trailers and fallback custody",
+  },
+  async () => {
+    const { root, request, base } = repository();
+    write(root, "first.txt", "first\n");
+    write(root, "second.txt", "second\n");
+    write(root, "tracked.txt", "after\n");
+    write(root, "ignored.txt", "ignored\n");
+    plan(
+      root,
+      [
+        { message: "feat: first because ordered", paths: ["first.txt"] },
+        { message: "feat: second because ordered", paths: ["second.txt"] },
+      ],
+      "fix: keep remainder",
+    );
+    const log = recordGit();
+    const code = value(commitRunnerCode(request));
+    expect(subjects(root, base)).toEqual([
+      "feat: first because ordered",
+      "feat: second because ordered",
+      "fix: keep remainder",
+    ]);
+    for (const sha of git(root, ["rev-list", `${base}..${code.head}`]).split("\n")) {
+      const raw = git(root, ["cat-file", "commit", sha]);
+      expect(raw).toContain("gpgsig -----BEGIN PGP SIGNATURE-----");
+      expect(raw).toContain("Attempt: attempt-1");
+      expect(raw).toContain("Runtime: fixture (fixture-model)");
+      expect(raw).toContain("Co-Authored-By: Fixture Model <fixture@example.invalid>");
+    }
+    expect(git(root, ["diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"])).toBe(
+      "tracked.txt",
+    );
+    const calls = readFileSync(log, "utf-8").split("\n");
+    expect(calls).not.toContain("-A");
+    expect(calls).not.toContain(".");
+    expect(calls).toContain("--literal-pathspecs");
+    expect(calls).toContain("-S");
+  },
+);
 
 it("does not commit when the plan and changed code paths are empty", () => {
   const { root, request, base } = repository();

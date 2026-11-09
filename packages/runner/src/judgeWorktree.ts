@@ -4,8 +4,14 @@ import { currentCommitSha } from "face";
 import { heldOn, type Ledger, type LedgerEvent, type Node, type Outcome, outcome } from "ledger";
 import type { SubstrateClient } from "substrate";
 import type { GateCommand } from "./gateCommand.ts";
-import { explainGateJudgeRefusal, type GateJudgeRefusal, judgeGates } from "./gateJudge.ts";
+import {
+  explainGateJudgeRefusal,
+  type GateCommandRunner,
+  type GateJudgeRefusal,
+  judgeGates,
+} from "./gateJudge.ts";
 import { type MachineAttempt, resolveMachine } from "./machineProvider.ts";
+import type { NodeVersionRunner } from "./nodeEngine.ts";
 import { gitScope } from "./scope.ts";
 import { explainWorktreeRefusal, uncommittedPaths, type WorktreeRefusal } from "./worktree.ts";
 
@@ -27,6 +33,9 @@ export interface JudgeWorktreeRequest {
   readonly holdMs: number;
   readonly substrate: SubstrateClient;
   readonly personEvents?: readonly LedgerEvent[];
+  readonly nodeVersionRunner?: NodeVersionRunner;
+  readonly commandRunner?: GateCommandRunner;
+  readonly outputDirectory?: string;
   readonly onWorktreeRead?: () => Promise<void>;
 }
 
@@ -64,6 +73,9 @@ export async function judgeWorktree(
     holdMs,
     substrate,
     personEvents = [],
+    nodeVersionRunner,
+    commandRunner,
+    outputDirectory,
     onWorktreeRead,
   } = request;
 
@@ -110,6 +122,9 @@ export async function judgeWorktree(
     holdMs,
     substrate,
     personEvents,
+    ...(nodeVersionRunner === undefined ? {} : { nodeVersionRunner }),
+    ...(commandRunner === undefined ? {} : { commandRunner }),
+    ...(outputDirectory === undefined ? {} : { outputDirectory }),
     env: { ...process.env, ...machine.value.env },
     heavy: machine.value.heavy,
     narrate,
