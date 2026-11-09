@@ -65,3 +65,7 @@ entries:
     at: "2026-11-09T23:24:01Z"
     chose: Reorder the runner namespace import before its named imports.
     because: This is the formatter's required import grouping and changes no test behavior.
+  - kind: choice
+    at: "2026-11-09T23:25:30Z"
+    chose: Prepare and revise a fresh debrief candidate against code head 23dbb04.
+    because: The new proof is a forward correction, so the filed debrief must retain its prior version while its head_sha and rooted test manifest move to the new code commit.
