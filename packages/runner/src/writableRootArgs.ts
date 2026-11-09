@@ -8,18 +8,17 @@ export interface WritableRootTemplate {
   readonly after: readonly string[];
 }
 
-export function parseWritableRootArgs(
+export function parseArgumentTemplate(
   value: unknown,
   fieldPath: string,
+  placeholder: string,
 ): Result<WritableRootTemplate | undefined, string> {
   if (value === undefined) return ok(undefined);
   if (!Array.isArray(value)) {
     return err(`"${fieldPath}" must be a list of strings`);
   }
   if (value.length === 0) {
-    return err(
-      `"${fieldPath}" must not be empty; it needs exactly one "${WRITABLE_ROOT_PLACEHOLDER}" element`,
-    );
+    return err(`"${fieldPath}" must not be empty; it needs exactly one "${placeholder}" element`);
   }
 
   const elements: string[] = [];
@@ -27,23 +26,30 @@ export function parseWritableRootArgs(
     if (typeof element !== "string") {
       return err(`"${fieldPath}[${index}]" must be a string`);
     }
-    if (element !== WRITABLE_ROOT_PLACEHOLDER && element.includes(WRITABLE_ROOT_PLACEHOLDER)) {
+    if (element !== placeholder && element.includes(placeholder)) {
       return err(
-        `"${fieldPath}[${index}]" embeds "${WRITABLE_ROOT_PLACEHOLDER}"; the placeholder must be a whole element`,
+        `"${fieldPath}[${index}]" embeds "${placeholder}"; the placeholder must be a whole element`,
       );
     }
     elements.push(element);
   }
 
-  const placeholders = elements.filter((element) => element === WRITABLE_ROOT_PLACEHOLDER);
+  const placeholders = elements.filter((element) => element === placeholder);
   if (placeholders.length !== 1) {
     return err(
-      `"${fieldPath}" must contain exactly one "${WRITABLE_ROOT_PLACEHOLDER}" element; found ${placeholders.length}`,
+      `"${fieldPath}" must contain exactly one "${placeholder}" element; found ${placeholders.length}`,
     );
   }
 
-  const at = elements.indexOf(WRITABLE_ROOT_PLACEHOLDER);
+  const at = elements.indexOf(placeholder);
   return ok({ before: elements.slice(0, at), after: elements.slice(at + 1) });
+}
+
+export function parseWritableRootArgs(
+  value: unknown,
+  fieldPath: string,
+): Result<WritableRootTemplate | undefined, string> {
+  return parseArgumentTemplate(value, fieldPath, WRITABLE_ROOT_PLACEHOLDER);
 }
 
 export function expandWritableRootArgs(
@@ -57,31 +63,7 @@ export function parseProbeExec(
   value: unknown,
   fieldPath: string,
 ): Result<WritableRootTemplate | undefined, string> {
-  if (value === undefined) return ok(undefined);
-  if (!Array.isArray(value)) return err(`"${fieldPath}" must be a list of strings`);
-  if (value.length === 0) {
-    return err(
-      `"${fieldPath}" must not be empty; it needs exactly one "${PROBE_COMMAND_PLACEHOLDER}" element`,
-    );
-  }
-  const elements: string[] = [];
-  for (const [index, element] of value.entries()) {
-    if (typeof element !== "string") return err(`"${fieldPath}[${index}]" must be a string`);
-    if (element !== PROBE_COMMAND_PLACEHOLDER && element.includes(PROBE_COMMAND_PLACEHOLDER)) {
-      return err(
-        `"${fieldPath}[${index}]" embeds "${PROBE_COMMAND_PLACEHOLDER}"; the placeholder must be a whole element`,
-      );
-    }
-    elements.push(element);
-  }
-  const placeholders = elements.filter((element) => element === PROBE_COMMAND_PLACEHOLDER);
-  if (placeholders.length !== 1) {
-    return err(
-      `"${fieldPath}" must contain exactly one "${PROBE_COMMAND_PLACEHOLDER}" element; found ${placeholders.length}`,
-    );
-  }
-  const at = elements.indexOf(PROBE_COMMAND_PLACEHOLDER);
-  return ok({ before: elements.slice(0, at), after: elements.slice(at + 1) });
+  return parseArgumentTemplate(value, fieldPath, PROBE_COMMAND_PLACEHOLDER);
 }
 
 export function expandProbeExec(

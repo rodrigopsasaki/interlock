@@ -1,0 +1,130 @@
+interlock: notes@v0
+node: exec-carries-roots-mcp-and-env
+entries:
+  - kind: choice
+    at: '2026-11-09T15:00:00Z'
+    chose: >-
+      Extend prepareLaunch as the shared launch-preparation seam and route exec phases through it,
+      keeping legacy argv unchanged unless an exec profile opts into a new placeholder or policy.
+    because: >-
+      The acceptance requires the probe and exec launch to use one preparation, while the existing
+      pane path already owns writable-root expansion and product adapters must remain isolated.
+  - kind: choice
+    at: '2026-11-09T15:01:00Z'
+    chose: >-
+      Represent exclusive MCP and environment forwarding as parsed catalogue templates carried
+      through catalogue merge and expanded only during exec preparation.
+    because: >-
+      Parsing the closed forms at load time makes invalid combinations fail before a process
+      starts, and keeping names rather than values in argv preserves inherited environment
+      precedence.
+  - kind: surprise
+    at: '2026-11-09T15:05:00Z'
+    expected: The package test run directory would already exist for the first captured typecheck.
+    observed: >-
+      The focused package did not yet have its ignored test/.runs directory in this worktree, so
+      the captured command could not start; no package command ran and the directory is being
+      created before retrying.
+  - kind: choice
+    at: '2026-11-09T15:12:00Z'
+    chose: >-
+      Inspect environment forwarding against the runner process environment merged beneath
+      machine-provider values, while returning only the existing launch environment to the child.
+    because: >-
+      Exec children inherit the runner environment in the process boundary, and provider values
+      must override it; the argv contract forwards only variable names and never their values.
+  - kind: surprise
+    at: '2026-11-09T15:15:00Z'
+    expected: The first contract fixture catalogue would parse with its compact argv list.
+    observed: >-
+      The YAML fixture parser rejected the generated compact mapping around the prompt placeholder;
+      the fixture now uses a block argv list and the focused suite passes all 9 tests.
+  - kind: choice
+    at: '2026-11-09T16:51:26Z'
+    chose: >-
+      Add explicit contract proofs for ambient MCP exclusion, shell-visible environment forwarding,
+      and runtimes@v2 schema compatibility and refusals.
+    because: >-
+      The acceptance requires these behaviors to be independently observable in fixtures, not only
+      inferred from argv expansion or loader tests.
+  - kind: choice
+    at: '2026-11-09T16:51:26Z'
+    chose: Remove the earlier debrief candidate in a forward commit before refiling a fresh candidate.
+    because: >-
+      The requested debrief must describe the new code head, while the stale authored candidate is
+      no longer the source for that filing.
+  - kind: surprise
+    at: '2026-11-09T16:52:53Z'
+    expected: The focused gate wrapper would preserve the test command's exit code.
+    observed: >-
+      zsh rejected the temporary variable name "status" as read-only after the test itself passed;
+      the rerun uses a different variable name.
+  - kind: surprise
+    at: '2026-11-09T16:55:54Z'
+    expected: The post-change workspace test gate would pass after the focused contract and schema suites passed.
+    observed: >-
+      The full workspace suite reported two unrelated runner failures: a pre-existing marker line
+      length assertion and a receipt identity test timeout; the new execContract suite passed all
+      10 tests within that run.
+  - kind: surprise
+    at: '2026-11-09T14:30:00Z'
+    expected: The marker regression would come from the new exec launch-preparation fields reaching Codex marker argv.
+    observed: >-
+      The failing assertion runs agentEnvironmentArgs before prepareLaunch; its synthetic HOME and
+      XDG_STATE_HOME include the long worktree path, making the pre-marker JavaScript-character
+      count 1037. The new exec fields do not participate in this path.
+  - kind: choice
+    at: '2026-11-09T14:31:00Z'
+    chose: >-
+      Shorten only the UTF-8 marker fixture's filler argv so its pre-marker line retains a stable
+      margin across worktree paths, while leaving the 1024-byte bound and expectations unchanged.
+    because: >-
+      Production Codex environment serialization is existing behavior and changing it would alter
+      today's argv contract; the test's purpose is the UTF-8 transition, not a worktree-path limit.
+  - kind: surprise
+    at: '2026-11-09T14:35:00Z'
+    expected: The isolated full-suite run would exercise fixture Git commits normally.
+    observed: >-
+      The temporary HOME had no Git identity, so fixture commit tests failed and cascaded into 52
+      failures; the marker suite passed. This was test-environment setup noise, not a product result.
+  - kind: choice
+    at: '2026-11-09T14:36:00Z'
+    chose: >-
+      Repeat the standing test gate with the same isolated HOME and explicit fixture-only Git
+      author and committer variables, so temporary fixture commits do not depend on owner config.
+    because: >-
+      The first isolated run could not serve as gate proof because its empty HOME manufactured
+      failures unrelated to the changed files; the corrected run preserves isolation and supplies
+      only the identity the fixtures require.
+  - kind: surprise
+    at: '2026-11-09T14:40:00Z'
+    expected: The corrected isolated full suite would reduce the standing failures to the judge-observed receipt timeout.
+    observed: >-
+      MarkerNeverDropped and execContract passed, and receiptCarriesItsRun passed in 10.369 seconds,
+      but the isolated workspace suite still reported 50 runner failures across unrelated maintenance,
+      outbox, gate and setup tests. The temporary HOME changes the repository-wide test environment
+      beyond the marker fix; the earlier judge-observed receipt timeout under normal suite load remains open.
+  - kind: surprise
+    at: '2026-11-09T14:45:00Z'
+    expected: A fresh debrief candidate would retain the prior implementation decisions as rooted claims.
+    observed: >-
+      prepare selected the latest brief commit as session_start_sha, so preview marked the earlier
+      implementation hunks outside that range as unrooted. The prior debrief's source start must be
+      retained when refreshing the complete node record.
+  - kind: choice
+    at: '2026-11-09T14:46:00Z'
+    chose: >-
+      Keep the prior debrief source start and implementation decisions in the refreshed candidate,
+      then add the new rooted marker-boundary decision and updated gate evidence.
+    because: >-
+      The final node debrief must remain a manifest of the entire node diff; replacing earlier rooted
+      decisions with a current-session-only range would erase the contract implementation from the
+      debrief merely because this correction was made in a resumed session.
+  - kind: choice
+    at: '2026-11-09T17:35:00Z'
+    chose: >-
+      Start the shell-forwarding fixture with process.execPath while retaining the prepared launch
+      argv, environment and working directory.
+    because: >-
+      The fixture guard can statically read process.execPath as the literal Node command, while the
+      prepared runtime already places that same executable in the profile's first argv position.

@@ -12,9 +12,12 @@ import {
   DEFAULT_STARTUP_TIMEOUT_MS,
   type LocalConfig,
 } from "./localConfig.ts";
+import { RUNNER_MARKER_KEYS } from "./runnerMarker.ts";
 import { parseStartupAnswers, type StartupAnswer } from "./startupAnswers.ts";
 import { isNonNegativeInteger, isRecord, isString, isStringArray, prop } from "./validate.ts";
 import {
+  expandWritableRootArgs,
+  parseArgumentTemplate,
   parseProbeExec,
   parseWritableRootArgs,
   type WritableRootTemplate,
@@ -44,7 +47,15 @@ export interface CatalogueRuntime {
   readonly mcpServers?: readonly string[];
   readonly mcpAllow?: readonly string[];
   readonly mcpDisableArgs?: readonly string[];
+  readonly mcpExclusive?: McpExclusiveTemplate;
+  readonly environmentPassthrough?: readonly string[];
+  readonly environmentForwardArgs?: WritableRootTemplate;
   readonly prompt?: "stdin";
+}
+
+export interface McpExclusiveTemplate {
+  readonly disableAll: readonly string[];
+  readonly allowEach: WritableRootTemplate;
 }
 
 export type RuntimeCatalogueRefusal =
@@ -97,8 +108,15 @@ const KNOWN_ENTRY_KEYS: ReadonlySet<string> = new Set([
   "mcp_servers",
   "mcp_allow",
   "mcp_disable_args",
+  "mcp_exclusive",
+  "environment_passthrough",
+  "environment_forward_args",
   "prompt",
 ]);
+
+const WRITABLE_ROOTS_PLACEHOLDER = "{writable_roots}";
+const NAME_PLACEHOLDER = "{name}";
+const RUNNER_MARKER_NAME_SET: ReadonlySet<string> = new Set(RUNNER_MARKER_KEYS);
 
 function isPositiveInteger(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value > 0;
@@ -119,6 +137,43 @@ function isServerNames(value: unknown): value is readonly string[] {
     value.every((name) => name.length > 0 && !name.includes("\0") && !/\s/.test(name)) &&
     new Set(value).size === value.length
   );
+}
+
+function isEnvironmentNames(value: unknown): value is readonly string[] {
+  return (
+    isStringArray(value) &&
+    value.every((name) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) &&
+    new Set(value).size === value.length
+  );
+}
+
+function parseMcpExclusive(
+  value: unknown,
+  fieldPath: string,
+): Result<McpExclusiveTemplate | undefined, string> {
+  if (value === undefined) return ok(undefined);
+  if (!isRecord(value)) return err(`"${fieldPath}" must be a mapping`);
+  const disableAll = prop(value, "disable_all");
+  if (!isStringArray(disableAll) || disableAll.length === 0) {
+    return err(`"${fieldPath}.disable_all" must be a nonempty list of strings`);
+  }
+  const allowEach = parseArgumentTemplate(
+    prop(value, "allow_each"),
+    `${fieldPath}.allow_each`,
+    NAME_PLACEHOLDER,
+  );
+  if (isErr(allowEach)) return err(allowEach.error);
+  if (allowEach.value === undefined) {
+    return err(
+      `"${fieldPath}.allow_each" must be a list with one whole "${NAME_PLACEHOLDER}" element`,
+    );
+  }
+  for (const key of Object.keys(value)) {
+    if (key !== "disable_all" && key !== "allow_each") {
+      return err(`"${fieldPath}" has an unknown key "${key}"`);
+    }
+  }
+  return ok({ disableAll, allowEach: allowEach.value });
 }
 
 function parseEntry(
@@ -286,6 +341,42 @@ function parseEntry(
       reason: `"runtimes.${name}.mcp_disable_args" must contain exactly one whole "{name}" element`,
     });
   }
+  const mcpExclusive = parseMcpExclusive(
+    prop(value, "mcp_exclusive"),
+    `runtimes.${name}.mcp_exclusive`,
+  );
+  if (isErr(mcpExclusive)) return err({ kind: "malformed", path, reason: mcpExclusive.error });
+  const environmentPassthrough = prop(value, "environment_passthrough");
+  if (environmentPassthrough !== undefined && !isEnvironmentNames(environmentPassthrough)) {
+    return err({
+      kind: "malformed",
+      path,
+      reason: `"runtimes.${name}.environment_passthrough" must be a list of distinct valid variable names`,
+    });
+  }
+  const environmentForwardArgs = parseArgumentTemplate(
+    prop(value, "environment_forward_args"),
+    `runtimes.${name}.environment_forward_args`,
+    NAME_PLACEHOLDER,
+  );
+  if (isErr(environmentForwardArgs)) {
+    return err({ kind: "malformed", path, reason: environmentForwardArgs.error });
+  }
+  const forwardedMarker = environmentPassthrough?.find((name) => RUNNER_MARKER_NAME_SET.has(name));
+  if (forwardedMarker !== undefined) {
+    return err({
+      kind: "malformed",
+      path,
+      reason: `"runtimes.${name}.environment_passthrough" cannot forward interlock marker "${forwardedMarker}"`,
+    });
+  }
+  if (mcpExclusive.value !== undefined && mcpDisableArgs !== undefined) {
+    return err({
+      kind: "malformed",
+      path,
+      reason: `"runtimes.${name}" cannot combine mcp_exclusive with mcp_disable_args`,
+    });
+  }
   const prompt = prop(value, "prompt");
   if (prompt !== undefined && prompt !== "stdin") {
     return err({
@@ -308,6 +399,17 @@ function parseEntry(
         kind: "malformed",
         path,
         reason: `"runtimes.${name}" needs a whole "{prompt}" args element or prompt: stdin`,
+      });
+    }
+    const writableRoots = args.filter((part) => part === WRITABLE_ROOTS_PLACEHOLDER);
+    const embeddedWritableRoots = args.find(
+      (part) => part !== WRITABLE_ROOTS_PLACEHOLDER && part.includes(WRITABLE_ROOTS_PLACEHOLDER),
+    );
+    if (writableRoots.length > 1 || embeddedWritableRoots !== undefined) {
+      return err({
+        kind: "malformed",
+        path,
+        reason: `"runtimes.${name}.args" must contain at most one whole "${WRITABLE_ROOTS_PLACEHOLDER}" element`,
       });
     }
     if (mcpAllow !== undefined) {
@@ -341,6 +443,11 @@ function parseEntry(
     ...(mcpServers === undefined ? {} : { mcpServers }),
     ...(mcpAllow === undefined ? {} : { mcpAllow }),
     ...(mcpDisableArgs === undefined ? {} : { mcpDisableArgs }),
+    ...(mcpExclusive.value === undefined ? {} : { mcpExclusive: mcpExclusive.value }),
+    ...(environmentPassthrough === undefined ? {} : { environmentPassthrough }),
+    ...(environmentForwardArgs.value === undefined
+      ? {}
+      : { environmentForwardArgs: environmentForwardArgs.value }),
     ...(prompt === undefined ? {} : { prompt }),
   });
 }
@@ -449,6 +556,9 @@ export interface ResolvedRuntime {
   readonly mcpServers?: readonly string[];
   readonly mcpAllow?: readonly string[];
   readonly mcpDisableArgs?: readonly string[];
+  readonly mcpExclusive?: McpExclusiveTemplate;
+  readonly environmentPassthrough?: readonly string[];
+  readonly environmentForwardArgs?: WritableRootTemplate;
   readonly prompt?: "stdin";
   readonly source: "catalogue" | "local.yaml";
   readonly chosenBy?: ChosenBy;
@@ -457,22 +567,57 @@ export interface ResolvedRuntime {
 export function execRuntimeArgv(
   runtime: Pick<
     ResolvedRuntime,
-    "args" | "readOnlyArgs" | "mcpServers" | "mcpAllow" | "mcpDisableArgs"
-  >,
+    | "args"
+    | "readOnlyArgs"
+    | "mcpServers"
+    | "mcpAllow"
+    | "mcpDisableArgs"
+    | "mcpExclusive"
+    | "environmentPassthrough"
+    | "environmentForwardArgs"
+  > & { readonly writableRootArgs?: WritableRootTemplate | undefined },
   prompt: string,
   review = false,
+  options: {
+    readonly writableRoots?: readonly string[];
+    readonly environment?: Readonly<Record<string, string | undefined>>;
+  } = {},
 ): readonly string[] {
-  const args = runtime.args.flatMap((part) => (part === "{prompt}" ? [prompt] : [part]));
+  const writableRoots = options.writableRoots ?? [];
+  const writableRootArgs = runtime.writableRootArgs;
+  const args = runtime.args.flatMap((part) => {
+    if (part === "{prompt}") return [prompt];
+    if (part === WRITABLE_ROOTS_PLACEHOLDER && writableRootArgs !== undefined) {
+      return writableRoots.flatMap((root) => expandWritableRootArgs(writableRootArgs, root));
+    }
+    if (part === WRITABLE_ROOTS_PLACEHOLDER) return [];
+    return [part];
+  });
   const readOnly = review ? (runtime.readOnlyArgs ?? []) : [];
   const servers = runtime.mcpServers ?? [];
   const allow = review ? (runtime.mcpAllow ?? []) : (runtime.mcpAllow ?? servers);
   const disabled = servers.filter((name) => !allow.includes(name));
-  const mcp = runtime.mcpDisableArgs ?? [];
-  return [
-    ...args,
-    ...readOnly,
-    ...disabled.flatMap((name) => mcp.map((part) => part.replace("{name}", name))),
-  ];
+  const mcp =
+    runtime.mcpExclusive === undefined
+      ? (runtime.mcpDisableArgs ?? []).flatMap((part) =>
+          disabled.map((name) => part.replace(NAME_PLACEHOLDER, name)),
+        )
+      : [
+          ...runtime.mcpExclusive.disableAll,
+          ...allow.flatMap((name) =>
+            runtime.mcpExclusive === undefined
+              ? []
+              : expandWritableRootArgs(runtime.mcpExclusive.allowEach, name),
+          ),
+        ];
+  const forwarded = (runtime.environmentPassthrough ?? [])
+    .filter((name) => options.environment?.[name] !== undefined)
+    .flatMap((name) =>
+      runtime.environmentForwardArgs === undefined
+        ? []
+        : expandWritableRootArgs(runtime.environmentForwardArgs, name),
+    );
+  return [...args, ...readOnly, ...mcp, ...forwarded];
 }
 
 export type MergeRuntimesRefusal =
@@ -527,6 +672,13 @@ export function mergeRuntimes(
       ...(entry.mcpServers === undefined ? {} : { mcpServers: entry.mcpServers }),
       ...(entry.mcpAllow === undefined ? {} : { mcpAllow: entry.mcpAllow }),
       ...(entry.mcpDisableArgs === undefined ? {} : { mcpDisableArgs: entry.mcpDisableArgs }),
+      ...(entry.mcpExclusive === undefined ? {} : { mcpExclusive: entry.mcpExclusive }),
+      ...(entry.environmentPassthrough === undefined
+        ? {}
+        : { environmentPassthrough: entry.environmentPassthrough }),
+      ...(entry.environmentForwardArgs === undefined
+        ? {}
+        : { environmentForwardArgs: entry.environmentForwardArgs }),
       ...(entry.prompt === undefined ? {} : { prompt: entry.prompt }),
       source: "catalogue",
     });

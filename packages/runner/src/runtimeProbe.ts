@@ -81,7 +81,8 @@ export function execProbeInvocation(
 ): Result<ProbeInvocation, string> {
   const template = runtime.exec;
   if (template === undefined) return err("profile has no exec probe executor");
-  const expectedProfile = [launch.program, ...runtime.args];
+  const declaredArgs = runtime.kind === "exec" ? runtime.args.slice(1) : runtime.args;
+  const expectedProfile = [launch.program, ...declaredArgs];
   const actualProfile = [...template.before, ...template.after];
   if (actualProfile[0] !== launch.program) {
     return err(
@@ -90,7 +91,7 @@ export function execProbeInvocation(
   }
   const difference = missingArgument(expectedProfile, actualProfile);
   if (difference !== undefined) return err(difference);
-  const accessArgs = launch.args.slice(runtime.args.length);
+  const accessArgs = launch.args.slice(declaredArgs.length);
   return ok({
     argv: expandProbeExec(template, commandFor(check)).flatMap((part, index) =>
       index === template.before.length

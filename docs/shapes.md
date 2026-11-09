@@ -1349,7 +1349,7 @@ No vocabulary entry for `runtimes`.
 | field | type | required | description |
 | --- | --- | --- | --- |
 | `interlock` | the literal `"runtimes@v2"` | yes |  |
-| `runtimes` | object | no |  |
+| `runtimes` | object | no | Each entry accepts optional writable_root_args, mcp_exclusive, environment_passthrough and environment_forward_args fields for exec preparation. |
 
 ### Examples
 
@@ -1410,12 +1410,17 @@ runtimes:
 
   exec-example:
     kind: exec
-    args: ["/path/to/program", "--prompt", "{prompt}"]
+    args: ["/path/to/program", "{writable_roots}", "--prompt", "{prompt}"]
     model: example-model
+    writable_root_args: ["--root", "{path}"]
     read_only_args: ["--read-only"]
     mcp_servers: [filesystem, database]
     mcp_allow: [filesystem]
-    mcp_disable_args: ["--disable-mcp", "{name}"]
+    mcp_exclusive:
+      disable_all: ["--disable-all-mcp"]
+      allow_each: ["--allow-mcp", "{name}"]
+    environment_passthrough: ["FORWARDED_NAME"]
+    environment_forward_args: ["--forward-env", "{name}"]
 
   fable:
     provider: anthropic

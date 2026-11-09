@@ -1,0 +1,170 @@
+interlock: debrief@v2
+graph: 0063-exec-carries-the-contract
+node: exec-carries-roots-mcp-and-env
+role: implementer
+graph_base_sha: 79ff0d5bb4e25b576844e42efcbc474caf8a389e
+session_start_sha: 196c30aec1e889180bc3a6dd2539e62bcec8471d
+head_sha: a8942170ca88def4d50fa2846b426e06e2cab205
+derivation:
+  kind: agent
+  runtime: codex
+  model: GPT-5
+discoveries: []
+decisions:
+  - id: catalogue-contract
+    applies_to: { kind: path, path: packages/runner/src/runtimeCatalogue.ts }
+    what: >-
+      Extended runtimes@v2 loading and merge to carry opt-in writable-root placeholders, exclusive
+      MCP disable-and-allow templates, and named environment forwarding with valid-name and
+      marker-collision refusals; preserved the legacy mcp_disable_args form as mutually exclusive.
+    because: >-
+      The exec contract must reject unsafe catalogue combinations before spawning while keeping all
+      existing catalogue versions readable and keeping forwarded values out of argv.
+    rests_on:
+      - packages/runner/src/runtimeCatalogue.ts
+      - packages/runner/src/writableRootArgs.ts
+    hunks:
+      - packages/runner/src/runtimeCatalogue.ts:32-59
+      - packages/runner/src/runtimeCatalogue.ts:93-177
+      - packages/runner/src/runtimeCatalogue.ts:302-452
+      - packages/runner/src/runtimeCatalogue.ts:540-620
+      - packages/runner/src/runtimeCatalogue.ts:647-688
+      - packages/runner/src/writableRootArgs.ts:1-74
+    produces:
+      - packages/runner/src/runtimeCatalogue.ts
+      - packages/runner/src/writableRootArgs.ts
+  - id: prepared-exec-argv
+    applies_to: { kind: path, path: packages/runner/src/sessionDrive.ts }
+    what: >-
+      Made exec argv expansion part of prepareLaunch and routed the work and debrief phases through
+      that prepared result, expanding roots only at {writable_roots}, applying the phase MCP policy,
+      and forwarding only names whose effective inherited environment is set; probe equivalence now
+      accounts for exec profiles whose first args element is the program.
+    because: >-
+      Launches and the next probe must receive the same access contract, while profiles that write
+      none of the new opt-in fields retain today's argv and environment behavior.
+    rests_on:
+      - packages/runner/src/sessionDrive.ts
+      - packages/runner/src/runtimeCatalogue.ts
+      - packages/runner/src/runtimeProbe.ts
+      - packages/runner/src/writableRootArgs.ts
+    hunks:
+      - packages/runner/src/sessionDrive.ts:105-196
+      - packages/runner/src/sessionDrive.ts:566-620
+      - packages/runner/src/runtimeCatalogue.ts:567-620
+      - packages/runner/src/runtimeProbe.ts:79-99
+      - packages/runner/src/writableRootArgs.ts:1-74
+    produces:
+      - packages/runner/src/sessionDrive.ts
+      - packages/runner/src/runtimeCatalogue.ts
+      - packages/runner/src/runtimeProbe.ts
+      - packages/runner/src/writableRootArgs.ts
+  - id: published-runtime-shape
+    applies_to: { kind: path, path: schemas/runtimes@v2.json }
+    what: >-
+      Published the additive runtimes@v2 schema constraints and regenerated docs/shapes.md from the
+      schema, with the runtime example demonstrating writable roots, exclusive MCP and named
+      environment forwarding.
+    because: >-
+      The catalogue keys are public artifact fields, so their schema, generated reference and
+      example must agree while the schema refuses the legacy/exclusive MCP combination and marker
+      environment names.
+    rests_on:
+      - schemas/runtimes@v2.json
+      - docs/shapes.md
+      - runtimes.example.yaml
+    hunks:
+      - schemas/runtimes@v2.json:1-205
+      - docs/shapes.md:1345-1423
+      - runtimes.example.yaml:43-55
+    produces:
+      - schemas/runtimes@v2.json
+      - docs/shapes.md
+      - runtimes.example.yaml
+  - id: contract-proof
+    what: >-
+      Added focused exec contract proofs for writable-root opt-in and legacy byte preservation,
+      exclusive MCP empty/full/subset allow lists with an ambient-server exclusion, name-only
+      environment forwarding and unset omission, shared preparation, and a fixture program that
+      starts a filtered shell where only the forwarded name is visible.
+    because: >-
+      The acceptance assigns these cases to runner contract fixtures, and the process boundary
+      proof verifies that forwarding affects the child shell rather than only the prepared argv.
+    rests_on:
+      - packages/runner/test/execContract.test.ts
+    hunks:
+      - packages/runner/test/execContract.test.ts:80-112
+      - packages/runner/test/execContract.test.ts:141-204
+      - packages/runner/test/execContract.test.ts:238-245
+    produces:
+      - packages/runner/test/execContract.test.ts
+  - id: schema-proof
+    applies_to: { kind: path, path: packages/schemas/test/runtimesV2.test.ts }
+    what: >-
+      Added runtimes@v2 schema tests for an old catalogue shape, a catalogue using every new field,
+      the exclusive/legacy MCP refusal, and the interlock-marker environment refusal.
+    because: >-
+      The published schema must independently preserve old catalogues and reject the same unsafe
+      combinations that the loader refuses.
+    rests_on:
+      - packages/schemas/test/runtimesV2.test.ts
+      - schemas/runtimes@v2.json
+    hunks:
+      - packages/schemas/test/runtimesV2.test.ts:11-78
+      - schemas/runtimes@v2.json:103-158
+      - schemas/runtimes@v2.json:184-193
+    produces:
+      - packages/schemas/test/runtimesV2.test.ts
+  - id: marker-boundary-fixture
+    applies_to: { kind: path, path: packages/runner/test/markerNeverDropped.test.ts }
+    what: >-
+      Reduced only the UTF-8 marker fixture's synthetic x-argument from 250 to 220 characters,
+      keeping the 1024-byte limit and both boundary expectations unchanged so absolute HOME and
+      XDG_STATE_HOME paths from a long worktree cannot make the pre-marker assertion fail first.
+    because: >-
+      The observed 1037-character line was produced before marker arguments were appended and was
+      caused by the fixture's absolute worktree-derived environment paths, not by the new exec
+      preparation fields; production Codex argv behavior remains unchanged.
+    rests_on:
+      - packages/runner/test/markerNeverDropped.test.ts
+      - .interlock/sessions/0063-exec-carries-the-contract/exec-carries-roots-mcp-and-env/notes.yaml
+    hunks:
+      - packages/runner/test/markerNeverDropped.test.ts:172-180
+      - .interlock/sessions/0063-exec-carries-the-contract/exec-carries-roots-mcp-and-env/notes.yaml:76-103
+    produces:
+      - packages/runner/test/markerNeverDropped.test.ts
+      - .interlock/sessions/0063-exec-carries-the-contract/exec-carries-roots-mcp-and-env/notes.yaml
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: Node 24.14.0 and pnpm 10.13.1; all workspace packages passed strict TypeScript checking before the test-only correction.
+  - id: lint
+    result: fail
+    invocation: pnpm lint
+    note: The touched files are formatted; the gate still reports the two pre-existing runnerCommits.test.ts diagnostics.
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+    note: packages/*/src reported no comments.
+  - id: test
+    result: fail
+    invocation: pnpm test
+    note: >-
+      The prior normal-environment run had 60 of 62 files and 672 of 674 tests pass, with the marker
+      assertion and receiptCarriesItsRun timeout. After the correction, markerNeverDropped passed
+      alone and inside the isolated run, while receiptCarriesItsRun passed alone and in 10.369s in
+      the corrected isolated run. That isolated workspace run still reported 50 unrelated failures
+      caused by temporary-HOME-sensitive maintenance, outbox, gate and setup fixtures; the receipt
+      timeout remains an observed under-load open from the normal-environment run.
+  - id: exec-contract-tests
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/execContract.test.ts --passWithNoTests=false
+    note: 10 focused contract tests passed after the correction.
+open:
+  - >-
+    The full workspace test gate is not fully green. The requested marker regression is fixed and
+    markerNeverDropped passes, but receiptCarriesItsRun was observed timing out at 5 seconds in the
+    normal full suite while passing alone and during the corrected isolated run. The corrected
+    isolated full run also exposed 50 unrelated temporary-HOME-sensitive runner failures, so those
+    environment-sensitive failures remain unresolved rather than being attributed to this node.
