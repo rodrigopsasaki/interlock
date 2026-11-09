@@ -104,3 +104,19 @@ entries:
       but the isolated workspace suite still reported 50 runner failures across unrelated maintenance,
       outbox, gate and setup tests. The temporary HOME changes the repository-wide test environment
       beyond the marker fix; the earlier judge-observed receipt timeout under normal suite load remains open.
+  - kind: surprise
+    at: '2026-11-09T14:45:00Z'
+    expected: A fresh debrief candidate would retain the prior implementation decisions as rooted claims.
+    observed: >-
+      prepare selected the latest brief commit as session_start_sha, so preview marked the earlier
+      implementation hunks outside that range as unrooted. The prior debrief's source start must be
+      retained when refreshing the complete node record.
+  - kind: choice
+    at: '2026-11-09T14:46:00Z'
+    chose: >-
+      Keep the prior debrief source start and implementation decisions in the refreshed candidate,
+      then add the new rooted marker-boundary decision and updated gate evidence.
+    because: >-
+      The final node debrief must remain a manifest of the entire node diff; replacing earlier rooted
+      decisions with a current-session-only range would erase the contract implementation from the
+      debrief merely because this correction was made in a resumed session.

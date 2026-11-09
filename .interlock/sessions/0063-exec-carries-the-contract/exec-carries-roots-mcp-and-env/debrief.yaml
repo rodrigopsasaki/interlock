@@ -4,7 +4,7 @@ node: exec-carries-roots-mcp-and-env
 role: implementer
 graph_base_sha: 79ff0d5bb4e25b576844e42efcbc474caf8a389e
 session_start_sha: 196c30aec1e889180bc3a6dd2539e62bcec8471d
-head_sha: 4fe305e5239353705a1ce010436ee25cf13e7ba9
+head_sha: a8942170ca88def4d50fa2846b426e06e2cab205
 derivation:
   kind: agent
   runtime: codex
@@ -18,8 +18,8 @@ decisions:
       MCP disable-and-allow templates, and named environment forwarding with valid-name and
       marker-collision refusals; preserved the legacy mcp_disable_args form as mutually exclusive.
     because: >-
-      The exec contract must reject unsafe catalogue combinations before spawning while keeping
-      all existing catalogue versions readable and keeping forwarded values out of argv.
+      The exec contract must reject unsafe catalogue combinations before spawning while keeping all
+      existing catalogue versions readable and keeping forwarded values out of argv.
     rests_on:
       - packages/runner/src/runtimeCatalogue.ts
       - packages/runner/src/writableRootArgs.ts
@@ -38,11 +38,11 @@ decisions:
     what: >-
       Made exec argv expansion part of prepareLaunch and routed the work and debrief phases through
       that prepared result, expanding roots only at {writable_roots}, applying the phase MCP policy,
-      and forwarding only names whose effective inherited environment is set; probe equivalence
-      now accounts for exec profiles whose first args element is the program.
+      and forwarding only names whose effective inherited environment is set; probe equivalence now
+      accounts for exec profiles whose first args element is the program.
     because: >-
       Launches and the next probe must receive the same access contract, while profiles that write
-      none of the new opt-in fields must retain today's argv and environment behavior.
+      none of the new opt-in fields retain today's argv and environment behavior.
     rests_on:
       - packages/runner/src/sessionDrive.ts
       - packages/runner/src/runtimeCatalogue.ts
@@ -115,17 +115,34 @@ decisions:
       - schemas/runtimes@v2.json:184-193
     produces:
       - packages/schemas/test/runtimesV2.test.ts
+  - id: marker-boundary-fixture
+    applies_to: { kind: path, path: packages/runner/test/markerNeverDropped.test.ts }
+    what: >-
+      Reduced only the UTF-8 marker fixture's synthetic x-argument from 250 to 220 characters,
+      keeping the 1024-byte limit and both boundary expectations unchanged so absolute HOME and
+      XDG_STATE_HOME paths from a long worktree cannot make the pre-marker assertion fail first.
+    because: >-
+      The observed 1037-character line was produced before marker arguments were appended and was
+      caused by the fixture's absolute worktree-derived environment paths, not by the new exec
+      preparation fields; production Codex argv behavior remains unchanged.
+    rests_on:
+      - packages/runner/test/markerNeverDropped.test.ts
+      - .interlock/sessions/0063-exec-carries-the-contract/exec-carries-roots-mcp-and-env/notes.yaml
+    hunks:
+      - packages/runner/test/markerNeverDropped.test.ts:172-180
+      - .interlock/sessions/0063-exec-carries-the-contract/exec-carries-roots-mcp-and-env/notes.yaml:76-103
+    produces:
+      - packages/runner/test/markerNeverDropped.test.ts
+      - .interlock/sessions/0063-exec-carries-the-contract/exec-carries-roots-mcp-and-env/notes.yaml
 gates_run_by_agent:
   - id: typecheck
     result: pass
     invocation: pnpm typecheck
-    note: Node 24.14.0 and pnpm 10.13.1; all workspace packages passed strict TypeScript checking after the new fixtures.
+    note: Node 24.14.0 and pnpm 10.13.1; all workspace packages passed strict TypeScript checking before the test-only correction.
   - id: lint
     result: fail
     invocation: pnpm lint
-    note: >-
-      The touched files are formatted; the gate still reports the two pre-existing
-      runnerCommits.test.ts diagnostics (one warning and one info/error report).
+    note: The touched files are formatted; the gate still reports the two pre-existing runnerCommits.test.ts diagnostics.
   - id: comments
     result: pass
     invocation: pnpm check:comments
@@ -134,18 +151,20 @@ gates_run_by_agent:
     result: fail
     invocation: pnpm test
     note: >-
-      The workspace run passed 60 of 62 files and 672 of 674 tests, but retained two unrelated
-      runner failures: markerNeverDropped UTF-8 line-length assertion and receiptCarriesItsRun
-      timeout. The new execContract file passed all 10 tests in this run.
+      The prior normal-environment run had 60 of 62 files and 672 of 674 tests pass, with the marker
+      assertion and receiptCarriesItsRun timeout. After the correction, markerNeverDropped passed
+      alone and inside the isolated run, while receiptCarriesItsRun passed alone and in 10.369s in
+      the corrected isolated run. That isolated workspace run still reported 50 unrelated failures
+      caused by temporary-HOME-sensitive maintenance, outbox, gate and setup fixtures; the receipt
+      timeout remains an observed under-load open from the normal-environment run.
   - id: exec-contract-tests
     result: pass
     invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/execContract.test.ts --passWithNoTests=false
-    note: 10 focused contract tests passed.
-  - id: schemas
-    result: pass
-    invocation: pnpm --filter schemas exec vitest run test/runtimesV2.test.ts --passWithNoTests=false
-    note: 4 runtimes@v2 schema contract tests passed.
+    note: 10 focused contract tests passed after the correction.
 open:
   - >-
-    The full workspace test gate remains unresolved because of the unrelated markerNeverDropped
-    assertion and receiptCarriesItsRun timeout; the requested exec contract and schema gates pass.
+    The full workspace test gate is not fully green. The requested marker regression is fixed and
+    markerNeverDropped passes, but receiptCarriesItsRun was observed timing out at 5 seconds in the
+    normal full suite while passing alone and during the corrected isolated run. The corrected
+    isolated full run also exposed 50 unrelated temporary-HOME-sensitive runner failures, so those
+    environment-sensitive failures remain unresolved rather than being attributed to this node.
