@@ -123,3 +123,7 @@ entries:
         - {command: "pnpm test", exit_status: 0, output: packages/runner/test/.runs/full-suite-final-1.txt, test_files: 202, tests: 3155}
         - {command: "pnpm test", exit_status: 0, output: packages/runner/test/.runs/full-suite-final-2.txt, test_files: 202, tests: 3155}
         - {command: "pnpm test", exit_status: 0, output: packages/runner/test/.runs/full-suite-final-3.txt, test_files: 202, tests: 3155}
+  - kind: surprise
+    at: "2026-11-09T22:42:00Z"
+    expected: The authored debrief candidate would parse as YAML on its first read-only preview.
+    observed: The unquoted colon in the slow-tests gate note made the candidate invalid YAML; the note will be quoted before filing, with no change to the implementation or evidence.
