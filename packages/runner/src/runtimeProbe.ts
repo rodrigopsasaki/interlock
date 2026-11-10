@@ -21,6 +21,8 @@ export const PROBE_CHECKS: readonly ProbeCheck[] = [
   "signed-commit",
 ];
 
+export const PROBE_REAL_CHECKS_CAPABILITY = "probe.real-checks";
+
 export interface ProbeProcessResult {
   readonly code: number;
   readonly output: string;
