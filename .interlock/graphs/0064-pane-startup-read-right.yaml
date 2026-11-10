@@ -1,0 +1,101 @@
+interlock: graph@v0
+id: 0064-pane-startup-read-right
+arc: agents-set-up-as-one
+ask: A pane agent that is waiting for its first prompt is recognised as ready from positive evidence, a prompt counts as taken only on fresh evidence, and a start the runner refuses keeps bounded, redacted evidence and releases its machine hold only on proven termination.
+derivation:
+  kind: model
+  model: gilb
+  prompt: pane-startup-read-right-2026-11-10
+authorization:
+  granted_by: Rodrigo Sasaki
+  mandate: loom-feed-2026-11-04  # "You're free to do changes on phyxius and interlock too", 23:25 UTC
+  approver: Rodrigo Sasaki; Gilb relays the recorded approval and coordinates cleared-node merges. The cross-vendor vet is advisory.
+read: >
+  Arc: agents-set-up-as-one (.interlock/arcs.yaml). Rodrigo, 2026-11-07 16:05 UTC
+  (cmsg_01BN1q6CYuBjcZAFT6C2pgFd4iBikfQH3F2s2VqUMcFUzN): "this should all be part of Preston's setup by the way.
+  Requesting access for all its agents as one thing, even the interface we use to communicate with them should be
+  shared in a way. This needs to happen by design and by construction". The agents set up as one must also start.
+  This is its own graph because 0063 concerns headless exec and promises pane launches unchanged.
+
+  What happened, on 2026-11-10, twice (gilb 0013 earlier-proofs-hold session d16da0bf, herdr pane 254, 18:25 UTC;
+  dialeto 0002 corpus-facts session 76035cdc, pane 256, 20:35 UTC): "startup refused: agent not ready after 90000ms;
+  last status done", then "pane close or machine release unconfirmed; hold kept: tab_not_found". herdr's log
+  (~/.config/herdr/herdr-server.log, event lines only) shows codex detected about 1 s after spawn and no codex exit
+  until the runner's own pane.close at the 90 s mark; after that close, the second incident's workspace is closed,
+  the child exits (code 1, no signal) and a separate message records a hangup. The logs support detection, timeout
+  and close ordering; they do not prove codex was ready for input. A retry at 18:27 UTC reached its prompt in 4 s.
+
+  Why it happened, from source. Startup waits only for idle or blocked (packages/runner/src/sessionDrive.ts:972,
+  :1001). herdr reports done in situations that are not input-ready (the design records done on a dropped connection
+  and on a permission prompt), and herdr's detection rules classify only some trust and update dialogs as blocked. So
+  done is ambiguous at startup. After a successful pane.close the herdr adapter propagates a failing tab.get
+  (packages/runner/src/herdr/adapter.ts:600), which sessionDrive records as an unconfirmed close with the hold kept
+  (sessionDrive.ts:1304). Two further gaps: prompt delivery treats an unchanged done as taken even when the prompt call
+  errored (promptDelivery.ts:7, :100; herdr's waitUntil returns the current matching status at once, adapter.ts:533),
+  and the runtime interface cannot report the agent process (paneProcess carries the shell pid, adapter.ts:438) or a
+  status history (waitUntil keeps only the final status, adapter.ts:523).
+
+  What changes:
+  - an additive, typed observation capability on the pane runtime: a bounded, timestamped status history since
+    start, the detected agent kind, and the agent's own process identity and group where herdr exposes them, with
+    explicit unsupported and unknown states; exit code, signal and elapsed time are reported only when observed;
+  - startup readiness from positive, adapter-owned evidence: an agent is ready when its status is idle, or when it is
+    done and the adapter positively recognises an input-ready composer for that agent kind on the screen; a passive
+    notice above a usable composer is ready, a modal that needs an answer is blocked (handled by startup answers), and
+    an unknown screen is inconclusive and keeps waiting until the timeout;
+  - prompt delivery counts a prompt as taken only on fresh post-send evidence (a status change after the send, or the
+    prompt text visible in the composer history), while still accepting a genuinely fast completion; an unchanged
+    done after an errored send is not taken;
+  - on any startup refusal, evidence before close: a bounded screen excerpt (a stated line and byte cap, control
+    characters removed, secrets redacted before persistence by the same redaction interlock applies elsewhere, an
+    explicit truncation marker), the status history and the agent observation, written as a versioned diagnostic
+    artifact referenced from the narration and the outcome; an unreadable screen or a missing agent records its
+    reason and cleanup still proceeds within a bound;
+  - close confirmation tied to identity: after the runner's own pane.close, a missing tab or workspace is handled
+    inside the herdr adapter as an expected consequence, not an error; the machine hold is released only on
+    authoritative termination evidence for the original agent process group (no live member), with provider-release
+    acknowledgment and outbox ordering kept (machineOutbox.ts:188); without that proof the hold stays, as today.
+    Recovery applies the same rule instead of accepting pane absence alone (machineOutbox.ts:278); release is
+    idempotent.
+  Exec runtimes are unchanged.
+
+  Order: after 0063's judge-tests-stand-alone is on main (it is). New tests are declared or baselined as 0063's
+  slow-tests-under-load requires when both have landed.
+
+gates:
+  - id: approved
+    kind: human
+
+nodes:
+  - id: pane-startup-read-right
+    role: implementer
+    acceptance: |
+      As the read. Tests drive the real createHerdrRuntime through the existing fake socket server
+      (packages/runner/test/herdr/fakeServer.ts), never a real herdr or agent CLI, in
+      packages/runner/test/herdr/startupReadRight.test.ts, each failing on today's implementation:
+      - idle at start is ready; done with a recognised composer is ready; done with an unrecognised screen, a
+        permission or trust modal, or a dropped-connection screen is not ready; a passive notice above a composer is
+        ready;
+      - a modal recognised as blocked is answered by the startup answers as today;
+      - an unchanged done after an errored or dropped prompt send is not taken; a fast genuine completion after the
+        send is taken;
+      - a startup refusal persists the bounded, redacted screen excerpt (a fixture secret on the screen does not reach
+        the ledger or the artifact; a long screen is truncated with its marker), the status history and the agent
+        observation before the close request is sent;
+      - the runner's own close followed by a missing tab or workspace with the original process group gone releases
+        the hold once; with a surviving group member, or termination unknown, the hold stays; recovery behaves the
+        same; a repeated release is a no-op;
+      - malformed or missing observations, transport failure and an unreadable screen produce stated unknown states and
+        a bounded cleanup;
+      - an exec runtime's startup and delivery are unchanged.
+      Evidence in notes.yaml: the two herdr log excerpts (event lines only), and one real codex launch on this machine
+      whose startup is judged by the new rule and receives its prompt.
+    gates:
+      - id: pane-startup-tests
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/herdr/startupReadRight.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: slow-tests-accounted
+        kind: command
+        run: node scripts/gates/slow-tests.ts
+        expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1\.5 s'

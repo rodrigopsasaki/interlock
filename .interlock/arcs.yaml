@@ -350,4 +350,5 @@ arcs:
     graphs:
       - interlock/0062-same-access
       - interlock/0063-exec-carries-the-contract
+      - interlock/0064-pane-startup-read-right
       - preston/0042-agents-as-one
