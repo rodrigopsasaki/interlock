@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/capabilities@v0.json",
+  "title": "capabilities@v0",
+  "description": "The selected setup-facing contracts implemented by this interlock binary.",
+  "type": "object",
+  "required": ["interlock", "capabilities"],
+  "properties": {
+    "interlock": {
+      "const": "capabilities@v0"
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    }
+  },
+  "additionalProperties": false
+}

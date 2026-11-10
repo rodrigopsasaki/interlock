@@ -25,6 +25,12 @@ import {
 
 export const RUNTIME_CATALOGUE_SHAPE = "runtimes@v2";
 
+export const EXEC_WRITABLE_ROOTS_SLOT_CAPABILITY = "exec.writable-roots-slot";
+export const EXEC_MCP_EXCLUSIVE_CAPABILITY = "exec.mcp-exclusive";
+export const EXEC_ENVIRONMENT_PASSTHROUGH_CAPABILITY = "exec.environment-passthrough";
+export const EXEC_HEADLESS_ARGS_PROBE_CAPABILITY = "exec.headless-args-probe";
+export const RUNTIMES_V2_CAPABILITY = "runtimes@v2";
+
 export const DEFAULT_RUNTIME_NAME = "default";
 
 export type CommitMode = "runner" | "agent";

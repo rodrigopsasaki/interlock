@@ -26,6 +26,7 @@ describe("reference: docs/shapes.md stays fresh against the schemas", () => {
     const { missingVocabularyTerms } = generateReference({ repoRoot });
     expect(missingVocabularyTerms).toEqual([
       "arcs",
+      "capabilities",
       "commits",
       "config",
       "event",

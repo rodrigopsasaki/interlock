@@ -1,0 +1,71 @@
+interlock: notes@v0
+node: interlock-says-what-it-carries
+entries:
+  - kind: choice
+    at: "2026-11-09T22:59:55Z"
+    chose: >-
+      Publish one exported capability constant beside each selected exec-runtime
+      implementation, collect those constants in a pure top-level capabilities
+      command, and publish capabilities@v0 with a generated shapes reference.
+    because: >-
+      The acceptance makes ownership visible at the implementation seam while
+      forbidding a hand-written string list, and the command must read nothing
+      from the machine, catalogue, ledger, herdr or repository.
+  - kind: surprise
+    at: "2026-11-09T23:00:20Z"
+    expected: The package's ignored test/.runs directory would already exist for focused output.
+    observed: The directory was absent, so the first focused command did not start; no test output was produced.
+  - kind: choice
+    at: "2026-11-09T23:02:10Z"
+    chose: Use a YAML capability fixture as the generated reference source.
+    because: The corpus parser treats JSON files as YAML input, so the fixture extension should match the language rendered in docs/shapes.md.
+  - kind: surprise
+    at: "2026-11-09T23:03:30Z"
+    expected: The standing lint gate would be silent for this focused diff.
+    observed: Lint exited successfully but retained one warning and one info in an unrelated existing runner test file; the new files had no findings.
+  - kind: surprise
+    at: "2026-11-09T23:04:10Z"
+    expected: The schema reference suite's fixed missing-vocabulary list would already include the new published artifact.
+    observed: The suite failed one assertion because capabilities is a new artifact term; the other three reference tests passed.
+  - kind: choice
+    at: "2026-11-09T23:04:11Z"
+    chose: Add capabilities to the schema reference test's expected missing-vocabulary terms.
+    because: The new shape intentionally has no closed-vocabulary row, and the assertion must enumerate the generated corpus result without hiding that gap.
+  - kind: surprise
+    at: "2026-11-09T23:07:50Z"
+    expected: The first standing full-test invocation would return its final summary through the command session.
+    observed: It stopped after partial runner output without a final summary; no process remained, so that run was not used as proof. A directly tracked rerun completed with exit code 0 and a final summary.
+  - kind: choice
+    at: "2026-11-09T23:07:51Z"
+    chose: Use the directly tracked standing-gate rerun as the full-test proof and proceed to debrief authoring.
+    because: The rerun recorded exit code 0 after all eight workspace packages completed, while the interrupted invocation did not establish a result.
+  - kind: choice
+    at: "2026-11-09T23:10:20Z"
+    chose: Narrow the implementation decision's runtimeCatalogue citation to the constants hunk and omit the unchanged argv body.
+    because: Debrief hunks must manifest this node's diff; the existing argv body supports context but was not produced by this session.
+  - kind: choice
+    at: "2026-11-09T23:20:00Z"
+    chose: >-
+      Strengthen the capabilities test with spies on the catalogue, journal,
+      ledger, machine-provider and herdr entry points, and compare exported
+      constants against a separate literal contract list.
+    because: >-
+      Availability from an empty directory does not prove that those readers
+      were not attempted, and deriving the expected list from constants would
+      allow a renamed contract string to pass.
+  - kind: choice
+    at: "2026-11-09T23:20:01Z"
+    chose: Allocate the capabilities test's temporary directory under os.tmpdir().
+    because: The requested isolation must not depend on the repository's test scratch directory or its .interlock ancestor.
+  - kind: surprise
+    at: "2026-11-09T23:24:00Z"
+    expected: The focused test's new namespace imports would satisfy the repository formatter.
+    observed: The full lint gate found one new import-order error in capabilities.test.ts; the same two unrelated runner notices remained.
+  - kind: choice
+    at: "2026-11-09T23:24:01Z"
+    chose: Reorder the runner namespace import before its named imports.
+    because: This is the formatter's required import grouping and changes no test behavior.
+  - kind: choice
+    at: "2026-11-09T23:25:30Z"
+    chose: Prepare and revise a fresh debrief candidate against code head 23dbb04.
+    because: The new proof is a forward correction, so the filed debrief must retain its prior version while its head_sha and rooted test manifest move to the new code commit.

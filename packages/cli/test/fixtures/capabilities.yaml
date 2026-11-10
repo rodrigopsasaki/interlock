@@ -1,0 +1,9 @@
+interlock: capabilities@v0
+capabilities:
+  - exec.pane-independent
+  - exec.writable-roots-slot
+  - exec.mcp-exclusive
+  - exec.environment-passthrough
+  - exec.headless-args-probe
+  - probe.real-checks
+  - runtimes@v2

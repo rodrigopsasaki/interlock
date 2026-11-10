@@ -171,12 +171,17 @@ export type {
 } from "./runtimeCatalogue.ts";
 export {
   DEFAULT_RUNTIME_NAME,
+  EXEC_ENVIRONMENT_PASSTHROUGH_CAPABILITY,
+  EXEC_HEADLESS_ARGS_PROBE_CAPABILITY,
+  EXEC_MCP_EXCLUSIVE_CAPABILITY,
+  EXEC_WRITABLE_ROOTS_SLOT_CAPABILITY,
   execRuntimeArgv,
   explainMergeRuntimesRefusal,
   explainRuntimeCatalogueRefusal,
   loadRuntimeCatalogue,
   mergeRuntimes,
   RUNTIME_CATALOGUE_SHAPE,
+  RUNTIMES_V2_CAPABILITY,
   runtimeCataloguePath,
 } from "./runtimeCatalogue.ts";
 export type {
@@ -187,6 +192,7 @@ export type {
 export {
   execProbeInvocation,
   PROBE_CHECKS,
+  PROBE_REAL_CHECKS_CAPABILITY,
   probePassed,
   runProbeChecks,
 } from "./runtimeProbe.ts";
@@ -220,7 +226,11 @@ export type {
   DriveSessionOutcome,
   DriveSessionRequest,
 } from "./sessionDrive.ts";
-export { driveInteractiveSession, prepareLaunch } from "./sessionDrive.ts";
+export {
+  driveInteractiveSession,
+  EXEC_PANE_INDEPENDENT_CAPABILITY,
+  prepareLaunch,
+} from "./sessionDrive.ts";
 export type { SessionInheritance } from "./sessionRange.ts";
 export { findInheritedSessionStart } from "./sessionRange.ts";
 export {

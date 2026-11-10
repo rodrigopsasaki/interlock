@@ -68,6 +68,10 @@ export const referenceSources: readonly ReferenceSource[] = [
     tag: "notes@v0",
   },
   { sourcePath: "runtimes.example.yaml", tag: "runtimes@v2" },
+  {
+    sourcePath: "packages/cli/test/fixtures/capabilities.yaml",
+    tag: "capabilities@v0",
+  },
 ];
 
 function candidatesFromMarkdown(content: string): readonly Candidate[] {
