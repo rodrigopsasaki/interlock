@@ -336,3 +336,45 @@ nodes:
         kind: command
         run: pnpm --fail-if-no-match --filter cli exec vitest run test/capabilities.test.ts --passWithNoTests=false
         expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+
+  - id: slow-tests-under-load
+    role: implementer
+    depends_on: [judge-tests-stand-alone]
+    acceptance: |
+      The slow-tests gate judges each test against what that test is known to cost, not against a bare wall-clock
+      threshold, so it stays green while the machine carries its normal four-session load and still catches a test that
+      became slow.
+      Found on 2026-11-10 landing interlock-says-what-it-carries: scripts/gates/slow-tests.ts (from judge-tests-stand-
+      alone) classifies any test measured at 1.5 s or more in the current run as needing a declaration; at load 20.8,
+      logic tests that take about 1.2 s on a quiet machine measured 1.51 to 1.65 s and failed the gate as "undeclared"
+      (run.test.ts "narrates 'agent working'...", backfill.test.ts idempotence, runnerCommits.test.ts three cases,
+      sessionBrief.test.ts). A gate that fails under load is the defect that node set out to remove.
+      What changes:
+      - a committed baseline file records, for every test, its quiet duration, measured by a refresh command that runs
+        each package one at a time under the machine-heavy cap at load under 4, with the machine, worker settings and
+        interlock commit it was measured on; the refresh is a deliberate, reviewed action, never run by the gate.
+      - classification comes from the baseline: a test whose quiet baseline is 1.5 s or more must be declared through the
+        slow-integration helper with its budget, as today; a test under it is logic. The current run never reclassifies.
+      - the gate measures the current run under the machine-heavy cap and fails when: a declared test exceeds half its
+        declared budget; a logic test exceeds its baseline by more than a stated margin (a factor and a floor, chosen from
+        the four-session measurements below and written beside the threshold with that evidence); a test is missing from
+        the baseline (a new test is measured and its baseline committed with it); a baseline entry names a test that no
+        longer exists; or any report is missing, empty or from a failed run. It prints the load at start and end.
+      - no vitest timeout, global or per file, changes.
+      Evidence, in notes.yaml, tied to the head sha with exit status, load averages and output files kept: the baseline
+      refreshed at load under 4; the gate passing three times while the machine carries a four-session load (four
+      concurrent fixture workloads the test harness starts, CPU-bound, recorded load in the 4-session range); the gate
+      failing when one logic test is made slower than its margin (a temporary fixture change, reverted) and when a
+      declared test exceeds half its budget.
+      Tests, packages/cli/test/slowTestsGate.test.ts, drive the gate's judging function with synthetic reports and
+      baselines: logic under margin passes at high load, over margin fails, a new unlisted test fails until baselined, a
+      stale baseline entry fails, a declared test over half budget fails, a failed or empty report fails.
+    gates:
+      - id: slow-tests-gate-tests
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/slowTestsGate.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: slow-tests-accounted
+        kind: command
+        run: node scripts/gates/slow-tests.ts
+        expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic within baseline'
