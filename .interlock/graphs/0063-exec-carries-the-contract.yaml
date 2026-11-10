@@ -343,32 +343,63 @@ nodes:
     acceptance: |
       The slow-tests gate judges each test against what that test is known to cost, not against a bare wall-clock
       threshold, so it stays green while the machine carries its normal four-session load and still catches a test that
-      became slow.
+      became slow by more than a stated, measured amount.
       Found on 2026-11-10 landing interlock-says-what-it-carries: scripts/gates/slow-tests.ts (from judge-tests-stand-
       alone) classifies any test measured at 1.5 s or more in the current run as needing a declaration; at load 20.8,
       logic tests that take about 1.2 s on a quiet machine measured 1.51 to 1.65 s and failed the gate as "undeclared"
       (run.test.ts "narrates 'agent working'...", backfill.test.ts idempotence, runnerCommits.test.ts three cases,
       sessionBrief.test.ts). A gate that fails under load is the defect that node set out to remove.
       What changes:
-      - a committed baseline file records, for every test, its quiet duration, measured by a refresh command that runs
-        each package one at a time under the machine-heavy cap at load under 4, with the machine, worker settings and
-        interlock commit it was measured on; the refresh is a deliberate, reviewed action, never run by the gate.
-      - classification comes from the baseline: a test whose quiet baseline is 1.5 s or more must be declared through the
-        slow-integration helper with its budget, as today; a test under it is logic. The current run never reclassifies.
-      - the gate measures the current run under the machine-heavy cap and fails when: a declared test exceeds half its
-        declared budget; a logic test exceeds its baseline by more than a stated margin (a factor and a floor, chosen from
-        the four-session measurements below and written beside the threshold with that evidence); a test is missing from
-        the baseline (a new test is measured and its baseline committed with it); a baseline entry names a test that no
-        longer exists; or any report is missing, empty or from a failed run. It prints the load at start and end.
+      - Baseline. A committed, versioned baseline file (shape slow-tests-baseline@v1, published with the other shapes)
+        records, for every test identified by file path plus full test name, its quiet duration as the median of at
+        least five samples, with the sample count, the worker and cache settings, CPU count, node and vitest versions,
+        the machine and the interlock commit it was measured on. Duplicate identities (including indistinguishable
+        parameterized titles) are rejected, not collapsed. A moved or renamed test fails as one stale and one missing
+        entry and is migrated by a reviewed, atomic baseline change that keeps the original measurement provenance; no
+        fuzzy matching and no automatic remeasurement.
+      - Refresh. A refresh entry, scripts/gates/slow-tests-refresh.ts, resolves the machine provider the way worktree
+        setup does (packages/runner/src/worktreeSetup.ts) and takes the machine-heavy cap once for the whole refresh,
+        running packages one at a time at load under 4. It is a deliberate, reviewed action: never run by the gate, never
+        part of automatic worktree setup. The final refresh is made on the integrated head, after any sibling test
+        additions.
+      - Classification comes from the baseline, never from the current run: a test whose quiet baseline is 1.5 s or more
+        must be declared through the slow-integration helper with its budget, as today; a test under it is logic. A
+        declaration stands on its own: a declared integration test whose baseline is under 1.5 s stays integration.
+      - Margin. A logic test's limit is max(factor x baseline, baseline + floor), the floor additive. Factor and floor are
+        chosen from repeated quiet runs and four-session loaded runs with identical worker and cache settings, as the
+        smallest pair that covers every unchanged test with stated slack; they are frozen in the gate, with that evidence
+        written beside them, before the validation runs below. The minimum regression the gate detects is stated with
+        them. A test too noisy for that margin is repaired, never given a wider margin of its own. Load is printed and
+        recorded as diagnosis only; it never moves a threshold.
+      - The gate keeps its plain command; the runner already runs gates under the machine-heavy cap
+        (packages/runner/src/gateJudge.ts), and nothing inside the gate takes the cap again. It fails when: a declared
+        test exceeds half its declared budget (today's check, kept); a logic test exceeds its limit; a test is missing
+        from the baseline (a new test is measured and its baseline committed with it); a baseline entry names a test that
+        no longer exists; or any report is missing, empty, malformed, from a failed run, has a test with no finite
+        nonnegative duration, or has a skipped or non-passed test. Malformed records are failures, never filtered out,
+        and a missing duration is never read as zero. It prints the load at start and end.
+      - Its summary line keeps the predecessor's form so judge-tests-stand-alone's gate still matches on the combined
+        head: `slow tests accounted: N declared, M logic under 1.5 s, all within baseline`.
       - no vitest timeout, global or per file, changes.
-      Evidence, in notes.yaml, tied to the head sha with exit status, load averages and output files kept: the baseline
-      refreshed at load under 4; the gate passing three times while the machine carries a four-session load (four
-      concurrent fixture workloads the test harness starts, CPU-bound, recorded load in the 4-session range); the gate
-      failing when one logic test is made slower than its margin (a temporary fixture change, reverted) and when a
-      declared test exceeds half its budget.
+      Loaded proof, a declared gate, scripts/gates/slow-tests-under-load.ts: starts four bounded CPU workloads with fixed
+      thread counts and work patterns, waits until all four report ready, runs the slow-tests gate three times while they
+      run, and stops and reaps them on every exit path. It records available CPUs, workload settings, each worker's CPU
+      time and progress, overlap timestamps, load sampled throughout, and the hashes of the reports and outputs, and
+      prints `under load: 3 of 3 passed` only when all three passed with all four workloads live the whole time. This
+      proves tolerance to that CPU contention on this machine, not to filesystem, git, process-spawn or memory
+      contention, and its output says so. It is never started from package tests: the sweep runs every package's tests,
+      so starting it there would recurse. Its workloads run no agent CLIs.
+      Evidence, in notes.yaml, tied to the head sha with exit status, load averages and output files kept: the
+      calibration runs and the chosen factor, floor and minimum detectable regression; the final baseline refreshed at
+      load under 4 on the integrated head; the loaded-proof gate's output; the gate failing when one logic test is made
+      slower than its limit and when a declared test exceeds half its budget, each through an isolated fixture (not a
+      change to a tracked test), with the fixture's exact bytes hashed in the note.
       Tests, packages/cli/test/slowTestsGate.test.ts, drive the gate's judging function with synthetic reports and
-      baselines: logic under margin passes at high load, over margin fails, a new unlisted test fails until baselined, a
-      stale baseline entry fails, a declared test over half budget fails, a failed or empty report fails.
+      baselines: logic exactly at its limit passes and just over fails, for both the factor and the floor sides; logic
+      under its limit passes at high recorded load; a declared test exactly at half budget passes and just over fails; a
+      new unlisted test fails until baselined; a stale baseline entry fails; a duplicate identity fails; a moved test
+      fails as stale plus missing; a declared test with a fast baseline stays declared; a failed, empty, malformed,
+      skipped or duration-less report fails.
     gates:
       - id: slow-tests-gate-tests
         kind: command
@@ -377,4 +408,8 @@ nodes:
       - id: slow-tests-accounted
         kind: command
         run: node scripts/gates/slow-tests.ts
-        expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic within baseline'
+        expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1\.5 s, all within baseline'
+      - id: slow-tests-under-load
+        kind: command
+        run: node scripts/gates/slow-tests-under-load.ts
+        expect_output: 'under load: 3 of 3 passed'
