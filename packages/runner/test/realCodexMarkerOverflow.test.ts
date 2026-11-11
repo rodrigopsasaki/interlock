@@ -6,9 +6,9 @@ import { isOk } from "@phyxiusjs/fp";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { prepareCodexLaunch } from "../src/codex/config.ts";
 import {
-  registeredGuardLaunchCount,
   reapRegisteredGuardLaunches,
   reapRegisteredGuardLaunchesSync,
+  registeredGuardLaunchCount,
 } from "./support/codexGuardAssertions.ts";
 import { startLoopbackProvider } from "./support/loopbackProvider.ts";
 import { slowIntegration } from "./support/slowIntegration.ts";

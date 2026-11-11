@@ -144,7 +144,7 @@ function signing(root: string, failAt = 0): void {
     [
       "#!/bin/sh",
       "cat >/dev/null",
-      'count_path="${0%/*}/sign-count"',
+      `count_path="\${0%/*}/sign-count"`,
       'count=$(cat "$count_path" 2>/dev/null || printf 0)',
       "count=$((count + 1))",
       'printf \'%s\' "$count" > "$count_path"',
@@ -292,7 +292,7 @@ const secretCases: readonly [string, string, string][] = [
   [".pypirc", ".pypirc", "ordinary"],
   [".netrc", ".netrc", "ordinary"],
   ["PEM private-key header", "private.txt", ["-----", "BEGIN RSA PRIVATE KEY", "-----"].join("")],
-  ["AWS access key id", "aws.txt", "AKIA" + "X".repeat(16)],
+  ["AWS access key id", "aws.txt", `AKIA${"X".repeat(16)}`],
   ...["ghp_", "gho_", "ghs_", "github_pat_"].map((prefix): [string, string, string] => [
     "GitHub token",
     `${prefix}.txt`,

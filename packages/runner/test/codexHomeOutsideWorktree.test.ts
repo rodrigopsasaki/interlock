@@ -14,8 +14,8 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { fixtureGit, initFixtureRepository } from "../../../test/support/gitFixture.ts";
 import { interlockStateDirectory, prepareCodexLaunch } from "../src/codex/config.ts";
 import {
-  registeredGuardLaunchCount,
   reapRegisteredGuardLaunchesSync,
+  registeredGuardLaunchCount,
 } from "./support/codexGuardAssertions.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");

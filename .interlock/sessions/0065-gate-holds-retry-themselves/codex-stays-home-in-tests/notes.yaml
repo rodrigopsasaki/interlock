@@ -69,3 +69,15 @@ entries:
     at: "2026-11-11T20:22:00Z"
     chose: "Have each kept real-Codex file explicitly reap its registered guard launches after asserting registration, while leaving the global afterEach failure for unhandled survivors."
     because: "The stricter report correctly finds detached MCP children; explicit reaping proves those accepted tests clean up without weakening the guard's failure for leaks."
+  - kind: surprise
+    at: "2026-11-11T19:25:21Z"
+    expected: "The zsh wrapper would preserve the command exit status in a variable named status."
+    observed: "zsh reserves status as read-only; the typecheck itself completed, but the wrapper exited before printing its log. The rerun uses a different variable name."
+  - kind: surprise
+    at: "2026-11-11T19:27:00Z"
+    expected: "The standing lint gate would report only the guard changes from this repair."
+    observed: "It also reported two existing style violations in runnerCommits.test.ts; the minimal literal-only fixes were required for the repository gate."
+  - kind: surprise
+    at: "2026-11-11T19:31:00Z"
+    expected: "The full suite would complete without unrelated repository diagnostics."
+    observed: "Runner worktree-maintenance tests printed expected Git lock-permission diagnostics while their assertions passed; the full suite still completed successfully."

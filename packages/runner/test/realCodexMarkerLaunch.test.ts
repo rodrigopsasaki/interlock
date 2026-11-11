@@ -6,8 +6,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { ResolvedRuntime } from "../src/runtimeCatalogue.ts";
 import { prepareLaunch } from "../src/sessionDrive.ts";
 import {
-  registeredGuardLaunchCount,
   reapRegisteredGuardLaunchesSync,
+  registeredGuardLaunchCount,
 } from "./support/codexGuardAssertions.ts";
 import { isolatedHomeEnvironment } from "./support/toolState.ts";
 

@@ -6,8 +6,8 @@ import { isOk } from "@phyxiusjs/fp";
 import { afterAll, afterEach, beforeAll, describe, expect } from "vitest";
 import { prepareCodexLaunch } from "../src/codex/config.ts";
 import {
-  registeredGuardLaunchCount,
   reapRegisteredGuardLaunches,
+  registeredGuardLaunchCount,
 } from "./support/codexGuardAssertions.ts";
 import { slowIntegration } from "./support/slowIntegration.ts";
 import { isolatedHomeEnvironment } from "./support/toolState.ts";

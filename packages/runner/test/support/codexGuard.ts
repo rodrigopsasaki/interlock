@@ -141,16 +141,11 @@ function parseConfig(text: string): ParsedConfig {
     if (separator < 1) throw new Error(`unsupported Codex configuration line: ${line}`);
     const key = keyParts(line.slice(0, separator));
     const rawValue = line.slice(separator + 1).trim();
-    const target =
-      key === undefined || key.length !== 1 ? undefined : overlayFor(table, root, profiles);
+    if (key === undefined || key.length !== 1)
+      throw new Error(`unsupported Codex configuration key: ${line}`);
+    const target = overlayFor(table, root, profiles);
     if (target === undefined) {
-      if (
-        ignoredTable(table) &&
-        key !== undefined &&
-        key.length === 1 &&
-        validIgnoredValue(rawValue)
-      )
-        continue;
+      if (ignoredTable(table) && validIgnoredValue(rawValue)) continue;
       throw new Error(`unsupported Codex configuration key: ${line}`);
     }
     const name = key[0];
