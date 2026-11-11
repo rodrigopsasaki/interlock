@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { isOk } from "@phyxiusjs/fp";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { prepareCodexLaunch } from "../src/codex/config.ts";
+import { startLoopbackProvider } from "./support/loopbackProvider.ts";
 import { slowIntegration } from "./support/slowIntegration.ts";
 import { isolatedHomeEnvironment } from "./support/toolState.ts";
 
@@ -90,46 +91,55 @@ describe("real Codex marker overflow delivery", () => {
       const fixture = join(import.meta.dirname, "fixtures", "codex", "recordMcpEnvironment.mjs");
       const names = Array.from({ length: 4 }, (_, index) => `overflow_${index}_${"x".repeat(120)}`);
       const outputPaths = names.map((name) => join(root, `${name}.json`));
-      writeFileSync(
-        join(home, "config.toml"),
-        names
-          .map((name, index) => {
-            const output = outputPaths[index];
-            if (output === undefined) throw new Error(`missing output path for ${name}`);
-            return `[mcp_servers.${name}]\ncommand = ${JSON.stringify(process.execPath)}\nargs = [${JSON.stringify(fixture)}, ${JSON.stringify(output)}]\n`;
-          })
-          .join("\n"),
-      );
-      const environment = {
-        ...isolation.environment,
-        INTERLOCK_SESSION: "real-mcp-session",
-        INTERLOCK_GRAPH: "0060-headless-runtime",
-        INTERLOCK_NODE: "marker-never-dropped",
-        CODEX_HOME: home,
-      };
-      const launch = prepareCodexLaunch([], root, environment);
-      expect(isOk(launch)).toBe(true);
-      if (!isOk(launch)) return;
-      expect(launch.value.path).toBe("overlay");
-      const command = await runCodex(
-        [...launch.value.args, "exec", "--skip-git-repo-check", "marker proof"],
-        root,
-        launch.value.environment,
-      );
-      if (!outputPaths.every((output) => existsSync(output))) {
-        throw new Error(
-          `Codex did not start every MCP fixture child (exit ${String(command.code)}): ${command.stderr}`,
+      const provider = await startLoopbackProvider();
+      try {
+        writeFileSync(
+          join(home, "config.toml"),
+          [
+            'model_provider = "overflow-fixture"',
+            'model = "overflow-fixture"',
+            `[model_providers.overflow-fixture]\nname = "overflow-fixture"\nbase_url = ${JSON.stringify(provider.url)}\nwire_api = "responses"\nenv_key = "OVERFLOW_API_KEY"`,
+            ...names.map((name, index) => {
+              const output = outputPaths[index];
+              if (output === undefined) throw new Error(`missing output path for ${name}`);
+              return `[mcp_servers.${name}]\ncommand = ${JSON.stringify(process.execPath)}\nargs = [${JSON.stringify(fixture)}, ${JSON.stringify(output)}]\n`;
+            }),
+          ].join("\n\n"),
         );
-      }
-      for (const output of outputPaths) {
-        expect(JSON.parse(readFileSync(output, "utf8"))).toEqual({
+        const environment = {
+          ...isolation.environment,
           INTERLOCK_SESSION: "real-mcp-session",
           INTERLOCK_GRAPH: "0060-headless-runtime",
           INTERLOCK_NODE: "marker-never-dropped",
-        });
+          CODEX_HOME: home,
+          OVERFLOW_API_KEY: "fixture-key",
+        };
+        const launch = prepareCodexLaunch([], root, environment);
+        expect(isOk(launch)).toBe(true);
+        if (!isOk(launch)) return;
+        expect(launch.value.path).toBe("overlay");
+        const command = await runCodex(
+          [...launch.value.args, "exec", "--skip-git-repo-check", "marker proof"],
+          root,
+          launch.value.environment,
+        );
+        if (!outputPaths.every((output) => existsSync(output))) {
+          throw new Error(
+            `Codex did not start every MCP fixture child (exit ${String(command.code)}): ${command.stderr}`,
+          );
+        }
+        for (const output of outputPaths) {
+          expect(JSON.parse(readFileSync(output, "utf8"))).toEqual({
+            INTERLOCK_SESSION: "real-mcp-session",
+            INTERLOCK_GRAPH: "0060-headless-runtime",
+            INTERLOCK_NODE: "marker-never-dropped",
+          });
+        }
+        launch.value.cleanup(true);
+        expect(readFileSync(join(home, "config.toml"), "utf8")).toContain(names[0]);
+      } finally {
+        await provider.close();
       }
-      launch.value.cleanup(true);
-      expect(readFileSync(join(home, "config.toml"), "utf8")).toContain(names[0]);
     },
   );
 });
