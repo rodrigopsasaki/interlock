@@ -137,3 +137,7 @@ entries:
     at: "2026-11-11T20:51:00Z"
     expected: "The first slow-test declaration would account for all runner custody cases over the threshold."
     observed: "A second signing-failure custody case measured at 1521.7 ms, so it also required an explicit slow integration declaration."
+  - kind: choice
+    at: "2026-11-11T21:00:00Z"
+    chose: "Report survivor PIDs without embedding process command and environment text in explicit reaper errors."
+    because: "The acceptance requires every survivor to be named, and PID-only diagnostics preserve that proof without exposing unrelated environment values in test output."
