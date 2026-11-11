@@ -5,6 +5,11 @@ import { join } from "node:path";
 import { isOk } from "@phyxiusjs/fp";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { prepareCodexLaunch } from "../src/codex/config.ts";
+import {
+  registeredGuardLaunchCount,
+  reapRegisteredGuardLaunches,
+  reapRegisteredGuardLaunchesSync,
+} from "./support/codexGuardAssertions.ts";
 import { startLoopbackProvider } from "./support/loopbackProvider.ts";
 import { slowIntegration } from "./support/slowIntegration.ts";
 import { isolatedHomeEnvironment } from "./support/toolState.ts";
@@ -53,6 +58,7 @@ describe("real Codex marker overflow delivery", () => {
       env: { ...process.env, ...launch.value.environment },
       encoding: "utf8",
     });
+    expect(registeredGuardLaunchCount()).toBeGreaterThan(0);
     const listed: unknown = JSON.parse(output);
     expect(Array.isArray(listed)).toBe(true);
     if (!Array.isArray(listed)) return;
@@ -73,6 +79,7 @@ describe("real Codex marker overflow delivery", () => {
       });
     }
     launch.value.cleanup(true);
+    reapRegisteredGuardLaunchesSync();
     expect(readFileSync(join(home, "config.toml"), "utf8")).toContain(names[0]);
   });
 
@@ -123,6 +130,7 @@ describe("real Codex marker overflow delivery", () => {
           root,
           launch.value.environment,
         );
+        expect(registeredGuardLaunchCount()).toBeGreaterThan(0);
         if (!outputPaths.every((output) => existsSync(output))) {
           throw new Error(
             `Codex did not start every MCP fixture child (exit ${String(command.code)}): ${command.stderr}`,
@@ -138,6 +146,7 @@ describe("real Codex marker overflow delivery", () => {
         launch.value.cleanup(true);
         expect(readFileSync(join(home, "config.toml"), "utf8")).toContain(names[0]);
       } finally {
+        await reapRegisteredGuardLaunches();
         await provider.close();
       }
     },

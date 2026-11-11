@@ -5,6 +5,10 @@ import { join } from "node:path";
 import { isOk } from "@phyxiusjs/fp";
 import { afterAll, afterEach, beforeAll, describe, expect } from "vitest";
 import { prepareCodexLaunch } from "../src/codex/config.ts";
+import {
+  registeredGuardLaunchCount,
+  reapRegisteredGuardLaunches,
+} from "./support/codexGuardAssertions.ts";
 import { slowIntegration } from "./support/slowIntegration.ts";
 import { isolatedHomeEnvironment } from "./support/toolState.ts";
 
@@ -280,6 +284,7 @@ describe("real Codex line fitting", () => {
           root,
           inheritedEnvironment,
         );
+        expect(registeredGuardLaunchCount()).toBeGreaterThan(0);
         expect(result.code, `${result.stdout}\n${result.stderr}\n${JSON.stringify(requests)}`).toBe(
           0,
         );
@@ -301,6 +306,7 @@ describe("real Codex line fitting", () => {
         });
         launch.value.cleanup(true);
       } finally {
+        await reapRegisteredGuardLaunches();
         await provider.close();
       }
     },

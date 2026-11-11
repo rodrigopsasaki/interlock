@@ -49,3 +49,23 @@ entries:
     at: "2026-11-11T19:33:00Z"
     expected: "The authored debrief candidate would preview as valid YAML without further quoting."
     observed: "The preview parser treated the colon in the slow-test receipt as a compact mapping, so that scalar was quoted before the candidate was refreshed."
+  - kind: choice
+    at: "2026-11-11T20:10:00Z"
+    chose: "Scan profile and config options before and after exec, reject unknown exec options, and make the TOML guard reader fail closed on unsupported syntax while resolving profiles tables."
+    because: "Options and provider settings must not reach real Codex through an unparsed path; the guard now accepts only syntax it can resolve unambiguously."
+  - kind: choice
+    at: "2026-11-11T20:11:00Z"
+    chose: "Match tokenless members by a verified launch process group and refuse a launch when the leader start time cannot be read after retries."
+    because: "Codex filters marker environment variables from MCP children, while a missing leader identity makes registration unable to protect against pid reuse."
+  - kind: choice
+    at: "2026-11-11T20:12:00Z"
+    chose: "Report every process observed at cleanup, including descendants that terminate during TERM grace, and make the nested fixture contain both graceful and stubborn descendants."
+    because: "The test must expose the complete survivor set rather than silently converting graceful TERM cleanup into a passing result."
+  - kind: choice
+    at: "2026-11-11T20:13:00Z"
+    chose: "Assert registry registration in each kept real-Codex test file through a shared test-support count helper."
+    because: "Passing through a fake or real Codex command is not enough evidence that the guard registered the launch for cleanup."
+  - kind: choice
+    at: "2026-11-11T20:22:00Z"
+    chose: "Have each kept real-Codex file explicitly reap its registered guard launches after asserting registration, while leaving the global afterEach failure for unhandled survivors."
+    because: "The stricter report correctly finds detached MCP children; explicit reaping proves those accepted tests clean up without weakening the guard's failure for leaks."

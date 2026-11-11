@@ -165,6 +165,10 @@ function readLaunches(registry: string): readonly RegisteredLaunch[] {
   return launches;
 }
 
+export function registeredLaunches(registry: string): readonly LaunchRecord[] {
+  return readLaunches(registry);
+}
+
 export function registerLaunch(
   registry: string,
   pid: number,
@@ -176,13 +180,17 @@ export function registerLaunch(
   return { pid, token };
 }
 
-function isLaunchProcess(process: ProcessRecord, launch: RegisteredLaunch): boolean {
+function isLaunchProcess(
+  process: ProcessRecord,
+  launch: RegisteredLaunch,
+  leaderStartMatches: boolean,
+): boolean {
   if (process.state === "zombie") return false;
   const tokenMatch = process.environment["INTERLOCK_CODEX_LAUNCH_TOKEN"] === launch.token;
   const groupMatch = process.pgid === launch.pgid;
   if (!tokenMatch && !groupMatch) return false;
   if (process.pid === launch.pid) return process.startTime === launch.startTime;
-  return tokenMatch;
+  return tokenMatch || (leaderStartMatches && groupMatch);
 }
 
 function survivors(
@@ -190,7 +198,13 @@ function survivors(
   launches: readonly RegisteredLaunch[],
 ): readonly ProcessRecord[] {
   const current = table.list();
-  return current.filter((process) => launches.some((launch) => isLaunchProcess(process, launch)));
+  return current.filter((process) =>
+    launches.some((launch) => {
+      const leader = current.find((candidate) => candidate.pid === launch.pid);
+      const leaderStartMatches = leader === undefined || leader.startTime === launch.startTime;
+      return isLaunchProcess(process, launch, leaderStartMatches);
+    }),
+  );
 }
 
 function signalSurvivors(processes: readonly ProcessRecord[], signal: Signal): void {
@@ -217,7 +231,7 @@ export async function cleanupCodexLaunches(
     await new Promise<void>((resolve) => setTimeout(resolve, 25));
     remaining = survivors(table, launches);
   }
-  const stubborn = remaining.map((process) => process.pid);
+  const observedPids = observed.map((process) => process.pid);
   if (remaining.length > 0) {
     for (const process of remaining) {
       try {
@@ -228,7 +242,7 @@ export async function cleanupCodexLaunches(
     remaining = survivors(table, launches);
   }
   writeFileSync(registry, "", { mode: 0o600 });
-  return stubborn;
+  return observedPids;
 }
 
 export function cleanupCodexLaunchesSync(

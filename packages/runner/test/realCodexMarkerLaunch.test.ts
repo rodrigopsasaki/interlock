@@ -5,6 +5,10 @@ import { isOk } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
 import type { ResolvedRuntime } from "../src/runtimeCatalogue.ts";
 import { prepareLaunch } from "../src/sessionDrive.ts";
+import {
+  registeredGuardLaunchCount,
+  reapRegisteredGuardLaunchesSync,
+} from "./support/codexGuardAssertions.ts";
 import { isolatedHomeEnvironment } from "./support/toolState.ts";
 
 let directory: string | undefined;
@@ -61,6 +65,8 @@ describe("real Codex marker launch", () => {
       env: { ...process.env, ...launch.value.environment },
       encoding: "utf8",
     });
+    expect(registeredGuardLaunchCount()).toBeGreaterThan(0);
+    reapRegisteredGuardLaunchesSync();
     const listed: unknown = JSON.parse(output);
     expect(Array.isArray(listed)).toBe(true);
     if (!Array.isArray(listed)) return;

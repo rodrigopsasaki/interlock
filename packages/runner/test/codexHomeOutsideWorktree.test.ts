@@ -13,6 +13,10 @@ import { isErr, isOk, ok } from "@phyxiusjs/fp";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { fixtureGit, initFixtureRepository } from "../../../test/support/gitFixture.ts";
 import { interlockStateDirectory, prepareCodexLaunch } from "../src/codex/config.ts";
+import {
+  registeredGuardLaunchCount,
+  reapRegisteredGuardLaunchesSync,
+} from "./support/codexGuardAssertions.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -353,10 +357,12 @@ describe("Codex home outside worktree", () => {
         env: { ...process.env, ...launch.value.environment },
         encoding: "utf8",
       });
+      expect(registeredGuardLaunchCount()).toBeGreaterThan(0);
       expect(Array.isArray(JSON.parse(output))).toBe(true);
       expect(fixtureGit(["status", "--porcelain", "--ignored"], { cwd: worktree })).toBe("");
       expect(fixtureGit(["status", "--porcelain", "--ignored"], { cwd: repository })).toBe("");
       launch.value.cleanup(true);
+      reapRegisteredGuardLaunchesSync();
     } finally {
       fixtureGit(["worktree", "remove", "--force", worktree], { cwd: repository });
     }

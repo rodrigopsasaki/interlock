@@ -167,6 +167,77 @@ describe("Codex test guard", () => {
     },
   );
 
+  it("refuses a provider selector after the exec subcommand", () => {
+    const { home, bin, count } = fixture();
+    fakeCodex(bin, count);
+    config(
+      home,
+      'model_provider = "local"\n[model_providers.local]\nbase_url = "http://127.0.0.1"',
+    );
+    const result = run(["exec", "-c", "model_provider=remote", "proof"], environment(home, count));
+    expect(result.error).toContain("selector touches provider configuration");
+    expect(result.count).toBe("0");
+  });
+
+  it("resolves a profile selector after the exec subcommand", () => {
+    const { home, bin, count } = fixture();
+    fakeCodex(bin, count);
+    config(
+      home,
+      'model_provider = "local"\n[model_providers.local]\nbase_url = "http://127.0.0.1"',
+    );
+    writeFileSync(
+      join(home, "remote.config.toml"),
+      'model_provider = "remote"\n[model_providers.remote]\nbase_url = "https://api.example.com/v1"',
+    );
+    const result = run(["exec", "-p", "remote", "proof"], environment(home, count));
+    expect(result.error).toContain('provider "remote" has a non-loopback base_url');
+    expect(result.count).toBe("0");
+  });
+
+  it("refuses an unknown exec option", () => {
+    const { home, bin, count } = fixture();
+    fakeCodex(bin, count);
+    config(
+      home,
+      'model_provider = "local"\n[model_providers.local]\nbase_url = "http://127.0.0.1"',
+    );
+    const result = run(["exec", "--unknown-exec-option", "proof"], environment(home, count));
+    expect(result.error).toContain("unknown option");
+    expect(result.count).toBe("0");
+  });
+
+  it.each([
+    ["quoted key", '"model_provider" = "remote"'],
+    [
+      "dotted root key",
+      'model_provider = "remote"\nmodel_providers.remote.base_url = "https://api.example.com/v1"',
+    ],
+    [
+      "inline provider table",
+      'model_provider = "remote"\nmodel_providers = { remote = { base_url = "https://api.example.com/v1" } }',
+    ],
+  ])("refuses unsupported provider syntax: %s", (_name, text) => {
+    const { home, bin, count } = fixture();
+    fakeCodex(bin, count);
+    config(home, text);
+    const result = run(["exec", "proof"], environment(home, count));
+    expect(result.error).toContain("codex exec refused");
+    expect(result.count).toBe("0");
+  });
+
+  it("resolves provider settings in a selected profiles table", () => {
+    const { home, bin, count } = fixture();
+    fakeCodex(bin, count);
+    config(
+      home,
+      '[profiles.remote]\nmodel_provider = "remote"\n[profiles.remote.model_providers.remote]\nbase_url = "https://api.example.com/v1"',
+    );
+    const result = run(["-p", "remote", "exec", "proof"], environment(home, count));
+    expect(result.error).toContain('provider "remote" has a non-loopback base_url');
+    expect(result.count).toBe("0");
+  });
+
   it.each(["127.0.0.1", "::1", "localhost"])("allows loopback provider %s", (host) => {
     const { home, bin, count } = fixture();
     fakeCodex(bin, count);
@@ -219,9 +290,11 @@ describe("Codex test guard", () => {
         bin,
         count,
         `import { spawn } from "node:child_process";
-const child = spawn(process.execPath, ["-e", "process.on('SIGTERM', () => {}); process.on('SIGHUP', () => {}); setInterval(() => {}, 1000)"], { detached: true, stdio: "ignore", env: process.env });
-if (child.pid !== undefined) writeFileSync(${JSON.stringify(pidPath)}, String(child.pid));
-child.unref();
+const graceful = spawn(process.execPath, ["-e", "process.once('SIGTERM', () => process.exit(0)); setInterval(() => {}, 1000)"], { detached: true, stdio: "ignore", env: process.env });
+const stubborn = spawn(process.execPath, ["-e", "process.on('SIGTERM', () => {}); process.on('SIGHUP', () => {}); setInterval(() => {}, 1000)"], { detached: true, stdio: "ignore", env: process.env });
+if (graceful.pid !== undefined && stubborn.pid !== undefined) writeFileSync(${JSON.stringify(pidPath)}, [graceful.pid, stubborn.pid].join(","));
+graceful.unref();
+stubborn.unref();
 writeFileSync(${JSON.stringify(tokenPath)}, process.env["INTERLOCK_CODEX_LAUNCH_TOKEN"] ?? "");
 `,
       );
@@ -259,8 +332,7 @@ writeFileSync(${JSON.stringify(tokenPath)}, process.env["INTERLOCK_CODEX_LAUNCH_
       const output = `${result.stdout ?? ""}${result.stderr ?? ""}`;
       expect(result.status).not.toBe(0);
       expect(output).toContain("Codex launch survivors:");
-      const pid = readFileSync(pidPath, "utf8");
-      expect(output).toContain(pid);
+      for (const pid of readFileSync(pidPath, "utf8").split(",")) expect(output).toContain(pid);
       const token = readFileSync(tokenPath, "utf8");
       expect(token.length).toBeGreaterThan(0);
       expect(processTableWithToken(token).some((entry) => entry.state === "running")).toBe(false);
@@ -289,6 +361,38 @@ writeFileSync(${JSON.stringify(tokenPath)}, process.env["INTERLOCK_CODEX_LAUNCH_
       0,
     );
     expect(calls).toEqual([]);
+  });
+
+  it("signals tokenless members of a verified launch group", async () => {
+    const { root } = fixture();
+    const registry = join(root, "registry.jsonl");
+    registerLaunch(registry, 42, 42, "leader-start", "token");
+    const leader: ProcessRecord = {
+      pid: 42,
+      ppid: 1,
+      pgid: 42,
+      startTime: "leader-start",
+      command: "leader",
+      environment: { INTERLOCK_CODEX_LAUNCH_TOKEN: "token" },
+      state: "running",
+    };
+    const member: ProcessRecord = {
+      pid: 43,
+      ppid: 42,
+      pgid: 42,
+      startTime: "member-start",
+      command: "member",
+      environment: {},
+      state: "running",
+    };
+    const calls: string[] = [];
+    await cleanupCodexLaunches(
+      registry,
+      { list: () => [leader, member] },
+      (pid, signal) => calls.push(`${String(pid)}:${signal}`),
+      0,
+    );
+    expect(calls).toContain("43:SIGTERM");
   });
 });
 
