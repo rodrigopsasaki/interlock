@@ -17,12 +17,18 @@ const wrapper = join(guardDirectory, "codex");
 
 writeFileSync(
   wrapper,
-  `#!/bin/sh\nexec ${JSON.stringify(process.execPath)} --experimental-strip-types ${JSON.stringify(guardSource)} "$@"\n`,
+  [
+    "#!/bin/sh",
+    'exec "$INTERLOCK_CODEX_GUARD_NODE" --experimental-strip-types "$INTERLOCK_CODEX_GUARD_SOURCE" "$@"',
+    "",
+  ].join("\n"),
   { mode: 0o700 },
 );
 chmodSync(wrapper, 0o700);
 process.env["INTERLOCK_CODEX_GUARD_DIR"] = guardDirectory;
 process.env["INTERLOCK_CODEX_GUARD_REGISTRY"] = registry;
+process.env["INTERLOCK_CODEX_GUARD_NODE"] = process.execPath;
+process.env["INTERLOCK_CODEX_GUARD_SOURCE"] = guardSource;
 process.env["PATH"] = `${guardDirectory}${delimiter}${originalPath}`;
 
 afterEach(async () => {
@@ -38,5 +44,7 @@ afterAll(() => {
   process.env["PATH"] = originalPath;
   delete process.env["INTERLOCK_CODEX_GUARD_DIR"];
   delete process.env["INTERLOCK_CODEX_GUARD_REGISTRY"];
+  delete process.env["INTERLOCK_CODEX_GUARD_NODE"];
+  delete process.env["INTERLOCK_CODEX_GUARD_SOURCE"];
   rmSync(guardDirectory, { recursive: true, force: true });
 });

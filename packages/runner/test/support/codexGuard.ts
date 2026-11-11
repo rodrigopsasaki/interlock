@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { delimiter, dirname, join, resolve } from "node:path";
 import { launchToken, platformProcessTable, registerLaunch } from "./codexSupervisor.ts";
 
 interface Provider {
@@ -227,10 +227,17 @@ function start(args: readonly string[]): void {
   const executable = realCodex();
   const token = launchToken();
   const registry = process.env["INTERLOCK_CODEX_GUARD_REGISTRY"];
-  const environment = { ...process.env, INTERLOCK_CODEX_LAUNCH_TOKEN: token };
-  const child = spawn(executable, args, {
+  const environment: NodeJS.ProcessEnv = {
+    ...process.env,
+    INTERLOCK_CODEX_LAUNCH_TOKEN: token,
+  };
+  const pathAfterGuard = (environment["PATH"] ?? "")
+    .split(delimiter)
+    .filter((entry) => entry !== process.env["INTERLOCK_CODEX_GUARD_DIR"])
+    .join(delimiter);
+  const child = spawn("codex", args, {
     cwd: process.cwd(),
-    env: environment,
+    env: { ...environment, PATH: [dirname(executable), pathAfterGuard].join(delimiter) },
     stdio: "inherit",
     detached: true,
   });

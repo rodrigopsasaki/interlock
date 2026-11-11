@@ -1,12 +1,13 @@
 interlock: notes@v0
-notes:
+node: codex-stays-home-in-tests
+entries:
   - kind: choice
     at: "2026-11-11T18:30:00Z"
-    choice: "Keep the guard and supervisor in test/support and install the guard through the runner Vitest setup."
+    chose: "Keep the guard and supervisor in test/support and install the guard through the runner Vitest setup."
     because: "The acceptance makes the runner setup the single boundary for every runner test while keeping Codex-specific knowledge out of production adapters."
   - kind: choice
     at: "2026-11-11T18:31:00Z"
-    choice: "Use a pinned-Node TypeScript guard entrypoint behind a generated PATH wrapper."
+    chose: "Use a pinned-Node TypeScript guard entrypoint behind a generated PATH wrapper."
     because: "The guard needs to be the executable named codex for child processes, while the shared TypeScript supervisor remains directly testable with injected process-table data."
   - kind: surprise
     at: "2026-11-11T18:47:00Z"
@@ -14,9 +15,33 @@ notes:
     observed: "macOS requires `ps eww` rather than the hyphenated flag form, and its output exceeds the default child-process buffer; the supervisor now uses the correct form and an explicit bounded buffer."
   - kind: choice
     at: "2026-11-11T18:48:00Z"
-    choice: "Put the loopback Responses fixture in runner test support and use it for the marker-overflow exec case."
+    chose: "Put the loopback Responses fixture in runner test support and use it for the marker-overflow exec case."
     because: "The guard must exercise the real Codex exec path without allowing the test to contact a non-loopback provider, while preserving the marker assertions."
   - kind: surprise
     at: "2026-11-11T18:49:00Z"
     expected: "Any process found at test cleanup would be a failed test."
     observed: "Normal real-Codex MCP children can still be present at the first cleanup snapshot but terminate during the supervisor's TERM grace; only processes surviving that grace are reported as leaks."
+  - kind: surprise
+    at: "2026-11-11T18:51:00Z"
+    expected: "The initial notes@v0 file would be accepted by the repository reader."
+    observed: "The reader requires the session node field and calls the collection `entries`, so the notes artifact was corrected before the workspace test gate was rerun."
+  - kind: surprise
+    at: "2026-11-11T18:52:00Z"
+    expected: "The notes choice entries would use the natural field name `choice`."
+    observed: "The notes reader requires `chose`, matching the existing notes@v0 artifacts; the entries were renamed before the next test run."
+  - kind: choice
+    at: "2026-11-11T19:05:00Z"
+    chose: "Keep process launches statically readable to the repository fixture audit by spawning the literal codex command with a cleaned PATH and assembling generated scripts from static chunks."
+    because: "The standing suite audits every test/support process start and generated shell script; the guard still resolves the real executable first, while the audit can verify the launch boundary without a new exception."
+  - kind: surprise
+    at: "2026-11-11T19:06:00Z"
+    expected: "The focused guard tests would be sufficient evidence for the completed runner changes."
+    observed: "The full workspace suite additionally checks static fixture-process safety and found three unreadable dynamic launch sites; those sites were rewritten without changing the acceptance behavior."
+  - kind: surprise
+    at: "2026-11-11T19:12:00Z"
+    expected: "The rewritten child environment would retain ProcessEnv's indexable PATH type through the object spread."
+    observed: "Strict TypeScript inferred only the added launch-token property, so the environment is now explicitly typed as NodeJS.ProcessEnv."
+  - kind: choice
+    at: "2026-11-11T19:20:00Z"
+    chose: "Declare the nested detached-descendant guard test as a slow integration with a 10-second budget."
+    because: "The test intentionally starts a nested Vitest process and waits through bounded process-group cleanup; the slow-tests gate measured 1.88 seconds and requires that lifecycle cost to be declared."

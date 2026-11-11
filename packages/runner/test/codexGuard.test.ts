@@ -1,5 +1,13 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  appendFileSync,
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { delimiter, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
@@ -8,6 +16,7 @@ import {
   type ProcessTable,
   registerLaunch,
 } from "./support/codexSupervisor.ts";
+import { slowIntegration } from "./support/slowIntegration.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 const guardDirectory = process.env["INTERLOCK_CODEX_GUARD_DIR"];
@@ -50,11 +59,16 @@ if (countPath !== undefined) {
   const count = Number(readFileSync(countPath, "utf8"));
   writeFileSync(countPath, String(count + 1));
 }
-${extra}
+`,
+  );
+  appendFileSync(executable, extra);
+  appendFileSync(
+    executable,
+    `
 if (process.argv[2] === "mcp") process.stdout.write("[]\\n");
 `,
-    { mode: 0o700 },
   );
+  chmodSync(executable, 0o700);
   if (guardDirectory === undefined) throw new Error("the Codex guard was not installed");
   process.env["PATH"] = [guardDirectory, bin, pathAfterGuard].join(delimiter);
   process.env["FAKE_CODEX_COUNT"] = count;
@@ -191,54 +205,67 @@ describe("Codex test guard", () => {
     expect(readFileSync(count, "utf8")).toBe("2");
   });
 
-  it("fails a nested fixture when a detached descendant carries the launch token", () => {
-    const { root, home, bin, count } = fixture();
-    const tokenPath = join(root, "token");
-    const pidPath = join(root, "pid");
-    fakeCodex(
-      bin,
-      count,
-      `import { spawn } from "node:child_process";
+  slowIntegration(
+    "fails a nested fixture when a detached descendant carries the launch token",
+    {
+      budgetMs: 10_000,
+      reason: "integrates a nested Vitest fixture, detached process cleanup and token matching",
+    },
+    async () => {
+      const { root, home, bin, count } = fixture();
+      const tokenPath = join(root, "token");
+      const pidPath = join(root, "pid");
+      fakeCodex(
+        bin,
+        count,
+        `import { spawn } from "node:child_process";
 const child = spawn(process.execPath, ["-e", "process.on('SIGTERM', () => {}); process.on('SIGHUP', () => {}); setInterval(() => {}, 1000)"], { detached: true, stdio: "ignore", env: process.env });
 if (child.pid !== undefined) writeFileSync(${JSON.stringify(pidPath)}, String(child.pid));
 child.unref();
 writeFileSync(${JSON.stringify(tokenPath)}, process.env["INTERLOCK_CODEX_LAUNCH_TOKEN"] ?? "");
 `,
-    );
-    config(
-      home,
-      'model_provider = "local"\n[model_providers.local]\nbase_url = "http://127.0.0.1:1234/v1"',
-    );
-    const fixtureFile = join(import.meta.dirname, "fixtures", "codexGuardLeak.test.ts");
-    const vitest = join(import.meta.dirname, "..", "node_modules", "vitest", "vitest.mjs");
-    const result = spawnSync(
-      process.execPath,
-      [vitest, "run", fixtureFile, "--config", join(import.meta.dirname, "..", "vitest.config.ts")],
-      {
-        cwd: join(import.meta.dirname, ".."),
-        env: {
-          ...process.env,
-          HOME: join(root, "home"),
-          CODEX_HOME: home,
-          FAKE_CODEX_COUNT: count,
-          PATH: [guardDirectory, bin, pathAfterGuard]
-            .filter((value): value is string => value !== undefined)
-            .join(delimiter),
-          INTERLOCK_CODEX_FIXTURE: "1",
-          INTERLOCK_GUARD_TOKEN_FILE: tokenPath,
+      );
+      config(
+        home,
+        'model_provider = "local"\n[model_providers.local]\nbase_url = "http://127.0.0.1:1234/v1"',
+      );
+      const fixtureFile = join(import.meta.dirname, "fixtures", "codexGuardLeak.test.ts");
+      const vitest = join(import.meta.dirname, "..", "node_modules", "vitest", "vitest.mjs");
+      const result = spawnSync(
+        process.execPath,
+        [
+          vitest,
+          "run",
+          fixtureFile,
+          "--config",
+          join(import.meta.dirname, "..", "vitest.config.ts"),
+        ],
+        {
+          cwd: join(import.meta.dirname, ".."),
+          env: {
+            ...process.env,
+            HOME: join(root, "home"),
+            CODEX_HOME: home,
+            FAKE_CODEX_COUNT: count,
+            PATH: [guardDirectory, bin, pathAfterGuard]
+              .filter((value): value is string => value !== undefined)
+              .join(delimiter),
+            INTERLOCK_CODEX_FIXTURE: "1",
+            INTERLOCK_GUARD_TOKEN_FILE: tokenPath,
+          },
+          encoding: "utf8",
         },
-        encoding: "utf8",
-      },
-    );
-    const output = `${result.stdout ?? ""}${result.stderr ?? ""}`;
-    expect(result.status).not.toBe(0);
-    expect(output).toContain("Codex launch survivors:");
-    const pid = readFileSync(pidPath, "utf8");
-    expect(output).toContain(pid);
-    const token = readFileSync(tokenPath, "utf8");
-    expect(token.length).toBeGreaterThan(0);
-    expect(processTableWithToken(token).some((entry) => entry.state === "running")).toBe(false);
-  });
+      );
+      const output = `${result.stdout ?? ""}${result.stderr ?? ""}`;
+      expect(result.status).not.toBe(0);
+      expect(output).toContain("Codex launch survivors:");
+      const pid = readFileSync(pidPath, "utf8");
+      expect(output).toContain(pid);
+      const token = readFileSync(tokenPath, "utf8");
+      expect(token.length).toBeGreaterThan(0);
+      expect(processTableWithToken(token).some((entry) => entry.state === "running")).toBe(false);
+    },
+  );
 
   it("does not signal a reused pid", async () => {
     const { root } = fixture();
