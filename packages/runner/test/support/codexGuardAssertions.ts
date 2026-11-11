@@ -20,7 +20,10 @@ export async function reapRegisteredGuardLaunches(): Promise<void> {
   if (survivors.length > 0)
     throw new Error(
       `Codex launch survivors: ${survivors
-        .map((pid) => `${String(pid)} (${before.find((entry) => entry.pid === pid)?.command ?? "unknown"})`)
+        .map(
+          (pid) =>
+            `${String(pid)} (${before.find((entry) => entry.pid === pid)?.command ?? "unknown"})`,
+        )
         .join(", ")}`,
     );
 }
@@ -34,7 +37,10 @@ export function reapRegisteredGuardLaunchesSync(): void {
   if (survivors.length > 0)
     throw new Error(
       `Codex launch survivors: ${survivors
-        .map((pid) => `${String(pid)} (${before.find((entry) => entry.pid === pid)?.command ?? "unknown"})`)
+        .map(
+          (pid) =>
+            `${String(pid)} (${before.find((entry) => entry.pid === pid)?.command ?? "unknown"})`,
+        )
         .join(", ")}`,
     );
 }

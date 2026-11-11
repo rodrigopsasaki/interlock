@@ -61,9 +61,7 @@ function linuxProcessTable(): ProcessTable {
     now: () => {
       try {
         const uptime = Number(readFileSync("/proc/uptime", "utf8").split(/\s+/)[0]);
-        const ticks = Number(
-          execFileSync("getconf", ["CLK_TCK"], { encoding: "utf8" }).trim(),
-        );
+        const ticks = Number(execFileSync("getconf", ["CLK_TCK"], { encoding: "utf8" }).trim());
         return Number.isFinite(uptime) && Number.isFinite(ticks)
           ? String(Math.floor(uptime * ticks))
           : undefined;

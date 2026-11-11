@@ -278,8 +278,9 @@ function selectorTouchesProvider(selector: string): boolean {
   const separator = selector.indexOf("=");
   const key = (separator < 0 ? selector : selector.slice(0, separator)).trim();
   const parts = key.split(".");
-  return key === "profile" || parts.some((part) =>
-    ["model_provider", "model_providers", "base_url"].includes(part),
+  return (
+    key === "profile" ||
+    parts.some((part) => ["model_provider", "model_providers", "base_url"].includes(part))
   );
 }
 
@@ -324,7 +325,8 @@ function providerBaseUrl(command: ParsedCommand): {
     if (profile !== undefined) {
       const profileOverlay = config.profiles.get(profile);
       if (profileOverlay !== undefined) {
-        if (profileOverlay.provider !== undefined) selectedOverlay.provider = profileOverlay.provider;
+        if (profileOverlay.provider !== undefined)
+          selectedOverlay.provider = profileOverlay.provider;
         for (const [providerName, value] of profileOverlay.providers)
           selectedOverlay.providers.set(providerName, value);
       }

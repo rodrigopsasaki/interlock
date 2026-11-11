@@ -155,7 +155,7 @@ describe("Codex test guard", () => {
   it("refuses a managed Codex configuration layer", () => {
     const { home, bin, count } = fixture();
     fakeCodex(bin, count);
-    writeFileSync(join(home, "managed_config.toml"), "model_provider = \"remote\"\n");
+    writeFileSync(join(home, "managed_config.toml"), 'model_provider = "remote"\n');
     config(
       home,
       'model_provider = "local"\n[model_providers.local]\nbase_url = "http://127.0.0.1"',
@@ -193,8 +193,8 @@ describe("Codex test guard", () => {
   });
 
   it.each([
-    ["--config", "model_providers.remote.base_url=\"https://api.example.com/v1\""],
-    ["--config=", "base_url=\"https://api.example.com/v1\""],
+    ["--config", 'model_providers.remote.base_url="https://api.example.com/v1"'],
+    ["--config=", 'base_url="https://api.example.com/v1"'],
     ["-c", "profile=remote"],
     ["-c", "profiles.remote.model_provider=remote"],
   ])("refuses provider or profile selector after exec: %s %s", (option, selector) => {
@@ -219,10 +219,7 @@ describe("Codex test guard", () => {
       home,
       'model_provider = "local"\n[model_providers.local]\nbase_url = "http://127.0.0.1"',
     );
-    const result = run(
-      ["exec", "-p", "first", "-p", "second", "proof"],
-      environment(home, count),
-    );
+    const result = run(["exec", "-p", "first", "-p", "second", "proof"], environment(home, count));
     expect(result.error).toContain("multiple profile selections");
     expect(result.count).toBe("0");
   });
