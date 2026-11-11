@@ -1,0 +1,118 @@
+interlock: debrief@v2
+graph: 0065-gate-holds-retry-themselves
+node: codex-stays-home-in-tests
+role: implementer
+graph_base_sha: f91fae29cad67bb66ae925de72454fff580ba36b
+session_start_sha: d7070819c3016195a9382c5f9590fe99e50c48a8
+head_sha: a9977ae49674a2585f053c30d7a6199c17b43448
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-luna
+discoveries: []
+decisions:
+  - id: install-runner-codex-guard
+    what: "Extend the runner Vitest configuration with the base setup files followed by a runner-only Codex guard setup, while excluding nested fixture tests from the normal glob and allowing their explicit fixture invocation."
+    because: "The acceptance places the guard at the runner test boundary and requires the leak fixture to be nested without becoming a normal package test."
+    rests_on:
+      - packages/runner/vitest.config.ts:4-15
+      - packages/runner/test/support/codexGuardSetup.ts:10-49
+    hunks:
+      - packages/runner/vitest.config.ts:4-15
+      - packages/runner/test/support/codexGuardSetup.ts:10-49
+  - id: close-argv-and-toml-escape-paths
+    what: "Parse profile and config options across the complete exec argv, reject unknown exec options, fail closed on unsupported TOML spellings, and resolve provider settings from selected profiles tables and overlays."
+    because: "Every provider decision must come from syntax the guard can resolve unambiguously; otherwise an option or configuration form could reach real Codex under an apparently safe loopback base configuration."
+    rests_on:
+      - packages/runner/test/support/codexGuard.ts:44-169
+      - packages/runner/test/support/codexGuard.ts:182-326
+      - packages/runner/test/codexGuard.test.ts:170-239
+    hunks:
+      - packages/runner/test/support/codexGuard.ts:44-169
+      - packages/runner/test/support/codexGuard.ts:182-326
+      - packages/runner/test/codexGuard.test.ts:170-239
+  - id: register-and-reap-with-verified-identity
+    what: "Register guarded launches with process-group, start-time, and token identity, retry process-table reads before registration, refuse launches whose leader start time remains unknown, and match group members only through a verified leader while retaining token matching as a second source."
+    because: "Detached Codex descendants must not outlive tests, while a missing or reused leader identity must never authorize a signal to an unrelated process; MCP members may lose the launch token but remain in the verified group."
+    rests_on:
+      - packages/runner/test/support/codexGuard.ts:359-416
+      - packages/runner/test/support/codexSupervisor.ts:168-208
+      - packages/runner/test/support/codexSupervisor.ts:218-245
+      - packages/runner/test/codexGuard.test.ts:342-423
+    hunks:
+      - packages/runner/test/support/codexGuard.ts:359-416
+      - packages/runner/test/support/codexSupervisor.ts:168-208
+      - packages/runner/test/support/codexSupervisor.ts:218-245
+      - packages/runner/test/codexGuard.test.ts:342-423
+  - id: report-every-cleanup-survivor
+    what: "Make cleanup retain every process observed at the initial survivor scan for failure reporting, including processes that exit during TERM grace, and make the nested fixture launch both a TERM-graceful and a TERM-stubborn detached descendant."
+    because: "A cleanup path that silently reaps a graceful survivor hides the exact process set the acceptance requires the fixture failure to name; the fixture distinguishes graceful cleanup from KILL escalation while still leaving no token-bearing process alive."
+    rests_on:
+      - packages/runner/test/support/codexSupervisor.ts:218-245
+      - packages/runner/test/support/codexGuardSetup.ts:10-49
+      - packages/runner/test/codexGuard.test.ts:279-340
+      - packages/runner/test/fixtures/codexGuardLeak.test.ts:1-11
+    hunks:
+      - packages/runner/test/support/codexSupervisor.ts:218-245
+      - packages/runner/test/support/codexGuardSetup.ts:10-49
+      - packages/runner/test/codexGuard.test.ts:279-340
+      - packages/runner/test/fixtures/codexGuardLeak.test.ts:1-11
+  - id: prove-kept-real-codex-registration
+    what: "Assert that each kept real-Codex test file registers at least one guarded launch, then explicitly reap that registry after the assertion while preserving global failure for unhandled survivors."
+    because: "A real command passing is not evidence that the guard registered it; the four named files must prove both registration and cleanup through the shared supervisor boundary."
+    rests_on:
+      - packages/runner/test/support/codexGuardAssertions.ts:1-21
+      - packages/runner/test/realCodexMarkerOverflow.test.ts:56-151
+      - packages/runner/test/lineFitsRealCodex.test.ts:1-80
+      - packages/runner/test/realCodexMarkerLaunch.test.ts:1-80
+      - packages/runner/test/codexHomeOutsideWorktree.test.ts:1-100
+    hunks:
+      - packages/runner/test/support/codexGuardAssertions.ts:1-21
+      - packages/runner/test/realCodexMarkerOverflow.test.ts:56-151
+      - packages/runner/test/lineFitsRealCodex.test.ts:1-80
+      - packages/runner/test/realCodexMarkerLaunch.test.ts:1-80
+      - packages/runner/test/codexHomeOutsideWorktree.test.ts:1-100
+  - id: exercise-overflow-through-loopback
+    what: "Add a local Responses-compatible loopback provider and route the marker-overflow exec case through its loopback provider configuration while preserving the existing marker assertions and child environment checks."
+    because: "The kept real-Codex overflow case must pass the guard without contacting a non-loopback provider and must still verify every marker value reaches every MCP child."
+    rests_on:
+      - packages/runner/test/support/loopbackProvider.ts:1-87
+      - packages/runner/test/realCodexMarkerOverflow.test.ts:86-151
+    hunks:
+      - packages/runner/test/support/loopbackProvider.ts:1-87
+      - packages/runner/test/realCodexMarkerOverflow.test.ts:86-151
+  - id: keep-standing-gates-green
+    what: "Apply the minimal Biome literal and import-order corrections required for the repository lint gate after the guard repair."
+    because: "The source behavior is unchanged, and the standing lint gate must pass on the complete worktree rather than leaving unrelated style diagnostics unresolved."
+    rests_on:
+      - packages/runner/test/runnerCommits.test.ts:145-148
+      - packages/runner/test/runnerCommits.test.ts:293-296
+    hunks:
+      - packages/runner/test/runnerCommits.test.ts:145-148
+      - packages/runner/test/runnerCommits.test.ts:293-296
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: "All 8 typechecked workspace packages passed on Node v24.14.0 with pnpm 10.13.1."
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: "Biome checked 522 files with no remaining diagnostics."
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+    note: "packages/*/src reported no comments."
+  - id: test
+    result: pass
+    invocation: pnpm test
+    note: "All workspace test packages passed; runner reported 64 files and 706 tests."
+  - id: codex-guard-tests
+    result: pass
+    invocation: "pnpm --fail-if-no-match --filter runner exec vitest run test/codexGuard.test.ts test/realCodexMarkerOverflow.test.ts test/lineFitsRealCodex.test.ts test/realCodexMarkerLaunch.test.ts test/codexHomeOutsideWorktree.test.ts --passWithNoTests=false"
+    note: "5 files and 44 tests passed; guarded real-Codex and fake-Codex cases completed with cleanup."
+  - id: slow-tests-accounted
+    result: pass
+    invocation: node scripts/gates/slow-tests.ts
+    note: "slow tests accounted: 21 declared, 3183 logic under 1.5 s."
+open: []

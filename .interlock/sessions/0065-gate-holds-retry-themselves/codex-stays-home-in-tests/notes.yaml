@@ -81,3 +81,15 @@ entries:
     at: "2026-11-11T19:31:00Z"
     expected: "The full suite would complete without unrelated repository diagnostics."
     observed: "Runner worktree-maintenance tests printed expected Git lock-permission diagnostics while their assertions passed; the full suite still completed successfully."
+  - kind: choice
+    at: "2026-11-11T19:34:00Z"
+    chose: "Remove the superseded debrief-candidate.yaml and debrief-candidate-2.yaml artifacts and author the correction from a fresh repair candidate."
+    because: "The requested refile must not leave the two old candidate names in the session while preserving the canonical debrief's versioned correction path."
+  - kind: choice
+    at: "2026-11-11T19:39:00Z"
+    chose: "Select the fresh repair candidate through debrief revise, retaining the prior canonical debrief as its content-addressed revision."
+    because: "The source changes correct an already filed debrief, so revision preserves the way back while making the repaired claims canonical."
+  - kind: surprise
+    at: "2026-11-11T19:33:22Z"
+    expected: "The process scan would find no matching Codex or Vitest processes."
+    observed: "No process from this session remained, but unrelated owner-run interlock and Codex processes were still present; they were left untouched."
