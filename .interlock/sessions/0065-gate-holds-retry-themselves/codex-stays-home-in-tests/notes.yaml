@@ -153,3 +153,11 @@ entries:
     at: "2026-11-11T21:19:00Z"
     chose: "Declare the three measured mise-backed Node engine cases as slow integrations with a 10-second test budget."
     because: "Their work exercises real tool-state and engine admission behavior, and the gate must account for measured integration cost rather than treating it as an unexplained threshold breach."
+  - kind: surprise
+    at: "2026-11-11T21:30:00Z"
+    expected: "The five-second explicit survivor settle would be sufficient for the serial slow-tests runner."
+    observed: "The serial timing run kept real-Codex descendants alive beyond five seconds and correctly failed the explicit reaper; the same test passed under the focused parallel run."
+  - kind: choice
+    at: "2026-11-11T21:31:00Z"
+    chose: "Use a bounded 15-second settle before the explicit async survivor check."
+    because: "The kept real-Codex integration has a declared 45-second budget, and the longer bounded observation lets normal MCP shutdown finish while still failing and reporting any survivor present at cleanup."

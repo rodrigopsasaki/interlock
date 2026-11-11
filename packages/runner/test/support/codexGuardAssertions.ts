@@ -13,7 +13,7 @@ export function registeredGuardLaunchCount(): number {
 export async function reapRegisteredGuardLaunches(): Promise<void> {
   const registry = process.env["INTERLOCK_CODEX_GUARD_REGISTRY"];
   if (registry === undefined) return;
-  await new Promise<void>((resolve) => setTimeout(resolve, 5000));
+  await new Promise<void>((resolve) => setTimeout(resolve, 15_000));
   const table = platformProcessTable();
   const survivors = await cleanupCodexLaunches(registry, table);
   if (survivors.length > 0)
