@@ -129,3 +129,7 @@ entries:
     at: "2026-11-11T20:35:00Z"
     expected: "The full workspace suite would let the real-Codex plugin helper finish before explicit cleanup."
     observed: "Under full-suite load a guarded git fetch/index-pack descendant was still active at the one-second check; the supervisor removed it and the async explicit check now allows a bounded five-second settle before failing on survivors."
+  - kind: choice
+    at: "2026-11-11T20:44:00Z"
+    chose: "Declare the existing runner custody/debrief integration test as a slow integration."
+    because: "The slow-tests gate measured it just over the 1.5-second logic threshold; its signed Git and verifier work is intentional integration cost and belongs in the declared accounting."
