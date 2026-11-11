@@ -1,0 +1,91 @@
+interlock: debrief@v2
+graph: 0065-gate-holds-retry-themselves
+node: codex-stays-home-in-tests
+role: implementer
+graph_base_sha: f91fae29cad67bb66ae925de72454fff580ba36b
+session_start_sha: d7070819c3016195a9382c5f9590fe99e50c48a8
+head_sha: 785dca9f6cc4c7538ff83ae2bcdacf7824031c48
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-luna
+discoveries: []
+decisions:
+  - id: install-runner-codex-guard
+    what: Extend the runner Vitest configuration with the base setup files followed by a runner-only Codex guard setup, while excluding nested fixture tests from the normal glob and allowing their explicit fixture invocation.
+    because: The acceptance places the guard at the runner test boundary and requires the leak fixture to be nested without becoming a normal package test.
+    rests_on:
+      - packages/runner/vitest.config.ts:4-15
+      - packages/runner/test/support/codexGuardSetup.ts:10-49
+    hunks:
+      - packages/runner/vitest.config.ts:4-15
+      - packages/runner/test/support/codexGuardSetup.ts:10-49
+  - id: refuse-unsafe-codex-forms
+    what: Parse global profile and selector flags before the subcommand, resolve base and selected profile overlays, and permit only mcp list forms or exec against a loopback provider.
+    because: Tests must never start the fake or real Codex for unsupported command forms, provider configuration, missing profiles, malformed URLs, or non-loopback endpoints; the accepted loopback forms still exercise the real launch path.
+    rests_on:
+      - packages/runner/test/support/codexGuard.ts:108-199
+      - packages/runner/test/support/codexGuard.ts:266-303
+    hunks:
+      - packages/runner/test/support/codexGuard.ts:108-199
+      - packages/runner/test/support/codexGuard.ts:266-303
+  - id: register-and-reap-launches-safely
+    what: Register guarded launches with process-group, start-time, and token identity, then terminate surviving token-bearing descendants after a grace period while rejecting reused leader pids.
+    because: Detached Codex descendants must not outlive tests, but cleanup must fail closed when a pid has been reused and must not signal an unrelated process.
+    rests_on:
+      - packages/runner/test/support/codexSupervisor.ts:168-186
+      - packages/runner/test/support/codexSupervisor.ts:188-251
+    hunks:
+      - packages/runner/test/support/codexSupervisor.ts:168-251
+  - id: prove-guard-boundary-and-fixture-audit
+    what: Add refusal, provider, mcp, nested-detached-descendant, and pid-reuse cases, plus the explicit fixture file; keep generated fake scripts and delegated launches statically readable and declare the nested lifecycle test as a slow integration.
+    because: The runner acceptance requires each refusal and cleanup behavior to be observed through a fake Codex, while the repository fixture audit and slow-test gate must remain satisfied without exceptions.
+    rests_on:
+      - packages/runner/test/codexGuard.test.ts:51-75
+      - packages/runner/test/codexGuard.test.ts:112-292
+      - packages/runner/test/fixtures/codexGuardLeak.test.ts:1-11
+      - packages/runner/test/support/codexGuard.ts:226-255
+    hunks:
+      - packages/runner/test/codexGuard.test.ts:51-75
+      - packages/runner/test/codexGuard.test.ts:112-292
+      - packages/runner/test/fixtures/codexGuardLeak.test.ts:1-11
+      - packages/runner/test/support/codexGuard.ts:226-255
+  - id: exercise-overflow-through-loopback
+    what: Add a local Responses-compatible loopback provider and route the marker-overflow exec case through its loopback provider configuration while preserving the existing marker assertions and child environment checks.
+    because: The kept real-Codex overflow case must pass the guard without contacting a non-loopback provider and must still verify every marker value reaches every MCP child.
+    rests_on:
+      - packages/runner/test/support/loopbackProvider.ts:1-87
+      - packages/runner/test/realCodexMarkerOverflow.test.ts:79-144
+    hunks:
+      - packages/runner/test/support/loopbackProvider.ts:1-87
+      - packages/runner/test/realCodexMarkerOverflow.test.ts:79-144
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: All 8 typechecked workspace packages passed on Node v24.14.0 with pnpm 10.13.1.
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: Biome checked 521 files; the only diagnostics are the two pre-existing runnerCommits warnings and info.
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+    note: packages/*/src reported no comments.
+  - id: test
+    result: pass
+    invocation: pnpm test
+    note: All workspace packages passed, including runner 64 files and 698 tests and CLI 53 files and 475 tests.
+  - id: fixture-process-audit
+    result: pass
+    invocation: pnpm --filter cli exec vitest run test/fixtureGuard.test.ts
+    note: 69 tests passed, including the repository-wide fixture process audit.
+  - id: codex-guard-tests
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/codexGuard.test.ts test/realCodexMarkerOverflow.test.ts test/lineFitsRealCodex.test.ts test/realCodexMarkerLaunch.test.ts test/codexHomeOutsideWorktree.test.ts --passWithNoTests=false
+    note: 5 files and 36 tests passed; all guarded real-Codex and fake-Codex cases completed with cleanup.
+  - id: slow-tests-accounted
+    result: pass
+    invocation: node scripts/gates/slow-tests.ts
+    note: "slow tests accounted: 21 declared, 3172 logic under 1.5 s."
+open: []
