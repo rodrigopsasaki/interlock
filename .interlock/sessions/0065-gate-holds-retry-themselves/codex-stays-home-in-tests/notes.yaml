@@ -133,3 +133,7 @@ entries:
     at: "2026-11-11T20:44:00Z"
     chose: "Declare the existing runner custody/debrief integration test as a slow integration."
     because: "The slow-tests gate measured it just over the 1.5-second logic threshold; its signed Git and verifier work is intentional integration cost and belongs in the declared accounting."
+  - kind: surprise
+    at: "2026-11-11T20:51:00Z"
+    expected: "The first slow-test declaration would account for all runner custody cases over the threshold."
+    observed: "A second signing-failure custody case measured at 1521.7 ms, so it also required an explicit slow integration declaration."

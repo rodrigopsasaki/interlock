@@ -576,16 +576,23 @@ it("agent mode retains dirty-worktree holding without runner commits or phase 2"
   expect(subjects(drive.worktree, drive.base)).toHaveLength(1);
 });
 
-it("retains the code HEAD and every artifact when signing the debrief fails", async () => {
-  const drive = await driveFixture({ fallback: "fix: keep code", failAt: 3 });
-  expectFailed(drive, "fixture signing failed");
-  expect(git(drive.worktree, ["show", "-s", "--format=%s", "HEAD"])).toBe("fix: keep code");
-  expect(git(drive.worktree, ["diff", "--cached", "--name-only"])).toBe("");
-  const dirty = uncommittedPaths(drive.worktree);
-  if (isErr(dirty)) throw new Error(JSON.stringify(dirty.error));
-  expect(dirty.value).toContain(`${sessionPath}/debrief.yaml`);
-  expect(dirty.value).toContain(`${sessionPath}/final.candidate.yaml`);
-});
+slowIntegration(
+  "retains the code HEAD and every artifact when signing the debrief fails",
+  {
+    budgetMs: 10_000,
+    reason: "integrates failed signing, rollback boundaries and retained debrief artifacts",
+  },
+  async () => {
+    const drive = await driveFixture({ fallback: "fix: keep code", failAt: 3 });
+    expectFailed(drive, "fixture signing failed");
+    expect(git(drive.worktree, ["show", "-s", "--format=%s", "HEAD"])).toBe("fix: keep code");
+    expect(git(drive.worktree, ["diff", "--cached", "--name-only"])).toBe("");
+    const dirty = uncommittedPaths(drive.worktree);
+    if (isErr(dirty)) throw new Error(JSON.stringify(dirty.error));
+    expect(dirty.value).toContain(`${sessionPath}/debrief.yaml`);
+    expect(dirty.value).toContain(`${sessionPath}/final.candidate.yaml`);
+  },
+);
 
 it("rolls the attempt back before either code entry when signing its second code commit fails", async () => {
   const drive = await driveFixture({
