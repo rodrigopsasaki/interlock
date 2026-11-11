@@ -1,0 +1,421 @@
+interlock: graph@v0
+id: 0065-gate-holds-retry-themselves
+arc: a-busy-machine-is-waited-for
+ask: A command gate the machine refused to start (busy, locked, or missing a process it needs) is retried by the runner itself, with backoff and a bounded count, instead of parking the node for a person; a gate that ran and failed still fails; and no test may let a real codex reach a non-loopback provider, start an app-server or login, or outlive its test; `interlock sessions stop` stops the session it names; and `interlock sessions --live --all` counts every live session on the machine.
+derivation:
+  kind: model
+  model: gilb
+  prompt: gate-holds-retry-themselves-2026-11-11
+authorization:
+  granted_by: Rodrigo Sasaki
+  mandate: go-on-everything-2026-11-11  # "And yes, the \"go\" means a go on everything", 12:28 UTC
+  approver: Rodrigo Sasaki; Gilb relays the recorded approval and coordinates cleared-node merges. The cross-vendor vet is advisory.
+read: >
+  Arc: a-busy-machine-is-waited-for (.interlock/arcs.yaml). Rodrigo, 2026-11-11 12:28 UTC
+  (cmsg_01BN1q6CYuBjcZAFT6C2pgFd35LkBSn6VsAMLGrYVSZjNq): "And yes, the \"go\" means a go on everything", which
+  approved the held Interlock item: when a node's command gate is held for a transient reason (load, lock, a missing
+  process), the runner retries the gate itself with backoff and a bounded count instead of parking the node for a
+  person. His earlier words, 2026-11-11 01:04 UTC: "why is openai opening windows, please stop". The rule read from
+  them (coordinator, 12:45 UTC): nothing unauthenticated talks to OpenAI, starts a codex app-server or login, or
+  opens windows. The existing real-codex tests stay in the standing test gate under a guard.
+
+  What is true today, from source (main 2b7adb3). A command gate either exits 0 and matches expect_output, or it is
+  blocked: `satisfied = exitCode === 0 && (outputMatched ?? true)` (packages/runner/src/gateJudge.ts:425-427), and
+  any gate not satisfied at the end holds the node with `heldOn.gateFailure(missing, "hold")` (gateJudge.ts:560-568)
+  and a display-only 24 h expiry (judgeWorktree.ts:18); nothing re-judges. There is no transient class: load is
+  invisible to interlock. The machine provider's `heavy` is an argv under `provider` that parseMachine only
+  validates (packages/runner/src/machineProvider.ts:43-73); how the owner's out-of-repo wrapper takes its lock is not
+  visible from this repository, and neither the gate command runner nor the node-engine probe's runner times out a
+  prefix that never returns. A spawn error only appends its message to the output; the exit code is whatever close
+  reports, `code ?? -1` (gateJudge.ts:171-180). The gate command's environment passes through the prefix into the
+  command (gateJudge.ts:418-422). The `retry` disposition (packages/ledger/src/disposition.ts:1) is never produced.
+  Gates run from four doors: interlock judge (packages/cli/src/judge.ts:202-222), after an exec debrief
+  (packages/runner/src/sessionDrive.ts:783) and after a pane session (sessionDrive.ts:1236), all three through
+  judgeWorktree, which forwards only env and heavy from the machine (judgeWorktree.ts:128-129); and backfill, which
+  calls judgeGates directly (packages/runner/src/backfill.ts:184-205). judgeGates already takes an injectable clock
+  (@phyxiusjs/clock, with sleep) and commandRunner (gateJudge.ts:95, :125-129). The node-engine probe runs through
+  the heavy prefix with its own runner and result type (packages/runner/src/nodeEngine.ts:145-175). Both session
+  paths stop the lease's heartbeat before judging (sessionDrive.ts:780, :1199); lease.stop() only cancels renewal
+  (packages/runner/src/lease.ts:39), and sweepExpiredLeases (packages/runner/src/sweep.ts:29) writes lease-expired
+  for any session whose lease ran out with no outcome at its generation, so a long judgement can be swept. A receipt's
+  id hashes its proof (packages/ledger/src/receipt.ts:172-187) and judgement skips a receipt whose id is already
+  recorded (gateJudge.ts:517-525); assessReceipt reads any gate receipt with a numeric exitCode as a run
+  (receipt.ts:189). Held outcomes render as "held: <because>" in the face without their disposition
+  (packages/face/src/sessionColumns.ts:67, packages/face/src/render.ts:27).
+
+  Real codex in the standing `pnpm test` gate today: packages/runner/test/realCodexMarkerOverflow.test.ts runs
+  `codex mcp list --json` in its first test and, in its second, `codex exec` with a config.toml that names only MCP
+  servers and no provider (realCodexMarkerOverflow.test.ts:93-118), so that call goes to the default provider; its
+  spawn is detached (:143). packages/runner/test/lineFitsRealCodex.test.ts runs `codex exec` against a loopback
+  fixture provider it starts (:149-177, :225-232), not detached (:191). packages/runner/test/realCodexMarkerLaunch.test.ts:59
+  and packages/runner/test/codexHomeOutsideWorktree.test.ts:351 run `codex mcp list --json`, and prepareCodexLaunch
+  itself runs `codex mcp list --json` through discoverCodexMcpServers unless a test injects listCodexMcp
+  (packages/runner/src/codex/config.ts:952-955). The existing config reader extracts MCP servers and the selected
+  profile, not the effective model provider; it reads base config, then the selected profile file, then project
+  config, then CLI selectors (codex/config.ts:359-404). Nothing today proves any of these stays on loopback. The
+  runner's vitest config only re-exports the base config, whose setup file installs git and machine isolation
+  (vitest.config.base.ts, vitest.setup.ts).
+
+  Decisions.
+  - Busy means the gate command never started, and only a runner-owned launch boundary can say so. When the machine
+    declares `busy`, the runner spawns `[...heavy, "/bin/sh", "-c", <fixed start script>, "interlock-gate-start",
+    "mise", "exec", "--", ...command]`. The start script is runner-owned: it writes the start marker to the fresh
+    runner-owned path in INTERLOCK_GATE_START, unsets INTERLOCK_GATE_START and INTERLOCK_BUSY_REPORT, and execs the
+    rest, so the gate command inherits neither the report path nor the start channel. Both paths are fresh per spawn
+    in a runner-owned 0700 directory. A prefix that declines to start writes one reason line to
+    INTERLOCK_BUSY_REPORT and exits with the declared code without running the start script. The verdict: a start
+    marker dominates everything, so a spawn whose marker exists is the gate's own result, judged exactly as today,
+    whatever its exit code and whatever any report says; a spawn is busy only when there is no start marker, the exit
+    code is the declared one, and its own report holds a reason line; anything else is the gate's own result. The
+    node-engine probe runs through the same boundary and the same verdict. Without `busy` in machine.yaml no start
+    script is inserted and the argv is byte-identical to today.
+  - The bound. machine@v1 places `busy` inside the provider mapping, beside `heavy`:
+      interlock: machine@v1
+      provider:
+        admit: [...]
+        release: [...]
+        env: [...]
+        heavy: [...]
+        busy:
+          exit_code: 75
+          attempts: 4
+          first_backoff_ms: 2000
+          max_backoff_ms: 60000
+    exit_code is an integer 64-113; attempts is the total number of starts asked for, the first included, an integer
+    1-10; first_backoff_ms and max_backoff_ms are integers with 1 <= first_backoff_ms <= max_backoff_ms <= 600000. All
+    four are required when `busy` is present. `provider: none` carries no busy (there is no prefix to refuse).
+    parseMachine keeps its machine@v0 branch unchanged and adds machine@v1 = v0 plus the optional busy; a v1 file with
+    a field out of range or missing is refused at parse with the field named. Schema registration is discovered from
+    the schemas folder, so schemas/machine@v1.json needs no registry edit; docs/shapes.md is regenerated with
+    `pnpm interlock schema reference`.
+  - The allowance is the node's, not the gate's, and this is a recorded bend of D12. One judgement of one node holds
+    one busy allowance of `attempts` refused starts, shared by every gate and the node-engine probe in that
+    judgement: a refusal anywhere spends from the same count, the refusal that spends the last of it blocks its gate
+    or probe, and decomposing a node into more gates or probes creates no capacity. N attempts means at most N-1 sleeps, the k-th sleep min(first_backoff_ms * 2^(k-1),
+    max_backoff_ms), so a judgement's added waiting is bounded by (attempts - 1) * max_backoff_ms. The bound is a count
+    of starts and a sum of sleeps; it is not a timeout on a prefix that never returns, which this graph does not add
+    (the reference prefix bounds its own lock wait). Re-asking the machine to start a gate it refused still mints
+    capacity the node's retry budget did not grant, so it bends D12 ("no gate, no helper, no child, mints its own
+    retries", docs/design/0001-interlock.md:178): the node writes a bend-log row (against D12; why: a refusal measured
+    nothing and spends no attempt at the node's work; way back kept: every refusal is a receipt and the allowance is
+    node-owned and shared), adds a sentence to D12 pointing at that row, and adds the same pointer to the AGENTS.md
+    seam sentence, so the rule and its one exception are read together.
+  - Every busy refusal is a fact: one receipt per refused start, derivation gate, whose proof is
+    {refused: "busy", reason, attempt, judgement} with no exitCode and no output hash. judgement is a fresh id per
+    judgement call, so two judgements that are refused with the same reason and attempt number never collapse into
+    one receipt id, while replaying the journal reads the same receipts; with no exitCode, assessReceipt reads a busy
+    receipt as no run, never as a failed one. Ordinary command receipts and their ids are unchanged. Each refusal also
+    narrates one line. The gate stays pending between attempts and the runner sleeps on the injected clock. When the
+    allowance is spent the gate is blocked ("machine busy after N attempts: <last reason>") and the node holds with
+    disposition "retry". The face's held line names the disposition when it is retry ("held (retry): machine busy
+    after ..."), so a person can tell a busy hold from a failing one. The design note's failure section
+    (docs/design/0001-interlock.md:383-385) says a retry disposition "re-runs the node"; a busy hold re-runs only the
+    judgement on the same head, so the node amends that sentence to say so (retry after a busy hold means judge
+    again, no new attempt) in the same commit as its D12 bend row. No new event kind; the event schema is
+    unchanged (proof is an open object, schemas/parts/receipt.json:14).
+  - The lease outlives the judgement. Both session paths keep the heartbeat renewing through judgement and the
+    outcome-set that follows it, and stop renewal only in final cleanup, so busy waits longer than a lease period
+    are never swept.
+  - The busy policy reaches all four doors: judgeWorktree forwards it from the machine to judgeGates as it forwards
+    env and heavy, backfill passes it to judgeGates, and the node-engine probe receives it with heavy.
+  - A machine.yaml without `busy` behaves exactly as today. machine@v0 files stay valid.
+  - This graph never writes the owner's machine.yaml or the out-of-repo heavy wrapper. It ships the contract, a
+    reference prefix in the repo (scripts/machine/busy-prefix.ts: declines on a load ceiling, on a lock it cannot
+    take within a bound, and on a named process that is not running; tested from packages/runner/test so the package
+    suite discovers the tests) and tests. Pointing the owner's machine at it is a separate, owner-visible step
+    reported after landing.
+  - The codex guard lives in the runner package's test setup: packages/runner/vitest.config.ts extends the base
+    config and appends a runner setup file to the base setupFiles (git and machine isolation stay first), which puts
+    a guard first on PATH as `codex`. The guard is fail-closed and filesystem-only: it never runs the real codex to
+    decide. It resolves the real executable from PATH past itself. It allows only complete command forms, global
+    flags first (`--profile <p>`, `-p <p>`, `--profile=<p>`, `-c <key=value>`, `--config <key=value>`): `mcp list` with
+    or without `--json`, and `exec` with its own flags and prompt; every other form, `app-server`, `login` and
+    `logout` included, is refused. For `exec` it resolves the effective model provider in the same order the
+    existing reader uses (CODEX_HOME config.toml, the selected `<profile>.config.toml`, project .codex/config.toml,
+    then CLI selectors), and lets the call through only when that provider has a base_url whose host is 127.0.0.1,
+    ::1 or localhost. It refuses a default provider with no base_url, a non-loopback or malformed base_url, a
+    selected profile file that is missing, TOML it cannot parse unambiguously, and any `-c`/`--config` selector that
+    touches model_provider, model_providers or a base_url. The promise is about provider selection, the base_url
+    codex is told to use; the guard does not observe sockets. A refusal fails the calling test with the reason and
+    starts nothing.
+  - The guard owns what it starts. Every codex it lets through runs as a detached process group leader under the
+    guard, with a per-launch token in its environment that its descendants inherit. Each launch is registered to the
+    current test with its pid, group and process start time. In afterEach the guard finds survivors by group and by
+    token through the platform's process table (descendants that left the group included), verifies each one's start
+    time against the registration before signalling, sends TERM, waits a bounded grace, sends KILL, and fails the
+    test naming every survivor's pid. It never signals a group it did not create, and the vitest worker's own group
+    never. The same cleanup runs from a process exit hook, so a worker that dies mid-test leaves nothing behind.
+  - realCodexMarkerOverflow.test.ts's `codex exec` test gains a loopback fixture provider like lineFitsRealCodex's,
+    keeping every marker assertion; all four real-codex test files spawn codex through the guard.
+
+  Laws: AGENTS.md (artifacts are the public API, additive and versioned; invariants; I6 runtime knowledge only in
+  its adapter; I7 outward effects through the outbox; I9 conventions never gate). No test starts a real codex
+  outside the guard, a codex app-server or login, or uses the owner's CODEX_HOME, runtimes.yaml, machine.yaml or
+  interlock state directory; tests point HOME, XDG_STATE_HOME and CODEX_HOME at temp folders. Types: no `as` except
+  `as const`, no `!`, no `as unknown as`.
+
+  A third fault, from the sessions thread (2026-11-11): on the pinned CLI, `interlock sessions stop <id>` prints the
+  session list and stops nothing. main dispatches `sessions read` to its own reader (packages/cli/src/main.ts:94-96)
+  and every other `sessions` argument list to runSessions (main.ts:98-100), which reads only --live and --json and
+  ignores the rest (packages/cli/src/sessions.ts:30-41), though graph 0060's read and the runner-records acceptance
+  (.interlock/graphs/0060-headless-runtime.yaml:336-342, :1533-1536) promise `interlock sessions stop <id> --by <who>
+  --because <why>` (and `--attempt`) ending the running phase "through the same outbox kill as the timeout". That
+  kill does not exist on main: the exec timeout signals the group anchor directly through the run's control socket
+  (packages/runner/src/execRuntime.ts:1127-1135, connectControl), with no outbox intent. Panes do have one:
+  Runtime.closePane and closeMachinePane (packages/runner/src/machineOutbox.ts:173). An exec phase ended by an outside
+  signal reads failed, not killed (execRuntime.ts:1222-1228), and after runExecPhase returns the driver goes on to
+  commit and debrief without asking whether an owner stopped it (sessionDrive.ts:699-729). One session id carries
+  several phase records (work, debrief), each its own phaseId (execRuntime.ts:1320-1333). An argument the CLI does
+  not understand must never fall through to a different verb.
+  - The sessions grammar is closed: `interlock sessions [--live] [--all] [--json]`; `interlock sessions read <id>
+    [--phase <phaseId>] [--json] [--follow]` as today; `interlock sessions stop <id> [--attempt] --by <who> --because
+    <why>`. Anything else is refused with one line naming the first argument not understood.
+  - Stop is an outbox effect. Exec phases gain an exec-stop effect beside closeMachinePane: its intent (stable
+    identity from graph, node, session and phaseId; by; because; attempt or phase) is persisted before dispatch,
+    dispatch sends TERM to the group anchor through the run's control socket and KILL after the term grace, and the
+    delivery is recorded acknowledged or uncertain, with replay re-dispatching an unacknowledged intent. The exec
+    timeout uses the same effect. A pane stop is closeMachinePane's close intent carrying by and because. The CLI
+    never signals a process itself.
+  - The driver consumes the stop. After runExecPhase returns and after a pane wait ends, before any continuation,
+    commit, debrief phase or judgement, the driver reads its session's stop intent. A stop recorded before the phase
+    record turned terminal wins: the phase reads killed with reason "stopped by <who>" (or "attempt stopped by
+    <who>" with --attempt) even if the program then exited on its own. A phase stop ends that phase as a timeout kill
+    ends it today. An attempt stop, and any stop of a pane session (a pane has one phase), ends the attempt: no
+    continuation, commit, debrief phase or judgement; the driver sets the node held (disposition hold, because
+    "stopped by <who>: <why>") at its lease generation, which is the lease release the sweeper reads, and stops
+    renewal.
+  - Selection: <id> is a session id or a unique prefix of one; several phase records of one id are one session, and
+    the stop targets its running phase; a prefix matching two or more distinct session ids is ambiguous. Refusals,
+    each one plain line, nothing recorded, nothing closed: unknown id, ambiguous prefix (naming the matches), a session
+    whose phases are all terminal (already ended), missing --by or --because.
+
+  A fourth, from the sessions thread (2026-11-11): the machine's four-session cap has no honest count. `interlock
+  sessions --live` lists only the current repository's exec sessions: runSessions reads
+  execRunRoot(dirname(dirname(journal))) (packages/cli/src/sessions.ts:15-18, :38), and the journal is
+  <main checkout>/.interlock/ledger (packages/face/src/root.ts:71-75), so the run root is that checkout's own
+  interlock/runs (execRuntime.ts:1363-1365); the driver writes to the same place (sessionDrive.ts:671). Run roots are
+  per repository; the machine's interlock state directory (packages/runner/src/codex/config.ts:543-552) holds Codex
+  overlays and no list of repositories. listExecSessions counts any record whose state is running as live, even
+  after its owner died (execRuntime.ts:1320-1333). The herdr adapter lists agents privately through agent.list
+  (packages/runner/src/herdr/adapter.ts:153-165); the Runtime seam exposes only observation of an already-known
+  attempt (packages/runner/src/runtime.ts:41-43, :200), not enumeration. sessions@v0 rows require kind node|review,
+  a string graph and every phase field, and forbid other properties (schemas/sessions@v0.json:12-46), while
+  sessionView adds a row-level `interlock` the schema does not allow (execRuntime.ts:1295-1307). At 16:47 UTC two
+  launches each saw room and five sessions ran. Two orchestrators now count herdr's agent panes by hand.
+  - The machine keeps an index of repositories: <interlock state directory>/repositories, one entry per canonical
+    common git dir with its run root, written idempotently by the runner whenever it launches a session (exec or
+    pane). `--all` reads every indexed run root plus the caller's own. A repository that has not launched since the
+    index landed is not found unless it is the caller's; an entry whose root is gone or unreadable prints one line
+    naming it and is not counted.
+  - Enumeration is a Runtime capability: an optional typed listing of live agents on the Runtime interface, which
+    the herdr adapter implements over agent.list. sessions.ts calls the seam and knows no herdr call. A pane carrying
+    no interlock tokens is listed with null repository, graph, node and work kind. A source that cannot be read
+    (herdr not running, its socket refused) prints one line naming it and the count is marked partial.
+  - Live means observed: an exec record in state running is live only while its anchor pid is alive and that
+    process started no later than the record's startedAt (a reused pid reads not live); when liveness cannot be read
+    the row's liveness is unknown. Unknown rows are listed and counted, so a cap never undercounts.
+  - One session is one row: phases of one session id in one repository are one row; a pane row and an exec row are
+    one session only when they carry the same interlock session id in the same repository, or the same live pid;
+    graph and node alone never merge rows.
+  - `--all` speaks sessions@v1, a new version: rows carry id, repository, graph, node, work kind (node, review or
+    null), transport (pane or exec), runtime, pid, phase and phaseId (null for a pane), and liveness (live or
+    unknown); the envelope carries count and each source's state. Output without --all stays sessions@v0, and its
+    rows lose the row-level `interlock` key so that output validates against sessions@v0 as its schema always said.
+
+  Order: codex-stays-home-in-tests lands first; busy-gates-wait and sessions-stop-stops depend on it, because every
+  node's standing `pnpm test` gate and slow-tests-accounted (scripts/gates/slow-tests.ts:273-285, every package's
+  suite) run the real-codex tests, which must run guarded. sessions-live-all and sessions-stop-stops both touch
+  packages/cli/src/sessions.ts, so sessions-live-all depends on sessions-stop-stops; they land together. Every new
+  test is declared slow with budget and reason, or runs its logic under 1.5 s, as slow-tests-accounted requires.
+  Acceptance cases are split: "new" cases fail on today's implementation; "kept" cases pass today and must still
+  pass.
+
+gates:
+  - id: approved
+    kind: human
+
+nodes:
+  - id: codex-stays-home-in-tests
+    role: implementer
+    acceptance: |
+      As the read, from "The codex guard lives in the runner package's test setup" through "spawn codex through the
+      guard". packages/runner/vitest.config.ts extends the base config and adds a runner setup file after the base
+      setupFiles; the guard and its supervisor live under packages/runner/test/support. New cases in
+      packages/runner/test/codexGuard.test.ts, through the guard and a fake codex binary the test writes (never the
+      real one), each failing on today's implementation:
+      - `codex app-server`, `codex login`, `codex logout` and an unknown form are refused before the fake starts,
+        and the refusal names the form; the fake's start count is 0;
+      - `codex exec` is refused for a CODEX_HOME whose provider is the default (no base_url), a non-loopback
+        base_url, a malformed base_url, a selected profile whose file is missing, and a `-c` selector that sets
+        model_provider or a base_url; it is let through for a 127.0.0.1, ::1 or localhost base_url; a profile
+        overlay that overrides the base provider is the one resolved; global flags placed before the subcommand
+        are parsed;
+      - `codex mcp list` and `codex mcp list --json` are let through;
+      - a fake codex that exits while a descendant that left its process group stays alive: run as a nested
+        fixture vitest file (under test/fixtures, not matched by the package's test glob), the fixture test fails
+        naming the descendant's pid, and the outer test asserts that failure and that no process carrying the
+        launch token survives;
+      - a guard-started process whose pid is reused before cleanup (simulated through an injected process table)
+        is not signalled.
+      Kept cases: realCodexMarkerOverflow.test.ts (its exec test now with a loopback fixture provider, every marker
+      assertion unchanged), lineFitsRealCodex.test.ts, realCodexMarkerLaunch.test.ts and
+      codexHomeOutsideWorktree.test.ts pass through the guard, and their codex spawns are registered and reaped.
+    gates:
+      - id: codex-guard-tests
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/codexGuard.test.ts test/realCodexMarkerOverflow.test.ts test/lineFitsRealCodex.test.ts test/realCodexMarkerLaunch.test.ts test/codexHomeOutsideWorktree.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: slow-tests-accounted
+        kind: command
+        run: node scripts/gates/slow-tests.ts
+        expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1\.5 s'
+
+  - id: busy-gates-wait
+    role: implementer
+    depends_on: [codex-stays-home-in-tests]
+    acceptance: |
+      As the read, from "Busy means the gate command never started" through "machine@v0 files stay valid", and "This
+      graph never writes the owner's machine.yaml". New cases in packages/runner/test/busyGatesWait.test.ts, driving
+      judgeGates and judgeWorktree with a controlled clock and a fake prefix the test writes, each failing on today's
+      implementation:
+      - bounded: a prefix busy on every start is asked exactly `attempts` times, the attempts - 1 sleeps follow the
+        doubling backoff capped at max_backoff_ms (asserted from the clock), one busy receipt per refusal is
+        written with proof {refused, reason, attempt, judgement} and no exitCode, and the node holds with
+        disposition "retry" and because "machine busy after N attempts: <last reason>";
+      - shared allowance: two gates and the node-engine probe in one judgement, each refused on every start,
+        together are refused no more than `attempts` times with no more than attempts - 1 sleeps;
+      - recovers: busy twice then started and passing clears the node, with the two busy receipts kept;
+      - a start dominates: a prefix that writes a busy report and then runs the start script, whose command exits
+        with the busy code, is judged once as the gate's own failure and its fake codex start count is exactly 1;
+        a gate command that writes to INTERLOCK_BUSY_REPORT and exits with the busy code is not busy; the gate
+        command's environment (dumped by the fake) carries neither INTERLOCK_BUSY_REPORT nor INTERLOCK_GATE_START;
+      - no start marker, the busy code and no reason line, or a reason line and another code, are judged once as
+        the gate's own result;
+      - the node-engine probe declined by the prefix is retried from the same allowance;
+      - each door passes the policy: judgeWorktree, backfill and interlock judge each retry a busy gate;
+      - identity: two judgements refused with the same reason and attempt write distinct receipts, replaying the
+        journal reads the same receipts, and assessReceipt reads a busy receipt as no run;
+      - the lease holds: a busy wait crossing several lease periods through driveInteractiveSession, on the exec and
+        on the pane path, keeps renewing, and sweepExpiredLeases run during the wait expires nothing;
+      - machine@v1 parses with busy; a v1 busy with exit_code, attempts or either backoff out of range, or a missing
+        field, is refused at parse with the field named (in packages/runner/test/machineProvider.test.ts).
+      Kept cases: without `busy` in machine.yaml the argv, behaviour and events are byte-identical on the existing
+      gateJudge.test.ts cases; machine@v0 files still parse; a gate that started and exits nonzero and an
+      expect_output mismatch are judged once and hold with disposition "hold".
+      Also: schemas/machine@v1.json (additive over v0) with packages/schemas/test/machineV1.test.ts and
+      docs/shapes.md regenerated; the face's held line names the retry disposition, tested in
+      packages/face/test/busyHold.test.ts (new); the reference scripts/machine/busy-prefix.ts with
+      packages/runner/test/busyPrefix.test.ts covering its three refusals (load ceiling via an injected load reader,
+      lock not taken within its bound, named process absent) and running the start script when it admits; the
+      D12 bend-log row, the D12 sentence pointing at it and the AGENTS.md seam pointer, as the read says.
+    gates:
+      - id: busy-gates-tests
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/busyGatesWait.test.ts test/busyPrefix.test.ts test/machineProvider.test.ts test/gateJudge.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: busy-schema-tests
+        kind: command
+        run: pnpm --fail-if-no-match --filter schemas exec vitest run test/machineV1.test.ts test/reference.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: busy-hold-face-tests
+        kind: command
+        run: pnpm --fail-if-no-match --filter face exec vitest run test/busyHold.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: shapes-fresh
+        kind: command
+        run: pnpm interlock schema reference --check
+        expect_output: ': fresh[.]'
+      - id: slow-tests-accounted
+        kind: command
+        run: node scripts/gates/slow-tests.ts
+        expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1\.5 s'
+
+  - id: sessions-stop-stops
+    role: implementer
+    depends_on: [codex-stays-home-in-tests]
+    acceptance: |
+      As the read, "A third fault" and its four decisions. `interlock sessions stop <id> [--attempt] --by <who>
+      --because <why>` stops the named session through the outbox: a pane session through closeMachinePane's close
+      intent carrying by and because; an exec session through the new exec-stop effect, intent persisted before
+      dispatch with its stable identity, delivery recorded acknowledged or uncertain, an unacknowledged intent
+      re-dispatched on replay; the exec timeout goes through the same effect. The driver consumes the stop as the
+      read says. New cases, each failing on today's implementation:
+      - in packages/cli/test/sessionsStop.test.ts, through main's run() with a fake runtime and the real ledger:
+        stop of a live pane session closes that pane once and records the stop with by and because; stop of a live
+        exec session records the exec-stop intent before dispatch; unknown id, ambiguous prefix (matches named), an
+        ended session, and missing --by or --because are each refused with one line, nothing closed or recorded; a
+        session with a debrief phase record and a work phase record is one session, not an ambiguous prefix;
+        `interlock sessions frobnicate` and `interlock sessions --bogus` are refused naming the argument, never
+        answered with the list;
+      - in packages/runner/test/execStop.test.ts, with a fixture driver program actually running under the exec
+        runtime: a phase stop leaves the phase killed with reason "stopped by <who>" and continues as a timeout kill
+        does; an attempt stop leaves "attempt stopped by <who>", no continuation, commit, debrief phase or
+        judgement follows, the node is held at its lease generation, and renewal stops; a stop recorded just before
+        the program exits 0 on its own still reads killed; the exec timeout writes the same exec-stop intent;
+        replay of an unacknowledged intent dispatches once more and records the delivery.
+      Kept cases: `interlock sessions`, `--live`, `--json` and `interlock sessions read` print as today. No real
+      herdr, codex or agent CLI.
+    gates:
+      - id: sessions-stop-tests
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/sessionsStop.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: exec-stop-tests
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/execStop.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: slow-tests-accounted
+        kind: command
+        run: node scripts/gates/slow-tests.ts
+        expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1\.5 s'
+
+  - id: sessions-live-all
+    role: implementer
+    depends_on: [sessions-stop-stops]
+    acceptance: |
+      As the read, "A fourth" and its five decisions. `interlock sessions --live --all [--json]` lists every live
+      agent session on this machine from any repository and any orchestrator: every agent the Runtime seam's new
+      enumeration returns (the herdr adapter over agent.list, never parsing a screen), and every live exec session
+      in every run root the machine's repository index names plus the caller's own. Each row names its repository,
+      graph, node, work kind, transport, runtime, pid where known and liveness; a pane interlock did not start is
+      listed with null repository, graph, node and work kind, never dropped. The plain output ends with one line
+      "live sessions: N" (N counts live and unknown rows), preceded by one line per unreadable source or index
+      entry, and --json is sessions@v1 with count and each source's state. New cases, each failing on today's
+      implementation, with the fake herdr socket server and two temp repositories registered in a temp state
+      directory's index:
+      - in packages/cli/test/sessionsLiveAll.test.ts, through main's run(): sessions in both repos and a pane from
+        neither are all listed with the right count; an exec record in state running whose anchor pid is dead, or
+        whose pid was reused by a later process, is not live; a record whose liveness cannot be read is listed as
+        unknown and counted; the same session reported by herdr and by its exec record counts once; the same session
+        id in two repositories is two rows; a session's work and debrief phases are one row; an index entry whose
+        root is gone prints one line and is not counted; herdr unavailable prints one line and marks the count
+        partial; --all --json validates against sessions@v1;
+      - in packages/runner/test/herdr/listAgents.test.ts: the adapter's enumeration returns tokened and untokened
+        agents from the fake socket server and refuses with a typed refusal when the socket is absent;
+      - a launch registers its repository in the index once, however many times it launches;
+      - `interlock sessions --live --json` without --all validates against sessions@v0 (rows carry no `interlock`
+        key).
+      Kept cases: without --all the caller's repository alone is listed with today's plain output. Also:
+      schemas/sessions@v1.json with packages/schemas/test/sessionsV1.test.ts and docs/shapes.md regenerated. No real
+      herdr, codex or agent CLI, and no test reads or writes the owner's interlock state directory.
+    gates:
+      - id: sessions-live-all-tests
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/sessionsLiveAll.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: list-agents-tests
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/herdr/listAgents.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: sessions-schema-tests
+        kind: command
+        run: pnpm --fail-if-no-match --filter schemas exec vitest run test/sessionsV1.test.ts test/reference.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: shapes-fresh
+        kind: command
+        run: pnpm interlock schema reference --check
+        expect_output: ': fresh[.]'
+      - id: slow-tests-accounted
+        kind: command
+        run: node scripts/gates/slow-tests.ts
+        expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1\.5 s'
