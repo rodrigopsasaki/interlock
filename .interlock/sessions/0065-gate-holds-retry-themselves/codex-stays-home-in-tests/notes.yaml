@@ -45,3 +45,7 @@ entries:
     at: "2026-11-11T19:20:00Z"
     chose: "Declare the nested detached-descendant guard test as a slow integration with a 10-second budget."
     because: "The test intentionally starts a nested Vitest process and waits through bounded process-group cleanup; the slow-tests gate measured 1.88 seconds and requires that lifecycle cost to be declared."
+  - kind: surprise
+    at: "2026-11-11T19:33:00Z"
+    expected: "The authored debrief candidate would preview as valid YAML without further quoting."
+    observed: "The preview parser treated the colon in the slow-test receipt as a compact mapping, so that scalar was quoted before the candidate was refreshed."
