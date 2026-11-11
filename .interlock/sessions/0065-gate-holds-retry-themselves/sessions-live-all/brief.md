@@ -23,6 +23,18 @@ gates:
   kind: command
   run: pnpm --fail-if-no-match --filter cli exec vitest run test/sessionsLiveAll.test.ts --passWithNoTests=false
   expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+- id: list-agents-tests
+  kind: command
+  run: pnpm --fail-if-no-match --filter runner exec vitest run test/herdr/listAgents.test.ts --passWithNoTests=false
+  expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+- id: sessions-schema-tests
+  kind: command
+  run: pnpm --fail-if-no-match --filter schemas exec vitest run test/sessionsV1.test.ts test/reference.test.ts --passWithNoTests=false
+  expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+- id: shapes-fresh
+  kind: command
+  run: pnpm interlock schema reference --check
+  expect_output: ': fresh[.]'
 - id: slow-tests-accounted
   kind: command
   run: node scripts/gates/slow-tests.ts
@@ -1378,16 +1390,28 @@ edit it.
 
 ## Acceptance (verbatim from the graph)
 
-> As the read, "A fourth". `interlock sessions --live --all [--json]` lists every live agent session on this
-> machine, from any repository and any orchestrator: every herdr agent pane with a detected agent (through the
-> existing herdr runtime adapter's agent listing, never parsing a screen), and every live exec session in every
-> repository this machine's interlock state knows (the run roots under the machine's interlock state directory,
-> not only the caller's repo), each row naming its repository, graph, node, runtime, kind (pane or exec), and
-> pid where known. A pane that interlock did not start is listed with kind pane and no graph or node, never
-> dropped. The plain output ends with one line "live sessions: N" and --json carries count; a row is never
-> counted twice (a pane-runtime session that also has an exec record counts once). Without --all the output is
-> unchanged. Tests in packages/cli/test/sessionsLiveAll.test.ts, each failing on today's implementation, with the
-> fake herdr socket server and two temp repositories with exec run records: sessions in both repos and a pane
-> from neither are all listed with the right count; a dead exec record is not live; a session in both sources
-> counts once; without --all only the caller's repo is listed; --json validates against its schema (sessions@v0
-> extended additively, or a new version if a field is required). No real herdr, codex or agent CLI.
+> As the read, "A fourth" and its five decisions. `interlock sessions --live --all [--json]` lists every live
+> agent session on this machine from any repository and any orchestrator: every agent the Runtime seam's new
+> enumeration returns (the herdr adapter over agent.list, never parsing a screen), and every live exec session
+> in every run root the machine's repository index names plus the caller's own. Each row names its repository,
+> graph, node, work kind, transport, runtime, pid where known and liveness; a pane interlock did not start is
+> listed with null repository, graph, node and work kind, never dropped. The plain output ends with one line
+> "live sessions: N" (N counts live and unknown rows), preceded by one line per unreadable source or index
+> entry, and --json is sessions@v1 with count and each source's state. New cases, each failing on today's
+> implementation, with the fake herdr socket server and two temp repositories registered in a temp state
+> directory's index:
+> - in packages/cli/test/sessionsLiveAll.test.ts, through main's run(): sessions in both repos and a pane from
+>   neither are all listed with the right count; an exec record in state running whose anchor pid is dead, or
+>   whose pid was reused by a later process, is not live; a record whose liveness cannot be read is listed as
+>   unknown and counted; the same session reported by herdr and by its exec record counts once; the same session
+>   id in two repositories is two rows; a session's work and debrief phases are one row; an index entry whose
+>   root is gone prints one line and is not counted; herdr unavailable prints one line and marks the count
+>   partial; --all --json validates against sessions@v1;
+> - in packages/runner/test/herdr/listAgents.test.ts: the adapter's enumeration returns tokened and untokened
+>   agents from the fake socket server and refuses with a typed refusal when the socket is absent;
+> - a launch registers its repository in the index once, however many times it launches;
+> - `interlock sessions --live --json` without --all validates against sessions@v0 (rows carry no `interlock`
+>   key).
+> Kept cases: without --all the caller's repository alone is listed with today's plain output. Also:
+> schemas/sessions@v1.json with packages/schemas/test/sessionsV1.test.ts and docs/shapes.md regenerated. No real
+> herdr, codex or agent CLI, and no test reads or writes the owner's interlock state directory.

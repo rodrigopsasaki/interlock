@@ -21,8 +21,20 @@ gates:
   run: pnpm interlock debrief validate {graph} {node}
 - id: busy-gates-tests
   kind: command
-  run: pnpm --fail-if-no-match --filter runner exec vitest run test/busyGatesWait.test.ts --passWithNoTests=false
+  run: pnpm --fail-if-no-match --filter runner exec vitest run test/busyGatesWait.test.ts test/busyPrefix.test.ts test/machineProvider.test.ts test/gateJudge.test.ts --passWithNoTests=false
   expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+- id: busy-schema-tests
+  kind: command
+  run: pnpm --fail-if-no-match --filter schemas exec vitest run test/machineV1.test.ts test/reference.test.ts --passWithNoTests=false
+  expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+- id: busy-hold-face-tests
+  kind: command
+  run: pnpm --fail-if-no-match --filter face exec vitest run test/busyHold.test.ts --passWithNoTests=false
+  expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+- id: shapes-fresh
+  kind: command
+  run: pnpm interlock schema reference --check
+  expect_output: ': fresh[.]'
 - id: slow-tests-accounted
   kind: command
   run: node scripts/gates/slow-tests.ts
@@ -1378,24 +1390,37 @@ edit it.
 
 ## Acceptance (verbatim from the graph)
 
-> As the read, "Busy means the gate command never started" through "A machine.yaml without busy". Tests in
-> packages/runner/test/busyGatesWait.test.ts drive judgeGates and judgeWorktree with a controlled clock and a
-> fake prefix the test writes, each failing on today's implementation:
-> - bounded: a prefix busy on every attempt is asked exactly `attempts` times, the sleeps follow the doubling
->   backoff capped at max (asserted from the clock), one receipt per refused attempt is written, and the node
->   holds with disposition "retry" and because naming the attempts and the last reason;
+> As the read, from "Busy means the gate command never started" through "machine@v0 files stay valid", and "This
+> graph never writes the owner's machine.yaml". New cases in packages/runner/test/busyGatesWait.test.ts, driving
+> judgeGates and judgeWorktree with a controlled clock and a fake prefix the test writes, each failing on today's
+> implementation:
+> - bounded: a prefix busy on every start is asked exactly `attempts` times, the attempts - 1 sleeps follow the
+>   doubling backoff capped at max_backoff_ms (asserted from the clock), one busy receipt per refusal is
+>   written with proof {refused, reason, attempt, judgement} and no exitCode, and the node holds with
+>   disposition "retry" and because "machine busy after N attempts: <last reason>";
+> - shared allowance: two gates and the node-engine probe in one judgement, each refused on every start,
+>   together are refused no more than `attempts` times with no more than attempts - 1 sleeps;
 > - recovers: busy twice then started and passing clears the node, with the two busy receipts kept;
-> - a real failure still fails: a gate that started and exits nonzero, a gate that exits with the busy code but
->   wrote no reason line, a reason line without the busy code, and an expect_output mismatch are each judged once,
->   never retried, and hold with disposition "hold" as today;
-> - nothing retries a gate that started: a gate command that starts a fake codex and then exits with the busy
->   code is not retried, and the fake's start count is exactly 1; a busy report written by the gate command
->   itself (not the prefix) does not make it busy;
-> - the node-engine probe declined by the prefix is retried under the same policy;
-> - without `busy` in machine.yaml, behaviour and events are byte-identical to today on the existing
->   gateJudge.test.ts cases; machine@v0 files still parse; machine@v1 with an exit code or attempts out of range is
->   refused at parse with the field named.
-> Also: schemas/machine@v1.json (additive over v0) with its schema test; the reference
-> scripts/machine/busy-prefix.ts with tests for its three refusals (load ceiling via an injected load reader, lock
-> not taken within its bound, named process absent) and for exec without INTERLOCK_BUSY_REPORT in the child's
-> environment; the docs/design/0001-interlock.md paragraph beside the retry-budget seam.
+> - a start dominates: a prefix that writes a busy report and then runs the start script, whose command exits
+>   with the busy code, is judged once as the gate's own failure and its fake codex start count is exactly 1;
+>   a gate command that writes to INTERLOCK_BUSY_REPORT and exits with the busy code is not busy; the gate
+>   command's environment (dumped by the fake) carries neither INTERLOCK_BUSY_REPORT nor INTERLOCK_GATE_START;
+> - no start marker, the busy code and no reason line, or a reason line and another code, are judged once as
+>   the gate's own result;
+> - the node-engine probe declined by the prefix is retried from the same allowance;
+> - each door passes the policy: judgeWorktree, backfill and interlock judge each retry a busy gate;
+> - identity: two judgements refused with the same reason and attempt write distinct receipts, replaying the
+>   journal reads the same receipts, and assessReceipt reads a busy receipt as no run;
+> - the lease holds: a busy wait crossing several lease periods through driveInteractiveSession, on the exec and
+>   on the pane path, keeps renewing, and sweepExpiredLeases run during the wait expires nothing;
+> - machine@v1 parses with busy; a v1 busy with exit_code, attempts or either backoff out of range, or a missing
+>   field, is refused at parse with the field named (in packages/runner/test/machineProvider.test.ts).
+> Kept cases: without `busy` in machine.yaml the argv, behaviour and events are byte-identical on the existing
+> gateJudge.test.ts cases; machine@v0 files still parse; a gate that started and exits nonzero and an
+> expect_output mismatch are judged once and hold with disposition "hold".
+> Also: schemas/machine@v1.json (additive over v0) with packages/schemas/test/machineV1.test.ts and
+> docs/shapes.md regenerated; the face's held line names the retry disposition, tested in
+> packages/face/test/busyHold.test.ts (new); the reference scripts/machine/busy-prefix.ts with
+> packages/runner/test/busyPrefix.test.ts covering its three refusals (load ceiling via an injected load reader,
+> lock not taken within its bound, named process absent) and running the start script when it admits; the
+> D12 bend-log row, the D12 sentence pointing at it and the AGENTS.md seam pointer, as the read says.

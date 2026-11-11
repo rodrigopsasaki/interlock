@@ -21,7 +21,7 @@ gates:
   run: pnpm interlock debrief validate {graph} {node}
 - id: codex-guard-tests
   kind: command
-  run: pnpm --fail-if-no-match --filter runner exec vitest run test/codexGuard.test.ts test/realCodexMarkerOverflow.test.ts test/lineFitsRealCodex.test.ts --passWithNoTests=false
+  run: pnpm --fail-if-no-match --filter runner exec vitest run test/codexGuard.test.ts test/realCodexMarkerOverflow.test.ts test/lineFitsRealCodex.test.ts test/realCodexMarkerLaunch.test.ts test/codexHomeOutsideWorktree.test.ts --passWithNoTests=false
   expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
 - id: slow-tests-accounted
   kind: command
@@ -1378,15 +1378,25 @@ edit it.
 
 ## Acceptance (verbatim from the graph)
 
-> As the read, "The codex guard". In packages/runner/test/codexGuard.test.ts, through the guard and a fake codex
-> binary the test writes (never the real one), each failing on today's implementation:
-> - a fake `codex app-server`, `codex login` and `codex logout` are refused before the fake starts, and the
->   refusal fails the calling test with the subcommand named;
-> - `codex exec` with a CODEX_HOME whose provider is the default (no base_url) or a non-loopback base_url is
->   refused; the same with a 127.0.0.1, ::1 or localhost base_url is let through; a profile overlay that
->   overrides the provider is resolved, not the base config only;
-> - `codex mcp list` with no model call is let through;
-> - a fake codex that leaves a detached child alive fails the test in afterEach, naming the pid, and the child is
->   reaped;
-> - realCodexMarkerOverflow.test.ts and lineFitsRealCodex.test.ts run unchanged in assertions and pass through
->   the guard (their spawns are recorded and reaped).
+> As the read, from "The codex guard lives in the runner package's test setup" through "spawn codex through the
+> guard". packages/runner/vitest.config.ts extends the base config and adds a runner setup file after the base
+> setupFiles; the guard and its supervisor live under packages/runner/test/support. New cases in
+> packages/runner/test/codexGuard.test.ts, through the guard and a fake codex binary the test writes (never the
+> real one), each failing on today's implementation:
+> - `codex app-server`, `codex login`, `codex logout` and an unknown form are refused before the fake starts,
+>   and the refusal names the form; the fake's start count is 0;
+> - `codex exec` is refused for a CODEX_HOME whose provider is the default (no base_url), a non-loopback
+>   base_url, a malformed base_url, a selected profile whose file is missing, and a `-c` selector that sets
+>   model_provider or a base_url; it is let through for a 127.0.0.1, ::1 or localhost base_url; a profile
+>   overlay that overrides the base provider is the one resolved; global flags placed before the subcommand
+>   are parsed;
+> - `codex mcp list` and `codex mcp list --json` are let through;
+> - a fake codex that exits while a descendant that left its process group stays alive: run as a nested
+>   fixture vitest file (under test/fixtures, not matched by the package's test glob), the fixture test fails
+>   naming the descendant's pid, and the outer test asserts that failure and that no process carrying the
+>   launch token survives;
+> - a guard-started process whose pid is reused before cleanup (simulated through an injected process table)
+>   is not signalled.
+> Kept cases: realCodexMarkerOverflow.test.ts (its exec test now with a loopback fixture provider, every marker
+> assertion unchanged), lineFitsRealCodex.test.ts, realCodexMarkerLaunch.test.ts and
+> codexHomeOutsideWorktree.test.ts pass through the guard, and their codex spawns are registered and reaped.

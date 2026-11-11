@@ -23,6 +23,10 @@ gates:
   kind: command
   run: pnpm --fail-if-no-match --filter cli exec vitest run test/sessionsStop.test.ts --passWithNoTests=false
   expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+- id: exec-stop-tests
+  kind: command
+  run: pnpm --fail-if-no-match --filter runner exec vitest run test/execStop.test.ts --passWithNoTests=false
+  expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
 - id: slow-tests-accounted
   kind: command
   run: node scripts/gates/slow-tests.ts
@@ -1378,16 +1382,24 @@ edit it.
 
 ## Acceptance (verbatim from the graph)
 
-> As the read, "A third fault". `interlock sessions stop <id> --by <who> --because <why>` stops the named session
-> through the runner's own close path for its runtime: a pane session through the runtime's closePane and the
-> machine outbox's closeMachinePane (packages/runner/src/machineOutbox.ts:173), an exec session through the same
-> outbox kill its timeout uses; the phase reads killed with reason "stopped by <who>", recorded with because, and
-> `--attempt` ends the whole attempt as graph 0060's read says (no continuation, commit or debrief; lease
-> released). It refuses with one plain line, stopping nothing and recording nothing: an unknown id; an id prefix
-> matching more than one session (naming the matches); a session already ended; missing --by or --because. Any
-> `interlock sessions` argument the CLI does not recognise is refused with one line naming it, never answered
-> with the list. Tests in packages/cli/test/sessionsStop.test.ts, through runSessions with a fake runtime and the
-> real ledger, each failing on today's implementation: stop of a live pane session closes that pane once and
-> records the stop; stop of a live exec session takes the outbox kill; --attempt releases the lease with no
-> continuation; unknown, ambiguous, ended and missing-reason ids are refused with nothing closed or recorded; an
-> unknown subcommand is refused. No real herdr, codex or agent CLI.
+> As the read, "A third fault" and its four decisions. `interlock sessions stop <id> [--attempt] --by <who>
+> --because <why>` stops the named session through the outbox: a pane session through closeMachinePane's close
+> intent carrying by and because; an exec session through the new exec-stop effect, intent persisted before
+> dispatch with its stable identity, delivery recorded acknowledged or uncertain, an unacknowledged intent
+> re-dispatched on replay; the exec timeout goes through the same effect. The driver consumes the stop as the
+> read says. New cases, each failing on today's implementation:
+> - in packages/cli/test/sessionsStop.test.ts, through main's run() with a fake runtime and the real ledger:
+>   stop of a live pane session closes that pane once and records the stop with by and because; stop of a live
+>   exec session records the exec-stop intent before dispatch; unknown id, ambiguous prefix (matches named), an
+>   ended session, and missing --by or --because are each refused with one line, nothing closed or recorded; a
+>   session with a debrief phase record and a work phase record is one session, not an ambiguous prefix;
+>   `interlock sessions frobnicate` and `interlock sessions --bogus` are refused naming the argument, never
+>   answered with the list;
+> - in packages/runner/test/execStop.test.ts, with a fixture driver program actually running under the exec
+>   runtime: a phase stop leaves the phase killed with reason "stopped by <who>" and continues as a timeout kill
+>   does; an attempt stop leaves "attempt stopped by <who>", no continuation, commit, debrief phase or
+>   judgement follows, the node is held at its lease generation, and renewal stops; a stop recorded just before
+>   the program exits 0 on its own still reads killed; the exec timeout writes the same exec-stop intent;
+>   replay of an unacknowledged intent dispatches once more and records the delivery.
+> Kept cases: `interlock sessions`, `--live`, `--json` and `interlock sessions read` print as today. No real
+> herdr, codex or agent CLI.
