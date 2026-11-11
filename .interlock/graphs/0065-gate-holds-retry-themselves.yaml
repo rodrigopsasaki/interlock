@@ -1,7 +1,7 @@
 interlock: graph@v0
 id: 0065-gate-holds-retry-themselves
 arc: a-busy-machine-is-waited-for
-ask: A command gate the machine refused to start (busy, locked, or missing a process it needs) is retried by the runner itself, with backoff and a bounded count, instead of parking the node for a person; a gate that ran and failed still fails; and no test may let a real codex reach a non-loopback provider, start an app-server or login, or outlive its test.
+ask: A command gate the machine refused to start (busy, locked, or missing a process it needs) is retried by the runner itself, with backoff and a bounded count, instead of parking the node for a person; a gate that ran and failed still fails; and no test may let a real codex reach a non-loopback provider, start an app-server or login, or outlive its test; and `interlock sessions stop` stops the session it names.
 derivation:
   kind: model
   model: gilb
@@ -69,7 +69,14 @@ read: >
   No test starts a real codex outside the guard, a codex app-server or login, or uses the owner's CODEX_HOME,
   runtimes.yaml or machine.yaml. Types: no `as` except `as const`, no `!`, no `as unknown as`.
 
-  Order: the two nodes are independent and touch different files; they land together. New tests are declared or
+  A third fault, from the sessions thread (2026-11-11): on the pinned CLI, `interlock sessions stop <id>` prints the
+  session list and stops nothing. runSessions (packages/cli/src/sessions.ts:30-41) reads only --live and --json and
+  ignores every other argument, though graph 0060's read and the runner-records acceptance
+  (.interlock/graphs/0060-headless-runtime.yaml:336-342, :1533-1536) promise `interlock sessions stop <id> --by <who>
+  --because <why>` (and `--attempt`) ending the running phase through the runner's own kill. An argument the CLI does
+  not understand must never fall through to a different verb.
+
+  Order: the three nodes are independent and touch different files; they land together. New tests are declared or
   baselined as 0063's slow-tests-accounted gate requires.
 
 gates:
@@ -130,6 +137,32 @@ nodes:
       - id: busy-gates-tests
         kind: command
         run: pnpm --fail-if-no-match --filter runner exec vitest run test/busyGatesWait.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: slow-tests-accounted
+        kind: command
+        run: node scripts/gates/slow-tests.ts
+        expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1\.5 s'
+
+  - id: sessions-stop-stops
+    role: implementer
+    acceptance: |
+      As the read, "A third fault". `interlock sessions stop <id> --by <who> --because <why>` stops the named session
+      through the runner's own close path for its runtime: a pane session through the runtime's closePane and the
+      machine outbox's closeMachinePane (packages/runner/src/machineOutbox.ts:173), an exec session through the same
+      outbox kill its timeout uses; the phase reads killed with reason "stopped by <who>", recorded with because, and
+      `--attempt` ends the whole attempt as graph 0060's read says (no continuation, commit or debrief; lease
+      released). It refuses with one plain line, stopping nothing and recording nothing: an unknown id; an id prefix
+      matching more than one session (naming the matches); a session already ended; missing --by or --because. Any
+      `interlock sessions` argument the CLI does not recognise is refused with one line naming it, never answered
+      with the list. Tests in packages/cli/test/sessionsStop.test.ts, through runSessions with a fake runtime and the
+      real ledger, each failing on today's implementation: stop of a live pane session closes that pane once and
+      records the stop; stop of a live exec session takes the outbox kill; --attempt releases the lease with no
+      continuation; unknown, ambiguous, ended and missing-reason ids are refused with nothing closed or recorded; an
+      unknown subcommand is refused. No real herdr, codex or agent CLI.
+    gates:
+      - id: sessions-stop-tests
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/sessionsStop.test.ts --passWithNoTests=false
         expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
       - id: slow-tests-accounted
         kind: command
