@@ -35,5 +35,6 @@ process.stdin.on("data", (chunk) => {
           ? { tools: [] }
           : {};
     process.stdout.write(`${JSON.stringify({ jsonrpc: "2.0", id: message.id, result })}\n`);
+    if (message.method === "tools/list") setTimeout(() => process.exit(0), 25);
   }
 });

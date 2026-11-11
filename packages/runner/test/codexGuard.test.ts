@@ -152,6 +152,19 @@ describe("Codex test guard", () => {
     expect(result.count).toBe("0");
   });
 
+  it("refuses a managed Codex configuration layer", () => {
+    const { home, bin, count } = fixture();
+    fakeCodex(bin, count);
+    writeFileSync(join(home, "managed_config.toml"), "model_provider = \"remote\"\n");
+    config(
+      home,
+      'model_provider = "local"\n[model_providers.local]\nbase_url = "http://127.0.0.1"',
+    );
+    const result = run(["exec", "proof"], environment(home, count));
+    expect(result.error).toContain("managed Codex configuration layer is present");
+    expect(result.count).toBe("0");
+  });
+
   it.each(["model_provider=remote", 'model_providers.remote.base_url="http://127.0.0.1"'])(
     "refuses a provider selector: %s",
     (selector) => {
@@ -176,6 +189,41 @@ describe("Codex test guard", () => {
     );
     const result = run(["exec", "-c", "model_provider=remote", "proof"], environment(home, count));
     expect(result.error).toContain("selector touches provider configuration");
+    expect(result.count).toBe("0");
+  });
+
+  it.each([
+    ["--config", "model_providers.remote.base_url=\"https://api.example.com/v1\""],
+    ["--config=", "base_url=\"https://api.example.com/v1\""],
+    ["-c", "profile=remote"],
+    ["-c", "profiles.remote.model_provider=remote"],
+  ])("refuses provider or profile selector after exec: %s %s", (option, selector) => {
+    const { home, bin, count } = fixture();
+    fakeCodex(bin, count);
+    config(
+      home,
+      'model_provider = "local"\n[model_providers.local]\nbase_url = "http://127.0.0.1"',
+    );
+    const args = option.endsWith("=")
+      ? ["exec", `${option}${selector}`, "proof"]
+      : ["exec", option, selector, "proof"];
+    const result = run(args, environment(home, count));
+    expect(result.error).toContain("selector touches provider configuration");
+    expect(result.count).toBe("0");
+  });
+
+  it("refuses two distinct profile selections", () => {
+    const { home, bin, count } = fixture();
+    fakeCodex(bin, count);
+    config(
+      home,
+      'model_provider = "local"\n[model_providers.local]\nbase_url = "http://127.0.0.1"',
+    );
+    const result = run(
+      ["exec", "-p", "first", "-p", "second", "proof"],
+      environment(home, count),
+    );
+    expect(result.error).toContain("multiple profile selections");
     expect(result.count).toBe("0");
   });
 
@@ -208,21 +256,44 @@ describe("Codex test guard", () => {
   });
 
   it.each([
-    ["quoted key", '"model_provider" = "remote"'],
+    [
+      "quoted key",
+      'model_provider = "local"\n[model_providers.local]\nbase_url = "http://127.0.0.1"\n"model_provider" = "remote"',
+    ],
     [
       "dotted root key",
-      'model_provider = "remote"\nmodel_providers.remote.base_url = "https://api.example.com/v1"',
+      'model_provider = "local"\n[model_providers.local]\nbase_url = "http://127.0.0.1"\nmodel_providers.remote.base_url = "https://api.example.com/v1"',
     ],
     [
       "inline provider table",
-      'model_provider = "remote"\nmodel_providers = { remote = { base_url = "https://api.example.com/v1" } }',
+      'model_provider = "local"\n[model_providers.local]\nbase_url = "http://127.0.0.1"\nmodel_providers = { remote = { base_url = "https://api.example.com/v1" } }',
+    ],
+    [
+      "line without equals",
+      'model_provider = "local"\n[model_providers.local]\nbase_url = "http://127.0.0.1"\nmodel_provider "remote"',
     ],
   ])("refuses unsupported provider syntax: %s", (_name, text) => {
     const { home, bin, count } = fixture();
     fakeCodex(bin, count);
     config(home, text);
     const result = run(["exec", "proof"], environment(home, count));
-    expect(result.error).toContain("codex exec refused");
+    expect(result.error).toContain("unsupported Codex configuration");
+    expect(result.count).toBe("0");
+  });
+
+  it("applies selected profile overlays after all file roots", () => {
+    const { home, bin, count } = fixture();
+    fakeCodex(bin, count);
+    config(
+      home,
+      'model_provider = "local"\n[model_providers.local]\nbase_url = "http://127.0.0.1"\n[profiles.remote]\nmodel_provider = "remote"\n[profiles.remote.model_providers.remote]\nbase_url = "https://api.example.com/v1"',
+    );
+    writeFileSync(
+      join(home, "remote.config.toml"),
+      'model_provider = "local"\n[model_providers.local]\nbase_url = "http://127.0.0.1"',
+    );
+    const result = run(["-p", "remote", "exec", "proof"], environment(home, count));
+    expect(result.error).toContain('provider "remote" has a non-loopback base_url');
     expect(result.count).toBe("0");
   });
 
@@ -393,6 +464,84 @@ writeFileSync(${JSON.stringify(tokenPath)}, process.env["INTERLOCK_CODEX_LAUNCH_
       0,
     );
     expect(calls).toContain("43:SIGTERM");
+  });
+
+  it("matches a tokenless member after a departed leader only inside the launch interval", async () => {
+    const { root } = fixture();
+    const registry = join(root, "registry.jsonl");
+    registerLaunch(registry, 42, 42, "10", "token");
+    const member: ProcessRecord = {
+      pid: 43,
+      ppid: 1,
+      pgid: 42,
+      startTime: "11",
+      command: "member",
+      environment: {},
+      state: "running",
+    };
+    const calls: string[] = [];
+    await cleanupCodexLaunches(
+      registry,
+      { list: () => [member], now: () => "11" },
+      (pid, signal) => calls.push(`${String(pid)}:${signal}`),
+      0,
+    );
+    expect(calls).toContain("43:SIGTERM");
+  });
+
+  it("does not match a tokenless member that started after cleanup began", async () => {
+    const { root } = fixture();
+    const registry = join(root, "registry.jsonl");
+    registerLaunch(registry, 42, 42, "10", "token");
+    const member: ProcessRecord = {
+      pid: 43,
+      ppid: 1,
+      pgid: 42,
+      startTime: "12",
+      command: "member",
+      environment: {},
+      state: "running",
+    };
+    const calls: string[] = [];
+    await cleanupCodexLaunches(
+      registry,
+      { list: () => [member], now: () => "11" },
+      (pid, signal) => calls.push(`${String(pid)}:${signal}`),
+      0,
+    );
+    expect(calls).toEqual([]);
+  });
+
+  it("spares a tokenless member when the departed leader pid was reused", async () => {
+    const { root } = fixture();
+    const registry = join(root, "registry.jsonl");
+    registerLaunch(registry, 42, 42, "old-start", "token");
+    const leader: ProcessRecord = {
+      pid: 42,
+      ppid: 1,
+      pgid: 42,
+      startTime: "new-start",
+      command: "reused leader",
+      environment: {},
+      state: "running",
+    };
+    const member: ProcessRecord = {
+      pid: 43,
+      ppid: 42,
+      pgid: 42,
+      startTime: "member-start",
+      command: "member",
+      environment: {},
+      state: "running",
+    };
+    const calls: string[] = [];
+    await cleanupCodexLaunches(
+      registry,
+      { list: () => [leader, member] },
+      (pid, signal) => calls.push(`${String(pid)}:${signal}`),
+      0,
+    );
+    expect(calls).toEqual([]);
   });
 });
 

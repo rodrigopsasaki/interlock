@@ -266,6 +266,9 @@ function selectedProfile(
   command: ParsedCommand,
   base: ParsedConfig | undefined,
 ): string | undefined {
+  const distinct = new Set(command.profiles);
+  if (distinct.size > 1)
+    throw new Error(`multiple profile selections: ${Array.from(distinct).join(", ")}`);
   const selected = command.profiles[0];
   if (selected !== undefined) return selected;
   return base?.profile;
@@ -274,13 +277,9 @@ function selectedProfile(
 function selectorTouchesProvider(selector: string): boolean {
   const separator = selector.indexOf("=");
   const key = (separator < 0 ? selector : selector.slice(0, separator)).trim();
-  return (
-    key === "model_provider" ||
-    key.startsWith("model_provider.") ||
-    key === "model_providers" ||
-    key.startsWith("model_providers.") ||
-    key === "base_url" ||
-    key.endsWith(".base_url")
+  const parts = key.split(".");
+  return key === "profile" || parts.some((part) =>
+    ["model_provider", "model_providers", "base_url"].includes(part),
   );
 }
 
@@ -289,6 +288,14 @@ function providerBaseUrl(command: ParsedCommand): {
   readonly url: string | undefined;
 } {
   const home = configHome();
+  const managedPaths = [
+    join(home, "managed_config.toml"),
+    "/etc/codex/managed_config.toml",
+    "/etc/codex/config.toml",
+  ];
+  for (const path of managedPaths) {
+    if (existsSync(path)) throw new Error(`managed Codex configuration layer is present: ${path}`);
+  }
   const basePath = join(home, "config.toml");
   const base = readConfig(basePath);
   const profile = selectedProfile(command, base);
@@ -308,19 +315,23 @@ function providerBaseUrl(command: ParsedCommand): {
   }
   const project = readConfig(join(resolve(process.cwd()), ".codex", "config.toml"));
   if (project !== undefined) configs.push(project);
-  let name: string | undefined;
+  const root = emptyOverlay();
+  const selectedOverlay = emptyOverlay();
   const providers = new Map<string, Provider>();
   for (const config of configs) {
-    const overlays = [config.root];
-    const profileOverlay = profile === undefined ? undefined : config.profiles.get(profile);
-    if (profileOverlay !== undefined) overlays.push(profileOverlay);
-    for (const overlay of overlays) {
-      if (overlay.provider !== undefined) name = overlay.provider;
-      for (const [providerName, value] of overlay.providers) {
-        providers.set(providerName, value);
+    if (config.root.provider !== undefined) root.provider = config.root.provider;
+    for (const [providerName, value] of config.root.providers) providers.set(providerName, value);
+    if (profile !== undefined) {
+      const profileOverlay = config.profiles.get(profile);
+      if (profileOverlay !== undefined) {
+        if (profileOverlay.provider !== undefined) selectedOverlay.provider = profileOverlay.provider;
+        for (const [providerName, value] of profileOverlay.providers)
+          selectedOverlay.providers.set(providerName, value);
       }
     }
   }
+  let name = selectedOverlay.provider ?? root.provider;
+  for (const [providerName, value] of selectedOverlay.providers) providers.set(providerName, value);
   if (name === undefined) name = "default";
   return { name, url: providers.get(name)?.baseUrl };
 }
@@ -356,7 +367,7 @@ function realCodex(): string {
   refuse("launch", "the real codex executable is not available past the guard");
 }
 
-function start(args: readonly string[]): void {
+async function start(args: readonly string[]): Promise<void> {
   const executable = realCodex();
   const token = launchToken();
   const registry = process.env["INTERLOCK_CODEX_GUARD_REGISTRY"];
@@ -379,7 +390,12 @@ function start(args: readonly string[]): void {
     let processRecord = platformProcessTable()
       .list()
       .find((entry) => entry.pid === child.pid);
-    for (let attempt = 0; processRecord === undefined && attempt < 2; attempt += 1) {
+    for (
+      let attempt = 0;
+      (processRecord === undefined || processRecord.startTime === "unknown") && attempt < 2;
+      attempt += 1
+    ) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 25));
       processRecord = platformProcessTable()
         .list()
         .find((entry) => entry.pid === child.pid);
@@ -401,17 +417,17 @@ function start(args: readonly string[]): void {
   });
 }
 
-function main(args: readonly string[]): void {
+async function main(args: readonly string[]): Promise<void> {
   const command = parseCommand(args);
   if (command.subcommand === undefined) refuse("unknown form", "no command form was supplied");
   if (command.subcommand === "mcp") {
-    if (command.rest.length === 1 && command.rest[0] === "list") start(args);
+    if (command.rest.length === 1 && command.rest[0] === "list") await start(args);
     else if (
       command.rest.length === 2 &&
       command.rest[0] === "list" &&
       command.rest[1] === "--json"
     )
-      start(args);
+      await start(args);
     else refuse("mcp", "only `mcp list` and `mcp list --json` are allowed");
     return;
   }
@@ -420,6 +436,14 @@ function main(args: readonly string[]): void {
   if (command.unknownOptions.length > 0)
     refuse("exec", `unknown option: ${command.unknownOptions[0]}`);
   if (command.rest.length === 0) refuse("exec", "the exec form needs a prompt");
+  try {
+    selectedProfile(command, undefined);
+  } catch (error) {
+    refuse(
+      "exec",
+      error instanceof Error ? error.message : "Codex profile selections could not be resolved",
+    );
+  }
   for (const selector of command.selectors) {
     if (selectorTouchesProvider(selector))
       refuse("exec", `selector touches provider configuration: ${selector}`);
@@ -440,7 +464,7 @@ function main(args: readonly string[]): void {
   } catch {
     refuse("exec", `provider "${resolved.name}" has a malformed base_url`);
   }
-  start(args);
+  await start(args);
 }
 
-main(process.argv.slice(2));
+await main(process.argv.slice(2));

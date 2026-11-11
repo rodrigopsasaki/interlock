@@ -93,3 +93,31 @@ entries:
     at: "2026-11-11T19:33:22Z"
     expected: "The process scan would find no matching Codex or Vitest processes."
     observed: "No process from this session remained, but unrelated owner-run interlock and Codex processes were still present; they were left untouched."
+  - kind: choice
+    at: "2026-11-11T20:05:00Z"
+    chose: "Reject every provider-affecting selector path, reject distinct repeated profile selections, and merge all roots before applying selected profile overlays."
+    because: "Codex resolves command selectors and profile overlays over the complete merged configuration; the guard must make the same safety decision without allowing later roots to erase a selected profile."
+  - kind: choice
+    at: "2026-11-11T20:06:00Z"
+    chose: "When a registered leader is gone, accept a tokenless group member only when its start time is after the leader and no later than the cleanup observation time; retain token matching as an independent source."
+    because: "A departed leader cannot verify a reused process group by membership alone, while legitimate MCP members need a bounded start-time interval after losing the launch token."
+  - kind: choice
+    at: "2026-11-11T20:07:00Z"
+    chose: "Refuse the three managed Codex configuration layer paths rather than attempting to parse them."
+    because: "The installed Codex binary treats those paths as configuration layers the test guard does not fully resolve, so presence must fail closed."
+  - kind: surprise
+    at: "2026-11-11T20:12:00Z"
+    expected: "The explicit async real-Codex reaper would observe only genuine survivors after the command returned."
+    observed: "Two tests had MCP descendants still present at the immediate snapshot but gone shortly afterward; the explicit check now waits 1 second before applying the same survivor failure rule."
+  - kind: choice
+    at: "2026-11-11T20:18:00Z"
+    chose: "Make the two persistent MCP environment fixtures exit after completing tools/list."
+    because: "The explicit reaper must fail on a real survivor, while a fixture that has finished recording its marker should not keep an otherwise successful real-Codex test alive."
+  - kind: surprise
+    at: "2026-11-11T20:22:00Z"
+    expected: "The focused five-file guard run would be stable after the fixture shutdown change."
+    observed: "The first two parallel runs exposed transient Codex child overlap, while an isolated run and the subsequent complete focused run passed; the explicit reaper still fails any survivor it observes."
+  - kind: choice
+    at: "2026-11-11T20:23:00Z"
+    chose: "Remove the committed repair-candidate.yaml and retain only the canonical debrief plus its revision history."
+    because: "The repair candidate was an intermediate near-copy and the session should end with the filed, versioned debrief artifacts only."

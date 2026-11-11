@@ -14,6 +14,7 @@ export interface ProcessRecord {
 
 export interface ProcessTable {
   readonly list: () => readonly ProcessRecord[];
+  readonly now?: () => string | undefined;
 }
 
 export interface LaunchRecord {
@@ -57,6 +58,19 @@ function parseEnvironment(value: string): Readonly<Record<string, string>> {
 
 function linuxProcessTable(): ProcessTable {
   return {
+    now: () => {
+      try {
+        const uptime = Number(readFileSync("/proc/uptime", "utf8").split(/\s+/)[0]);
+        const ticks = Number(
+          execFileSync("getconf", ["CLK_TCK"], { encoding: "utf8" }).trim(),
+        );
+        return Number.isFinite(uptime) && Number.isFinite(ticks)
+          ? String(Math.floor(uptime * ticks))
+          : undefined;
+      } catch {
+        return undefined;
+      }
+    },
     list: () => {
       const records: ProcessRecord[] = [];
       for (const entry of readdirSync("/proc")) {
@@ -92,6 +106,7 @@ function linuxProcessTable(): ProcessTable {
 
 function macProcessTable(): ProcessTable {
   return {
+    now: () => new Date().toString(),
     list: () => {
       let output = "";
       try {
@@ -184,25 +199,48 @@ function isLaunchProcess(
   process: ProcessRecord,
   launch: RegisteredLaunch,
   leaderStartMatches: boolean,
+  leaderMissing: boolean,
+  observedAt: string | undefined,
 ): boolean {
   if (process.state === "zombie") return false;
   const tokenMatch = process.environment["INTERLOCK_CODEX_LAUNCH_TOKEN"] === launch.token;
   const groupMatch = process.pgid === launch.pgid;
   if (!tokenMatch && !groupMatch) return false;
   if (process.pid === launch.pid) return process.startTime === launch.startTime;
-  return tokenMatch || (leaderStartMatches && groupMatch);
+  if (tokenMatch) return true;
+  if (!leaderStartMatches || !groupMatch) return false;
+  if (!leaderMissing) return true;
+  if (observedAt === undefined) return false;
+  const processStart = comparableStartTime(process.startTime);
+  const launchStart = comparableStartTime(launch.startTime);
+  const cleanupStart = comparableStartTime(observedAt);
+  return (
+    processStart !== undefined &&
+    launchStart !== undefined &&
+    cleanupStart !== undefined &&
+    processStart > launchStart &&
+    processStart <= cleanupStart
+  );
+}
+
+function comparableStartTime(value: string): number | undefined {
+  if (/^\d+$/.test(value)) return Number(value);
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? undefined : parsed;
 }
 
 function survivors(
   table: ProcessTable,
   launches: readonly RegisteredLaunch[],
+  observedAt: string | undefined = table.now?.(),
 ): readonly ProcessRecord[] {
   const current = table.list();
   return current.filter((process) =>
     launches.some((launch) => {
       const leader = current.find((candidate) => candidate.pid === launch.pid);
-      const leaderStartMatches = leader === undefined || leader.startTime === launch.startTime;
-      return isLaunchProcess(process, launch, leaderStartMatches);
+      const leaderMissing = leader === undefined;
+      const leaderStartMatches = leaderMissing || leader.startTime === launch.startTime;
+      return isLaunchProcess(process, launch, leaderStartMatches, leaderMissing, observedAt);
     }),
   );
 }
@@ -223,13 +261,14 @@ export async function cleanupCodexLaunches(
 ): Promise<readonly number[]> {
   const launches = readLaunches(registry);
   if (launches.length === 0) return [];
-  const observed = survivors(table, launches);
+  const observedAt = table.now?.();
+  const observed = survivors(table, launches, observedAt);
   signalSurvivors(observed, signal);
   const deadline = Date.now() + graceMs;
-  let remaining = survivors(table, launches);
+  let remaining = survivors(table, launches, observedAt);
   while (remaining.length > 0 && Date.now() < deadline) {
     await new Promise<void>((resolve) => setTimeout(resolve, 25));
-    remaining = survivors(table, launches);
+    remaining = survivors(table, launches, observedAt);
   }
   const observedPids = observed.map((process) => process.pid);
   if (remaining.length > 0) {
@@ -239,7 +278,7 @@ export async function cleanupCodexLaunches(
       } catch {}
     }
     await new Promise<void>((resolve) => setTimeout(resolve, 25));
-    remaining = survivors(table, launches);
+    remaining = survivors(table, launches, observedAt);
   }
   writeFileSync(registry, "", { mode: 0o600 });
   return observedPids;
@@ -249,10 +288,13 @@ export function cleanupCodexLaunchesSync(
   registry: string,
   table: ProcessTable = platformProcessTable(),
   signal: Signal = (pid, value) => process.kill(pid, value),
-): void {
+): readonly number[] {
   const launches = readLaunches(registry);
-  signalSurvivors(survivors(table, launches), signal);
-  for (const process of survivors(table, launches)) {
+  if (launches.length === 0) return [];
+  const observedAt = table.now?.();
+  const observed = survivors(table, launches, observedAt);
+  signalSurvivors(observed, signal);
+  for (const process of survivors(table, launches, observedAt)) {
     try {
       signal(process.pid, "SIGKILL");
     } catch {}
@@ -260,8 +302,9 @@ export function cleanupCodexLaunchesSync(
   try {
     writeFileSync(registry, "", { mode: 0o600 });
   } catch {
-    return;
+    return observed.map((process) => process.pid);
   }
+  return observed.map((process) => process.pid);
 }
 
 export function launchToken(): string {
