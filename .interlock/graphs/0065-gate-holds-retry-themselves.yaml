@@ -1,7 +1,7 @@
 interlock: graph@v0
 id: 0065-gate-holds-retry-themselves
 arc: a-busy-machine-is-waited-for
-ask: A command gate the machine refused to start (busy, locked, or missing a process it needs) is retried by the runner itself, with backoff and a bounded count, instead of parking the node for a person; a gate that ran and failed still fails; and no test may let a real codex reach a non-loopback provider, start an app-server or login, or outlive its test; and `interlock sessions stop` stops the session it names.
+ask: A command gate the machine refused to start (busy, locked, or missing a process it needs) is retried by the runner itself, with backoff and a bounded count, instead of parking the node for a person; a gate that ran and failed still fails; and no test may let a real codex reach a non-loopback provider, start an app-server or login, or outlive its test; `interlock sessions stop` stops the session it names; and `interlock sessions --live --all` counts every live session on the machine.
 derivation:
   kind: model
   model: gilb
@@ -76,7 +76,14 @@ read: >
   --because <why>` (and `--attempt`) ending the running phase through the runner's own kill. An argument the CLI does
   not understand must never fall through to a different verb.
 
-  Order: the three nodes are independent and touch different files; they land together. New tests are declared or
+  A fourth, from the sessions thread (2026-11-11): the machine's four-session cap has no honest count. `interlock
+  sessions --live` lists only the current repository's exec sessions (runSessions reads the run root under the repo's
+  shared journal directory, packages/cli/src/sessions.ts:15-18, :38, via listExecSessions,
+  packages/runner/src/execRuntime.ts:1309), so a dispatcher counting from one repo undercounts; at 16:47 UTC two
+  launches each saw room and five sessions ran. Two orchestrators now count herdr's agent panes by hand.
+
+  Order: the four nodes are independent; sessions-live-all and sessions-stop-stops both touch
+  packages/cli/src/sessions.ts, so sessions-live-all depends on sessions-stop-stops; they land together. New tests are declared or
   baselined as 0063's slow-tests-accounted gate requires.
 
 gates:
@@ -163,6 +170,33 @@ nodes:
       - id: sessions-stop-tests
         kind: command
         run: pnpm --fail-if-no-match --filter cli exec vitest run test/sessionsStop.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: slow-tests-accounted
+        kind: command
+        run: node scripts/gates/slow-tests.ts
+        expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1\.5 s'
+
+  - id: sessions-live-all
+    role: implementer
+    depends_on: [sessions-stop-stops]
+    acceptance: |
+      As the read, "A fourth". `interlock sessions --live --all [--json]` lists every live agent session on this
+      machine, from any repository and any orchestrator: every herdr agent pane with a detected agent (through the
+      existing herdr runtime adapter's agent listing, never parsing a screen), and every live exec session in every
+      repository this machine's interlock state knows (the run roots under the machine's interlock state directory,
+      not only the caller's repo), each row naming its repository, graph, node, runtime, kind (pane or exec), and
+      pid where known. A pane that interlock did not start is listed with kind pane and no graph or node, never
+      dropped. The plain output ends with one line "live sessions: N" and --json carries count; a row is never
+      counted twice (a pane-runtime session that also has an exec record counts once). Without --all the output is
+      unchanged. Tests in packages/cli/test/sessionsLiveAll.test.ts, each failing on today's implementation, with the
+      fake herdr socket server and two temp repositories with exec run records: sessions in both repos and a pane
+      from neither are all listed with the right count; a dead exec record is not live; a session in both sources
+      counts once; without --all only the caller's repo is listed; --json validates against its schema (sessions@v0
+      extended additively, or a new version if a field is required). No real herdr, codex or agent CLI.
+    gates:
+      - id: sessions-live-all-tests
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/sessionsLiveAll.test.ts --passWithNoTests=false
         expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
       - id: slow-tests-accounted
         kind: command

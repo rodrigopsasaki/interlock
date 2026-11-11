@@ -1365,6 +1365,7 @@ edit it.
   committing on this branch in this worktree and filing the debrief as the last commit; do that without
   asking. Ask only about something the brief does not settle.
 - Before you file the debrief, stop every background shell or Bash call you started.
+- Before you file the debrief (and before any refile), end every vitest worker and child process you started and confirm with pgrep that none survives; orphaned test workers that outlive their command are a defect in your work.
 
 ## Deliverable
 
