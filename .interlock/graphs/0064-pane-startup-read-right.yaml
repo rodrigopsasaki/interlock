@@ -99,3 +99,58 @@ nodes:
         kind: command
         run: node scripts/gates/slow-tests.ts
         expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1\.5 s'
+
+  - id: pane-startup-whole
+    role: implementer
+    depends_on: [pane-startup-read-right]
+    acceptance: |
+      pane-startup-read-right cleared on its gates at b4af186, but a clause-by-clause judge walk (2026-11-11) found
+      the incident itself likely unfixed and several named cases hollow or missing. This node finishes the same read on
+      that head. Findings, file:line at b4af186:
+      - The composer recogniser accepts only a bare `›`/`❯` as the last non-empty line (herdr/adapter.ts:263-270). A
+        real waiting codex screen, read from a live pane on this machine on 2026-11-11, ends with the composer line
+        "› Ask Codex to do anything", then a model and folder status line, then "? for shortcuts" with a warnings
+        notice; the bare glyph never matches it. Recognise the composer by the agent kind's real composer shape anywhere
+        in the bottom block, with fixtures copied from real screens (codex waiting, codex with a passive notice above
+        the composer, codex trust and update modals), never invented ones; record each fixture's provenance in notes.
+      - Redaction: redaction.ts:8 redacts every hyphenated or underscored identifier, wiping graph and node ids and
+        field names from the evidence; and it is a new module, not shared. Put one redaction in a shared place (compose
+        with substrate/src/responseDetail.ts's bearer redaction), recognising secrets by shape (keys, tokens, bearer and
+        authorization values, private keys, values of secret-named fields) and keeping ordinary identifiers; use it for
+        the startup diagnostic. An unreadable screen records its actual reason.
+      - A startup refusal writes a ledger outcome naming the refusal and its artifact, not only narration
+        (sessionDrive.ts:465-476, :519-536).
+      - After the runner's own pane.close, the group check waits, bounded, for termination before deciding
+        (adapter.ts:251-261, :1066-1084); a normal close where the agent exits on hangup releases the hold without
+        recovery.
+      - deliverOpeningPrompt keeps its retries when a prompt observation times out on an unchanged done
+        (promptDelivery.ts:146).
+      Tests, each failing on b4af186 unless marked, through the real createHerdrRuntime and the real session drive with
+      the fake socket server (the fake's pane.close removes the tab and workspace as herdr does), in
+      packages/runner/test/herdr/startupWhole.test.ts:
+      - "a real waiting codex screen is ready" (the real-screen fixtures above; an unknown screen keeps waiting to the
+        timeout; a modal is blocked);
+      - "the session drive starts on a recognised composer and answers a modal" (through driveInteractiveSession, not
+        an overridden startupReadiness);
+      - "a prompt is taken only on fresh evidence through deliverOpeningPrompt" (errored send then unchanged done is
+        retried, not taken; a fast genuine completion is taken);
+      - "a refusal keeps evidence, writes its outcome and redacts only secrets" (secret shapes gone from ledger and
+        artifact; graph id, node id and field names kept; truncation marker; unreadable reason recorded);
+      - "close, then a missing tab, releases once after the group exits" (bounded wait, hangup exit, release once,
+        idempotent second release; a live group keeps the hold);
+      - "recovery releases only on termination evidence" (live, unknown and gone groups);
+      - "exec runtimes start and deliver unchanged" (an exec session's start and delivery events are byte-identical to
+        main's on the existing exec fixtures; passes on main by design, and is named so it stays true).
+      Every gate below runs on this node's head; the agent runs all of them, including `pnpm test` and slow-tests, and
+      reruns any that fail before filing. No test starts a real codex, a codex app-server, `codex login` or a real
+      herdr. The real-codex launch evidence the read asks for comes from the first runner-started codex session after
+      landing on the owner's profile; notes say so and nothing here produces it.
+    gates:
+      - id: pane-startup-whole-tests
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/herdr/startupWhole.test.ts test/herdr/startupReadRight.test.ts test/herdr/startupReadRightDrive.test.ts test/machineProvider.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: slow-tests-accounted
+        kind: command
+        run: node scripts/gates/slow-tests.ts
+        expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1\.5 s'
