@@ -352,3 +352,16 @@ arcs:
       - interlock/0063-exec-carries-the-contract
       - interlock/0064-pane-startup-read-right
       - preston/0042-agents-as-one
+
+  - id: a-busy-machine-is-waited-for
+    title: A busy machine is waited for, not handed to a person
+    ask: "And yes, the \"go\" means a go on everything"
+    source: 2026-11-11 12:28 UTC, project chat
+      (cmsg_01BN1q6CYuBjcZAFT6C2pgFd35LkBSn6VsAMLGrYVSZjNq); approves the held
+      Interlock item, self-retry on command-gate holds
+    also_said:
+      - words: "why is openai opening windows, please stop"
+        source: 2026-11-11 01:04 UTC, project chat (the rule the codex guard in
+          0065 enforces in tests)
+    graphs:
+      - interlock/0065-gate-holds-retry-themselves
