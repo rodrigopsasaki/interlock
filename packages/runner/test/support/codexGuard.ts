@@ -30,7 +30,22 @@ interface ParsedCommand {
 
 function stringValue(value: string): string | undefined {
   const trimmed = value.trim();
+  if (trimmed.includes("'''")) return undefined;
+  if (trimmed.includes('"""')) return undefined;
   if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+    const body = trimmed.slice(1, -1);
+    for (let index = 0; index < body.length; index += 1) {
+      if (body[index] !== "\\") continue;
+      const escaped = body[index + 1];
+      if (escaped === undefined || !'"\\bfnrtu'.includes(escaped)) return undefined;
+      if (escaped === "u") {
+        const code = body.slice(index + 2, index + 6);
+        if (!/^[0-9A-Fa-f]{4}$/.test(code)) return undefined;
+        index += 5;
+      } else {
+        index += 1;
+      }
+    }
     try {
       const parsed: unknown = JSON.parse(trimmed);
       return typeof parsed === "string" ? parsed : undefined;
@@ -38,7 +53,10 @@ function stringValue(value: string): string | undefined {
       return undefined;
     }
   }
-  if (trimmed.startsWith("'") && trimmed.endsWith("'")) return trimmed.slice(1, -1);
+  if (trimmed.startsWith("'") && trimmed.endsWith("'")) {
+    const valueBody = trimmed.slice(1, -1);
+    return valueBody.includes("'") ? undefined : valueBody;
+  }
   return undefined;
 }
 
@@ -50,18 +68,31 @@ function keyParts(value: string): readonly string[] | undefined {
 }
 
 function stripComment(value: string): string {
-  let quoted = false;
+  let quoted: '"' | "'" | undefined;
   let escaped = false;
   for (let index = 0; index < value.length; index += 1) {
     const character = value[index];
     if (quoted) {
-      if (escaped) escaped = false;
-      else if (character === "\\") escaped = true;
-      else if (character === '"') quoted = false;
-    } else if (character === '"') quoted = true;
+      if (quoted === '"' && escaped) escaped = false;
+      else if (quoted === '"' && character === "\\") escaped = true;
+      else if (character === quoted) quoted = undefined;
+    } else if (character === '"' || character === "'") quoted = character;
     else if (character === "#") return value.slice(0, index);
   }
   return value;
+}
+
+type ConfigValueKind = "string" | "integer" | "float" | "boolean" | "array" | "inline-table";
+
+function configValueKind(value: string): ConfigValueKind | undefined {
+  const trimmed = value.trim();
+  if (stringValue(trimmed) !== undefined) return "string";
+  if (/^[+-]?\d+$/.test(trimmed)) return "integer";
+  if (/^[+-]?(?:\d+\.\d+|\d+(?:[eE][+-]?\d+))$/.test(trimmed)) return "float";
+  if (trimmed === "true" || trimmed === "false") return "boolean";
+  if (trimmed.startsWith("[") && trimmed.endsWith("]")) return "array";
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) return "inline-table";
+  return undefined;
 }
 
 function emptyOverlay(): ProviderOverlay {
@@ -82,17 +113,6 @@ function overlayFor(
     profiles.set(table[1], overlay);
     return { overlay, providerName: undefined };
   }
-  if (
-    table.length === 4 &&
-    table[0] === "profiles" &&
-    table[1] !== undefined &&
-    table[2] === "model_providers" &&
-    table[3] !== undefined
-  ) {
-    const overlay = profiles.get(table[1]) ?? emptyOverlay();
-    profiles.set(table[1], overlay);
-    return { overlay, providerName: table[3] };
-  }
   return undefined;
 }
 
@@ -109,13 +129,18 @@ function ignoredTable(table: readonly string[]): boolean {
   return table[0] === "profiles" && table[2] === "mcp_servers" && table[3] !== undefined;
 }
 
-function validIgnoredValue(value: string): boolean {
-  const trimmed = value.trim();
-  if (stringValue(trimmed) !== undefined) return true;
-  return (
-    (trimmed.startsWith("[") && trimmed.endsWith("]")) ||
-    (trimmed.startsWith("{") && trimmed.endsWith("}"))
-  );
+function validIgnoredValue(table: readonly string[], key: string, value: string): boolean {
+  const kind = configValueKind(value);
+  if (kind === undefined) return false;
+  if (table[0] === "shell_environment_policy") return kind !== "array" && kind !== "inline-table";
+  const serverTable =
+    (table[0] === "mcp_servers" && table[1] !== undefined) ||
+    (table[0] === "profiles" && table[2] === "mcp_servers" && table[3] !== undefined);
+  if (!serverTable) return false;
+  if (table.at(-1) === "env") return kind === "string";
+  if (key === "args") return kind === "array";
+  if (key === "env") return kind === "inline-table";
+  return kind === "string" || kind === "integer" || kind === "float" || kind === "boolean";
 }
 
 function parseConfig(text: string): ParsedConfig {
@@ -124,6 +149,8 @@ function parseConfig(text: string): ParsedConfig {
   let table: readonly string[] = [];
   const profiles = new Map<string, ProviderOverlay>();
   for (const rawLine of text.split(/\r?\n/)) {
+    if (rawLine.includes("'''") || rawLine.includes('"""'))
+      throw new Error(`unsupported Codex configuration line: ${rawLine}`);
     const line = stripComment(rawLine).trim();
     if (line.length === 0) continue;
     if (line.startsWith("[")) {
@@ -144,12 +171,13 @@ function parseConfig(text: string): ParsedConfig {
     const rawValue = line.slice(separator + 1).trim();
     if (key === undefined || key.length !== 1)
       throw new Error(`unsupported Codex configuration key: ${line}`);
+    const name = key[0];
+    if (name === undefined) throw new Error(`unsupported Codex configuration key: ${line}`);
     const target = overlayFor(table, root, profiles);
     if (target === undefined) {
-      if (ignoredTable(table) && validIgnoredValue(rawValue)) continue;
+      if (ignoredTable(table) && validIgnoredValue(table, name, rawValue)) continue;
       throw new Error(`unsupported Codex configuration key: ${line}`);
     }
-    const name = key[0];
     if (name === "model_provider" && target.providerName === undefined) {
       target.overlay.provider = parsedString(name, rawValue);
     } else if (name === "profile" && table.length === 0) {
@@ -320,7 +348,11 @@ function providerBaseUrl(command: ParsedCommand): {
     join(home, "managed_config.toml"),
     "/etc/codex/managed_config.toml",
     "/etc/codex/config.toml",
+    "/Library/Managed Preferences/com.openai.codex.plist",
   ];
+  const managedUser = process.env["USER"] ?? process.env["LOGNAME"];
+  if (managedUser !== undefined && /^[A-Za-z0-9._-]+$/.test(managedUser))
+    managedPaths.push(`/Library/Managed Preferences/${managedUser}/com.openai.codex.plist`);
   for (const path of managedPaths) {
     if (existsSync(path)) throw new Error(`managed Codex configuration layer is present: ${path}`);
   }
@@ -345,10 +377,10 @@ function providerBaseUrl(command: ParsedCommand): {
   }
   let projectDirectory = resolve(process.cwd());
   const userHome = resolve(process.env["INTERLOCK_CODEX_GUARD_USER_HOME"] ?? homedir());
+  const userConfigPath = join(userHome, ".codex", "config.toml");
   while (true) {
-    if (projectDirectory === userHome) break;
     const projectPath = join(projectDirectory, ".codex", "config.toml");
-    if (existsSync(projectPath))
+    if (projectPath !== userConfigPath && existsSync(projectPath))
       throw new Error(`project Codex configuration layer is present: ${projectPath}`);
     const parent = dirname(projectDirectory);
     if (parent === projectDirectory) break;
@@ -407,6 +439,27 @@ function realCodex(): string {
   refuse("launch", "the real codex executable is not available past the guard");
 }
 
+async function drainProcessGroup(pgid: number): Promise<void> {
+  try {
+    process.kill(-pgid, "SIGTERM");
+  } catch {}
+  const deadline = Date.now() + 1_000;
+  let remaining = platformProcessTable()
+    .list()
+    .filter((entry) => entry.pgid === pgid && entry.state !== "zombie");
+  while (remaining.length > 0 && Date.now() < deadline) {
+    await new Promise<void>((resolve) => setTimeout(resolve, 25));
+    remaining = platformProcessTable()
+      .list()
+      .filter((entry) => entry.pgid === pgid && entry.state !== "zombie");
+  }
+  if (remaining.length > 0) {
+    try {
+      process.kill(-pgid, "SIGKILL");
+    } catch {}
+  }
+}
+
 async function start(args: readonly string[]): Promise<void> {
   const executable = realCodex();
   const token = launchToken();
@@ -454,10 +507,9 @@ async function start(args: readonly string[]): Promise<void> {
     process.exitCode = 1;
   });
   child.once("exit", (code, signal) => {
-    try {
-      process.kill(-childPid, "SIGTERM");
-    } catch {}
-    process.exitCode = code ?? (signal === null ? 1 : 1);
+    void drainProcessGroup(childPid).then(() => {
+      process.exitCode = code ?? (signal === null ? 1 : 1);
+    });
   });
 }
 

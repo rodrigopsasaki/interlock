@@ -78,10 +78,11 @@ if (process.argv[2] === "mcp") process.stdout.write("[]\\n");
 function run(
   args: readonly string[],
   environment: Readonly<Record<string, string>>,
+  cwd = dirname(environment["CODEX_HOME"] ?? "."),
 ): { readonly error: string; readonly count: string } {
   try {
     execFileSync("codex", args, {
-      cwd: dirname(environment["CODEX_HOME"] ?? "."),
+      cwd,
       env: { ...process.env, ...environment },
       encoding: "utf8",
     });
@@ -186,6 +187,24 @@ describe("Codex test guard", () => {
     expect(result.count).toBe("0");
   });
 
+  it("checks project ancestors when cwd is the Codex home", () => {
+    const { root, home, bin, count } = fixture();
+    fakeCodex(bin, count);
+    mkdirSync(join(root, ".codex"));
+    writeFileSync(
+      join(root, ".codex", "config.toml"),
+      'model_provider = "local"\n[model_providers.local]\nbase_url = "http://127.0.0.1"',
+    );
+    config(
+      home,
+      'model_provider = "local"\n[model_providers.local]\nbase_url = "http://127.0.0.1"',
+    );
+    const values = { ...environment(home, count), INTERLOCK_CODEX_GUARD_USER_HOME: home };
+    const result = run(["exec", "proof"], values, home);
+    expect(result.error).toContain("project Codex configuration layer is present");
+    expect(result.count).toBe("0");
+  });
+
   it("refuses a loopback default table without a model_provider", () => {
     const { home, bin, count } = fixture();
     fakeCodex(bin, count);
@@ -195,20 +214,22 @@ describe("Codex test guard", () => {
     expect(result.count).toBe("0");
   });
 
-  it.each(["model_provider=remote", 'model_providers.remote.base_url="http://127.0.0.1"'])(
-    "refuses a provider selector: %s",
-    (selector) => {
-      const { home, bin, count } = fixture();
-      fakeCodex(bin, count);
-      config(
-        home,
-        'model_provider = "local"\n[model_providers.local]\nbase_url = "http://127.0.0.1"',
-      );
-      const result = run(["-c", selector, "exec", "proof"], environment(home, count));
-      expect(result.error).toContain("selector is not allowed");
-      expect(result.count).toBe("0");
-    },
-  );
+  it.each([
+    "model_provider=remote",
+    'model_providers.remote.base_url="http://127.0.0.1"',
+    'profiles.p={model_provider="openai"}',
+    'profiles={p={model_provider="openai"}}',
+  ])("refuses a provider selector: %s", (selector) => {
+    const { home, bin, count } = fixture();
+    fakeCodex(bin, count);
+    config(
+      home,
+      'model_provider = "local"\n[model_providers.local]\nbase_url = "http://127.0.0.1"',
+    );
+    const result = run(["-c", selector, "exec", "proof"], environment(home, count));
+    expect(result.error).toContain("selector is not allowed");
+    expect(result.count).toBe("0");
+  });
 
   it("refuses a provider selector after the exec subcommand", () => {
     const { home, bin, count } = fixture();
@@ -227,6 +248,8 @@ describe("Codex test guard", () => {
     ["--config=", 'base_url="https://api.example.com/v1"'],
     ["-c", "profile=remote"],
     ["-c", "profiles.remote.model_provider=remote"],
+    ["-c", 'profiles.p={model_provider="openai"}'],
+    ["--config", 'profiles={p={model_provider="openai"}}'],
   ])("refuses provider or profile selector after exec: %s %s", (option, selector) => {
     const { home, bin, count } = fixture();
     fakeCodex(bin, count);
@@ -351,12 +374,24 @@ describe("Codex test guard", () => {
     expect(result.count).toBe("0");
   });
 
+  it("refuses a multiline string that changes the resolved provider", () => {
+    const { home, bin, count } = fixture();
+    fakeCodex(bin, count);
+    config(
+      home,
+      "model = '''\nmodel_provider = \"local\"\nmodel = '''\n[model_providers.local]\nbase_url = \"http://127.0.0.1\"",
+    );
+    const result = run(["exec", "proof"], environment(home, count));
+    expect(result.error).toContain("unsupported Codex configuration");
+    expect(result.count).toBe("0");
+  });
+
   it("applies selected profile overlays after all file roots", () => {
     const { home, bin, count } = fixture();
     fakeCodex(bin, count);
     config(
       home,
-      'model_provider = "local"\n[model_providers.local]\nbase_url = "http://127.0.0.1"\n[profiles.remote]\nmodel_provider = "remote"\n[profiles.remote.model_providers.remote]\nbase_url = "https://api.example.com/v1"',
+      'model_provider = "local"\n[model_providers.local]\nbase_url = "http://127.0.0.1"\n[profiles.remote]\nmodel_provider = "remote"',
     );
     writeFileSync(
       join(home, "remote.config.toml"),
@@ -375,7 +410,23 @@ describe("Codex test guard", () => {
       '[profiles.remote]\nmodel_provider = "remote"\n[profiles.remote.model_providers.remote]\nbase_url = "https://api.example.com/v1"',
     );
     const result = run(["-p", "remote", "exec", "proof"], environment(home, count));
-    expect(result.error).toContain('provider "remote" has a non-loopback base_url');
+    expect(result.error).toContain("unsupported Codex configuration table");
+    expect(result.count).toBe("0");
+  });
+
+  it("refuses a profile model_providers table when its file would resolve loopback", () => {
+    const { home, bin, count } = fixture();
+    fakeCodex(bin, count);
+    config(
+      home,
+      'model_provider = "x"\n[model_providers.x]\nbase_url = "https://api.example.com/v1"\n[profiles.p.model_providers.x]\nbase_url = "http://127.0.0.1"',
+    );
+    writeFileSync(
+      join(home, "p.config.toml"),
+      'model_provider = "x"\n[model_providers.x]\nbase_url = "http://127.0.0.1"',
+    );
+    const result = run(["-p", "p", "exec", "proof"], environment(home, count));
+    expect(result.error).toContain("unsupported Codex configuration table");
     expect(result.count).toBe("0");
   });
 
@@ -387,6 +438,30 @@ describe("Codex test guard", () => {
     const result = run(["exec", "proof"], environment(home, count));
     expect(result.error).toBe("");
     expect(result.count).toBe("1");
+  });
+
+  it("waits for a same-group child to honor TERM before returning", () => {
+    const { root, home, bin, count } = fixture();
+    const tokenPath = join(root, "term-token");
+    fakeCodex(
+      bin,
+      count,
+      `import { spawn } from "node:child_process";
+const child = spawn(process.execPath, ["-e", "process.once('SIGTERM', () => setTimeout(() => process.exit(0), 100)); setInterval(() => {}, 1000)"], { stdio: "ignore", env: process.env });
+child.unref();
+writeFileSync(${JSON.stringify(tokenPath)}, process.env["INTERLOCK_CODEX_LAUNCH_TOKEN"] ?? "");
+`,
+    );
+    config(
+      home,
+      'model_provider = "local"\n[model_providers.local]\nbase_url = "http://127.0.0.1"',
+    );
+    const result = run(["exec", "proof"], environment(home, count));
+    expect(result.error).toBe("");
+    expect(result.count).toBe("1");
+    const token = readFileSync(tokenPath, "utf8");
+    expect(token.length).toBeGreaterThan(0);
+    expect(processTableWithToken(token).some((entry) => entry.state === "running")).toBe(false);
   });
 
   it("uses a profile overlay and parses global flags before the subcommand", () => {
