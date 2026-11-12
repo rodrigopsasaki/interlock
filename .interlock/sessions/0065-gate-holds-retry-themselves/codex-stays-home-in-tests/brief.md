@@ -628,6 +628,7 @@ scope:
   - .interlock/sessions/0065-gate-holds-retry-themselves/codex-stays-home-in-tests/brief.md
   - .interlock/sessions/0065-gate-holds-retry-themselves/sessions-live-all/brief.md
   - .interlock/sessions/0065-gate-holds-retry-themselves/sessions-stop-stops/brief.md
+  - .interlock/sessions/0065-gate-holds-retry-themselves/setup-never-holds/brief.md
   - .interlock/sessions/readme-interlock-concept/readme/brief.md
   - .interlock/sessions/readme-interlock-concept/readme/debrief.yaml
   - .interlock/sessions/readme-interlock-concept/readme/notes.yaml
@@ -1347,7 +1348,7 @@ walk:
   kind: none
   because: the substrate address is none, so there is nothing to ask
 graph_base_sha: f91fae29cad67bb66ae925de72454fff580ba36b
-session: d4d5f59d-41b8-4b32-8278-dc48eba648f4
+session: 66212a88-0c1b-4736-b264-829da597de58
 ---
 
 # Brief · node `codex-stays-home-in-tests` · graph `0065-gate-holds-retry-themselves`
