@@ -297,3 +297,31 @@ entries:
     at: "2026-11-12T19:55:20Z"
     chose: "Rename the undecoded-escape test parameter and apply the formatter's local layout."
     because: "The change preserves the exact grammar cases while satisfying the repository's static checks."
+  - kind: surprise
+    at: "2026-11-12T20:01:43Z"
+    expected: "The final pgrep checks would find no Codex or Vitest process after the focused gate."
+    observed: "pgrep -x found no Vitest process; it found Codex and codex-code-mode-host processes belonging to unrelated owner/orchestrator work, while the session's focused test command had exited."
+  - kind: surprise
+    at: "2026-11-12T20:03:54Z"
+    expected: "The freshly authored debrief candidate would parse as a unique debrief@v2 document."
+    observed: "The prepared candidate retained its original open: [] line when the authored body added the gate report, so preview rejected the duplicate YAML key."
+  - kind: choice
+    at: "2026-11-12T20:03:54Z"
+    chose: "Remove the prepared candidate's empty open field and retain the authored open field at the end of the report."
+    because: "The debrief must have one open collection while preserving the authored gate and decision sections."
+  - kind: surprise
+    at: "2026-11-12T20:04:24Z"
+    expected: "The candidate's copied repair head would remain a 40-character SHA."
+    observed: "Manual candidate authoring omitted one repeated hexadecimal character in head_sha, and preview rejected the 39-character value."
+  - kind: choice
+    at: "2026-11-12T20:04:24Z"
+    chose: "Replace the candidate head_sha with the exact full SHA returned by git rev-parse HEAD."
+    because: "The authored debrief must bind its claims to the complete signed repair commit."
+  - kind: choice
+    at: "2026-11-12T20:05:25Z"
+    chose: "Select the authored candidate through debrief revise after the candidate preview and validation passed."
+    because: "The user explicitly authorized correction filing in this worktree, and revise preserves the prior canonical debrief as a content-addressed revision."
+  - kind: choice
+    at: "2026-11-12T20:05:25Z"
+    chose: "Remove the intermediate sendback candidate after revise selected it, retaining the canonical debrief and its revision."
+    because: "The selected debrief and retained revision are the durable authored artifacts; the preparation copy is no longer needed beside them."

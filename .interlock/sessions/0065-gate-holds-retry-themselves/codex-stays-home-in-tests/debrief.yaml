@@ -4,7 +4,7 @@ node: codex-stays-home-in-tests
 role: implementer
 graph_base_sha: f91fae29cad67bb66ae925de72454fff580ba36b
 session_start_sha: d7070819c3016195a9382c5f9590fe99e50c48a8
-head_sha: 39aab34ec5dd2b89673be2c9f1209ec202599d25
+head_sha: 9fe071d973bebfbd4666aa367ba9213a5af401db
 derivation:
   kind: agent
   runtime: codex
@@ -16,27 +16,27 @@ decisions:
     because: "The guard cannot safely reproduce Codex's TOML, profile, trust, project-layer, or MDM precedence rules for arbitrary forms, so a configuration it cannot fully classify must not reach Codex."
     applies_to: { kind: path, path: packages/runner/test/support/codexGuard.ts }
     rests_on:
-      - packages/runner/test/support/codexGuard.ts:31-198
-      - packages/runner/test/support/codexGuard.ts:325-408
-      - packages/runner/test/codexGuard.test.ts:190-431
+      - packages/runner/test/support/codexGuard.ts:45-158
+      - packages/runner/test/support/codexGuard.ts:322-405
+      - packages/runner/test/codexGuard.test.ts:228-474
     hunks:
-      - packages/runner/test/support/codexGuard.ts:31-198
-      - packages/runner/test/support/codexGuard.ts:325-408
-      - packages/runner/test/codexGuard.test.ts:190-431
+      - packages/runner/test/support/codexGuard.ts:45-158
+      - packages/runner/test/support/codexGuard.ts:322-405
+      - packages/runner/test/codexGuard.test.ts:228-474
   - id: drain-owned-codex-group
     what: "After a guarded Codex exits, terminate its detached process group, wait up to the bounded drain interval for non-zombie members to leave, and issue group KILL only when the bound expires; retain registration and departed-leader identity checks for later reaping."
     because: "The immediate async reaper must not race a same-group child that is honoring TERM, while pid reuse and tokenless descendants still require the supervisor's verified identity rules."
     applies_to: { kind: path, path: packages/runner/test/support/codexGuard.ts }
     rests_on:
-      - packages/runner/test/support/codexGuard.ts:442-513
+      - packages/runner/test/support/codexGuard.ts:456-527
       - packages/runner/test/support/codexSupervisor.ts:196-221
-      - packages/runner/test/codexGuard.test.ts:443-465
-      - packages/runner/test/codexGuard.test.ts:565-708
+      - packages/runner/test/codexGuard.test.ts:486-508
+      - packages/runner/test/codexGuard.test.ts:608-751
     hunks:
-      - packages/runner/test/support/codexGuard.ts:442-513
+      - packages/runner/test/support/codexGuard.ts:456-527
       - packages/runner/test/support/codexSupervisor.ts:196-221
-      - packages/runner/test/codexGuard.test.ts:443-465
-      - packages/runner/test/codexGuard.test.ts:565-708
+      - packages/runner/test/codexGuard.test.ts:486-508
+      - packages/runner/test/codexGuard.test.ts:608-751
   - id: make-reaping-source-owned
     what: "Make explicit reaping observe immediately, preserve the outer real-user boundary in nested setup, end MCP fixture children after tools/list, and close loopback providers in finally paths around reaping."
     because: "A fixed pre-observation delay hides leak timing, and source-owned Codex fixtures and providers must complete or close without weakening survivor failures."
@@ -60,15 +60,15 @@ decisions:
     because: "Every newly closed configuration or process boundary needs a test that proves refusal before the fake starts or proves cleanup and marker delivery through the real guard."
     applies_to: { kind: path, path: packages/runner/test/codexGuard.test.ts }
     rests_on:
-      - packages/runner/test/codexGuard.test.ts:190-465
-      - packages/runner/test/codexGuard.test.ts:502-708
+      - packages/runner/test/codexGuard.test.ts:190-474
+      - packages/runner/test/codexGuard.test.ts:511-751
       - packages/runner/test/lineFitsRealCodex.test.ts:212-316
       - packages/runner/test/realCodexMarkerOverflow.test.ts:34-163
       - packages/runner/test/realCodexMarkerLaunch.test.ts:43-95
       - packages/runner/test/codexHomeOutsideWorktree.test.ts:335-377
     hunks:
-      - packages/runner/test/codexGuard.test.ts:190-465
-      - packages/runner/test/codexGuard.test.ts:502-708
+      - packages/runner/test/codexGuard.test.ts:190-474
+      - packages/runner/test/codexGuard.test.ts:511-751
       - packages/runner/test/lineFitsRealCodex.test.ts:212-316
       - packages/runner/test/realCodexMarkerOverflow.test.ts:34-163
       - packages/runner/test/realCodexMarkerLaunch.test.ts:43-95
@@ -95,6 +95,24 @@ decisions:
       - packages/runner/test/codexHomeOutsideWorktree.test.ts:335-377
       - packages/runner/test/realCodexMarkerLaunch.test.ts:43-95
       - packages/runner/test/realCodexMarkerOverflow.test.ts:34-163
+  - id: refuse-built-in-provider-overlays
+    what: "Refuse Codex 0.162.1 built-in provider ids, plus the literal oss family spelling, as selected providers and provider-table keys so a loopback overlay cannot shadow the provider Codex resolves."
+    because: "The installed Codex source lists openai, ollama, lmstudio, amazon-bedrock, and amazon-bedrock-runtime in its built-in provider catalog; configured entries merge with or_insert, so the loopback table under a built-in key is not the provider Codex will use."
+    applies_to: { kind: path, path: packages/runner/test/support/codexGuard.ts }
+    rests_on:
+      - packages/runner/test/support/codexGuard.ts:31-43
+      - packages/runner/test/support/codexGuard.ts:170-185
+      - packages/runner/test/support/codexGuard.ts:202-205
+      - packages/runner/test/codexGuard.test.ts:151-188
+      - packages/runner/test/codexGuard.test.ts:307-326
+      - packages/runner/test/codexGuard.test.ts:449-468
+    hunks:
+      - packages/runner/test/support/codexGuard.ts:31-43
+      - packages/runner/test/support/codexGuard.ts:170-185
+      - packages/runner/test/support/codexGuard.ts:202-205
+      - packages/runner/test/codexGuard.test.ts:151-188
+      - packages/runner/test/codexGuard.test.ts:307-326
+      - packages/runner/test/codexGuard.test.ts:449-468
 gates_run_by_agent:
   - id: typecheck
     result: pass
@@ -111,13 +129,17 @@ gates_run_by_agent:
   - id: test
     result: pass
     invocation: pnpm test
-    note: "All workspace packages passed; runner reported 64 files and 737 tests, schemas 1,412 tests, and CLI 475 tests."
+    note: "All 8 workspace packages passed: 204 test files and 3,252 tests, including runner 752 and schemas 1,413."
+  - id: debrief-valid
+    result: pass
+    invocation: pnpm interlock debrief validate 0065-gate-holds-retry-themselves codex-stays-home-in-tests
+    note: "The filed debrief validated after revision against the signed repair head."
   - id: codex-guard-tests
     result: pass
     invocation: "pnpm --fail-if-no-match --filter runner exec vitest run test/codexGuard.test.ts test/realCodexMarkerOverflow.test.ts test/lineFitsRealCodex.test.ts test/realCodexMarkerLaunch.test.ts test/codexHomeOutsideWorktree.test.ts --passWithNoTests=false"
-    note: "5 files and 75 tests passed, including selector, strict-config, project-ancestor, profile, process-group, registration, and kept real-Codex cases."
+    note: "5 files and 90 tests passed, including all reserved-provider, selector-placement, grammar, process-group, registration, and kept real-Codex cases."
   - id: slow-tests-accounted
     result: pass
     invocation: node scripts/gates/slow-tests.ts
-    note: "slow tests accounted: 36 declared, 3200 logic under 1.5 s."
+    note: "slow tests accounted: 36 declared, 3216 logic under 1.5 s."
 open: []
