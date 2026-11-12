@@ -60,7 +60,7 @@ describe("runSetupCommand", () => {
     const fakeMise = fixtureScript(
       cwd,
       "fake-mise.sh",
-      '#!/bin/sh\nprintf \'%s\\n\' \'boom from setup\' >&2\nexit 3\n',
+      "#!/bin/sh\nprintf '%s\\n' 'boom from setup' >&2\nexit 3\n",
     );
     chmodSync(fakeMise, 0o755);
 
