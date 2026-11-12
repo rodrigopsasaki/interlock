@@ -249,3 +249,11 @@ entries:
     at: "2026-11-12T17:55:15Z"
     chose: "Declare the five measured integrations as slow tests with 10-second budgets and reasons naming their custody, Git, or real-Codex work."
     because: "The slow-tests gate must account for observed integration cost rather than hiding a threshold crossing, while the budgets remain bounded and local to each test."
+  - kind: surprise
+    at: "2026-11-12T17:58:23Z"
+    expected: "The next slow-test accounting run would be stable after the five declarations."
+    observed: "Three additional existing integrations crossed the threshold under the final serial measurement; the variance is timing-only, and each test remained passing."
+  - kind: choice
+    at: "2026-11-12T17:58:23Z"
+    chose: "Declare the three newly measured plan, backfill, and real-Codex overflow integrations with bounded slow-test metadata."
+    because: "The final receipt must account for every observed integration over 1.5 seconds, including tests whose duration varies with local process and Git scheduling."

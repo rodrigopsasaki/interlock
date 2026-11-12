@@ -515,48 +515,55 @@ describe("interlock plan", () => {
     expect(prompt).toContain("## Debrief authoring");
   }, 30_000);
 
-  it("carries the previous ask forward when --correction omits --ask", async () => {
-    const cwd = fixture();
-    const worktreePath = join(cwd, ".worktrees", "plan", "demo");
+  slowIntegration(
+    "carries the previous ask forward when --correction omits --ask",
+    {
+      budgetMs: 10_000,
+      reason: "integrates two plan runs and correction brief regeneration",
+    },
+    async () => {
+      const cwd = fixture();
+      const worktreePath = join(cwd, ".worktrees", "plan", "demo");
 
-    const first = await runInterlockPlan(["demo", "--ask", "add a health check endpoint"], {
-      cwd,
-      clock: createControlledClock(),
-      runtime: {
-        ...stubRuntime(),
-        waitUntil: finishedWaitUntil(worktreePath, "demo", "plan/demo", graphYaml("demo")),
-      },
-    });
-    expect(first.exitCode).toBe(0);
-
-    const second = await runInterlockPlan(
-      ["demo", "--correction", "the acceptance for only-node is not a sentence a gate can judge"],
-      {
+      const first = await runInterlockPlan(["demo", "--ask", "add a health check endpoint"], {
         cwd,
         clock: createControlledClock(),
         runtime: {
           ...stubRuntime(),
           waitUntil: finishedWaitUntil(worktreePath, "demo", "plan/demo", graphYaml("demo")),
         },
-      },
-    );
-    expect(second.exitCode).toBe(0);
+      });
+      expect(first.exitCode).toBe(0);
 
-    const briefPath = join(
-      worktreePath,
-      ".interlock",
-      "sessions",
-      "demo",
-      "plan",
-      "demo",
-      "brief.md",
-    );
-    const read = await readBriefFile(briefPath);
-    if (isErr(read) || read.value.kind !== "v1") {
-      throw new Error("expected the worktree copy to read as brief@v1");
-    }
-    expect(read.value.body).toContain("> add a health check endpoint");
-  }, 30_000);
+      const second = await runInterlockPlan(
+        ["demo", "--correction", "the acceptance for only-node is not a sentence a gate can judge"],
+        {
+          cwd,
+          clock: createControlledClock(),
+          runtime: {
+            ...stubRuntime(),
+            waitUntil: finishedWaitUntil(worktreePath, "demo", "plan/demo", graphYaml("demo")),
+          },
+        },
+      );
+      expect(second.exitCode).toBe(0);
+
+      const briefPath = join(
+        worktreePath,
+        ".interlock",
+        "sessions",
+        "demo",
+        "plan",
+        "demo",
+        "brief.md",
+      );
+      const read = await readBriefFile(briefPath);
+      if (isErr(read) || read.value.kind !== "v1") {
+        throw new Error("expected the worktree copy to read as brief@v1");
+      }
+      expect(read.value.body).toContain("> add a health check endpoint");
+    },
+  );
 
   it("inherits a correction's context selector unless an explicit replacement is given", async () => {
     const selected = [".interlock/config.yaml"];

@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { isOk } from "@phyxiusjs/fp";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect } from "vitest";
 import { prepareCodexLaunch } from "../src/codex/config.ts";
 import {
   reapRegisteredGuardLaunches,
@@ -32,56 +32,63 @@ afterEach(() => {
 });
 
 describe("real Codex marker overflow delivery", () => {
-  it("keeps every configured server marked through the launch-local profile", () => {
-    const isolation = isolatedHomeEnvironment("real-codex-marker-overflow");
-    directory = isolation.root;
-    const home = join(directory, "codex-home");
-    mkdirSync(home);
-    const names = Array.from({ length: 12 }, (_, index) => `overflow_${index}_${"x".repeat(48)}`);
-    writeFileSync(
-      join(home, "config.toml"),
-      names.map((name) => `[mcp_servers.${name}]\ncommand = "/bin/echo"\n`).join("\n"),
-    );
-    const environment = {
-      ...isolation.environment,
-      INTERLOCK_SESSION: "real-overflow-session",
-      INTERLOCK_GRAPH: "0060-headless-runtime",
-      INTERLOCK_NODE: "marker-never-dropped",
-      CODEX_HOME: home,
-    };
-    const launch = prepareCodexLaunch([], directory, environment);
-    expect(isOk(launch)).toBe(true);
-    if (!isOk(launch)) return;
-    expect(launch.value.path).toBe("overlay");
-    const output = execFileSync("codex", [...launch.value.args, "mcp", "list", "--json"], {
-      cwd: directory,
-      env: { ...process.env, ...launch.value.environment },
-      encoding: "utf8",
-    });
-    expect(registeredGuardLaunchCount()).toBeGreaterThan(0);
-    const listed: unknown = JSON.parse(output);
-    expect(Array.isArray(listed)).toBe(true);
-    if (!Array.isArray(listed)) return;
-    for (const name of names) {
-      const entry = listed.find(
-        (value): value is Record<string, unknown> =>
-          typeof value === "object" && value !== null && value["name"] === name,
+  slowIntegration(
+    "keeps every configured server marked through the launch-local profile",
+    {
+      budgetMs: 10_000,
+      reason: "integrates real Codex MCP discovery across the overflow profile",
+    },
+    async () => {
+      const isolation = isolatedHomeEnvironment("real-codex-marker-overflow");
+      directory = isolation.root;
+      const home = join(directory, "codex-home");
+      mkdirSync(home);
+      const names = Array.from({ length: 12 }, (_, index) => `overflow_${index}_${"x".repeat(48)}`);
+      writeFileSync(
+        join(home, "config.toml"),
+        names.map((name) => `[mcp_servers.${name}]\ncommand = "/bin/echo"\n`).join("\n"),
       );
-      expect(entry).toBeDefined();
-      if (entry === undefined) continue;
-      const transport = entry["transport"];
-      expect(typeof transport).toBe("object");
-      if (!isRecord(transport)) continue;
-      expect(transport["env"]).toEqual({
+      const environment = {
+        ...isolation.environment,
         INTERLOCK_SESSION: "real-overflow-session",
         INTERLOCK_GRAPH: "0060-headless-runtime",
         INTERLOCK_NODE: "marker-never-dropped",
+        CODEX_HOME: home,
+      };
+      const launch = prepareCodexLaunch([], directory, environment);
+      expect(isOk(launch)).toBe(true);
+      if (!isOk(launch)) return;
+      expect(launch.value.path).toBe("overlay");
+      const output = execFileSync("codex", [...launch.value.args, "mcp", "list", "--json"], {
+        cwd: directory,
+        env: { ...process.env, ...launch.value.environment },
+        encoding: "utf8",
       });
-    }
-    launch.value.cleanup(true);
-    reapRegisteredGuardLaunchesSync();
-    expect(readFileSync(join(home, "config.toml"), "utf8")).toContain(names[0]);
-  });
+      expect(registeredGuardLaunchCount()).toBeGreaterThan(0);
+      const listed: unknown = JSON.parse(output);
+      expect(Array.isArray(listed)).toBe(true);
+      if (!Array.isArray(listed)) return;
+      for (const name of names) {
+        const entry = listed.find(
+          (value): value is Record<string, unknown> =>
+            typeof value === "object" && value !== null && value["name"] === name,
+        );
+        expect(entry).toBeDefined();
+        if (entry === undefined) continue;
+        const transport = entry["transport"];
+        expect(typeof transport).toBe("object");
+        if (!isRecord(transport)) continue;
+        expect(transport["env"]).toEqual({
+          INTERLOCK_SESSION: "real-overflow-session",
+          INTERLOCK_GRAPH: "0060-headless-runtime",
+          INTERLOCK_NODE: "marker-never-dropped",
+        });
+      }
+      launch.value.cleanup(true);
+      reapRegisteredGuardLaunchesSync();
+      expect(readFileSync(join(home, "config.toml"), "utf8")).toContain(names[0]);
+    },
+  );
 
   slowIntegration(
     "records marker values in real MCP children started by Codex exec",
