@@ -1,0 +1,95 @@
+interlock: debrief@v2
+graph: 0065-gate-holds-retry-themselves
+node: codex-stays-home-in-tests
+role: implementer
+graph_base_sha: f91fae29cad67bb66ae925de72454fff580ba36b
+session_start_sha: d7070819c3016195a9382c5f9590fe99e50c48a8
+head_sha: b4b771dc63c70234e408e27c4da96b7eacc24058
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-luna
+discoveries: []
+decisions:
+  - id: deny-config-and-project-layers
+    what: "Make -c and --config deny-by-default with an explicit scalar allowlist for the kept marker and shell-environment selectors, refuse project Codex layers from the launch directory through the real user-home boundary, and require an actual model_provider while rejecting dual profile sources."
+    because: "The guard cannot safely reproduce Codex's provider, project trust, or profile precedence rules for arbitrary selectors and layers, so every unresolvable path must refuse before the fake or real Codex starts."
+    applies_to: { kind: path, path: packages/runner/test/support/codexGuard.ts }
+    rests_on:
+      - packages/runner/test/support/codexGuard.ts:285-377
+      - packages/runner/test/support/codexGuard.ts:464-473
+      - packages/runner/test/codexGuard.test.ts:172-313
+    hunks:
+      - packages/runner/test/support/codexGuard.ts:285-377
+      - packages/runner/test/support/codexGuard.ts:464-473
+      - packages/runner/test/codexGuard.test.ts:172-313
+  - id: clean-owned-codex-group
+    what: "Register the narrowed Codex leader identity, terminate its owned process group when the guarded Codex exits, and match departed-leader tokenless members from an inclusive leader-start bound through cleanup while still sparing reused or earlier processes."
+    because: "Real Codex can leave Git descendants behind after its own exit, while one-second process timestamps make equality a legitimate child start and process identity must remain fail-closed."
+    applies_to: { kind: path, path: packages/runner/test/support/codexSupervisor.ts }
+    rests_on:
+      - packages/runner/test/support/codexGuard.ts:410-461
+      - packages/runner/test/support/codexSupervisor.ts:196-244
+      - packages/runner/test/codexGuard.test.ts:540-660
+    hunks:
+      - packages/runner/test/support/codexGuard.ts:410-461
+      - packages/runner/test/support/codexSupervisor.ts:196-244
+      - packages/runner/test/codexGuard.test.ts:540-660
+  - id: immediate-reap-and-source-fixture-cleanup
+    what: "Make explicit async reaping observe immediately like afterEach, make nested setup preserve the outer guard's real-user boundary, end MCP fixtures after tools/list, and always close loopback providers when reaping throws."
+    because: "A fixed pre-observation sleep hides the timing of leaks; source-owned Codex and fixture children must terminate before the reaper, and provider resources must close on both passing and failing cleanup."
+    applies_to: { kind: repository }
+    rests_on:
+      - packages/runner/test/support/codexGuardAssertions.ts:13-19
+      - packages/runner/test/support/codexGuardSetup.ts:29-53
+      - packages/runner/test/fixtures/codex/recordMcpEnvironment.mjs:35-42
+      - packages/runner/test/fixtures/codex/recordShellEnvironment.mjs:41-48
+      - packages/runner/test/lineFitsRealCodex.test.ts:300-315
+      - packages/runner/test/realCodexMarkerOverflow.test.ts:142-157
+    hunks:
+      - packages/runner/test/support/codexGuardAssertions.ts:13-19
+      - packages/runner/test/support/codexGuardSetup.ts:29-53
+      - packages/runner/test/fixtures/codex/recordMcpEnvironment.mjs:35-42
+      - packages/runner/test/fixtures/codex/recordShellEnvironment.mjs:41-48
+      - packages/runner/test/lineFitsRealCodex.test.ts:300-315
+      - packages/runner/test/realCodexMarkerOverflow.test.ts:142-157
+  - id: cover-new-guard-boundaries
+    what: "Add fake-Codex cases for selector placement and value shape, project and provider resolution, and process-member timing, while retaining registration and marker assertions in the four real-Codex files."
+    because: "Each newly closed boundary needs a test that proves refusal before the fake starts or proves cleanup of a real guarded launch without weakening the existing marker behavior."
+    applies_to: { kind: path, path: packages/runner/test/codexGuard.test.ts }
+    rests_on:
+      - packages/runner/test/codexGuard.test.ts:172-313
+      - packages/runner/test/codexGuard.test.ts:540-660
+      - packages/runner/test/lineFitsRealCodex.test.ts:282-315
+      - packages/runner/test/realCodexMarkerOverflow.test.ts:120-157
+    hunks:
+      - packages/runner/test/codexGuard.test.ts:172-313
+      - packages/runner/test/codexGuard.test.ts:540-660
+      - packages/runner/test/lineFitsRealCodex.test.ts:282-315
+      - packages/runner/test/realCodexMarkerOverflow.test.ts:120-157
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: "All 8 workspace packages passed with Node v24.14.0 and pnpm 10.13.1."
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: "Biome checked 522 files with no fixes applied."
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+    note: "packages/*/src reported no comments."
+  - id: test
+    result: pass
+    invocation: pnpm test
+    note: "All workspace packages passed; runner reported 64 files and 729 tests, schemas 1,411 tests, and CLI 475 tests."
+  - id: codex-guard-tests
+    result: pass
+    invocation: "pnpm --fail-if-no-match --filter runner exec vitest run test/codexGuard.test.ts test/realCodexMarkerOverflow.test.ts test/lineFitsRealCodex.test.ts test/realCodexMarkerLaunch.test.ts test/codexHomeOutsideWorktree.test.ts --passWithNoTests=false"
+    note: "5 files and 67 tests passed, including the new selector, project-layer, provider, process-table, nested cleanup, registration, and kept real-Codex cases."
+  - id: slow-tests-accounted
+    result: pass
+    invocation: node scripts/gates/slow-tests.ts
+    note: "slow tests accounted: 28 declared, 3199 logic under 1.5 s."
+open: []

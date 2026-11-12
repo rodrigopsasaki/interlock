@@ -257,3 +257,27 @@ entries:
     at: "2026-11-12T17:58:23Z"
     chose: "Declare the three newly measured plan, backfill, and real-Codex overflow integrations with bounded slow-test metadata."
     because: "The final receipt must account for every observed integration over 1.5 seconds, including tests whose duration varies with local process and Git scheduling."
+  - kind: surprise
+    at: "2026-11-12T18:11:50Z"
+    expected: "The prepared debrief candidate could be filed with the first-filing command."
+    observed: "The session already had a canonical debrief, so file-derived refused with EEXIST before changing it; the correction must use debrief revise."
+  - kind: choice
+    at: "2026-11-12T18:11:50Z"
+    chose: "Select the freshly authored candidate through debrief revise rather than overwriting the existing canonical debrief."
+    because: "A correction must retain the prior debrief as versioned history while making the rooted candidate canonical."
+  - kind: surprise
+    at: "2026-11-12T18:12:08Z"
+    expected: "The prepared candidate's session_start_sha would match the canonical debrief selected for revision."
+    observed: "Preparation regenerated the current branch session start c87935d, while the existing filed debrief retains d707081; revise refused until the candidate preserved that original identity."
+  - kind: choice
+    at: "2026-11-12T18:12:08Z"
+    chose: "Restore the candidate's session_start_sha to d7070819c3016195a9382c5f9590fe99e50c48a8, the existing canonical debrief's session identity, before retrying revise."
+    because: "Revision must change the authored claims without changing which session produced the debrief."
+  - kind: choice
+    at: "2026-11-12T18:13:03Z"
+    chose: "Remove the intermediate debrief candidate and this turn's scratch receipts before the final commit, retaining the canonical debrief and its revision artifact."
+    because: "The filed debrief, retained prior revision, notes, and gate receipts in the repository history are the durable handoff; temporary preparation and output files are not session artifacts."
+  - kind: surprise
+    at: "2026-11-12T18:13:03Z"
+    expected: "The process scan would be empty after the final focused and validation gates."
+    observed: "No Codex launch-token or session Vitest process remained; pgrep showed only an unrelated owner-run Gilb Vitest in another worktree, which was left untouched."
