@@ -217,3 +217,11 @@ entries:
     at: "2026-11-12T17:42:00Z"
     chose: "Make the async reaper's empty-survivor return explicit so its immediate observation behavior has an added hunk for debrief verification."
     because: "The behavior was a deletion-only change, and a rooted debrief must point at a hunk the verifier can see at the authored head."
+  - kind: surprise
+    at: "2026-11-12T17:45:00Z"
+    expected: "A fresh prepared candidate would be directly selectable as the current debrief revision."
+    observed: "The revise command requires the candidate to retain the existing canonical debrief's original session_start_sha, so the authored candidate was aligned to d707081 before selection."
+  - kind: choice
+    at: "2026-11-12T17:47:00Z"
+    chose: "Remove the two intermediate preparation candidates after revise selected the final candidate, retaining the canonical debrief and its revision file."
+    because: "The filed debrief and content-addressed revision are the durable authored artifacts; intermediate candidate names would leave ambiguous sources beside them."
