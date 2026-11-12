@@ -1228,27 +1228,36 @@ describe("interlock run", () => {
     );
   }, 30_000);
 
-  it("runs worktree_setup commands in the worktree before the pane opens, narrating each", async () => {
-    const cwd = fixture({
-      localYaml: localYamlWithWorktreeSetup("true", "true"),
-    });
-    await runGraphApprove(["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"], { cwd });
+  slowIntegration(
+    "runs worktree_setup commands in the worktree before the pane opens, narrating each",
+    {
+      budgetMs: 10_000,
+      reason: "integrates worktree setup, approval and pane ordering",
+    },
+    async () => {
+      const cwd = fixture({
+        localYaml: localYamlWithWorktreeSetup("true", "true"),
+      });
+      await runGraphApprove(["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"], {
+        cwd,
+      });
 
-    const lines: string[] = [];
-    const result = await runInterlockRun(["demo", "a"], {
-      cwd,
-      clock: createControlledClock({ initialTime: 0 }),
-      runtime: stubRuntime(),
-      narrate: (line) => lines.push(line),
-    });
+      const lines: string[] = [];
+      const result = await runInterlockRun(["demo", "a"], {
+        cwd,
+        clock: createControlledClock({ initialTime: 0 }),
+        runtime: stubRuntime(),
+        narrate: (line) => lines.push(line),
+      });
 
-    expect(result.exitCode).toBe(0);
-    expect(lines.indexOf("worktree setup: true")).toBeGreaterThan(lines.indexOf("brief written"));
-    expect(lines.filter((line) => line === "worktree setup: true")).toHaveLength(2);
-    expect(lines.indexOf("pane pane-1 opened")).toBeGreaterThan(
-      lines.lastIndexOf("worktree setup: true"),
-    );
-  }, 30_000);
+      expect(result.exitCode).toBe(0);
+      expect(lines.indexOf("worktree setup: true")).toBeGreaterThan(lines.indexOf("brief written"));
+      expect(lines.filter((line) => line === "worktree setup: true")).toHaveLength(2);
+      expect(lines.indexOf("pane pane-1 opened")).toBeGreaterThan(
+        lines.lastIndexOf("worktree setup: true"),
+      );
+    },
+  );
 
   it("refuses on a failing worktree_setup command, naming it and its exit code, without opening a pane", async () => {
     const cwd = fixture({
@@ -1382,63 +1391,72 @@ describe("interlock run", () => {
     expect(lines.lastIndexOf("agent working")).toBeGreaterThan(blockedIndex);
   }, 30_000);
 
-  it("holds on uncommitted work without running any gate when the agent leaves the worktree dirty", async () => {
-    const cwd = fixture();
-    await runGraphApprove(["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"], { cwd });
+  slowIntegration(
+    "holds on uncommitted work without running any gate when the agent leaves the worktree dirty",
+    {
+      budgetMs: 10_000,
+      reason: "integrates dirty-worktree custody and gate suppression",
+    },
+    async () => {
+      const cwd = fixture();
+      await runGraphApprove(["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"], {
+        cwd,
+      });
 
-    let closed = false;
-    const runtime: Runtime = {
-      ...stubRuntime(),
-      waitUntil: (agent, until, timeoutMs) => {
-        if (until[0] === "idle") {
-          writeFileSync(
-            join(cwd, ".worktrees", "a", "uncommitted.txt"),
-            "staged, never committed\n",
-          );
-        }
-        return stubRuntime().waitUntil(agent, until, timeoutMs);
-      },
-      closePane: () => {
-        closed = true;
-        return Promise.resolve(ok(undefined));
-      },
-    };
-    const lines: string[] = [];
+      let closed = false;
+      const runtime: Runtime = {
+        ...stubRuntime(),
+        waitUntil: (agent, until, timeoutMs) => {
+          if (until[0] === "idle") {
+            writeFileSync(
+              join(cwd, ".worktrees", "a", "uncommitted.txt"),
+              "staged, never committed\n",
+            );
+          }
+          return stubRuntime().waitUntil(agent, until, timeoutMs);
+        },
+        closePane: () => {
+          closed = true;
+          return Promise.resolve(ok(undefined));
+        },
+      };
+      const lines: string[] = [];
 
-    const result = await runInterlockRun(["demo", "a"], {
-      cwd,
-      clock: createControlledClock(),
-      runtime,
-      narrate: (line) => lines.push(line),
-    });
+      const result = await runInterlockRun(["demo", "a"], {
+        cwd,
+        clock: createControlledClock(),
+        runtime,
+        narrate: (line) => lines.push(line),
+      });
 
-    expect(result.exitCode).toBe(0);
-    expect(result.message).toContain("held");
-    expect(lines).toContain("1 uncommitted path(s) in the worktree; gates judge commits only");
-    expect(lines).toContain("  uncommitted.txt");
-    expect(lines).toContain("pane pane-1 left open for drilldown");
-    expect(closed).toBe(false);
-    expect(lines.indexOf("agent screen: (no output)")).toBeLessThan(
-      lines.indexOf("1 uncommitted path(s) in the worktree; gates judge commits only"),
-    );
+      expect(result.exitCode).toBe(0);
+      expect(result.message).toContain("held");
+      expect(lines).toContain("1 uncommitted path(s) in the worktree; gates judge commits only");
+      expect(lines).toContain("  uncommitted.txt");
+      expect(lines).toContain("pane pane-1 left open for drilldown");
+      expect(closed).toBe(false);
+      expect(lines.indexOf("agent screen: (no output)")).toBeLessThan(
+        lines.indexOf("1 uncommitted path(s) in the worktree; gates judge commits only"),
+      );
 
-    const journal = readFileSync(join(cwd, ".interlock", "ledger", "journal.jsonl"), "utf-8");
-    const events = journal
-      .trim()
-      .split("\n")
-      .map((line): unknown => JSON.parse(line))
-      .filter(isLedgerEvent);
-    const held = events.find(
-      (event) => event.kind === "outcome-set" && event.outcome.kind === "held",
-    );
-    if (held === undefined || held.kind !== "outcome-set") {
-      throw new Error("expected a held outcome-set event in the journal");
-    }
-    expect(held.outcome.kind === "held" ? held.outcome.on : undefined).toEqual({
-      kind: "uncommitted-work",
-      paths: 1,
-    });
-  }, 30_000);
+      const journal = readFileSync(join(cwd, ".interlock", "ledger", "journal.jsonl"), "utf-8");
+      const events = journal
+        .trim()
+        .split("\n")
+        .map((line): unknown => JSON.parse(line))
+        .filter(isLedgerEvent);
+      const held = events.find(
+        (event) => event.kind === "outcome-set" && event.outcome.kind === "held",
+      );
+      if (held === undefined || held.kind !== "outcome-set") {
+        throw new Error("expected a held outcome-set event in the journal");
+      }
+      expect(held.outcome.kind === "held" ? held.outcome.on : undefined).toEqual({
+        kind: "uncommitted-work",
+        paths: 1,
+      });
+    },
+  );
 
   it("still narrates the agent screen when gate judging itself refuses", async () => {
     const cwd = fixture({ graphYaml: graphYamlWithBadPlaceholder });

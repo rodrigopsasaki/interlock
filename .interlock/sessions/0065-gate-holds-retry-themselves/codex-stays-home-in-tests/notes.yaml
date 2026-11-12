@@ -241,3 +241,11 @@ entries:
     at: "2026-11-12T17:49:03Z"
     chose: "Refuse the Codex MDM preference domain files at /Library/Managed Preferences/com.openai.codex.plist and the per-user equivalent."
     because: "Codex 0.162.1 loads com.openai.codex with an MDM layer that this guard does not parse; presence is therefore an unresolved configuration layer and must fail closed."
+  - kind: surprise
+    at: "2026-11-12T17:55:15Z"
+    expected: "The slow-test accounting gate would remain satisfied after the guard's process-group drain was added."
+    observed: "The serial accounting run measured five existing plan, run, and real-Codex integrations above 1.5 seconds without declarations; the tests passed, but their measured cost required explicit slowIntegration metadata."
+  - kind: choice
+    at: "2026-11-12T17:55:15Z"
+    chose: "Declare the five measured integrations as slow tests with 10-second budgets and reasons naming their custody, Git, or real-Codex work."
+    because: "The slow-tests gate must account for observed integration cost rather than hiding a threshold crossing, while the budgets remain bounded and local to each test."

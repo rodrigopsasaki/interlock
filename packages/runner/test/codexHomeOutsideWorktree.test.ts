@@ -17,6 +17,7 @@ import {
   reapRegisteredGuardLaunchesSync,
   registeredGuardLaunchCount,
 } from "./support/codexGuardAssertions.ts";
+import { slowIntegration } from "./support/slowIntegration.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -331,40 +332,47 @@ describe("Codex home outside worktree", () => {
     if (isErr(result)) expect(result.error.because).toContain("inside another repository");
   });
 
-  it("keeps both checkouts clean after a real Codex launch through the overlay", () => {
-    const { repository, state, home } = fixture();
-    const worktreeParent = mkdtempSync(join(runsRoot, "overlay-worktree-parent-"));
-    directories.push(worktreeParent);
-    const worktree = join(worktreeParent, "agent");
-    writeFileSync(join(repository, "tracked.txt"), "fixture\n");
-    fixtureGit(["add", "--", "tracked.txt"], { cwd: repository });
-    fixtureGit(["commit", "--quiet", "-m", "fixture"], { cwd: repository });
-    fixtureGit(["worktree", "add", "--quiet", "-b", "fixture-agent", worktree, "HEAD"], {
-      cwd: repository,
-    });
-    try {
-      writeFileSync(join(home, "config.toml"), overflowConfig("/bin/echo"));
-      const launch = prepareCodexLaunch(
-        [],
-        worktree,
-        environment(worktree, state, home, "real-codex-session"),
-      );
-      expect(isOk(launch)).toBe(true);
-      if (!isOk(launch)) return;
-      expect(launch.value.path).toBe("overlay");
-      const output = execFileSync("codex", [...launch.value.args, "mcp", "list", "--json"], {
-        cwd: worktree,
-        env: { ...process.env, ...launch.value.environment },
-        encoding: "utf8",
+  slowIntegration(
+    "keeps both checkouts clean after a real Codex launch through the overlay",
+    {
+      budgetMs: 10_000,
+      reason: "integrates a real Codex overlay launch and two checkout inspections",
+    },
+    async () => {
+      const { repository, state, home } = fixture();
+      const worktreeParent = mkdtempSync(join(runsRoot, "overlay-worktree-parent-"));
+      directories.push(worktreeParent);
+      const worktree = join(worktreeParent, "agent");
+      writeFileSync(join(repository, "tracked.txt"), "fixture\n");
+      fixtureGit(["add", "--", "tracked.txt"], { cwd: repository });
+      fixtureGit(["commit", "--quiet", "-m", "fixture"], { cwd: repository });
+      fixtureGit(["worktree", "add", "--quiet", "-b", "fixture-agent", worktree, "HEAD"], {
+        cwd: repository,
       });
-      expect(registeredGuardLaunchCount()).toBeGreaterThan(0);
-      expect(Array.isArray(JSON.parse(output))).toBe(true);
-      expect(fixtureGit(["status", "--porcelain", "--ignored"], { cwd: worktree })).toBe("");
-      expect(fixtureGit(["status", "--porcelain", "--ignored"], { cwd: repository })).toBe("");
-      launch.value.cleanup(true);
-      reapRegisteredGuardLaunchesSync();
-    } finally {
-      fixtureGit(["worktree", "remove", "--force", worktree], { cwd: repository });
-    }
-  });
+      try {
+        writeFileSync(join(home, "config.toml"), overflowConfig("/bin/echo"));
+        const launch = prepareCodexLaunch(
+          [],
+          worktree,
+          environment(worktree, state, home, "real-codex-session"),
+        );
+        expect(isOk(launch)).toBe(true);
+        if (!isOk(launch)) return;
+        expect(launch.value.path).toBe("overlay");
+        const output = execFileSync("codex", [...launch.value.args, "mcp", "list", "--json"], {
+          cwd: worktree,
+          env: { ...process.env, ...launch.value.environment },
+          encoding: "utf8",
+        });
+        expect(registeredGuardLaunchCount()).toBeGreaterThan(0);
+        expect(Array.isArray(JSON.parse(output))).toBe(true);
+        expect(fixtureGit(["status", "--porcelain", "--ignored"], { cwd: worktree })).toBe("");
+        expect(fixtureGit(["status", "--porcelain", "--ignored"], { cwd: repository })).toBe("");
+        launch.value.cleanup(true);
+        reapRegisteredGuardLaunchesSync();
+      } finally {
+        fixtureGit(["worktree", "remove", "--force", worktree], { cwd: repository });
+      }
+    },
+  );
 });
