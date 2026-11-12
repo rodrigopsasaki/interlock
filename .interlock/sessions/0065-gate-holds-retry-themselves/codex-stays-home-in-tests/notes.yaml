@@ -209,3 +209,7 @@ entries:
     at: "2026-11-12T17:31:00Z"
     expected: "The standing lint gate would accept the newly added selector cases as formatted."
     observed: "Biome required two test selector literals to use single-quoted strings because their TOML values contain double quotes."
+  - kind: surprise
+    at: "2026-11-12T17:39:00Z"
+    expected: "The full workspace test gate would complete without repository-maintenance diagnostics."
+    observed: "All workspace tests passed; runner maintenance fixtures printed their expected Git lock-permission diagnostics while asserting successfully."
