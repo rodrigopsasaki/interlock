@@ -306,8 +306,11 @@ describe("real Codex line fitting", () => {
         });
         launch.value.cleanup(true);
       } finally {
-        await reapRegisteredGuardLaunches();
-        await provider.close();
+        try {
+          await reapRegisteredGuardLaunches();
+        } finally {
+          await provider.close();
+        }
       }
     },
   );

@@ -216,7 +216,7 @@ function isLaunchProcess(
     processStart !== undefined &&
     launchStart !== undefined &&
     cleanupStart !== undefined &&
-    processStart > launchStart &&
+    processStart >= launchStart &&
     processStart <= cleanupStart
   );
 }

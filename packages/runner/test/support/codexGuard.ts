@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { homedir } from "node:os";
 import { delimiter, dirname, join, resolve } from "node:path";
 import { launchToken, platformProcessTable, registerLaunch } from "./codexSupervisor.ts";
 
@@ -214,6 +215,13 @@ function parseCommand(args: readonly string[]): ParsedCommand {
       index += 1;
       continue;
     }
+    if (argument?.startsWith("--config=")) {
+      const value = argument.slice("--config=".length);
+      global.push("--config", value);
+      selectors.push(value);
+      index += 1;
+      continue;
+    }
     break;
   }
   const subcommand = args[index];
@@ -274,14 +282,33 @@ function selectedProfile(
   return base?.profile;
 }
 
-function selectorTouchesProvider(selector: string): boolean {
-  const separator = selector.indexOf("=");
-  const key = (separator < 0 ? selector : selector.slice(0, separator)).trim();
-  const parts = key.split(".");
-  return (
-    key === "profile" ||
-    parts.some((part) => ["model_provider", "model_providers", "base_url"].includes(part))
+const allowedShellEnvironmentKeys = new Set([
+  "NODE_OPTIONS",
+  "VITEST_MAX_WORKERS",
+  "VITEST_MAX_THREADS",
+  "VITEST_MAX_FORKS",
+  "VITEST_MIN_THREADS",
+  "VITEST_MIN_FORKS",
+  "INTERLOCK_SESSION",
+  "INTERLOCK_GRAPH",
+  "INTERLOCK_NODE",
+]);
+
+function selectorKeyAllowed(key: string): boolean {
+  const shellKey = /^shell_environment_policy\.set\.([A-Za-z0-9_-]+)$/.exec(key)?.[1];
+  if (shellKey !== undefined) return allowedShellEnvironmentKeys.has(shellKey);
+  return /^mcp_servers\.(?:[A-Za-z0-9_-]+|"(?:[^"\\]|\\.)+")\.env\.(?:INTERLOCK_SESSION|INTERLOCK_GRAPH|INTERLOCK_NODE)$/.test(
+    key,
   );
+}
+
+function selectorAllowed(selector: string): boolean {
+  const separator = selector.indexOf("=");
+  if (separator < 1) return false;
+  const key = selector.slice(0, separator).trim();
+  const value = selector.slice(separator + 1).trim();
+  if (!selectorKeyAllowed(key) || value.length === 0) return false;
+  return !value.startsWith("[") && !value.startsWith("{");
 }
 
 function providerBaseUrl(command: ParsedCommand): {
@@ -305,6 +332,8 @@ function providerBaseUrl(command: ParsedCommand): {
   if (profile !== undefined) {
     const profilePath = join(home, `${profile}.config.toml`);
     const inlineProfile = base?.profiles.has(profile) === true;
+    if (inlineProfile && existsSync(profilePath))
+      throw new Error(`${profilePath}: selected Codex profile has two configuration sources`);
     if (!existsSync(profilePath) && !inlineProfile)
       throw new Error(`${profilePath}: selected Codex profile cannot be read`);
     if (existsSync(profilePath)) {
@@ -314,8 +343,17 @@ function providerBaseUrl(command: ParsedCommand): {
       configs.push(selected);
     }
   }
-  const project = readConfig(join(resolve(process.cwd()), ".codex", "config.toml"));
-  if (project !== undefined) configs.push(project);
+  let projectDirectory = resolve(process.cwd());
+  const userHome = resolve(process.env["INTERLOCK_CODEX_GUARD_USER_HOME"] ?? homedir());
+  while (true) {
+    if (projectDirectory === userHome) break;
+    const projectPath = join(projectDirectory, ".codex", "config.toml");
+    if (existsSync(projectPath))
+      throw new Error(`project Codex configuration layer is present: ${projectPath}`);
+    const parent = dirname(projectDirectory);
+    if (parent === projectDirectory) break;
+    projectDirectory = parent;
+  }
   const root = emptyOverlay();
   const selectedOverlay = emptyOverlay();
   const providers = new Map<string, Provider>();
@@ -332,9 +370,9 @@ function providerBaseUrl(command: ParsedCommand): {
       }
     }
   }
-  let name = selectedOverlay.provider ?? root.provider;
+  const name = selectedOverlay.provider ?? root.provider;
   for (const [providerName, value] of selectedOverlay.providers) providers.set(providerName, value);
-  if (name === undefined) name = "default";
+  if (name === undefined) throw new Error("no model_provider resolves");
   return { name, url: providers.get(name)?.baseUrl };
 }
 
@@ -415,6 +453,9 @@ async function start(args: readonly string[]): Promise<void> {
     process.exitCode = 1;
   });
   child.once("exit", (code, signal) => {
+    try {
+      process.kill(-child.pid, "SIGTERM");
+    } catch {}
     process.exitCode = code ?? (signal === null ? 1 : 1);
   });
 }
@@ -422,6 +463,9 @@ async function start(args: readonly string[]): Promise<void> {
 async function main(args: readonly string[]): Promise<void> {
   const command = parseCommand(args);
   if (command.subcommand === undefined) refuse("unknown form", "no command form was supplied");
+  const invalidSelector = command.selectors.find((selector) => !selectorAllowed(selector));
+  if (invalidSelector !== undefined)
+    refuse("configuration", `selector is not allowed: ${invalidSelector}`);
   if (command.subcommand === "mcp") {
     if (command.rest.length === 1 && command.rest[0] === "list") await start(args);
     else if (
@@ -445,10 +489,6 @@ async function main(args: readonly string[]): Promise<void> {
       "exec",
       error instanceof Error ? error.message : "Codex profile selections could not be resolved",
     );
-  }
-  for (const selector of command.selectors) {
-    if (selectorTouchesProvider(selector))
-      refuse("exec", `selector touches provider configuration: ${selector}`);
   }
   let resolved: { readonly name: string; readonly url: string | undefined };
   try {

@@ -146,8 +146,11 @@ describe("real Codex marker overflow delivery", () => {
         launch.value.cleanup(true);
         expect(readFileSync(join(home, "config.toml"), "utf8")).toContain(names[0]);
       } finally {
-        await reapRegisteredGuardLaunches();
-        await provider.close();
+        try {
+          await reapRegisteredGuardLaunches();
+        } finally {
+          await provider.close();
+        }
       }
     },
   );

@@ -8,7 +8,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { delimiter, join } from "node:path";
+import { delimiter, dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   cleanupCodexLaunches,
@@ -80,7 +80,11 @@ function run(
   environment: Readonly<Record<string, string>>,
 ): { readonly error: string; readonly count: string } {
   try {
-    execFileSync("codex", args, { env: { ...process.env, ...environment }, encoding: "utf8" });
+    execFileSync("codex", args, {
+      cwd: dirname(environment["CODEX_HOME"] ?? "."),
+      env: { ...process.env, ...environment },
+      encoding: "utf8",
+    });
     return { error: "", count: readFileSync(environment["FAKE_CODEX_COUNT"] ?? "", "utf8") };
   } catch (error) {
     const failure = isRecord(error) ? error : {};
@@ -165,6 +169,32 @@ describe("Codex test guard", () => {
     expect(result.count).toBe("0");
   });
 
+  it("refuses a project Codex configuration layer before resolving the user config", () => {
+    const { root, home, bin, count } = fixture();
+    fakeCodex(bin, count);
+    mkdirSync(join(root, ".codex"));
+    writeFileSync(
+      join(root, ".codex", "config.toml"),
+      'model_provider = "local"\n[model_providers.local]\nbase_url = "http://127.0.0.1"',
+    );
+    config(
+      home,
+      'model_provider = "remote"\n[model_providers.remote]\nbase_url = "https://api.example.com/v1"',
+    );
+    const result = run(["exec", "proof"], environment(home, count));
+    expect(result.error).toContain("project Codex configuration layer is present");
+    expect(result.count).toBe("0");
+  });
+
+  it("refuses a loopback default table without a model_provider", () => {
+    const { home, bin, count } = fixture();
+    fakeCodex(bin, count);
+    config(home, '[model_providers.default]\nbase_url = "http://127.0.0.1"');
+    const result = run(["exec", "proof"], environment(home, count));
+    expect(result.error).toContain("no model_provider resolves");
+    expect(result.count).toBe("0");
+  });
+
   it.each(["model_provider=remote", 'model_providers.remote.base_url="http://127.0.0.1"'])(
     "refuses a provider selector: %s",
     (selector) => {
@@ -175,7 +205,7 @@ describe("Codex test guard", () => {
         'model_provider = "local"\n[model_providers.local]\nbase_url = "http://127.0.0.1"',
       );
       const result = run(["-c", selector, "exec", "proof"], environment(home, count));
-      expect(result.error).toContain("selector touches provider configuration");
+      expect(result.error).toContain("selector is not allowed");
       expect(result.count).toBe("0");
     },
   );
@@ -188,7 +218,7 @@ describe("Codex test guard", () => {
       'model_provider = "local"\n[model_providers.local]\nbase_url = "http://127.0.0.1"',
     );
     const result = run(["exec", "-c", "model_provider=remote", "proof"], environment(home, count));
-    expect(result.error).toContain("selector touches provider configuration");
+    expect(result.error).toContain("selector is not allowed");
     expect(result.count).toBe("0");
   });
 
@@ -208,7 +238,50 @@ describe("Codex test guard", () => {
       ? ["exec", `${option}${selector}`, "proof"]
       : ["exec", option, selector, "proof"];
     const result = run(args, environment(home, count));
-    expect(result.error).toContain("selector touches provider configuration");
+    expect(result.error).toContain("selector is not allowed");
+    expect(result.count).toBe("0");
+  });
+
+  it.each([
+    ["-c", "before exec"],
+    ["--config", "before exec"],
+    ["-c", "after exec"],
+    ["--config", "after exec"],
+  ])("allows only the marker selector %s %s", (option, position) => {
+    const { home, bin, count } = fixture();
+    fakeCodex(bin, count);
+    config(
+      home,
+      'model_provider = "local"\n[model_providers.local]\nbase_url = "http://127.0.0.1"',
+    );
+    const selector = 'mcp_servers.fake.env.INTERLOCK_NODE="node"';
+    const args =
+      position === "before exec"
+        ? [option, selector, "exec", "proof"]
+        : ["exec", option, selector, "proof"];
+    const result = run(args, environment(home, count));
+    expect(result.error).toBe("");
+    expect(result.count).toBe("1");
+  });
+
+  it.each([
+    ["-c", "before exec", "features.responses_websocket=true"],
+    ["--config", "before exec", "mcp_servers.fake.env.INTERLOCK_NODE={value=\"node\"}"],
+    ["-c", "after exec", "mcp_servers.fake.env.INTERLOCK_NODE=[\"node\"]"],
+    ["--config", "after exec", "features.responses_websocket=true"],
+  ])("refuses an unallowlisted or structured selector %s %s", (option, position, selector) => {
+    const { home, bin, count } = fixture();
+    fakeCodex(bin, count);
+    config(
+      home,
+      'model_provider = "local"\n[model_providers.local]\nbase_url = "http://127.0.0.1"',
+    );
+    const args =
+      position === "before exec"
+        ? [option, selector, "exec", "proof"]
+        : ["exec", option, selector, "proof"];
+    const result = run(args, environment(home, count));
+    expect(result.error).toContain("selector is not allowed");
     expect(result.count).toBe("0");
   });
 
@@ -290,7 +363,7 @@ describe("Codex test guard", () => {
       'model_provider = "local"\n[model_providers.local]\nbase_url = "http://127.0.0.1"',
     );
     const result = run(["-p", "remote", "exec", "proof"], environment(home, count));
-    expect(result.error).toContain('provider "remote" has a non-loopback base_url');
+    expect(result.error).toContain("selected Codex profile has two configuration sources");
     expect(result.count).toBe("0");
   });
 
@@ -328,7 +401,14 @@ describe("Codex test guard", () => {
       'model_provider = "local"\n[model_providers.local]\nbase_url = "http://localhost:1234/v1"',
     );
     const result = run(
-      ["--profile", "fast", "-c", 'shell_environment_policy.set.TEST="yes"', "exec", "proof"],
+      [
+        "--profile",
+        "fast",
+        "-c",
+        'shell_environment_policy.set.INTERLOCK_NODE="yes"',
+        "exec",
+        "proof",
+      ],
       environment(home, count),
     );
     expect(result.error).toBe("");
@@ -480,6 +560,52 @@ writeFileSync(${JSON.stringify(tokenPath)}, process.env["INTERLOCK_CODEX_LAUNCH_
     await cleanupCodexLaunches(
       registry,
       { list: () => [member], now: () => "11" },
+      (pid, signal) => calls.push(`${String(pid)}:${signal}`),
+      0,
+    );
+    expect(calls).toContain("43:SIGTERM");
+  });
+
+  it("spares a tokenless member that predates a departed leader", async () => {
+    const { root } = fixture();
+    const registry = join(root, "registry.jsonl");
+    registerLaunch(registry, 42, 42, "10", "token");
+    const member: ProcessRecord = {
+      pid: 43,
+      ppid: 1,
+      pgid: 42,
+      startTime: "9",
+      command: "member",
+      environment: {},
+      state: "running",
+    };
+    const calls: string[] = [];
+    await cleanupCodexLaunches(
+      registry,
+      { list: () => [member], now: () => "11" },
+      (pid, signal) => calls.push(`${String(pid)}:${signal}`),
+      0,
+    );
+    expect(calls).toEqual([]);
+  });
+
+  it("matches a tokenless member in the leader's start second", async () => {
+    const { root } = fixture();
+    const registry = join(root, "registry.jsonl");
+    registerLaunch(registry, 42, 42, "10", "token");
+    const member: ProcessRecord = {
+      pid: 43,
+      ppid: 1,
+      pgid: 42,
+      startTime: "10",
+      command: "member",
+      environment: {},
+      state: "running",
+    };
+    const calls: string[] = [];
+    await cleanupCodexLaunches(
+      registry,
+      { list: () => [member], now: () => "10" },
       (pid, signal) => calls.push(`${String(pid)}:${signal}`),
       0,
     );
