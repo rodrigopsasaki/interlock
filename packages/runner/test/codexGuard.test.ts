@@ -266,8 +266,8 @@ describe("Codex test guard", () => {
 
   it.each([
     ["-c", "before exec", "features.responses_websocket=true"],
-    ["--config", "before exec", "mcp_servers.fake.env.INTERLOCK_NODE={value=\"node\"}"],
-    ["-c", "after exec", "mcp_servers.fake.env.INTERLOCK_NODE=[\"node\"]"],
+    ["--config", "before exec", 'mcp_servers.fake.env.INTERLOCK_NODE={value="node"}'],
+    ["-c", "after exec", 'mcp_servers.fake.env.INTERLOCK_NODE=["node"]'],
     ["--config", "after exec", "features.responses_websocket=true"],
   ])("refuses an unallowlisted or structured selector %s %s", (option, position, selector) => {
     const { home, bin, count } = fixture();
