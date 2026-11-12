@@ -341,3 +341,7 @@ entries:
     at: "2026-11-12T22:16:52Z"
     expected: "The standing lint gate would pass after the focused tests and typecheck."
     observed: "Biome requested the fake shell command's string literal to use double quotes; no behavioral change was needed."
+  - kind: choice
+    at: "2026-11-12T22:20:43Z"
+    chose: "Remove the preparation candidate after debrief revise selected it, retaining the canonical debrief and its content-addressed revision."
+    because: "The selected debrief and retained revision are the durable authored artifacts; the intermediate candidate is no longer needed beside them."

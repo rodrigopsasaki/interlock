@@ -4,7 +4,7 @@ node: codex-stays-home-in-tests
 role: implementer
 graph_base_sha: f91fae29cad67bb66ae925de72454fff580ba36b
 session_start_sha: d7070819c3016195a9382c5f9590fe99e50c48a8
-head_sha: 9fe071d973bebfbd4666aa367ba9213a5af401db
+head_sha: 384b79fc86fb52cbaeaab302d09885b43cc79745
 derivation:
   kind: agent
   runtime: codex
@@ -113,33 +113,46 @@ decisions:
       - packages/runner/test/codexGuard.test.ts:151-188
       - packages/runner/test/codexGuard.test.ts:307-326
       - packages/runner/test/codexGuard.test.ts:449-468
+  - id: account-screen-snapshot-integration
+    what: "Declare the runner integration that keeps judgement clean when screen snapshots are unignored as a slow test with a 10-second budget and an explicit integration reason."
+    because: "The case exercises real runner custody and clean judgement, and its logic crossed the repository's 1.5-second accounting threshold under load."
+    applies_to: { kind: path, path: packages/runner/test/runnerCommits.test.ts }
+    rests_on:
+      - packages/runner/test/runnerCommits.test.ts:676-691
+    hunks:
+      - packages/runner/test/runnerCommits.test.ts:676-691
+  - id: make-stderr-refusal-deterministic
+    what: "Run the worktree setup stderr-retention assertion through an executable fixture toolchain wrapper that immediately writes the expected stderr and exits 3."
+    because: "The case proves stderr retention in the refusal explanation; avoiding real mise and Node startup removes load-sensitive wall time without changing that proof."
+    applies_to: { kind: path, path: packages/runner/test/worktreeSetup.test.ts }
+    rests_on:
+      - packages/runner/test/worktreeSetup.test.ts:58-75
+    hunks:
+      - packages/runner/test/worktreeSetup.test.ts:58-75
 gates_run_by_agent:
   - id: typecheck
     result: pass
     invocation: pnpm typecheck
-    note: "All 8 workspace packages passed with Node v24.14.0 and pnpm 10.13.1."
+    note: "Passed with Node v24.14.0 and pnpm 10.13.1."
   - id: lint
     result: pass
     invocation: pnpm lint
-    note: "Biome checked 522 files with no fixes applied."
+    note: "Biome checked 522 files with no errors after its formatter-only correction."
   - id: comments
     result: pass
     invocation: pnpm check:comments
-    note: "packages/*/src reported no comments."
+    note: "The repository comment check passed."
   - id: test
     result: pass
     invocation: pnpm test
-    note: "All 8 workspace packages passed: 204 test files and 3,252 tests, including runner 752 and schemas 1,413."
-  - id: debrief-valid
-    result: pass
-    invocation: pnpm interlock debrief validate 0065-gate-holds-retry-themselves codex-stays-home-in-tests
-    note: "The filed debrief validated after revision against the signed repair head."
+    note: "All workspace test packages passed under the pinned Node and pnpm toolchain; output is recorded in packages/runner/test/.runs/codex-stays-home-pnpm-test.txt."
   - id: codex-guard-tests
     result: pass
     invocation: "pnpm --fail-if-no-match --filter runner exec vitest run test/codexGuard.test.ts test/realCodexMarkerOverflow.test.ts test/lineFitsRealCodex.test.ts test/realCodexMarkerLaunch.test.ts test/codexHomeOutsideWorktree.test.ts --passWithNoTests=false"
-    note: "5 files and 90 tests passed, including all reserved-provider, selector-placement, grammar, process-group, registration, and kept real-Codex cases."
+    note: "Five files and 90 tests passed; output is recorded in packages/runner/test/.runs/codex-stays-home-guard-gate.txt."
   - id: slow-tests-accounted
-    result: pass
+    result: fail
     invocation: node scripts/gates/slow-tests.ts
-    note: "slow tests accounted: 36 declared, 3216 logic under 1.5 s."
-open: []
+    note: "The serial run completed in 1:59.16 and reported seventeen unrelated CLI and face tests above 1.5 seconds without declarations; the requested runnerCommits case was declared and the worktreeSetup case was made immediate. Output is recorded in packages/runner/test/.runs/codex-stays-home-slow-tests-accounted-2.txt."
+open:
+  - "The requested two load-sensitive cases are repaired and their focused suites pass, but slow-tests-accounted remains held by seventeen unrelated CLI and face timing cases observed in the serial run; this node does not expand its scoped test-only repair to those cases."
