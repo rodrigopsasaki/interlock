@@ -325,3 +325,15 @@ entries:
     at: "2026-11-12T20:05:25Z"
     chose: "Remove the intermediate sendback candidate after revise selected it, retaining the canonical debrief and its revision."
     because: "The selected debrief and retained revision are the durable authored artifacts; the preparation copy is no longer needed beside them."
+  - kind: choice
+    at: "2026-11-12T22:07:42Z"
+    chose: "Declare the screen-snapshot runner integration as a slow test with a bounded budget and an integration reason."
+    because: "Its proof exercises the real runner custody and clean-judgement path, and the load measurement crossed the slow-tests accounting threshold."
+  - kind: choice
+    at: "2026-11-12T22:07:42Z"
+    chose: "Use a fixture command wrapper for the stderr refusal case."
+    because: "The assertion needs the setup refusal to retain stderr, not real mise or Node startup latency; the deterministic wrapper preserves that behavior under load."
+  - kind: surprise
+    at: "2026-11-12T22:13:56Z"
+    expected: "The slow-tests-accounted gate would pass after accounting for the screen-snapshot integration."
+    observed: "The serial gate ran to completion but found seventeen unrelated CLI and face tests above 1.5 seconds without declarations; the two requested cases were accounted, and the gate exited 1."

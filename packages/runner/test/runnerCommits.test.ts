@@ -673,12 +673,19 @@ it("carries declared paths through interlock run from the approved graph to the 
   expectFailed(drive, "changed.txt: outside declared paths");
 });
 
-it("keeps judging clean even when the repository does not ignore screen snapshots", async () => {
-  const drive = await driveFixture({
-    fallback: "fix: preserve clean judging",
-    ignoredScreen: false,
-  });
-  expect(drive.result.exitCode, drive.result.message).toBe(0);
-  expect(drive.result.message).toContain("cleared");
-  expect(git(drive.worktree, ["status", "--porcelain"])).toBe("");
-});
+slowIntegration(
+  "keeps judging clean even when the repository does not ignore screen snapshots",
+  {
+    budgetMs: 10_000,
+    reason: "integrates runner custody and clean judgement with unignored screen artifacts",
+  },
+  async () => {
+    const drive = await driveFixture({
+      fallback: "fix: preserve clean judging",
+      ignoredScreen: false,
+    });
+    expect(drive.result.exitCode, drive.result.message).toBe(0);
+    expect(drive.result.message).toContain("cleared");
+    expect(git(drive.worktree, ["status", "--porcelain"])).toBe("");
+  },
+);
