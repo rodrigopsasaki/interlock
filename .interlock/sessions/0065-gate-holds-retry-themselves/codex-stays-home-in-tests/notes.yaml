@@ -213,3 +213,7 @@ entries:
     at: "2026-11-12T17:39:00Z"
     expected: "The full workspace test gate would complete without repository-maintenance diagnostics."
     observed: "All workspace tests passed; runner maintenance fixtures printed their expected Git lock-permission diagnostics while asserting successfully."
+  - kind: choice
+    at: "2026-11-12T17:42:00Z"
+    chose: "Make the async reaper's empty-survivor return explicit so its immediate observation behavior has an added hunk for debrief verification."
+    because: "The behavior was a deletion-only change, and a rooted debrief must point at a hunk the verifier can see at the authored head."

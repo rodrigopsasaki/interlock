@@ -15,8 +15,8 @@ export async function reapRegisteredGuardLaunches(): Promise<void> {
   if (registry === undefined) return;
   const table = platformProcessTable();
   const survivors = await cleanupCodexLaunches(registry, table);
-  if (survivors.length > 0)
-    throw new Error(`Codex launch survivors: ${survivors.map(String).join(", ")}`);
+  if (survivors.length === 0) return;
+  throw new Error(`Codex launch survivors: ${survivors.map(String).join(", ")}`);
 }
 
 export function reapRegisteredGuardLaunchesSync(): void {
