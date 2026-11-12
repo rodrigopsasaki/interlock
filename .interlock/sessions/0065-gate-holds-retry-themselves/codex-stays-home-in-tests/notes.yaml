@@ -201,3 +201,7 @@ entries:
     at: "2026-11-12T17:26:00Z"
     expected: "A nested fixture with a temporary HOME would retain the outer guard's project-search boundary."
     observed: "Nested setup replaced the boundary with its temporary HOME and then saw the owner's user .codex/config.toml while walking ancestors; nested setup now preserves the outer real-user boundary without reading that file as a project layer."
+  - kind: choice
+    at: "2026-11-12T17:30:00Z"
+    chose: "Capture the guarded Codex pid after the spawn narrowing check and use that stable value in asynchronous callbacks."
+    because: "Strict TypeScript cannot retain the nullable child.pid narrowing through event handlers, and the launch cleanup must target the pid that was registered."

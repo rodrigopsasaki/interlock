@@ -426,10 +426,11 @@ async function start(args: readonly string[]): Promise<void> {
     detached: true,
   });
   if (child.pid === undefined) refuse("launch", "the real codex did not expose a pid");
+  const childPid = child.pid;
   if (registry !== undefined) {
     let processRecord = platformProcessTable()
       .list()
-      .find((entry) => entry.pid === child.pid);
+      .find((entry) => entry.pid === childPid);
     for (
       let attempt = 0;
       (processRecord === undefined || processRecord.startTime === "unknown") && attempt < 2;
@@ -438,15 +439,15 @@ async function start(args: readonly string[]): Promise<void> {
       await new Promise<void>((resolve) => setTimeout(resolve, 25));
       processRecord = platformProcessTable()
         .list()
-        .find((entry) => entry.pid === child.pid);
+        .find((entry) => entry.pid === childPid);
     }
     if (processRecord === undefined || processRecord.startTime === "unknown") {
       try {
-        process.kill(-child.pid, "SIGTERM");
+        process.kill(-childPid, "SIGTERM");
       } catch {}
       refuse("launch", "the guarded Codex start time could not be read");
     }
-    registerLaunch(registry, child.pid, processRecord.pgid, processRecord.startTime, token);
+    registerLaunch(registry, childPid, processRecord.pgid, processRecord.startTime, token);
   }
   child.once("error", (error) => {
     process.stderr.write(`${error.message}\n`);
@@ -454,7 +455,7 @@ async function start(args: readonly string[]): Promise<void> {
   });
   child.once("exit", (code, signal) => {
     try {
-      process.kill(-child.pid, "SIGTERM");
+      process.kill(-childPid, "SIGTERM");
     } catch {}
     process.exitCode = code ?? (signal === null ? 1 : 1);
   });
