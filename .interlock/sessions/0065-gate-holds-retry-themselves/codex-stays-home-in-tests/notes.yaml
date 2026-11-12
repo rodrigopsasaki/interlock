@@ -281,3 +281,19 @@ entries:
     at: "2026-11-12T18:13:03Z"
     expected: "The process scan would be empty after the final focused and validation gates."
     observed: "No Codex launch-token or session Vitest process remained; pgrep showed only an unrelated owner-run Gilb Vitest in another worktree, which was left untouched."
+  - kind: surprise
+    at: "2026-11-12T19:53:03Z"
+    expected: "The installed Codex source would expose the prompt's open-source provider id as a literal built-in id."
+    observed: "Codex 0.162.1's tagged source lists openai, ollama, lmstudio, amazon-bedrock, and amazon-bedrock-runtime as the built-in provider catalog; oss is the source's family label rather than a catalog key."
+  - kind: choice
+    at: "2026-11-12T19:53:03Z"
+    chose: "Reject all five Codex 0.162.1 built-in provider ids and the literal oss id in model_provider values and provider tables."
+    because: "Codex merges configured providers with or_insert, so a loopback table under a built-in key does not replace the provider Codex will use; denying the family spelling too keeps the guard aligned with the requested open-source boundary."
+  - kind: surprise
+    at: "2026-11-12T19:55:20Z"
+    expected: "Biome would accept the focused repair files after the focused guard suite passed."
+    observed: "Biome rejected the test parameter name escape because it shadows a global and requested a one-line formatting change."
+  - kind: choice
+    at: "2026-11-12T19:55:20Z"
+    chose: "Rename the undecoded-escape test parameter and apply the formatter's local layout."
+    because: "The change preserves the exact grammar cases while satisfying the repository's static checks."

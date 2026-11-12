@@ -28,6 +28,20 @@ interface ParsedCommand {
   readonly unknownOptions: readonly string[];
 }
 
+const reservedModelProviderIds = new Set([
+  "amazon-bedrock",
+  "amazon-bedrock-runtime",
+  "lmstudio",
+  "ollama",
+  "openai",
+  "oss",
+]);
+
+function assertProviderIdAllowed(providerId: string): void {
+  if (reservedModelProviderIds.has(providerId))
+    throw new Error(`reserved Codex model provider id: ${providerId}`);
+}
+
 function stringValue(value: string): string | undefined {
   const trimmed = value.trim();
   if (trimmed.includes("'''")) return undefined;
@@ -157,6 +171,13 @@ function parseConfig(text: string): ParsedConfig {
       if (line.startsWith("[[") || !line.endsWith("]"))
         throw new Error("unsupported Codex configuration table");
       const parts = keyParts(line.slice(1, -1));
+      const providerName =
+        parts?.length === 2 && parts[0] === "model_providers"
+          ? parts[1]
+          : parts?.length === 4 && parts[0] === "profiles" && parts[2] === "model_providers"
+            ? parts[3]
+            : undefined;
+      if (providerName !== undefined) assertProviderIdAllowed(providerName);
       if (
         parts === undefined ||
         (overlayFor(parts, root, profiles) === undefined && !ignoredTable(parts))
@@ -179,7 +200,9 @@ function parseConfig(text: string): ParsedConfig {
       throw new Error(`unsupported Codex configuration key: ${line}`);
     }
     if (name === "model_provider" && target.providerName === undefined) {
-      target.overlay.provider = parsedString(name, rawValue);
+      const provider = parsedString(name, rawValue);
+      assertProviderIdAllowed(provider);
+      target.overlay.provider = provider;
     } else if (name === "profile" && table.length === 0) {
       profile = parsedString(name, rawValue);
     } else if (name === "base_url" && target.providerName !== undefined) {

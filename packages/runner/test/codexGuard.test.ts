@@ -148,6 +148,45 @@ describe("Codex test guard", () => {
     expect(result.count).toBe("0");
   });
 
+  it.each(["openai", "oss", "ollama", "lmstudio", "amazon-bedrock", "amazon-bedrock-runtime"])(
+    "refuses reserved provider id %s even with a loopback table",
+    (provider) => {
+      const { home, bin, count } = fixture();
+      fakeCodex(bin, count);
+      config(
+        home,
+        `model_provider = "${provider}"\n[model_providers.${provider}]\nbase_url = "http://127.0.0.1"`,
+      );
+      const result = run(["exec", "proof"], environment(home, count));
+      expect(result.error).toContain(`reserved Codex model provider id: ${provider}`);
+      expect(result.count).toBe("0");
+    },
+  );
+
+  it("refuses the reserved provider id in a selected profile", () => {
+    const { home, bin, count } = fixture();
+    fakeCodex(bin, count);
+    config(
+      home,
+      'model_provider = "local"\n[model_providers.local]\nbase_url = "http://127.0.0.1"\n[profiles.p]\nmodel_provider = "openai"',
+    );
+    const result = run(["-p", "p", "exec", "proof"], environment(home, count));
+    expect(result.error).toContain("reserved Codex model provider id: openai");
+    expect(result.count).toBe("0");
+  });
+
+  it("refuses a reserved provider id in a selected profile provider table", () => {
+    const { home, bin, count } = fixture();
+    fakeCodex(bin, count);
+    config(
+      home,
+      'model_provider = "local"\n[model_providers.local]\nbase_url = "http://127.0.0.1"\n[profiles.p.model_providers.openai]\nbase_url = "http://127.0.0.1"',
+    );
+    const result = run(["exec", "proof"], environment(home, count));
+    expect(result.error).toContain("reserved Codex model provider id: openai");
+    expect(result.count).toBe("0");
+  });
+
   it("refuses a missing selected profile", () => {
     const { home, bin, count } = fixture();
     fakeCodex(bin, count);
@@ -260,6 +299,27 @@ describe("Codex test guard", () => {
     const args = option.endsWith("=")
       ? ["exec", `${option}${selector}`, "proof"]
       : ["exec", option, selector, "proof"];
+    const result = run(args, environment(home, count));
+    expect(result.error).toContain("selector is not allowed");
+    expect(result.count).toBe("0");
+  });
+
+  it.each([
+    ["--config", "before exec", 'profiles.p={model_provider="openai"}'],
+    ["--config", "before exec", 'profiles={p={model_provider="openai"}}'],
+    ["-c", "after exec", 'profiles={p={model_provider="openai"}}'],
+    ["--config", "after exec", 'profiles.p={model_provider="openai"}'],
+  ])("refuses the exact reserved profile selector %s %s", (option, position, selector) => {
+    const { home, bin, count } = fixture();
+    fakeCodex(bin, count);
+    config(
+      home,
+      'model_provider = "local"\n[model_providers.local]\nbase_url = "http://127.0.0.1"',
+    );
+    const args =
+      position === "before exec"
+        ? [option, selector, "exec", "proof"]
+        : ["exec", option, selector, "proof"];
     const result = run(args, environment(home, count));
     expect(result.error).toContain("selector is not allowed");
     expect(result.count).toBe("0");
@@ -381,6 +441,27 @@ describe("Codex test guard", () => {
       home,
       "model = '''\nmodel_provider = \"local\"\nmodel = '''\n[model_providers.local]\nbase_url = \"http://127.0.0.1\"",
     );
+    const result = run(["exec", "proof"], environment(home, count));
+    expect(result.error).toContain("unsupported Codex configuration");
+    expect(result.count).toBe("0");
+  });
+
+  it("refuses a multiline basic string that changes the resolved provider", () => {
+    const { home, bin, count } = fixture();
+    fakeCodex(bin, count);
+    config(
+      home,
+      'model = """\nmodel_provider = "local"\nmodel = """\n[model_providers.local]\nbase_url = "http://127.0.0.1"',
+    );
+    const result = run(["exec", "proof"], environment(home, count));
+    expect(result.error).toContain("unsupported Codex configuration");
+    expect(result.count).toBe("0");
+  });
+
+  it.each(["\\U0001F600", "\\e"])("refuses undecoded base_url escape %s", (value) => {
+    const { home, bin, count } = fixture();
+    fakeCodex(bin, count);
+    config(home, `model_provider = "local"\n[model_providers.local]\nbase_url = "${value}"`);
     const result = run(["exec", "proof"], environment(home, count));
     expect(result.error).toContain("unsupported Codex configuration");
     expect(result.count).toBe("0");
