@@ -457,3 +457,59 @@ nodes:
         kind: command
         run: node scripts/gates/slow-tests.ts
         expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1\.5 s'
+
+  - id: codex-never-real-in-tests
+    role: implementer
+    depends_on: [codex-stays-home-in-tests]
+    acceptance: |
+      Found 2026-11-13 while landing codex-stays-home-in-tests (main 6f556e6): the test guard still runs the real
+      codex binary. packages/runner/test/support/codexGuard.ts resolves the first codex past the guard on PATH
+      (realCodex, :445-463) and spawns it (start, :486-500) for `mcp list` / `mcp list --json` (:550-558) and for
+      `exec` with a loopback base_url (:560-590). codexHomeOutsideWorktree.test.ts:335-376 ("keeps both checkouts
+      clean after a real Codex launch through the overlay") runs `codex mcp list --json` through it, so every suite
+      run starts the owner's installed codex (codex 0.162.1 through the mise shim) with a fixture home and fake auth,
+      outside his signed-in profile. The rule (coordinator, from his 2026-11-11 words "why is openai opening windows,
+      please stop"): a real codex runs only under his signed-in profiles; no test starts one. No opt-in, no
+      environment switch that turns the pass-through back on.
+      - The guard never execs a real codex binary for anything. realCodex and the spawn of a resolved binary are
+        deleted. `mcp list` and `mcp list --json` are answered by a fixture codex in test/support that reads the
+        fixture CODEX_HOME's config.toml (the overlay's, as the real binary would) and prints the configured
+        servers in the same JSON shape the tests parse. Every `exec` form the guard admits today is answered by a
+        fixture as well (name each test that relied on a real exec and what its fixture now proves); every other
+        form is refused as today.
+      - A run-wide check fails the suite if any codex process whose executable is outside test/support starts
+        during the run: the guard records every invocation it would have passed through as a refusal in its
+        registry, and the existing afterEach/exit accounting (codexGuardSetup.ts) fails the test that caused it;
+        plus a process-table check at suite end that no process named codex with an executable outside
+        test/support appeared (sampled with the run's own spawn accounting, not a timing window).
+      - Tests in packages/runner/test/codexNeverReal.test.ts, each failing on main 6f556e6 for its intended
+        assertion: a guard invocation of `mcp list --json` returns the fixture config's servers and starts no
+        process outside test/support; with a stub "real codex" placed first past the guard on PATH (a script that
+        records it ran), no test path reaches it, for `mcp list`, `mcp list --json` and a loopback `exec`; a
+        deliberate pass-through attempt is recorded and fails its test.
+      - codexHomeOutsideWorktree.test.ts keeps asserting that both checkouts stay clean after the launch, now
+        through the fixture codex, and its title no longer says "real".
+      - scripts/gates/codex-never-real.ts greps packages/*/test and the guard: it fails if the guard references
+        PATH resolution of codex past itself, spawns or execs any binary named codex outside test/support, or if any
+        test file calls a codex binary by an absolute path outside test/support; it prints "codex never real: no
+        path from the guard to a real binary".
+      Before you file the debrief (and before any refile), end every vitest worker and child process you started
+      and confirm with pgrep that none survives; never run a real codex yourself outside the owner's signed-in
+      profile.
+    gates:
+      - id: codex-never-real-tests
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/codexNeverReal.test.ts test/codexHomeOutsideWorktree.test.ts test/codexGuard.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: codex-never-real-grep
+        kind: command
+        run: node scripts/gates/codex-never-real.ts
+        expect_output: 'codex never real: no path from the guard to a real binary'
+      - id: runner-suite
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner run test
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: slow-tests-accounted
+        kind: command
+        run: node scripts/gates/slow-tests.ts
+        expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1\.5 s'
