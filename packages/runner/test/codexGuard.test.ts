@@ -14,6 +14,8 @@ import {
   cleanupCodexLaunches,
   type ProcessRecord,
   type ProcessTable,
+  platformProcessTable,
+  registeredLaunches,
   registerLaunch,
 } from "./support/codexSupervisor.ts";
 import { slowIntegration } from "./support/slowIntegration.ts";
@@ -543,6 +545,31 @@ writeFileSync(${JSON.stringify(tokenPath)}, process.env["INTERLOCK_CODEX_LAUNCH_
     const token = readFileSync(tokenPath, "utf8");
     expect(token.length).toBeGreaterThan(0);
     expect(processTableWithToken(token).some((entry) => entry.state === "running")).toBe(false);
+  });
+
+  it("drains only its detached launch group and leaves the caller alive", () => {
+    const { home, bin, count } = fixture();
+    fakeCodex(bin, count);
+    config(
+      home,
+      'model_provider = "local"\n[model_providers.local]\nbase_url = "http://127.0.0.1"',
+    );
+    const caller = platformProcessTable()
+      .list()
+      .find((entry) => entry.pid === process.pid);
+    if (caller === undefined)
+      throw new Error("the caller process is absent from the process table");
+    const result = run(["exec", "proof"], environment(home, count));
+    expect(result.error).toBe("");
+    expect(result.count).toBe("1");
+    expect(() => process.kill(process.pid, 0)).not.toThrow();
+    const registry = process.env["INTERLOCK_CODEX_GUARD_REGISTRY"];
+    if (registry === undefined) throw new Error("the Codex guard registry is not configured");
+    const launches = registeredLaunches(registry);
+    const launch = launches[0];
+    if (launch === undefined) throw new Error("the guarded launch was not registered");
+    expect(launch.pgid).toBe(launch.pid);
+    expect(launch.pgid).not.toBe(caller.pgid);
   });
 
   it("uses a profile overlay and parses global flags before the subcommand", () => {

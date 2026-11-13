@@ -503,28 +503,33 @@ async function start(args: readonly string[]): Promise<void> {
   });
   if (child.pid === undefined) refuse("launch", "the real codex did not expose a pid");
   const childPid = child.pid;
-  if (registry !== undefined) {
-    let processRecord = platformProcessTable()
+  let processRecord = platformProcessTable()
+    .list()
+    .find((entry) => entry.pid === childPid);
+  for (
+    let attempt = 0;
+    (processRecord === undefined || processRecord.startTime === "unknown") && attempt < 2;
+    attempt += 1
+  ) {
+    await new Promise<void>((resolve) => setTimeout(resolve, 25));
+    processRecord = platformProcessTable()
       .list()
       .find((entry) => entry.pid === childPid);
-    for (
-      let attempt = 0;
-      (processRecord === undefined || processRecord.startTime === "unknown") && attempt < 2;
-      attempt += 1
-    ) {
-      await new Promise<void>((resolve) => setTimeout(resolve, 25));
-      processRecord = platformProcessTable()
-        .list()
-        .find((entry) => entry.pid === childPid);
-    }
-    if (processRecord === undefined || processRecord.startTime === "unknown") {
-      try {
-        process.kill(-childPid, "SIGTERM");
-      } catch {}
-      refuse("launch", "the guarded Codex start time could not be read");
-    }
-    registerLaunch(registry, childPid, processRecord.pgid, processRecord.startTime, token);
   }
+  if (processRecord === undefined || processRecord.startTime === "unknown") {
+    try {
+      child.kill("SIGTERM");
+    } catch {}
+    refuse("launch", "the guarded Codex start time could not be read");
+  }
+  if (processRecord.pgid !== childPid) {
+    try {
+      child.kill("SIGTERM");
+    } catch {}
+    refuse("launch", "the guarded Codex was not isolated in its own process group");
+  }
+  if (registry !== undefined)
+    registerLaunch(registry, childPid, processRecord.pgid, processRecord.startTime, token);
   child.once("error", (error) => {
     process.stderr.write(`${error.message}\n`);
     process.exitCode = 1;

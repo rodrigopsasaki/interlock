@@ -345,3 +345,23 @@ entries:
     at: "2026-11-12T22:20:43Z"
     chose: "Remove the preparation candidate after debrief revise selected it, retaining the canonical debrief and its content-addressed revision."
     because: "The selected debrief and retained revision are the durable authored artifacts; the intermediate candidate is no longer needed beside them."
+  - kind: choice
+    at: "2026-11-13T15:00:00Z"
+    chose: "Run five serial runner suites and one runner-plus-package suite with raw output before changing the guard."
+    because: "The reported worker death must be separated from a process-group cleanup regression using repeatable evidence, including the last reported test and worker termination details."
+  - kind: surprise
+    at: "2026-11-13T15:35:00Z"
+    expected: "The runner worker would reproduce the reported unexpected exit during one of five serial suites or the concurrent runner/CLI suite."
+    observed: "All five serial runs passed 64 files and 752 tests; the concurrent run passed runner 64/752 and CLI 53/475. No raw log reported a worker exit, signal, or failed last test."
+  - kind: choice
+    at: "2026-11-13T15:35:00Z"
+    chose: "Require the observed detached Codex process group id to equal the child pid before registration or group drain, and test that the caller remains alive after cleanup."
+    because: "The drain signals the negative child pid; an explicit equality check makes that signal safe by construction and the test proves cleanup cannot terminate the Vitest caller."
+  - kind: surprise
+    at: "2026-11-13T15:45:00Z"
+    expected: "The first focused run would exercise the new process-group assertions."
+    observed: "The new test referenced platformProcessTable without importing it, so the focused run failed immediately with a ReferenceError after 71 of 72 tests passed."
+  - kind: surprise
+    at: "2026-11-13T15:50:00Z"
+    expected: "The targeted Biome check would accept the focused test and guard changes."
+    observed: "Biome requested import ordering and a wrapped throw statement; no behavioral issue was reported."
