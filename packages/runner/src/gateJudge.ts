@@ -444,8 +444,8 @@ export async function judgeGates(
             const boundary = await runBusyBoundary(
               {
                 worktree: cwd,
-                heavy: [],
-                command: argv,
+                heavy,
+                command: argv.slice(heavy.length + 3),
                 env: commandEnv,
                 run: nodeVersionRunner ?? runOwnedCommand,
                 processResult: nodeProcessResultOf,
@@ -487,12 +487,16 @@ export async function judgeGates(
         allowance === undefined
           ? {
               kind: "ordinary",
-              result: await commandRunner(command, worktree, env),
+              result: await commandRunner(
+                [...heavy, "mise", "exec", "--", ...command],
+                worktree,
+                env,
+              ),
             }
           : await runBusyBoundary(
               {
                 worktree,
-                heavy: [],
+                heavy,
                 command,
                 env,
                 run: commandRunner,
@@ -604,7 +608,7 @@ export async function judgeGates(
       return err({ kind: "placeholder", gateId, refusal: substituted.error });
     }
 
-    const command = [...heavy, "mise", "exec", "--", ...tokenize(substituted.value)];
+    const command = tokenize(substituted.value);
     const before = clock.now().monoMs;
     const execution = await runGateCommand(gateId, current, command);
     const after = clock.now().monoMs;

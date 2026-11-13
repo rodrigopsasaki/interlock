@@ -30,3 +30,23 @@ entries:
     at: "2026-11-13T20:32:00Z"
     chose: Treat the full workspace test gate as passed while retaining the slow-test accounting failure as an open acceptance item.
     because: The complete test command exited zero with runner 760/760, schemas 1420/1420 and face 187/187, while the separate timing gate observed two pre-existing tests over its threshold.
+  - kind: choice
+    at: "2026-11-13T21:10:00Z"
+    chose: Make the busy boundary receive the machine heavy prefix separately from the bare mise exec command tail, so its argv places the runner-owned shell boundary after the heavy prefix and before the command tail.
+    because: A real prefix must be able to refuse before the start marker is written; embedding an extra mise exec inside the boundary makes the marker dominate the prefix instead of measuring the prefix refusal.
+  - kind: choice
+    at: "2026-11-13T21:11:00Z"
+    chose: Allocate each busy boundary's marker and report directory beneath the system temporary directory with restrictive permissions, while retaining the existing per-spawn cleanup.
+    because: The launch-boundary channels are runner-owned transient state and must not leave hidden worktree paths or collide across concurrent worktrees.
+  - kind: choice
+    at: "2026-11-13T21:12:00Z"
+    chose: Keep the lease heartbeat running through gate judgement and stop it only in the drive cleanup after the judgement outcome has been recorded.
+    because: Busy backoff can cross several lease periods; a session remains live while the runner is judging and must not be swept before its outcome exists.
+  - kind: choice
+    at: "2026-11-13T21:18:00Z"
+    chose: Exercise the launch boundary through the default spawnGateCommand with a fixture heavy prefix and a PATH-local mise shim, while keeping the existing injected runners for controlled-clock and allowance assertions.
+    because: The boundary contract depends on the real child-process argv and environment crossing shell and prefix layers; injected runners alone cannot prove marker dominance or channel isolation.
+  - kind: surprise
+    at: "2026-11-13T21:19:00Z"
+    expected: The executable fixture shim would load like the other CommonJS fixture scripts.
+    observed: The extensionless PATH-local mise shim was loaded as an ES module under the workspace package scope, so the fixture needed an explicit Node shebang and module imports.

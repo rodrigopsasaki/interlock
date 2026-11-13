@@ -1,4 +1,5 @@
 import { access, chmod, mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ms } from "@phyxiusjs/clock";
 import type { BusyPolicy } from "./machineProvider.ts";
@@ -70,7 +71,7 @@ export async function runBusyBoundary<T>(
   request: BusyBoundaryRequest<T>,
   policy: BusyPolicy,
 ): Promise<BusyBoundaryResult<T>> {
-  const directory = await mkdtemp(join(request.worktree, ".interlock-gate-"));
+  const directory = await mkdtemp(join(tmpdir(), "interlock-gate-"));
   await chmod(directory, 0o700);
   const startPath = join(directory, "start");
   const reportPath = join(directory, "busy-report");

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { runBusyPrefix } from "../../../scripts/machine/busy-prefix.ts";
@@ -32,6 +32,7 @@ describe("busy prefix", () => {
     });
     expect(result).toBe(75);
     expect(existsSync(report)).toBe(true);
+    expect(readFileSync(report, "utf8")).toBe("load 2 exceeds ceiling 1\n");
   });
 
   it("refuses a lock it cannot take within its bound", () => {
@@ -49,6 +50,7 @@ describe("busy prefix", () => {
       sleep: () => undefined,
     });
     expect(result).toBe(75);
+    expect(readFileSync(report, "utf8")).toBe(`lock not taken: ${lock}\n`);
   });
 
   it("refuses an absent named process and runs the start command when admitted", () => {
@@ -61,6 +63,7 @@ describe("busy prefix", () => {
       processPresent: () => false,
     });
     expect(absent).toBe(75);
+    expect(readFileSync(report, "utf8")).toBe("process absent: missing\n");
     const result = runBusyPrefix({
       argv: [
         process.execPath,
