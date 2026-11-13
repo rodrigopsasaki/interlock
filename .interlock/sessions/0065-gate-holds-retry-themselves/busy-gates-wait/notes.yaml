@@ -58,3 +58,7 @@ entries:
     at: "2026-11-13T21:30:00Z"
     expected: slow-tests-accounted would remain green after the focused and full suites passed.
     observed: Three existing runner cases crossed the 1.5 second logic threshold without declarations, so their integration budgets and reasons had to be declared before the accounting gate could pass.
+  - kind: surprise
+    at: "2026-11-13T21:34:00Z"
+    expected: The slow-test accounting result would be stable after declaring the three first observations.
+    observed: A quiet rerun exposed two additional CLI integration cases just over the threshold, so those existing cases also received explicit slow integration declarations.
