@@ -158,12 +158,10 @@ process.exit(child.status ?? 1);
     );
     writeFileSync(
       join(bin, "mise"),
-      `#!${process.execPath}
+      `#!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
 const marker = process.argv.indexOf('--');
 const child = spawnSync(process.argv[marker + 1], process.argv.slice(marker + 2), { env: process.env, stdio: 'inherit' });
-if (child.error) writeFileSync(${JSON.stringify(errorDump)}, String(child.error));
 process.exit(child.status ?? 1);
 `,
       { mode: 0o755 },
