@@ -598,14 +598,21 @@ writeFileSync(${JSON.stringify(tokenPath)}, process.env["INTERLOCK_CODEX_LAUNCH_
     expect(result.count).toBe("1");
   });
 
-  it("allows both mcp list forms", () => {
-    const { home, bin, count } = fixture();
-    fakeCodex(bin, count);
-    const values = environment(home, count);
-    run(["mcp", "list"], values);
-    run(["mcp", "list", "--json"], values);
-    expect(readFileSync(count, "utf8")).toBe("2");
-  });
+  slowIntegration(
+    "allows both mcp list forms",
+    {
+      budgetMs: 5_000,
+      reason: "runs two guarded Codex list forms through the real fixture executable",
+    },
+    async () => {
+      const { home, bin, count } = fixture();
+      fakeCodex(bin, count);
+      const values = environment(home, count);
+      run(["mcp", "list"], values);
+      run(["mcp", "list", "--json"], values);
+      expect(readFileSync(count, "utf8")).toBe("2");
+    },
+  );
 
   slowIntegration(
     "fails a nested fixture when a detached descendant carries the launch token",

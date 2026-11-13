@@ -162,24 +162,31 @@ describe("Codex home outside worktree", () => {
     expect(readFileSync(join(home, "auth.json"), "utf8")).toBe('{"token":"fixture"}\n');
   });
 
-  it("refuses state physically inside the launch repository, including a symlink alias", () => {
-    const { repository, state, home } = fixture();
-    writeFileSync(join(home, "config.toml"), overflowConfig());
-    const inside = join(repository, "state");
-    mkdirSync(inside);
-    const direct = prepareCodexLaunch([], repository, {
-      ...environment(repository, state, home),
-      XDG_STATE_HOME: inside,
-    });
-    expect(isErr(direct)).toBe(true);
-    const alias = join(repository, "state-alias");
-    symlinkSync(inside, alias, "dir");
-    const linked = prepareCodexLaunch([], repository, {
-      ...environment(repository, state, home, "session-2"),
-      XDG_STATE_HOME: alias,
-    });
-    expect(isErr(linked)).toBe(true);
-  });
+  slowIntegration(
+    "refuses state physically inside the launch repository, including a symlink alias",
+    {
+      budgetMs: 5_000,
+      reason: "checks direct and symlinked state paths against the repository boundary",
+    },
+    async () => {
+      const { repository, state, home } = fixture();
+      writeFileSync(join(home, "config.toml"), overflowConfig());
+      const inside = join(repository, "state");
+      mkdirSync(inside);
+      const direct = prepareCodexLaunch([], repository, {
+        ...environment(repository, state, home),
+        XDG_STATE_HOME: inside,
+      });
+      expect(isErr(direct)).toBe(true);
+      const alias = join(repository, "state-alias");
+      symlinkSync(inside, alias, "dir");
+      const linked = prepareCodexLaunch([], repository, {
+        ...environment(repository, state, home, "session-2"),
+        XDG_STATE_HOME: alias,
+      });
+      expect(isErr(linked)).toBe(true);
+    },
+  );
 
   it("uses the HOME state fallback when XDG_STATE_HOME is empty or absent", () => {
     const home = join(runsRoot, "fallback-home");
