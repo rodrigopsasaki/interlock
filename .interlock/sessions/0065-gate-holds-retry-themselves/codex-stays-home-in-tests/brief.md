@@ -1348,7 +1348,7 @@ walk:
   kind: none
   because: the substrate address is none, so there is nothing to ask
 graph_base_sha: f91fae29cad67bb66ae925de72454fff580ba36b
-session: ec53cd95-6af3-45ea-a079-602c8dd1ad2e
+session: 9d1bf1a3-fbd0-4a0d-80fc-1c939d05c4c6
 ---
 
 # Brief · node `codex-stays-home-in-tests` · graph `0065-gate-holds-retry-themselves`
