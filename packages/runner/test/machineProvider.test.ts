@@ -18,7 +18,7 @@ import {
   reconcileMachine,
   reconcileMachineOnStart,
 } from "../src/machineOutbox.ts";
-import { NO_MACHINE_PROVIDER, resolveMachine } from "../src/machineProvider.ts";
+import { NO_MACHINE_PROVIDER, parseMachine, resolveMachine } from "../src/machineProvider.ts";
 import type { Runtime } from "../src/runtime.ts";
 import { type DriveSessionRequest, driveInteractiveSession } from "../src/sessionDrive.ts";
 import { runWorktreeSetup } from "../src/worktreeSetup.ts";
@@ -291,6 +291,51 @@ function hold(command: string): MachineHold {
 }
 
 describe("machine provider", () => {
+  it("parses machine@v1 busy and names every invalid field", () => {
+    const providerValue = {
+      admit: ["admit"],
+      release: ["release"],
+      env: ["env"],
+      heavy: ["heavy"],
+      busy: { exit_code: 75, attempts: 4, first_backoff_ms: 2_000, max_backoff_ms: 60_000 },
+    };
+    expect(parseMachine({ interlock: "machine@v1", provider: providerValue })).toEqual(
+      ok({
+        admit: providerValue.admit,
+        release: providerValue.release,
+        env: providerValue.env,
+        heavy: providerValue.heavy,
+        busy: {
+          exitCode: 75,
+          attempts: 4,
+          firstBackoffMs: 2_000,
+          maxBackoffMs: 60_000,
+        },
+      }),
+    );
+    for (const [field, value] of [
+      ["exit_code", 63],
+      ["attempts", 11],
+      ["first_backoff_ms", 0],
+      ["max_backoff_ms", 600_001],
+    ] as const) {
+      const busy = { ...providerValue.busy, [field]: value };
+      const parsed = parseMachine({
+        interlock: "machine@v1",
+        provider: { ...providerValue, busy },
+      });
+      expect(isErr(parsed)).toBe(true);
+      if (isErr(parsed)) expect(parsed.error).toContain(field);
+    }
+    const { max_backoff_ms: _missing, ...missing } = providerValue.busy;
+    const missingParsed = parseMachine({
+      interlock: "machine@v1",
+      provider: { ...providerValue, busy: missing },
+    });
+    expect(isErr(missingParsed)).toBe(true);
+    if (isErr(missingParsed)) expect(missingParsed.error).toContain("max_backoff_ms");
+  });
+
   it("refuses absent configuration before setup or any session event", async () => {
     const runtime = runtimeFixture();
     const result = await launch(runtime.runtime);

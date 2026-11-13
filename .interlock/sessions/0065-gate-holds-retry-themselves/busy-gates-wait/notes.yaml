@@ -1,0 +1,32 @@
+interlock: notes@v0
+graph: 0065-gate-holds-retry-themselves
+node: busy-gates-wait
+entries:
+  - kind: choice
+    at: "2026-11-13T19:45:00Z"
+    chose: Keep the existing non-busy gate argv, environment, receipt proof and judgement flow byte-compatible, and add the busy launch boundary only when machine.provider.busy is present.
+    because: The acceptance makes the busy policy additive and explicitly requires the machine@v0 path to retain its existing behavior and events.
+  - kind: choice
+    at: "2026-11-13T19:46:00Z"
+    chose: Represent one judgement's busy allowance as shared mutable state consumed by the node-engine probe and every command gate, with one fresh judgement id and one receipt per refused start.
+    because: The graph assigns the allowance to the node judgement rather than to a gate, and receipt identity must distinguish otherwise identical refusals from separate judgements.
+  - kind: choice
+    at: "2026-11-13T19:47:00Z"
+    chose: Put the runner-owned start marker and busy report paths in a fresh 0700 directory, pass them only to the heavy prefix, and make the fixed shell start script unset both before execing the gate command.
+    because: The start marker must dominate a report, while the gate command must not be able to manufacture or observe either launch-boundary channel.
+  - kind: surprise
+    at: "2026-11-13T20:11:00Z"
+    expected: A refusal would continue the same gate's bounded attempt loop.
+    observed: The first focused test showed that a loop-level continue advanced to the next gate, so the gate received one start instead of all attempts; the command execution was extracted into an inner retry loop.
+  - kind: choice
+    at: "2026-11-13T20:13:00Z"
+    chose: Give the node-engine probe the same busy boundary and shared allowance as command gates, recording its refusals under the gate name node-engine.
+    because: The acceptance makes the probe part of one judgement's capacity, and a refusal before the version command starts is still harness-produced busy evidence that must survive replay.
+  - kind: surprise
+    at: "2026-11-13T20:25:00Z"
+    expected: The slow-test accounting gate would pass under mise exec.
+    observed: It reported two existing unaccounted timings, execProbe.test.ts at 1687.1ms and codexHomeOutsideWorktree.test.ts at 1639.1ms; the environment selected Node 26.13.0 despite the repository's Node 24.14.0 engine pin.
+  - kind: choice
+    at: "2026-11-13T20:32:00Z"
+    chose: Treat the full workspace test gate as passed while retaining the slow-test accounting failure as an open acceptance item.
+    because: The complete test command exited zero with runner 760/760, schemas 1420/1420 and face 187/187, while the separate timing gate observed two pre-existing tests over its threshold.

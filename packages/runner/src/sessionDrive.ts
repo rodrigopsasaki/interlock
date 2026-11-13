@@ -777,7 +777,6 @@ export async function driveInteractiveSession(
         }
         narrate(`debrief committed ${committed.value}`);
       }
-      lease.stop();
       const personEventsRead = await readRawEvents(await sharedJournalDirectory(repoRoot));
       const gateIds = declaredGateIds(standingGates, nodeGates);
       const judged = await judgeWorktree({
@@ -1196,8 +1195,6 @@ export async function driveInteractiveSession(
       }
       narrate(`debrief committed ${committed.value}`);
     }
-    lease.stop();
-
     const screenRead = await runtime.read(agent);
     if (isErr(screenRead)) {
       narrate(`agent screen read refused: ${explainRuntimeRefusal(screenRead.error)}`);

@@ -13,6 +13,14 @@ export interface MachineProvider {
   readonly env: readonly string[];
   readonly heavy: readonly string[];
   readonly cite?: readonly string[];
+  readonly busy?: BusyPolicy;
+}
+
+export interface BusyPolicy {
+  readonly exitCode: number;
+  readonly attempts: number;
+  readonly firstBackoffMs: number;
+  readonly maxBackoffMs: number;
 }
 
 export interface MachineAttempt {
@@ -41,8 +49,12 @@ function argv(value: unknown): value is readonly string[] {
 }
 
 export function parseMachine(value: unknown): Result<MachineProvider | "none", string> {
-  if (!isRecord(value) || Array.isArray(value) || prop(value, "interlock") !== "machine@v0") {
-    return err("machine.interlock must be machine@v0");
+  if (!isRecord(value) || Array.isArray(value)) {
+    return err("machine.interlock must be machine@v0 or machine@v1");
+  }
+  const version = prop(value, "interlock");
+  if (version !== "machine@v0" && version !== "machine@v1") {
+    return err("machine.interlock must be machine@v0 or machine@v1");
   }
   const provider = prop(value, "provider");
   if (provider === "none") return ok("none");
@@ -54,6 +66,7 @@ export function parseMachine(value: unknown): Result<MachineProvider | "none", s
   const env = prop(provider, "env");
   const heavy = prop(provider, "heavy");
   const cite = prop(provider, "cite");
+  const busy = prop(provider, "busy");
   if (!argv(admit)) return err("machine.provider.admit must be a nonempty argv of strings");
   if (bind !== undefined && !argv(bind))
     return err("machine.provider.bind must be a nonempty argv of strings");
@@ -62,6 +75,18 @@ export function parseMachine(value: unknown): Result<MachineProvider | "none", s
   if (!argv(heavy)) return err("machine.provider.heavy must be a nonempty argv of strings");
   if (cite !== undefined && !argv(cite))
     return err("machine.provider.cite must be a nonempty argv of strings");
+  if (version === "machine@v0" || busy === undefined) {
+    return ok({
+      admit,
+      release,
+      env,
+      heavy,
+      ...(bind === undefined ? {} : { bind }),
+      ...(cite === undefined ? {} : { cite }),
+    });
+  }
+  const parsedBusy = parseBusy(busy);
+  if (isErr(parsedBusy)) return parsedBusy;
   return ok({
     admit,
     release,
@@ -69,7 +94,42 @@ export function parseMachine(value: unknown): Result<MachineProvider | "none", s
     heavy,
     ...(bind === undefined ? {} : { bind }),
     ...(cite === undefined ? {} : { cite }),
+    busy: parsedBusy.value,
   });
+}
+
+function integerInRange(value: unknown, minimum: number, maximum: number): value is number {
+  return (
+    typeof value === "number" && Number.isSafeInteger(value) && value >= minimum && value <= maximum
+  );
+}
+
+function parseBusy(value: unknown): Result<BusyPolicy, string> {
+  if (!isRecord(value) || Array.isArray(value)) {
+    return err("machine.provider.busy must be a mapping");
+  }
+  const exitCode = prop(value, "exit_code");
+  const attempts = prop(value, "attempts");
+  const firstBackoffMs = prop(value, "first_backoff_ms");
+  const maxBackoffMs = prop(value, "max_backoff_ms");
+  if (!integerInRange(exitCode, 64, 113)) {
+    return err("machine.provider.busy.exit_code must be an integer from 64 to 113");
+  }
+  if (!integerInRange(attempts, 1, 10)) {
+    return err("machine.provider.busy.attempts must be an integer from 1 to 10");
+  }
+  if (!integerInRange(firstBackoffMs, 1, 600_000)) {
+    return err("machine.provider.busy.first_backoff_ms must be an integer from 1 to 600000");
+  }
+  if (!integerInRange(maxBackoffMs, 1, 600_000)) {
+    return err("machine.provider.busy.max_backoff_ms must be an integer from 1 to 600000");
+  }
+  if (firstBackoffMs > maxBackoffMs) {
+    return err(
+      "machine.provider.busy.first_backoff_ms must be less than or equal to max_backoff_ms",
+    );
+  }
+  return ok({ exitCode, attempts, firstBackoffMs, maxBackoffMs });
 }
 
 export function validateExecMachine(provider: MachineProvider): Result<void, string> {

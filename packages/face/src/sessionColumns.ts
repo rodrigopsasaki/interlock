@@ -65,7 +65,7 @@ export function renderOutcome(outcome: Outcome | undefined): string {
     case "cleared":
       return `  cleared (${outcome.receipts.length} receipt(s))`;
     case "held":
-      return `  held: ${outcome.because} (revisit ${isoOf(outcome.expiry)})`;
+      return `  held${outcome.on.kind === "gate-failure" && outcome.on.disposition === "retry" ? " (retry)" : ""}: ${outcome.because} (revisit ${isoOf(outcome.expiry)})`;
     case "reset":
       return `  reset by ${outcome.authority}: ${outcome.because}`;
     case "failed":
