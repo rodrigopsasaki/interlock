@@ -419,3 +419,41 @@ nodes:
         kind: command
         run: node scripts/gates/slow-tests.ts
         expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1\.5 s'
+
+  - id: setup-never-holds
+    role: implementer
+    depends_on: [codex-stays-home-in-tests]
+    acceptance: |
+      Found 2026-11-12: a worktree setup command, `pnpm install --frozen-lockfile` in the pane-startup-whole worktree
+      (interlock run 0064, pid 27662), sat at 0% CPU for over 19 minutes inside the heavy wrapper, holding the
+      machine's heavy lock (~/.cache/interlock-cap/heavy.lock) and blocking an urgent node's setup behind it. pnpm was
+      almost certainly asking whether to remove and reinstall node_modules, a question the runner cannot answer:
+      spawnSetupCommand (packages/runner/src/worktreeSetup.ts:87-111) spawns through spawnOwned with the parent's
+      stdin and no timeout, and the gate spawns (spawnGateCommand, packages/runner/src/gateJudge.ts:147-184) have no
+      timeout either. Nothing may hold the machine's lock waiting for a person.
+      - Every worktree setup command and every command gate runs non-interactively: stdin is closed (/dev/null), and
+        the environment carries CI=1 and npm_config_confirm_modules_purge=false (pnpm's purge question answered no
+        and failing instead of waiting), added by the runner, not by the owner's config.
+      - Every setup command and command gate has a hold timeout (a named setting with a stated default, setup 20
+        minutes, gates the existing run timeout or 60 minutes if none), after which the runner ends the whole process
+        group (TERM, a bounded grace, KILL), so the heavy wrapper exits and the lock is released; the setup fails, or
+        the gate is blocked, with one plain line naming the command, the timeout and the last lines of its output, and
+        the retained log. A timeout is never classified busy (busy-gates-wait's retry is only for commands that never
+        started).
+      - Tests in packages/runner/test/setupNeverHolds.test.ts with a fake command (no real pnpm, no real lock), each
+        failing on main: a command that waits on stdin gets EOF and exits instead of hanging; CI=1 and
+        npm_config_confirm_modules_purge=false reach the command's environment; a command that sleeps past the
+        injected timeout is ended with its whole group (a grandchild too) and the setup fails with the plain line; a
+        fake heavy prefix that holds a lock file is released when its child is ended; a gate past its timeout is
+        blocked, not busy. The owner's machine.yaml and the out-of-repo wrapper are not written.
+      Before you file the debrief (and before any refile), end every vitest worker and child process you started
+      and confirm with pgrep that none survives.
+    gates:
+      - id: setup-never-holds-tests
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/setupNeverHolds.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: slow-tests-accounted
+        kind: command
+        run: node scripts/gates/slow-tests.ts
+        expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1\.5 s'
