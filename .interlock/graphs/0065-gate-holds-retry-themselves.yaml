@@ -513,3 +513,38 @@ nodes:
         kind: command
         run: node scripts/gates/slow-tests.ts
         expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1\.5 s'
+
+  - id: slow-tests-load-robust
+    role: implementer
+    depends_on: [codex-stays-home-in-tests]
+    acceptance: |
+      Found 2026-11-13 judging codex-never-real-in-tests: slow-tests-accounted (scripts/gates/slow-tests.ts) judges
+      each test by its wall-clock duration from the vitest report (thresholdMs 1_500 at :8, the half-budget rule at
+      :337), so on a machine running agent sessions it fails on tests that are fast when idle. The judge's run (gate
+      artifact 3af60a07, session 7ef786c2) flagged only other nodes' tests: absorbOutbox.test.ts (two cases, about
+      1.5 to 1.7 s), backfill.test.ts (two cases over half of 10 s), execWithoutHerdr.test.ts (2.2 s) and
+      machineProvider.test.ts (two cases, about 1.8 to 1.9 s). Every node with this gate is held until the machine is
+      idle.
+      - The gate judges each test by its own CPU time, not wall time: the vitest run records per-test CPU (for
+        example process.cpuUsage() deltas taken in a setup file's beforeEach and afterEach, written beside the JSON
+        report), and the undeclared threshold and the half-budget rule apply to CPU time. Wall time is still reported
+        for information. Child processes a test starts count toward its CPU through their own reported usage where
+        the test already collects it; where it cannot, the test is declared a slow integration as today.
+      - The four tests above get declarations that match what they do (slow integrations with a budget and a reason
+        where they start processes or wait on real timers), or are made fast; none is silenced by raising the global
+        threshold.
+      - Tests in packages/runner/test/slowTestsLoadRobust.test.ts, each failing on main ab731fa for its intended
+        assertion: a test that sleeps 2 s without CPU passes the gate while a test that burns 2 s of CPU fails it
+        undeclared; a declared test's half-budget rule uses CPU; the gate's output names CPU and wall time for each
+        flagged test; the gate passes on the current suite while a CPU-bound sibling process loads the machine.
+      Before you file the debrief (and before any refile), end every vitest worker and child process you started and
+      confirm with pgrep that none survives; never run a real codex.
+    gates:
+      - id: slow-tests-load-robust-tests
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/slowTestsLoadRobust.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: slow-tests-accounted
+        kind: command
+        run: node scripts/gates/slow-tests.ts
+        expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1\.5 s'
