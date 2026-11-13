@@ -548,3 +548,40 @@ nodes:
         kind: command
         run: node scripts/gates/slow-tests.ts
         expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1\.5 s'
+
+  - id: interlock-tests-never-see-his-home
+    role: implementer
+    depends_on: [codex-stays-home-in-tests]
+    acceptance: |
+      Found 2026-11-13 auditing Preston 0058's judge: in forty minutes, 126 links landed in the owner's real
+      ~/.local/state/mise/tracked-configs pointing into interlock/.worktrees/busy-gates-wait test fixtures, because
+      interlock's tests run mise with his real HOME and XDG folders, and any test fixture with a package.json is
+      tracked there. Preston 0058 closed the same hazard for Preston; this applies its approach to interlock.
+      - One setup module, test/support/fixture-home.ts at the repository root, runs first in setupFiles of every
+        package's vitest config (ahead of the runner's codex guard setup, which keeps its own behaviour). Before any
+        test module loads it captures the real home once from os.userInfo().homedir, creates a per-run folder under
+        os.tmpdir(), and sets HOME, XDG_STATE_HOME, XDG_CONFIG_HOME, XDG_CACHE_HOME, XDG_DATA_HOME and
+        MISE_STATE_DIR to subfolders of it, so `...process.env` spreads carry them into every subprocess.
+      - The same module wraps child_process (spawn, spawnSync, exec, execSync, execFile, execFileSync, fork) before
+        test modules import it (syncBuiltinESMExports) and throws before calling through when a child's effective
+        HOME (explicit env, else process.env) is the real home, a path under it, missing or undefined; fixture folders
+        under a test run folder are allowed. afterEach fails a test that triggered a violation it did not consume;
+        afterAll reports unconsumed ones. Tests that already set their own fixture HOME keep it.
+      - Tests in packages/runner/test/fixtureHome.test.ts, each failing on main for its intended assertion: a test's
+        HOME, XDG folders and MISE_STATE_DIR are the per-run fixture; a subprocess started with ...process.env sees
+        them; a subprocess given the real HOME fails its test with the exact line naming the command (an inner
+        fixture vitest run, the probe a nonexistent binary so nothing runs); a fixture package.json touched through
+        `mise` inside a test leaves the owner's real mise tracked-configs untouched (its listing compared by name
+        and count before and after, read only, never written); every package's vitest config loads the setup first.
+      - The owner's real mise state is never cleaned or written by this node.
+      Before you file the debrief (and before any refile), end every vitest worker and child process you started and
+      confirm with pgrep that none survives; never run a real codex.
+    gates:
+      - id: interlock-fixture-home-tests
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/fixtureHome.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: slow-tests-accounted
+        kind: command
+        run: node scripts/gates/slow-tests.ts
+        expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1\.5 s'
