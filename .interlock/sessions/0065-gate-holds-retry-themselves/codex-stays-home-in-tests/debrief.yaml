@@ -4,7 +4,7 @@ node: codex-stays-home-in-tests
 role: implementer
 graph_base_sha: f91fae29cad67bb66ae925de72454fff580ba36b
 session_start_sha: d7070819c3016195a9382c5f9590fe99e50c48a8
-head_sha: 384b79fc86fb52cbaeaab302d09885b43cc79745
+head_sha: 57a20c68d2a0e4228006e779186fd9b2dd0a85fb
 derivation:
   kind: agent
   runtime: codex
@@ -28,14 +28,14 @@ decisions:
     because: "The immediate async reaper must not race a same-group child that is honoring TERM, while pid reuse and tokenless descendants still require the supervisor's verified identity rules."
     applies_to: { kind: path, path: packages/runner/test/support/codexGuard.ts }
     rests_on:
-      - packages/runner/test/support/codexGuard.ts:456-527
+      - packages/runner/test/support/codexGuard.ts:465-542
       - packages/runner/test/support/codexSupervisor.ts:196-221
-      - packages/runner/test/codexGuard.test.ts:486-508
+      - packages/runner/test/codexGuard.test.ts:526-548
       - packages/runner/test/codexGuard.test.ts:608-751
     hunks:
-      - packages/runner/test/support/codexGuard.ts:456-527
+      - packages/runner/test/support/codexGuard.ts:465-542
       - packages/runner/test/support/codexSupervisor.ts:196-221
-      - packages/runner/test/codexGuard.test.ts:486-508
+      - packages/runner/test/codexGuard.test.ts:526-548
       - packages/runner/test/codexGuard.test.ts:608-751
   - id: make-reaping-source-owned
     what: "Make explicit reaping observe immediately, preserve the outer real-user boundary in nested setup, end MCP fixture children after tools/list, and close loopback providers in finally paths around reaping."
@@ -61,14 +61,14 @@ decisions:
     applies_to: { kind: path, path: packages/runner/test/codexGuard.test.ts }
     rests_on:
       - packages/runner/test/codexGuard.test.ts:190-474
-      - packages/runner/test/codexGuard.test.ts:511-751
+      - packages/runner/test/codexGuard.test.ts:511-775
       - packages/runner/test/lineFitsRealCodex.test.ts:212-316
       - packages/runner/test/realCodexMarkerOverflow.test.ts:34-163
       - packages/runner/test/realCodexMarkerLaunch.test.ts:43-95
       - packages/runner/test/codexHomeOutsideWorktree.test.ts:335-377
     hunks:
       - packages/runner/test/codexGuard.test.ts:190-474
-      - packages/runner/test/codexGuard.test.ts:511-751
+      - packages/runner/test/codexGuard.test.ts:511-775
       - packages/runner/test/lineFitsRealCodex.test.ts:212-316
       - packages/runner/test/realCodexMarkerOverflow.test.ts:34-163
       - packages/runner/test/realCodexMarkerLaunch.test.ts:43-95
@@ -86,6 +86,7 @@ decisions:
       - packages/runner/test/codexHomeOutsideWorktree.test.ts:335-377
       - packages/runner/test/realCodexMarkerLaunch.test.ts:43-95
       - packages/runner/test/realCodexMarkerOverflow.test.ts:34-163
+      - packages/cli/test/execProbe.test.ts:133-263
     hunks:
       - packages/cli/test/plan.test.ts:518-566
       - packages/cli/test/plan.test.ts:731-774
@@ -95,6 +96,7 @@ decisions:
       - packages/runner/test/codexHomeOutsideWorktree.test.ts:335-377
       - packages/runner/test/realCodexMarkerLaunch.test.ts:43-95
       - packages/runner/test/realCodexMarkerOverflow.test.ts:34-163
+      - packages/cli/test/execProbe.test.ts:133-263
   - id: refuse-built-in-provider-overlays
     what: "Refuse Codex 0.162.1 built-in provider ids, plus the literal oss family spelling, as selected providers and provider-table keys so a loopback overlay cannot shadow the provider Codex resolves."
     because: "The installed Codex source lists openai, ollama, lmstudio, amazon-bedrock, and amazon-bedrock-runtime in its built-in provider catalog; configured entries merge with or_insert, so the loopback table under a built-in key is not the provider Codex will use."
@@ -129,15 +131,33 @@ decisions:
       - packages/runner/test/worktreeSetup.test.ts:58-75
     hunks:
       - packages/runner/test/worktreeSetup.test.ts:58-75
+  - id: prove-detached-codex-group
+    what: "Require every guarded Codex launch to be observed as a detached process-group leader whose pgid equals its pid before registration or drain, and test that group cleanup leaves the Vitest caller alive and does not share its pgid."
+    because: "The drain sends TERM and, after its bound, KILL to the negative child pid; checking the detached identity before either group signal makes it impossible for that cleanup path to target the caller's process group."
+    applies_to: { kind: path, path: packages/runner/test/support/codexGuard.ts }
+    rests_on:
+      - packages/runner/test/support/codexGuard.ts:498-542
+      - packages/runner/test/codexGuard.test.ts:550-573
+    hunks:
+      - packages/runner/test/support/codexGuard.ts:498-542
+      - packages/runner/test/codexGuard.test.ts:550-573
+  - id: account-provider-probe-integration
+    what: "Declare the measured CLI provider-identity probe as a 10-second slow integration with its process-admission and binding cost recorded."
+    because: "Two accounting runs measured the existing case above 1.5 seconds, so the repository gate needed an explicit bounded declaration without changing the probe behavior."
+    applies_to: { kind: path, path: packages/cli/test/execProbe.test.ts }
+    rests_on:
+      - packages/cli/test/execProbe.test.ts:133-263
+    hunks:
+      - packages/cli/test/execProbe.test.ts:133-263
 gates_run_by_agent:
   - id: typecheck
     result: pass
     invocation: pnpm typecheck
-    note: "Passed with Node v24.14.0 and pnpm 10.13.1."
+    note: "Passed via mise exec with exit code 0."
   - id: lint
     result: pass
     invocation: pnpm lint
-    note: "Biome checked 522 files with no errors after its formatter-only correction."
+    note: "Biome passed the final head with exit code 0."
   - id: comments
     result: pass
     invocation: pnpm check:comments
@@ -145,14 +165,14 @@ gates_run_by_agent:
   - id: test
     result: pass
     invocation: pnpm test
-    note: "All workspace test packages passed under the pinned Node and pnpm toolchain; output is recorded in packages/runner/test/.runs/codex-stays-home-pnpm-test.txt."
+    note: "All workspace test packages passed: runner 64 files and 753 tests, CLI 53 files and 475 tests; the expected transcript-sink and Git-maintenance refusal diagnostics were asserted by their tests."
   - id: codex-guard-tests
     result: pass
     invocation: "pnpm --fail-if-no-match --filter runner exec vitest run test/codexGuard.test.ts test/realCodexMarkerOverflow.test.ts test/lineFitsRealCodex.test.ts test/realCodexMarkerLaunch.test.ts test/codexHomeOutsideWorktree.test.ts --passWithNoTests=false"
-    note: "Five files and 90 tests passed; output is recorded in packages/runner/test/.runs/codex-stays-home-guard-gate.txt."
+    note: "Five files and 91 tests passed, including the detached-group caller-liveness case."
   - id: slow-tests-accounted
-    result: fail
+    result: pass
     invocation: node scripts/gates/slow-tests.ts
-    note: "The serial run completed in 1:59.16 and reported seventeen unrelated CLI and face tests above 1.5 seconds without declarations; the requested runnerCommits case was declared and the worktreeSetup case was made immediate. Output is recorded in packages/runner/test/.runs/codex-stays-home-slow-tests-accounted-2.txt."
+    note: "slow tests accounted: 38 declared, 3217 logic under 1.5 s."
 open:
-  - "The requested two load-sensitive cases are repaired and their focused suites pass, but slow-tests-accounted remains held by seventeen unrelated CLI and face timing cases observed in the serial run; this node does not expand its scoped test-only repair to those cases."
+  - "The judge's earlier worker exit was not reproducible: five serial runner runs and one concurrent runner/CLI run all passed, and the final workspace run passed without a worker exit or signal report. The committed guard now proves the detached group identity and caller liveness; the prior external worker cause remains unknown."
