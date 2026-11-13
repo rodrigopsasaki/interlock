@@ -4,7 +4,7 @@ node: busy-gates-wait
 role: implementer
 graph_base_sha: ab731fa31a593aeab4e6b26c0c66353f5841cd24
 session_start_sha: 7e33ce5b1ee2c22cc32068916d30b3355364cb96
-head_sha: e055a69adb2f2765ccba0dc632d9d1efac706d5d
+head_sha: 0e0c45011d83c84d2738f31f891e8fb5bf46626c
 derivation:
   kind: agent
   runtime: codex
@@ -92,15 +92,58 @@ decisions:
       - docs/design/0001-interlock.md:385-390
       - docs/design/0001-interlock.md:633-635
       - .interlock/sessions/0065-gate-holds-retry-themselves/busy-gates-wait/notes.yaml:1-32
+  - id: keep-the-boundary-before-the-command-tail
+    what: Corrected busy launches to place the runner-owned shell boundary after the machine heavy prefix and before the bare mise exec command tail, while keeping ordinary argv unchanged; moved boundary state to a 0700 system-temporary directory.
+    because: A real prefix must be able to refuse before the start marker is written, and transient marker/report files must not be hidden in or left behind in the worktree.
+    rests_on:
+      - packages/runner/src/busy.ts:1-75
+      - packages/runner/src/gateJudge.ts:444-500
+      - packages/runner/src/gateJudge.ts:609-612
+      - packages/runner/test/busyGatesWait.test.ts:57-113
+    hunks:
+      - packages/runner/src/busy.ts:1-75
+      - packages/runner/src/gateJudge.ts:444-500
+      - packages/runner/src/gateJudge.ts:609-612
+      - packages/runner/test/busyGatesWait.test.ts:57-113
+  - id: prove-start-dominance-and-shared-boundary-retries
+    what: Added real-prefix coverage for pre-start refusals, later admission, marker dominance, hidden boundary environment, gate-owned reports, incomplete refusals, and one allowance shared by the probe and two gates; asserted reference-prefix reason text and machine@v1 validation.
+    because: Injected runners cannot prove the child-process boundary, and the acceptance requires each refusal to be bounded, identifiable, replayable, and distinct from an ordinary started failure.
+    rests_on:
+      - packages/runner/test/busyGatesWait.test.ts:114-428
+      - packages/runner/test/busyPrefix.test.ts:1-79
+      - packages/schemas/test/machineV1.test.ts:8-44
+      - .interlock/sessions/0065-gate-holds-retry-themselves/busy-gates-wait/notes.yaml:33-55
+    hunks:
+      - packages/runner/test/busyGatesWait.test.ts:114-428
+      - packages/runner/test/busyPrefix.test.ts:1-79
+      - packages/schemas/test/machineV1.test.ts:8-44
+      - .interlock/sessions/0065-gate-holds-retry-themselves/busy-gates-wait/notes.yaml:33-55
+  - id: account-for-observed-slow-integrations
+    what: Declared explicit integration budgets and reasons for the five existing cases that exceeded the slow-test threshold in the available environment.
+    because: The slow-tests-accounted gate measures observed logic time, so the declarations preserve an auditable allowance without hiding or changing test behavior.
+    rests_on:
+      - packages/runner/test/codexGuard.test.ts:601-612
+      - packages/runner/test/codexHomeOutsideWorktree.test.ts:165-194
+      - packages/runner/test/execRuntime.test.ts:115-155
+      - packages/cli/test/execWithoutHerdr.test.ts:522-566
+      - packages/cli/test/run.test.ts:515-555
+      - .interlock/sessions/0065-gate-holds-retry-themselves/busy-gates-wait/notes.yaml:56-64
+    hunks:
+      - packages/runner/test/codexGuard.test.ts:601-612
+      - packages/runner/test/codexHomeOutsideWorktree.test.ts:165-194
+      - packages/runner/test/execRuntime.test.ts:115-155
+      - packages/cli/test/execWithoutHerdr.test.ts:522-566
+      - packages/cli/test/run.test.ts:515-555
+      - .interlock/sessions/0065-gate-holds-retry-themselves/busy-gates-wait/notes.yaml:56-64
 gates_run_by_agent:
   - id: typecheck
     result: pass
     invocation: mise exec -- pnpm typecheck
-    note: All workspace TypeScript projects passed.
+    note: All workspace TypeScript projects passed at head_sha.
   - id: lint
     result: pass
     invocation: mise exec -- pnpm lint
-    note: Biome checked 528 files successfully.
+    note: Biome checked the workspace successfully at head_sha.
   - id: comments
     result: pass
     invocation: mise exec -- pnpm check:comments
@@ -108,15 +151,15 @@ gates_run_by_agent:
   - id: test
     result: pass
     invocation: mise exec -- pnpm test
-    note: The full workspace test command passed; runner reported 760 tests, schemas 1420 tests, and face 187 tests.
+    note: The full workspace test command passed; runner reported 764 tests, schemas 1423 tests, face 187 tests, and CLI 475 tests.
   - id: busy-gates-tests
     result: pass
     invocation: mise exec -- pnpm --fail-if-no-match --filter runner exec vitest run test/busyGatesWait.test.ts test/busyPrefix.test.ts test/machineProvider.test.ts test/gateJudge.test.ts --passWithNoTests=false
-    note: 66 tests passed across four focused runner files.
+    note: 71 tests passed across four focused runner files.
   - id: busy-schema-tests
     result: pass
     invocation: mise exec -- pnpm --fail-if-no-match --filter schemas exec vitest run test/machineV1.test.ts test/reference.test.ts --passWithNoTests=false
-    note: 5 tests passed.
+    note: 6 tests passed.
   - id: busy-hold-face-tests
     result: pass
     invocation: mise exec -- pnpm --fail-if-no-match --filter face exec vitest run test/busyHold.test.ts --passWithNoTests=false
@@ -126,8 +169,7 @@ gates_run_by_agent:
     invocation: mise exec -- pnpm interlock schema reference --check
     note: The reference shape check reported fresh.
   - id: slow-tests-accounted
-    result: fail
+    result: pass
     invocation: mise exec -- node scripts/gates/slow-tests.ts
-    note: The gate reported execProbe.test.ts at 1687.1ms and codexHomeOutsideWorktree.test.ts at 1639.1ms above the 1.5 second threshold; the selected environment was Node 26.13.0 while the repository engine declares Node 24.14.0.
-open:
-  - 'The slow-tests-accounted gate remains unresolved: two test timings exceeded its threshold in the available mise environment. All other declared implementation and standing checks passed.'
+    note: "slow tests accounted: 43 declared, 3232 logic under 1.5 s."
+open: []

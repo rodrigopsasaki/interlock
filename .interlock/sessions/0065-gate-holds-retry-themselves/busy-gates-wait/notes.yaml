@@ -62,3 +62,7 @@ entries:
     at: "2026-11-13T21:34:00Z"
     expected: The slow-test accounting result would be stable after declaring the three first observations.
     observed: A quiet rerun exposed two additional CLI integration cases just over the threshold, so those existing cases also received explicit slow integration declarations.
+  - kind: surprise
+    at: "2026-11-13T22:20:00Z"
+    expected: file-derived would install the fresh candidate as the canonical debrief.
+    observed: The existing debrief is preserved by an EEXIST guard, so the authored correction must be selected with debrief revise.
