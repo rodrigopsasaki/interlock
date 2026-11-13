@@ -653,6 +653,7 @@ scope:
   - .interlock/sessions/0065-gate-holds-retry-themselves/sessions-live-all/brief.md
   - .interlock/sessions/0065-gate-holds-retry-themselves/sessions-stop-stops/brief.md
   - .interlock/sessions/0065-gate-holds-retry-themselves/setup-never-holds/brief.md
+  - .interlock/sessions/0065-gate-holds-retry-themselves/slow-tests-load-robust/brief.md
   - .interlock/sessions/readme-interlock-concept/readme/brief.md
   - .interlock/sessions/readme-interlock-concept/readme/debrief.yaml
   - .interlock/sessions/readme-interlock-concept/readme/notes.yaml
@@ -1379,7 +1380,7 @@ walk:
   kind: none
   because: the substrate address is none, so there is nothing to ask
 graph_base_sha: ab731fa31a593aeab4e6b26c0c66353f5841cd24
-session: 2256127f-af47-46c5-a67f-90879db8da9f
+session: ce20f3e8-c25a-4a26-a427-ab1109d1b0c2
 ---
 
 # Brief · node `busy-gates-wait` · graph `0065-gate-holds-retry-themselves`
