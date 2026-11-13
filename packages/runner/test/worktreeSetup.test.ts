@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { isErr, isOk } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
@@ -57,13 +57,14 @@ describe("runSetupCommand", () => {
 
   it("keeps a failing command's stderr in the refusal's explanation", async () => {
     const cwd = fixtureDir();
-    const script = fixtureScript(
+    const fakeMise = fixtureScript(
       cwd,
-      "stderr-fail.mjs",
-      'console.error("boom from setup");\nprocess.exit(3);\n',
+      "fake-mise.sh",
+      "#!/bin/sh\nprintf '%s\\n' 'boom from setup' >&2\nexit 3\n",
     );
+    chmodSync(fakeMise, 0o755);
 
-    const result = await runSetupCommand(`node ${script}`, cwd);
+    const result = await runSetupCommand("setup-command", cwd, process.env, [fakeMise]);
 
     expect(isErr(result)).toBe(true);
     if (!isErr(result)) return;

@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { backfillGraph, backfillSessionId } from "../src/backfill.ts";
 import { gitInitFixtureWithContent } from "./support/gitFixture.ts";
 import { memoryLedger, memoryLedgerWithLog } from "./support/memoryLedger.ts";
+import { slowIntegration } from "./support/slowIntegration.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -249,31 +250,38 @@ describe("backfill", () => {
     expect(session?.narration[0]?.line).toContain("debrief@v1");
   }, 30_000);
 
-  it("stays idempotent: a second run over the same graph appends no new session-started or narration for a session it already recorded", async () => {
-    const repoRoot = fixtureRepoWithLegacyDebrief();
-    const { ledger, events } = memoryLedgerWithLog();
-    const options = {
-      repoRoot,
-      mainBranch: "main",
-      document: singleNodeDocument,
-      ledger,
-      clock: createControlledClock(),
-      standingGates: [],
-      worktreeRoot: ".worktrees",
-    };
+  slowIntegration(
+    "stays idempotent: a second run over the same graph appends no new session-started or narration for a session it already recorded",
+    {
+      budgetMs: 10_000,
+      reason: "integrates repeated backfill over a legacy debrief",
+    },
+    async () => {
+      const repoRoot = fixtureRepoWithLegacyDebrief();
+      const { ledger, events } = memoryLedgerWithLog();
+      const options = {
+        repoRoot,
+        mainBranch: "main",
+        document: singleNodeDocument,
+        ledger,
+        clock: createControlledClock(),
+        standingGates: [],
+        worktreeRoot: ".worktrees",
+      };
 
-    await backfillGraph(options);
-    const narrationAfterFirst = ledger
-      .projection()
-      .sessions.get(backfillSessionId("fixture-graph", "node-a"))?.narration;
+      await backfillGraph(options);
+      const narrationAfterFirst = ledger
+        .projection()
+        .sessions.get(backfillSessionId("fixture-graph", "node-a"))?.narration;
 
-    await backfillGraph(options);
-    const kinds = events.map((event) => event.kind);
-    expect(kinds.filter((kind) => kind === "session-started")).toHaveLength(1);
-    expect(kinds.filter((kind) => kind === "session-narrated")).toHaveLength(1);
-    const narrationAfterSecond = ledger
-      .projection()
-      .sessions.get(backfillSessionId("fixture-graph", "node-a"))?.narration;
-    expect(narrationAfterSecond).toEqual(narrationAfterFirst);
-  }, 30_000);
+      await backfillGraph(options);
+      const kinds = events.map((event) => event.kind);
+      expect(kinds.filter((kind) => kind === "session-started")).toHaveLength(1);
+      expect(kinds.filter((kind) => kind === "session-narrated")).toHaveLength(1);
+      const narrationAfterSecond = ledger
+        .projection()
+        .sessions.get(backfillSessionId("fixture-graph", "node-a"))?.narration;
+      expect(narrationAfterSecond).toEqual(narrationAfterFirst);
+    },
+  );
 });

@@ -144,7 +144,7 @@ function signing(root: string, failAt = 0): void {
     [
       "#!/bin/sh",
       "cat >/dev/null",
-      'count_path="${0%/*}/sign-count"',
+      `count_path="\${0%/*}/sign-count"`,
       'count=$(cat "$count_path" 2>/dev/null || printf 0)',
       "count=$((count + 1))",
       'printf \'%s\' "$count" > "$count_path"',
@@ -292,7 +292,7 @@ const secretCases: readonly [string, string, string][] = [
   [".pypirc", ".pypirc", "ordinary"],
   [".netrc", ".netrc", "ordinary"],
   ["PEM private-key header", "private.txt", ["-----", "BEGIN RSA PRIVATE KEY", "-----"].join("")],
-  ["AWS access key id", "aws.txt", "AKIA" + "X".repeat(16)],
+  ["AWS access key id", "aws.txt", `AKIA${"X".repeat(16)}`],
   ...["ghp_", "gho_", "ghs_", "github_pat_"].map((prefix): [string, string, string] => [
     "GitHub token",
     `${prefix}.txt`,
@@ -529,37 +529,44 @@ describe("session refuses and records every unsafe attempt", () => {
   });
 });
 
-it("settles dirty code, prepares at the runner HEAD, commits all debrief artifacts last and judges clean", async () => {
-  const drive = await driveFixture({ fallback: "fix: preserve fixture code" });
-  expect(drive.result.exitCode, drive.result.message).toBe(0);
-  expect(drive.result.message).toContain("cleared");
-  expect(drive.prompts[1]).toContain("Your code is committed at");
-  const read = await readDebriefFile(debriefFilePath(drive.worktree, "g", "n"));
-  if (isErr(read) || read.value.kind !== "v2") throw new Error("expected v2");
-  const head = git(drive.worktree, ["rev-parse", "HEAD"]);
-  const code = git(drive.worktree, ["rev-parse", "HEAD^"]);
-  expect(read.value.debrief.headSha).toBe(code);
-  expect(subjects(drive.worktree, code)).toEqual(["chore: preserve the debrief for n"]);
-  expect(git(drive.worktree, ["cat-file", "commit", head])).toContain(
-    "gpgsig -----BEGIN PGP SIGNATURE-----",
-  );
-  const dirty = uncommittedPaths(drive.worktree);
-  if (isErr(dirty)) throw new Error(JSON.stringify(dirty.error));
-  expect(dirty.value).toEqual([]);
-  const verified = await verifyDebrief(drive.worktree, read.value.debrief);
-  if (isErr(verified)) throw new Error("verifier refused range");
-  expect(verified.value.marks.some((mark) => mark.kind === "unexplained")).toBe(true);
-  const finalPaths = git(drive.worktree, [
-    "diff-tree",
-    "--no-commit-id",
-    "--name-only",
-    "-r",
-    "HEAD",
-  ]).split("\n");
-  expect(finalPaths).toContain(`${sessionPath}/candidate.source.yaml`);
-  expect(finalPaths).toContain(`${sessionPath}/final.candidate.yaml`);
-  expect(finalPaths.every((path) => sessionArtifact(path, "g", "n", drive.worktree))).toBe(true);
-});
+slowIntegration(
+  "settles dirty code, prepares at the runner HEAD, commits all debrief artifacts last and judges clean",
+  {
+    budgetMs: 10_000,
+    reason: "integrates runner custody, signed debrief commits and verifier cleanup",
+  },
+  async () => {
+    const drive = await driveFixture({ fallback: "fix: preserve fixture code" });
+    expect(drive.result.exitCode, drive.result.message).toBe(0);
+    expect(drive.result.message).toContain("cleared");
+    expect(drive.prompts[1]).toContain("Your code is committed at");
+    const read = await readDebriefFile(debriefFilePath(drive.worktree, "g", "n"));
+    if (isErr(read) || read.value.kind !== "v2") throw new Error("expected v2");
+    const head = git(drive.worktree, ["rev-parse", "HEAD"]);
+    const code = git(drive.worktree, ["rev-parse", "HEAD^"]);
+    expect(read.value.debrief.headSha).toBe(code);
+    expect(subjects(drive.worktree, code)).toEqual(["chore: preserve the debrief for n"]);
+    expect(git(drive.worktree, ["cat-file", "commit", head])).toContain(
+      "gpgsig -----BEGIN PGP SIGNATURE-----",
+    );
+    const dirty = uncommittedPaths(drive.worktree);
+    if (isErr(dirty)) throw new Error(JSON.stringify(dirty.error));
+    expect(dirty.value).toEqual([]);
+    const verified = await verifyDebrief(drive.worktree, read.value.debrief);
+    if (isErr(verified)) throw new Error("verifier refused range");
+    expect(verified.value.marks.some((mark) => mark.kind === "unexplained")).toBe(true);
+    const finalPaths = git(drive.worktree, [
+      "diff-tree",
+      "--no-commit-id",
+      "--name-only",
+      "-r",
+      "HEAD",
+    ]).split("\n");
+    expect(finalPaths).toContain(`${sessionPath}/candidate.source.yaml`);
+    expect(finalPaths).toContain(`${sessionPath}/final.candidate.yaml`);
+    expect(finalPaths.every((path) => sessionArtifact(path, "g", "n", drive.worktree))).toBe(true);
+  },
+);
 
 it("agent mode retains dirty-worktree holding without runner commits or phase 2", async () => {
   const drive = await driveFixture({ agentMode: true });
@@ -569,16 +576,23 @@ it("agent mode retains dirty-worktree holding without runner commits or phase 2"
   expect(subjects(drive.worktree, drive.base)).toHaveLength(1);
 });
 
-it("retains the code HEAD and every artifact when signing the debrief fails", async () => {
-  const drive = await driveFixture({ fallback: "fix: keep code", failAt: 3 });
-  expectFailed(drive, "fixture signing failed");
-  expect(git(drive.worktree, ["show", "-s", "--format=%s", "HEAD"])).toBe("fix: keep code");
-  expect(git(drive.worktree, ["diff", "--cached", "--name-only"])).toBe("");
-  const dirty = uncommittedPaths(drive.worktree);
-  if (isErr(dirty)) throw new Error(JSON.stringify(dirty.error));
-  expect(dirty.value).toContain(`${sessionPath}/debrief.yaml`);
-  expect(dirty.value).toContain(`${sessionPath}/final.candidate.yaml`);
-});
+slowIntegration(
+  "retains the code HEAD and every artifact when signing the debrief fails",
+  {
+    budgetMs: 10_000,
+    reason: "integrates failed signing, rollback boundaries and retained debrief artifacts",
+  },
+  async () => {
+    const drive = await driveFixture({ fallback: "fix: keep code", failAt: 3 });
+    expectFailed(drive, "fixture signing failed");
+    expect(git(drive.worktree, ["show", "-s", "--format=%s", "HEAD"])).toBe("fix: keep code");
+    expect(git(drive.worktree, ["diff", "--cached", "--name-only"])).toBe("");
+    const dirty = uncommittedPaths(drive.worktree);
+    if (isErr(dirty)) throw new Error(JSON.stringify(dirty.error));
+    expect(dirty.value).toContain(`${sessionPath}/debrief.yaml`);
+    expect(dirty.value).toContain(`${sessionPath}/final.candidate.yaml`);
+  },
+);
 
 it("rolls the attempt back before either code entry when signing its second code commit fails", async () => {
   const drive = await driveFixture({
@@ -659,12 +673,19 @@ it("carries declared paths through interlock run from the approved graph to the 
   expectFailed(drive, "changed.txt: outside declared paths");
 });
 
-it("keeps judging clean even when the repository does not ignore screen snapshots", async () => {
-  const drive = await driveFixture({
-    fallback: "fix: preserve clean judging",
-    ignoredScreen: false,
-  });
-  expect(drive.result.exitCode, drive.result.message).toBe(0);
-  expect(drive.result.message).toContain("cleared");
-  expect(git(drive.worktree, ["status", "--porcelain"])).toBe("");
-});
+slowIntegration(
+  "keeps judging clean even when the repository does not ignore screen snapshots",
+  {
+    budgetMs: 10_000,
+    reason: "integrates runner custody and clean judgement with unignored screen artifacts",
+  },
+  async () => {
+    const drive = await driveFixture({
+      fallback: "fix: preserve clean judging",
+      ignoredScreen: false,
+    });
+    expect(drive.result.exitCode, drive.result.message).toBe(0);
+    expect(drive.result.message).toContain("cleared");
+    expect(git(drive.worktree, ["status", "--porcelain"])).toBe("");
+  },
+);

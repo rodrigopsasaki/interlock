@@ -1,0 +1,593 @@
+import { spawn } from "node:child_process";
+import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { homedir } from "node:os";
+import { delimiter, dirname, join, resolve } from "node:path";
+import { launchToken, platformProcessTable, registerLaunch } from "./codexSupervisor.ts";
+
+interface Provider {
+  readonly baseUrl: string | undefined;
+}
+
+interface ProviderOverlay {
+  provider: string | undefined;
+  readonly providers: Map<string, Provider>;
+}
+
+interface ParsedConfig {
+  readonly root: ProviderOverlay;
+  readonly profile: string | undefined;
+  readonly profiles: ReadonlyMap<string, ProviderOverlay>;
+}
+
+interface ParsedCommand {
+  readonly global: readonly string[];
+  readonly selectors: readonly string[];
+  readonly profiles: readonly string[];
+  readonly subcommand: string | undefined;
+  readonly rest: readonly string[];
+  readonly unknownOptions: readonly string[];
+}
+
+const reservedModelProviderIds = new Set([
+  "amazon-bedrock",
+  "amazon-bedrock-runtime",
+  "lmstudio",
+  "ollama",
+  "openai",
+  "oss",
+]);
+
+function assertProviderIdAllowed(providerId: string): void {
+  if (reservedModelProviderIds.has(providerId))
+    throw new Error(`reserved Codex model provider id: ${providerId}`);
+}
+
+function stringValue(value: string): string | undefined {
+  const trimmed = value.trim();
+  if (trimmed.includes("'''")) return undefined;
+  if (trimmed.includes('"""')) return undefined;
+  if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+    const body = trimmed.slice(1, -1);
+    for (let index = 0; index < body.length; index += 1) {
+      if (body[index] !== "\\") continue;
+      const escaped = body[index + 1];
+      if (escaped === undefined || !'"\\bfnrtu'.includes(escaped)) return undefined;
+      if (escaped === "u") {
+        const code = body.slice(index + 2, index + 6);
+        if (!/^[0-9A-Fa-f]{4}$/.test(code)) return undefined;
+        index += 5;
+      } else {
+        index += 1;
+      }
+    }
+    try {
+      const parsed: unknown = JSON.parse(trimmed);
+      return typeof parsed === "string" ? parsed : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+  if (trimmed.startsWith("'") && trimmed.endsWith("'")) {
+    const valueBody = trimmed.slice(1, -1);
+    return valueBody.includes("'") ? undefined : valueBody;
+  }
+  return undefined;
+}
+
+function keyParts(value: string): readonly string[] | undefined {
+  const trimmed = value.trim();
+  if (trimmed.length === 0 || trimmed.includes('"') || trimmed.includes("'")) return undefined;
+  const parts = trimmed.split(".");
+  return parts.every((part) => /^[A-Za-z0-9_-]+$/.test(part)) ? parts : undefined;
+}
+
+function stripComment(value: string): string {
+  let quoted: '"' | "'" | undefined;
+  let escaped = false;
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+    if (quoted) {
+      if (quoted === '"' && escaped) escaped = false;
+      else if (quoted === '"' && character === "\\") escaped = true;
+      else if (character === quoted) quoted = undefined;
+    } else if (character === '"' || character === "'") quoted = character;
+    else if (character === "#") return value.slice(0, index);
+  }
+  return value;
+}
+
+type ConfigValueKind = "string" | "integer" | "float" | "boolean" | "array" | "inline-table";
+
+function configValueKind(value: string): ConfigValueKind | undefined {
+  const trimmed = value.trim();
+  if (stringValue(trimmed) !== undefined) return "string";
+  if (/^[+-]?\d+$/.test(trimmed)) return "integer";
+  if (/^[+-]?(?:\d+\.\d+|\d+(?:[eE][+-]?\d+))$/.test(trimmed)) return "float";
+  if (trimmed === "true" || trimmed === "false") return "boolean";
+  if (trimmed.startsWith("[") && trimmed.endsWith("]")) return "array";
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) return "inline-table";
+  return undefined;
+}
+
+function emptyOverlay(): ProviderOverlay {
+  return { provider: undefined, providers: new Map() };
+}
+
+function overlayFor(
+  table: readonly string[],
+  root: ProviderOverlay,
+  profiles: Map<string, ProviderOverlay>,
+): { readonly overlay: ProviderOverlay; readonly providerName: string | undefined } | undefined {
+  if (table.length === 0) return { overlay: root, providerName: undefined };
+  if (table.length === 2 && table[0] === "model_providers" && table[1] !== undefined) {
+    return { overlay: root, providerName: table[1] };
+  }
+  if (table.length === 2 && table[0] === "profiles" && table[1] !== undefined) {
+    const overlay = profiles.get(table[1]) ?? emptyOverlay();
+    profiles.set(table[1], overlay);
+    return { overlay, providerName: undefined };
+  }
+  return undefined;
+}
+
+function parsedString(key: string, rawValue: string): string {
+  const value = stringValue(rawValue);
+  if (value === undefined) throw new Error(`unsupported Codex configuration value for ${key}`);
+  return value;
+}
+
+function ignoredTable(table: readonly string[]): boolean {
+  if (table[0] === "mcp_servers" && table[1] !== undefined) return true;
+  if (table[0] === "shell_environment_policy" && (table.length === 1 || table[1] === "set"))
+    return true;
+  return table[0] === "profiles" && table[2] === "mcp_servers" && table[3] !== undefined;
+}
+
+function validIgnoredValue(table: readonly string[], key: string, value: string): boolean {
+  const kind = configValueKind(value);
+  if (kind === undefined) return false;
+  if (table[0] === "shell_environment_policy") return kind !== "array" && kind !== "inline-table";
+  const serverTable =
+    (table[0] === "mcp_servers" && table[1] !== undefined) ||
+    (table[0] === "profiles" && table[2] === "mcp_servers" && table[3] !== undefined);
+  if (!serverTable) return false;
+  if (table.at(-1) === "env") return kind === "string";
+  if (key === "args") return kind === "array";
+  if (key === "env") return kind === "inline-table";
+  return kind === "string" || kind === "integer" || kind === "float" || kind === "boolean";
+}
+
+function parseConfig(text: string): ParsedConfig {
+  const root = emptyOverlay();
+  let profile: string | undefined;
+  let table: readonly string[] = [];
+  const profiles = new Map<string, ProviderOverlay>();
+  for (const rawLine of text.split(/\r?\n/)) {
+    if (rawLine.includes("'''") || rawLine.includes('"""'))
+      throw new Error(`unsupported Codex configuration line: ${rawLine}`);
+    const line = stripComment(rawLine).trim();
+    if (line.length === 0) continue;
+    if (line.startsWith("[")) {
+      if (line.startsWith("[[") || !line.endsWith("]"))
+        throw new Error("unsupported Codex configuration table");
+      const parts = keyParts(line.slice(1, -1));
+      const providerName =
+        parts?.length === 2 && parts[0] === "model_providers"
+          ? parts[1]
+          : parts?.length === 4 && parts[0] === "profiles" && parts[2] === "model_providers"
+            ? parts[3]
+            : undefined;
+      if (providerName !== undefined) assertProviderIdAllowed(providerName);
+      if (
+        parts === undefined ||
+        (overlayFor(parts, root, profiles) === undefined && !ignoredTable(parts))
+      )
+        throw new Error(`unsupported Codex configuration table: ${line}`);
+      table = parts;
+      continue;
+    }
+    const separator = line.indexOf("=");
+    if (separator < 1) throw new Error(`unsupported Codex configuration line: ${line}`);
+    const key = keyParts(line.slice(0, separator));
+    const rawValue = line.slice(separator + 1).trim();
+    if (key === undefined || key.length !== 1)
+      throw new Error(`unsupported Codex configuration key: ${line}`);
+    const name = key[0];
+    if (name === undefined) throw new Error(`unsupported Codex configuration key: ${line}`);
+    const target = overlayFor(table, root, profiles);
+    if (target === undefined) {
+      if (ignoredTable(table) && validIgnoredValue(table, name, rawValue)) continue;
+      throw new Error(`unsupported Codex configuration key: ${line}`);
+    }
+    if (name === "model_provider" && target.providerName === undefined) {
+      const provider = parsedString(name, rawValue);
+      assertProviderIdAllowed(provider);
+      target.overlay.provider = provider;
+    } else if (name === "profile" && table.length === 0) {
+      profile = parsedString(name, rawValue);
+    } else if (name === "base_url" && target.providerName !== undefined) {
+      target.overlay.providers.set(target.providerName, { baseUrl: parsedString(name, rawValue) });
+    } else if (target.providerName === undefined && name === "model") {
+      parsedString(name, rawValue);
+    } else if (
+      target.providerName !== undefined &&
+      (name === "name" || name === "wire_api" || name === "env_key")
+    ) {
+      parsedString(name, rawValue);
+    } else {
+      throw new Error(`unsupported Codex configuration key: ${line}`);
+    }
+  }
+  return { root, profile, profiles };
+}
+
+function readConfig(path: string): ParsedConfig | undefined {
+  if (!existsSync(path)) return undefined;
+  if (!statSync(path).isFile()) throw new Error(`${path} is not a regular file`);
+  return parseConfig(readFileSync(path, "utf8"));
+}
+
+function configHome(): string {
+  return process.env["CODEX_HOME"] ?? join(process.env["HOME"] ?? ".", ".codex");
+}
+
+function parseCommand(args: readonly string[]): ParsedCommand {
+  const global: string[] = [];
+  const selectors: string[] = [];
+  const profiles: string[] = [];
+  let index = 0;
+  while (index < args.length) {
+    const argument = args[index];
+    if (
+      argument === "--profile" ||
+      argument === "-p" ||
+      argument === "-c" ||
+      argument === "--config"
+    ) {
+      const value = args[index + 1];
+      if (value === undefined)
+        return {
+          global,
+          selectors,
+          profiles,
+          subcommand: undefined,
+          rest: [],
+          unknownOptions: [],
+        };
+      global.push(argument, value);
+      if (argument === "-c" || argument === "--config") selectors.push(value);
+      if (argument === "-p" || argument === "--profile") profiles.push(value);
+      index += 2;
+      continue;
+    }
+    if (argument?.startsWith("--profile=")) {
+      global.push("--profile", argument.slice("--profile=".length));
+      profiles.push(argument.slice("--profile=".length));
+      index += 1;
+      continue;
+    }
+    if (argument?.startsWith("--config=")) {
+      const value = argument.slice("--config=".length);
+      global.push("--config", value);
+      selectors.push(value);
+      index += 1;
+      continue;
+    }
+    break;
+  }
+  const subcommand = args[index];
+  if (subcommand !== "exec")
+    return {
+      global,
+      selectors,
+      profiles,
+      subcommand,
+      rest: args.slice(index + 1),
+      unknownOptions: [],
+    };
+  const rest: string[] = [];
+  const unknownOptions: string[] = [];
+  for (let cursor = index + 1; cursor < args.length; cursor += 1) {
+    const argument = args[cursor];
+    if (
+      argument === "-p" ||
+      argument === "--profile" ||
+      argument === "-c" ||
+      argument === "--config"
+    ) {
+      const value = args[cursor + 1];
+      if (value === undefined) {
+        unknownOptions.push(argument);
+        continue;
+      }
+      global.push(argument, value);
+      if (argument === "-p" || argument === "--profile") profiles.push(value);
+      else selectors.push(value);
+      cursor += 1;
+    } else if (argument?.startsWith("--profile=")) {
+      global.push("--profile", argument.slice("--profile=".length));
+      profiles.push(argument.slice("--profile=".length));
+    } else if (argument?.startsWith("--config=")) {
+      global.push("--config", argument.slice("--config=".length));
+      selectors.push(argument.slice("--config=".length));
+    } else if (argument === "--skip-git-repo-check") {
+      rest.push(argument);
+    } else if (argument?.startsWith("-")) {
+      unknownOptions.push(argument);
+    } else if (argument !== undefined) {
+      rest.push(argument);
+    }
+  }
+  return { global, selectors, profiles, subcommand, rest, unknownOptions };
+}
+
+function selectedProfile(
+  command: ParsedCommand,
+  base: ParsedConfig | undefined,
+): string | undefined {
+  const distinct = new Set(command.profiles);
+  if (distinct.size > 1)
+    throw new Error(`multiple profile selections: ${Array.from(distinct).join(", ")}`);
+  const selected = command.profiles[0];
+  if (selected !== undefined) return selected;
+  return base?.profile;
+}
+
+const allowedShellEnvironmentKeys = new Set([
+  "NODE_OPTIONS",
+  "VITEST_MAX_WORKERS",
+  "VITEST_MAX_THREADS",
+  "VITEST_MAX_FORKS",
+  "VITEST_MIN_THREADS",
+  "VITEST_MIN_FORKS",
+  "INTERLOCK_SESSION",
+  "INTERLOCK_GRAPH",
+  "INTERLOCK_NODE",
+]);
+
+function selectorKeyAllowed(key: string): boolean {
+  const shellKey = /^shell_environment_policy\.set\.([A-Za-z0-9_-]+)$/.exec(key)?.[1];
+  if (shellKey !== undefined) return allowedShellEnvironmentKeys.has(shellKey);
+  return /^mcp_servers\.(?:[A-Za-z0-9_-]+|"(?:[^"\\]|\\.)+")\.env\.(?:INTERLOCK_SESSION|INTERLOCK_GRAPH|INTERLOCK_NODE)$/.test(
+    key,
+  );
+}
+
+function selectorAllowed(selector: string): boolean {
+  const separator = selector.indexOf("=");
+  if (separator < 1) return false;
+  const key = selector.slice(0, separator).trim();
+  const value = selector.slice(separator + 1).trim();
+  if (!selectorKeyAllowed(key) || value.length === 0) return false;
+  return !value.startsWith("[") && !value.startsWith("{");
+}
+
+function providerBaseUrl(command: ParsedCommand): {
+  readonly name: string;
+  readonly url: string | undefined;
+} {
+  const home = configHome();
+  const managedPaths = [
+    join(home, "managed_config.toml"),
+    "/etc/codex/managed_config.toml",
+    "/etc/codex/config.toml",
+    "/Library/Managed Preferences/com.openai.codex.plist",
+  ];
+  const managedUser = process.env["USER"] ?? process.env["LOGNAME"];
+  if (managedUser !== undefined && /^[A-Za-z0-9._-]+$/.test(managedUser))
+    managedPaths.push(`/Library/Managed Preferences/${managedUser}/com.openai.codex.plist`);
+  for (const path of managedPaths) {
+    if (existsSync(path)) throw new Error(`managed Codex configuration layer is present: ${path}`);
+  }
+  const basePath = join(home, "config.toml");
+  const base = readConfig(basePath);
+  const profile = selectedProfile(command, base);
+  const configs: ParsedConfig[] = [];
+  if (base !== undefined) configs.push(base);
+  if (profile !== undefined) {
+    const profilePath = join(home, `${profile}.config.toml`);
+    const inlineProfile = base?.profiles.has(profile) === true;
+    if (inlineProfile && existsSync(profilePath))
+      throw new Error(`${profilePath}: selected Codex profile has two configuration sources`);
+    if (!existsSync(profilePath) && !inlineProfile)
+      throw new Error(`${profilePath}: selected Codex profile cannot be read`);
+    if (existsSync(profilePath)) {
+      const selected = readConfig(profilePath);
+      if (selected === undefined)
+        throw new Error(`${profilePath}: selected Codex profile cannot be read`);
+      configs.push(selected);
+    }
+  }
+  let projectDirectory = resolve(process.cwd());
+  const userHome = resolve(process.env["INTERLOCK_CODEX_GUARD_USER_HOME"] ?? homedir());
+  const userConfigPath = join(userHome, ".codex", "config.toml");
+  while (true) {
+    const projectPath = join(projectDirectory, ".codex", "config.toml");
+    if (projectPath !== userConfigPath && existsSync(projectPath))
+      throw new Error(`project Codex configuration layer is present: ${projectPath}`);
+    const parent = dirname(projectDirectory);
+    if (parent === projectDirectory) break;
+    projectDirectory = parent;
+  }
+  const root = emptyOverlay();
+  const selectedOverlay = emptyOverlay();
+  const providers = new Map<string, Provider>();
+  for (const config of configs) {
+    if (config.root.provider !== undefined) root.provider = config.root.provider;
+    for (const [providerName, value] of config.root.providers) providers.set(providerName, value);
+    if (profile !== undefined) {
+      const profileOverlay = config.profiles.get(profile);
+      if (profileOverlay !== undefined) {
+        if (profileOverlay.provider !== undefined)
+          selectedOverlay.provider = profileOverlay.provider;
+        for (const [providerName, value] of profileOverlay.providers)
+          selectedOverlay.providers.set(providerName, value);
+      }
+    }
+  }
+  const name = selectedOverlay.provider ?? root.provider;
+  for (const [providerName, value] of selectedOverlay.providers) providers.set(providerName, value);
+  if (name === undefined) throw new Error("no model_provider resolves");
+  return { name, url: providers.get(name)?.baseUrl };
+}
+
+function loopback(url: string): boolean {
+  const parsed = new URL(url);
+  const host = parsed.hostname.toLowerCase().replace(/^\[/, "").replace(/\]$/, "");
+  return host === "127.0.0.1" || host === "::1" || host === "localhost";
+}
+
+function refuse(form: string, reason: string): never {
+  process.stderr.write(`codex ${form} refused: ${reason}\n`);
+  process.exit(2);
+}
+
+function realCodex(): string {
+  const current = process.env["INTERLOCK_CODEX_GUARD_DIR"];
+  const path = process.env["PATH"] ?? "";
+  for (const directory of path.split(":")) {
+    if (
+      directory.length === 0 ||
+      directory === current ||
+      directory.split("/").at(-1)?.startsWith("codex-guard-") === true
+    )
+      continue;
+    const candidate = join(directory, "codex");
+    try {
+      if (!statSync(candidate).isFile()) continue;
+      if (realpathSync(candidate) === resolve(import.meta.filename)) continue;
+      return candidate;
+    } catch {}
+  }
+  refuse("launch", "the real codex executable is not available past the guard");
+}
+
+async function drainProcessGroup(pgid: number): Promise<void> {
+  try {
+    process.kill(-pgid, "SIGTERM");
+  } catch {}
+  const deadline = Date.now() + 1_000;
+  let remaining = platformProcessTable()
+    .list()
+    .filter((entry) => entry.pgid === pgid && entry.state !== "zombie");
+  while (remaining.length > 0 && Date.now() < deadline) {
+    await new Promise<void>((resolve) => setTimeout(resolve, 25));
+    remaining = platformProcessTable()
+      .list()
+      .filter((entry) => entry.pgid === pgid && entry.state !== "zombie");
+  }
+  if (remaining.length > 0) {
+    try {
+      process.kill(-pgid, "SIGKILL");
+    } catch {}
+  }
+}
+
+async function start(args: readonly string[]): Promise<void> {
+  const executable = realCodex();
+  const token = launchToken();
+  const registry = process.env["INTERLOCK_CODEX_GUARD_REGISTRY"];
+  const environment: NodeJS.ProcessEnv = {
+    ...process.env,
+    INTERLOCK_CODEX_LAUNCH_TOKEN: token,
+  };
+  const pathAfterGuard = (environment["PATH"] ?? "")
+    .split(delimiter)
+    .filter((entry) => entry !== process.env["INTERLOCK_CODEX_GUARD_DIR"])
+    .join(delimiter);
+  const child = spawn("codex", args, {
+    cwd: process.cwd(),
+    env: { ...environment, PATH: [dirname(executable), pathAfterGuard].join(delimiter) },
+    stdio: "inherit",
+    detached: true,
+  });
+  if (child.pid === undefined) refuse("launch", "the real codex did not expose a pid");
+  const childPid = child.pid;
+  let processRecord = platformProcessTable()
+    .list()
+    .find((entry) => entry.pid === childPid);
+  for (
+    let attempt = 0;
+    (processRecord === undefined || processRecord.startTime === "unknown") && attempt < 2;
+    attempt += 1
+  ) {
+    await new Promise<void>((resolve) => setTimeout(resolve, 25));
+    processRecord = platformProcessTable()
+      .list()
+      .find((entry) => entry.pid === childPid);
+  }
+  if (processRecord === undefined || processRecord.startTime === "unknown") {
+    try {
+      child.kill("SIGTERM");
+    } catch {}
+    refuse("launch", "the guarded Codex start time could not be read");
+  }
+  if (processRecord.pgid !== childPid) {
+    try {
+      child.kill("SIGTERM");
+    } catch {}
+    refuse("launch", "the guarded Codex was not isolated in its own process group");
+  }
+  if (registry !== undefined)
+    registerLaunch(registry, childPid, processRecord.pgid, processRecord.startTime, token);
+  child.once("error", (error) => {
+    process.stderr.write(`${error.message}\n`);
+    process.exitCode = 1;
+  });
+  child.once("exit", (code, signal) => {
+    void drainProcessGroup(childPid).then(() => {
+      process.exitCode = code ?? (signal === null ? 1 : 1);
+    });
+  });
+}
+
+async function main(args: readonly string[]): Promise<void> {
+  const command = parseCommand(args);
+  if (command.subcommand === undefined) refuse("unknown form", "no command form was supplied");
+  const invalidSelector = command.selectors.find((selector) => !selectorAllowed(selector));
+  if (invalidSelector !== undefined)
+    refuse("configuration", `selector is not allowed: ${invalidSelector}`);
+  if (command.subcommand === "mcp") {
+    if (command.rest.length === 1 && command.rest[0] === "list") await start(args);
+    else if (
+      command.rest.length === 2 &&
+      command.rest[0] === "list" &&
+      command.rest[1] === "--json"
+    )
+      await start(args);
+    else refuse("mcp", "only `mcp list` and `mcp list --json` are allowed");
+    return;
+  }
+  if (command.subcommand !== "exec")
+    refuse(command.subcommand, "this command form is not allowed in tests");
+  if (command.unknownOptions.length > 0)
+    refuse("exec", `unknown option: ${command.unknownOptions[0]}`);
+  if (command.rest.length === 0) refuse("exec", "the exec form needs a prompt");
+  try {
+    selectedProfile(command, undefined);
+  } catch (error) {
+    refuse(
+      "exec",
+      error instanceof Error ? error.message : "Codex profile selections could not be resolved",
+    );
+  }
+  let resolved: { readonly name: string; readonly url: string | undefined };
+  try {
+    resolved = providerBaseUrl(command);
+  } catch (error) {
+    refuse(
+      "exec",
+      error instanceof Error ? error.message : "Codex configuration could not be parsed",
+    );
+  }
+  if (resolved.url === undefined) refuse("exec", `provider "${resolved.name}" has no base_url`);
+  try {
+    if (!loopback(resolved.url))
+      refuse("exec", `provider "${resolved.name}" has a non-loopback base_url`);
+  } catch {
+    refuse("exec", `provider "${resolved.name}" has a malformed base_url`);
+  }
+  await start(args);
+}
+
+await main(process.argv.slice(2));

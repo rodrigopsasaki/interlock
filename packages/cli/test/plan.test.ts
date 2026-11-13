@@ -15,6 +15,7 @@ import {
 import { runGraphApprove } from "../src/graph/approve.ts";
 import { contextScopeForCorrection, runInterlockPlan } from "../src/plan.ts";
 import { commitAll, commitPath, gitInitFixture } from "./graph/gitFixture.ts";
+import { slowIntegration } from "./support/slowIntegration.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -514,48 +515,55 @@ describe("interlock plan", () => {
     expect(prompt).toContain("## Debrief authoring");
   }, 30_000);
 
-  it("carries the previous ask forward when --correction omits --ask", async () => {
-    const cwd = fixture();
-    const worktreePath = join(cwd, ".worktrees", "plan", "demo");
+  slowIntegration(
+    "carries the previous ask forward when --correction omits --ask",
+    {
+      budgetMs: 10_000,
+      reason: "integrates two plan runs and correction brief regeneration",
+    },
+    async () => {
+      const cwd = fixture();
+      const worktreePath = join(cwd, ".worktrees", "plan", "demo");
 
-    const first = await runInterlockPlan(["demo", "--ask", "add a health check endpoint"], {
-      cwd,
-      clock: createControlledClock(),
-      runtime: {
-        ...stubRuntime(),
-        waitUntil: finishedWaitUntil(worktreePath, "demo", "plan/demo", graphYaml("demo")),
-      },
-    });
-    expect(first.exitCode).toBe(0);
-
-    const second = await runInterlockPlan(
-      ["demo", "--correction", "the acceptance for only-node is not a sentence a gate can judge"],
-      {
+      const first = await runInterlockPlan(["demo", "--ask", "add a health check endpoint"], {
         cwd,
         clock: createControlledClock(),
         runtime: {
           ...stubRuntime(),
           waitUntil: finishedWaitUntil(worktreePath, "demo", "plan/demo", graphYaml("demo")),
         },
-      },
-    );
-    expect(second.exitCode).toBe(0);
+      });
+      expect(first.exitCode).toBe(0);
 
-    const briefPath = join(
-      worktreePath,
-      ".interlock",
-      "sessions",
-      "demo",
-      "plan",
-      "demo",
-      "brief.md",
-    );
-    const read = await readBriefFile(briefPath);
-    if (isErr(read) || read.value.kind !== "v1") {
-      throw new Error("expected the worktree copy to read as brief@v1");
-    }
-    expect(read.value.body).toContain("> add a health check endpoint");
-  }, 30_000);
+      const second = await runInterlockPlan(
+        ["demo", "--correction", "the acceptance for only-node is not a sentence a gate can judge"],
+        {
+          cwd,
+          clock: createControlledClock(),
+          runtime: {
+            ...stubRuntime(),
+            waitUntil: finishedWaitUntil(worktreePath, "demo", "plan/demo", graphYaml("demo")),
+          },
+        },
+      );
+      expect(second.exitCode).toBe(0);
+
+      const briefPath = join(
+        worktreePath,
+        ".interlock",
+        "sessions",
+        "demo",
+        "plan",
+        "demo",
+        "brief.md",
+      );
+      const read = await readBriefFile(briefPath);
+      if (isErr(read) || read.value.kind !== "v1") {
+        throw new Error("expected the worktree copy to read as brief@v1");
+      }
+      expect(read.value.body).toContain("> add a health check endpoint");
+    },
+  );
 
   it("inherits a correction's context selector unless an explicit replacement is given", async () => {
     const selected = [".interlock/config.yaml"];
@@ -720,43 +728,50 @@ describe("interlock plan", () => {
     },
   );
 
-  it("refuses an inherited correction selector that is no longer tracked before creating a session", async () => {
-    const cwd = fixture();
-    const worktreePath = join(cwd, ".worktrees", "plan", "demo");
-    const runtime = {
-      ...stubRuntime(),
-      waitUntil: finishedWaitUntil(worktreePath, "demo", "plan/demo", graphYaml("demo")),
-    };
-    const first = await runInterlockPlan(
-      ["demo", "--ask", "add context", "--context-scope", '[".interlock/config.yaml"]'],
-      { cwd, clock: createControlledClock(), runtime },
-    );
-    expect(first.exitCode).toBe(0);
+  slowIntegration(
+    "refuses an inherited correction selector that is no longer tracked before creating a session",
+    {
+      budgetMs: 10_000,
+      reason: "integrates plan correction validation and fixture Git state",
+    },
+    async () => {
+      const cwd = fixture();
+      const worktreePath = join(cwd, ".worktrees", "plan", "demo");
+      const runtime = {
+        ...stubRuntime(),
+        waitUntil: finishedWaitUntil(worktreePath, "demo", "plan/demo", graphYaml("demo")),
+      };
+      const first = await runInterlockPlan(
+        ["demo", "--ask", "add context", "--context-scope", '[".interlock/config.yaml"]'],
+        { cwd, clock: createControlledClock(), runtime },
+      );
+      expect(first.exitCode).toBe(0);
 
-    const journalPath = join(cwd, ".interlock", "ledger", "journal.jsonl");
-    const before = readFileSync(journalPath, "utf-8")
-      .trim()
-      .split("\n")
-      .map((line): unknown => JSON.parse(line))
-      .filter(isLedgerEvent)
-      .filter((event) => event.kind === "session-started" || event.kind === "lease-taken");
-    fixtureGit(["rm", "--cached", ".interlock/config.yaml"], { cwd });
+      const journalPath = join(cwd, ".interlock", "ledger", "journal.jsonl");
+      const before = readFileSync(journalPath, "utf-8")
+        .trim()
+        .split("\n")
+        .map((line): unknown => JSON.parse(line))
+        .filter(isLedgerEvent)
+        .filter((event) => event.kind === "session-started" || event.kind === "lease-taken");
+      fixtureGit(["rm", "--cached", ".interlock/config.yaml"], { cwd });
 
-    const correction = await runInterlockPlan(
-      ["demo", "--correction", "the selected context path is no longer tracked"],
-      { cwd, clock: createControlledClock(), runtime },
-    );
+      const correction = await runInterlockPlan(
+        ["demo", "--correction", "the selected context path is no longer tracked"],
+        { cwd, clock: createControlledClock(), runtime },
+      );
 
-    expect(correction.exitCode).toBe(1);
-    expect(correction.message).toContain("not an exact tracked path");
-    const after = readFileSync(journalPath, "utf-8")
-      .trim()
-      .split("\n")
-      .map((line): unknown => JSON.parse(line))
-      .filter(isLedgerEvent)
-      .filter((event) => event.kind === "session-started" || event.kind === "lease-taken");
-    expect(after).toEqual(before);
-  }, 30_000);
+      expect(correction.exitCode).toBe(1);
+      expect(correction.message).toContain("not an exact tracked path");
+      const after = readFileSync(journalPath, "utf-8")
+        .trim()
+        .split("\n")
+        .map((line): unknown => JSON.parse(line))
+        .filter(isLedgerEvent)
+        .filter((event) => event.kind === "session-started" || event.kind === "lease-taken");
+      expect(after).toEqual(before);
+    },
+  );
 
   it("a correction reopens with the reason as the brief's first paragraph and the reason narrated", async () => {
     const cwd = fixture();

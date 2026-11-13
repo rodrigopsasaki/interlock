@@ -17,6 +17,7 @@ import { judgeGates } from "../src/gateJudge.ts";
 import { runWorktreeSetup } from "../src/worktreeSetup.ts";
 import { gitInitFixtureWithContent } from "./support/gitFixture.ts";
 import { memoryLedger } from "./support/memoryLedger.ts";
+import { slowIntegration } from "./support/slowIntegration.ts";
 import { allocateToolState } from "./support/toolState.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
@@ -127,42 +128,56 @@ describe("gates and worktree setup respect engines.node", () => {
     );
   });
 
-  it("runs an exact-version match", async () => {
-    const current = fixture("24.14.0", "v24.14.0");
-    const narrate: string[] = [];
+  slowIntegration(
+    "runs an exact-version match",
+    { budgetMs: 10_000, reason: "integrates mise-backed Node engine admission" },
+    async () => {
+      const current = fixture("24.14.0", "v24.14.0");
+      const narrate: string[] = [];
 
-    const result = await judge(current.root, current.env, current.proof, narrate);
+      const result = await judge(current.root, current.env, current.proof, narrate);
 
-    expect(isErr(result)).toBe(false);
-    if (isErr(result)) return;
-    expect(result.value.kind).toBe("cleared");
-  });
+      expect(isErr(result)).toBe(false);
+      if (isErr(result)) return;
+      expect(result.value.kind).toBe("cleared");
+    },
+  );
 
-  it.each([
+  for (const [nodeVersion, runs] of [
     ["v24.9.0", true],
     ["v25.0.0", false],
     ["v23.11.0", false],
-  ])("checks a space-joined range against %s", async (nodeVersion, runs) => {
-    const current = fixture(">=24 <25", nodeVersion);
-    const narrate: string[] = [];
+  ] as const) {
+    slowIntegration(
+      `checks a space-joined range against ${nodeVersion}`,
+      { budgetMs: 10_000, reason: "integrates mise-backed Node engine admission" },
+      async () => {
+        const current = fixture(">=24 <25", nodeVersion);
+        const narrate: string[] = [];
 
-    const result = await judge(current.root, current.env, current.proof, narrate);
+        const result = await judge(current.root, current.env, current.proof, narrate);
 
-    expect(isErr(result)).toBe(false);
-    if (isErr(result)) return;
-    expect(result.value.kind === "cleared").toBe(runs);
-  });
+        expect(isErr(result)).toBe(false);
+        if (isErr(result)) return;
+        expect(result.value.kind === "cleared").toBe(runs);
+      },
+    );
+  }
 
-  it("runs when engines.node is absent", async () => {
-    const current = fixture(undefined, "v26.13.0");
-    const narrate: string[] = [];
+  slowIntegration(
+    "runs when engines.node is absent",
+    { budgetMs: 10_000, reason: "integrates mise-backed Node engine admission" },
+    async () => {
+      const current = fixture(undefined, "v26.13.0");
+      const narrate: string[] = [];
 
-    const result = await judge(current.root, current.env, current.proof, narrate);
+      const result = await judge(current.root, current.env, current.proof, narrate);
 
-    expect(isErr(result)).toBe(false);
-    if (isErr(result)) return;
-    expect(result.value.kind).toBe("cleared");
-  });
+      expect(isErr(result)).toBe(false);
+      if (isErr(result)) return;
+      expect(result.value.kind).toBe("cleared");
+    },
+  );
 
   it("holds an unparseable range and names it", async () => {
     const current = fixture("^24.0.0", "v24.14.0");

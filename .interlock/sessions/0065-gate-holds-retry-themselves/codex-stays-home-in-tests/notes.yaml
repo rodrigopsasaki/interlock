@@ -1,0 +1,379 @@
+interlock: notes@v0
+node: codex-stays-home-in-tests
+entries:
+  - kind: choice
+    at: "2026-11-11T18:30:00Z"
+    chose: "Keep the guard and supervisor in test/support and install the guard through the runner Vitest setup."
+    because: "The acceptance makes the runner setup the single boundary for every runner test while keeping Codex-specific knowledge out of production adapters."
+  - kind: choice
+    at: "2026-11-11T18:31:00Z"
+    chose: "Use a pinned-Node TypeScript guard entrypoint behind a generated PATH wrapper."
+    because: "The guard needs to be the executable named codex for child processes, while the shared TypeScript supervisor remains directly testable with injected process-table data."
+  - kind: surprise
+    at: "2026-11-11T18:47:00Z"
+    expected: "The platform process table would expose launch environment values in the same shape on macOS and Linux."
+    observed: "macOS requires `ps eww` rather than the hyphenated flag form, and its output exceeds the default child-process buffer; the supervisor now uses the correct form and an explicit bounded buffer."
+  - kind: choice
+    at: "2026-11-11T18:48:00Z"
+    chose: "Put the loopback Responses fixture in runner test support and use it for the marker-overflow exec case."
+    because: "The guard must exercise the real Codex exec path without allowing the test to contact a non-loopback provider, while preserving the marker assertions."
+  - kind: surprise
+    at: "2026-11-11T18:49:00Z"
+    expected: "Any process found at test cleanup would be a failed test."
+    observed: "Normal real-Codex MCP children can still be present at the first cleanup snapshot but terminate during the supervisor's TERM grace; only processes surviving that grace are reported as leaks."
+  - kind: surprise
+    at: "2026-11-11T18:51:00Z"
+    expected: "The initial notes@v0 file would be accepted by the repository reader."
+    observed: "The reader requires the session node field and calls the collection `entries`, so the notes artifact was corrected before the workspace test gate was rerun."
+  - kind: surprise
+    at: "2026-11-11T18:52:00Z"
+    expected: "The notes choice entries would use the natural field name `choice`."
+    observed: "The notes reader requires `chose`, matching the existing notes@v0 artifacts; the entries were renamed before the next test run."
+  - kind: choice
+    at: "2026-11-11T19:05:00Z"
+    chose: "Keep process launches statically readable to the repository fixture audit by spawning the literal codex command with a cleaned PATH and assembling generated scripts from static chunks."
+    because: "The standing suite audits every test/support process start and generated shell script; the guard still resolves the real executable first, while the audit can verify the launch boundary without a new exception."
+  - kind: surprise
+    at: "2026-11-11T19:06:00Z"
+    expected: "The focused guard tests would be sufficient evidence for the completed runner changes."
+    observed: "The full workspace suite additionally checks static fixture-process safety and found three unreadable dynamic launch sites; those sites were rewritten without changing the acceptance behavior."
+  - kind: surprise
+    at: "2026-11-11T19:12:00Z"
+    expected: "The rewritten child environment would retain ProcessEnv's indexable PATH type through the object spread."
+    observed: "Strict TypeScript inferred only the added launch-token property, so the environment is now explicitly typed as NodeJS.ProcessEnv."
+  - kind: choice
+    at: "2026-11-11T19:20:00Z"
+    chose: "Declare the nested detached-descendant guard test as a slow integration with a 10-second budget."
+    because: "The test intentionally starts a nested Vitest process and waits through bounded process-group cleanup; the slow-tests gate measured 1.88 seconds and requires that lifecycle cost to be declared."
+  - kind: surprise
+    at: "2026-11-11T19:33:00Z"
+    expected: "The authored debrief candidate would preview as valid YAML without further quoting."
+    observed: "The preview parser treated the colon in the slow-test receipt as a compact mapping, so that scalar was quoted before the candidate was refreshed."
+  - kind: choice
+    at: "2026-11-11T20:10:00Z"
+    chose: "Scan profile and config options before and after exec, reject unknown exec options, and make the TOML guard reader fail closed on unsupported syntax while resolving profiles tables."
+    because: "Options and provider settings must not reach real Codex through an unparsed path; the guard now accepts only syntax it can resolve unambiguously."
+  - kind: choice
+    at: "2026-11-11T20:11:00Z"
+    chose: "Match tokenless members by a verified launch process group and refuse a launch when the leader start time cannot be read after retries."
+    because: "Codex filters marker environment variables from MCP children, while a missing leader identity makes registration unable to protect against pid reuse."
+  - kind: choice
+    at: "2026-11-11T20:12:00Z"
+    chose: "Report every process observed at cleanup, including descendants that terminate during TERM grace, and make the nested fixture contain both graceful and stubborn descendants."
+    because: "The test must expose the complete survivor set rather than silently converting graceful TERM cleanup into a passing result."
+  - kind: choice
+    at: "2026-11-11T20:13:00Z"
+    chose: "Assert registry registration in each kept real-Codex test file through a shared test-support count helper."
+    because: "Passing through a fake or real Codex command is not enough evidence that the guard registered the launch for cleanup."
+  - kind: choice
+    at: "2026-11-11T20:22:00Z"
+    chose: "Have each kept real-Codex file explicitly reap its registered guard launches after asserting registration, while leaving the global afterEach failure for unhandled survivors."
+    because: "The stricter report correctly finds detached MCP children; explicit reaping proves those accepted tests clean up without weakening the guard's failure for leaks."
+  - kind: surprise
+    at: "2026-11-11T19:25:21Z"
+    expected: "The zsh wrapper would preserve the command exit status in a variable named status."
+    observed: "zsh reserves status as read-only; the typecheck itself completed, but the wrapper exited before printing its log. The rerun uses a different variable name."
+  - kind: surprise
+    at: "2026-11-11T19:27:00Z"
+    expected: "The standing lint gate would report only the guard changes from this repair."
+    observed: "It also reported two existing style violations in runnerCommits.test.ts; the minimal literal-only fixes were required for the repository gate."
+  - kind: surprise
+    at: "2026-11-11T19:31:00Z"
+    expected: "The full suite would complete without unrelated repository diagnostics."
+    observed: "Runner worktree-maintenance tests printed expected Git lock-permission diagnostics while their assertions passed; the full suite still completed successfully."
+  - kind: choice
+    at: "2026-11-11T19:34:00Z"
+    chose: "Remove the superseded debrief-candidate.yaml and debrief-candidate-2.yaml artifacts and author the correction from a fresh repair candidate."
+    because: "The requested refile must not leave the two old candidate names in the session while preserving the canonical debrief's versioned correction path."
+  - kind: choice
+    at: "2026-11-11T19:39:00Z"
+    chose: "Select the fresh repair candidate through debrief revise, retaining the prior canonical debrief as its content-addressed revision."
+    because: "The source changes correct an already filed debrief, so revision preserves the way back while making the repaired claims canonical."
+  - kind: surprise
+    at: "2026-11-11T19:33:22Z"
+    expected: "The process scan would find no matching Codex or Vitest processes."
+    observed: "No process from this session remained, but unrelated owner-run interlock and Codex processes were still present; they were left untouched."
+  - kind: choice
+    at: "2026-11-11T20:05:00Z"
+    chose: "Reject every provider-affecting selector path, reject distinct repeated profile selections, and merge all roots before applying selected profile overlays."
+    because: "Codex resolves command selectors and profile overlays over the complete merged configuration; the guard must make the same safety decision without allowing later roots to erase a selected profile."
+  - kind: choice
+    at: "2026-11-11T20:06:00Z"
+    chose: "When a registered leader is gone, accept a tokenless group member only when its start time is after the leader and no later than the cleanup observation time; retain token matching as an independent source."
+    because: "A departed leader cannot verify a reused process group by membership alone, while legitimate MCP members need a bounded start-time interval after losing the launch token."
+  - kind: choice
+    at: "2026-11-11T20:07:00Z"
+    chose: "Refuse the three managed Codex configuration layer paths rather than attempting to parse them."
+    because: "The installed Codex binary treats those paths as configuration layers the test guard does not fully resolve, so presence must fail closed."
+  - kind: surprise
+    at: "2026-11-11T20:12:00Z"
+    expected: "The explicit async real-Codex reaper would observe only genuine survivors after the command returned."
+    observed: "Two tests had MCP descendants still present at the immediate snapshot but gone shortly afterward; the explicit check now waits 1 second before applying the same survivor failure rule."
+  - kind: choice
+    at: "2026-11-11T20:18:00Z"
+    chose: "Make the two persistent MCP environment fixtures exit after completing tools/list."
+    because: "The explicit reaper must fail on a real survivor, while a fixture that has finished recording its marker should not keep an otherwise successful real-Codex test alive."
+  - kind: surprise
+    at: "2026-11-11T20:22:00Z"
+    expected: "The focused five-file guard run would be stable after the fixture shutdown change."
+    observed: "The first two parallel runs exposed transient Codex child overlap, while an isolated run and the subsequent complete focused run passed; the explicit reaper still fails any survivor it observes."
+  - kind: choice
+    at: "2026-11-11T20:23:00Z"
+    chose: "Remove the committed repair-candidate.yaml and retain only the canonical debrief plus its revision history."
+    because: "The repair candidate was an intermediate near-copy and the session should end with the filed, versioned debrief artifacts only."
+  - kind: surprise
+    at: "2026-11-11T20:27:00Z"
+    expected: "The standing lint gate would pass after the behavioral repair commit."
+    observed: "Biome reported four formatter-only changes in the new guard and test code; those mechanical corrections are being committed separately before rerunning the gate."
+  - kind: surprise
+    at: "2026-11-11T20:35:00Z"
+    expected: "The full workspace suite would let the real-Codex plugin helper finish before explicit cleanup."
+    observed: "Under full-suite load a guarded git fetch/index-pack descendant was still active at the one-second check; the supervisor removed it and the async explicit check now allows a bounded five-second settle before failing on survivors."
+  - kind: choice
+    at: "2026-11-11T20:44:00Z"
+    chose: "Declare the existing runner custody/debrief integration test as a slow integration."
+    because: "The slow-tests gate measured it just over the 1.5-second logic threshold; its signed Git and verifier work is intentional integration cost and belongs in the declared accounting."
+  - kind: surprise
+    at: "2026-11-11T20:51:00Z"
+    expected: "The first slow-test declaration would account for all runner custody cases over the threshold."
+    observed: "A second signing-failure custody case measured at 1521.7 ms, so it also required an explicit slow integration declaration."
+  - kind: choice
+    at: "2026-11-11T21:00:00Z"
+    chose: "Report survivor PIDs without embedding process command and environment text in explicit reaper errors."
+    because: "The acceptance requires every survivor to be named, and PID-only diagnostics preserve that proof without exposing unrelated environment values in test output."
+  - kind: surprise
+    at: "2026-11-11T21:08:00Z"
+    expected: "The focused five-file guard gate would remain green after narrowing survivor diagnostics to PID-only errors."
+    observed: "The focused gate found detached real-Codex descendants in lineFitsRealCodex.test.ts and realCodexMarkerOverflow.test.ts; the explicit reaper correctly failed instead of silently discarding them, so their cleanup path needs repair."
+  - kind: surprise
+    at: "2026-11-11T21:18:00Z"
+    expected: "The slow-test accounting receipt would remain unchanged after the guard cleanup repair."
+    observed: "The full-suite timing scan measured three existing mise-backed Node engine cases above 1.5 seconds; they required explicit slow-integration declarations to keep the standing accounting gate honest."
+  - kind: choice
+    at: "2026-11-11T21:19:00Z"
+    chose: "Declare the three measured mise-backed Node engine cases as slow integrations with a 10-second test budget."
+    because: "Their work exercises real tool-state and engine admission behavior, and the gate must account for measured integration cost rather than treating it as an unexplained threshold breach."
+  - kind: surprise
+    at: "2026-11-11T21:30:00Z"
+    expected: "The five-second explicit survivor settle would be sufficient for the serial slow-tests runner."
+    observed: "The serial timing run kept real-Codex descendants alive beyond five seconds and correctly failed the explicit reaper; the same test passed under the focused parallel run."
+  - kind: choice
+    at: "2026-11-11T21:31:00Z"
+    chose: "Use a bounded 15-second settle before the explicit async survivor check."
+    because: "The kept real-Codex integration has a declared 45-second budget, and the longer bounded observation lets normal MCP shutdown finish while still failing and reporting any survivor present at cleanup."
+  - kind: choice
+    at: "2026-11-11T21:45:00Z"
+    chose: "Remove the stale second-repair-candidate.yaml before preparing the final candidate."
+    because: "The canonical debrief and its content-addressed revision are the durable authored artifacts; an intermediate near-copy should not remain beside them."
+  - kind: choice
+    at: "2026-11-11T21:50:00Z"
+    chose: "Remove final-candidate.yaml after revising the canonical debrief."
+    because: "The selected canonical debrief and its retained revision provide the durable filing and way back; the preparation copy is no longer needed."
+  - kind: choice
+    at: "2026-11-12T17:14:18Z"
+    chose: "Make Codex configuration selectors deny-by-default, with only the marker and shell-environment keys generated by the kept real-Codex tests allowed as plain scalar values."
+    because: "Enumerating provider spellings leaves fail-open paths; an explicit narrow allowlist keeps the guard's resolvable configuration surface closed."
+  - kind: choice
+    at: "2026-11-12T17:14:18Z"
+    chose: "Refuse every project .codex/config.toml found from the launch cwd through the filesystem root instead of resolving a project layer."
+    because: "Codex trusts and discovers project configuration using rules the filesystem-only guard cannot reproduce safely."
+  - kind: choice
+    at: "2026-11-12T17:14:18Z"
+    chose: "Require a resolved model_provider and refuse a selected profile when both its legacy table and profile file exist."
+    because: "The built-in default provider is not a loopback proof, and unverified profile precedence must fail closed."
+  - kind: choice
+    at: "2026-11-12T17:14:18Z"
+    chose: "Treat a tokenless departed-leader group member whose start time is equal to the leader's second as eligible, while sparing members before the leader."
+    because: "The platform timestamps have one-second resolution, so equality can describe a legitimate child launched in the leader's second."
+  - kind: choice
+    at: "2026-11-12T17:14:18Z"
+    chose: "Remove the async reaper's unconditional 15-second pre-observation delay and keep provider cleanup in a finally path."
+    because: "The explicit reaper must report the same survivor state as afterEach without hiding a leak behind a fixed sleep, while fixture providers must always close."
+  - kind: choice
+    at: "2026-11-12T17:14:18Z"
+    chose: "Record the macOS MDM Codex preference layer as outside the guard's portable file resolution rather than inventing an unverified detection path."
+    because: "The guard does not read MDM-managed preference domains and this environment does not provide a stable, product-specific file contract to detect them safely."
+  - kind: surprise
+    at: "2026-11-12T17:26:00Z"
+    expected: "The focused real-Codex files would have no survivors once the async reaper stopped waiting."
+    observed: "The immediate reaper found Codex's plugin git fetch, remote helper and index-pack descendants, plus MCP descendants; the owned Codex process group now terminates on launch exit and the fixture servers exit immediately after tools/list."
+  - kind: surprise
+    at: "2026-11-12T17:26:00Z"
+    expected: "A nested fixture with a temporary HOME would retain the outer guard's project-search boundary."
+    observed: "Nested setup replaced the boundary with its temporary HOME and then saw the owner's user .codex/config.toml while walking ancestors; nested setup now preserves the outer real-user boundary without reading that file as a project layer."
+  - kind: choice
+    at: "2026-11-12T17:30:00Z"
+    chose: "Capture the guarded Codex pid after the spawn narrowing check and use that stable value in asynchronous callbacks."
+    because: "Strict TypeScript cannot retain the nullable child.pid narrowing through event handlers, and the launch cleanup must target the pid that was registered."
+  - kind: surprise
+    at: "2026-11-12T17:31:00Z"
+    expected: "The standing lint gate would accept the newly added selector cases as formatted."
+    observed: "Biome required two test selector literals to use single-quoted strings because their TOML values contain double quotes."
+  - kind: surprise
+    at: "2026-11-12T17:39:00Z"
+    expected: "The full workspace test gate would complete without repository-maintenance diagnostics."
+    observed: "All workspace tests passed; runner maintenance fixtures printed their expected Git lock-permission diagnostics while asserting successfully."
+  - kind: choice
+    at: "2026-11-12T17:42:00Z"
+    chose: "Make the async reaper's empty-survivor return explicit so its immediate observation behavior has an added hunk for debrief verification."
+    because: "The behavior was a deletion-only change, and a rooted debrief must point at a hunk the verifier can see at the authored head."
+  - kind: surprise
+    at: "2026-11-12T17:45:00Z"
+    expected: "A fresh prepared candidate would be directly selectable as the current debrief revision."
+    observed: "The revise command requires the candidate to retain the existing canonical debrief's original session_start_sha, so the authored candidate was aligned to d707081 before selection."
+  - kind: choice
+    at: "2026-11-12T17:47:00Z"
+    chose: "Remove the two intermediate preparation candidates after revise selected the final candidate, retaining the canonical debrief and its revision file."
+    because: "The filed debrief and content-addressed revision are the durable authored artifacts; intermediate candidate names would leave ambiguous sources beside them."
+  - kind: surprise
+    at: "2026-11-12T17:49:03Z"
+    expected: "The 2026-11-12T17:14:18Z project-layer note accurately described the completed search boundary."
+    observed: "Correction: the guard must walk project layers through the filesystem root, including ancestors when cwd equals the configured Codex home, and skip only the owner's own ~/.codex/config.toml user layer."
+  - kind: choice
+    at: "2026-11-12T17:49:03Z"
+    chose: "Make the configuration reader deny-by-default with one-line scalar grammar and structured values only in the explicitly ignored MCP keys it can classify."
+    because: "A parser that enumerates only known bad spellings still fails open on TOML forms Codex interprets differently; rejecting unsupported lines preserves agreement between the guard and Codex."
+  - kind: choice
+    at: "2026-11-12T17:49:03Z"
+    chose: "Drain the guarded Codex process group after TERM and issue group KILL only after a bounded wait."
+    because: "The async reaper observes immediately after the guard exits, so the guard must finish its own same-group children before returning while retaining a bound for non-cooperative processes."
+  - kind: choice
+    at: "2026-11-12T17:49:03Z"
+    chose: "Refuse the Codex MDM preference domain files at /Library/Managed Preferences/com.openai.codex.plist and the per-user equivalent."
+    because: "Codex 0.162.1 loads com.openai.codex with an MDM layer that this guard does not parse; presence is therefore an unresolved configuration layer and must fail closed."
+  - kind: surprise
+    at: "2026-11-12T17:55:15Z"
+    expected: "The slow-test accounting gate would remain satisfied after the guard's process-group drain was added."
+    observed: "The serial accounting run measured five existing plan, run, and real-Codex integrations above 1.5 seconds without declarations; the tests passed, but their measured cost required explicit slowIntegration metadata."
+  - kind: choice
+    at: "2026-11-12T17:55:15Z"
+    chose: "Declare the five measured integrations as slow tests with 10-second budgets and reasons naming their custody, Git, or real-Codex work."
+    because: "The slow-tests gate must account for observed integration cost rather than hiding a threshold crossing, while the budgets remain bounded and local to each test."
+  - kind: surprise
+    at: "2026-11-12T17:58:23Z"
+    expected: "The next slow-test accounting run would be stable after the five declarations."
+    observed: "Three additional existing integrations crossed the threshold under the final serial measurement; the variance is timing-only, and each test remained passing."
+  - kind: choice
+    at: "2026-11-12T17:58:23Z"
+    chose: "Declare the three newly measured plan, backfill, and real-Codex overflow integrations with bounded slow-test metadata."
+    because: "The final receipt must account for every observed integration over 1.5 seconds, including tests whose duration varies with local process and Git scheduling."
+  - kind: surprise
+    at: "2026-11-12T18:11:50Z"
+    expected: "The prepared debrief candidate could be filed with the first-filing command."
+    observed: "The session already had a canonical debrief, so file-derived refused with EEXIST before changing it; the correction must use debrief revise."
+  - kind: choice
+    at: "2026-11-12T18:11:50Z"
+    chose: "Select the freshly authored candidate through debrief revise rather than overwriting the existing canonical debrief."
+    because: "A correction must retain the prior debrief as versioned history while making the rooted candidate canonical."
+  - kind: surprise
+    at: "2026-11-12T18:12:08Z"
+    expected: "The prepared candidate's session_start_sha would match the canonical debrief selected for revision."
+    observed: "Preparation regenerated the current branch session start c87935d, while the existing filed debrief retains d707081; revise refused until the candidate preserved that original identity."
+  - kind: choice
+    at: "2026-11-12T18:12:08Z"
+    chose: "Restore the candidate's session_start_sha to d7070819c3016195a9382c5f9590fe99e50c48a8, the existing canonical debrief's session identity, before retrying revise."
+    because: "Revision must change the authored claims without changing which session produced the debrief."
+  - kind: choice
+    at: "2026-11-12T18:13:03Z"
+    chose: "Remove the intermediate debrief candidate and this turn's scratch receipts before the final commit, retaining the canonical debrief and its revision artifact."
+    because: "The filed debrief, retained prior revision, notes, and gate receipts in the repository history are the durable handoff; temporary preparation and output files are not session artifacts."
+  - kind: surprise
+    at: "2026-11-12T18:13:03Z"
+    expected: "The process scan would be empty after the final focused and validation gates."
+    observed: "No Codex launch-token or session Vitest process remained; pgrep showed only an unrelated owner-run Gilb Vitest in another worktree, which was left untouched."
+  - kind: surprise
+    at: "2026-11-12T19:53:03Z"
+    expected: "The installed Codex source would expose the prompt's open-source provider id as a literal built-in id."
+    observed: "Codex 0.162.1's tagged source lists openai, ollama, lmstudio, amazon-bedrock, and amazon-bedrock-runtime as the built-in provider catalog; oss is the source's family label rather than a catalog key."
+  - kind: choice
+    at: "2026-11-12T19:53:03Z"
+    chose: "Reject all five Codex 0.162.1 built-in provider ids and the literal oss id in model_provider values and provider tables."
+    because: "Codex merges configured providers with or_insert, so a loopback table under a built-in key does not replace the provider Codex will use; denying the family spelling too keeps the guard aligned with the requested open-source boundary."
+  - kind: surprise
+    at: "2026-11-12T19:55:20Z"
+    expected: "Biome would accept the focused repair files after the focused guard suite passed."
+    observed: "Biome rejected the test parameter name escape because it shadows a global and requested a one-line formatting change."
+  - kind: choice
+    at: "2026-11-12T19:55:20Z"
+    chose: "Rename the undecoded-escape test parameter and apply the formatter's local layout."
+    because: "The change preserves the exact grammar cases while satisfying the repository's static checks."
+  - kind: surprise
+    at: "2026-11-12T20:01:43Z"
+    expected: "The final pgrep checks would find no Codex or Vitest process after the focused gate."
+    observed: "pgrep -x found no Vitest process; it found Codex and codex-code-mode-host processes belonging to unrelated owner/orchestrator work, while the session's focused test command had exited."
+  - kind: surprise
+    at: "2026-11-12T20:03:54Z"
+    expected: "The freshly authored debrief candidate would parse as a unique debrief@v2 document."
+    observed: "The prepared candidate retained its original open: [] line when the authored body added the gate report, so preview rejected the duplicate YAML key."
+  - kind: choice
+    at: "2026-11-12T20:03:54Z"
+    chose: "Remove the prepared candidate's empty open field and retain the authored open field at the end of the report."
+    because: "The debrief must have one open collection while preserving the authored gate and decision sections."
+  - kind: surprise
+    at: "2026-11-12T20:04:24Z"
+    expected: "The candidate's copied repair head would remain a 40-character SHA."
+    observed: "Manual candidate authoring omitted one repeated hexadecimal character in head_sha, and preview rejected the 39-character value."
+  - kind: choice
+    at: "2026-11-12T20:04:24Z"
+    chose: "Replace the candidate head_sha with the exact full SHA returned by git rev-parse HEAD."
+    because: "The authored debrief must bind its claims to the complete signed repair commit."
+  - kind: choice
+    at: "2026-11-12T20:05:25Z"
+    chose: "Select the authored candidate through debrief revise after the candidate preview and validation passed."
+    because: "The user explicitly authorized correction filing in this worktree, and revise preserves the prior canonical debrief as a content-addressed revision."
+  - kind: choice
+    at: "2026-11-12T20:05:25Z"
+    chose: "Remove the intermediate sendback candidate after revise selected it, retaining the canonical debrief and its revision."
+    because: "The selected debrief and retained revision are the durable authored artifacts; the preparation copy is no longer needed beside them."
+  - kind: choice
+    at: "2026-11-12T22:07:42Z"
+    chose: "Declare the screen-snapshot runner integration as a slow test with a bounded budget and an integration reason."
+    because: "Its proof exercises the real runner custody and clean-judgement path, and the load measurement crossed the slow-tests accounting threshold."
+  - kind: choice
+    at: "2026-11-12T22:07:42Z"
+    chose: "Use a fixture command wrapper for the stderr refusal case."
+    because: "The assertion needs the setup refusal to retain stderr, not real mise or Node startup latency; the deterministic wrapper preserves that behavior under load."
+  - kind: surprise
+    at: "2026-11-12T22:13:56Z"
+    expected: "The slow-tests-accounted gate would pass after accounting for the screen-snapshot integration."
+    observed: "The serial gate ran to completion but found seventeen unrelated CLI and face tests above 1.5 seconds without declarations; the two requested cases were accounted, and the gate exited 1."
+  - kind: surprise
+    at: "2026-11-12T22:16:52Z"
+    expected: "The standing lint gate would pass after the focused tests and typecheck."
+    observed: "Biome requested the fake shell command's string literal to use double quotes; no behavioral change was needed."
+  - kind: choice
+    at: "2026-11-12T22:20:43Z"
+    chose: "Remove the preparation candidate after debrief revise selected it, retaining the canonical debrief and its content-addressed revision."
+    because: "The selected debrief and retained revision are the durable authored artifacts; the intermediate candidate is no longer needed beside them."
+  - kind: choice
+    at: "2026-11-13T15:00:00Z"
+    chose: "Run five serial runner suites and one runner-plus-package suite with raw output before changing the guard."
+    because: "The reported worker death must be separated from a process-group cleanup regression using repeatable evidence, including the last reported test and worker termination details."
+  - kind: surprise
+    at: "2026-11-13T15:35:00Z"
+    expected: "The runner worker would reproduce the reported unexpected exit during one of five serial suites or the concurrent runner/CLI suite."
+    observed: "All five serial runs passed 64 files and 752 tests; the concurrent run passed runner 64/752 and CLI 53/475. No raw log reported a worker exit, signal, or failed last test."
+  - kind: choice
+    at: "2026-11-13T15:35:00Z"
+    chose: "Require the observed detached Codex process group id to equal the child pid before registration or group drain, and test that the caller remains alive after cleanup."
+    because: "The drain signals the negative child pid; an explicit equality check makes that signal safe by construction and the test proves cleanup cannot terminate the Vitest caller."
+  - kind: surprise
+    at: "2026-11-13T15:45:00Z"
+    expected: "The first focused run would exercise the new process-group assertions."
+    observed: "The new test referenced platformProcessTable without importing it, so the focused run failed immediately with a ReferenceError after 71 of 72 tests passed."
+  - kind: surprise
+    at: "2026-11-13T15:50:00Z"
+    expected: "The targeted Biome check would accept the focused test and guard changes."
+    observed: "Biome requested import ordering and a wrapped throw statement; no behavioral issue was reported."
+  - kind: surprise
+    at: "2026-11-13T16:20:00Z"
+    expected: "The full workspace output would be free of the diagnostics noted by the judge."
+    observed: "The full test gate passed 64 runner files and 753 tests, while captureDrains intentionally printed the held transcript sink failure and worktreeMaintenance intentionally printed permission failures for reflog-expire and rerere-gc before asserting those boundaries."
+  - kind: surprise
+    at: "2026-11-13T16:35:00Z"
+    expected: "The slow-tests gate would remain green after the passing full suite."
+    observed: "Two serial accounting runs measured the existing CLI execProbe provider-identity test at 1790.0 ms and 1766.2 ms without metadata; no runner test was reported."
+  - kind: choice
+    at: "2026-11-13T16:35:00Z"
+    chose: "Declare the measured CLI execProbe provider-identity integration as a bounded slow test."
+    because: "The repository-wide accounting gate requires every observed integration over 1.5 seconds to declare its intentional process and Git cost; the metadata changes no behavior."

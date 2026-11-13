@@ -1,0 +1,123 @@
+interlock: debrief@v2
+graph: 0065-gate-holds-retry-themselves
+node: codex-stays-home-in-tests
+role: implementer
+graph_base_sha: f91fae29cad67bb66ae925de72454fff580ba36b
+session_start_sha: d7070819c3016195a9382c5f9590fe99e50c48a8
+head_sha: 39aab34ec5dd2b89673be2c9f1209ec202599d25
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-luna
+discoveries: []
+decisions:
+  - id: deny-unresolved-codex-config
+    what: "Make Codex configuration fail closed: allow only the named marker and shell-environment selector keys as plain scalars, parse only one-line strings or scalar values plus explicitly classified MCP structures, reject profile model_providers tables, require a resolved model_provider, refuse project layers through the filesystem root except the owner's own user layer, and refuse Codex MDM plist layers."
+    because: "The guard cannot safely reproduce Codex's TOML, profile, trust, project-layer, or MDM precedence rules for arbitrary forms, so a configuration it cannot fully classify must not reach Codex."
+    applies_to: { kind: path, path: packages/runner/test/support/codexGuard.ts }
+    rests_on:
+      - packages/runner/test/support/codexGuard.ts:31-198
+      - packages/runner/test/support/codexGuard.ts:325-408
+      - packages/runner/test/codexGuard.test.ts:190-431
+    hunks:
+      - packages/runner/test/support/codexGuard.ts:31-198
+      - packages/runner/test/support/codexGuard.ts:325-408
+      - packages/runner/test/codexGuard.test.ts:190-431
+  - id: drain-owned-codex-group
+    what: "After a guarded Codex exits, terminate its detached process group, wait up to the bounded drain interval for non-zombie members to leave, and issue group KILL only when the bound expires; retain registration and departed-leader identity checks for later reaping."
+    because: "The immediate async reaper must not race a same-group child that is honoring TERM, while pid reuse and tokenless descendants still require the supervisor's verified identity rules."
+    applies_to: { kind: path, path: packages/runner/test/support/codexGuard.ts }
+    rests_on:
+      - packages/runner/test/support/codexGuard.ts:442-513
+      - packages/runner/test/support/codexSupervisor.ts:196-221
+      - packages/runner/test/codexGuard.test.ts:443-465
+      - packages/runner/test/codexGuard.test.ts:565-708
+    hunks:
+      - packages/runner/test/support/codexGuard.ts:442-513
+      - packages/runner/test/support/codexSupervisor.ts:196-221
+      - packages/runner/test/codexGuard.test.ts:443-465
+      - packages/runner/test/codexGuard.test.ts:565-708
+  - id: make-reaping-source-owned
+    what: "Make explicit reaping observe immediately, preserve the outer real-user boundary in nested setup, end MCP fixture children after tools/list, and close loopback providers in finally paths around reaping."
+    because: "A fixed pre-observation delay hides leak timing, and source-owned Codex fixtures and providers must complete or close without weakening survivor failures."
+    applies_to: { kind: repository }
+    rests_on:
+      - packages/runner/test/support/codexGuardAssertions.ts:13-28
+      - packages/runner/test/support/codexGuardSetup.ts:11-53
+      - packages/runner/test/fixtures/codex/recordMcpEnvironment.mjs:25-42
+      - packages/runner/test/fixtures/codex/recordShellEnvironment.mjs:30-48
+      - packages/runner/test/lineFitsRealCodex.test.ts:257-316
+      - packages/runner/test/realCodexMarkerOverflow.test.ts:135-163
+    hunks:
+      - packages/runner/test/support/codexGuardAssertions.ts:13-28
+      - packages/runner/test/support/codexGuardSetup.ts:11-53
+      - packages/runner/test/fixtures/codex/recordMcpEnvironment.mjs:25-42
+      - packages/runner/test/fixtures/codex/recordShellEnvironment.mjs:30-48
+      - packages/runner/test/lineFitsRealCodex.test.ts:257-316
+      - packages/runner/test/realCodexMarkerOverflow.test.ts:135-163
+  - id: cover-closed-guard-boundaries
+    what: "Add fake-Codex refusal cases for both selector spellings and placements, multiline and unsupported TOML, project ancestors, profile provider disagreement, and delayed group cleanup while preserving the kept real-Codex registration and marker cases."
+    because: "Every newly closed configuration or process boundary needs a test that proves refusal before the fake starts or proves cleanup and marker delivery through the real guard."
+    applies_to: { kind: path, path: packages/runner/test/codexGuard.test.ts }
+    rests_on:
+      - packages/runner/test/codexGuard.test.ts:190-465
+      - packages/runner/test/codexGuard.test.ts:502-708
+      - packages/runner/test/lineFitsRealCodex.test.ts:212-316
+      - packages/runner/test/realCodexMarkerOverflow.test.ts:34-163
+      - packages/runner/test/realCodexMarkerLaunch.test.ts:43-95
+      - packages/runner/test/codexHomeOutsideWorktree.test.ts:335-377
+    hunks:
+      - packages/runner/test/codexGuard.test.ts:190-465
+      - packages/runner/test/codexGuard.test.ts:502-708
+      - packages/runner/test/lineFitsRealCodex.test.ts:212-316
+      - packages/runner/test/realCodexMarkerOverflow.test.ts:34-163
+      - packages/runner/test/realCodexMarkerLaunch.test.ts:43-95
+      - packages/runner/test/codexHomeOutsideWorktree.test.ts:335-377
+  - id: account-measured-integration-cost
+    what: "Declare every measured plan, run, backfill, runner custody, and real-Codex integration over the repository's slow-test threshold with bounded budgets and reasons."
+    because: "The slow-tests gate must report observed integration cost instead of silently treating timing variance as unaccounted work."
+    applies_to: { kind: repository }
+    rests_on:
+      - packages/cli/test/plan.test.ts:518-566
+      - packages/cli/test/plan.test.ts:731-774
+      - packages/cli/test/run.test.ts:1231-1260
+      - packages/cli/test/run.test.ts:1394-1459
+      - packages/runner/test/backfill.test.ts:252-289
+      - packages/runner/test/codexHomeOutsideWorktree.test.ts:335-377
+      - packages/runner/test/realCodexMarkerLaunch.test.ts:43-95
+      - packages/runner/test/realCodexMarkerOverflow.test.ts:34-163
+    hunks:
+      - packages/cli/test/plan.test.ts:518-566
+      - packages/cli/test/plan.test.ts:731-774
+      - packages/cli/test/run.test.ts:1231-1260
+      - packages/cli/test/run.test.ts:1394-1459
+      - packages/runner/test/backfill.test.ts:252-289
+      - packages/runner/test/codexHomeOutsideWorktree.test.ts:335-377
+      - packages/runner/test/realCodexMarkerLaunch.test.ts:43-95
+      - packages/runner/test/realCodexMarkerOverflow.test.ts:34-163
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: "All 8 workspace packages passed with Node v24.14.0 and pnpm 10.13.1."
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: "Biome checked 522 files with no fixes applied."
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+    note: "packages/*/src reported no comments."
+  - id: test
+    result: pass
+    invocation: pnpm test
+    note: "All workspace packages passed; runner reported 64 files and 737 tests, schemas 1,412 tests, and CLI 475 tests."
+  - id: codex-guard-tests
+    result: pass
+    invocation: "pnpm --fail-if-no-match --filter runner exec vitest run test/codexGuard.test.ts test/realCodexMarkerOverflow.test.ts test/lineFitsRealCodex.test.ts test/realCodexMarkerLaunch.test.ts test/codexHomeOutsideWorktree.test.ts --passWithNoTests=false"
+    note: "5 files and 75 tests passed, including selector, strict-config, project-ancestor, profile, process-group, registration, and kept real-Codex cases."
+  - id: slow-tests-accounted
+    result: pass
+    invocation: node scripts/gates/slow-tests.ts
+    note: "slow tests accounted: 36 declared, 3200 logic under 1.5 s."
+open: []

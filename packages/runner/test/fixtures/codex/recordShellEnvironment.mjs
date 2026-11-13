@@ -41,5 +41,9 @@ process.stdin.on("data", (chunk) => {
           ? { tools: [] }
           : {};
     process.stdout.write(`${JSON.stringify({ jsonrpc: "2.0", id: message.id, result })}\n`);
+    if (message.method === "tools/list") {
+      process.stdin.destroy();
+      process.exit(0);
+    }
   }
 });
