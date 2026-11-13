@@ -1,0 +1,133 @@
+interlock: debrief@v2
+graph: 0065-gate-holds-retry-themselves
+node: busy-gates-wait
+role: implementer
+graph_base_sha: ab731fa31a593aeab4e6b26c0c66353f5841cd24
+session_start_sha: 7e33ce5b1ee2c22cc32068916d30b3355364cb96
+head_sha: e055a69adb2f2765ccba0dc632d9d1efac706d5d
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: bound-busy-at-the-launch-boundary
+    what: Added a runner-owned launch boundary that distinguishes a started command from a declared busy refusal, records one receipt per refusal, and retries gates with one shared judgement allowance and capped backoff.
+    because: Busy is meaningful only before gate work starts; the acceptance requires marker precedence, hidden boundary channels, bounded attempts, retained refusal proof, and one allowance shared across gates and the node-engine probe.
+    rests_on:
+      - packages/runner/src/busy.ts:1-104
+      - packages/runner/src/gateJudge.ts:188-258
+      - packages/runner/src/gateJudge.ts:417-543
+      - packages/runner/test/busyGatesWait.test.ts:42-187
+    hunks:
+      - packages/runner/src/busy.ts:1-104
+      - packages/runner/src/gateJudge.ts:188-258
+      - packages/runner/src/gateJudge.ts:417-543
+      - packages/runner/test/busyGatesWait.test.ts:42-187
+  - id: preserve-started-command-judgement
+    what: Kept ordinary command results, start-marker dominance, environment isolation, and receipt assessment on the command's own result when a command starts or produces an ambiguous busy-shaped exit.
+    because: A gate that starts is its own proof boundary; the acceptance explicitly preserves ordinary gate behavior and rejects reports manufactured by the gate command itself.
+    rests_on:
+      - packages/runner/src/gateJudge.ts:470-527
+    hunks:
+      - packages/runner/src/gateJudge.ts:470-527
+  - id: share-busy-policy-through-doors
+    what: Threaded the machine busy policy through backfill and worktree judgement, while retaining lease renewal until exec and pane judgement completes.
+    because: Every judging door must apply the same policy, and waiting for capacity must not let the session lease expire while the runner is still responsible for the node.
+    rests_on:
+      - packages/runner/src/backfill.ts:200-204
+      - packages/runner/src/judgeWorktree.ts:130-132
+      - packages/runner/src/index.ts:107
+      - packages/runner/src/sessionDrive.ts
+    hunks:
+      - packages/runner/src/backfill.ts:200-204
+      - packages/runner/src/judgeWorktree.ts:130-132
+      - packages/runner/src/index.ts:107
+      - packages/runner/src/sessionDrive.ts
+  - id: version-machine-busy-additively
+    what: Added machine@v1 as an additive provider shape with a validated busy policy, retained machine@v0 parsing, and regenerated the reference shape documentation.
+    because: Persisted machine files are public artifacts and the acceptance requires v1 range and required-field errors without invalidating v0 files.
+    rests_on:
+      - packages/runner/src/machineProvider.ts:1-180
+      - packages/runner/test/machineProvider.test.ts:293-337
+      - schemas/machine@v1.json:1-97
+      - packages/schemas/test/machineV1.test.ts:1-17
+      - docs/shapes.md:1199-1218
+    hunks:
+      - packages/runner/src/machineProvider.ts:1-180
+      - packages/runner/test/machineProvider.test.ts:293-337
+      - schemas/machine@v1.json:1-97
+      - packages/schemas/test/machineV1.test.ts:1-17
+      - docs/shapes.md:1199-1218
+  - id: provide-reference-busy-prefix
+    what: Added the reference machine prefix with injectable load, lock, process, and sleep checks, plus focused cases for its three refusals and admitted start.
+    because: The graph names these capacity signals and requires a reusable reference prefix whose refusal reasons feed the runner boundary.
+    rests_on:
+      - scripts/machine/busy-prefix.ts:1-91
+      - packages/runner/test/busyPrefix.test.ts:1-76
+    hunks:
+      - scripts/machine/busy-prefix.ts:1-91
+      - packages/runner/test/busyPrefix.test.ts:1-76
+  - id: render-retry-holds
+    what: Made the face identify a held gate with retry disposition and added its rendering proof.
+    because: Retry is a closed disposition that must be visible beside the held outcome, so a person can distinguish a capacity wait from an ordinary held gate.
+    rests_on:
+      - packages/face/src/sessionColumns.ts:61-72
+      - packages/face/test/busyHold.test.ts:1-20
+    hunks:
+      - packages/face/src/sessionColumns.ts:61-72
+      - packages/face/test/busyHold.test.ts:1-20
+  - id: record-the-d12-bend-and-session-trace
+    what: Recorded the bounded busy allowance as the D12 bend, pointed the project seam guidance at it, and retained the session choices and timing surprise in notes@v0.
+    because: The busy launch boundary is an intentional exception to the node retry budget and must retain a documented way back and an auditable session trace.
+    rests_on:
+      - AGENTS.md:115-120
+      - docs/design/0001-interlock.md:179-184
+      - docs/design/0001-interlock.md:385-390
+      - docs/design/0001-interlock.md:633-635
+      - .interlock/sessions/0065-gate-holds-retry-themselves/busy-gates-wait/notes.yaml:1-32
+    hunks:
+      - AGENTS.md:115-120
+      - docs/design/0001-interlock.md:179-184
+      - docs/design/0001-interlock.md:385-390
+      - docs/design/0001-interlock.md:633-635
+      - .interlock/sessions/0065-gate-holds-retry-themselves/busy-gates-wait/notes.yaml:1-32
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: All workspace TypeScript projects passed.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Biome checked 528 files successfully.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+    note: No source comments were reported in packages/*/src.
+  - id: test
+    result: pass
+    invocation: mise exec -- pnpm test
+    note: The full workspace test command passed; runner reported 760 tests, schemas 1420 tests, and face 187 tests.
+  - id: busy-gates-tests
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter runner exec vitest run test/busyGatesWait.test.ts test/busyPrefix.test.ts test/machineProvider.test.ts test/gateJudge.test.ts --passWithNoTests=false
+    note: 66 tests passed across four focused runner files.
+  - id: busy-schema-tests
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter schemas exec vitest run test/machineV1.test.ts test/reference.test.ts --passWithNoTests=false
+    note: 5 tests passed.
+  - id: busy-hold-face-tests
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter face exec vitest run test/busyHold.test.ts --passWithNoTests=false
+    note: 1 test passed.
+  - id: shapes-fresh
+    result: pass
+    invocation: mise exec -- pnpm interlock schema reference --check
+    note: The reference shape check reported fresh.
+  - id: slow-tests-accounted
+    result: fail
+    invocation: mise exec -- node scripts/gates/slow-tests.ts
+    note: The gate reported execProbe.test.ts at 1687.1ms and codexHomeOutsideWorktree.test.ts at 1639.1ms above the 1.5 second threshold; the selected environment was Node 26.13.0 while the repository engine declares Node 24.14.0.
+open:
+  - 'The slow-tests-accounted gate remains unresolved: two test timings exceeded its threshold in the available mise environment. All other declared implementation and standing checks passed.'
