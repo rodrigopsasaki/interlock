@@ -29,3 +29,11 @@ entries:
     at: "2026-11-14T00:00:00Z"
     expected: The fake mise used by the focused store tests would continue to invoke pnpm after the default-store lookup moved outside the heavy prefix.
     observed: The fixture had been written to discard three wrapper arguments, so a direct `mise exec -- pnpm store path` discarded pnpm as well; it now strips the explicit `exec --` pair and preserves the command.
+  - kind: choice
+    at: "2026-11-14T00:00:00Z"
+    chose: Keep the selected store provenance and retained-log location in setup refusal messages, asserting the stable refusal and provenance structure exactly while matching only generated paths structurally.
+    because: A failed setup's retained tail is the recovery receipt for the store choice; omitting it would hide why the setup was safe, while the content-addressed worktree path is necessarily different for each fixture run.
+  - kind: surprise
+    at: "2026-11-14T00:00:00Z"
+    expected: The approval test would reproduce the one missing-HEAD failure seen during slow-tests accounting.
+    observed: The graph approve test file passed all 7 tests in both single-worker harness-style runs, including the subsequent-show approval case; neither run reported a missing HEAD.
