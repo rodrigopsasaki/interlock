@@ -1,0 +1,229 @@
+interlock: graph@v0
+id: 0067-panes-use-the-gate-node
+arc: bring-october-back
+ask: When Interlock launches an agent pane, the Node that the gates run on is the first Node in every shell the pane and the agent's tool commands start, set after the owner's shell profile has run, so `node --version` there equals the gate's Node; a pane whose gate Node cannot be resolved is refused with a plain reason and never launched on a different Node; no shell profile or Homebrew setting of the owner is touched.
+derivation:
+  kind: model
+  model: gilb
+  prompt: panes-use-the-gate-node-2026-11-14
+authorization:
+  granted_by: Rodrigo Sasaki
+  mandate: loom-feed-2026-11-04  # "You're free to do changes on phyxius and interlock too", 23:25 UTC
+  approver: Rodrigo Sasaki; Gilb relays the recorded approval and coordinates cleared-node merges. The cross-vendor vet is advisory.
+read: >
+  Arc: bring-october-back (this repository's .interlock/arcs.yaml). The arc's ask is good results back; an agent that
+  misreads its own test run on the wrong Node produces the opposite. On 2026-11-14 an agent ran its tests, including
+  its control run on origin/main, in an Interlock pane, got failures, and diagnosed a real regression as a Node 26
+  problem, because its pane ran Homebrew's Node 26.13.0 while the judge ran the repository's pinned Node 24.14.0.
+
+  What is true today, from source (main 3c10bc6a). The owner's login shell sources ~/.zshenv, which runs
+  `brew shellenv` and puts /opt/homebrew/bin ahead of mise's tools. Interlock already knows this for itself: the
+  installed launcher ~/.local/bin/interlock strips mise's shims folder from PATH so that each `mise exec` puts the
+  pinned tools first, and every gate, and worktree setup, runs as `mise exec -- <command>`
+  (packages/runner/src/gateJudge.ts:524, packages/runner/src/worktreeSetup.ts:175), with a Node engine check in front
+  of them (packages/runner/src/nodeEngine.ts, checkNodeEngine, called at gateJudge.ts:608 and worktreeSetup.ts:213).
+  The agent's pane gets none of this. The session drive opens the pane with runtime.openPane(worktreePath,
+  launch.value.environment) (packages/runner/src/sessionDrive.ts:877), the herdr adapter passes that environment as
+  the `env` of tab.create or workspace.create (packages/runner/src/herdr/adapter.ts:446-478), the tmux adapter as
+  `new-session -e KEY=VALUE` (packages/runner/src/tmux/adapter.ts:27-33), and herdr starts the agent in the pane's
+  shell with agent.start (adapter.ts:355-380). Two facts make the obvious fixes fail. A PATH set in that environment
+  is read before the owner's ~/.zshenv runs, so brew shellenv puts Homebrew ahead of it. And a PATH exported by
+  typing into the pane's shell after the profile ran does not survive either: an agent CLI runs each tool command in
+  a fresh shell (a login or non-login zsh) that inherits the exported PATH and then sources the owner's profile again,
+  which prepends Homebrew again. What the agent's tool commands run on is decided by each fresh shell's own startup, so
+  that is where the fix has to act. A variable that selects startup files is not raced by the profile, which is why
+  ZDOTDIR is the lever: the environment given at pane creation does survive for it, because the shell reads it before
+  it reads any startup file.
+
+  What changes, and why this way.
+  - The gate's Node is resolved once per attempt, the way the gate runner resolves it: run
+    `[...heavy, "mise", "exec", "--", "node", "-p", "process.execPath"]` in the worktree with the environment
+    worktree setup and the gates are given (the drive's `{...process.env, ...machine.value.env}` through
+    nonInteractiveEnvironment, ownedCommand.ts:24), with the same heavy-lock prefix, through
+    runOwnedCommandWithTimeout (ownedCommand.ts:95), never runOwnedCommand, which has no timeout. The timeout is a
+    named constant (thirty seconds) that the drive's request can override for tests; on timeout the owned runner
+    terminates the whole process group, and the resolution returns a refusal. The directory holding the printed
+    executable is the gate Node's folder, and the executable must exist and be executable (checked with access and
+    X_OK, the way nodeEngine.ts resolveNode checks). This is the one definition of "the gate's Node"; it is a new
+    module in packages/runner/src (one small function and its refusal type), composed from
+    runOwnedCommandWithTimeout and nonInteractiveEnvironment, not a second resolver beside nodeEngine.ts. It runs
+    before the pane opens, where the drive prepares the launch (sessionDrive.ts:865, before :877).
+  - When it cannot be resolved (mise cannot start, exits non-zero, prints nothing, hangs past the timeout, prints a
+    path that does not exist or is not executable), the drive refuses the attempt before any pane opens, the way it
+    refuses a launch it cannot prepare (explainLaunchRefusal and the abandon/refuse path, sessionDrive.ts:866-874),
+    with a plain reason that names the command and what happened, for example "the gate's node could not be
+    resolved: mise exec exited 1: <first line>; no pane was opened". It never falls back to whatever Node the shell
+    would find. No pane means no pane-opened event and nothing for a cleanup to close.
+  - Interlock-owned startup files make the gate's Node first in every shell the pane or the agent starts. Per
+    attempt, before the pane opens, the drive writes a small folder of zsh startup files under Interlock's own state:
+    <state>/pane-startup/<graph>/<node>/<session id>/, where <state> is interlockStateDirectory(environment)
+    (packages/runner/src/codex/config.ts:543), the same root under which the codex session overlay already lives as
+    <state>/codex-homes/<graph>/<node>/<session> (config.ts:835-836), so the startup folder is its sibling. It is
+    never under sharedJournalDirectory, which resolves to the repository's .interlock/ledger, a protected record
+    that agents are told never to read, and never in the worktree or the owner's home. Its path segments are
+    checked the way the overlay checks them (safeSegment, config.ts:802; an unsafe graph, node or session id is a
+    plain refusal before any pane opens), and the state root is validated as the overlay validates it
+    (validateStateContainment, config.ts:833). The folder is created with mode 0700 and removed by the drive's cleanup when the attempt ends or is refused (a removal
+    failure is narrated, never raised). It holds .zshenv, .zprofile, .zshrc and .zlogin. Each file does the same three
+    things in order: remember the owned ZDOTDIR; source the owner's corresponding file unchanged from the owner's own
+    startup folder when that file exists (the owner's ZDOTDIR if the environment Interlock runs in has one, else
+    HOME, both read from the environment, never from a file); then restore ZDOTDIR to the owned folder (an owner file
+    may change it) and set PATH to the gate Node's folder followed by the PATH as it now stands, last of all. The
+    folder is written as plain sh-quoted text with the gate folder embedded, so no startup file reads anything
+    else. Interlock sources the owner's files, so the owner's setup runs exactly as before; it never reads, parses,
+    copies or edits them, and ~/.zshenv, the other profiles and Homebrew's setup are untouched. The owner's profile
+    still runs brew shellenv; the owned file runs after it and the gate's Node wins.
+  - ZDOTDIR reaches the shells through the launch environment, one map. The drive adds ZDOTDIR (the owned folder)
+    to the environment it already builds for the launch (agentEnvironment, sessionDrive.ts:385-394, merged the way
+    the runner marker is, refusing with a plain reason when machine.provider or machine.env already sets a different
+    ZDOTDIR). That one map reaches the pane's shell through openPane's env for runtimes that take a pane environment
+    (herdr through tab.create/workspace.create; tmux through `new-session -e`), and reaches codex's tool commands
+    through the per-session `shell_environment_policy.set` entries that agentEnvironmentArgs already writes
+    (packages/runner/src/codex/environment.ts:7, config.ts:467 and :869), so a codex tool shell keeps the same
+    ZDOTDIR. Nothing is typed into the pane, no Runtime method is added for text, and nothing waits on terminal echo.
+    Typed input is dropped because it cannot reach tool shells and its delivery cannot be confirmed.
+  - tmux. The tmux adapter already forwards the launch environment as `-e` on new-session and so already carries
+    ZDOTDIR; it gains `paneEnvironment: true` (it forwards it today but does not say so, and the drive's check
+    at sessionDrive.ts:849 reads that flag for every non-codex runtime), with an adapter test asserting the -e
+    argument. A runtime that offers no pane environment is refused the way machine.provider.env already is: plain
+    reason, no pane opened.
+  - Supported shells. Only zsh. The pane's shell is the owner's login shell; when basename of SHELL in the environment
+    Interlock runs in is not zsh, the attempt is refused before any pane opens with "the pane shell <name> is not
+    supported: only zsh startup files are owned". Bash is not offered, because BASH_ENV is not read by a login
+    bash (`bash -lc`), the shape an agent's tool shell takes, so it would not pin Node reliably.
+  - One site covers everything. run, resume and the planner share the drive's single open site, and every invocation
+    takes a fresh session and a fresh pane, so a resumed pane resolves, writes and applies the same way, from the
+    same code, into its own session folder. Exec runtimes run a process, not a pane (sessionDrive.ts:594-660) and
+    are not changed.
+  - Fixed, not configured. The owner's rule is that the pane, the agent's tool commands and the gate must not
+    disagree, so there is no setting to turn it off and no per-runtime opt-out.
+
+  What this plan cannot prove, named so nobody reads more into the gates. The cases below prove, with real zsh
+  processes and a stub owner profile that puts a fake Homebrew Node first, that every shell started the way an agent
+  starts tool shells (login and non-login, several in a row, fresh each time) runs the gate's Node, by executable path
+  and by version, and that without the owned files the same shells run the fake Homebrew Node. They use a fake runtime
+  and a fake agent, never herdr or a real agent CLI. Three things rest on the real programs and are checked by one
+  real attempt, which the debrief names as unproven by any gate: that herdr applies the env it is given to the
+  pane's shell before the shell reads its startup files; that each real agent CLI starts its tool shells as zsh
+  with the environment it was given (Claude and Kimi inherit the pane's; codex gets it through
+  shell_environment_policy.set); and that a CLI does not reset ZDOTDIR. The manual check is made through an agent:
+  open an attempt through `interlock run`, have the agent run `node --version; command -v node` as a tool command
+  (for codex too), and compare with `mise exec -- node --version` and `mise exec -- command -v node` in the worktree.
+
+  Tests, the real services and the standing gates. This node's own tests and proof script never start herdr, tmux,
+  a real agent CLI or a real provider, and never read the real HOME. In every case the state root comes from the fixture state under the system temp folder (the environment's XDG_STATE_HOME or the helper's equivalent), so the startup folder is created and removed there and never in a real state folder. Every new case builds its whole tool state under
+  a mkdtemp folder in the system temp folder, never inside the worktree and never inherited from the caller's
+  environment: HOME, ZDOTDIR for the stub owner profile, XDG_CONFIG_HOME, XDG_DATA_HOME, XDG_STATE_HOME,
+  XDG_CACHE_HOME, MISE_DATA_DIR, MISE_CONFIG_DIR, MISE_CACHE_DIR, MISE_STATE_DIR, COREPACK_HOME, npm_config_cache,
+  PNPM_HOME and TMPDIR, all set explicitly by a new helper in packages/runner/test/support (extending
+  toolState.ts, which today inherits its base environment), with the stub profile, stub Node binaries and stub
+  `mise` beside them, removed after. The honest state of the standing gates: the brief's `pnpm test` gate and the
+  slow-tests-accounted gate run every package's tests, and three existing tests start the real `codex` binary:
+  packages/runner/test/lineFitsRealCodex.test.ts, realCodexMarkerLaunch.test.ts and
+  realCodexMarkerOverflow.test.ts. They are bounded by the codex guard of graph 0065 (packages/runner/test/support/
+  codexGuard.ts, codexGuardSetup.ts, codexSupervisor.ts), which refuses every codex form but `codex exec` against a
+  loopback fixture provider, so they never reach a real provider or the network, and which keeps its own state under
+  packages/runner/test/.runs (an ignored folder inside the worktree). INTERLOCK_LIVE_SERVICES leaves them running;
+  it gates only the real herdr socket tests. This node does not add, change, enable or widen any of them, and says
+  so; the guarantee is about this node's own tests and proof script, and the debrief lists those three as the only
+  place a real agent CLI starts under the standing gates.
+
+  Out of scope: the planner's and the reviewer's exec processes; changing which Node the gates use; the launcher
+  script; the owner's ~/.zshenv, shell profiles and Homebrew (sourced, never edited or read by Interlock); bash and
+  other shells; recording the pane in the ledger (graph 0066, which this does not depend on); pnpm, corepack and
+  mise's other tools, which the gate Node's folder covers where they sit beside it.
+
+  Laws: AGENTS.md. No comments in packages/*/src; strict TypeScript with no `as`, `!`, `any` or `as unknown as`;
+  plain engineering names; Biome.
+
+gates:
+  - id: approved
+    kind: human
+
+nodes:
+  - id: panes-use-the-gate-node
+    role: implementer
+    acceptance: |
+      As the read. Allowed paths: packages/runner/, scripts/gates/pane-node-proven.ts, scripts/gates/slow-tests.ts
+      (declarations only, if the slow-tests-accounted gate requires them), and this graph's session folder.
+      1. A new module in packages/runner/src resolves the gate's Node as the read defines it (runOwnedCommandWithTimeout
+         with a named timeout constant the request can override, the heavy prefix, the non-interactive environment; the
+         folder of the printed executable, checked to exist and be executable) and returns a plain refusal for every
+         failure the read lists. The drive resolves it once per attempt before runtime.openPane and refuses the
+         attempt, with that reason and no pane opened, when it cannot. A timed-out resolution leaves no process
+         running.
+      2. A new module writes the owned zsh startup folder (.zshenv, .zprofile, .zshrc, .zlogin) under
+         <state>/pane-startup/<graph>/<node>/<session>/ (a sibling of codex-homes under interlockStateDirectory) with mode 0700, as the read specifies: owned ZDOTDIR
+         remembered, the owner's file sourced unchanged when it exists, ZDOTDIR restored, the gate folder put first
+         on PATH last. The drive removes the folder in its cleanup on every end of the attempt, refusals included.
+         The drive adds ZDOTDIR to agentEnvironment (conflict with a different ZDOTDIR already set is refused with a
+         plain reason), so it reaches openPane's env and, for codex, agentEnvironmentArgs'
+         shell_environment_policy.set entries. A SHELL that is not zsh is refused before any pane opens; a runtime
+         with no pane environment (and not codex) is refused with a plain reason before any pane opens. The tmux
+         adapter reports paneEnvironment: true, with a test asserting its -e ZDOTDIR argument. Nothing is typed into
+         a pane and no Runtime method is added.
+      3. Nothing reads, parses, copies or writes ~/.zshenv, any owner shell profile or Homebrew files. The owned
+         files only source them.
+      4. Tests, in packages/runner/test/paneNode.test.ts with the shell-backed fake runtime and fake agent in
+         packages/runner/test/support/shellPaneRuntime.ts and the temp-state helper from the read, the real drive and
+         ledger, stub Node binaries and a stub `mise` written by the test. The fake Homebrew folder's `node` prints
+         v26.13.0 and writes a marker file when run; the gate folder's `node` prints v24.14.0 and, given
+         `-p process.execPath`, prints its own path; the stub `mise exec -- <command>` runs the command with that
+         folder first. The stub owner profile (HOME/.zshenv and HOME/.zprofile, written by the test with known
+         bytes) puts the fake Homebrew folder first on PATH and appends a line to a sourced.log each time it runs.
+         The fake agent, when started, runs several fresh tool shells in a row with the environment it was given
+         (for codex kind, only the ZDOTDIR carried by the shell_environment_policy.set arguments the drive built):
+         `zsh -lc`, `zsh -c` and `zsh -ic`, each printing `command -v node` and `node --version`. Exactly these four
+         titles; the assertions named under each are inside that case:
+         - "a pane launched by interlock reports the gate's node version even when the shell profile puts Homebrew
+           first" (for a herdr-style and a codex-kind attempt: every tool shell reports the gate folder's node path
+           and v24.14.0, and so does a shell started in the pane itself; a control that starts the same shells
+           without the owned ZDOTDIR reports the fake Homebrew node path and v26.13.0, so the case cannot pass on a
+           profile that never put Homebrew first; the Homebrew marker shows the node was never the one that ran in
+           the drive's shells; the call log shows the startup folder written before openPane and ZDOTDIR in
+           openPane's env, nothing typed into the pane, and, for codex, ZDOTDIR in shell_environment_policy.set)
+         - "a resumed pane gets the same node" (invoke the real drive twice on the same node, the second as the
+           resume the existing drive tests use; two sessions, two panes, two startup folders, each pane's tool
+           shells report the same gate node path and v24.14.0 as above)
+         - "the owner's profile is never edited" (a preservation check, not a failing-on-main case: the stub profile,
+           the fixture HOME's .zshenv, .zprofile, .zshrc and .zlogin, each written with known bytes, are byte for
+           byte equal after the drive and after the agent exited; the fixture HOME's file listing is unchanged; the
+           sourced.log shows each owner file that exists was sourced once per shell that reads it; ZDOTDIR is the
+           owned folder after an owner file that sets it to something else has run; the startup folder is gone after
+           the attempt ends)
+         - "a pane without a resolvable gate node is refused with a plain reason, never launched on a different node"
+           (variants in the case: the stub `mise` exits 1; prints nothing; prints a path to a file that is not
+           executable; prints a path that does not exist; cannot start (no `mise` on PATH); hangs past a one-second
+           timeout override, with the stub's child process proved gone afterwards; a SHELL that is bash; a runtime
+           with no pane environment; each: the drive result is a refusal whose message names what failed and says no
+           pane was opened, the fake runtime's openPane and startAgent counts are 0, no shell was spawned, no startup
+           folder is left behind, and the fake Homebrew `node` marker file does not exist)
+      5. Proof: scripts/gates/pane-node-proven.ts runs the test file above once with vitest's JSON reporter, with a
+         temporary HOME and the same temporary tool-state folders, fails on a missing file, and prints "pane node
+         proven: 4 named cases passed" only when the run exits zero, every title above passes exactly once, and there
+         are no failures, skips, todos, missing summaries or extra cases in that file. It proves execution and titles;
+         the assertions above are what the judge reads each case for.
+      6. Existing tests keep passing (the drive fixtures and fake runtimes in packages/runner/test gain
+         paneEnvironment where the drive now requires it, and tmux's adapter test gains the -e ZDOTDIR assertion).
+         New tests are declared or baselined as the slow-tests-accounted gate requires. The three existing tests that
+         start the real codex under the codex guard are neither changed nor extended.
+      7. The debrief names where the pane environment is set (the drive's agentEnvironment and the owned startup
+         folder), lists lineFitsRealCodex.test.ts, realCodexMarkerLaunch.test.ts and realCodexMarkerOverflow.test.ts as
+         the only place a real agent CLI starts under the standing gates, states the three things no gate proves
+         (herdr applying env before startup files, each real CLI's tool shells being zsh with the given environment,
+         no CLI resetting ZDOTDIR), gives the manual agent-tool-command check from the read, and states that the
+         installed launcher and the owner's profile are untouched.
+      Before you file the debrief (and before any refile), end every vitest worker, zsh child and process you started
+      and confirm with pgrep that none survives.
+    gates:
+      - id: branch-contains-main
+        kind: command
+        run: git merge-base --is-ancestor origin/main HEAD
+      - id: pane-node-proven
+        kind: command
+        run: node scripts/gates/pane-node-proven.ts
+        expect_output: 'pane node proven: 4 named cases passed'
+      - id: slow-tests-accounted
+        kind: command
+        run: node scripts/gates/slow-tests.ts
+        expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1\.5 s'
