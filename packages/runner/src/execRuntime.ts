@@ -6,6 +6,13 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { err, isErr, isOk, ok, type Result } from "@phyxiusjs/fp";
+import type { Ledger } from "ledger";
+import {
+  dispatchExecStopIntent,
+  type ExecStopTarget,
+  recordExecStopIntent,
+  stopSignalFor,
+} from "./execStop.ts";
 import { type OwnedProcess, spawnOwned } from "./ownedCommand.ts";
 
 export const SESSION_SHAPE = "session@v0";
@@ -47,6 +54,7 @@ export interface ExecSessionRecord {
   readonly runnerBoot: string;
   readonly launchNonce: string;
   readonly controlSecret: string;
+  readonly controlSocketPath?: string;
   readonly startedAt: string;
   readonly endedAt: string | null;
   readonly state: ExecPhaseState;
@@ -186,6 +194,7 @@ export interface ExecPhaseRequest {
   readonly nodeExecutable?: string;
   readonly launcherPath?: string;
   readonly programExitObservation?: ProgramExitObservation;
+  readonly ledger?: Ledger;
 }
 
 export interface ExecPhaseOutcome {
@@ -239,10 +248,13 @@ export function readLatestRecord(runDir: string): ExecSessionRecord | undefined 
   const paths = readdirSync(recordDir)
     .filter((name) => name.endsWith(".json"))
     .sort((a, b) => Number(a.slice(0, -5)) - Number(b.slice(0, -5)));
-  const latest = paths.at(-1);
-  if (latest === undefined) return undefined;
-  const parsed: unknown = JSON.parse(readFileSync(join(recordDir, latest), "utf8"));
-  return isSessionRecord(parsed) ? parsed : undefined;
+  for (const latest of paths.toReversed()) {
+    try {
+      const parsed: unknown = JSON.parse(readFileSync(join(recordDir, latest), "utf8"));
+      if (isSessionRecord(parsed)) return parsed;
+    } catch {}
+  }
+  return undefined;
 }
 
 function isSessionRecord(value: unknown): value is ExecSessionRecord {
@@ -535,6 +547,7 @@ function initialRecord(
   runDir: string,
   nonce: string,
   secret: string,
+  socketPath: string,
 ): ExecSessionRecord {
   const id = request.id ?? randomUUID();
   return {
@@ -559,6 +572,7 @@ function initialRecord(
     runnerBoot: process.platform,
     launchNonce: nonce,
     controlSecret: secret,
+    controlSocketPath: socketPath,
     startedAt: now(),
     endedAt: null,
     state: "running",
@@ -824,7 +838,7 @@ export async function runExecPhase(
   const secret = randomBytes(32).toString("hex");
   const uid = process.getuid?.() ?? process.pid;
   const socketPath = join(tmpdir(), `interlock-${uid}`, `${randomBytes(8).toString("hex")}.sock`);
-  const record = initialRecord({ ...request, id, phaseId }, runDir, nonce, secret);
+  const record = initialRecord({ ...request, id, phaseId }, runDir, nonce, secret, socketPath);
   const writer = new TranscriptWriter(
     transcriptPath,
     request.transcriptSink ?? nativeTranscriptSink,
@@ -1102,6 +1116,7 @@ export async function runExecPhase(
   current = go;
   child.stdin.write("go\n");
   let timedOut = false;
+  let stopObserved = false;
   let launcherConfirmedDead = false;
   const launcherExit = new Promise<{
     readonly code: number | null;
@@ -1113,9 +1128,47 @@ export async function runExecPhase(
     });
   });
   const exitFile = join(runDir, "exit.json");
-  let exit = await waitForProgramExit(exitFile, request.timeoutMs, request.programExitObservation);
-  if (exit === undefined) {
+  const stopMarker = Symbol("exec-stop");
+  let stopTimer: ReturnType<typeof setInterval> | undefined;
+  const ledger = request.ledger;
+  const stopWait =
+    ledger === undefined
+      ? undefined
+      : new Promise<typeof stopMarker>((resolve) => {
+          stopTimer = setInterval(() => {
+            if (stopSignalFor(ledger, id, phaseId) !== undefined) {
+              if (stopTimer !== undefined) clearInterval(stopTimer);
+              resolve(stopMarker);
+            }
+          }, 25);
+        });
+  const firstExit = await Promise.race([
+    waitForProgramExit(exitFile, request.timeoutMs, request.programExitObservation),
+    ...(stopWait === undefined ? [] : [stopWait]),
+  ]);
+  if (stopTimer !== undefined) clearInterval(stopTimer);
+  let exit = firstExit === stopMarker ? undefined : firstExit;
+  stopObserved = firstExit === stopMarker;
+  if (exit === undefined && !stopObserved) {
     timedOut = true;
+    const stopTarget: ExecStopTarget = {
+      graph: request.graph,
+      node: request.node ?? null,
+      session: id,
+      phaseId,
+      controlSocketPath: socketPath,
+      controlSecret: secret,
+    };
+    const stopId =
+      request.ledger === undefined
+        ? undefined
+        : recordExecStopIntent(
+            request.ledger,
+            stopTarget,
+            "runner",
+            `run timeout ${request.timeoutMs}ms`,
+            "phase",
+          );
     void writer.append({
       interlock: TRANSCRIPT_SHAPE,
       ts: now(),
@@ -1124,7 +1177,14 @@ export async function runExecPhase(
     });
     current = { ...current, reason: `run timeout ${request.timeoutMs}ms` };
     await publishRecord(runDir, current);
-    await connectControl(socketPath, secret, "TERM");
+    if (stopId === undefined) {
+      await connectControl(socketPath, secret, "TERM");
+    } else if (isErr(stopId)) {
+      await connectControl(socketPath, secret, "TERM");
+    } else {
+      if (ledger !== undefined)
+        await dispatchExecStopIntent(ledger, stopTarget, stopId.value, request.termGraceMs);
+    }
     exit = await waitForProgramExit(
       exitFile,
       request.termGraceMs ?? DEFAULT_TERM_GRACE_MS,
@@ -1219,14 +1279,18 @@ export async function runExecPhase(
     captureSettleMs,
     captureTimers,
   );
+  const stop =
+    request.ledger === undefined ? undefined : stopSignalFor(request.ledger, id, phaseId);
   const finalState: ExecPhaseState =
-    programError !== undefined
-      ? "failed"
-      : timedOut
-        ? "killed"
-        : exit.signal !== null || exit.code !== 0
-          ? "failed"
-          : "done";
+    stop !== undefined
+      ? "killed"
+      : programError !== undefined
+        ? "failed"
+        : timedOut
+          ? "killed"
+          : exit.signal !== null || exit.code !== 0
+            ? "failed"
+            : "done";
   const captureReason = captureResult.reason;
   const closeLine: ExecTranscriptLine = {
     interlock: TRANSCRIPT_SHAPE,
@@ -1244,15 +1308,19 @@ export async function runExecPhase(
     exitCode: exit.code,
     signal: exit.signal,
     reason:
-      programError !== undefined
-        ? `program could not start: ${programError}`
-        : timedOut
-          ? `run timeout ${request.timeoutMs}ms`
-          : exit.signal === null && exit.code === 0
-            ? null
-            : exit.signal === null
-              ? `exit ${exit.code ?? 1}`
-              : `ended by ${exit.signal} from outside the runner`,
+      stop !== undefined
+        ? stop.by === "runner" && stop.because === `run timeout ${request.timeoutMs}ms`
+          ? stop.because
+          : `${stop.mode === "attempt" ? "attempt " : ""}stopped by ${stop.by}`
+        : programError !== undefined
+          ? `program could not start: ${programError}`
+          : timedOut
+            ? `run timeout ${request.timeoutMs}ms`
+            : exit.signal === null && exit.code === 0
+              ? null
+              : exit.signal === null
+                ? `exit ${exit.code ?? 1}`
+                : `ended by ${exit.signal} from outside the runner`,
     reaped,
     captureComplete,
   };
@@ -1299,6 +1367,7 @@ function sessionView(record: ExecSessionRecord): ExecSessionView {
     runnerBoot: _runnerBoot,
     launchNonce: _launchNonce,
     controlSecret: _controlSecret,
+    controlSocketPath: _controlSocketPath,
     goIntent: _goIntent,
     sampledMembers: _sampledMembers,
     ...view
@@ -1310,15 +1379,21 @@ export async function listExecSessions(
   runRoot: string,
   liveOnly = false,
 ): Promise<readonly ExecSessionView[]> {
+  return (await listExecSessionRecords(runRoot, liveOnly)).map(sessionView);
+}
+
+export async function listExecSessionRecords(
+  runRoot: string,
+  liveOnly = false,
+): Promise<readonly ExecSessionRecord[]> {
   if (!existsSync(runRoot)) return [];
-  const records: ExecSessionView[] = [];
+  const records: ExecSessionRecord[] = [];
   for (const id of readdirSync(runRoot)) {
     const sessionDir = join(runRoot, id);
     if (!existsSync(sessionDir)) continue;
     for (const phaseId of readdirSync(sessionDir)) {
       const record = readLatestRecord(join(sessionDir, phaseId));
-      if (record !== undefined && (!liveOnly || record.state === "running"))
-        records.push(sessionView(record));
+      if (record !== undefined && (!liveOnly || record.state === "running")) records.push(record);
     }
   }
   return records.sort((a, b) => b.startedAt.localeCompare(a.startedAt));

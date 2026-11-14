@@ -1,0 +1,102 @@
+interlock: debrief@v2
+graph: 0065-gate-holds-retry-themselves
+node: sessions-stop-stops
+role: implementer
+graph_base_sha: fdd3c346ce3fc1fc01a9f1230a7fb989a1d5f0f9
+session_start_sha: 251782b708a5f5010beb2bdbff40579c80798221
+head_sha: 859ccf1ea55411a2f40738cdab2ce2efb0b93a97
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: durable-exec-stop-effect
+    what: Persist a stable exec-stop intent before control-socket dispatch, record acknowledged or uncertain delivery, replay retained intents, and expose the durable socket locator while keeping the public sessions projection unchanged.
+    because: The acceptance requires human and timeout exec stops to share the outbox boundary, survive a dispatch/replay gap, and identify the live phase without changing existing session listings or old records.
+    applies_to: { kind: repository }
+    rests_on:
+      - packages/runner/src/execStop.ts
+      - packages/runner/src/execRuntime.ts
+      - packages/runner/src/index.ts
+      - schemas/session@v0.json
+      - docs/shapes.md
+    hunks:
+      - packages/runner/src/execStop.ts
+      - packages/runner/src/execRuntime.ts
+      - packages/runner/src/index.ts
+      - schemas/session@v0.json
+      - docs/shapes.md
+  - id: stop-driver-continuation
+    what: Consume phase and attempt stop signals in the exec driver, holding an attempt before commit or debrief while allowing a phase stop to follow timeout continuation, and route pane stops through the machine close outbox with by and because.
+    because: A phase stop ends only the current phase, whereas an attempt stop must prevent every later phase, judgement, commit and renewal; pane close must have the same durable intent and one-close behavior.
+    applies_to: { kind: repository }
+    rests_on:
+      - packages/runner/src/sessionDrive.ts
+      - packages/runner/src/machineOutbox.ts
+      - packages/runner/src/execStop.ts
+    hunks:
+      - packages/runner/src/sessionDrive.ts
+      - packages/runner/src/machineOutbox.ts
+      - packages/runner/src/execStop.ts
+  - id: sessions-stop-grammar
+    what: Add the sessions stop command, strict argument refusal, unique-prefix and live-session checks, exec dispatch, pane resolution, and main routing while preserving the existing list and read commands.
+    because: The closed sessions vocabulary must refuse unknown arguments and invalid targets without recording or closing anything, while one ledger session may have both debrief and work phase records and must still resolve as one identity.
+    applies_to: { kind: repository }
+    rests_on:
+      - packages/cli/src/main.ts
+      - packages/cli/src/sessions.ts
+      - packages/cli/test/sessionsStop.test.ts
+    hunks:
+      - packages/cli/src/main.ts
+      - packages/cli/src/sessions.ts
+      - packages/cli/test/sessionsStop.test.ts
+  - id: stop-proof-and-session-receipts
+    what: Add fixture coverage for pane close intent contents, refusal paths, exec intent persistence, uncertain delivery replay, and the compatibility rule that timeout records retain their timeout reason; record the session choices and surprises in notes@v0.
+    because: The new behavior crosses CLI, runner, ledger and process-lifecycle seams, so focused fixtures prove durable ordering and refusal behavior while notes preserve the decisions that shaped the diff.
+    applies_to: { kind: repository }
+    rests_on:
+      - packages/cli/test/sessionsStop.test.ts
+      - packages/runner/test/execStop.test.ts
+      - packages/runner/src/execRuntime.ts
+      - .interlock/sessions/0065-gate-holds-retry-themselves/sessions-stop-stops/notes.yaml
+    hunks:
+      - packages/cli/test/sessionsStop.test.ts
+      - packages/runner/test/execStop.test.ts
+      - packages/runner/src/execRuntime.ts
+      - .interlock/sessions/0065-gate-holds-retry-themselves/sessions-stop-stops/notes.yaml
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: All eight workspace packages passed under the fixture environment after the final code commit 859ccf1e.
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: Biome exited zero; one pre-existing warning remains at packages/runner/src/gateJudge.ts:75.
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+    note: No comments found in packages/*/src.
+  - id: test
+    result: fail
+    invocation: pnpm test
+    note: Ledger, debrief, verifier, face and substrate suites passed; the runner suite had 13 existing Codex-guard failures because its ancestor scan saw the owner's /Users/rodrigosasaki/.codex/config.toml from this worktree. The command used fixture HOME, XDG folders, CODEX_HOME and Git identity and did not write owner configuration.
+  - id: sessions-stop-tests
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter cli exec vitest run test/sessionsStop.test.ts --passWithNoTests=false
+    note: 2 tests passed.
+  - id: exec-stop-tests
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/execStop.test.ts --passWithNoTests=false
+    note: 2 tests passed, including uncertain delivery replay.
+  - id: slow-tests-accounted
+    result: fail
+    invocation: node scripts/gates/slow-tests.ts
+    note: The runner report was blocked by the same pre-existing Codex guard failures and also reported two existing unaccounted slow cases, Codex mcp list and Codex home outside worktree, plus the setupNeverHolds fixture failure.
+  - id: debrief-valid
+    result: pass
+    invocation: pnpm interlock debrief validate 0065-gate-holds-retry-themselves sessions-stop-stops
+    note: The filed debrief and notes validated as debrief@v2 and notes@v0 before the final artifact commit.
+open:
+  - The standing pnpm test gate and slow-tests-accounted gate remain unresolved in this fixture-constrained worktree because the existing Codex guard treats the owner's ancestor configuration as a project layer; no owner configuration or Preston state was changed.
