@@ -585,3 +585,38 @@ nodes:
         kind: command
         run: node scripts/gates/slow-tests.ts
         expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1\.5 s'
+
+  - id: store-stays-pinned
+    role: implementer
+    depends_on: [setup-never-holds]
+    acceptance: |
+      Found 2026-11-14 overnight: two resumes hung on pnpm's "The modules directories will be removed and reinstalled
+      from scratch. Proceed?", one for about 28 and one for about 47 minutes, holding the heavy lock. The cause is a
+      store mismatch: each worktree's node_modules/.modules.yaml records the pnpm store it was installed from (the
+      owner's real store under his home), and agents that install under a fixture HOME (as the standing rules
+      require) use a different store and rewrite it. The next setup under the other HOME sees the mismatch and asks to
+      purge. setup-never-holds made that a clean failure instead of a hang; this node makes it not happen.
+      - The runner's worktree setup environment pins npm_config_store_dir: to the store recorded in the worktree's
+        node_modules/.modules.yaml when one exists (read with a YAML parser, the storeDir field, no casts), else to
+        the store pnpm reports for the runner's own environment (`pnpm store path`, resolved once per setup). It sets
+        nothing else from the owner's home and changes no other setup variable. setup-never-holds' non-interactive
+        environment stays as it is.
+      - The pinned store is said in the setup's retained log as one line naming the store and where it came from
+        (recorded in the worktree, or the runner's default).
+      - Tests in packages/runner/test/storeStaysPinned.test.ts with a fake pnpm (no real pnpm, no real store, no
+        network), each failing on main 62dd36d: a worktree whose .modules.yaml names store A, set up under a fixture
+        HOME whose default store is B, runs setup with npm_config_store_dir=A and finishes with no purge and no
+        prompt; a worktree with no .modules.yaml uses the runner's default store; an unreadable or invalid
+        .modules.yaml falls back to the default and says so in the log line; the owner's real store and home are
+        never read or written by the tests.
+      Before you file the debrief (and before any refile), end every vitest worker and child process you started and
+      confirm with pgrep that none survives; never run a real codex.
+    gates:
+      - id: store-stays-pinned-tests
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/storeStaysPinned.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: slow-tests-accounted
+        kind: command
+        run: node scripts/gates/slow-tests.ts
+        expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1\.5 s'
