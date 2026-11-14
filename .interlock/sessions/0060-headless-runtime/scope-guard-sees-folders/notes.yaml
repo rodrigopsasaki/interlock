@@ -1,0 +1,39 @@
+interlock: notes@v0
+node: scope-guard-sees-folders
+entries:
+  - kind: choice
+    at: "2026-11-14T22:00:00Z"
+    chose: Walk untracked directory entries through the existing watch-path traversal and represent symbolic links without dereferencing their targets.
+    because: Git can report an untracked nested repository as one directory entry, while the guard must inspect its files and never read through a link.
+  - kind: choice
+    at: "2026-11-14T22:00:00Z"
+    chose: Protect a scope-guard hold in judge with explicit recheck and person-clear receipts.
+    because: A generic held outcome does not identify why judge may proceed, so the guard reason must remain visible until a runner comparison or a named person's action authorizes clearance.
+  - kind: choice
+    at: "2026-11-14T22:00:00Z"
+    chose: Expose guard rechecking as an explicit judge flag and person clearance as the existing gate-clear command with gate scope-guard.
+    because: The acceptance requires judge-alone refusal while preserving a direct, recorded recovery path for a runner check or a person's named decision.
+  - kind: surprise
+    at: "2026-11-14T22:00:00Z"
+    expected: mise exec would select the pinned repository Node version for the focused scope proof.
+    observed: The isolated command ran on Node v26.13.0 while package.json requests v24.14.0; all 13 scopeGuard tests passed and the mismatch remains open for the handoff.
+  - kind: surprise
+    at: "2026-11-14T22:00:00Z"
+    expected: The first typecheck would accept the new judge refusal branch and receipt error messages.
+    observed: TypeScript found the new scope-guard refusal needed handling in both session-drive branches, and the local-config and scope-refusal unions needed their existing explainers; those corrections are now applied.
+  - kind: surprise
+    at: "2026-11-14T22:00:00Z"
+    expected: The existing CLI judge integration suite would be independent of the fixture HOME.
+    observed: Three cases failed before their assertions because isolated Git could not find a user identity; the next fixture commands set a worktree-local GIT_CONFIG_GLOBAL and do not consult the owner's home.
+  - kind: surprise
+    at: "2026-11-14T22:00:00Z"
+    expected: The standing lint gate would be clean after formatting the changed files.
+    observed: Lint exits successfully but retains one pre-existing fixable warning in packages/runner/src/gateJudge.ts for a regular-expression literal; no changed file is warned.
+  - kind: surprise
+    at: "2026-11-14T22:00:00Z"
+    expected: The complete runner suite would run from the fixture HOME used by the command.
+    observed: The suite failed in existing Codex guard cases because spawned commands still resolved /Users/rodrigosasaki/.codex/config.toml, and a later Vitest worker could not resolve the installed tinypool process module; the focused scopeGuard proof remained green.
+  - kind: surprise
+    at: "2026-11-14T22:00:00Z"
+    expected: The repository test gate would complete after the package tests passed.
+    observed: pnpm test reached 755 passing runner tests and the other workspace suites, then failed the same 13 existing Codex guard cases because the spawned command resolved /Users/rodrigosasaki/.codex/config.toml.

@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
 import { err, ok, unwrap } from "@phyxiusjs/fp";
 import { sharedJournalDirectory } from "face";
-import { createLedger, sessionRuntime } from "ledger";
+import { createLedger, heldOn, outcome, sessionRuntime } from "ledger";
 import type { Runtime } from "runner";
 import { afterEach, describe, expect, it } from "vitest";
 import { fixtureGit } from "../../../test/support/gitFixture.ts";
@@ -11,6 +11,7 @@ import {
   type FakeSubstrateServer,
   startFakeSubstrateServer,
 } from "../../substrate/test/support/fakeSubstrateServer.ts";
+import { runGateClear } from "../src/gate/clear.ts";
 import { runGraphApprove } from "../src/graph/approve.ts";
 import { runInterlockJudge } from "../src/judge.ts";
 import { runInterlockRun } from "../src/run.ts";
@@ -168,6 +169,30 @@ function settle(worktreePath: string): void {
   commitAll(worktreePath, "settle the run's own screen snapshot");
 }
 
+async function scopeGuardHold(cwd: string, reason: string): Promise<void> {
+  const ledger = unwrap(
+    await createLedger({
+      clock: createControlledClock({ initialTime: 0 }),
+      directory: await sharedJournalDirectory(cwd),
+    }),
+  );
+  ledger.append({
+    kind: "outcome-set",
+    node: { graph: "demo", id: "a" },
+    outcome: outcome.held([], heldOn.gateFailure(reason, "hold"), reason, 60_000),
+  });
+  await ledger.close();
+}
+
+function cleanScopeGuardWorktree(cwd: string): string {
+  const worktreePath = join(cwd, ".worktrees", "a");
+  mkdirSync(worktreePath, { recursive: true });
+  gitInitFixture(worktreePath);
+  writeFileSync(join(worktreePath, "work.txt"), "settled\n");
+  commitAll(worktreePath, "settle scope guard fixture");
+  return worktreePath;
+}
+
 const SHA = "c".repeat(40);
 
 const debriefYaml = [
@@ -190,6 +215,67 @@ const debriefYaml = [
 ].join("\n");
 
 describe("interlock judge", () => {
+  it("refuses a scope-guard hold until an explicit clean recheck is recorded", async () => {
+    const cwd = fixture();
+    await approve(cwd);
+    cleanScopeGuardWorktree(cwd);
+    await scopeGuardHold(
+      cwd,
+      "scope guard held node: session guard-session, phase work phase, runtime profile fixture; changed paths: main checkout/outside.txt",
+    );
+
+    const refused = await runInterlockJudge(["demo", "a", "--session", "guard-session"], {
+      cwd,
+      clock: createControlledClock({ initialTime: 0 }),
+    });
+    expect(refused.exitCode).not.toBe(0);
+    expect(refused.message).toContain("scope guard hold");
+    expect(refused.message).toContain("outside.txt");
+
+    const rechecked = await runInterlockJudge(
+      ["demo", "a", "--session", "guard-session", "--scope-guard-recheck"],
+      { cwd, clock: createControlledClock({ initialTime: 0 }) },
+    );
+    expect(rechecked.exitCode).toBe(0);
+    expect(rechecked.message).toContain("cleared");
+  });
+
+  it("lets a person's named scope-guard clear authorize a later judge", async () => {
+    const cwd = fixture();
+    await approve(cwd);
+    cleanScopeGuardWorktree(cwd);
+    await scopeGuardHold(
+      cwd,
+      "scope guard held node: session guard-session, phase work phase, runtime profile fixture; changed paths: main checkout/outside.txt",
+    );
+
+    const clearedByPerson = await runGateClear(
+      [
+        "demo",
+        "a",
+        "scope-guard",
+        "--session",
+        "guard-session",
+        "--paths",
+        "main checkout/outside.txt",
+        "--by",
+        "Rodrigo Sasaki",
+        "--because",
+        "I inspected the named outside path.",
+      ],
+      { cwd },
+    );
+    expect(clearedByPerson.exitCode).toBe(0);
+    expect(clearedByPerson.message).toContain("outside.txt");
+
+    const judged = await runInterlockJudge(["demo", "a", "--session", "guard-session"], {
+      cwd,
+      clock: createControlledClock({ initialTime: 0 }),
+    });
+    expect(judged.exitCode).toBe(0);
+    expect(judged.message).toContain("cleared");
+  });
+
   slowIntegration(
     "binds an enabled origin through judge's actual absorb client",
     {

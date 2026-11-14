@@ -810,7 +810,9 @@ export async function driveInteractiveSession(
             ? explainWorktreeRefusal(judged.error.refusal)
             : judged.error.kind === "machine"
               ? judged.error.because
-              : explainGateJudgeRefusal(judged.error.refusal);
+              : judged.error.kind === "scope-guard"
+                ? judged.error.because
+                : explainGateJudgeRefusal(judged.error.refusal);
         return refuse(abandon("gates"), message);
       }
       return {
@@ -1269,7 +1271,9 @@ export async function driveInteractiveSession(
           ? refuse(abandon("worktree status"), explainWorktreeRefusal(judged.error.refusal))
           : judged.error.kind === "machine"
             ? refuse(abandon("gates"), judged.error.because)
-            : refuse(abandon("gates"), explainGateJudgeRefusal(judged.error.refusal));
+            : judged.error.kind === "scope-guard"
+              ? refuse(abandon("gates"), judged.error.because)
+              : refuse(abandon("gates"), explainGateJudgeRefusal(judged.error.refusal));
       abandonLease();
       return result;
     }

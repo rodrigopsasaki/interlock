@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { type Clock, createSystemClock } from "@phyxiusjs/clock";
 import { isErr } from "@phyxiusjs/fp";
 import {
@@ -21,11 +22,16 @@ import {
   spend,
 } from "ledger";
 import {
+  createScopeGuardReceipt,
   declaredGateIds,
+  explainLocalConfigRefusal,
   explainStandingGatesRefusal,
   gateCommandTable,
   gitScope,
+  loadLocalConfig,
   loadStandingGates,
+  SCOPE_GUARD_RECEIPT_GATE,
+  scopeGuardHold,
 } from "runner";
 import {
   contentHash,
@@ -44,6 +50,16 @@ function missingDelegationValue(flag: string): CommandResult {
     exitCode: 1,
     message: `interlock gate clear: ${flag} must carry a value when present.`,
   };
+}
+
+function scopePathsFrom(args: readonly string[]): readonly string[] | undefined {
+  const parsed = parseFlagValue(args, "--paths");
+  if (parsed.kind !== "value") return undefined;
+  const paths = parsed.value
+    .split(",")
+    .map((path) => path.trim())
+    .filter((path) => path.length > 0);
+  return paths.length === 0 ? undefined : paths;
 }
 
 export async function runGateClear(
@@ -83,9 +99,13 @@ export async function runGateClear(
   const forFlag = parseFlagValue(args, "--for");
   const citesFlag = parseFlagValue(args, "--cites");
   const readingFlag = parseFlagValue(args, "--reading");
+  const scopeSessionFlag = parseFlagValue(args, "--session");
+  const scopeClear =
+    gateId === SCOPE_GUARD_RECEIPT_GATE || gateId === `${SCOPE_GUARD_RECEIPT_GATE}-clear`;
   if (forFlag.kind === "invalid") return missingDelegationValue("--for");
   if (citesFlag.kind === "invalid") return missingDelegationValue("--cites");
   if (readingFlag.kind === "invalid") return missingDelegationValue("--reading");
+  if (scopeSessionFlag.kind === "invalid") return missingDelegationValue("--session");
   if (forFlag.kind === "absent" && citesFlag.kind !== "absent") {
     return { exitCode: 1, message: "interlock gate clear: --cites requires --for." };
   }
@@ -94,6 +114,13 @@ export async function runGateClear(
   }
   if (forFlag.kind === "value" && readingFlag.kind !== "value") {
     return { exitCode: 1, message: "interlock gate clear: --for requires --reading." };
+  }
+  if (scopeClear && scopeSessionFlag.kind !== "value") {
+    return { exitCode: 1, message: "interlock gate clear: scope-guard clear requires --session." };
+  }
+  const scopePaths = scopeClear ? scopePathsFrom(args) : undefined;
+  if (scopeClear && scopePaths === undefined) {
+    return { exitCode: 1, message: "interlock gate clear: scope-guard clear requires --paths." };
   }
 
   const cwd = options.cwd ?? process.cwd();
@@ -126,6 +153,61 @@ export async function runGateClear(
       message: explainStandingGatesRefusal(standingGates.error),
     };
   }
+
+  if (scopeClear && scopeSessionFlag.kind === "value" && scopePaths !== undefined) {
+    const localConfig = await loadLocalConfig(repoRoot);
+    if (isErr(localConfig)) {
+      return { exitCode: 1, message: explainLocalConfigRefusal(localConfig.error) };
+    }
+    const worktree = join(repoRoot, localConfig.value.worktreeRoot, node);
+    const journal = await sharedJournalDirectory(repoRoot);
+    return withDelegationLock(journal, async () => {
+      const clock = options.clock ?? createSystemClock();
+      const opened = await createLedger({ clock, directory: journal });
+      if (isErr(opened)) {
+        return {
+          exitCode: 1,
+          message: `${journal}: line ${opened.error.line} has shape tag "${opened.error.tag}", which this build does not recognize.`,
+        };
+      }
+      const ledger = opened.value;
+      try {
+        const view = ledger.projection().nodes.get(nodeKey({ graph, id: node }));
+        const hold = scopeGuardHold(view?.outcome);
+        if (hold === undefined) {
+          return {
+            exitCode: 1,
+            message: `${node}: no scope-guard hold is waiting for a named clear.`,
+          };
+        }
+        const session = scopeSessionFlag.value;
+        const commitSha = await currentCommitSha(worktree);
+        const receipt = await createScopeGuardReceipt({
+          worktree,
+          session,
+          commitSha,
+          action: "person-clear",
+          paths: scopePaths,
+          actor: by,
+        });
+        if (isErr(receipt)) return { exitCode: 1, message: receipt.error };
+        ledger.append({
+          kind: "receipt-written",
+          node: { graph, id: node },
+          receipt: receipt.value,
+        });
+        return {
+          exitCode: 0,
+          message:
+            `${node}/scope-guard: clearance recorded by ${by} for session ${session} ` +
+            `(paths ${scopePaths.join(", ")}, receipt ${receipt.value.id}).`,
+        };
+      } finally {
+        await ledger.close();
+      }
+    });
+  }
+
   const declaredGates = declaredGateIds(standingGates.value, declaration.gates);
   if (!declaredGates.includes(gateId)) {
     return {
