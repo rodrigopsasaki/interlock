@@ -1,0 +1,55 @@
+interlock: notes@v0
+node: gate-output-is-plain
+entries:
+  - kind: choice
+    at: "2026-11-14T16:20:00Z"
+    chose: Keep the runner's existing raw command bytes for retained artifacts and outputHash, and sanitize only the text passed to expect_output matching.
+    because: The acceptance makes raw output the proof identity and limits the behavior change to the pattern predicate, so stripping earlier would change receipt evidence and compatibility.
+  - kind: choice
+    at: "2026-11-14T16:21:00Z"
+    chose: Put color environment normalization in nonInteractiveEnvironment so gate, setup, and their node-engine commands share one boundary.
+    because: Both gateJudge.ts and worktreeSetup.ts already use the shared owned-command environment path, preserving CI=1 and npm_config_confirm_modules_purge=false while preventing caller color forcing from crossing the boundary.
+  - kind: surprise
+    at: "2026-11-14T16:22:00Z"
+    expected: The runner or standing gate scripts would already name color-forcing variables that need additional handling.
+    observed: A targeted search found no existing FORCE_COLOR, CLICOLOR_FORCE, CLICOLOR, COLORTERM, NO_COLOR, or related color variable in packages/runner/src, packages/runner/test, scripts/gates, or package.json; the new boundary therefore handles the requested FORCE_COLOR removal and NO_COLOR setting explicitly.
+  - kind: surprise
+    at: "2026-11-14T16:43:00Z"
+    expected: Running the focused suite with FORCE_COLOR=1 in the Vitest process would leave its Git fixture setup unaffected.
+    observed: The fixture repository commit failed before three tests ran; the child-command cases already inject FORCE_COLOR through their explicit test environment, so the rerun can isolate that boundary without exporting it to Vitest and Git.
+  - kind: choice
+    at: "2026-11-14T13:48:00Z"
+    chose: Use a fixture mise wrapper and an injected successful node-version check for environment tests, and store gate artifacts in an explicit test output directory.
+    because: The tests exercise the runner's child boundary without invoking the owner's toolchain or requiring a fixture repository journal, while still running the actual owned gate and setup subprocesses.
+  - kind: choice
+    at: "2026-11-14T13:49:00Z"
+    chose: Build the ANSI matcher as a named RegExp-based stripping function with CSI and other common escape-form coverage.
+    because: The function remains used only at the expect_output match, and constructing the pattern avoids a source lint violation for intentional control-character escapes without weakening the matching behavior.
+  - kind: surprise
+    at: "2026-11-14T13:50:00Z"
+    expected: The first typecheck and formatter pass would accept the initial implementation directly.
+    observed: Strict index-signature access and the repository's control-character regex lint required bracket notation, a typed environment copy, an async node-version fixture, and a RegExp string construction; the corrected focused suite and targeted Biome check pass.
+  - kind: surprise
+    at: "2026-11-14T13:58:00Z"
+    expected: The full workspace test gate would run green under the isolated HOME, XDG, CODEX_HOME, and mise directories.
+    observed: The changed runner tests and all package suites before runner passed, but existing runner tests failed because the Codex guard saw the owner's ancestor .codex/config.toml, Git fixture cases lacked identity or hit maintenance locks, and one worker could not resolve the installed tinypool entrypoint; no test process from this run remains.
+  - kind: surprise
+    at: "2026-11-14T14:01:00Z"
+    expected: The exact focused gate would still resolve the package's Vitest binary after the full test command ended.
+    observed: packages/runner/node_modules/.bin/vitest was absent while the pnpm store still held Vitest, so the focused gate failed before running a test with command-not-found; only the session notes were dirty.
+  - kind: choice
+    at: "2026-11-14T14:02:00Z"
+    chose: Restore dependency links with an offline repository-local pnpm install before rerunning the focused gate.
+    because: The required test runner is already present in the repository's pnpm store, and restoring package links is the smallest in-scope repair without network access or writes outside this worktree.
+  - kind: surprise
+    at: "2026-11-14T14:16:00Z"
+    expected: The slow-test accounting gate would observe the same green package suite as the focused and regression runs.
+    observed: Its own Vitest inventory reported the existing CLI and runner environment failures, so it could not emit the required accounting line; the focused gate itself remained green after the offline link repair.
+  - kind: choice
+    at: "2026-11-14T14:20:00Z"
+    chose: Prepare the debrief with the active Codex runtime and model identity, then keep its head_sha at the last implementation commit f47ce5d.
+    because: The debrief derivation identifies who authored the session, while the later notes-only commit is session evidence rather than a source change and must not replace the code head in the proof manifest.
+  - kind: choice
+    at: "2026-11-14T14:24:00Z"
+    chose: Centralize the already-tested color-forcing variable names in the owned-command source before preparing a fresh candidate.
+    because: The file-derived command requires the candidate head to equal the current commit; this forward source cleanup restores that invariant without amending or forcing the signed history, while preserving the exact environment behavior already verified.

@@ -1,0 +1,80 @@
+interlock: debrief@v2
+graph: 0065-gate-holds-retry-themselves
+node: gate-output-is-plain
+role: implementer
+graph_base_sha: 5775235343451816f185998627a8da20e0662a40
+session_start_sha: f68bca8a4866e659e0632b44a319cc4b1288acab
+head_sha: fe09f5df0b0231de23fbc0f6be8bc4982c63c149
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-luna
+discoveries: []
+decisions:
+  - id: owned-command-color-boundary
+    what: Extend nonInteractiveEnvironment with NO_COLOR=1 while preserving CI=1 and npm_config_confirm_modules_purge=false, and remove the runner's known color-forcing variables FORCE_COLOR, FORCE_COLORS, and CLICOLOR_FORCE before gate, setup, and node-engine commands are spawned.
+    because: Gate and setup proof is read by people and regexes, and the shared owned-command boundary reaches both command paths without changing argv, timeouts, stdin, or busy classification.
+    rests_on:
+      - brief:Acceptance (verbatim from the graph)
+      - packages/runner/src/ownedCommand.ts:12-32
+      - packages/runner/src/gateJudge.ts:347-361
+      - packages/runner/src/worktreeSetup.ts:116-141
+    hunks:
+      - packages/runner/src/ownedCommand.ts:12-32
+  - id: match-stripped-proof-text
+    what: Add stripAnsiEscapeSequences and apply it only to the text tested by expect_output, leaving the stored output, outputHash, proof pattern source, and outputMatched shape unchanged.
+    because: ANSI CSI and other command escape forms should not prevent a declared pattern from proving a successful command, while raw retained bytes remain the proof of what the command printed and preserve receipt comparability.
+    rests_on:
+      - brief:Acceptance (verbatim from the graph)
+      - packages/runner/src/gateJudge.ts:454-464
+      - packages/runner/src/gateOutput.ts:1-111
+    hunks:
+      - packages/runner/src/gateJudge.ts:75-82
+      - packages/runner/src/gateJudge.ts:454-456
+  - id: focused-plain-output-coverage
+    what: Add gateOutputIsPlain.test.ts coverage for gate and setup environment inheritance, colored vitest-shaped output, CSI and OSC stripping, raw retained streams, raw outputHash, plain matches, and mismatches.
+    because: The acceptance names each regression boundary and requires the existing gateJudge and expectOutput behavior to stay green; fixture mise and node-version seams keep the tests local and prevent real toolchain or provider access.
+    rests_on:
+      - brief:Acceptance (verbatim from the graph)
+      - packages/runner/test/gateJudge.test.ts:454-585
+      - packages/runner/test/worktreeSetup.test.ts:32-116
+    hunks:
+      - packages/runner/test/gateOutputIsPlain.test.ts:1-276
+  - id: session-evidence
+    what: Record the choices, surprises, focused proof, standing-gate failures, and repository-local dependency-link repair in notes.yaml.
+    because: The brief requires every choice and surprise to remain recoverable, including why the full test and slow-test gates could not be treated as passing in this environment.
+    rests_on:
+      - brief:Deliverable 2
+    hunks:
+      - .interlock/sessions/0065-gate-holds-retry-themselves/gate-output-is-plain/notes.yaml:1-55
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: The standing workspace typecheck passed before the final source-only cleanup; the final runner typecheck also passed after fe09f5d.
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: Biome passed on the implementation commit; the final changed-file Biome check passed after fe09f5d.
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+  - id: test
+    result: fail
+    invocation: pnpm test
+    note: Ledger, debrief, verifier, substrate, and face suites passed. Existing runner tests then failed in Codex guard cases that read the owner's ancestor .codex/config.toml, Git fixture cases with missing identity or maintenance locks, and a missing tinypool worker entrypoint; no process from this run survived.
+  - id: debrief-valid
+    result: fail
+    invocation: pnpm interlock debrief validate 0065-gate-holds-retry-themselves gate-output-is-plain
+    note: The required pre-debrief run failed closed because debrief.yaml did not yet exist.
+  - id: gate-output-is-plain-tests
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/gateOutputIsPlain.test.ts --passWithNoTests=false
+    note: Four focused tests passed, including the exact gate predicate and raw receipt assertions.
+  - id: slow-tests-accounted
+    result: fail
+    invocation: node scripts/gates/slow-tests.ts
+    note: The inventory reran existing CLI and runner suites, observed their environment failures, and did not emit the required accounting line.
+open:
+  - The full pnpm test gate remains unresolved in this environment because existing runner tests read the owner's ancestor Codex project configuration, some Git fixtures lack isolated identity or encounter maintenance locks, and one worker could not resolve the installed tinypool entrypoint.
+  - The slow-tests-accounted gate remains unresolved because its serial inventory reports the same existing CLI and runner failures instead of the required accounting line.
