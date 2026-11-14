@@ -1,0 +1,101 @@
+interlock: debrief@v2
+graph: 0065-gate-holds-retry-themselves
+node: store-stays-pinned
+role: implementer
+graph_base_sha: 4dfef50e5ffb948f874185968140b93202243958
+session_start_sha: ec7565802b8973c57ea38cfbdc6f379d6aad4ed8
+head_sha: 6b2abc171fb94cfe6f25fea8f896476ac260831c
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: resolve-worktree-store
+    what: Read a non-empty storeDir from node_modules/.modules.yaml with a YAML type guard, and otherwise resolve the runner default once with pnpm store path.
+    because: The worktree metadata is the stable store contract, while missing, invalid, or unreadable metadata needs a runner-owned fallback that does not inspect the owner's home.
+    rests_on:
+      - brief:Acceptance (verbatim from the graph)
+      - packages/runner/src/worktreeSetup.ts:59-81
+      - packages/runner/src/worktreeSetup.ts:138-181
+    hunks:
+      - packages/runner/src/worktreeSetup.ts:59-81
+      - packages/runner/src/worktreeSetup.ts:138-181
+  - id: pin-only-setup-variable
+    what: Pass the selected store to setup by overriding only npm_config_store_dir on the existing non-interactive environment.
+    because: This prevents pnpm from seeing a fixture-home store mismatch while preserving setup-never-holds' stdin, CI, purge, timeout, and machine-prefix behavior.
+    rests_on:
+      - brief:Acceptance (verbatim from the graph)
+      - packages/runner/src/worktreeSetup.ts:210-248
+    hunks:
+      - packages/runner/src/worktreeSetup.ts:210-248
+  - id: retain-store-provenance
+    what: Append one retained-log line naming the selected store and whether it came from the worktree or the runner default whenever setup produces a refusal.
+    because: A setup failure must preserve the store choice beside its output so a later repair can distinguish a recorded pin from a fallback without guessing.
+    rests_on:
+      - brief:Acceptance (verbatim from the graph)
+      - packages/runner/src/worktreeSetup.ts:117-136
+      - packages/runner/src/worktreeSetup.ts:184-208
+    hunks:
+      - packages/runner/src/worktreeSetup.ts:117-136
+      - packages/runner/src/worktreeSetup.ts:184-208
+  - id: prove-store-selection
+    what: Add fake-pnpm tests for recorded, default, invalid, and unreadable metadata.
+    because: The acceptance requires deterministic proof with no real pnpm, store, network, owner home, or purge prompt, while the existing setup tests must not acquire a real default store as a side effect.
+    rests_on:
+      - brief:Acceptance (verbatim from the graph)
+      - packages/runner/test/storeStaysPinned.test.ts:1-180
+    hunks:
+      - packages/runner/test/storeStaysPinned.test.ts:1-180
+  - id: keep-hold-fixtures-isolated
+    what: Give setup-never-holds tests recorded fixture metadata before they invoke setup.
+    because: Those tests prove timeout behavior and should not add an unrelated real pnpm store lookup.
+    rests_on:
+      - brief:Acceptance (verbatim from the graph)
+      - packages/runner/test/setupNeverHolds.test.ts:39-41
+    hunks:
+      - packages/runner/test/setupNeverHolds.test.ts:39-41
+      - packages/runner/test/setupNeverHolds.test.ts:66-69
+      - packages/runner/test/setupNeverHolds.test.ts:103-106
+      - packages/runner/test/setupNeverHolds.test.ts:145-147
+  - id: keep-worktree-setup-fixtures-isolated
+    what: Give runSetupCommand's existing fixture tests recorded metadata and update their refusal assertions for the retained provenance line.
+    because: The existing unit tests exercise setup process behavior, not default-store discovery, so they remain deterministic while checking the new refusal evidence.
+    rests_on:
+      - brief:Acceptance (verbatim from the graph)
+      - packages/runner/test/worktreeSetup.test.ts:21-25
+      - packages/runner/test/worktreeSetup.test.ts:43-59
+    hunks:
+      - packages/runner/test/worktreeSetup.test.ts:21-25
+      - packages/runner/test/worktreeSetup.test.ts:43-59
+  - id: record-session-receipts
+    what: Keep the implementation choices, focused-test surprise, pinned-toolchain warning, and standing-gate safety decision in notes@v0.
+    because: The session must preserve why the fallback and environment boundary were chosen, including why the prohibited real-Codex gates remain open.
+    rests_on:
+      - brief:Deliverable 2
+      - .interlock/sessions/0065-gate-holds-retry-themselves/store-stays-pinned/notes.yaml:1-23
+    hunks:
+      - .interlock/sessions/0065-gate-holds-retry-themselves/store-stays-pinned/notes.yaml:1-23
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: Passed; the fixture-isolated pnpm launcher reported host Node 26.13.0 despite the repository pin.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+  - id: store-stays-pinned-tests
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter runner exec vitest run test/storeStaysPinned.test.ts --passWithNoTests=false
+    note: Four fake-pnpm tests passed with fixture HOME, XDG, and mise directories.
+  - id: focused-setup-tests
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter runner exec vitest run test/storeStaysPinned.test.ts test/worktreeSetup.test.ts test/setupNeverHolds.test.ts --passWithNoTests=false
+    note: Thirteen focused setup tests passed and no session-owned Vitest worker remained.
+open:
+  - The repository-wide pnpm test gate was not run because its standing suite contains deliberate real-Codex integration tests and the binding brief says never run a real codex.
+  - The slow-tests-accounted gate was not run for the same real-Codex prohibition; its package-wide scan invokes every package's Vitest suite.
+  - Verification through the available pnpm 10.13.1 native launcher reported host Node 26.13.0 rather than the repository's pinned Node 24.14.0, although typecheck, lint, comments, and focused tests passed.
