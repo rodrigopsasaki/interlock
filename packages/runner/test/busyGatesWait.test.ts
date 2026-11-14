@@ -9,11 +9,13 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { type Clock, createControlledClock } from "@phyxiusjs/clock";
-import { isErr, ok } from "@phyxiusjs/fp";
-import { nodeKey } from "ledger";
+import { isErr, ok, unwrap } from "@phyxiusjs/fp";
+import { assessReceipt, createLedger, type Ledger, nodeKey, readReplay } from "ledger";
 import { noneClient } from "substrate";
 import { afterEach, describe, expect, it } from "vitest";
+import { BUSY_START_SCRIPT } from "../src/busy.ts";
 import { judgeGates } from "../src/gateJudge.ts";
+import { judgeWorktree } from "../src/judgeWorktree.ts";
 import { gitInitFixtureWithContent } from "./support/gitFixture.ts";
 import { memoryLedger } from "./support/memoryLedger.ts";
 
@@ -121,6 +123,83 @@ describe("busy gate waits", () => {
       "--",
       "echo",
       "pass",
+    ]);
+  });
+
+  it("keeps the node-engine probe argv byte-identical without busy and exact with busy", async () => {
+    const worktree = root();
+    writeFileSync(join(worktree, "package.json"), JSON.stringify({ engines: { node: ">=0" } }));
+    const bin = join(worktree, "bin");
+    mkdirSync(bin);
+    writeFileSync(join(bin, "node"), "", { mode: 0o755 });
+    const nodePath = join(bin, "node");
+    const ordinaryArgv: string[][] = [];
+    const ordinary = await judgeGates({
+      ledger: memoryLedger(),
+      clock: clockWithAdvancingSleep([]),
+      node: { graph: "node-argv", id: "ordinary" },
+      session: "session",
+      declaredGateIds: ["gate"],
+      commandFor: new Map([["gate", { kind: "command", run: "echo pass" }]]),
+      worktree,
+      scopeRoot: worktree,
+      scopePaths: ["content.txt", "package.json"],
+      commitSha: "commit",
+      runnerId: "runner",
+      holdMs: 60_000,
+      substrate: noneClient(),
+      env: { ...process.env, PATH: bin },
+      heavy: ["heavy"],
+      nodeVersionRunner: async (argv) => {
+        ordinaryArgv.push([...argv]);
+        return ok({ code: 0, signal: null, stdout: "v26.13.0\n", stderr: "" });
+      },
+      commandRunner: async () => gateResult(0),
+      narrate: () => {},
+    });
+    if (isErr(ordinary)) throw new Error(JSON.stringify(ordinary.error));
+    expect(ordinaryArgv).toEqual([["heavy", "mise", "exec", "--", nodePath, "--version"]]);
+
+    const busyArgv: string[][] = [];
+    const busy = await judgeGates({
+      ledger: memoryLedger(),
+      clock: clockWithAdvancingSleep([]),
+      node: { graph: "node-argv", id: "busy" },
+      session: "session",
+      declaredGateIds: ["gate"],
+      commandFor: new Map([["gate", { kind: "command", run: "echo pass" }]]),
+      worktree,
+      scopeRoot: worktree,
+      scopePaths: ["content.txt", "package.json"],
+      commitSha: "commit",
+      runnerId: "runner",
+      holdMs: 60_000,
+      substrate: noneClient(),
+      env: { ...process.env, PATH: bin },
+      heavy: ["heavy"],
+      busy: { exitCode: 75, attempts: 1, firstBackoffMs: 1, maxBackoffMs: 1 },
+      nodeVersionRunner: async (argv, _cwd, env) => {
+        busyArgv.push([...argv]);
+        writeFileSync(env["INTERLOCK_GATE_START"] ?? "", "started\n");
+        return ok({ code: 0, signal: null, stdout: "v26.13.0\n", stderr: "" });
+      },
+      commandRunner: async () => gateResult(0),
+      narrate: () => {},
+    });
+    if (isErr(busy)) throw new Error(JSON.stringify(busy.error));
+    expect(busyArgv).toEqual([
+      [
+        "heavy",
+        "/bin/sh",
+        "-c",
+        BUSY_START_SCRIPT,
+        "interlock-gate-start",
+        "mise",
+        "exec",
+        "--",
+        nodePath,
+        "--version",
+      ],
     ]);
   });
 
@@ -515,5 +594,100 @@ if (process.env.FAKE_GATE_FAIL === '1') {
         .nodes.get(nodeKey({ graph: "busy", id: "n" }))
         ?.receipts.map((receipt) => receipt.gate),
     ).toEqual(["node-engine", "node-engine", "gate"]);
+  });
+
+  it("carries the busy policy through judgeWorktree", async () => {
+    const worktree = root();
+    const ledger = memoryLedger();
+    let starts = 0;
+    const judged = await judgeWorktree({
+      machine: {
+        provider: {
+          admit: ["admit"],
+          release: ["release"],
+          env: ["env"],
+          heavy: ["heavy"],
+          busy: { exitCode: 75, attempts: 2, firstBackoffMs: 10, maxBackoffMs: 10 },
+        },
+        env: {},
+        heavy: ["heavy"],
+      },
+      ledger,
+      clock: clockWithAdvancingSleep([]),
+      node: { graph: "door", id: "worktree" },
+      session: "session",
+      declaredGateIds: ["gate"],
+      commandFor: new Map([["gate", { kind: "command", run: "echo pass" }]]),
+      worktree,
+      narrate: () => {},
+      runnerId: "runner",
+      holdMs: 60_000,
+      substrate: noneClient(),
+      commandRunner: async (_argv, _cwd, env) => {
+        starts += 1;
+        if (starts === 1) {
+          writeFileSync(env["INTERLOCK_BUSY_REPORT"] ?? "", "prefix busy\n");
+          return gateResult(75);
+        }
+        writeFileSync(env["INTERLOCK_GATE_START"] ?? "", "started\n");
+        return gateResult(0);
+      },
+    });
+    if (isErr(judged)) throw new Error(JSON.stringify(judged.error));
+    expect(starts).toBe(2);
+    expect(judged.value.kind).toBe("cleared");
+  });
+
+  it("keeps busy receipt identity across judgements and replay, and assesses it as no run", async () => {
+    const worktree = root();
+    const journal = join(worktree, "journal");
+    const node = { graph: "identity", id: "n" };
+    const request = async (ledger: Ledger) => {
+      const judged = await judgeGates({
+        ledger,
+        clock: clockWithAdvancingSleep([]),
+        node,
+        session: "session",
+        declaredGateIds: ["gate"],
+        commandFor: new Map([["gate", { kind: "command", run: "echo pass" }]]),
+        worktree,
+        scopeRoot: worktree,
+        scopePaths: ["content.txt"],
+        commitSha: "commit",
+        runnerId: "runner",
+        holdMs: 60_000,
+        substrate: noneClient(),
+        busy: { exitCode: 75, attempts: 1, firstBackoffMs: 1, maxBackoffMs: 1 },
+        commandRunner: async (_argv, _cwd, env) => {
+          writeFileSync(env["INTERLOCK_BUSY_REPORT"] ?? "", "same reason\n");
+          return gateResult(75);
+        },
+        narrate: () => {},
+      });
+      if (isErr(judged)) throw new Error(JSON.stringify(judged.error));
+      expect(judged.value.kind).toBe("held");
+    };
+
+    const first = unwrap(
+      await createLedger({ clock: clockWithAdvancingSleep([]), directory: journal }),
+    );
+    await request(first);
+    await first.close();
+    const second = unwrap(
+      await createLedger({ clock: clockWithAdvancingSleep([]), directory: journal }),
+    );
+    await request(second);
+    await second.close();
+
+    const replayed = unwrap(await readReplay(journal));
+    const receipts = replayed.nodes.get(nodeKey(node))?.receipts ?? [];
+    expect(receipts).toHaveLength(2);
+    expect(receipts[0]?.id).not.toBe(receipts[1]?.id);
+    expect(receipts.map((receipt) => receipt.proof)).toEqual([
+      { refused: "busy", reason: "same reason", attempt: 1, judgement: expect.any(String) },
+      { refused: "busy", reason: "same reason", attempt: 1, judgement: expect.any(String) },
+    ]);
+    expect(receipts[0]?.proof["judgement"]).not.toBe(receipts[1]?.proof["judgement"]);
+    expect(receipts.every((receipt) => assessReceipt(receipt).kind === "not-recorded")).toBe(true);
   });
 });

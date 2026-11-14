@@ -66,3 +66,19 @@ entries:
     at: "2026-11-13T22:20:00Z"
     expected: file-derived would install the fresh candidate as the canonical debrief.
     observed: The existing debrief is preserved by an EEXIST guard, so the authored correction must be selected with debrief revise.
+  - kind: surprise
+    at: "2026-11-14T15:02:00Z"
+    expected: The focused Vitest command would leave no Vitest worker or child process after exit.
+    observed: pgrep found an unrelated Vitest process tree rooted in a parent outside this worktree; it was not started by this session and was left untouched.
+  - kind: choice
+    at: "2026-11-14T15:12:00Z"
+    chose: Cover the remaining public doors with injected command runners, cover receipt replay with a real journal, and cover both drive paths with a fixture runtime and a controlled lease clock.
+    because: The judge asked for proof at each door and for lease renewal during the actual drive cleanup, while the existing focused boundary tests already isolate the gate command itself.
+  - kind: surprise
+    at: "2026-11-14T15:13:00Z"
+    expected: The first new fixture run would exercise the intended paths immediately.
+    observed: The fixture initially exposed missing isolated Git identity, an exec prompt-shape requirement, a missing exec bind, a runtime-artifact scope guard, and an invalid provider-env fixture; each was corrected in the fixture without changing product behavior.
+  - kind: surprise
+    at: "2026-11-14T15:16:00Z"
+    expected: Relative mise fixture directories would remain outside a linked test worktree.
+    observed: A linked gateJudge fixture resolved the relative MISE state directory inside its checkout, leaving one generated marker after cleanup; the marker and orphaned scratch checkout were removed, and subsequent commands use absolute paths derived from the assigned worktree.

@@ -13,7 +13,11 @@ import {
   type ResolvedRuntime,
 } from "../../src/runtimeCatalogue.ts";
 import { selectRuntime } from "../../src/runtimeSelection.ts";
-import { type DriveSessionOutcome, driveInteractiveSession } from "../../src/sessionDrive.ts";
+import {
+  type DriveSessionOutcome,
+  type DriveSessionRequest,
+  driveInteractiveSession,
+} from "../../src/sessionDrive.ts";
 import { gitInitFixtureWithContent } from "./gitFixture.ts";
 import { memoryLedgerWithLog } from "./memoryLedger.ts";
 
@@ -186,21 +190,32 @@ export async function driveOnce(
   agentRuntime: ResolvedRuntime,
   runtime: Runtime,
   clock: Clock = createControlledClock({ initialTime: 0 }),
+  options: {
+    readonly machine?: DriveSessionRequest["machine"];
+    readonly nodeGates?: DriveSessionRequest["nodeGates"];
+    readonly standingGates?: DriveSessionRequest["standingGates"];
+    readonly commandRunner?: DriveSessionRequest["commandRunner"];
+    readonly ledgerDirectory?: string;
+    readonly onLedger?: (ledger: ReturnType<typeof memoryLedgerWithLog>["ledger"]) => void;
+  } = {},
 ): Promise<DriveRecord> {
-  const { ledger, events } = memoryLedgerWithLog();
+  const { ledger, events } = memoryLedgerWithLog(options.ledgerDirectory ?? "");
+  options.onLedger?.(ledger);
   const outcome = await driveInteractiveSession({
     repoRoot,
     graph: "g",
     node,
     role: "implementer",
     acceptance: "a fixture node",
-    nodeGates: [],
+    nodeGates: options.nodeGates ?? [],
+    ...(options.machine === undefined ? {} : { machine: options.machine }),
     localConfig,
     agentRuntime,
-    standingGates: [],
+    standingGates: options.standingGates ?? [],
     substrate: noneClient(),
     ledger,
     clock,
+    ...(options.commandRunner === undefined ? {} : { commandRunner: options.commandRunner }),
     narrate: () => undefined,
     runtime,
     runnerIdPrefix: "test",
