@@ -1,0 +1,15 @@
+interlock: debrief@v2
+graph: 0065-gate-holds-retry-themselves
+node: gate-output-is-plain
+role: implementer
+graph_base_sha: 5775235343451816f185998627a8da20e0662a40
+session_start_sha: f68bca8a4866e659e0632b44a319cc4b1288acab
+head_sha: 3ca2ab07f9d3d9bd85018e0757e613930ddecc35
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5.6-luna
+discoveries: []
+decisions: []
+gates_run_by_agent: []
+open: []
