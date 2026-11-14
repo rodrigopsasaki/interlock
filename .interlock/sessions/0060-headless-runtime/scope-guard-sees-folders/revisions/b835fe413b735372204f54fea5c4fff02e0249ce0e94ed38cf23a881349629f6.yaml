@@ -1,0 +1,120 @@
+interlock: debrief@v2
+graph: 0060-headless-runtime
+node: scope-guard-sees-folders
+role: implementer
+graph_base_sha: d3d244c2aa0cf77867627ff7c896aa71b6eac9b7
+session_start_sha: 337d6593fec1f154e6d003c292dcbd93a30edbc1
+head_sha: e81e43e914f71b938e963ff9dc0623e4596aa45f
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: walk-untracked-folders-without-following-links
+    applies_to: { kind: path, path: packages/runner/src/scopeGuard.ts }
+    what: Walked an untracked main-checkout directory entry through the existing recursive scope traversal, skipped nested .git directories, recorded each regular file under the directory entry, and recorded symbolic links by their link text without reading their targets.
+    because: Git can collapse an untracked nested repository to one directory entry, but the scope guard must catch writes inside it while never dereferencing a symbolic link or refusing the directory itself.
+    rests_on:
+      - packages/runner/src/scopeGuard.ts
+      - packages/runner/test/scopeGuard.test.ts
+      - "acceptance: folders are walked like watch_paths, links are recorded without following targets, and untouched folders are quiet"
+    hunks:
+      - packages/runner/src/scopeGuard.ts
+      - packages/runner/test/scopeGuard.test.ts
+  - id: represent-scope-guard-holds-and-recovery-receipts
+    applies_to: { kind: path, path: packages/runner/src/judgeWorktree.ts }
+    what: Added typed scope-guard holds and content-addressed receipts for a runner recheck or a person's named clear, preserving the session, paths, commit and actor in the receipt proof.
+    because: A generic held outcome cannot safely explain why judge may proceed; the guard's reason and paths must remain visible until a recorded clean comparison at the judged head or an explicit human action authorizes clearance.
+    rests_on:
+      - packages/runner/src/scopeGuard.ts
+      - packages/runner/src/judgeWorktree.ts
+      - packages/ledger/src/receipt.ts
+      - "acceptance: judge alone cannot clear a scope-guard hold, while a clean recheck receipt or named person clear can"
+    hunks:
+      - packages/runner/src/scopeGuard.ts
+      - packages/runner/src/judgeWorktree.ts
+  - id: refuse-judge-until-guard-is-authorized
+    applies_to: { kind: path, path: packages/runner/src/judgeWorktree.ts }
+    what: Made worktree judging refuse scope-guard holds unless a matching recheck receipt at the current commit or a human scope-guard receipt exists, exposed an explicit scope-guard recheck flag, and kept snapshot failures as refusals.
+    because: The judge must not treat a held guard as an ordinary gate hold; a failed comparison is evidence that clearance is still unsafe and needs to remain held.
+    rests_on:
+      - packages/runner/src/judgeWorktree.ts
+      - packages/cli/src/judge.ts
+      - packages/cli/test/judge.test.ts
+      - "acceptance: stray writes and snapshot failures remain held until a clean rerun or named person clear"
+    hunks:
+      - packages/runner/src/judgeWorktree.ts
+      - packages/cli/src/judge.ts
+      - packages/cli/test/judge.test.ts
+  - id: expose-named-person-clear
+    applies_to: { kind: path, path: packages/cli/src/gate/clear.ts }
+    what: Extended the existing gate-clear command with a scope-guard clear form that requires a session, paths, person and because, records a human receipt, and lets a later judge use that receipt.
+    because: The acceptance requires a direct human recovery action whose words name both the held session and paths, without silently converting an ordinary gate clear into a scope-guard override.
+    rests_on:
+      - packages/cli/src/gate/clear.ts
+      - packages/cli/test/judge.test.ts
+      - "acceptance: a person's named clear names the session and paths and then judge may clear"
+    hunks:
+      - packages/cli/src/gate/clear.ts
+      - packages/cli/test/judge.test.ts
+  - id: thread-scope-guard-refusals-through-session-judge-interfaces
+    applies_to: { kind: path, path: packages/runner/src/sessionDrive.ts }
+    what: Exported the new scope-guard APIs and threaded the typed refusal through interactive session-drive reporting so guard reasons are not misread as gate-judge errors.
+    because: A new refusal kind must remain closed and typed at every existing caller; otherwise an interactive run can lose the guard's reason even though direct judging protects it.
+    rests_on:
+      - packages/runner/src/index.ts
+      - packages/runner/src/sessionDrive.ts
+      - packages/runner/src/judgeWorktree.ts
+    hunks:
+      - packages/runner/src/index.ts
+      - packages/runner/src/sessionDrive.ts
+      - packages/runner/src/judgeWorktree.ts
+  - id: prove-folder-and-hold-boundaries
+    applies_to: { kind: path, path: packages/runner/test/scopeGuard.test.ts }
+    what: Added focused tests for nested-repository writes, untouched folders, symbolic links, judge-only refusal, clean recheck clearance, named person clearance, and snapshot-failure refusal.
+    because: These fixtures exercise each acceptance boundary at the scope snapshot and CLI judge surfaces, including the two recovery paths and the failure case that must not count as a pass.
+    rests_on:
+      - packages/runner/test/scopeGuard.test.ts
+      - packages/cli/test/judge.test.ts
+      - .interlock/sessions/0060-headless-runtime/scope-guard-sees-folders/notes.yaml
+    hunks:
+      - packages/runner/test/scopeGuard.test.ts
+      - packages/cli/test/judge.test.ts
+      - .interlock/sessions/0060-headless-runtime/scope-guard-sees-folders/notes.yaml
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: All eight workspace TypeScript projects passed under the fixture HOME; mise selected Node v26.13.0 although package.json requests v24.14.0.
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: Biome exited 0; it reported one pre-existing fixable regular-expression warning in packages/runner/src/gateJudge.ts outside this diff.
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+    note: No comments were found in packages/*/src.
+  - id: test
+    result: fail
+    invocation: pnpm test
+    note: Workspace tests reached the runner suite and passed 755 of 768 runner tests, then failed 13 existing Codex guard tests because spawned Codex commands resolved /Users/rodrigosasaki/.codex/config.toml despite the fixture HOME.
+  - id: scope-guard-folders-proof
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/scopeGuard.test.ts --passWithNoTests=false
+    note: 13 scopeGuard tests passed, including nested-repository writes, untouched folders and symbolic links.
+  - id: runner-suite
+    result: fail
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run --passWithNoTests=false
+    note: 755 of 768 runner tests passed; 13 existing Codex guard tests failed because spawned commands resolved /Users/rodrigosasaki/.codex/config.toml, and one run also encountered a missing tinypool worker module under Node v26.13.0.
+  - id: scope-guard-folders-types
+    result: pass
+    invocation: pnpm typecheck
+    note: The runner and CLI types passed in the workspace typecheck.
+  - id: scope-guard-judge-proof
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter cli exec vitest run test/judge.test.ts --passWithNoTests=false
+    note: 15 judge tests passed, including judge-only refusal, clean recheck, named person clear and failed snapshot recheck.
+open:
+  - The full runner-suite and workspace test gates remain unresolved because existing Codex guard fixtures resolve the owner's project configuration at /Users/rodrigosasaki/.codex/config.toml; this session did not run the owner's Preston or Gilb instance.
+  - mise could not select the repository's requested Node v24.14.0 and used Node v26.13.0; the focused proofs and typecheck passed on that runtime.

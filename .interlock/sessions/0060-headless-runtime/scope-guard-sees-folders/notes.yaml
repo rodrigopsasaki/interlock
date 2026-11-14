@@ -93,3 +93,15 @@ entries:
     at: "2026-11-14T23:00:00Z"
     expected: The workspace links would remain available for debrief preparation after the gate attempt.
     observed: Debrief prepare could not resolve @phyxiusjs/fp from the CLI because the concurrent same-worktree gate had removed package links; no candidate was created.
+  - kind: surprise
+    at: "2026-11-14T23:00:00Z"
+    expected: The authored debrief candidate would preview as a valid string-valued open list.
+    observed: An unquoted colon in an open sentence made YAML parse that entry as a map; the candidate is being corrected with quoted open strings before filing.
+  - kind: choice
+    at: "2026-11-14T23:00:00Z"
+    chose: Preserve the original implementation session start in the refiled debrief while updating its current head and gate reports.
+    because: The fresh resumed-session range contains no source hunks, but the node's existing implementation decisions are rooted in the earlier code session and must retain that provenance when the debrief is refiled.
+  - kind: surprise
+    at: "2026-11-14T23:00:00Z"
+    expected: The corrected candidate could be installed with file-derived after preserving the implementation session start.
+    observed: file-derived refused the candidate because an existing canonical debrief has a different current derived session identity; the authored candidate matches the existing filing and is being selected through debrief revise.
