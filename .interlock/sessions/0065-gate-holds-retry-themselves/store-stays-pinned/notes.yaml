@@ -1,0 +1,63 @@
+interlock: notes@v0
+node: store-stays-pinned
+entries:
+  - kind: choice
+    at: "2026-11-14T00:00:00Z"
+    chose: Resolve the setup store from node_modules/.modules.yaml when it has a non-empty storeDir, otherwise ask pnpm store path once before running the setup command.
+    because: The recorded store is the stable worktree contract, while the runner default is the safe fallback when the metadata is absent or cannot be read.
+  - kind: choice
+    at: "2026-11-14T00:00:00Z"
+    chose: Change only npm_config_store_dir in the non-interactive setup environment and append the selected store and source to the retained output tail.
+    because: Pinning one variable prevents pnpm's purge prompt without changing the existing setup environment, and the retained line makes the choice recoverable when setup fails.
+  - kind: surprise
+    at: "2026-11-14T00:00:00Z"
+    expected: The first focused run would exercise the fallback and preserve the existing refusal shape unchanged.
+    observed: The owned command helper returns stdout as a Buffer, and the new retained store line necessarily appears in failed setup tails; the implementation now decodes stdout explicitly and the existing exact-tail assertion includes the provenance line.
+  - kind: surprise
+    at: "2026-11-14T00:00:00Z"
+    expected: Running pnpm through fixture-isolated mise state would select the repository's pinned Node 24.14.0.
+    observed: The installed pnpm 10.13.1 native launcher still reported host Node 26.13.0; verification kept the required fixture HOME, XDG, and mise directories and recorded the warning rather than installing another package manager.
+  - kind: choice
+    at: "2026-11-14T00:00:00Z"
+    chose: Leave the repository-wide test and slow-tests-accounted gates open instead of launching their deliberate real-Codex integration tests.
+    because: The brief explicitly says never run a real codex, so those standing commands would conflict with a binding safety constraint; the exact store gate and non-Codex focused setup suite provide the scoped proof.
+  - kind: choice
+    at: "2026-11-14T00:00:00Z"
+    chose: Resolve the runner's default pnpm store outside the machine provider's heavy prefix, while keeping the actual worktree setup command under that prefix.
+    because: "`pnpm store path` only reads the runner environment and does not mutate the store or install dependencies; holding the machine lock for that probe would add an unnecessary heavy operation and would make setup plus a gate report an extra heavy entry."
+  - kind: surprise
+    at: "2026-11-14T00:00:00Z"
+    expected: The fake mise used by the focused store tests would continue to invoke pnpm after the default-store lookup moved outside the heavy prefix.
+    observed: The fixture had been written to discard three wrapper arguments, so a direct `mise exec -- pnpm store path` discarded pnpm as well; it now strips the explicit `exec --` pair and preserves the command.
+  - kind: choice
+    at: "2026-11-14T00:00:00Z"
+    chose: Keep the selected store provenance and retained-log location in setup refusal messages, asserting the stable refusal and provenance structure exactly while matching only generated paths structurally.
+    because: A failed setup's retained tail is the recovery receipt for the store choice; omitting it would hide why the setup was safe, while the content-addressed worktree path is necessarily different for each fixture run.
+  - kind: surprise
+    at: "2026-11-14T00:00:00Z"
+    expected: The approval test would reproduce the one missing-HEAD failure seen during slow-tests accounting.
+    observed: The graph approve test file passed all 7 tests in both single-worker harness-style runs, including the subsequent-show approval case; neither run reported a missing HEAD.
+  - kind: surprise
+    at: "2026-11-14T00:00:00Z"
+    expected: The new notes entries would be accepted by the repository's notes reader during the safe full-suite check.
+    observed: A because scalar beginning with a backtick was invalid YAML; the value is now quoted before the suite is rerun.
+  - kind: choice
+    at: "2026-11-14T00:00:00Z"
+    chose: Pin command gates to the worktree's recorded pnpm store and pass that store explicitly to the slow-test helper's pnpm children.
+    because: The full pnpm test gate can purge node_modules before slow-tests-accounted runs, and slow-tests starts pnpm in the real worktree under the runner's fixture HOME.
+  - kind: surprise
+    at: "2026-11-14T00:00:00Z"
+    expected: Two full root-suite runs with absolute fixture HOME/XDG paths would complete after the store pin.
+    observed: The suite preserved the metadata and vitest link, but unrelated Codex-guard cases saw the owner checkout's ancestor config and Git-maintenance fixtures hit machine metadata permissions; no store purge occurred.
+  - kind: surprise
+    at: "2026-11-14T00:00:00Z"
+    expected: slow-tests-accounted would complete after its pnpm children received the recorded store explicitly.
+    observed: The runner package still had unrelated Codex-guard failures and one slow assertion without a declaration; its pnpm children did not purge node_modules or rewrite the vitest link.
+  - kind: choice
+    at: "2026-11-14T00:00:00Z"
+    chose: Preserve the stale selected debrief under its content hash in revisions before selecting the fresh candidate for the current brief.
+    because: The prior debrief has an older graph base, so both file-derived and revise refuse to replace it; hash-addressed custody keeps its exact bytes while allowing the current session proof to be filed.
+  - kind: surprise
+    at: "2026-11-14T00:00:00Z"
+    expected: debrief revise would select the fresh candidate over the existing debrief.
+    observed: revise refused because the existing selected debrief's graph_base_sha does not match the current session brief; file-derived also refused because debrief.yaml already existed.
