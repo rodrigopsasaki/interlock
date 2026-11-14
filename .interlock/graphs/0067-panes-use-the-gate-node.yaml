@@ -1,0 +1,162 @@
+interlock: graph@v0
+id: 0067-panes-use-the-gate-node
+arc: bring-october-back
+ask: When Interlock launches an agent pane, the Node that the gates run on is the first Node on that pane's PATH, set after the shell profile has run, so `node --version` inside the pane equals the gate's Node; a pane whose gate Node cannot be resolved is refused with a plain reason and never launched on a different Node; no shell profile or Homebrew setting of the owner is touched.
+derivation:
+  kind: model
+  model: gilb
+  prompt: panes-use-the-gate-node-2026-11-14
+authorization:
+  granted_by: Rodrigo Sasaki
+  mandate: loom-feed-2026-11-04  # "You're free to do changes on phyxius and interlock too", 23:25 UTC
+  approver: Rodrigo Sasaki; Gilb relays the recorded approval and coordinates cleared-node merges. The cross-vendor vet is advisory.
+read: >
+  Arc: bring-october-back (this repository's .interlock/arcs.yaml). The arc's ask is good results back; an agent that
+  misreads its own test run on the wrong Node produces the opposite. On 2026-11-14 an agent ran its tests, including
+  its control run on origin/main, in an Interlock pane, got failures, and diagnosed a real regression as a Node 26
+  problem, because its pane ran Homebrew's Node 26.13.0 while the judge ran the repository's pinned Node 24.14.0.
+
+  What is true today, from source (main 3c10bc6a). The owner's login shell sources ~/.zshenv, which runs
+  `brew shellenv` and puts /opt/homebrew/bin ahead of mise's tools. Interlock already knows this for itself: the
+  installed launcher ~/.local/bin/interlock strips mise's shims folder from PATH so that each `mise exec` puts the
+  pinned tools first, and every gate, and worktree setup, runs as `mise exec -- <command>`
+  (packages/runner/src/gateJudge.ts:524, packages/runner/src/worktreeSetup.ts:175), with a Node engine check in front
+  of them (packages/runner/src/nodeEngine.ts, checkNodeEngine, called at gateJudge.ts:608 and worktreeSetup.ts:213).
+  The agent's pane gets none of this. The session drive opens the pane with runtime.openPane(worktreePath,
+  launch.value.environment) (packages/runner/src/sessionDrive.ts:877), the herdr adapter passes that environment as
+  the `env` of tab.create or workspace.create (packages/runner/src/herdr/adapter.ts:446-478), and herdr starts the
+  agent in the pane's shell with agent.start (adapter.ts:355-380, retried while the shell is busy). That environment
+  is given to the shell before it starts, so the owner's ~/.zshenv runs after it and puts Homebrew first. Nothing
+  Interlock sets in the pane's environment at creation can survive the profile.
+
+  What changes, and why this way.
+  - The gate's Node is resolved once per attempt, the way the gate runner resolves it: run
+    `[...heavy, "mise", "exec", "--", "node", "-p", "process.execPath"]` in the worktree with the environment
+    worktree setup and the gates are given (the drive's `{...process.env, ...machine.value.env}` through
+    nonInteractiveEnvironment, ownedCommand.ts:24), through the same owned-command runner and the same heavy-lock
+    prefix. The directory holding the printed executable is the gate Node's folder. This is the one definition of
+    "the gate's Node"; it is a new module in packages/runner/src (one small function and its refusal type), composed
+    from runOwnedCommand and nonInteractiveEnvironment, not a second resolver beside nodeEngine.ts. It is resolved
+    before the pane opens, at the same place the drive prepares the launch (sessionDrive.ts:865, before :877).
+  - When it cannot be resolved (mise exits non-zero, prints nothing, prints a path that is not an executable file, or
+    cannot run), the drive refuses the attempt before any pane opens, the way it refuses a launch it cannot prepare
+    (explainLaunchRefusal and the abandon/refuse path, sessionDrive.ts:866-874), with a plain reason that names the
+    command and what it said, for example "the gate's node could not be resolved: mise exec exited 1: <first line>;
+    no pane was opened". It never falls back to whatever Node the shell would find. No pane means no pane-opened
+    event and nothing for a cleanup to close.
+  - The Node's folder is put first on the pane's PATH after the shell profile has run, by Interlock typing it into
+    the pane's own shell, not by editing anything the owner owns. Herdr's socket API has `pane.send_text` (params
+    pane_id and text, verified with `herdr api schema --json` on the installed herdr); the runner gains an optional
+    Runtime method sendPaneText(pane, text) beside sendPaneKeys, implemented by the herdr adapter over pane.send_text.
+    Right after the pane opens and before runtime.startAgent (sessionDrive.ts:956), the drive sends one line,
+    ` export PATH=<folder, single-quoted for sh>:"$PATH"`, then the Enter key through sendPaneKeys. Input typed
+    before the shell finishes starting waits in the terminal's input buffer and is read after the profile
+    (.zshenv, .zprofile, .zshrc) has run, so the export is the last word on PATH; agent.start then waits for the shell
+    exactly as it does today, and the agent starts in that same shell with the gate's Node first. A runtime that
+    offers no sendPaneText cannot give a pane its Node, and the attempt is refused the way machine.provider.env already
+    is for a runtime with no pane environment (sessionDrive.ts:849-857): plain reason, no pane opened. A refused
+    send (herdr answers an error) closes the pane through the drive's cleanup and refuses the attempt with the
+    runtime's reason; the agent is never started on the shell's own Node.
+  - One site covers everything. run, resume and the planner share the drive's single open site, and every invocation
+    takes a fresh session and a fresh pane, so a resumed pane resolves and applies the gate Node the same way, from
+    the same code. Exec runtimes run a process, not a pane (sessionDrive.ts:594-660) and are not changed.
+  - Fixed, not configured. The owner's rule is that the pane and the gate must not disagree, so there is no setting
+    to turn it off and no per-runtime opt-out.
+
+  What this plan cannot prove, named so nobody reads more into the gates. The cases below prove, against a real
+  shell started with a stub profile that puts a fake Homebrew Node first, that the line Interlock sends makes the
+  gate's Node win, and that the drive sends it after the pane opens and before the agent starts. They run a fake
+  runtime, never herdr. That a real herdr delivers pane.send_text to the same shell agent.start later uses, and
+  holds early input until the profile has run, rests on herdr's documented behaviour and is checked by one real
+  attempt: the debrief names it as the one thing not proven by a gate, with the manual check (open a pane through
+  `interlock run`, run `node --version` in it, compare with `mise exec -- node --version` in the worktree).
+
+  Tests never reach real services. This node's tests and gates never start herdr, a real agent CLI, a real provider or
+  read the real HOME. Every case builds its own HOME, XDG_CONFIG_HOME, XDG_DATA_HOME, XDG_STATE_HOME, XDG_CACHE_HOME,
+  mise state (MISE_DATA_DIR, MISE_CONFIG_DIR, MISE_CACHE_DIR, MISE_STATE_DIR) and COREPACK_HOME under a mkdtemp folder
+  in the system temp folder, never inside the worktree, and removes it after; the stub shell profile, the stub Node
+  binaries and the stub `mise` live there too. packages/runner/test/support/toolState.ts and driveFixture.ts already
+  give a fixture home and a drive; the pane is a fake Runtime whose pane is a real `zsh` child started with the
+  fixture HOME and a ZDOTDIR holding the stub profile (the owner's role), so the order of profile and typed input is
+  real. Existing tests keep their guards; none sets INTERLOCK_LIVE_SERVICES.
+
+  Out of scope: the planner's and the reviewer's exec processes; changing which Node the gates use; the launcher
+  script; the owner's ~/.zshenv, shell profiles and Homebrew; recording the pane in the ledger (graph 0066, which
+  this does not depend on: the order here is resolve, open, send, start, and 0066's pane-opened append goes between
+  the open and the send when both are present); a general "pane environment after profile" mechanism for other tools
+  (pnpm, corepack, mise's other tools), which the gate Node's folder already covers where they sit beside it.
+
+  Laws: AGENTS.md. No comments in packages/*/src; strict TypeScript with no `as`, `!`, `any` or `as unknown as`;
+  plain engineering names; Biome.
+
+gates:
+  - id: approved
+    kind: human
+
+nodes:
+  - id: panes-use-the-gate-node
+    role: implementer
+    acceptance: |
+      As the read. Allowed paths: packages/runner/, scripts/gates/pane-node-proven.ts, scripts/gates/slow-tests.ts
+      (declarations only, if the slow-tests-accounted gate requires them), and this graph's session folder.
+      1. A new module in packages/runner/src resolves the gate's Node as the read defines it (the same owned-command
+         runner, heavy prefix and non-interactive environment as the gates; the folder of the printed executable) and
+         returns a plain refusal for every failure the read lists. The drive resolves it once per attempt before
+         runtime.openPane, and refuses the attempt, with that reason and no pane opened, when it cannot.
+      2. Runtime gains optional sendPaneText(pane, text); the herdr adapter implements it with pane.send_text and its
+         test (packages/runner/test/herdr/adapter.test.ts and fakeServer.ts) asserts the wire call. After openPane and
+         before startAgent the drive sends the one export line and then Enter. A runtime without sendPaneText, or a
+         refused send, refuses the attempt with a plain reason, closes any opened pane through the existing cleanup,
+         and never starts the agent.
+      3. The environment passed to openPane is unchanged (the owner's profile defeats it, which is why the line is
+         typed), and nothing in the change reads or writes ~/.zshenv, any shell profile or Homebrew files.
+      4. Tests, each failing on main 3c10bc6a for its intended assertion, in packages/runner/test/paneNode.test.ts
+         with the shell-backed fake runtime in packages/runner/test/support/shellPaneRuntime.ts, a fixture HOME, XDG,
+         mise and corepack state under the system temp folder (never inside the worktree), stub Node binaries and a
+         stub `mise` written by the test, and the real drive and ledger. Exactly these four titles; the assertions
+         named under each are inside that case:
+         - "a pane launched by interlock reports the gate's node version even when the shell profile puts Homebrew
+           first" (the stub profile, as ZDOTDIR/.zshenv in the fixture, puts a fake Homebrew folder whose `node`
+           prints v26.13.0 first on PATH; the gate's folder holds a `node` that prints v24.14.0 and, given
+           `-p process.execPath`, prints its own path; the stub `mise exec -- <command>` runs the command with that
+           folder first; the fake runtime's agent start runs `node --version` in the pane's shell and the case reads
+           v24.14.0 from what it printed; the same command run in a pane the test opens directly, without the drive,
+           prints v26.13.0, so the case cannot pass on a profile that never put Homebrew first; the line was sent
+           after openPane and before startAgent, in that order, as the fake runtime's call log shows)
+         - "a resumed pane gets the same node" (invoke the real drive twice on the same node, the second as the
+           resume the existing drive tests use; two sessions, two panes, each reports v24.14.0 and the same gate
+           folder, each pane's own send recorded)
+         - "the owner's profile is never edited" (the stub profile and the fixture HOME's .zshenv, .zprofile, .zshrc
+           and .zlogin, each written by the test with known bytes, are byte-for-byte equal after the drive has run
+           and after the agent exited, and the fixture HOME's file listing is unchanged by the drive apart from the
+           state the drive already writes under its own ledger folder; the same holds for the stub Homebrew folder)
+         - "a pane without a resolvable gate node is refused with a plain reason, never launched on a different node"
+           (three variants in the case: the stub `mise` exits 1, prints nothing, and prints a path to a file that is
+           not executable; each: the drive result is a refusal, its message names the command and what it said and
+           says no pane was opened, the fake runtime's openPane, sendPaneText and startAgent counts are all 0, no
+           shell was spawned, and the fake Homebrew `node` ran zero times, proved by a marker file it writes when run)
+      5. Proof: scripts/gates/pane-node-proven.ts runs the test file above once with vitest's JSON reporter, with a
+         temporary HOME and temporary tool-state folders, fails on a missing file, and prints "pane node proven: 4
+         named cases passed" only when the run exits zero, every title above passes exactly once, and there are no
+         failures, skips, todos, missing summaries or extra cases in that file. It proves execution and titles; the
+         assertions above are what the judge reads each case for.
+      6. Existing tests keep passing (the drive fixtures and fake runtimes in packages/runner/test gain sendPaneText
+         where the drive now requires it, recording what they are sent). New tests are declared or baselined as the
+         slow-tests-accounted gate requires.
+      7. The debrief names where the pane environment is set, states that real herdr delivery of pane.send_text is
+         the one thing no gate proves, gives the manual check from the read, and states that the installed launcher
+         and the owner's profile are untouched.
+      Before you file the debrief (and before any refile), end every vitest worker, zsh child and process you started
+      and confirm with pgrep that none survives.
+    gates:
+      - id: branch-contains-main
+        kind: command
+        run: git merge-base --is-ancestor origin/main HEAD
+      - id: pane-node-proven
+        kind: command
+        run: node scripts/gates/pane-node-proven.ts
+        expect_output: 'pane node proven: 4 named cases passed'
+      - id: slow-tests-accounted
+        kind: command
+        run: node scripts/gates/slow-tests.ts
+        expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1\.5 s'
