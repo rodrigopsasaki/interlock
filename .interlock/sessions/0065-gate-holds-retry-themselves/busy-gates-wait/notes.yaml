@@ -91,3 +91,7 @@ entries:
     expected: The standing slow-test accounting command would run with the fixture identity and home inherited by every package subprocess.
     observed: The first accounting run omitted the fixture Git author variables and surfaced existing Codex project-home and signing assumptions; it failed before producing an accounting receipt. I did not rerun it with a real Codex executable because the session explicitly forbids that.
     because: The standing command is a repository-wide integration runner, and its real-Codex cases must not cross the user's prohibition merely to manufacture a green receipt.
+  - kind: question
+    at: "2026-11-14T15:28:47Z"
+    asked: "The immutable brief names graph base fdd3c346, but the existing canonical debrief names ab731fa; should I preserve the existing debrief identity for revise, or should the debrief filing path be repaired to accept the current brief identity?"
+    options: [preserve existing identity, repair filing path]
