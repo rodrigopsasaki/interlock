@@ -1,82 +1,81 @@
 interlock: debrief@v2
-revision: 3
-supersedes: ".interlock/sessions/0065-gate-holds-retry-themselves/store-stays-pinned/debrief.yaml at d222c7d008b28f5926e20982b6f3b185988544bb"
 graph: 0065-gate-holds-retry-themselves
 node: store-stays-pinned
 role: implementer
-graph_base_sha: 4dfef50e5ffb948f874185968140b93202243958
-session_start_sha: ec7565802b8973c57ea38cfbdc6f379d6aad4ed8
-head_sha: d222c7d008b28f5926e20982b6f3b185988544bb
+graph_base_sha: fdd3c346ce3fc1fc01a9f1230a7fb989a1d5f0f9
+session_start_sha: d0941edf752fdda2f7a3658c3bcb86ed486f5c64
+head_sha: 01e10bbdcbb59aa916fe851d461fb050d9e18ed3
 derivation:
   kind: agent
   runtime: codex
   model: gpt-5
 discoveries: []
 decisions:
-  - id: keep-store-probe-outside-heavy
-    what: Run the fallback pnpm store path probe directly through mise, and keep only the actual setup command under the machine provider's heavy prefix.
-    because: The store path lookup is read-only; putting it outside heavy avoids an unnecessary machine hold while retaining serialization for the mutating setup command. The existing machine-provider tests therefore retain their intended two heavy entries.
+  - id: share-store-metadata-parser
+    what: Read the recorded pnpm store through one YAML parser that narrows the document and storeDir field, while preserving the existing default-store fallback for absent, invalid, or unreadable metadata.
+    because: The worktree metadata is the only stable store identity available when a fixture HOME changes pnpm's default; a malformed or missing file must retain the established fallback rather than becoming a new setup failure.
     rests_on:
       - brief:Acceptance (verbatim from the graph)
-      - packages/runner/src/worktreeSetup.ts:138-180
     hunks:
-      - packages/runner/src/worktreeSetup.ts:138-180
-  - id: support-direct-mise-probe
-    what: Make the fake mise used by store pinning tests strip only the explicit exec -- pair, so it supports both direct default-store discovery and heavy-prefixed setup.
-    because: The production lookup no longer carries the heavy prefix, and the fixture must prove the command reaches fake pnpm in both invocation shapes.
-    rests_on:
-      - packages/runner/src/worktreeSetup.ts:138-180
-      - .interlock/sessions/0065-gate-holds-retry-themselves/store-stays-pinned/notes.yaml:28-31
-    hunks:
-      - packages/runner/test/storeStaysPinned.test.ts:37-40
-  - id: assert-refusal-provenance
-    what: Make the CLI backfill and run refusal tests assert the exact refusal, provenance structure, separator, and retained-log line while allowing only generated paths to vary.
-    because: The selected store and retained log are part of the refusal receipt; their generated fixture paths are the only variable portions.
-    applies_to: { kind: repository }
+      - packages/runner/src/pnpmStore.ts:6-41
+      - packages/runner/src/worktreeSetup.ts:3-13
+  - id: pin-gate-children
+    what: Add the recorded store to the non-interactive environment passed to command gates, once per gate-judgement, while leaving node-engine probing and the existing setup environment behavior intact.
+    because: The full pnpm test gate runs before slow-tests-accounted and can purge the real worktree when its fixture HOME selects another store; passing the recorded store at the gate boundary prevents that first purge.
     rests_on:
       - brief:Acceptance (verbatim from the graph)
-      - packages/cli/test/backfill.test.ts:164-169
-      - packages/cli/test/run.test.ts:1277-1284
     hunks:
-      - packages/cli/test/backfill.test.ts:164-169
-      - packages/cli/test/run.test.ts:1277-1284
-  - id: record-correction-receipts
-    what: Append the heavy-prefix choice, fixture surprise, refusal-message choice, approval rerun, and notes-reader correction to notes@v0.
-    because: The resumed correction must preserve why the extra heavy hold was removed, how the fixture was repaired, why variable paths are matched structurally, and how the approval concern was checked.
+      - packages/runner/src/gateJudge.ts:363-368
+      - packages/runner/src/gateJudge.ts:453-456
+  - id: pin-slow-test-children
+    what: Give every pnpm child started by slow-tests-accounted the recorded worktree store when valid module metadata exists.
+    because: The helper deliberately runs package Vitest suites from the real repository root, so inheriting a fixture HOME without an explicit store would recreate the mismatch inside the gate.
+    rests_on:
+      - brief:Acceptance (verbatim from the graph)
+    hunks:
+      - scripts/gates/slow-tests.ts:6-14
+      - scripts/gates/slow-tests.ts:282-296
+  - id: prove-full-gate-preservation
+    what: Extend the fake pnpm fixture with a purge path and judge a full pnpm test gate while snapshotting both .modules.yaml and the runner vitest link before and after it.
+    because: The regression fails when gateEnv omits the recorded store, and it proves the exact send-back defect without real pnpm, a real store, network access, or installation into the worktree.
+    rests_on:
+      - brief:Acceptance (verbatim from the graph)
+    hunks:
+      - packages/runner/test/storeStaysPinned.test.ts:39-79
+      - packages/runner/test/storeStaysPinned.test.ts:200-235
+  - id: record-session-evidence
+    what: Record the gate-boundary choice and the observed broad-suite and slow-accounting failures in notes@v0.
+    because: The session record keeps the reason for pinning and preserves the unresolved machine-specific evidence instead of presenting failed standing gates as satisfied.
     rests_on:
       - brief:Deliverable 2
-      - .interlock/sessions/0065-gate-holds-retry-themselves/store-stays-pinned/notes.yaml:20-43
     hunks:
-      - .interlock/sessions/0065-gate-holds-retry-themselves/store-stays-pinned/notes.yaml:20-43
+      - .interlock/sessions/0065-gate-holds-retry-themselves/store-stays-pinned/notes.yaml:44-58
 gates_run_by_agent:
   - id: typecheck
     result: pass
     invocation: mise exec -- pnpm typecheck
-    note: All workspace typechecks passed; the launcher reported host Node 26.13.0 despite the repository pin.
   - id: lint
     result: pass
     invocation: mise exec -- pnpm lint
   - id: comments
     result: pass
     invocation: mise exec -- pnpm check:comments
-  - id: focused-machine-and-store-tests
+  - id: store-stays-pinned-tests
     result: pass
-    invocation: mise exec -- pnpm --fail-if-no-match --filter runner exec vitest run test/machineProvider.test.ts test/storeStaysPinned.test.ts --no-color
-    note: Thirty-five tests passed; setup plus gate retained two heavy entries and concurrent requests retained two start/end pairs.
-  - id: graph-approve-harness-reruns
-    result: pass
-    invocation: mise exec -- pnpm --filter cli exec vitest run test/graph/approve.test.ts --maxWorkers=1 --minWorkers=1 --reporter=json
-    note: The seven-test graph approve file passed twice; the subsequent-show approval case did not reproduce the missing-HEAD failure.
+    invocation: mise exec -- pnpm --fail-if-no-match --filter runner exec vitest run test/storeStaysPinned.test.ts --passWithNoTests=false
+    note: Five focused tests passed, including the full-gate metadata and vitest-link preservation regression.
+  - id: test
+    result: fail
+    invocation: mise exec -- pnpm test
+    note: Two serial attempts under absolute fixture HOME/XDG paths preserved the worktree store metadata and vitest link, but failed on unrelated Codex-guard ancestor configuration cases and fixture Git metadata permissions.
+  - id: slow-tests-accounted
+    result: fail
+    invocation: mise exec -- node scripts/gates/slow-tests.ts
+    note: The runner package retained the store and link but had unrelated Codex-guard failures and a slow assertion without a declaration, so the expected summary was not emitted.
   - id: debrief-valid
     result: pass
     invocation: mise exec -- pnpm interlock debrief validate 0065-gate-holds-retry-themselves store-stays-pinned
-    note: The selected revision and notes validated before the final commit.
-  - id: safe-full-suite-excluding-real-codex
-    result: fail
-    invocation: mise exec -- pnpm -r --workspace-concurrency=1 exec vitest run --maxWorkers=1 --minWorkers=1 --exclude '**/realCodexMarkerLaunch.test.ts' --exclude '**/realCodexMarkerOverflow.test.ts' --exclude '**/lineFitsRealCodex.test.ts' --exclude '**/codexHomeOutsideWorktree.test.ts'
-    note: The safe attempt reached 718 passing tests but had 14 failures in pre-existing Codex guard and submodule-receipt coverage; the exact pnpm test gate was not run because the brief forbids launching real Codex.
+    note: The selected final debrief and notes validated after the candidate was filed.
 open:
-  - The repository-wide pnpm test gate was not run because its standing suite contains deliberate real-Codex integration tests and the binding brief says never run a real codex.
-  - The slow-tests-accounted gate was not run for the same real-Codex prohibition; its package-wide scan invokes every package's Vitest suite.
-  - "The safe excluded suite still has 14 failures outside this node: 13 Codex guard assertions that read the project Codex configuration, plus one submodule-receipt Git exit failure."
-  - Verification through the available pnpm 10.13.1 native launcher reported host Node 26.13.0 rather than the repository's pinned Node 24.14.0.
+  - The repository-wide pnpm test and slow-tests-accounted gates remain held by unrelated Codex-guard, Git fixture, and slow-declaration failures on this machine; the store-preservation regression itself passes and no node_modules purge was observed.
+  - The broad verification commands reported host Node 26.13.0 through the installed pnpm launcher despite the repository's Node 24.14.0 pin.

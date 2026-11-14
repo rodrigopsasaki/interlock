@@ -53,3 +53,11 @@ entries:
     at: "2026-11-14T00:00:00Z"
     expected: slow-tests-accounted would complete after its pnpm children received the recorded store explicitly.
     observed: The runner package still had unrelated Codex-guard failures and one slow assertion without a declaration; its pnpm children did not purge node_modules or rewrite the vitest link.
+  - kind: choice
+    at: "2026-11-14T00:00:00Z"
+    chose: Preserve the stale selected debrief under its content hash in revisions before selecting the fresh candidate for the current brief.
+    because: The prior debrief has an older graph base, so both file-derived and revise refuse to replace it; hash-addressed custody keeps its exact bytes while allowing the current session proof to be filed.
+  - kind: surprise
+    at: "2026-11-14T00:00:00Z"
+    expected: debrief revise would select the fresh candidate over the existing debrief.
+    observed: revise refused because the existing selected debrief's graph_base_sha does not match the current session brief; file-derived also refused because debrief.yaml already existed.
