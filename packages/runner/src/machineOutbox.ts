@@ -22,6 +22,7 @@ export interface MachineHold {
   readonly cwd: string;
   readonly release: readonly string[];
   readonly env: Readonly<Record<string, string>>;
+  readonly stop?: { readonly by: string; readonly because: string };
 }
 
 export type MachineOperation = "admit" | "close" | "release" | "agent";
@@ -63,6 +64,9 @@ export function machineIntent(
       cwd: hold.cwd,
       release: hold.release,
       env: hold.env,
+      ...(hold.stop === undefined
+        ? {}
+        : { by: hold.stop.by, because: hold.stop.because, stop: hold.stop }),
     }),
   );
   const existing = evidence(ledger, id);
@@ -206,6 +210,25 @@ export async function closeMachinePane(
   );
 }
 
+export async function stopMachinePane(
+  ledger: Ledger,
+  runtime: Runtime,
+  node: Node,
+  session: string,
+  hold: MachineHold,
+): Promise<Result<void, string>> {
+  const close = machineIntent(ledger, node, session, "close", hold);
+  if (isErr(close)) return close;
+  if (acknowledged(ledger, close.value)) return ok(undefined);
+  const stopped = await runtime.closePane({ id: hold.pane });
+  const saved = machineDelivery(
+    ledger,
+    close.value,
+    isErr(stopped) ? err(explainRuntimeRefusal(stopped.error)) : ok({ closed: true }),
+  );
+  return isErr(saved) ? saved : ok(undefined);
+}
+
 function parseHold(value: unknown): MachineHold | undefined {
   if (!isRecord(value)) return undefined;
   const token = prop(value, "token");
@@ -213,12 +236,29 @@ function parseHold(value: unknown): MachineHold | undefined {
   const cwd = prop(value, "cwd");
   const release = prop(value, "release");
   const env = prop(value, "env");
+  const stop = prop(value, "stop");
+  const stopBy = isRecord(stop) ? prop(stop, "by") : undefined;
+  const stopBecause = isRecord(stop) ? prop(stop, "because") : undefined;
   return typeof token === "string" &&
     typeof pane === "string" &&
     typeof cwd === "string" &&
     isStringArray(release) &&
-    stringEnvironment(env)
-    ? { token, pane, cwd, release, env }
+    stringEnvironment(env) &&
+    (stop === undefined ||
+      (isRecord(stop) && typeof stopBy === "string" && typeof stopBecause === "string"))
+    ? {
+        token,
+        pane,
+        cwd,
+        release,
+        env,
+        ...(stop === undefined ||
+        !isRecord(stop) ||
+        typeof stopBy !== "string" ||
+        typeof stopBecause !== "string"
+          ? {}
+          : { stop: { by: stopBy, because: stopBecause } }),
+      }
     : undefined;
 }
 

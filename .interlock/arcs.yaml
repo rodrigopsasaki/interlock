@@ -365,3 +365,11 @@ arcs:
           0065 enforces in tests)
     graphs:
       - interlock/0065-gate-holds-retry-themselves
+
+  - id: bring-october-back
+    title: Bring October's Preston back
+    ask: "I want the old review, the agent, the steps. The real climb. I want the good results back"
+    source: 2026-11-05 12:40 UTC, project chat (the arc as declared in Preston's
+      .interlock/arcs.yaml, mirrored here so Interlock's own graphs can name it)
+    graphs:
+      - interlock/0066-attempt-records-its-pane

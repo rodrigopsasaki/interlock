@@ -19,6 +19,7 @@ import type { SubstrateClient } from "substrate";
 import { type CodexLaunchRefusal, prepareCodexLaunch } from "./codex/config.ts";
 import { needsPaneEnvironment } from "./codex/environment.ts";
 import { type ExecPhaseRequest, execRunRoot, runExecPhase } from "./execRuntime.ts";
+import { stopSignalFor } from "./execStop.ts";
 import { declaredGateIds, gateCommandTable } from "./gateCommand.ts";
 import { explainGateJudgeRefusal, type GateCommandRunner } from "./gateJudge.ts";
 import { createHerdrLaunchRuntime } from "./herdr/adapter.ts";
@@ -562,6 +563,22 @@ export async function driveInteractiveSession(
       abandonLease();
       return { exitCode: 1, message: because };
     };
+    const holdStoppedAttempt = (signal: {
+      readonly by: string;
+      readonly because: string;
+    }): DriveSessionOutcome => {
+      const because = `stopped by ${signal.by}: ${signal.because}`;
+      const held = outcome.held(
+        ledger.projection().nodes.get(nodeKey(targetNode))?.receipts ?? [],
+        heldOn.gateFailure(because, "hold"),
+        because,
+        clock.now().wallMs + HELD_REVISIT_MS,
+      );
+      ledger.append({ kind: "outcome-set", node: targetNode, outcome: held });
+      lease.stop();
+      abandonLease();
+      return { exitCode: 0, message: `${node}: held (${because}).` };
+    };
 
     if (agentRuntime.kind === "exec") {
       const openingPrompt = buildOpeningPrompt(
@@ -685,6 +702,7 @@ export async function driveInteractiveSession(
           cwd: worktreePath,
           env: phaseEnvironment,
           timeoutMs: localConfig.runTimeoutMs,
+          ledger,
           ...(admission === undefined ? {} : { admission }),
         };
       };
@@ -717,6 +735,8 @@ export async function driveInteractiveSession(
         lease.stop();
         return refuse(abandon("wait"), work.error.because);
       }
+      const workStop = stopSignalFor(ledger, sessionId, "work");
+      if (workStop?.mode === "attempt") return holdStoppedAttempt(workStop);
       const custody = {
         worktree: worktreePath,
         graph,
@@ -768,6 +788,8 @@ export async function driveInteractiveSession(
         lease.stop();
         return refuse(abandon("debrief wait"), debrief.error.because);
       }
+      const debriefStop = stopSignalFor(ledger, sessionId, "debrief");
+      if (debriefStop?.mode === "attempt") return holdStoppedAttempt(debriefStop);
       execTerminationConfirmed = true;
       if (committedCode !== undefined && isOk(committedCode)) {
         const committed = await commitRunnerDebrief(custody, committedCode.value);
@@ -1111,6 +1133,8 @@ export async function driveInteractiveSession(
       abandonLease();
       return result;
     }
+    const paneStop = stopSignalFor(ledger, sessionId, undefined);
+    if (paneStop !== undefined) return holdStoppedAttempt(paneStop);
 
     if (agentRuntime.commits === "runner") {
       const custody = {

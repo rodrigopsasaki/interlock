@@ -1,0 +1,39 @@
+interlock: notes@v0
+node: sessions-stop-stops
+entries:
+  - kind: choice
+    at: "2026-11-14T16:00:00Z"
+    chose: "Use one runner exec-stop adapter for intent persistence, control-socket dispatch, delivery recording, replay, and phase-stop consumption; make the CLI call that adapter after validating the closed sessions grammar."
+    because: "The acceptance requires the exec timeout and the human stop to share an outbox effect, while the CLI must not signal a process itself and the phase driver must decide whether to continue or hold the attempt."
+  - kind: surprise
+    at: "2026-11-14T16:32:00Z"
+    expected: "A live exec session record would be readable as soon as its generation filename appeared."
+    observed: "The reader could see a generation while its exclusive writer was still flushing JSON, so a stop/list read could hit truncated JSON; it now skips partial generations and uses the newest valid record."
+  - kind: choice
+    at: "2026-11-14T16:35:00Z"
+    chose: "Add controlSocketPath as an optional session@v0 field and omit it from the sessions@v0 projection."
+    because: "The runner needs a durable locator for a human stop to reach the phase anchor, while old session records and the existing public sessions listing must remain readable and shape-compatible."
+  - kind: surprise
+    at: "2026-11-14T16:40:54Z"
+    expected: "The fixture-environment dependency restore command would return its install result to the shell."
+    observed: "The zsh variable name status is read-only, so the command returned exit 1 after the install had completed; the install log and workspace links confirmed the restore succeeded."
+  - kind: surprise
+    at: "2026-11-14T16:45:00Z"
+    expected: "The full suite would resolve Codex configuration from the fixture home used by the test command."
+    observed: "Codex guard tests found the owner's project configuration at /Users/rodrigosasaki/.codex/config.toml despite fixture HOME/XDG values; the rerun will set CODEX_HOME inside the worktree so no owner configuration is consulted."
+  - kind: choice
+    at: "2026-11-14T16:46:00Z"
+    chose: "Preserve the existing run timeout reason when the timeout is represented by the shared exec-stop intent."
+    because: "The timeout must use the same durable outbox effect as a human stop, but compatibility requires timeout records to continue explaining the timeout rather than presenting it as a human stop."
+  - kind: surprise
+    at: "2026-11-14T16:49:00Z"
+    expected: "Setting CODEX_HOME and the guard's user-home override inside the worktree would isolate the full suite from the owner configuration."
+    observed: "The guard walks repository ancestors and still classifies /Users/rodrigosasaki/.codex/config.toml as a project layer because it is outside the fixture user-home path; the full suite remains blocked by that pre-existing environment-sensitive test guard."
+  - kind: choice
+    at: "2026-11-14T16:50:32Z"
+    chose: "Add the successful debrief validation receipt to the authored candidate and revise the filed debrief from that candidate."
+    because: "The debrief-valid gate is part of the node contract, so the final authored report should carry the actual validation result rather than leave it implicit in the command log."
+  - kind: choice
+    at: "2026-11-14T16:51:10Z"
+    chose: "Remove the now-stale debrief-valid item from open after the revised canonical debrief validated successfully."
+    because: "The open section must carry only unresolved acceptance work; the validation receipt is now present in gates_run_by_agent and the gate passed."

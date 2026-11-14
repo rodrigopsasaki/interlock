@@ -26,6 +26,7 @@
     "runnerBoot": {"type": "string"},
     "launchNonce": {"type": "string"},
     "controlSecret": {"type": "string"},
+    "controlSocketPath": {"type": "string"},
     "startedAt": {"type": "string"},
     "endedAt": {"type": ["string", "null"]},
     "state": {"enum": ["running", "done", "failed", "killed"]},
