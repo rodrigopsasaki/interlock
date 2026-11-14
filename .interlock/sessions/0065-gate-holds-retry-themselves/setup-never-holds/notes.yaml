@@ -57,3 +57,11 @@ entries:
     at: "2026-11-14T06:20:00Z"
     expected: The slow-tests-accounted gate would pass after the pinned isolated run.
     observed: Its serial workspace scan failed on the same runner failures and on many existing CLI and runner tests exceeding the 1.5-second undeclared threshold under this machine's load; the setup-never-holds focused tests remained within their individual budgets.
+  - kind: surprise
+    at: "2026-11-14T05:55:48Z"
+    expected: The authored candidate could name the last code commit while filing from the current worktree head.
+    observed: file-derived requires head_sha to equal the current derived proof, so the candidate must first file at the notes-only head and then use the versioned revise path to select the authored correction naming the last code commit.
+  - kind: choice
+    at: "2026-11-14T05:56:20Z"
+    chose: File the authored candidate at the current derived proof, then revise it with a retained authored correction whose head_sha names the last code commit.
+    because: The filing command proves current session identity, while the debrief contract separately requires head_sha to remain the last code commit; the versioned revision path preserves both proofs.

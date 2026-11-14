@@ -1,0 +1,121 @@
+interlock: debrief@v2
+graph: 0065-gate-holds-retry-themselves
+node: setup-never-holds
+role: implementer
+graph_base_sha: afe199ea6d7d8a23040ea2dae275be40c0d03d84
+session_start_sha: f0d68168a95a54a8e8d2e332685eff72b7d28d42
+head_sha: 7742faf80cbf9f7ba3d3f532c58f0f4bf0a3cdbd
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: shared-noninteractive-process-boundary
+    what: "Route setup commands, gate commands, and their node-engine preflights through one detached process-group runner that closes stdin, injects CI=1 and npm_config_confirm_modules_purge=false, captures raw output bytes, and terminates the whole group after a bounded grace period."
+    because: "Both setup and command gates previously inherited a live stdin and had no hold bound; one shared runner keeps the non-interactive and descendant-cleanup guarantees identical at every command boundary."
+    rests_on:
+      - "brief:Acceptance (verbatim from the graph)"
+      - "packages/runner/src/ownedCommand.ts:11-20"
+      - "packages/runner/src/ownedCommand.ts:58-147"
+    hunks:
+      - packages/runner/src/ownedCommand.ts:11-24
+      - packages/runner/src/ownedCommand.ts:58-147
+    produces:
+      - packages/runner/src/ownedCommand.ts
+  - id: setup-timeout-and-retained-refusal
+    what: "Give worktree setup a named 20-minute default hold timeout, apply it to the node-engine preflight and setup command, and report a timeout with the command, duration, output tail, and retained setup log."
+    because: "A setup command that has started must not hold the heavy lock indefinitely; retaining the tail and content-addressed log preserves the evidence needed to repair the failed setup."
+    rests_on:
+      - "brief:Acceptance (verbatim from the graph)"
+      - "packages/runner/src/worktreeSetup.ts:14-45"
+    hunks:
+      - packages/runner/src/worktreeSetup.ts:14-45
+      - packages/runner/src/worktreeSetup.ts:92-159
+      - packages/runner/src/worktreeSetup.ts:161-183
+    produces:
+      - packages/runner/src/worktreeSetup.ts
+  - id: gate-timeout-is-blocked-failure
+    what: "Give command gates a named 60-minute fallback timeout, use the existing session run timeout when supplied, retain stdout and stderr as gate artifacts, and classify a timed-out command as an ordinary blocked gate failure with one plain timeout line rather than as busy."
+    because: "The command has started when its hold expires, so retry-on-never-started is the wrong disposition; the existing gate receipt and blocked state can carry the timeout evidence without changing artifact versions."
+    rests_on:
+      - "brief:Acceptance (verbatim from the graph)"
+      - "packages/runner/src/gateJudge.ts:71-182"
+      - "packages/runner/src/gateJudge.ts:318-365"
+      - "packages/runner/src/gateJudge.ts:431-562"
+    hunks:
+      - packages/runner/src/gateJudge.ts:71-182
+      - packages/runner/src/gateJudge.ts:318-365
+      - packages/runner/src/gateJudge.ts:431-573
+    produces:
+      - packages/runner/src/gateJudge.ts
+  - id: propagate-gate-hold-setting
+    what: "Expose the gate hold timeout through judgeWorktree and sessionDrive, while exporting the named gate default from the runner package."
+    because: "Direct gate callers need the documented fallback, and session-driven gates must inherit the configured run timeout without introducing runtime-specific assumptions into the gate implementation."
+    applies_to: { kind: repository }
+    rests_on:
+      - "brief:Acceptance (verbatim from the graph)"
+      - "packages/runner/src/judgeWorktree.ts:20-40"
+      - "packages/runner/src/sessionDrive.ts:783-800"
+    hunks:
+      - packages/runner/src/judgeWorktree.ts:20-40
+      - packages/runner/src/judgeWorktree.ts:59-135
+      - packages/runner/src/sessionDrive.ts:783-800
+      - packages/runner/src/sessionDrive.ts:1237-1255
+      - packages/runner/src/index.ts:49-60
+    produces:
+      - packages/runner/src/judgeWorktree.ts
+      - packages/runner/src/sessionDrive.ts
+      - packages/runner/src/index.ts
+  - id: focused-never-holds-proof
+    what: "Add fixture-only runner tests proving EOF on stdin, runner-owned environment overrides, setup timeout and grandchild termination, heavy-prefix lock release, absence of machine and wrapper writes, and blocked-not-busy gate timeout behavior."
+    because: "The acceptance requires each hold boundary to fail deterministically without real pnpm, a real lock, the owner's machine configuration, or an out-of-repository wrapper."
+    rests_on:
+      - "brief:Acceptance (verbatim from the graph)"
+      - "packages/runner/test/setupNeverHolds.test.ts:59-225"
+    hunks:
+      - packages/runner/test/setupNeverHolds.test.ts:1-226
+    produces:
+      - packages/runner/test/setupNeverHolds.test.ts
+  - id: record-session-receipts
+    what: "Append the session's choices and surprises to notes.yaml, including the isolated standing-gate failures and the successful focused verification."
+    because: "The brief requires every choice and surprise to remain recoverable as notes, including environmental evidence that explains why unresolved standing gates are open."
+    rests_on:
+      - "brief:Deliverable 2"
+      - ".interlock/sessions/0065-gate-holds-retry-themselves/setup-never-holds/notes.yaml:1-67"
+    hunks:
+      - .interlock/sessions/0065-gate-holds-retry-themselves/setup-never-holds/notes.yaml:1-67
+    produces:
+      - .interlock/sessions/0065-gate-holds-retry-themselves/setup-never-holds/notes.yaml
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: "Passed on Node 24.14.0 with fixture HOME, XDG, mise, and Codex paths."
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: "Biome passed on the final source head."
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+    note: "The repository comment check passed on the final source head."
+  - id: setup-never-holds-tests
+    result: pass
+    invocation: "pnpm --fail-if-no-match --filter runner exec vitest run test/setupNeverHolds.test.ts --passWithNoTests=false"
+    note: "The four focused fixture tests passed."
+  - id: test
+    result: fail
+    invocation: pnpm test
+    note: "With Node 24.14.0 and fixture HOME, CODEX_HOME, XDG, mise, and Git identity, the runner reported 743 passed and 14 failed: 13 Codex guard or nested leak tests still reading project Codex configuration, plus one existing gateJudge debrief-ingestion timeout."
+  - id: slow-tests-accounted
+    result: fail
+    invocation: node scripts/gates/slow-tests.ts
+    note: "The serial scan reported the same runner failures and many existing CLI and runner tests above the undeclared 1.5-second threshold; the focused setup-never-holds tests stayed within budget."
+  - id: debrief-valid
+    result: pass
+    invocation: "pnpm interlock debrief validate 0065-gate-holds-retry-themselves setup-never-holds"
+    note: "The revised debrief and notes validate successfully after selecting the last-code-commit correction."
+open:
+  - "The standing pnpm test gate remains unresolved in this environment: the isolated Node 24.14.0 run reported 743 passed and 14 failed, consisting of 13 Codex guard or nested leak failures caused by project configuration reads and one existing gateJudge debrief-ingestion timeout."
+  - "The slow-tests-accounted gate remains unresolved: its serial scan reported the same runner failures and many existing CLI and runner tests over the undeclared 1.5-second threshold under machine load."
