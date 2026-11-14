@@ -45,3 +45,7 @@ entries:
     at: "2026-11-14T00:00:00Z"
     chose: Pin command gates to the worktree's recorded pnpm store and pass that store explicitly to the slow-test helper's pnpm children.
     because: The full pnpm test gate can purge node_modules before slow-tests-accounted runs, and slow-tests starts pnpm in the real worktree under the runner's fixture HOME.
+  - kind: surprise
+    at: "2026-11-14T00:00:00Z"
+    expected: Two full root-suite runs with absolute fixture HOME/XDG paths would complete after the store pin.
+    observed: The suite preserved the metadata and vitest link, but unrelated Codex-guard cases saw the owner checkout's ancestor config and Git-maintenance fixtures hit machine metadata permissions; no store purge occurred.
