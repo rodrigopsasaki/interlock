@@ -89,3 +89,7 @@ entries:
     at: "2026-11-14T23:00:00Z"
     expected: A final full-suite run with the explicit guard-home fixture would start every workspace test.
     observed: A concurrent same-worktree pnpm test process left the workspace without the ledger vitest executable, so the final attempt stopped at vitest command not found before any test; the earlier Node 24 run reached scopeGuard.test.ts with 13 passing tests.
+  - kind: surprise
+    at: "2026-11-14T23:00:00Z"
+    expected: The workspace links would remain available for debrief preparation after the gate attempt.
+    observed: Debrief prepare could not resolve @phyxiusjs/fp from the CLI because the concurrent same-worktree gate had removed package links; no candidate was created.
