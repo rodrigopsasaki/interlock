@@ -1,0 +1,31 @@
+interlock: notes@v0
+node: gate-output-is-plain
+entries:
+  - kind: choice
+    at: "2026-11-14T16:20:00Z"
+    chose: Keep the runner's existing raw command bytes for retained artifacts and outputHash, and sanitize only the text passed to expect_output matching.
+    because: The acceptance makes raw output the proof identity and limits the behavior change to the pattern predicate, so stripping earlier would change receipt evidence and compatibility.
+  - kind: choice
+    at: "2026-11-14T16:21:00Z"
+    chose: Put color environment normalization in nonInteractiveEnvironment so gate, setup, and their node-engine commands share one boundary.
+    because: Both gateJudge.ts and worktreeSetup.ts already use the shared owned-command environment path, preserving CI=1 and npm_config_confirm_modules_purge=false while preventing caller color forcing from crossing the boundary.
+  - kind: surprise
+    at: "2026-11-14T16:22:00Z"
+    expected: The runner or standing gate scripts would already name color-forcing variables that need additional handling.
+    observed: A targeted search found no existing FORCE_COLOR, CLICOLOR_FORCE, CLICOLOR, COLORTERM, NO_COLOR, or related color variable in packages/runner/src, packages/runner/test, scripts/gates, or package.json; the new boundary therefore handles the requested FORCE_COLOR removal and NO_COLOR setting explicitly.
+  - kind: surprise
+    at: "2026-11-14T16:43:00Z"
+    expected: Running the focused suite with FORCE_COLOR=1 in the Vitest process would leave its Git fixture setup unaffected.
+    observed: The fixture repository commit failed before three tests ran; the child-command cases already inject FORCE_COLOR through their explicit test environment, so the rerun can isolate that boundary without exporting it to Vitest and Git.
+  - kind: choice
+    at: "2026-11-14T13:48:00Z"
+    chose: Use a fixture mise wrapper and an injected successful node-version check for environment tests, and store gate artifacts in an explicit test output directory.
+    because: The tests exercise the runner's child boundary without invoking the owner's toolchain or requiring a fixture repository journal, while still running the actual owned gate and setup subprocesses.
+  - kind: choice
+    at: "2026-11-14T13:49:00Z"
+    chose: Build the ANSI matcher as a named RegExp-based stripping function with CSI and other common escape-form coverage.
+    because: The function remains used only at the expect_output match, and constructing the pattern avoids a source lint violation for intentional control-character escapes without weakening the matching behavior.
+  - kind: surprise
+    at: "2026-11-14T13:50:00Z"
+    expected: The first typecheck and formatter pass would accept the initial implementation directly.
+    observed: Strict index-signature access and the repository's control-character regex lint required bracket notation, a typed environment copy, an async node-version fixture, and a RegExp string construction; the corrected focused suite and targeted Biome check pass.

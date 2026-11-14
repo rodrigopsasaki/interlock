@@ -20,7 +20,16 @@ export interface TimedOwnedCommandResult {
 }
 
 export function nonInteractiveEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-  return { ...env, CI: "1", npm_config_confirm_modules_purge: "false" };
+  const commandEnv: NodeJS.ProcessEnv = {
+    ...env,
+    CI: "1",
+    NO_COLOR: "1",
+    npm_config_confirm_modules_purge: "false",
+  };
+  delete commandEnv["FORCE_COLOR"];
+  delete commandEnv["FORCE_COLORS"];
+  delete commandEnv["CLICOLOR_FORCE"];
+  return commandEnv;
 }
 
 export function execFileSyncOwned(
