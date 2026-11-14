@@ -21,3 +21,11 @@ entries:
     at: "2026-11-14T00:00:00Z"
     chose: Leave the repository-wide test and slow-tests-accounted gates open instead of launching their deliberate real-Codex integration tests.
     because: The brief explicitly says never run a real codex, so those standing commands would conflict with a binding safety constraint; the exact store gate and non-Codex focused setup suite provide the scoped proof.
+  - kind: choice
+    at: "2026-11-14T00:00:00Z"
+    chose: Resolve the runner's default pnpm store outside the machine provider's heavy prefix, while keeping the actual worktree setup command under that prefix.
+    because: `pnpm store path` only reads the runner environment and does not mutate the store or install dependencies; holding the machine lock for that probe would add an unnecessary heavy operation and would make setup plus a gate report an extra heavy entry.
+  - kind: surprise
+    at: "2026-11-14T00:00:00Z"
+    expected: The fake mise used by the focused store tests would continue to invoke pnpm after the default-store lookup moved outside the heavy prefix.
+    observed: The fixture had been written to discard three wrapper arguments, so a direct `mise exec -- pnpm store path` discarded pnpm as well; it now strips the explicit `exec --` pair and preserves the command.

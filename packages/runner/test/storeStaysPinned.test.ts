@@ -34,7 +34,7 @@ function fakeCommands(root: string): { readonly mise: string; readonly bin: stri
   const bin = join(root, "bin");
   mkdirSync(bin);
   const mise = join(bin, "mise");
-  writeFileSync(mise, '#!/bin/sh\nshift 3\nexec "$@"\n');
+  writeFileSync(mise, '#!/bin/sh\nif [ "$1" = "exec" ] && [ "$2" = "--" ]; then shift 2; fi\nexec "$@"\n');
   chmodSync(mise, 0o755);
   const pnpm = join(bin, "pnpm");
   writeFileSync(

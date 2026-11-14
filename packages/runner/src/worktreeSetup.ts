@@ -138,12 +138,11 @@ async function commandFailure(
 async function runnerDefaultStore(
   cwd: string,
   env: NodeJS.ProcessEnv,
-  heavy: readonly string[],
   timeoutMs: number,
 ): Promise<Result<SetupStore, WorktreeSetupRefusal>> {
   const command = "pnpm store path";
   const result = await runOwnedCommandWithTimeout(
-    [...heavy, "mise", "exec", "--", "pnpm", "store", "path"],
+    ["mise", "exec", "--", "pnpm", "store", "path"],
     cwd,
     env,
     timeoutMs,
@@ -173,12 +172,11 @@ async function runnerDefaultStore(
 async function setupStore(
   cwd: string,
   env: NodeJS.ProcessEnv,
-  heavy: readonly string[],
   timeoutMs: number,
 ): Promise<Result<SetupStore, WorktreeSetupRefusal>> {
   const recorded = await recordedStoreDir(cwd);
   if (recorded !== undefined) return ok({ path: recorded, source: "recorded in the worktree" });
-  return runnerDefaultStore(cwd, env, heavy, timeoutMs);
+  return runnerDefaultStore(cwd, env, timeoutMs);
 }
 
 async function spawnSetupCommand(
@@ -233,7 +231,7 @@ export async function runSetupCommand(
     });
   const nodeEngine = await checkNodeEngine(cwd, "worktree setup", commandEnv, heavy, versionRunner);
   if (isErr(nodeEngine)) return nodeEngine;
-  const store = await setupStore(cwd, commandEnv, heavy, holdTimeoutMs);
+  const store = await setupStore(cwd, commandEnv, holdTimeoutMs);
   if (isErr(store)) return store;
   const setupEnv = { ...commandEnv, npm_config_store_dir: store.value.path };
   const { exit, tail, timedOut } = await spawnSetupCommand(
