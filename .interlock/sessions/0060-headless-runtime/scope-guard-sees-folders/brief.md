@@ -1394,7 +1394,7 @@ walk:
   kind: none
   because: the substrate address is none, so there is nothing to ask
 graph_base_sha: d3d244c2aa0cf77867627ff7c896aa71b6eac9b7
-session: 6cf13f29-434b-4d8d-8278-91663fa9c438
+session: 2605613f-a441-4afa-a033-12f49811eb09
 ---
 
 # Brief · node `scope-guard-sees-folders` · graph `0060-headless-runtime`
