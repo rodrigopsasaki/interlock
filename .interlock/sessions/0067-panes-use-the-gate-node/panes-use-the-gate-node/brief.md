@@ -1459,52 +1459,72 @@ edit it.
 
 > As the read. Allowed paths: packages/runner/, scripts/gates/pane-node-proven.ts, scripts/gates/slow-tests.ts
 > (declarations only, if the slow-tests-accounted gate requires them), and this graph's session folder.
-> 1. A new module in packages/runner/src resolves the gate's Node as the read defines it (the same owned-command
->    runner, heavy prefix and non-interactive environment as the gates; the folder of the printed executable) and
->    returns a plain refusal for every failure the read lists. The drive resolves it once per attempt before
->    runtime.openPane, and refuses the attempt, with that reason and no pane opened, when it cannot.
-> 2. Runtime gains optional sendPaneText(pane, text); the herdr adapter implements it with pane.send_text and its
->    test (packages/runner/test/herdr/adapter.test.ts and fakeServer.ts) asserts the wire call. After openPane and
->    before startAgent the drive sends the one export line and then Enter. A runtime without sendPaneText, or a
->    refused send, refuses the attempt with a plain reason, closes any opened pane through the existing cleanup,
->    and never starts the agent.
-> 3. The environment passed to openPane is unchanged (the owner's profile defeats it, which is why the line is
->    typed), and nothing in the change reads or writes ~/.zshenv, any shell profile or Homebrew files.
-> 4. Tests, each failing on main 3c10bc6a for its intended assertion, in packages/runner/test/paneNode.test.ts
->    with the shell-backed fake runtime in packages/runner/test/support/shellPaneRuntime.ts, a fixture HOME, XDG,
->    mise and corepack state under the system temp folder (never inside the worktree), stub Node binaries and a
->    stub `mise` written by the test, and the real drive and ledger. Exactly these four titles; the assertions
->    named under each are inside that case:
+> 1. A new module in packages/runner/src resolves the gate's Node as the read defines it (runOwnedCommandWithTimeout
+>    with a named timeout constant the request can override, the heavy prefix, the non-interactive environment; the
+>    folder of the printed executable, checked to exist and be executable) and returns a plain refusal for every
+>    failure the read lists. The drive resolves it once per attempt before runtime.openPane and refuses the
+>    attempt, with that reason and no pane opened, when it cannot. A timed-out resolution leaves no process
+>    running.
+> 2. A new module writes the owned zsh startup folder (.zshenv, .zprofile, .zshrc, .zlogin) under
+>    <sharedJournalDirectory>/pane-startup/<session>/ with mode 0700, as the read specifies: owned ZDOTDIR
+>    remembered, the owner's file sourced unchanged when it exists, ZDOTDIR restored, the gate folder put first
+>    on PATH last. The drive removes the folder in its cleanup on every end of the attempt, refusals included.
+>    The drive adds ZDOTDIR to agentEnvironment (conflict with a different ZDOTDIR already set is refused with a
+>    plain reason), so it reaches openPane's env and, for codex, agentEnvironmentArgs'
+>    shell_environment_policy.set entries. A SHELL that is not zsh is refused before any pane opens; a runtime
+>    with no pane environment (and not codex) is refused with a plain reason before any pane opens. The tmux
+>    adapter reports paneEnvironment: true, with a test asserting its -e ZDOTDIR argument. Nothing is typed into
+>    a pane and no Runtime method is added.
+> 3. Nothing reads, parses, copies or writes ~/.zshenv, any owner shell profile or Homebrew files. The owned
+>    files only source them.
+> 4. Tests, in packages/runner/test/paneNode.test.ts with the shell-backed fake runtime and fake agent in
+>    packages/runner/test/support/shellPaneRuntime.ts and the temp-state helper from the read, the real drive and
+>    ledger, stub Node binaries and a stub `mise` written by the test. The fake Homebrew folder's `node` prints
+>    v26.13.0 and writes a marker file when run; the gate folder's `node` prints v24.14.0 and, given
+>    `-p process.execPath`, prints its own path; the stub `mise exec -- <command>` runs the command with that
+>    folder first. The stub owner profile (HOME/.zshenv and HOME/.zprofile, written by the test with known
+>    bytes) puts the fake Homebrew folder first on PATH and appends a line to a sourced.log each time it runs.
+>    The fake agent, when started, runs several fresh tool shells in a row with the environment it was given
+>    (for codex kind, only the ZDOTDIR carried by the shell_environment_policy.set arguments the drive built):
+>    `zsh -lc`, `zsh -c` and `zsh -ic`, each printing `command -v node` and `node --version`. Exactly these four
+>    titles; the assertions named under each are inside that case:
 >    - "a pane launched by interlock reports the gate's node version even when the shell profile puts Homebrew
->      first" (the stub profile, as ZDOTDIR/.zshenv in the fixture, puts a fake Homebrew folder whose `node`
->      prints v26.13.0 first on PATH; the gate's folder holds a `node` that prints v24.14.0 and, given
->      `-p process.execPath`, prints its own path; the stub `mise exec -- <command>` runs the command with that
->      folder first; the fake runtime's agent start runs `node --version` in the pane's shell and the case reads
->      v24.14.0 from what it printed; the same command run in a pane the test opens directly, without the drive,
->      prints v26.13.0, so the case cannot pass on a profile that never put Homebrew first; the line was sent
->      after openPane and before startAgent, in that order, as the fake runtime's call log shows)
+>      first" (for a herdr-style and a codex-kind attempt: every tool shell reports the gate folder's node path
+>      and v24.14.0, and so does a shell started in the pane itself; a control that starts the same shells
+>      without the owned ZDOTDIR reports the fake Homebrew node path and v26.13.0, so the case cannot pass on a
+>      profile that never put Homebrew first; the Homebrew marker shows the node was never the one that ran in
+>      the drive's shells; the call log shows the startup folder written before openPane and ZDOTDIR in
+>      openPane's env, nothing typed into the pane, and, for codex, ZDOTDIR in shell_environment_policy.set)
 >    - "a resumed pane gets the same node" (invoke the real drive twice on the same node, the second as the
->      resume the existing drive tests use; two sessions, two panes, each reports v24.14.0 and the same gate
->      folder, each pane's own send recorded)
->    - "the owner's profile is never edited" (the stub profile and the fixture HOME's .zshenv, .zprofile, .zshrc
->      and .zlogin, each written by the test with known bytes, are byte-for-byte equal after the drive has run
->      and after the agent exited, and the fixture HOME's file listing is unchanged by the drive apart from the
->      state the drive already writes under its own ledger folder; the same holds for the stub Homebrew folder)
+>      resume the existing drive tests use; two sessions, two panes, two startup folders, each pane's tool
+>      shells report the same gate node path and v24.14.0 as above)
+>    - "the owner's profile is never edited" (a preservation check, not a failing-on-main case: the stub profile,
+>      the fixture HOME's .zshenv, .zprofile, .zshrc and .zlogin, each written with known bytes, are byte for
+>      byte equal after the drive and after the agent exited; the fixture HOME's file listing is unchanged; the
+>      sourced.log shows each owner file that exists was sourced once per shell that reads it; ZDOTDIR is the
+>      owned folder after an owner file that sets it to something else has run; the startup folder is gone after
+>      the attempt ends)
 >    - "a pane without a resolvable gate node is refused with a plain reason, never launched on a different node"
->      (three variants in the case: the stub `mise` exits 1, prints nothing, and prints a path to a file that is
->      not executable; each: the drive result is a refusal, its message names the command and what it said and
->      says no pane was opened, the fake runtime's openPane, sendPaneText and startAgent counts are all 0, no
->      shell was spawned, and the fake Homebrew `node` ran zero times, proved by a marker file it writes when run)
+>      (variants in the case: the stub `mise` exits 1; prints nothing; prints a path to a file that is not
+>      executable; prints a path that does not exist; cannot start (no `mise` on PATH); hangs past a one-second
+>      timeout override, with the stub's child process proved gone afterwards; a SHELL that is bash; a runtime
+>      with no pane environment; each: the drive result is a refusal whose message names what failed and says no
+>      pane was opened, the fake runtime's openPane and startAgent counts are 0, no shell was spawned, no startup
+>      folder is left behind, and the fake Homebrew `node` marker file does not exist)
 > 5. Proof: scripts/gates/pane-node-proven.ts runs the test file above once with vitest's JSON reporter, with a
->    temporary HOME and temporary tool-state folders, fails on a missing file, and prints "pane node proven: 4
->    named cases passed" only when the run exits zero, every title above passes exactly once, and there are no
->    failures, skips, todos, missing summaries or extra cases in that file. It proves execution and titles; the
->    assertions above are what the judge reads each case for.
-> 6. Existing tests keep passing (the drive fixtures and fake runtimes in packages/runner/test gain sendPaneText
->    where the drive now requires it, recording what they are sent). New tests are declared or baselined as the
->    slow-tests-accounted gate requires.
-> 7. The debrief names where the pane environment is set, states that real herdr delivery of pane.send_text is
->    the one thing no gate proves, gives the manual check from the read, and states that the installed launcher
->    and the owner's profile are untouched.
+>    temporary HOME and the same temporary tool-state folders, fails on a missing file, and prints "pane node
+>    proven: 4 named cases passed" only when the run exits zero, every title above passes exactly once, and there
+>    are no failures, skips, todos, missing summaries or extra cases in that file. It proves execution and titles;
+>    the assertions above are what the judge reads each case for.
+> 6. Existing tests keep passing (the drive fixtures and fake runtimes in packages/runner/test gain
+>    paneEnvironment where the drive now requires it, and tmux's adapter test gains the -e ZDOTDIR assertion).
+>    New tests are declared or baselined as the slow-tests-accounted gate requires. The three existing tests that
+>    start the real codex under the codex guard are neither changed nor extended.
+> 7. The debrief names where the pane environment is set (the drive's agentEnvironment and the owned startup
+>    folder), lists lineFitsRealCodex.test.ts, realCodexMarkerLaunch.test.ts and realCodexMarkerOverflow.test.ts as
+>    the only place a real agent CLI starts under the standing gates, states the three things no gate proves
+>    (herdr applying env before startup files, each real CLI's tool shells being zsh with the given environment,
+>    no CLI resetting ZDOTDIR), gives the manual agent-tool-command check from the read, and states that the
+>    installed launcher and the owner's profile are untouched.
 > Before you file the debrief (and before any refile), end every vitest worker, zsh child and process you started
 > and confirm with pgrep that none survives.
