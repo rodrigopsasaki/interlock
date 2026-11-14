@@ -635,6 +635,10 @@ scope:
   - .interlock/sessions/0065-gate-holds-retry-themselves/codex-stays-home-in-tests/revisions/7fb1b51bb8eb6e77349250e2258ce6f3d110be5d173ac15ea03ef2a34a66ef4d.yaml
   - .interlock/sessions/0065-gate-holds-retry-themselves/codex-stays-home-in-tests/revisions/f95fa6c0a9dc9d99b029fec2062e158f8b8a8e16d8c07a81622f66723128f0f9.yaml
   - .interlock/sessions/0065-gate-holds-retry-themselves/gate-output-is-plain/brief.md
+  - .interlock/sessions/0065-gate-holds-retry-themselves/gate-output-is-plain/debrief.candidate-2.yaml
+  - .interlock/sessions/0065-gate-holds-retry-themselves/gate-output-is-plain/debrief.candidate.yaml
+  - .interlock/sessions/0065-gate-holds-retry-themselves/gate-output-is-plain/debrief.yaml
+  - .interlock/sessions/0065-gate-holds-retry-themselves/gate-output-is-plain/notes.yaml
   - .interlock/sessions/0065-gate-holds-retry-themselves/interlock-tests-never-see-his-home/brief.md
   - .interlock/sessions/0065-gate-holds-retry-themselves/sessions-live-all/brief.md
   - .interlock/sessions/0065-gate-holds-retry-themselves/sessions-stop-stops/brief.md
@@ -1085,6 +1089,7 @@ scope:
   - packages/runner/test/fixtures/herdr-socket-schema.json
   - packages/runner/test/gateCommand.test.ts
   - packages/runner/test/gateJudge.test.ts
+  - packages/runner/test/gateOutputIsPlain.test.ts
   - packages/runner/test/gatesRunOnEnginesNode.test.ts
   - packages/runner/test/gitCeiling.test.ts
   - packages/runner/test/herdr/adapter.test.ts
@@ -1371,8 +1376,8 @@ substrate:
 walk:
   kind: none
   because: the substrate address is none, so there is nothing to ask
-graph_base_sha: 4dfef50e5ffb948f874185968140b93202243958
-session: 64009104-5754-4e9e-865c-6baafb09e18b
+graph_base_sha: fdd3c346ce3fc1fc01a9f1230a7fb989a1d5f0f9
+session: fdf45eab-69d7-4b5a-a86c-387e2ea840f9
 ---
 
 # Brief · node `store-stays-pinned` · graph `0065-gate-holds-retry-themselves`
