@@ -1309,7 +1309,9 @@ export async function runExecPhase(
     signal: exit.signal,
     reason:
       stop !== undefined
-        ? `${stop.mode === "attempt" ? "attempt " : ""}stopped by ${stop.by}`
+        ? stop.by === "runner" && stop.because === `run timeout ${request.timeoutMs}ms`
+          ? stop.because
+          : `${stop.mode === "attempt" ? "attempt " : ""}stopped by ${stop.by}`
         : programError !== undefined
           ? `program could not start: ${programError}`
           : timedOut
