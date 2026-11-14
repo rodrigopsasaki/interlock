@@ -49,3 +49,7 @@ entries:
     at: "2026-11-14T00:00:00Z"
     expected: Two full root-suite runs with absolute fixture HOME/XDG paths would complete after the store pin.
     observed: The suite preserved the metadata and vitest link, but unrelated Codex-guard cases saw the owner checkout's ancestor config and Git-maintenance fixtures hit machine metadata permissions; no store purge occurred.
+  - kind: surprise
+    at: "2026-11-14T00:00:00Z"
+    expected: slow-tests-accounted would complete after its pnpm children received the recorded store explicitly.
+    observed: The runner package still had unrelated Codex-guard failures and one slow assertion without a declaration; its pnpm children did not purge node_modules or rewrite the vitest link.
