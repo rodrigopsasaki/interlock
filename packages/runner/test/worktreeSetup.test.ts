@@ -20,6 +20,8 @@ afterEach(() => {
 
 function fixtureDir(): string {
   directory = mkdtempSync(join(runsRoot, "setup-"));
+  mkdirSync(join(directory, "node_modules"));
+  writeFileSync(join(directory, "node_modules", ".modules.yaml"), "storeDir: /fixture/store\n");
   return directory;
 }
 
@@ -50,9 +52,11 @@ describe("runSetupCommand", () => {
       kind: "command-failed",
       command: "false",
       exit: { kind: "exit", code: 1 },
-      tail: "",
+      tail: "worktree setup store: /fixture/store (recorded in the worktree)\n",
     });
-    expect(explainWorktreeSetupRefusal(result.error)).toBe('"false" exited 1.');
+    expect(explainWorktreeSetupRefusal(result.error)).toContain(
+      '"false" exited 1.\nworktree setup store: /fixture/store (recorded in the worktree)',
+    );
   });
 
   it("keeps a failing command's stderr in the refusal's explanation", async () => {

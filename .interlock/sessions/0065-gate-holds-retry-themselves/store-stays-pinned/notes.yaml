@@ -1,0 +1,15 @@
+interlock: notes@v0
+node: store-stays-pinned
+entries:
+  - kind: choice
+    at: "2026-11-14T00:00:00Z"
+    chose: Resolve the setup store from node_modules/.modules.yaml when it has a non-empty storeDir, otherwise ask pnpm store path once before running the setup command.
+    because: The recorded store is the stable worktree contract, while the runner default is the safe fallback when the metadata is absent or cannot be read.
+  - kind: choice
+    at: "2026-11-14T00:00:00Z"
+    chose: Change only npm_config_store_dir in the non-interactive setup environment and append the selected store and source to the retained output tail.
+    because: Pinning one variable prevents pnpm's purge prompt without changing the existing setup environment, and the retained line makes the choice recoverable when setup fails.
+  - kind: surprise
+    at: "2026-11-14T00:00:00Z"
+    expected: The first focused run would exercise the fallback and preserve the existing refusal shape unchanged.
+    observed: The owned command helper returns stdout as a Buffer, and the new retained store line necessarily appears in failed setup tails; the implementation now decodes stdout explicitly and the existing exact-tail assertion includes the provenance line.

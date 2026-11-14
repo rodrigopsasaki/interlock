@@ -3,6 +3,7 @@ import { link, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import { sharedJournalDirectory } from "face";
+import { parse as parseYaml } from "yaml";
 import {
   checkNodeEngine,
   explainNodeEngineRefusal,
@@ -55,6 +56,30 @@ function appendTail(tail: Buffer, chunk: Buffer): Buffer {
     : combined;
 }
 
+type YamlMap = Readonly<Record<string, unknown>>;
+
+function isYamlMap(value: unknown): value is YamlMap {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+type SetupStore = {
+  readonly path: string;
+  readonly source: "recorded in the worktree" | "runner's default";
+};
+
+async function recordedStoreDir(worktree: string): Promise<string | undefined> {
+  try {
+    const document: unknown = parseYaml(
+      await readFile(join(worktree, "node_modules", ".modules.yaml"), "utf8"),
+    );
+    if (!isYamlMap(document)) return undefined;
+    const storeDir = document["storeDir"];
+    return typeof storeDir === "string" && storeDir.trim().length > 0 ? storeDir : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 async function removeTemporary(path: string): Promise<void> {
   try {
     await unlink(path);
@@ -89,12 +114,80 @@ async function retainSetupLog(worktree: string, tail: Buffer): Promise<string | 
   }
 }
 
+async function commandFailure(
+  worktree: string,
+  command: string,
+  result: {
+    readonly exit: WorktreeSetupExit;
+    readonly tail: Buffer;
+    readonly timedOut: boolean;
+  },
+  timeoutMs: number,
+): Promise<WorktreeSetupRefusal> {
+  const logPath = await retainSetupLog(worktree, result.tail);
+  return {
+    kind: "command-failed",
+    command,
+    exit: result.exit,
+    tail: result.tail.toString("utf-8"),
+    ...(logPath === undefined ? {} : { logPath }),
+    ...(result.timedOut ? { timeoutMs } : {}),
+  };
+}
+
+async function runnerDefaultStore(
+  cwd: string,
+  env: NodeJS.ProcessEnv,
+  heavy: readonly string[],
+  timeoutMs: number,
+): Promise<Result<SetupStore, WorktreeSetupRefusal>> {
+  const command = "pnpm store path";
+  const result = await runOwnedCommandWithTimeout(
+    [...heavy, "mise", "exec", "--", "pnpm", "store", "path"],
+    cwd,
+    env,
+    timeoutMs,
+  );
+  const exit: WorktreeSetupExit =
+    result.signal !== null
+      ? { kind: "signal", signal: result.signal }
+      : { kind: "exit", code: result.code };
+  const path = result.stdout.toString("utf8").trim();
+  if (exit.kind === "exit" && exit.code === 0 && path.length > 0) {
+    return ok({ path, source: "runner's default" });
+  }
+  return err(
+    await commandFailure(
+      cwd,
+      command,
+      {
+        exit,
+        tail: appendTail(Buffer.alloc(0), result.output),
+        timedOut: result.timedOut,
+      },
+      timeoutMs,
+    ),
+  );
+}
+
+async function setupStore(
+  cwd: string,
+  env: NodeJS.ProcessEnv,
+  heavy: readonly string[],
+  timeoutMs: number,
+): Promise<Result<SetupStore, WorktreeSetupRefusal>> {
+  const recorded = await recordedStoreDir(cwd);
+  if (recorded !== undefined) return ok({ path: recorded, source: "recorded in the worktree" });
+  return runnerDefaultStore(cwd, env, heavy, timeoutMs);
+}
+
 async function spawnSetupCommand(
   tokens: readonly string[],
   cwd: string,
   env: NodeJS.ProcessEnv,
   heavy: readonly string[],
   timeoutMs: number,
+  store: SetupStore,
 ): Promise<{
   readonly exit: WorktreeSetupExit;
   readonly tail: Buffer;
@@ -106,9 +199,10 @@ async function spawnSetupCommand(
     result.signal !== null
       ? { kind: "signal", signal: result.signal }
       : { kind: "exit", code: result.code };
+  const storeLine = Buffer.from(`worktree setup store: ${store.path} (${store.source})\n`);
   return {
     exit,
-    tail: appendTail(Buffer.alloc(0), result.output),
+    tail: appendTail(result.output, storeLine),
     timedOut: result.timedOut,
   };
 }
@@ -139,23 +233,19 @@ export async function runSetupCommand(
     });
   const nodeEngine = await checkNodeEngine(cwd, "worktree setup", commandEnv, heavy, versionRunner);
   if (isErr(nodeEngine)) return nodeEngine;
+  const store = await setupStore(cwd, commandEnv, heavy, holdTimeoutMs);
+  if (isErr(store)) return store;
+  const setupEnv = { ...commandEnv, npm_config_store_dir: store.value.path };
   const { exit, tail, timedOut } = await spawnSetupCommand(
     tokens,
     cwd,
-    commandEnv,
+    setupEnv,
     heavy,
     holdTimeoutMs,
+    store.value,
   );
   if (exit.kind === "exit" && exit.code === 0) return ok(undefined);
-  const logPath = await retainSetupLog(cwd, tail);
-  return err({
-    kind: "command-failed",
-    command,
-    exit,
-    tail: tail.toString("utf-8"),
-    ...(logPath === undefined ? {} : { logPath }),
-    ...(timedOut ? { timeoutMs: holdTimeoutMs } : {}),
-  });
+  return err(await commandFailure(cwd, command, { exit, tail, timedOut }, holdTimeoutMs));
 }
 
 export async function runWorktreeSetup(

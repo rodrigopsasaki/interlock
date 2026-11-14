@@ -36,6 +36,11 @@ function fixtureDir(): string {
   return directory;
 }
 
+function recordedStore(directory: string): void {
+  mkdirSync(join(directory, "node_modules"), { recursive: true });
+  writeFileSync(join(directory, "node_modules", ".modules.yaml"), "storeDir: /fixture/store\n");
+}
+
 function script(directory: string, name: string, source: string): string {
   const path = join(directory, name);
   writeFileSync(path, source);
@@ -61,6 +66,7 @@ describe("commands never hold the machine for a person", () => {
     const root = fixtureDir();
     const mise = fakeMise(root);
     gitInitFixtureWithContent(root);
+    recordedStore(root);
     const resultFile = join(root, "result.json");
     const probe = script(
       root,
@@ -97,6 +103,7 @@ describe("commands never hold the machine for a person", () => {
     const root = fixtureDir();
     const mise = fakeMise(root);
     gitInitFixtureWithContent(root);
+    recordedStore(root);
     const pidFile = join(root, "grandchild.pid");
     const grandchild = script(root, "grandchild.mjs", "setInterval(() => {}, 1000);\n");
     const parent = script(
@@ -137,6 +144,7 @@ describe("commands never hold the machine for a person", () => {
 
   it("releases a heavy-prefix lock when setup times out", async () => {
     const root = fixtureDir();
+    recordedStore(root);
     const lock = join(root, "heavy.lock");
     const prefix = script(
       root,
