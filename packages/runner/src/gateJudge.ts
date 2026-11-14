@@ -72,6 +72,15 @@ export const DEFAULT_GATE_HOLD_TIMEOUT_MS = 60 * 60 * 1000;
 
 export const GATE_DERIVATION_VERSION = "runner@0";
 
+const ANSI_ESCAPE_PATTERN = new RegExp(
+  String.raw`[\u001B\u009B][[\]()#;?]*(?:(?:(?:[a-zA-Z\d]*(?:;[-a-zA-Z\d/#&.:=?%@~_]+)*)?(?:\u0007|\u001B\\|\u009C))|(?:(?:\d{1,4}(?:[;:]\d{0,4})*)?[-#]?[0-9A-ORZcf-nqry=><~]))`,
+  "g",
+);
+
+function stripAnsiEscapeSequences(output: string): string {
+  return output.replace(ANSI_ESCAPE_PATTERN, "");
+}
+
 export type GateJudgeRefusal =
   | { readonly kind: "scope"; readonly refusal: ScopeRefusal }
   | { readonly kind: "output"; readonly refusal: GateOutputRefusal }
@@ -443,7 +452,8 @@ export async function judgeGates(
     const after = clock.now().monoMs;
 
     const pattern = gateCommand?.expectOutput;
-    const outputMatched = pattern === undefined ? undefined : pattern.test(output);
+    const outputMatched =
+      pattern === undefined ? undefined : pattern.test(stripAnsiEscapeSequences(output));
     const satisfied = exitCode === 0 && (outputMatched ?? true);
     const proof =
       pattern === undefined

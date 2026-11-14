@@ -10,6 +10,8 @@ export type OwnedProcess = ChildProcessWithoutNullStreams;
 
 export const DEFAULT_COMMAND_TERM_GRACE_MS = 250;
 
+const COLOR_FORCING_VARIABLES = ["FORCE_COLOR", "FORCE_COLORS", "CLICOLOR_FORCE"] as const;
+
 export interface TimedOwnedCommandResult {
   readonly code: number;
   readonly signal: NodeJS.Signals | null;
@@ -20,7 +22,14 @@ export interface TimedOwnedCommandResult {
 }
 
 export function nonInteractiveEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-  return { ...env, CI: "1", npm_config_confirm_modules_purge: "false" };
+  const commandEnv: NodeJS.ProcessEnv = {
+    ...env,
+    CI: "1",
+    NO_COLOR: "1",
+    npm_config_confirm_modules_purge: "false",
+  };
+  for (const variable of COLOR_FORCING_VARIABLES) delete commandEnv[variable];
+  return commandEnv;
 }
 
 export function execFileSyncOwned(
