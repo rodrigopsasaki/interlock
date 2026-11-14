@@ -1,0 +1,183 @@
+interlock: graph@v0
+id: 0066-attempt-records-its-pane
+arc: bring-october-back
+ask: An attempt records the herdr pane it opened, in the ledger, as soon as herdr answers that the pane is open; the record is kept when the attempt ends; every position read shows each attempt's pane; and a ledger written before this change still reads, with the pane stated as unrecorded.
+derivation:
+  kind: model
+  model: gilb
+  prompt: attempt-records-its-pane-2026-11-14
+authorization:
+  granted_by: Rodrigo Sasaki
+  mandate: loom-feed-2026-11-04  # "You're free to do changes on phyxius and interlock too", 23:25 UTC
+  approver: Rodrigo Sasaki; Gilb relays the recorded approval and coordinates cleared-node merges. The cross-vendor vet is advisory.
+read: >
+  Arc: bring-october-back, "Bring October's Preston back" (Preston's .interlock/arcs.yaml, mirrored in this repository's
+  .interlock/arcs.yaml the way agents-set-up-as-one already is). Rodrigo, 2026-11-05 12:40 UTC, project chat: "I want
+  the old review, the agent, the steps. The real climb. I want the good results back". Two things on that arc need to
+  know which herdr pane an attempt ran in: Preston's live-sessions count (Preston graph 0074-setup-sees-every-agent,
+  which today shows 10 holders for 4 real agents because it counts stale and duplicate panes), and the orchestrator
+  script that quits a node's agent pane after the node files its debrief. Preston's 0074 does not cover it: it reads
+  the process table and Interlock's sessions list and never asks Interlock which pane an attempt opened.
+
+  What is true today, from source (main bd4c9ca4). `interlock run` prints "pane w12:pXX opened" and the runner appends
+  that line as narration (packages/runner/src/sessionDrive.ts:918, narrate(`pane ${pane.id} opened`)), but the pane
+  itself is kept only in a local variable (sessionDrive.ts:866, pane = openedPane.value). The attempt's record is its
+  session-started event, written earlier (sessionDrive.ts:432) before any pane exists, and nothing later adds the pane:
+  SessionView (packages/ledger/src/projection.ts:30-50) has no pane field, PositionAttempt
+  (packages/face/src/attempts.ts:20-35) has none, and the one pane the position reads show is positions@v2's live
+  attempt `pane` (packages/cli/src/position.ts:67, :187), which is observed from herdr at read time and is "unknown"
+  once herdr cannot find the pane. The cockpit's loom builds each attempt from `interlock position` (position@v3) and
+  reads `pane` from it (Preston cockpit/loom/serve.ts:452-458), so every attempt shows pane None. The only trace of
+  the pane is the narration line, which no reader parses, and which a resumed attempt writes again for its own new
+  pane with nothing tying it to the structure.
+
+  What changes, and why this way.
+  - A new ledger event, pane-opened, carrying the session id and the pane as herdr names it: id (for example
+    "w12:p3") and workspace when herdr gives one (workspace is optional everywhere: event, projection, position,
+    schema and tests). It is written by the session drive's single open site (packages/runner/src/sessionDrive.ts:856;
+    run, resume and the planner share that drive, and every new invocation takes a fresh session id, so a resume or
+    retry that re-drives the node records its own pane; retries inside agent startup reuse the pane and record
+    nothing more). Order at that site: assign the returned pane to the drive's pane variable first, so a failed
+    append still reaches the cleanup that closes it; then append pane-opened; then everything that can refuse the
+    start (the pane process check and machine admission). It is a new event, not a new field on session-started,
+    because session-started is written before the pane exists (sessionDrive.ts:431) and a recorded event is never
+    rewritten. No existing event fits: machine admission is conditional and comes after the process check, and
+    session facts describe replaceable observations.
+  - What the record promises, and what it does not. It names the pane of every open that herdr answered with a
+    successful reply. Three uncertainty windows stay, named so nobody reads more into it: a transport failure during
+    the open call, a malformed reply after herdr created the pane (packages/runner/src/herdr/adapter.ts:398), and a
+    crash between the open reply and the append. In those the attempt has no pane-opened event and reads as
+    unrecorded. A start refused afterwards (the command result says so; there is no new outcome state) normally
+    closes its pane in the drive's cleanup (sessionDrive.ts:1293), and the record then names a pane that is closed:
+    the record is the pane the attempt opened, never a claim that it is still open.
+  - The projection keeps the latest pane-opened for each session on its SessionView as a recorded-or-unknown fact,
+    written the way startedAt is (SessionStartedAt, packages/ledger/src/session.ts:143-160): known with the pane, or
+    unknown with a because ("its journal carries no pane-opened event for it, as a session written before the pane
+    was recorded does not"). A session ending (debrief filed, outcome set, lease released or expired) changes
+    nothing about it.
+  - Versioning, the way the ledger already versions (event@v11 arrived with the probe event, dcbfd51e, with
+    bf2d7aa4 keeping older tags from carrying it): EVENT_SHAPE becomes event@v12 and event@v11 joins the table of
+    prior shapes beside event@v10, so every earlier journal line still reads. The table's permissions stay distinct
+    (packages/ledger/src/envelope.ts:52-65 refuses an earlier-tagged line that carries provider attribution unless
+    it is tagged event@v10, and any earlier-tagged probe event): provider attribution is allowed under v10, v11 and
+    v12; the probe event under v11 and v12; pane-opened under v12 only and refused under every tag v1 to v11.
+    Nothing rewrites an old journal. Compatibility runs one way and the plan says so: a build that knows only
+    event@v11 refuses a journal with v12 lines (packages/ledger/src/replay.ts:30), and every append after the first
+    v12 write carries the new tag, existing event kinds included (packages/ledger/src/sink.ts:54). Every reader of a
+    journal (the pinned interlock CLI, the cockpit's Interlock calls, any worktree's build) must be upgraded to this
+    version before any run writes v12 lines; the node's debrief states this and the merge is not followed by a pin
+    advance until each reader has it.
+  - Schemas are added or edited, then documentation regenerated. Added: schemas/event@v12.json and
+    schemas/position@v4.json. Edited: schemas/positions@v2.json, whose embedded position alternatives (today
+    versions 1 to 3, schemas/positions@v2.json:207) gain position@v4 and keep 1 to 3, since the CLI embeds the
+    current positionOf result (packages/cli/src/position.ts:247). Schema tests that validate freshly produced output
+    against the previous current shape (packages/schemas/test/corpus.position.test.ts:54,
+    packages/schemas/test/corpus.guards.test.ts:396) move to the new current shape; historical fixtures stay fixed
+    and keep validating against their own versions. `pnpm interlock schema reference` writes only docs/shapes.md,
+    and the shapes-fresh check holds it fresh.
+  - position@v3 becomes position@v4 (packages/face/src/position.ts:17). Each attempt gains `pane`: {state:"known",
+    id, workspace?} or {state:"unknown", because}. v3 forbids unknown attempt properties
+    (schemas/position@v3.json:702), which is why this is a new version and not an addition. positions@v2's observed
+    live `pane` is not changed; it keeps meaning "what herdr says now".
+  - A resume is a new session with its own id and its own pane-opened event; the earlier attempt keeps its pane.
+  - Consumers, honestly. The Preston cockpit does not read a pane id today: its attempt builder expects a string
+    (Preston cockpit/loom/serve.ts:454), its position conversion drops the field (:1193), and it accepts only outer
+    positions@v0 to v2 (:735). Reading pane.id is a companion change in Preston's cockpit, owned by a Preston graph
+    that follows this one (it also feeds the live-sessions count of 0074 and the orchestrator's pane close); it is
+    not part of this node.
+
+  Tests and the real services. The runner suite includes tests that can reach real services: liveSmoke.test.ts
+  connects to the default herdr socket under the real HOME (packages/runner/src/herdr/adapter.ts:26) when one exists,
+  the slow-tests gate inherits the caller's environment (scripts/gates/slow-tests.ts:11), and the integration tests
+  that run a real agent CLI (for example realCodexMarkerOverflow.test.ts:62) exist beside the codex guard of graph
+  0065, which already confines them to loopback fixtures. So the plan does not promise that no test ever starts an
+  agent CLI. It promises this node's own tests and gates never reach real herdr, a real provider or the real HOME:
+  real-service smoke tests (liveSmoke.test.ts and any test that needs the real herdr socket) run only when
+  INTERLOCK_LIVE_SERVICES=1 is set and are skipped otherwise, and no gate of this node sets it; the standing test
+  gate and slow-tests gate run every test process with a temporary HOME and temporary tool-state folders created
+  before any module is imported (vitest.setup.ts and vitest.config.base.ts, and scripts/gates/slow-tests.ts for its
+  children). The existing guarded integration tests keep running as they do, through the guard, and are named in the
+  debrief as the only place an agent CLI starts.
+
+  Out of scope: closing a pane (the orchestrator script does that with herdr, from the pane id this records); Preston's
+  live-sessions count and the cockpit (the companion Preston graph above); `interlock sessions` rows, which list
+  exec sessions only.
+
+  Laws: AGENTS.md. No comments in packages/*/src; strict TypeScript with no `as`, `!`, `any` or `as unknown as`;
+  Biome. Tests use a temp home, a fake runtime and the real ledger, and never reach a real herdr, a real provider or the
+  real HOME (see "Tests and the real services").
+
+gates:
+  - id: approved
+    kind: human
+
+nodes:
+  - id: attempt-records-its-pane
+    role: implementer
+    acceptance: |
+      As the read. Allowed paths: packages/ledger/, packages/runner/, packages/face/, packages/cli/,
+      packages/schemas/, schemas/, docs/shapes.md, vitest.setup.ts, vitest.config.base.ts,
+      scripts/gates/slow-tests.ts, scripts/gates/attempt-pane-proven.ts, and this graph's session folder.
+      1. The ledger gains the pane-opened event ({session, pane: {id, workspace?}}), validated by isLedgerEvent and
+         replayed into SessionView as a recorded-or-unknown pane; EVENT_SHAPE is event@v12; schemas/event@v12.json is
+         added; event@v11 is a prior shape with distinct permissions as the read says (provider attribution v10 to
+         v12, probe v11 to v12, pane-opened v12 only); every journal fixture under packages/ledger/test/fixtures still
+         replays.
+      2. The session drive assigns the opened pane, appends pane-opened, then runs the pane process check and
+         admission, in that order, at its single open site; a resume or any re-drive writes its own.
+      3. position@v4 (schemas/position@v4.json added, face POSITION_SHAPE advanced): each PositionAttempt carries pane
+         (known with id and optional workspace, or unknown with a because); schemas/positions@v2.json embeds
+         position@v4 and keeps position@v1 to v3; current-output schema tests move to the new current shapes and
+         historical fixtures stay fixed; docs/shapes.md is regenerated.
+      4. Real-service tests are opt-in: liveSmoke.test.ts and any test needing the real herdr socket run only under
+         INTERLOCK_LIVE_SERVICES=1; test processes (standing test gate, slow-tests gate and its children) start with
+         a temporary HOME and temporary tool-state folders created before any import; no gate of this node sets the
+         opt-in. The debrief lists the existing guarded integration tests that still start an agent CLI.
+      5. Tests, each failing on main bd4c9ca4 for its intended assertion, with a temp home, a fake runtime and the
+         real ledger. Exactly these six titles; the assertions named under each are inside that case:
+         - "a run records the pane it opened" (packages/runner/test/paneRecorded.test.ts: invoke the real session
+           drive; the fake runtime's paneProcess asserts that pane-opened is already in the journal when it is called;
+           the persisted journal, reopened from disk, holds one pane-opened with the fake pane id, and a workspace-less
+           pane records without a workspace; the event comes after session-started and before the opening narration)
+         - "a resume records its new pane, and the earlier attempt keeps its own" (same file: invoke the real drive
+           twice on the same node; two sessions, two panes, each projected to its own, after reopening the ledger)
+         - "a start refused after the pane opened still records that pane" (same file: the fake paneProcess fails; the
+           command result is a refusal, the drive's cleanup closed the pane, and after replaying the journal from disk
+           the pane is still recorded; a fake append failure still reaches the cleanup that closes the pane)
+         - "an older record without a pane still reads" (packages/ledger/test/paneRecorded.test.ts: literal event@v11
+           journal lines, not envelopeFor output, holding a session with provider attribution and a probe event, and
+           event@v10 lines, replay without refusal, the session's pane unknown with its because; a pane-opened event
+           under every tag from event@v1 to event@v11 is refused)
+         - "the pane survives the attempt ending" (same file: the projected pane is unchanged after debrief-filed,
+           after outcome-set, after lease-expired, and after reopening the ledger from disk)
+         - "the position read shows each attempt's pane, and position@v3 still reads" (packages/face/test/
+           attemptPane.test.ts and the schemas corpus: real positionOf output, wrapped as the CLI's positions@v2,
+           validates against schemas/position@v4.json and schemas/positions@v2.json; a known pane, a workspace-less
+           pane and an unknown pane with its because; a historical position@v3 fixture still validates against
+           schemas/positions@v2.json)
+      6. Proof: scripts/gates/attempt-pane-proven.ts runs the test files above once with vitest's JSON reporter, with
+         a temporary HOME, fails on a missing file, and prints "attempt pane proven: 6 named cases passed" only when
+         the run exits zero, every title above passes exactly once, and there are no failures, skips, todos, missing
+         summaries or extra cases in those files. It proves execution and titles; the assertions above are what the
+         judge reads each case for.
+      7. Existing tests keep passing, including packages/ledger replay tests over the old fixtures. New tests are
+         declared or baselined as the slow-tests-accounted gate requires.
+      8. The debrief states the compatibility order: every reader of the journal is upgraded before any run writes
+         v12 lines, and names the companion Preston change that reads pane.id.
+      Before you file the debrief (and before any refile), end every vitest worker and child process you started and
+      confirm with pgrep that none survives.
+    gates:
+      - id: branch-contains-main
+        kind: command
+        run: git merge-base --is-ancestor origin/main HEAD
+      - id: attempt-pane-proven
+        kind: command
+        run: node scripts/gates/attempt-pane-proven.ts
+        expect_output: 'attempt pane proven: 6 named cases passed'
+      - id: shapes-fresh
+        kind: command
+        run: pnpm interlock schema reference --check
+      - id: slow-tests-accounted
+        kind: command
+        run: node scripts/gates/slow-tests.ts
+        expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1\.5 s'
