@@ -1437,38 +1437,54 @@ edit it.
 
 ## Acceptance (verbatim from the graph)
 
-> As the read. Allowed paths: packages/ledger/, packages/runner/, packages/face/, packages/cli/, schemas/,
-> docs/shapes.md, scripts/gates/attempt-pane-proven.ts, and this graph's session folder.
+> As the read. Allowed paths: packages/ledger/, packages/runner/, packages/face/, packages/cli/,
+> packages/schemas/, schemas/, docs/shapes.md, vitest.setup.ts, vitest.config.base.ts,
+> scripts/gates/slow-tests.ts, scripts/gates/attempt-pane-proven.ts, and this graph's session folder.
 > 1. The ledger gains the pane-opened event ({session, pane: {id, workspace?}}), validated by isLedgerEvent and
->    replayed into SessionView as a recorded-or-unknown pane; EVENT_SHAPE is event@v12 with schemas/event@v12.json;
->    event@v11 is a prior shape; every journal fixture under packages/ledger/test/fixtures still replays; an
->    earlier-tagged line carrying pane-opened is refused.
-> 2. The session drive writes pane-opened right after runtime.openPane succeeds and before every later step that
->    can refuse the start; a resume writes its own.
-> 3. position@v4: each PositionAttempt carries pane (known with id and workspace, or unknown with a because);
->    position@v3 documents still read; docs/shapes.md and schemas are regenerated.
-> 4. Tests, each failing on main bd4c9ca4 for its intended assertion, with a temp home, a fake runtime and the
->    real ledger, exactly these named cases:
->    - "a run records the pane it opened" (packages/runner/test/paneRecorded.test.ts: the journal holds one
->      pane-opened for the session, with the fake runtime's pane id and workspace, after session-started and
->      before the opening narration)
->    - "a resume records its new pane, and the earlier attempt keeps its own" (same file: two sessions on one node,
->      two panes, each projected to its own)
->    - "a start refused after the pane opened still records that pane" (same file: a machine provider whose pane
->      process check fails; the session ends refused and its pane is recorded)
->    - "an older record without a pane still reads" (packages/ledger/test/paneRecorded.test.ts: a journal of
->      event@v10 and event@v11 lines replays; the session's pane is unknown with its because; no refusal)
->    - "the pane survives the attempt ending" (same file: after debrief-filed, outcome-set and lease-expired the
->      session still projects the pane it opened)
+>    replayed into SessionView as a recorded-or-unknown pane; EVENT_SHAPE is event@v12; schemas/event@v12.json is
+>    added; event@v11 is a prior shape with distinct permissions as the read says (provider attribution v10 to
+>    v12, probe v11 to v12, pane-opened v12 only); every journal fixture under packages/ledger/test/fixtures still
+>    replays.
+> 2. The session drive assigns the opened pane, appends pane-opened, then runs the pane process check and
+>    admission, in that order, at its single open site; a resume or any re-drive writes its own.
+> 3. position@v4 (schemas/position@v4.json added, face POSITION_SHAPE advanced): each PositionAttempt carries pane
+>    (known with id and optional workspace, or unknown with a because); schemas/positions@v2.json embeds
+>    position@v4 and keeps position@v1 to v3; current-output schema tests move to the new current shapes and
+>    historical fixtures stay fixed; docs/shapes.md is regenerated.
+> 4. Real-service tests are opt-in: liveSmoke.test.ts and any test needing the real herdr socket run only under
+>    INTERLOCK_LIVE_SERVICES=1; test processes (standing test gate, slow-tests gate and its children) start with
+>    a temporary HOME and temporary tool-state folders created before any import; no gate of this node sets the
+>    opt-in. The debrief lists the existing guarded integration tests that still start an agent CLI.
+> 5. Tests, each failing on main bd4c9ca4 for its intended assertion, with a temp home, a fake runtime and the
+>    real ledger. Exactly these six titles; the assertions named under each are inside that case:
+>    - "a run records the pane it opened" (packages/runner/test/paneRecorded.test.ts: invoke the real session
+>      drive; the fake runtime's paneProcess asserts that pane-opened is already in the journal when it is called;
+>      the persisted journal, reopened from disk, holds one pane-opened with the fake pane id, and a workspace-less
+>      pane records without a workspace; the event comes after session-started and before the opening narration)
+>    - "a resume records its new pane, and the earlier attempt keeps its own" (same file: invoke the real drive
+>      twice on the same node; two sessions, two panes, each projected to its own, after reopening the ledger)
+>    - "a start refused after the pane opened still records that pane" (same file: the fake paneProcess fails; the
+>      command result is a refusal, the drive's cleanup closed the pane, and after replaying the journal from disk
+>      the pane is still recorded; a fake append failure still reaches the cleanup that closes the pane)
+>    - "an older record without a pane still reads" (packages/ledger/test/paneRecorded.test.ts: literal event@v11
+>      journal lines, not envelopeFor output, holding a session with provider attribution and a probe event, and
+>      event@v10 lines, replay without refusal, the session's pane unknown with its because; a pane-opened event
+>      under every tag from event@v1 to event@v11 is refused)
+>    - "the pane survives the attempt ending" (same file: the projected pane is unchanged after debrief-filed,
+>      after outcome-set, after lease-expired, and after reopening the ledger from disk)
 >    - "the position read shows each attempt's pane, and position@v3 still reads" (packages/face/test/
->      attemptPane.test.ts: a known pane on a recorded attempt, an unknown pane with its because on an older one,
->      and a position@v3 document parsed without error)
-> 5. Proof: scripts/gates/attempt-pane-proven.ts runs the three test
->    files above once with vitest's JSON reporter, fails on a missing file, and prints "attempt pane proven: 6
->    named cases passed" only when the run exits zero, every title above passes exactly once, and there are no
->    failures, skips, todos, missing summaries or extra cases in those files.
-> 6. Existing tests keep passing, including packages/ledger replay tests over the old fixtures. New tests are
->    declared or baselined as the slow-tests-accounted gate requires. No test starts a real herdr or agent CLI or
->    uses the real HOME.
+>      attemptPane.test.ts and the schemas corpus: real positionOf output, wrapped as the CLI's positions@v2,
+>      validates against schemas/position@v4.json and schemas/positions@v2.json; a known pane, a workspace-less
+>      pane and an unknown pane with its because; a historical position@v3 fixture still validates against
+>      schemas/positions@v2.json)
+> 6. Proof: scripts/gates/attempt-pane-proven.ts runs the test files above once with vitest's JSON reporter, with
+>    a temporary HOME, fails on a missing file, and prints "attempt pane proven: 6 named cases passed" only when
+>    the run exits zero, every title above passes exactly once, and there are no failures, skips, todos, missing
+>    summaries or extra cases in those files. It proves execution and titles; the assertions above are what the
+>    judge reads each case for.
+> 7. Existing tests keep passing, including packages/ledger replay tests over the old fixtures. New tests are
+>    declared or baselined as the slow-tests-accounted gate requires.
+> 8. The debrief states the compatibility order: every reader of the journal is upgraded before any run writes
+>    v12 lines, and names the companion Preston change that reads pane.id.
 > Before you file the debrief (and before any refile), end every vitest worker and child process you started and
 > confirm with pgrep that none survives.
