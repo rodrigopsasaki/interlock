@@ -198,6 +198,9 @@ export async function backfillGraph(
       holdMs: HOLD_MS,
       env,
       heavy: machine.value.heavy,
+      ...(machine.value.provider === "none" || machine.value.provider.busy === undefined
+        ? {}
+        : { busy: machine.value.provider.busy }),
       substrate: noneClient(),
       narrate: () => {},
     });

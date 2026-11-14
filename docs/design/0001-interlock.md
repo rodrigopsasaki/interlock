@@ -177,6 +177,9 @@ needs, one shape. A lost node costs one node's work. A drilldown reads one node'
 gate proves one node's acceptance. The graph's granularity is the system's granularity.
 The retry budget belongs to the node and is conserved: nothing inside a node, no gate, no helper,
 no child, mints its own retries. Decomposition never creates retry capacity.
+The busy launch boundary is the recorded exception: a refusal measured no node work, so the
+node-owned judgement allowance may re-ask the machine without spending the node's retry budget;
+see the 2026-11-13 D12 bend-log row.
 *Cost:* per-node ceremony: a brief, a debrief, a gate run.
 *Revisit:* if ceremony dominates, merge nodes. Never drop the gate to make a node cheaper.
 
@@ -383,7 +386,8 @@ are recorded separately and never collapsed: the failure, what happened and wher
 retry, repair, hold, cancel, or terminal failure; and the because, why that disposition is justified
 under policy and the remaining budget. Retry re-runs the node with the failure receipt appended to
 the brief, so the agent sees exactly what broke. The retry budget is a typed count owned by the
-node; when it is spent the node is held for you. Repeated failures of one kind across nodes are a
+node; when it is spent the node is held for you. A busy hold with retry disposition judges again on
+the same head without starting a new attempt. Repeated failures of one kind across nodes are a
 discipline candidate for the substrate.
 
 ## The verifier
@@ -627,6 +631,7 @@ bend against an invariant means we redesign, and the entry says how.
 | date | what bent | against | why | way back kept? | learned |
 | --- | --- | --- | --- | --- | --- |
 | 2026-09-09 | train → graph; parked → held; critical path, float, stale, cleared added | D13, vocabulary | A train asserts a linear shape the DAG does not have. Any single-object metaphor does. | Yes, v0 in history | Name the topology plainly; spend metaphor on behaviour words. |
+| 2026-11-13 | a machine busy refusal re-asks the prefix from inside one node judgement, using a bounded shared allowance rather than the node retry budget | D12 | A refusal before a gate or node-engine command started measured no work and therefore did not spend the node's retry budget; the harness still needs to wait for transient load, lock or process conditions. | Yes; every refusal is a receipt with its judgement and attempt, the allowance is node-owned and shared, and the retry disposition re-judges the same head | Keep machine refusal proof separate from command proof, and never let decomposition or a second gate create more capacity. |
 | 2026-09-09 | Open questions → seams; gates, verifier and derivation sections added; Phyxius first-class | D5, D6, D13, vocabulary | Pre-repository, do not pretend to make every decision; leave seams for the evolutions we predict and build one then the other. | Yes, v0.1 in history | A pre-build note settles seams and the few non-retrofittable choices, not nuanced defaults. |
 | 2026-09-09 | First session by hand (node `scaffold`): the brief's base SHA is the graph's base, but a session starts at the commit that contains its brief, which cannot be known while writing it; the brief carried no role; the debrief cannot mark a hunk as generated (a 1080-line lockfile has no line-by-line decision); "effect" was named as a Phyxius primitive and none exists | Brief and debrief shapes, seams | Writing the first brief and debrief by hand, as planned, before the formats had code. | Yes, both files committed with the session | Brief gets a `graph_base_sha`; the session's start SHA lives in the context column and the debrief; the brief supplies the role; the debrief gets a `produces` relation so a decision can own a generated hunk; the verifier treats generated hunks as explained by the decision that produced them. |
 | 2026-09-09 | Rebasing the scaffold branch onto main rewrote every commit SHA; the debrief's `head_sha` and any receipt addressed by commit SHA went stale although not one byte under the node's code paths changed. The whole-repo tree changed too, because main had moved under docs the gates never read | Receipts, D5 | Content-addressing by commit SHA conflates content with history, and by whole-repo tree conflates the node's scope with everything else. | Yes, the pre-rebase SHA is in the debrief and the code paths are provably identical | Address a receipt by the content hash of the paths in the node's scope. A rebase or an unrelated docs merge that changes none of them keeps the receipt; a byte changed under them invalidates it. The commit SHA stays on the receipt as history, not identity. |

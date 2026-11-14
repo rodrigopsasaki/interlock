@@ -9,6 +9,7 @@ import {
   readLatestRecord,
   runExecPhase,
 } from "../src/execRuntime.ts";
+import { slowIntegration } from "./support/slowIntegration.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -111,29 +112,36 @@ describe("runExecPhase", () => {
     expect(result.value.record.reaped).toBe(1);
   });
 
-  it("kills a TERM-ignoring group after the run timeout", async () => {
-    const root = fixtureRoot();
-    const result = await runExecPhase({
-      runRoot: join(root, "interlock", "runs"),
-      phase: "work",
-      graph: "g",
-      node: "n",
-      runtime: "fixture",
-      model: "fixture-model",
-      program: process.execPath,
-      args: [join(import.meta.dirname, "fixtures", "exec", "ignoreTerm.mjs")],
-      prompt: "unused",
-      cwd: root,
-      timeoutMs: 100,
-      termGraceMs: 100,
-      drainGraceMs: 500,
-    });
+  slowIntegration(
+    "kills a TERM-ignoring group after the run timeout",
+    {
+      budgetMs: 5_000,
+      reason: "integrates process-group timeout, TERM grace and forced cleanup",
+    },
+    async () => {
+      const root = fixtureRoot();
+      const result = await runExecPhase({
+        runRoot: join(root, "interlock", "runs"),
+        phase: "work",
+        graph: "g",
+        node: "n",
+        runtime: "fixture",
+        model: "fixture-model",
+        program: process.execPath,
+        args: [join(import.meta.dirname, "fixtures", "exec", "ignoreTerm.mjs")],
+        prompt: "unused",
+        cwd: root,
+        timeoutMs: 100,
+        termGraceMs: 100,
+        drainGraceMs: 500,
+      });
 
-    expect(isOk(result)).toBe(true);
-    if (!isOk(result)) return;
-    expect(result.value.record.state).toBe("killed");
-    expect(result.value.record.reason).toBe("run timeout 100ms");
-  }, 15_000);
+      expect(isOk(result)).toBe(true);
+      if (!isOk(result)) return;
+      expect(result.value.record.state).toBe("killed");
+      expect(result.value.record.reason).toBe("run timeout 100ms");
+    },
+  );
 
   it("distinguishes launcher, node, and profile-program start failures", async () => {
     const root = fixtureRoot();

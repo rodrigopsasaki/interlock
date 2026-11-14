@@ -1,0 +1,120 @@
+interlock: notes@v0
+graph: 0065-gate-holds-retry-themselves
+node: busy-gates-wait
+entries:
+  - kind: choice
+    at: "2026-11-13T19:45:00Z"
+    chose: Keep the existing non-busy gate argv, environment, receipt proof and judgement flow byte-compatible, and add the busy launch boundary only when machine.provider.busy is present.
+    because: The acceptance makes the busy policy additive and explicitly requires the machine@v0 path to retain its existing behavior and events.
+  - kind: choice
+    at: "2026-11-13T19:46:00Z"
+    chose: Represent one judgement's busy allowance as shared mutable state consumed by the node-engine probe and every command gate, with one fresh judgement id and one receipt per refused start.
+    because: The graph assigns the allowance to the node judgement rather than to a gate, and receipt identity must distinguish otherwise identical refusals from separate judgements.
+  - kind: choice
+    at: "2026-11-13T19:47:00Z"
+    chose: Put the runner-owned start marker and busy report paths in a fresh 0700 directory, pass them only to the heavy prefix, and make the fixed shell start script unset both before execing the gate command.
+    because: The start marker must dominate a report, while the gate command must not be able to manufacture or observe either launch-boundary channel.
+  - kind: surprise
+    at: "2026-11-13T20:11:00Z"
+    expected: A refusal would continue the same gate's bounded attempt loop.
+    observed: The first focused test showed that a loop-level continue advanced to the next gate, so the gate received one start instead of all attempts; the command execution was extracted into an inner retry loop.
+  - kind: choice
+    at: "2026-11-13T20:13:00Z"
+    chose: Give the node-engine probe the same busy boundary and shared allowance as command gates, recording its refusals under the gate name node-engine.
+    because: The acceptance makes the probe part of one judgement's capacity, and a refusal before the version command starts is still harness-produced busy evidence that must survive replay.
+  - kind: surprise
+    at: "2026-11-13T20:25:00Z"
+    expected: The slow-test accounting gate would pass under mise exec.
+    observed: It reported two existing unaccounted timings, execProbe.test.ts at 1687.1ms and codexHomeOutsideWorktree.test.ts at 1639.1ms; the environment selected Node 26.13.0 despite the repository's Node 24.14.0 engine pin.
+  - kind: choice
+    at: "2026-11-13T20:32:00Z"
+    chose: Treat the full workspace test gate as passed while retaining the slow-test accounting failure as an open acceptance item.
+    because: The complete test command exited zero with runner 760/760, schemas 1420/1420 and face 187/187, while the separate timing gate observed two pre-existing tests over its threshold.
+  - kind: choice
+    at: "2026-11-13T21:10:00Z"
+    chose: Make the busy boundary receive the machine heavy prefix separately from the bare mise exec command tail, so its argv places the runner-owned shell boundary after the heavy prefix and before the command tail.
+    because: A real prefix must be able to refuse before the start marker is written; embedding an extra mise exec inside the boundary makes the marker dominate the prefix instead of measuring the prefix refusal.
+  - kind: choice
+    at: "2026-11-13T21:11:00Z"
+    chose: Allocate each busy boundary's marker and report directory beneath the system temporary directory with restrictive permissions, while retaining the existing per-spawn cleanup.
+    because: The launch-boundary channels are runner-owned transient state and must not leave hidden worktree paths or collide across concurrent worktrees.
+  - kind: choice
+    at: "2026-11-13T21:12:00Z"
+    chose: Keep the lease heartbeat running through gate judgement and stop it only in the drive cleanup after the judgement outcome has been recorded.
+    because: Busy backoff can cross several lease periods; a session remains live while the runner is judging and must not be swept before its outcome exists.
+  - kind: choice
+    at: "2026-11-13T21:18:00Z"
+    chose: Exercise the launch boundary through the default spawnGateCommand with a fixture heavy prefix and a PATH-local mise shim, while keeping the existing injected runners for controlled-clock and allowance assertions.
+    because: The boundary contract depends on the real child-process argv and environment crossing shell and prefix layers; injected runners alone cannot prove marker dominance or channel isolation.
+  - kind: surprise
+    at: "2026-11-13T21:19:00Z"
+    expected: The executable fixture shim would load like the other CommonJS fixture scripts.
+    observed: The extensionless PATH-local mise shim was loaded as an ES module under the workspace package scope, so the fixture needed an explicit Node shebang and module imports.
+  - kind: surprise
+    at: "2026-11-13T21:24:00Z"
+    expected: The full workspace test gate would accept the real-prefix fixture after its focused tests passed.
+    observed: The CLI fixture guard rejected the interpolated extensionless mise shim as generated shell content; removing the interpolation made the executable ESM fixture statically readable while preserving its process behavior.
+  - kind: surprise
+    at: "2026-11-13T21:30:00Z"
+    expected: slow-tests-accounted would remain green after the focused and full suites passed.
+    observed: Three existing runner cases crossed the 1.5 second logic threshold without declarations, so their integration budgets and reasons had to be declared before the accounting gate could pass.
+  - kind: surprise
+    at: "2026-11-13T21:34:00Z"
+    expected: The slow-test accounting result would be stable after declaring the three first observations.
+    observed: A quiet rerun exposed two additional CLI integration cases just over the threshold, so those existing cases also received explicit slow integration declarations.
+  - kind: surprise
+    at: "2026-11-13T22:20:00Z"
+    expected: file-derived would install the fresh candidate as the canonical debrief.
+    observed: The existing debrief is preserved by an EEXIST guard, so the authored correction must be selected with debrief revise.
+  - kind: surprise
+    at: "2026-11-14T15:02:00Z"
+    expected: The focused Vitest command would leave no Vitest worker or child process after exit.
+    observed: pgrep found an unrelated Vitest process tree rooted in a parent outside this worktree; it was not started by this session and was left untouched.
+  - kind: choice
+    at: "2026-11-14T15:12:00Z"
+    chose: Cover the remaining public doors with injected command runners, cover receipt replay with a real journal, and cover both drive paths with a fixture runtime and a controlled lease clock.
+    because: The judge asked for proof at each door and for lease renewal during the actual drive cleanup, while the existing focused boundary tests already isolate the gate command itself.
+  - kind: surprise
+    at: "2026-11-14T15:13:00Z"
+    expected: The first new fixture run would exercise the intended paths immediately.
+    observed: The fixture initially exposed missing isolated Git identity, an exec prompt-shape requirement, a missing exec bind, a runtime-artifact scope guard, and an invalid provider-env fixture; each was corrected in the fixture without changing product behavior.
+  - kind: surprise
+    at: "2026-11-14T15:16:00Z"
+    expected: Relative mise fixture directories would remain outside a linked test worktree.
+    observed: A linked gateJudge fixture resolved the relative MISE state directory inside its checkout, leaving one generated marker after cleanup; the marker and orphaned scratch checkout were removed, and subsequent commands use absolute paths derived from the assigned worktree.
+  - kind: choice
+    at: "2026-11-14T15:44:00Z"
+    chose: Recreate this worktree's pnpm links with the frozen lockfile before the shape gate.
+    because: The shape command could not resolve an installed workspace dependency from packages/cli even though the pnpm store contained it; relinking inside this worktree changed no tracked files or lockfile.
+  - kind: surprise
+    at: "2026-11-14T15:46:00Z"
+    expected: The standing slow-test accounting command would run with the fixture identity and home inherited by every package subprocess.
+    observed: The first accounting run omitted the fixture Git author variables and surfaced existing Codex project-home and signing assumptions; it failed before producing an accounting receipt. I did not rerun it with a real Codex executable because the session explicitly forbids that.
+    because: The standing command is a repository-wide integration runner, and its real-Codex cases must not cross the user's prohibition merely to manufacture a green receipt.
+  - kind: question
+    at: "2026-11-14T15:28:47Z"
+    asked: "The immutable brief names graph base fdd3c346, but the existing canonical debrief names ab731fa; should I preserve the existing debrief identity for revise, or should the debrief filing path be repaired to accept the current brief identity?"
+    options: [preserve existing identity, repair filing path]
+  - kind: choice
+    at: "2026-11-14T16:36:26Z"
+    chose: Preserve graph_base_sha ab731fa and session_start_sha 7e33ce5 in debrief-candidate-3.yaml before revising.
+    because: Rodrigo explicitly directed this node to preserve the existing canonical debrief identity and not change the filing path; the candidate must match the existing revision identity for debrief revise to select it.
+  - kind: surprise
+    at: "2026-11-14T16:37:08Z"
+    expected: debrief revise would select debrief-candidate-3.yaml after its graph and session identity were aligned with the existing canonical debrief.
+    observed: "debrief revise: graph_base_sha does not match the session brief"
+    because: The filing path still validates the candidate identity against the immutable brief's fdd3c346 graph base, despite Rodrigo's explicit instruction to preserve the existing canonical ab731fa identity.
+  - kind: choice
+    at: "2026-11-14T16:40:00Z"
+    chose: Remove the stale canonical debrief filed against ab731fa in a signed forward commit, then file the candidate against the current brief graph base fdd3c346 through the normal first-filing path.
+    because: Rodrigo resolved that a debrief must match the current approved graph version and explicitly authorized replacing the superseded artifact without changing interlock's filing code.
+  - kind: surprise
+    at: "2026-11-14T16:54:04Z"
+    expected: The normal first-filing path would accept debrief-candidate-3.yaml after the stale canonical debrief was removed and the candidate was restored to the current brief identity.
+    observed: "interlock debrief file-derived: candidate identity does not match the current derived proof."
+    because: The first-filing path applies an additional derived-proof identity check beyond the candidate's graph_base_sha and session_start_sha, and the user explicitly prohibited changing that filing code.
+  - kind: surprise
+    at: "2026-11-14T17:02:00Z"
+    expected: The requested prepare command without provenance flags would create debrief-candidate-4.yaml.
+    observed: "interlock debrief prepare: requires --agent-runtime <runtime> and --agent-model <model>, or --human <name>."
+    because: The CLI requires debrief derivation provenance even when the requested command omits it; no commit was made before retrying with the established session runtime and model.

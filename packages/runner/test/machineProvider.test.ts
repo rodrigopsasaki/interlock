@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
-import { createControlledClock } from "@phyxiusjs/clock";
+import { type Clock, createControlledClock } from "@phyxiusjs/clock";
 import { err, isErr, ok, unwrap } from "@phyxiusjs/fp";
 import { createLedger, type Ledger } from "ledger";
 import { noneClient } from "substrate";
@@ -18,10 +18,11 @@ import {
   reconcileMachine,
   reconcileMachineOnStart,
 } from "../src/machineOutbox.ts";
-import { NO_MACHINE_PROVIDER, resolveMachine } from "../src/machineProvider.ts";
+import { NO_MACHINE_PROVIDER, parseMachine, resolveMachine } from "../src/machineProvider.ts";
 import type { Runtime } from "../src/runtime.ts";
 import { type DriveSessionRequest, driveInteractiveSession } from "../src/sessionDrive.ts";
 import { runWorktreeSetup } from "../src/worktreeSetup.ts";
+import { gitInitFixtureWithContent } from "./support/gitFixture.ts";
 
 vi.mock("face", async (original) => ({
   ...(await original<typeof import("face")>()),
@@ -84,6 +85,17 @@ let log = "";
 let ledgers: Ledger[] = [];
 const clock = createControlledClock({ initialTime: 0 });
 
+function advancingClock(): Clock {
+  const controlled = createControlledClock({ initialTime: 0 });
+  return {
+    now: () => controlled.now(),
+    sleep: async (duration) => controlled.advanceBy(duration),
+    timeout: (duration) => controlled.timeout(duration),
+    deadline: (target) => controlled.deadline(target),
+    interval: (duration, callback) => controlled.interval(duration, callback),
+  };
+}
+
 beforeEach(() => {
   mkdirSync(runs, { recursive: true });
   root = mkdtempSync(join(runs, "machine-"));
@@ -107,6 +119,14 @@ function script(name: string, body: string): string {
 function provider(
   envOutput = JSON.stringify({ LIMIT: 'space and "quote"', SECOND: "line\nslash\\end" }),
   envCode = 0,
+  busy:
+    | {
+        readonly exit_code: number;
+        readonly attempts: number;
+        readonly first_backoff_ms: number;
+        readonly max_backoff_ms: number;
+      }
+    | undefined = undefined,
 ) {
   const command = script(
     "provider.cjs",
@@ -120,7 +140,7 @@ if (op === 'release') { const file = ${JSON.stringify(join(root, "released"))}; 
 `,
   );
   const value = {
-    interlock: "machine@v0",
+    interlock: busy === undefined ? "machine@v0" : "machine@v1",
     provider: {
       env: [process.execPath, command, "env"],
       admit: [
@@ -144,6 +164,7 @@ if (op === 'release') { const file = ${JSON.stringify(join(root, "released"))}; 
           `const fs=require('node:fs'); const {spawnSync}=require('node:child_process'); fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify(['heavy',...process.argv.slice(2)])+'\\n'); if (process.argv.at(-3)==='pnpm' && process.argv.at(-2)==='install') { fs.writeFileSync(${JSON.stringify(join(root, "install-env"))}, JSON.stringify({LIMIT:process.env.LIMIT})); process.exit(0); } const r=spawnSync(process.argv[2],process.argv.slice(3),{stdio:'inherit',env:process.env}); process.exit(r.status ?? 1);`,
         ),
       ],
+      ...(busy === undefined ? {} : { busy }),
     },
   };
   writeFileSync(machineFile, JSON.stringify(value));
@@ -291,6 +312,51 @@ function hold(command: string): MachineHold {
 }
 
 describe("machine provider", () => {
+  it("parses machine@v1 busy and names every invalid field", () => {
+    const providerValue = {
+      admit: ["admit"],
+      release: ["release"],
+      env: ["env"],
+      heavy: ["heavy"],
+      busy: { exit_code: 75, attempts: 4, first_backoff_ms: 2_000, max_backoff_ms: 60_000 },
+    };
+    expect(parseMachine({ interlock: "machine@v1", provider: providerValue })).toEqual(
+      ok({
+        admit: providerValue.admit,
+        release: providerValue.release,
+        env: providerValue.env,
+        heavy: providerValue.heavy,
+        busy: {
+          exitCode: 75,
+          attempts: 4,
+          firstBackoffMs: 2_000,
+          maxBackoffMs: 60_000,
+        },
+      }),
+    );
+    for (const [field, value] of [
+      ["exit_code", 63],
+      ["attempts", 11],
+      ["first_backoff_ms", 0],
+      ["max_backoff_ms", 600_001],
+    ] as const) {
+      const busy = { ...providerValue.busy, [field]: value };
+      const parsed = parseMachine({
+        interlock: "machine@v1",
+        provider: { ...providerValue, busy },
+      });
+      expect(isErr(parsed)).toBe(true);
+      if (isErr(parsed)) expect(parsed.error).toContain(field);
+    }
+    const { max_backoff_ms: _missing, ...missing } = providerValue.busy;
+    const missingParsed = parseMachine({
+      interlock: "machine@v1",
+      provider: { ...providerValue, busy: missing },
+    });
+    expect(isErr(missingParsed)).toBe(true);
+    if (isErr(missingParsed)) expect(missingParsed.error).toContain("max_backoff_ms");
+  });
+
   it("refuses absent configuration before setup or any session event", async () => {
     const runtime = runtimeFixture();
     const result = await launch(runtime.runtime);
@@ -743,6 +809,59 @@ describe("machine provider", () => {
     expect(JSON.parse(readFileSync(join(root, "install-env"), "utf8"))).toEqual({
       LIMIT: 'space and "quote"',
     });
+  });
+  it("passes machine busy policy through backfill gate judgement", async () => {
+    const configured = provider(JSON.stringify({}), 0, {
+      exit_code: 75,
+      attempts: 2,
+      first_backoff_ms: 10,
+      max_backoff_ms: 10,
+    });
+    const heavy = configured.provider.heavy[1];
+    if (heavy === undefined) throw new Error("fixture heavy prefix is missing");
+    const accepted = join(root, "backfill-accepted");
+    const busyStarts = join(root, "backfill-busy-starts");
+    writeFileSync(
+      heavy,
+      `const fs=require('node:fs'); const {spawnSync}=require('node:child_process'); const report=process.env.INTERLOCK_BUSY_REPORT; if (report) { const count=fs.existsSync(${JSON.stringify(busyStarts)}) ? Number(fs.readFileSync(${JSON.stringify(busyStarts)},'utf8')) : 0; fs.writeFileSync(${JSON.stringify(busyStarts)},String(count+1)); if (!fs.existsSync(${JSON.stringify(accepted)})) { fs.writeFileSync(${JSON.stringify(accepted)},'yes'); fs.writeFileSync(report,'backfill prefix busy\\n'); process.exit(75); } } if (process.argv.at(-3)==='pnpm' && process.argv.at(-2)==='install') process.exit(0); const r=spawnSync(process.argv[2],process.argv.slice(3),{stdio:'inherit',env:process.env}); process.exit(r.status ?? 1);`,
+    );
+    mkdirSync(join(root, ".interlock", "sessions", "g", "n"), { recursive: true });
+    writeFileSync(
+      join(root, ".interlock", "sessions", "g", "n", "debrief.yaml"),
+      "interlock: debrief@v1\n",
+    );
+    gitInitFixtureWithContent(root);
+    const machine = unwrap(await resolveMachine(root));
+    const testClock = advancingClock();
+    const ledger = unwrap(
+      await createLedger({ clock: testClock, directory: join(root, "backfill-ledger") }),
+    );
+    ledgers.push(ledger);
+    const backfilled = await backfillGraph({
+      machine,
+      repoRoot: root,
+      mainBranch: "main",
+      document: {
+        id: "g",
+        gates: [],
+        nodes: [
+          {
+            id: "n",
+            dependsOn: [],
+            gates: [
+              { id: "proof", kind: "command", run: `${process.execPath} -e process.exit(0)` },
+            ],
+          },
+        ],
+      },
+      ledger,
+      clock: testClock,
+      standingGates: [],
+      worktreeRoot: "worktrees",
+    });
+    if (isErr(backfilled)) throw new Error(JSON.stringify(backfilled.error));
+    expect(backfilled.value[0]?.outcome.kind).toBe("cleared");
+    expect(readFileSync(busyStarts, "utf8")).toBe("2");
   });
   it("two runner requests share a heavy prefix that serializes their setup and gate", async () => {
     const events = join(root, "heavy-events");

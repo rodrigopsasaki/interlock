@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
@@ -56,6 +56,7 @@ import {
   type SubstrateClient,
 } from "substrate";
 import { verifyDebrief } from "verifier";
+import { type BusyBoundaryResult, busySleep, runBusyBoundary } from "./busy.ts";
 import { type ContextSlice, contextSlice } from "./contextSlice.ts";
 import { type GateCommand, type PlaceholderRefusal, substituteGateCommand } from "./gateCommand.ts";
 import {
@@ -64,8 +65,13 @@ import {
   retainGateOutput,
   storeGateOutput,
 } from "./gateOutput.ts";
+import type { BusyPolicy } from "./machineProvider.ts";
 import { checkNodeEngine, type NodeVersionRunner } from "./nodeEngine.ts";
-import { nonInteractiveEnvironment, runOwnedCommandWithTimeout } from "./ownedCommand.ts";
+import {
+  nonInteractiveEnvironment,
+  type runOwnedCommand,
+  runOwnedCommandWithTimeout,
+} from "./ownedCommand.ts";
 import { recordedStoreDir } from "./pnpmStore.ts";
 import { appendUnrecordedNotes } from "./questionNotes.ts";
 
@@ -120,6 +126,7 @@ export interface GateJudgeRequest {
   readonly personEvents?: readonly LedgerEvent[];
   readonly env?: NodeJS.ProcessEnv;
   readonly heavy?: readonly string[];
+  readonly busy?: BusyPolicy;
   readonly nodeVersionRunner?: NodeVersionRunner;
   readonly commandRunner?: GateCommandRunner;
   readonly outputDirectory?: string;
@@ -189,6 +196,75 @@ function lastOutputLines(output: string): string {
 
 function timeoutLine(command: string, timeoutMs: number, output: string, retained: string): string {
   return `gate command "${command}" timed out after ${timeoutMs}ms; last output: ${lastOutputLines(output)}; retained log: ${retained}`;
+}
+
+interface BusyAllowance {
+  readonly policy: BusyPolicy;
+  readonly judgement: string;
+  used: number;
+  lastReason: string | undefined;
+}
+
+function newBusyAllowance(policy: BusyPolicy | undefined): BusyAllowance | undefined {
+  return policy === undefined
+    ? undefined
+    : { policy, judgement: randomUUID(), used: 0, lastReason: undefined };
+}
+
+function busyFailure(allowance: BusyAllowance): string {
+  return `machine busy after ${allowance.policy.attempts} attempts: ${allowance.lastReason ?? "unknown reason"}`;
+}
+
+function processResultOf(result: GateCommandResult): {
+  readonly exitCode: number;
+} {
+  return { exitCode: result.exitCode };
+}
+
+function nodeProcessResultOf(
+  result: Awaited<ReturnType<typeof runOwnedCommand>>,
+): { readonly exitCode: number } | undefined {
+  if (isErr(result)) return undefined;
+  return {
+    exitCode: result.value.code,
+  };
+}
+
+async function writeBusyReceipt(
+  request: GateJudgeRequest | LegacyGateJudgeRequest,
+  gateId: string,
+  allowance: BusyAllowance,
+  reason: string,
+  before: ReturnType<Clock["now"]>["monoMs"],
+  after: ReturnType<Clock["now"]>["monoMs"],
+): Promise<Result<void, GateJudgeRefusal>> {
+  const proof = {
+    refused: "busy",
+    reason,
+    attempt: allowance.used,
+    judgement: allowance.judgement,
+  };
+  const commandId = await commandReceiptId(request.scopeRoot, request.scopePaths, gateId, proof);
+  if (isErr(commandId)) return err({ kind: "scope", refusal: commandId.error });
+  const built = await createReceipt(
+    request.scopeRoot,
+    request.scopePaths,
+    gateId,
+    request.commitSha,
+    spend.none(),
+    duration.measured(elapsedSince(after, before)),
+    derivation.gate(gateId, GATE_DERIVATION_VERSION, request.runnerId),
+    proof,
+  );
+  if (isErr(built)) return err({ kind: "scope", refusal: built.error });
+  const receipt = { ...built.value, id: commandId.value };
+  const alreadyRecorded = request.ledger
+    .projection()
+    .nodes.get(nodeKey(request.node))
+    ?.receipts.some((candidate) => candidate.id === receipt.id);
+  if (!alreadyRecorded)
+    request.ledger.append({ kind: "receipt-written", node: request.node, receipt });
+  return ok(undefined);
 }
 
 function outputHash(output: string): string {
@@ -352,6 +428,7 @@ export async function judgeGates(
     personEvents = [],
     env = process.env,
     heavy = [],
+    busy,
     nodeVersionRunner,
     outputDirectory,
     narrate,
@@ -383,6 +460,122 @@ export async function judgeGates(
 
   const gateMovedThisRun: LedgerEvent[] = [];
   let nodeEngineChecked = false;
+  const allowance = newBusyAllowance(busy);
+  let busyFailureForNode: string | undefined;
+  let busyFailureForGate: { readonly gateId: string; readonly because: string } | undefined;
+
+  const runNodeVersion =
+    allowance === undefined
+      ? versionRunner
+      : async (
+          argv: readonly string[],
+          cwd: string,
+          versionEnv: NodeJS.ProcessEnv,
+        ): Promise<Awaited<ReturnType<typeof runOwnedCommand>>> => {
+          while (true) {
+            const before = clock.now().monoMs;
+            const boundary = await runBusyBoundary(
+              {
+                worktree: cwd,
+                heavy,
+                command: argv.slice(heavy.length + 3),
+                env: versionEnv,
+                run: versionRunner,
+                processResult: nodeProcessResultOf,
+              },
+              allowance.policy,
+            );
+            const after = clock.now().monoMs;
+            if (boundary.kind !== "busy") return boundary.result;
+            allowance.used += 1;
+            allowance.lastReason = boundary.reason;
+            const receipt = await writeBusyReceipt(
+              request,
+              "node-engine",
+              allowance,
+              boundary.reason,
+              before,
+              after,
+            );
+            if (isErr(receipt)) return err("node-engine busy receipt could not be written");
+            narrate(
+              `node-engine: machine busy (attempt ${allowance.used}/${allowance.policy.attempts}): ${boundary.reason}`,
+            );
+            if (allowance.used >= allowance.policy.attempts) {
+              busyFailureForNode = busyFailure(allowance);
+              return err(busyFailureForNode);
+            }
+            await clock.sleep(busySleep(allowance.policy, allowance.used));
+          }
+        };
+
+  const runGateCommand = async (
+    gateId: string,
+    current: Gate,
+    command: readonly string[],
+  ): Promise<Result<GateCommandResult | undefined, GateJudgeRefusal>> => {
+    while (true) {
+      const before = clock.now().monoMs;
+      const execution: BusyBoundaryResult<GateCommandResult> =
+        allowance === undefined
+          ? {
+              kind: "ordinary",
+              result: await commandRunner(
+                [...heavy, "mise", "exec", "--", ...command],
+                worktree,
+                gateEnv,
+              ),
+            }
+          : await runBusyBoundary(
+              {
+                worktree,
+                heavy,
+                command,
+                env: gateEnv,
+                run: commandRunner,
+                processResult: processResultOf,
+              },
+              allowance.policy,
+            );
+      const after = clock.now().monoMs;
+      if (execution.kind !== "busy") return ok(execution.result);
+      if (allowance === undefined) {
+        return err({ kind: "scope", refusal: { kind: "unreadable", path: worktree } });
+      }
+      allowance.used += 1;
+      allowance.lastReason = execution.reason;
+      const receipt = await writeBusyReceipt(
+        request,
+        gateId,
+        allowance,
+        execution.reason,
+        before,
+        after,
+      );
+      if (isErr(receipt)) return receipt;
+      narrate(
+        `${gateId}: machine busy (attempt ${allowance.used}/${allowance.policy.attempts}): ${execution.reason}`,
+      );
+      if (allowance.used >= allowance.policy.attempts) {
+        const because = busyFailure(allowance);
+        const blocked = gate.blocked(because, because);
+        const moved = proposeGateMove(declaredGateIds, gateId, current, blocked);
+        if (isOk(moved)) {
+          const movedEvent: LedgerEvent = {
+            kind: "gate-moved",
+            node,
+            gate: gateId,
+            to: moved.value,
+          };
+          ledger.append(movedEvent);
+          gateMovedThisRun.push(movedEvent);
+        }
+        busyFailureForGate = { gateId, because };
+        return ok(undefined);
+      }
+      await clock.sleep(busySleep(allowance.policy, allowance.used));
+    }
+  };
 
   await invalidateStaleDelegated(
     ledger,
@@ -412,13 +605,18 @@ export async function judgeGates(
     }
 
     if (!nodeEngineChecked) {
-      const nodeEngine = await checkNodeEngine(worktree, "gate", commandEnv, heavy, versionRunner);
+      const nodeEngine = await checkNodeEngine(worktree, "gate", commandEnv, heavy, runNodeVersion);
       if (isErr(nodeEngine)) {
         narrate(nodeEngine.error.because);
+        const busyBecause = busyFailureForNode;
+        const nodeReceipts = ledger.projection().nodes.get(nodeKey(node))?.receipts ?? [];
         const held = outcome.held(
-          [],
-          heldOn.gateFailure(nodeEngine.error.because, "hold"),
-          nodeEngine.error.because,
+          nodeReceipts,
+          heldOn.gateFailure(
+            busyBecause === undefined ? nodeEngine.error.because : "node-engine",
+            busyBecause === undefined ? "hold" : "retry",
+          ),
+          busyBecause ?? nodeEngine.error.because,
           clock.now().wallMs + holdMs,
         );
         ledger.append({ kind: "outcome-set", node, outcome: held });
@@ -443,19 +641,13 @@ export async function judgeGates(
       return err({ kind: "placeholder", gateId, refusal: substituted.error });
     }
 
+    const command = tokenize(substituted.value);
     const before = clock.now().monoMs;
-    const {
-      exitCode,
-      output,
-      stdout,
-      stderr,
-      timedOut = false,
-    } = await commandRunner(
-      [...heavy, "mise", "exec", "--", ...tokenize(substituted.value)],
-      worktree,
-      gateEnv,
-    );
+    const execution = await runGateCommand(gateId, current, command);
     const after = clock.now().monoMs;
+    if (isErr(execution)) return execution;
+    if (execution.value === undefined) break;
+    const { exitCode, output, stdout, stderr, timedOut = false } = execution.value;
 
     const pattern = gateCommand?.expectOutput;
     const outputMatched =
@@ -603,14 +795,22 @@ export async function judgeGates(
   const gates = new Map(finalView?.gates ?? new Map<string, Gate>());
   const receipts = finalView?.receipts ?? [];
   const cleared = buildCleared(declaredGateIds, gates);
-  const resolved: Outcome = isOk(cleared)
-    ? cleared.value
-    : outcome.held(
-        receipts,
-        heldOn.gateFailure(cleared.error.missing.join(", "), "hold"),
-        heldBecause(cleared.error.missing, commandFor),
-        clock.now().wallMs + holdMs,
-      );
+  const resolved: Outcome =
+    busyFailureForGate === undefined
+      ? isOk(cleared)
+        ? cleared.value
+        : outcome.held(
+            receipts,
+            heldOn.gateFailure(cleared.error.missing.join(", "), "hold"),
+            heldBecause(cleared.error.missing, commandFor),
+            clock.now().wallMs + holdMs,
+          )
+      : outcome.held(
+          receipts,
+          heldOn.gateFailure(busyFailureForGate.gateId, "retry"),
+          busyFailureForGate.because,
+          clock.now().wallMs + holdMs,
+        );
 
   if (resolved.kind === "cleared") {
     await ingestDebrief(ledger, session, worktree, node);

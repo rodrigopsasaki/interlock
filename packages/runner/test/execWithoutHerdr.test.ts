@@ -11,13 +11,16 @@ import {
 } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { err } from "@phyxiusjs/fp";
+import { type Clock, createControlledClock } from "@phyxiusjs/clock";
+import { err, ok } from "@phyxiusjs/fp";
 import { sharedJournalDirectory } from "face";
+import type { Ledger } from "ledger";
 import { afterEach, describe, expect, it } from "vitest";
 import { fixtureGit } from "../../../test/support/gitFixture.ts";
 import { execRunRoot, listExecSessions } from "../src/execRuntime.ts";
 import type { Runtime } from "../src/runtime.ts";
 import { execRuntimeArgv, type ResolvedRuntime } from "../src/runtimeCatalogue.ts";
+import { sweepExpiredLeases } from "../src/sweep.ts";
 import {
   driveOnce,
   fixtureRepository,
@@ -183,3 +186,138 @@ it("drives exec phases without injected herdr preflight and records done zero ph
     expect(phase.exitCode).toBe(0);
   }
 });
+
+it.each(["exec", "pane"] as const)(
+  "renews the lease through a busy judgement on the %s path and sweeps nothing",
+  async (kind) => {
+    directory = mkdtempSync(join(runsRoot, `busy-lease-${kind}-`));
+    const repoRoot = fixtureRepository(directory, legacyLocalYaml([`kind: ${kind}`, "args: []"]));
+    writeFileSync(join(repoRoot, ".gitignore"), "interlock/\n");
+    fixtureGit(["add", ".gitignore"], { cwd: repoRoot });
+    fixtureGit(["commit", "-m", "ignore fixture runtime artifacts"], { cwd: repoRoot });
+    const catalogue = join(repoRoot, "runtimes.yaml");
+    writeFileSync(
+      catalogue,
+      [
+        "interlock: runtimes@v2",
+        "runtimes:",
+        "  fixture:",
+        `    kind: ${kind}`,
+        "    commits: agent",
+        `    args: [${kind === "exec" ? `${JSON.stringify(process.execPath)}, "-e", "process.exit(0)", "{prompt}"` : ""}]`,
+        "    model: fixture",
+        "",
+      ].join("\n"),
+    );
+    const selected = await selectedRuntime(repoRoot, catalogue, "fixture");
+    herdrFreeEnvironment();
+
+    let paneWorktree = "";
+    let promptCount = 0;
+    const paneRuntime: Runtime = {
+      paneEnvironment: true,
+      openPane: (cwd) => {
+        paneWorktree = cwd;
+        return Promise.resolve(ok({ id: "pane", workspace: "workspace" }));
+      },
+      paneProcess: () => Promise.resolve(ok({ state: "present", pid: 1234 })),
+      startAgent: (pane) => Promise.resolve(ok({ id: "agent", pane })),
+      reportIdentity: () => Promise.resolve(ok(undefined)),
+      prompt: async () => {
+        promptCount += 1;
+        if (kind === "pane" && promptCount === 1) {
+          const debrief = join(paneWorktree, ".interlock/sessions/g/n/debrief.yaml");
+          mkdirSync(dirname(debrief), { recursive: true });
+          writeFileSync(debrief, "interlock: debrief@v1\n");
+          fixtureGit(["add", debrief], { cwd: paneWorktree });
+          fixtureGit(["commit", "-m", "fixture debrief"], { cwd: paneWorktree });
+        }
+        return ok(undefined);
+      },
+      waitUntil: async (_agent, until) => {
+        if (until.includes("idle") && until.includes("blocked") && !until.includes("done")) {
+          return ok("idle");
+        }
+        return ok("done");
+      },
+      read: () => Promise.resolve(ok("")),
+      sendKeys: () => Promise.resolve(ok(undefined)),
+      sendPaneKeys: () => Promise.resolve(ok(undefined)),
+      closePane: () => Promise.resolve(ok(undefined)),
+      observe: () =>
+        Promise.resolve(
+          ok({
+            attempt: () => ({
+              agentStatus: "idle",
+              pane: { state: "known", address: "pane" },
+              liveWork: () => Promise.resolve({ state: "none" }),
+            }),
+          }),
+        ),
+    };
+    const machine = {
+      provider: {
+        admit: [process.execPath, "-e", "process.exit(0)"],
+        bind: [process.execPath, "-e", "process.exit(0)"],
+        release: [process.execPath, "-e", "process.exit(0)"],
+        env: [process.execPath, "-e", "process.exit(0)"],
+        heavy: [],
+        busy: { exitCode: 75, attempts: 4, firstBackoffMs: 40, maxBackoffMs: 40 },
+      },
+      env: {},
+      heavy: [],
+    } as const;
+    const controlled = createControlledClock({ initialTime: 0 });
+    let ledger: Ledger | undefined;
+    const sweeps: string[][] = [];
+    const clock: Clock = {
+      now: () => controlled.now(),
+      sleep: async (duration) => {
+        controlled.advanceBy(duration);
+        if (ledger !== undefined)
+          sweeps.push([...sweepExpiredLeases(ledger, controlled.now().wallMs)]);
+      },
+      timeout: (duration) => controlled.timeout(duration),
+      deadline: (target) => controlled.deadline(target),
+      interval: (duration, callback) => controlled.interval(duration, callback),
+    };
+    let starts = 0;
+    const localConfig = { ...selected.localConfig, leaseMs: 30, runTimeoutMs: 5000 };
+    const driven = await driveOnce(
+      repoRoot,
+      "n",
+      localConfig,
+      selected.agentRuntime,
+      kind === "pane" ? paneRuntime : recordingRuntime().runtime,
+      clock,
+      {
+        machine,
+        nodeGates: [{ id: "busy-gate", kind: "command", run: "fixture" }],
+        ledgerDirectory: join(runsRoot, `busy-lease-${kind}-ledger`),
+        onLedger: (value) => {
+          ledger = value;
+        },
+        commandRunner: async (_argv, _cwd, env) => {
+          starts += 1;
+          if (starts < 4) {
+            writeFileSync(env["INTERLOCK_BUSY_REPORT"] ?? "", "lease busy\n");
+            return { exitCode: 75, output: "", stdout: Buffer.alloc(0), stderr: Buffer.alloc(0) };
+          }
+          writeFileSync(env["INTERLOCK_GATE_START"] ?? "", "started\n");
+          return { exitCode: 0, output: "", stdout: Buffer.alloc(0), stderr: Buffer.alloc(0) };
+        },
+      },
+    );
+    expect(driven.outcome.exitCode, driven.outcome.message).toBe(0);
+    expect(starts).toBe(4);
+    expect(sweeps).toEqual([[], [], []]);
+    const renewals = driven.events.flatMap((event, index) =>
+      event.kind === "lease-renewed" ? [index] : [],
+    );
+    const outcomes = driven.events.flatMap((event, index) =>
+      event.kind === "outcome-set" ? [index] : [],
+    );
+    expect(renewals.length).toBeGreaterThan(2);
+    expect(renewals.at(-1)).toBeLessThan(outcomes.at(-1) ?? -1);
+  },
+);

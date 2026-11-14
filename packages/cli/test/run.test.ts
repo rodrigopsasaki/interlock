@@ -512,29 +512,38 @@ describe("interlock run", () => {
     expect(lines).toContain("pane pane-1 left open for drilldown");
   }, 30_000);
 
-  it("narrates once when the runtime reports it waited for the pane's shell", async () => {
-    const cwd = fixture();
-    await runGraphApprove(["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"], { cwd });
+  slowIntegration(
+    "narrates once when the runtime reports it waited for the pane's shell",
+    {
+      budgetMs: 30_000,
+      reason: "integrates a pane launch and observes the runtime waiting narration",
+    },
+    async () => {
+      const cwd = fixture();
+      await runGraphApprove(["demo", "--by", "Rodrigo Sasaki", "--because", "looks right"], {
+        cwd,
+      });
 
-    const runtime: Runtime = {
-      ...stubRuntime(),
-      startAgent: (pane, _kind, _args, onWaitingForPane) => {
-        onWaitingForPane?.();
-        return Promise.resolve(ok({ id: "agent-1", pane }));
-      },
-    };
-    const lines: string[] = [];
+      const runtime: Runtime = {
+        ...stubRuntime(),
+        startAgent: (pane, _kind, _args, onWaitingForPane) => {
+          onWaitingForPane?.();
+          return Promise.resolve(ok({ id: "agent-1", pane }));
+        },
+      };
+      const lines: string[] = [];
 
-    const result = await runInterlockRun(["demo", "a"], {
-      cwd,
-      clock: createControlledClock(),
-      runtime,
-      narrate: (line) => lines.push(line),
-    });
+      const result = await runInterlockRun(["demo", "a"], {
+        cwd,
+        clock: createControlledClock(),
+        runtime,
+        narrate: (line) => lines.push(line),
+      });
 
-    expect(result.exitCode).toBe(0);
-    expect(lines.filter((line) => line === "waiting for the pane's shell")).toHaveLength(1);
-  }, 30_000);
+      expect(result.exitCode).toBe(0);
+      expect(lines.filter((line) => line === "waiting for the pane's shell")).toHaveLength(1);
+    },
+  );
 
   it("bases the worktree on the repository's HEAD at run time, not the approval receipt's commit", async () => {
     const cwd = fixture();

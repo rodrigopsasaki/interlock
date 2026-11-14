@@ -115,6 +115,8 @@ a `gap`, recorded with the nearest term and the difference.
 Two seams cannot be retrofitted and are decided: derivation is required on every receipt and mark
 from the first commit, and the ledger is a Phyxius journal from day one. The retry budget belongs
 to the node and is conserved; nothing inside a node mints its own retries.
+The busy launch-boundary exception is recorded in the D12 bend log: a refusal before work starts
+may consume the node judgement's bounded shared busy allowance, never a new gate-owned retry budget.
 
 ## The wall
 

@@ -219,6 +219,9 @@ export async function judgeWorktree(
     ...(outputDirectory === undefined ? {} : { outputDirectory }),
     env: { ...process.env, ...machine.value.env },
     heavy: machine.value.heavy,
+    ...(machine.value.provider === "none" || machine.value.provider.busy === undefined
+      ? {}
+      : { busy: machine.value.provider.busy }),
     narrate,
   });
   return isErr(judged) ? err({ kind: "gates", refusal: judged.error }) : ok(judged.value);
