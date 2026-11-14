@@ -82,3 +82,12 @@ entries:
     at: "2026-11-14T15:16:00Z"
     expected: Relative mise fixture directories would remain outside a linked test worktree.
     observed: A linked gateJudge fixture resolved the relative MISE state directory inside its checkout, leaving one generated marker after cleanup; the marker and orphaned scratch checkout were removed, and subsequent commands use absolute paths derived from the assigned worktree.
+  - kind: choice
+    at: "2026-11-14T15:44:00Z"
+    chose: Recreate this worktree's pnpm links with the frozen lockfile before the shape gate.
+    because: The shape command could not resolve an installed workspace dependency from packages/cli even though the pnpm store contained it; relinking inside this worktree changed no tracked files or lockfile.
+  - kind: surprise
+    at: "2026-11-14T15:46:00Z"
+    expected: The standing slow-test accounting command would run with the fixture identity and home inherited by every package subprocess.
+    observed: The first accounting run omitted the fixture Git author variables and surfaced existing Codex project-home and signing assumptions; it failed before producing an accounting receipt. I did not rerun it with a real Codex executable because the session explicitly forbids that.
+    because: The standing command is a repository-wide integration runner, and its real-Codex cases must not cross the user's prohibition merely to manufacture a green receipt.
