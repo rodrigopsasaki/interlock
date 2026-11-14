@@ -276,6 +276,24 @@ describe("interlock judge", () => {
     expect(judged.message).toContain("cleared");
   });
 
+  it("keeps a scope-guard hold when the recheck snapshot fails", async () => {
+    const cwd = fixture(`${localYaml}watch_paths:\n  - /dev/null\n`);
+    await approve(cwd);
+    cleanScopeGuardWorktree(cwd);
+    await scopeGuardHold(
+      cwd,
+      "scope guard held node: session guard-session, phase work phase, runtime profile fixture; changed paths: main checkout/outside.txt",
+    );
+
+    const rechecked = await runInterlockJudge(
+      ["demo", "a", "--session", "guard-session", "--scope-guard-recheck"],
+      { cwd, clock: createControlledClock({ initialTime: 0 }) },
+    );
+    expect(rechecked.exitCode).not.toBe(0);
+    expect(rechecked.message).toContain("scope guard recheck failed");
+    expect(rechecked.message).toContain("neither a file nor a directory");
+  });
+
   slowIntegration(
     "binds an enabled origin through judge's actual absorb client",
     {

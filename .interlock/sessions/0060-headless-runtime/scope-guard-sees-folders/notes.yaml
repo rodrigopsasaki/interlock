@@ -37,3 +37,11 @@ entries:
     at: "2026-11-14T22:00:00Z"
     expected: The repository test gate would complete after the package tests passed.
     observed: pnpm test reached 755 passing runner tests and the other workspace suites, then failed the same 13 existing Codex guard cases because the spawned command resolved /Users/rodrigosasaki/.codex/config.toml.
+  - kind: choice
+    at: "2026-11-14T22:00:00Z"
+    chose: Add a CLI proof that a failed recheck snapshot leaves the scope-guard hold uncleared.
+    because: The acceptance treats snapshot failure as a hold rather than a pass, so the recovery path needs an executable refusal proof alongside the clean recheck and named person paths.
+  - kind: surprise
+    at: "2026-11-14T22:00:00Z"
+    expected: The invalid watch-path fixture would report a regular-file refusal.
+    observed: /dev/null was refused earlier as neither a file nor a directory by the watch-path boundary; the focused assertion now names that actual refusal and all 15 judge tests pass.
