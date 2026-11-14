@@ -161,7 +161,12 @@ describe("interlock backfill", () => {
     const result = await runInterlockBackfill(["demo"], { cwd });
 
     expect(result.exitCode).toBe(1);
-    expect(result.message).toBe(`"${failingSetupCommand}" exited 7.`);
+    const [refusal, storeLine, separator, logLine] = result.message.split("\n");
+    expect(refusal).toBe(`"${failingSetupCommand}" exited 7.`);
+    expect(storeLine?.startsWith("worktree setup store: ")).toBe(true);
+    expect(storeLine?.endsWith(" (runner's default)")).toBe(true);
+    expect(separator).toBe("");
+    expect(logLine?.startsWith("setup output kept at ")).toBe(true);
 
     const journalPath = join(cwd, ".interlock", "ledger", "journal.jsonl");
     const events = existsSync(journalPath)

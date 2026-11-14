@@ -1274,7 +1274,14 @@ describe("interlock run", () => {
     });
 
     expect(result.exitCode).toBe(1);
-    expect(result.message).toBe('worktree setup refused: "false" exited 1.');
+    const [refusal, storeLine, separator, logLine] = result.message
+      .slice("worktree setup refused: ".length)
+      .split("\n");
+    expect(refusal).toBe('"false" exited 1.');
+    expect(storeLine?.startsWith("worktree setup store: ")).toBe(true);
+    expect(storeLine?.endsWith(" (runner's default)")).toBe(true);
+    expect(separator).toBe("");
+    expect(logLine?.startsWith("setup output kept at ")).toBe(true);
     expect(lines).toContain("worktree setup: false");
     expect(lines).not.toContain("pane pane-1 opened");
     expect(lines.at(-1)).toBe(

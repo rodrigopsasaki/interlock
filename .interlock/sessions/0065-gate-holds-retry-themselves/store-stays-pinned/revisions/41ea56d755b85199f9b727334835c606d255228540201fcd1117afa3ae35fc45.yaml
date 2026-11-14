@@ -1,0 +1,82 @@
+interlock: debrief@v2
+revision: 3
+supersedes: ".interlock/sessions/0065-gate-holds-retry-themselves/store-stays-pinned/debrief.yaml at d222c7d008b28f5926e20982b6f3b185988544bb"
+graph: 0065-gate-holds-retry-themselves
+node: store-stays-pinned
+role: implementer
+graph_base_sha: 4dfef50e5ffb948f874185968140b93202243958
+session_start_sha: ec7565802b8973c57ea38cfbdc6f379d6aad4ed8
+head_sha: d222c7d008b28f5926e20982b6f3b185988544bb
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: keep-store-probe-outside-heavy
+    what: Run the fallback pnpm store path probe directly through mise, and keep only the actual setup command under the machine provider's heavy prefix.
+    because: The store path lookup is read-only; putting it outside heavy avoids an unnecessary machine hold while retaining serialization for the mutating setup command. The existing machine-provider tests therefore retain their intended two heavy entries.
+    rests_on:
+      - brief:Acceptance (verbatim from the graph)
+      - packages/runner/src/worktreeSetup.ts:138-180
+    hunks:
+      - packages/runner/src/worktreeSetup.ts:138-180
+  - id: support-direct-mise-probe
+    what: Make the fake mise used by store pinning tests strip only the explicit exec -- pair, so it supports both direct default-store discovery and heavy-prefixed setup.
+    because: The production lookup no longer carries the heavy prefix, and the fixture must prove the command reaches fake pnpm in both invocation shapes.
+    rests_on:
+      - packages/runner/src/worktreeSetup.ts:138-180
+      - .interlock/sessions/0065-gate-holds-retry-themselves/store-stays-pinned/notes.yaml:28-31
+    hunks:
+      - packages/runner/test/storeStaysPinned.test.ts:37-40
+  - id: assert-refusal-provenance
+    what: Make the CLI backfill and run refusal tests assert the exact refusal, provenance structure, separator, and retained-log line while allowing only generated paths to vary.
+    because: The selected store and retained log are part of the refusal receipt; their generated fixture paths are the only variable portions.
+    applies_to: { kind: repository }
+    rests_on:
+      - brief:Acceptance (verbatim from the graph)
+      - packages/cli/test/backfill.test.ts:164-169
+      - packages/cli/test/run.test.ts:1277-1284
+    hunks:
+      - packages/cli/test/backfill.test.ts:164-169
+      - packages/cli/test/run.test.ts:1277-1284
+  - id: record-correction-receipts
+    what: Append the heavy-prefix choice, fixture surprise, refusal-message choice, approval rerun, and notes-reader correction to notes@v0.
+    because: The resumed correction must preserve why the extra heavy hold was removed, how the fixture was repaired, why variable paths are matched structurally, and how the approval concern was checked.
+    rests_on:
+      - brief:Deliverable 2
+      - .interlock/sessions/0065-gate-holds-retry-themselves/store-stays-pinned/notes.yaml:20-43
+    hunks:
+      - .interlock/sessions/0065-gate-holds-retry-themselves/store-stays-pinned/notes.yaml:20-43
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: All workspace typechecks passed; the launcher reported host Node 26.13.0 despite the repository pin.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+  - id: focused-machine-and-store-tests
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter runner exec vitest run test/machineProvider.test.ts test/storeStaysPinned.test.ts --no-color
+    note: Thirty-five tests passed; setup plus gate retained two heavy entries and concurrent requests retained two start/end pairs.
+  - id: graph-approve-harness-reruns
+    result: pass
+    invocation: mise exec -- pnpm --filter cli exec vitest run test/graph/approve.test.ts --maxWorkers=1 --minWorkers=1 --reporter=json
+    note: The seven-test graph approve file passed twice; the subsequent-show approval case did not reproduce the missing-HEAD failure.
+  - id: debrief-valid
+    result: pass
+    invocation: mise exec -- pnpm interlock debrief validate 0065-gate-holds-retry-themselves store-stays-pinned
+    note: The selected revision and notes validated before the final commit.
+  - id: safe-full-suite-excluding-real-codex
+    result: fail
+    invocation: mise exec -- pnpm -r --workspace-concurrency=1 exec vitest run --maxWorkers=1 --minWorkers=1 --exclude '**/realCodexMarkerLaunch.test.ts' --exclude '**/realCodexMarkerOverflow.test.ts' --exclude '**/lineFitsRealCodex.test.ts' --exclude '**/codexHomeOutsideWorktree.test.ts'
+    note: The safe attempt reached 718 passing tests but had 14 failures in pre-existing Codex guard and submodule-receipt coverage; the exact pnpm test gate was not run because the brief forbids launching real Codex.
+open:
+  - The repository-wide pnpm test gate was not run because its standing suite contains deliberate real-Codex integration tests and the binding brief says never run a real codex.
+  - The slow-tests-accounted gate was not run for the same real-Codex prohibition; its package-wide scan invokes every package's Vitest suite.
+  - "The safe excluded suite still has 14 failures outside this node: 13 Codex guard assertions that read the project Codex configuration, plus one submodule-receipt Git exit failure."
+  - Verification through the available pnpm 10.13.1 native launcher reported host Node 26.13.0 rather than the repository's pinned Node 24.14.0.
