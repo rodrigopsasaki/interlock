@@ -53,6 +53,7 @@ export type {
   GateJudgeRequest,
 } from "./gateJudge.ts";
 export {
+  DEFAULT_GATE_HOLD_TIMEOUT_MS,
   explainGateJudgeRefusal,
   GATE_DERIVATION_VERSION,
   judgeGates,

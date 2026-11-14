@@ -31,6 +31,7 @@ export interface JudgeWorktreeRequest {
   readonly narrate: (line: string) => void;
   readonly runnerId: string;
   readonly holdMs: number;
+  readonly holdTimeoutMs?: number;
   readonly substrate: SubstrateClient;
   readonly personEvents?: readonly LedgerEvent[];
   readonly nodeVersionRunner?: NodeVersionRunner;
@@ -71,6 +72,7 @@ export async function judgeWorktree(
     narrate,
     runnerId,
     holdMs,
+    holdTimeoutMs,
     substrate,
     personEvents = [],
     nodeVersionRunner,
@@ -120,6 +122,7 @@ export async function judgeWorktree(
     commitSha,
     runnerId,
     holdMs,
+    ...(holdTimeoutMs === undefined ? {} : { holdTimeoutMs }),
     substrate,
     personEvents,
     ...(nodeVersionRunner === undefined ? {} : { nodeVersionRunner }),

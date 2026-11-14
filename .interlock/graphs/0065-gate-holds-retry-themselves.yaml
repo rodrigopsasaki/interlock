@@ -513,3 +513,110 @@ nodes:
         kind: command
         run: node scripts/gates/slow-tests.ts
         expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1\.5 s'
+
+  - id: slow-tests-load-robust
+    role: implementer
+    depends_on: [codex-stays-home-in-tests]
+    acceptance: |
+      Found 2026-11-13 judging codex-never-real-in-tests: slow-tests-accounted (scripts/gates/slow-tests.ts) judges
+      each test by its wall-clock duration from the vitest report (thresholdMs 1_500 at :8, the half-budget rule at
+      :337), so on a machine running agent sessions it fails on tests that are fast when idle. The judge's run (gate
+      artifact 3af60a07, session 7ef786c2) flagged only other nodes' tests: absorbOutbox.test.ts (two cases, about
+      1.5 to 1.7 s), backfill.test.ts (two cases over half of 10 s), execWithoutHerdr.test.ts (2.2 s) and
+      machineProvider.test.ts (two cases, about 1.8 to 1.9 s). Every node with this gate is held until the machine is
+      idle.
+      - The gate judges each test by its own CPU time, not wall time: the vitest run records per-test CPU (for
+        example process.cpuUsage() deltas taken in a setup file's beforeEach and afterEach, written beside the JSON
+        report), and the undeclared threshold and the half-budget rule apply to CPU time. Wall time is still reported
+        for information. Child processes a test starts count toward its CPU through their own reported usage where
+        the test already collects it; where it cannot, the test is declared a slow integration as today.
+      - The four tests above get declarations that match what they do (slow integrations with a budget and a reason
+        where they start processes or wait on real timers), or are made fast; none is silenced by raising the global
+        threshold.
+      - Tests in packages/runner/test/slowTestsLoadRobust.test.ts, each failing on main ab731fa for its intended
+        assertion: a test that sleeps 2 s without CPU passes the gate while a test that burns 2 s of CPU fails it
+        undeclared; a declared test's half-budget rule uses CPU; the gate's output names CPU and wall time for each
+        flagged test; the gate passes on the current suite while a CPU-bound sibling process loads the machine.
+      Before you file the debrief (and before any refile), end every vitest worker and child process you started and
+      confirm with pgrep that none survives; never run a real codex.
+    gates:
+      - id: slow-tests-load-robust-tests
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/slowTestsLoadRobust.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: slow-tests-accounted
+        kind: command
+        run: node scripts/gates/slow-tests.ts
+        expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1\.5 s'
+
+  - id: interlock-tests-never-see-his-home
+    role: implementer
+    depends_on: [codex-stays-home-in-tests]
+    acceptance: |
+      Found 2026-11-13 auditing Preston 0058's judge: in forty minutes, 126 links landed in the owner's real
+      ~/.local/state/mise/tracked-configs pointing into interlock/.worktrees/busy-gates-wait test fixtures, because
+      interlock's tests run mise with his real HOME and XDG folders, and any test fixture with a package.json is
+      tracked there. Preston 0058 closed the same hazard for Preston; this applies its approach to interlock.
+      - One setup module, test/support/fixture-home.ts at the repository root, runs first in setupFiles of every
+        package's vitest config (ahead of the runner's codex guard setup, which keeps its own behaviour). Before any
+        test module loads it captures the real home once from os.userInfo().homedir, creates a per-run folder under
+        os.tmpdir(), and sets HOME, XDG_STATE_HOME, XDG_CONFIG_HOME, XDG_CACHE_HOME, XDG_DATA_HOME and
+        MISE_STATE_DIR to subfolders of it, so `...process.env` spreads carry them into every subprocess.
+      - The same module wraps child_process (spawn, spawnSync, exec, execSync, execFile, execFileSync, fork) before
+        test modules import it (syncBuiltinESMExports) and throws before calling through when a child's effective
+        HOME (explicit env, else process.env) is the real home, a path under it, missing or undefined; fixture folders
+        under a test run folder are allowed. afterEach fails a test that triggered a violation it did not consume;
+        afterAll reports unconsumed ones. Tests that already set their own fixture HOME keep it.
+      - Tests in packages/runner/test/fixtureHome.test.ts, each failing on main for its intended assertion: a test's
+        HOME, XDG folders and MISE_STATE_DIR are the per-run fixture; a subprocess started with ...process.env sees
+        them; a subprocess given the real HOME fails its test with the exact line naming the command (an inner
+        fixture vitest run, the probe a nonexistent binary so nothing runs); a fixture package.json touched through
+        `mise` inside a test leaves the owner's real mise tracked-configs untouched (its listing compared by name
+        and count before and after, read only, never written); every package's vitest config loads the setup first.
+      - The owner's real mise state is never cleaned or written by this node.
+      Before you file the debrief (and before any refile), end every vitest worker and child process you started and
+      confirm with pgrep that none survives; never run a real codex.
+    gates:
+      - id: interlock-fixture-home-tests
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/fixtureHome.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: slow-tests-accounted
+        kind: command
+        run: node scripts/gates/slow-tests.ts
+        expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1\.5 s'
+
+  - id: store-stays-pinned
+    role: implementer
+    depends_on: [setup-never-holds]
+    acceptance: |
+      Found 2026-11-14 overnight: two resumes hung on pnpm's "The modules directories will be removed and reinstalled
+      from scratch. Proceed?", one for about 28 and one for about 47 minutes, holding the heavy lock. The cause is a
+      store mismatch: each worktree's node_modules/.modules.yaml records the pnpm store it was installed from (the
+      owner's real store under his home), and agents that install under a fixture HOME (as the standing rules
+      require) use a different store and rewrite it. The next setup under the other HOME sees the mismatch and asks to
+      purge. setup-never-holds made that a clean failure instead of a hang; this node makes it not happen.
+      - The runner's worktree setup environment pins npm_config_store_dir: to the store recorded in the worktree's
+        node_modules/.modules.yaml when one exists (read with a YAML parser, the storeDir field, no casts), else to
+        the store pnpm reports for the runner's own environment (`pnpm store path`, resolved once per setup). It sets
+        nothing else from the owner's home and changes no other setup variable. setup-never-holds' non-interactive
+        environment stays as it is.
+      - The pinned store is said in the setup's retained log as one line naming the store and where it came from
+        (recorded in the worktree, or the runner's default).
+      - Tests in packages/runner/test/storeStaysPinned.test.ts with a fake pnpm (no real pnpm, no real store, no
+        network), each failing on main 62dd36d: a worktree whose .modules.yaml names store A, set up under a fixture
+        HOME whose default store is B, runs setup with npm_config_store_dir=A and finishes with no purge and no
+        prompt; a worktree with no .modules.yaml uses the runner's default store; an unreadable or invalid
+        .modules.yaml falls back to the default and says so in the log line; the owner's real store and home are
+        never read or written by the tests.
+      Before you file the debrief (and before any refile), end every vitest worker and child process you started and
+      confirm with pgrep that none survives; never run a real codex.
+    gates:
+      - id: store-stays-pinned-tests
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/storeStaysPinned.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed \([1-9][0-9]*\)'
+      - id: slow-tests-accounted
+        kind: command
+        run: node scripts/gates/slow-tests.ts
+        expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1\.5 s'

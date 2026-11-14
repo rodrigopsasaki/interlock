@@ -1,0 +1,67 @@
+interlock: notes@v0
+node: setup-never-holds
+entries:
+  - kind: choice
+    at: "2026-11-14T05:00:00Z"
+    chose: Route setup and command gates through one detached process-group runner that closes stdin, adds the runner-owned non-interactive environment, and enforces a bounded timeout.
+    because: Both paths currently use the same unsafe spawn behavior, and a shared boundary keeps stdin, environment, timeout, and descendant cleanup consistent.
+  - kind: choice
+    at: "2026-11-14T05:00:00Z"
+    chose: Keep setup's hold timeout at a named 20-minute default and expose the gate hold timeout as an optional judge setting, using the existing run timeout when the session drives gates and 60 minutes for direct callers.
+    because: The acceptance names different setup and gate defaults while the existing local run timeout already expresses the session's gate budget.
+  - kind: choice
+    at: "2026-11-14T05:00:00Z"
+    chose: Represent a timed-out command as an ordinary failed setup or blocked gate with explicit timeout metadata, rather than as a busy refusal or a new ledger event.
+    because: A timeout means the command started and failed to finish, so busy-gates-wait must not retry it and existing receipt and gate state shapes remain compatible.
+  - kind: surprise
+    at: "2026-11-14T05:04:00Z"
+    expected: The first workspace typecheck would validate the new process helper without source errors.
+    observed: TypeScript required an explicit narrowing for ChildProcess.pid before the timeout callback could terminate its process group; the workspace also reported the host Node 26.13.0 instead of the repository's pinned 24.14.0.
+  - kind: choice
+    at: "2026-11-14T05:08:00Z"
+    chose: Cover stdin closure, runner-owned environment, setup timeout, descendant cleanup, heavy-prefix lock release, and gate timeout in one focused runner test file using only fixture commands.
+    because: These are the acceptance boundaries, and fixture processes make the proof independent of pnpm, the owner's machine provider, and any out-of-repository wrapper.
+  - kind: surprise
+    at: "2026-11-14T05:18:00Z"
+    expected: The first fake-command fixtures would exercise the timeout path directly.
+    observed: The real mise startup consumed a very small injected deadline, the generated .mjs fixtures initially used CommonJS require and exited early, and setup log retention required the fixture worktree to have a Git root; the focused tests now use a repo-local fake mise and ESM fixtures.
+  - kind: surprise
+    at: "2026-11-14T05:22:00Z"
+    expected: A Node heavy-prefix fixture could clean its lock after the process group received TERM.
+    observed: Its child-close cleanup returned success before the timeout assertion and its directory removal used the file-oriented rmSync form; a shell prefix with a TERM trap and rmdir now proves the lock release.
+  - kind: choice
+    at: "2026-11-14T05:28:00Z"
+    chose: Apply the same hold timeout and non-interactive environment to the node-engine preflight invoked before setup or gates.
+    because: The preflight also starts the machine prefix, so leaving it on the old unbounded process path would preserve a way for a setup or gate to hold the machine before its main command.
+  - kind: choice
+    at: "2026-11-14T05:30:00Z"
+    chose: Keep timeout narration as one plain line and join the retained output tail with separators.
+    because: The acceptance calls for a single readable timeout line while still naming the command, timeout, last output, and retained log.
+  - kind: surprise
+    at: "2026-11-14T05:45:00Z"
+    expected: The first standing workspace test would preserve all existing gate-output behavior.
+    observed: The timed command helper initially re-encoded gate streams as UTF-8 strings and broke the existing literal-byte retention test; the helper now keeps stdout, stderr, and combined output as Buffers until each consumer explicitly decodes them.
+  - kind: surprise
+    at: "2026-11-14T05:50:00Z"
+    expected: The standing workspace test would leave the worktree's dependency links and fixture isolation intact.
+    observed: The full run reported owner Codex configuration reads, missing fixture Git identity, and a missing tinypool worker; the local node_modules links were also absent afterward, so the worktree was restored with an offline frozen install before targeted verification.
+  - kind: choice
+    at: "2026-11-14T06:00:00Z"
+    chose: Rerun the standing workspace test with the repository-pinned Node 24.14.0 binary and explicit fixture Codex, XDG, mise, and Git identity paths.
+    because: The first run used host Node 26 and observed owner configuration, so its failures did not establish whether the committed work passes under the session's required isolated runtime.
+  - kind: surprise
+    at: "2026-11-14T06:08:00Z"
+    expected: The pinned isolated rerun would remove the standing test failures.
+    observed: Node 24.14.0 and fixture Git identity removed the toolchain and commit-identity failures, but the Codex guard still read a project configuration path and its 13 guard cases plus nested leak fixture failed; one existing gateJudge debrief-ingestion test also exceeded its 5-second timeout. The runner suite otherwise reported 743 passed and 14 failed tests.
+  - kind: surprise
+    at: "2026-11-14T06:20:00Z"
+    expected: The slow-tests-accounted gate would pass after the pinned isolated run.
+    observed: Its serial workspace scan failed on the same runner failures and on many existing CLI and runner tests exceeding the 1.5-second undeclared threshold under this machine's load; the setup-never-holds focused tests remained within their individual budgets.
+  - kind: surprise
+    at: "2026-11-14T05:55:48Z"
+    expected: The authored candidate could name the last code commit while filing from the current worktree head.
+    observed: file-derived requires head_sha to equal the current derived proof, so the candidate must first file at the notes-only head and then use the versioned revise path to select the authored correction naming the last code commit.
+  - kind: choice
+    at: "2026-11-14T05:56:20Z"
+    chose: File the authored candidate at the current derived proof, then revise it with a retained authored correction whose head_sha names the last code commit.
+    because: The filing command proves current session identity, while the debrief contract separately requires head_sha to remain the last code commit; the versioned revision path preserves both proofs.
