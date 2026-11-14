@@ -373,3 +373,4 @@ arcs:
       .interlock/arcs.yaml, mirrored here so Interlock's own graphs can name it)
     graphs:
       - interlock/0066-attempt-records-its-pane
+      - interlock/0067-panes-use-the-gate-node
