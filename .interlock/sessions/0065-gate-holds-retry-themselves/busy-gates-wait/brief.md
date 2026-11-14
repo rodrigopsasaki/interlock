@@ -650,10 +650,21 @@ scope:
   - .interlock/sessions/0065-gate-holds-retry-themselves/codex-stays-home-in-tests/revisions/723c5ccf52115cdc270f22e06355873043a06178aab80ab90a0214e7da2081b8.yaml
   - .interlock/sessions/0065-gate-holds-retry-themselves/codex-stays-home-in-tests/revisions/7fb1b51bb8eb6e77349250e2258ce6f3d110be5d173ac15ea03ef2a34a66ef4d.yaml
   - .interlock/sessions/0065-gate-holds-retry-themselves/codex-stays-home-in-tests/revisions/f95fa6c0a9dc9d99b029fec2062e158f8b8a8e16d8c07a81622f66723128f0f9.yaml
+  - .interlock/sessions/0065-gate-holds-retry-themselves/gate-output-is-plain/brief.md
+  - .interlock/sessions/0065-gate-holds-retry-themselves/gate-output-is-plain/debrief.candidate-2.yaml
+  - .interlock/sessions/0065-gate-holds-retry-themselves/gate-output-is-plain/debrief.candidate.yaml
+  - .interlock/sessions/0065-gate-holds-retry-themselves/gate-output-is-plain/debrief.yaml
+  - .interlock/sessions/0065-gate-holds-retry-themselves/gate-output-is-plain/notes.yaml
+  - .interlock/sessions/0065-gate-holds-retry-themselves/interlock-tests-never-see-his-home/brief.md
   - .interlock/sessions/0065-gate-holds-retry-themselves/sessions-live-all/brief.md
   - .interlock/sessions/0065-gate-holds-retry-themselves/sessions-stop-stops/brief.md
   - .interlock/sessions/0065-gate-holds-retry-themselves/setup-never-holds/brief.md
+  - .interlock/sessions/0065-gate-holds-retry-themselves/setup-never-holds/debrief.candidate.yaml
+  - .interlock/sessions/0065-gate-holds-retry-themselves/setup-never-holds/debrief.yaml
+  - .interlock/sessions/0065-gate-holds-retry-themselves/setup-never-holds/notes.yaml
+  - .interlock/sessions/0065-gate-holds-retry-themselves/setup-never-holds/revisions/1e632bdc5d56977af059676bdd41af9a4eecd35cbb2cc6601a581efd72399bd1.yaml
   - .interlock/sessions/0065-gate-holds-retry-themselves/slow-tests-load-robust/brief.md
+  - .interlock/sessions/0065-gate-holds-retry-themselves/store-stays-pinned/brief.md
   - .interlock/sessions/readme-interlock-concept/readme/brief.md
   - .interlock/sessions/readme-interlock-concept/readme/debrief.yaml
   - .interlock/sessions/readme-interlock-concept/readme/notes.yaml
@@ -1094,6 +1105,7 @@ scope:
   - packages/runner/test/fixtures/herdr-socket-schema.json
   - packages/runner/test/gateCommand.test.ts
   - packages/runner/test/gateJudge.test.ts
+  - packages/runner/test/gateOutputIsPlain.test.ts
   - packages/runner/test/gatesRunOnEnginesNode.test.ts
   - packages/runner/test/gitCeiling.test.ts
   - packages/runner/test/herdr/adapter.test.ts
@@ -1128,6 +1140,7 @@ scope:
   - packages/runner/test/sessionStart.test.ts
   - packages/runner/test/sessionWait.test.ts
   - packages/runner/test/settled.test.ts
+  - packages/runner/test/setupNeverHolds.test.ts
   - packages/runner/test/standingGates.test.ts
   - packages/runner/test/startFailureNotTimeout.test.ts
   - packages/runner/test/submoduleReceipts.test.ts
@@ -1379,8 +1392,8 @@ substrate:
 walk:
   kind: none
   because: the substrate address is none, so there is nothing to ask
-graph_base_sha: ab731fa31a593aeab4e6b26c0c66353f5841cd24
-session: ce20f3e8-c25a-4a26-a427-ab1109d1b0c2
+graph_base_sha: fdd3c346ce3fc1fc01a9f1230a7fb989a1d5f0f9
+session: 5c8dea0d-60a1-437e-9e65-3cd911d5c827
 ---
 
 # Brief · node `busy-gates-wait` · graph `0065-gate-holds-retry-themselves`
