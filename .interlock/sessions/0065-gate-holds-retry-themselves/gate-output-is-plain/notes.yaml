@@ -45,3 +45,11 @@ entries:
     at: "2026-11-14T14:16:00Z"
     expected: The slow-test accounting gate would observe the same green package suite as the focused and regression runs.
     observed: Its own Vitest inventory reported the existing CLI and runner environment failures, so it could not emit the required accounting line; the focused gate itself remained green after the offline link repair.
+  - kind: choice
+    at: "2026-11-14T14:20:00Z"
+    chose: Prepare the debrief with the active Codex runtime and model identity, then keep its head_sha at the last implementation commit f47ce5d.
+    because: The debrief derivation identifies who authored the session, while the later notes-only commit is session evidence rather than a source change and must not replace the code head in the proof manifest.
+  - kind: choice
+    at: "2026-11-14T14:24:00Z"
+    chose: Centralize the already-tested color-forcing variable names in the owned-command source before preparing a fresh candidate.
+    because: The file-derived command requires the candidate head to equal the current commit; this forward source cleanup restores that invariant without amending or forcing the signed history, while preserving the exact environment behavior already verified.
