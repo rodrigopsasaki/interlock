@@ -65,8 +65,10 @@ import {
   storeGateOutput,
 } from "./gateOutput.ts";
 import { checkNodeEngine, type NodeVersionRunner } from "./nodeEngine.ts";
-import { spawnOwned } from "./ownedCommand.ts";
+import { nonInteractiveEnvironment, runOwnedCommandWithTimeout } from "./ownedCommand.ts";
 import { appendUnrecordedNotes } from "./questionNotes.ts";
+
+export const DEFAULT_GATE_HOLD_TIMEOUT_MS = 60 * 60 * 1000;
 
 export const GATE_DERIVATION_VERSION = "runner@0";
 
@@ -103,6 +105,7 @@ export interface GateJudgeRequest {
   readonly commitSha: string;
   readonly runnerId: string;
   readonly holdMs: number;
+  readonly holdTimeoutMs?: number;
   readonly substrate: SubstrateClient;
   readonly personEvents?: readonly LedgerEvent[];
   readonly env?: NodeJS.ProcessEnv;
@@ -120,6 +123,7 @@ export interface GateCommandResult {
   readonly output: string;
   readonly stdout: Buffer;
   readonly stderr: Buffer;
+  readonly timedOut?: boolean;
 }
 
 export type GateCommandRunner = (
@@ -144,43 +148,37 @@ function tokenize(command: string): readonly string[] {
   return command.split(/\s+/).filter((token) => token.length > 0);
 }
 
-function spawnGateCommand(
+async function spawnGateCommand(
   argv: readonly string[],
   cwd: string,
   env: NodeJS.ProcessEnv,
+  timeoutMs: number,
 ): Promise<GateCommandResult> {
-  return new Promise((resolve) => {
-    const bin = argv[0];
-    if (bin === undefined) {
-      const output = "no command configured for this gate";
-      resolve({ exitCode: -1, output, stdout: Buffer.alloc(0), stderr: Buffer.from(output) });
-      return;
-    }
-    const child = spawnOwned(argv, cwd, env, false);
-    let output = "";
-    const stdout: Buffer[] = [];
-    const stderr: Buffer[] = [];
-    child.stdout.on("data", (chunk: Buffer) => {
-      output += legacyOutputForChunk(chunk);
-      stdout.push(chunk);
-    });
-    child.stderr.on("data", (chunk: Buffer) => {
-      output += legacyOutputForChunk(chunk);
-      stderr.push(chunk);
-    });
-    child.on("error", (error) => {
-      output += error.message;
-      stderr.push(Buffer.from(error.message));
-    });
-    child.on("close", (code) =>
-      resolve({
-        exitCode: code ?? -1,
-        output,
-        stdout: Buffer.concat(stdout),
-        stderr: Buffer.concat(stderr),
-      }),
-    );
-  });
+  const bin = argv[0];
+  if (bin === undefined) {
+    const output = "no command configured for this gate";
+    return { exitCode: -1, output, stdout: Buffer.alloc(0), stderr: Buffer.from(output) };
+  }
+  const result = await runOwnedCommandWithTimeout(argv, cwd, env, timeoutMs);
+  return {
+    exitCode: result.code,
+    output: result.output,
+    stdout: Buffer.from(result.stdout),
+    stderr: Buffer.from(result.stderr),
+    timedOut: result.timedOut,
+  };
+}
+
+function lastOutputLines(output: string): string {
+  const lines = output
+    .trim()
+    .split(/\r?\n/)
+    .filter((line) => line.length > 0);
+  return lines.slice(-8).join(" | ") || "(no output)";
+}
+
+function timeoutLine(command: string, timeoutMs: number, output: string, retained: string): string {
+  return `gate command "${command}" timed out after ${timeoutMs}ms; last output: ${lastOutputLines(output)}; retained log: ${retained}`;
 }
 
 function outputHash(output: string): string {
@@ -339,15 +337,31 @@ export async function judgeGates(
     commitSha,
     runnerId,
     holdMs,
+    holdTimeoutMs = DEFAULT_GATE_HOLD_TIMEOUT_MS,
     substrate,
     personEvents = [],
     env = process.env,
     heavy = [],
     nodeVersionRunner,
-    commandRunner = spawnGateCommand,
     outputDirectory,
     narrate,
   } = request;
+  const commandRunner =
+    request.commandRunner ??
+    ((argv: readonly string[], cwd: string, commandEnv: NodeJS.ProcessEnv) =>
+      spawnGateCommand(argv, cwd, commandEnv, holdTimeoutMs));
+  const commandEnv = nonInteractiveEnvironment(env);
+  const versionRunner =
+    nodeVersionRunner ??
+    (async (argv: readonly string[], versionCwd: string, versionEnv: NodeJS.ProcessEnv) => {
+      const result = await runOwnedCommandWithTimeout(argv, versionCwd, versionEnv, holdTimeoutMs);
+      return ok({
+        code: result.code,
+        signal: result.signal,
+        stdout: result.stdout,
+        stderr: result.stderr,
+      });
+    });
   const authoritativeGraphPath =
     request.authoritativeGraphPath ?? join(worktree, ".interlock", "graphs", `${node.graph}.yaml`);
   const parsedGraphHash = request.parsedGraphHash;
@@ -383,7 +397,7 @@ export async function judgeGates(
     }
 
     if (!nodeEngineChecked) {
-      const nodeEngine = await checkNodeEngine(worktree, "gate", env, heavy, nodeVersionRunner);
+      const nodeEngine = await checkNodeEngine(worktree, "gate", commandEnv, heavy, versionRunner);
       if (isErr(nodeEngine)) {
         narrate(nodeEngine.error.because);
         const held = outcome.held(
@@ -415,10 +429,16 @@ export async function judgeGates(
     }
 
     const before = clock.now().monoMs;
-    const { exitCode, output, stdout, stderr } = await commandRunner(
+    const {
+      exitCode,
+      output,
+      stdout,
+      stderr,
+      timedOut = false,
+    } = await commandRunner(
       [...heavy, "mise", "exec", "--", ...tokenize(substituted.value)],
       worktree,
-      env,
+      commandEnv,
     );
     const after = clock.now().monoMs;
 
@@ -453,6 +473,15 @@ export async function judgeGates(
       holdOnStaleDelegation(ledger, clock, node, stale, commandFor, holdMs);
       return err({ kind: "output", refusal: retained.error });
     }
+    const timeout = timedOut
+      ? timeoutLine(
+          substituted.value,
+          holdTimeoutMs,
+          output,
+          `${retained.value.stdout.artifact}, ${retained.value.stderr.artifact}`,
+        )
+      : undefined;
+    if (timeout !== undefined) narrate(timeout);
     const proofWithOutput = { ...proof, gateOutput: retained.value };
 
     const commandId = await commandReceiptId(scopeRoot, scopePaths, gateId, proofWithOutput);
@@ -528,8 +557,8 @@ export async function judgeGates(
     const next = satisfied
       ? gate.satisfied(effectiveReceipt)
       : gate.blocked(
-          `receipt ${effectiveReceipt.id}, ${unmetCriterion(exitCode, pattern)}`,
-          `${gateId}: ${unmetCriterion(exitCode, pattern)}`,
+          timeout ?? `receipt ${effectiveReceipt.id}, ${unmetCriterion(exitCode, pattern)}`,
+          `${gateId}: ${timeout ?? unmetCriterion(exitCode, pattern)}`,
         );
     const moved = proposeGateMove(declaredGateIds, gateId, current, next);
     if (isOk(moved)) {
