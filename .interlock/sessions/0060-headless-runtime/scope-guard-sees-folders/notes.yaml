@@ -45,3 +45,47 @@ entries:
     at: "2026-11-14T22:00:00Z"
     expected: The invalid watch-path fixture would report a regular-file refusal.
     observed: /dev/null was refused earlier as neither a file nor a directory by the watch-path boundary; the focused assertion now names that actual refusal and all 15 judge tests pass.
+  - kind: choice
+    at: "2026-11-14T23:00:00Z"
+    chose: Put the already-installed Node 24.14.0 executable first in the isolated fixture PATH before invoking pnpm through mise exec.
+    because: The fixture MISE_DATA_DIR must not read the owner's tool state, so mise otherwise falls through to Homebrew Node 26 even though the repository pins Node 24.14.0.
+  - kind: surprise
+    at: "2026-11-14T23:00:00Z"
+    expected: The isolated fixture wrapper would preserve the existing PATH when passing it through eval.
+    observed: A space in an existing JetBrains path was split by eval, so the Node check did not run; the suite was not started and the wrapper is being replaced with direct environment assignments.
+  - kind: surprise
+    at: "2026-11-14T23:00:00Z"
+    expected: Prepending Node 24 to PATH would control the child command under mise exec.
+    observed: mise rebuilt the child PATH with its shell-managed shims and Homebrew Node 26 before the prepended path; the version check stayed on Node 26, so the suite was not started.
+  - kind: choice
+    at: "2026-11-14T23:00:00Z"
+    chose: Re-enter the preinstalled Node 24 and pnpm paths inside the shell command passed to mise exec.
+    because: This keeps mise, HOME, XDG, corepack and package-manager state in the fixture while bypassing only mise's PATH selection, which cannot see the real installed tool under the isolated MISE_DATA_DIR.
+  - kind: surprise
+    at: "2026-11-14T23:00:00Z"
+    expected: The Node 24 and pinned pnpm paths would select the standalone pnpm binary.
+    observed: Node 24's directory also contains a Corepack pnpm shim, which took precedence and downloaded pnpm 12 before the run was stopped; the captured run has no repository test result.
+  - kind: surprise
+    at: "2026-11-14T23:00:00Z"
+    expected: Setting HOME and CODEX_HOME in the outer fixture would isolate every Codex guard subprocess.
+    observed: The guard test setup explicitly defaults INTERLOCK_CODEX_GUARD_USER_HOME to homedir(), so 13 cases still read the owner's .codex/config.toml until that test-specific override is set.
+  - kind: choice
+    at: "2026-11-14T23:00:00Z"
+    chose: Set INTERLOCK_CODEX_GUARD_USER_HOME to the fixture home for full-suite runs.
+    because: The test guard's explicit user-home input is part of the subprocess fixture boundary; using it prevents any test process from reading the owner's Codex configuration.
+  - kind: surprise
+    at: "2026-11-14T23:00:00Z"
+    expected: The repaired package links would remain stable during the full suite.
+    observed: Another pnpm test process was concurrently running in this same worktree while the suite ran, and Vitest later reported a transient missing @vitest/utils worker dependency; no source assertion failed for this node.
+  - kind: choice
+    at: "2026-11-14T23:00:00Z"
+    chose: Compare the failing Codex guard test on a detached origin/main checkout before changing implementation code.
+    because: The acceptance requires fixing failures caused by this node while preserving unrelated baseline failures; origin/main supplies the direct control for that distinction.
+  - kind: surprise
+    at: "2026-11-14T23:00:00Z"
+    expected: The detached origin/main Codex guard test would be clean under the same isolated fixture.
+    observed: origin/main at 8b1698ce produced the same 13 failed Codex guard tests and the same /Users/rodrigosasaki/.codex/config.toml refusal, proving those failures predate this node.
+  - kind: surprise
+    at: "2026-11-14T23:00:00Z"
+    expected: A final full-suite run with the explicit guard-home fixture would start every workspace test.
+    observed: A concurrent same-worktree pnpm test process left the workspace without the ledger vitest executable, so the final attempt stopped at vitest command not found before any test; the earlier Node 24 run reached scopeGuard.test.ts with 13 passing tests.
