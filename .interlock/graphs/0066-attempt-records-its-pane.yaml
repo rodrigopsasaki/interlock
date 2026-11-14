@@ -1,0 +1,127 @@
+interlock: graph@v0
+id: 0066-attempt-records-its-pane
+arc: bring-october-back
+ask: An attempt records the herdr pane it opened, in the ledger, the moment the pane opens; the record is kept when the attempt ends; every position read shows each attempt's pane; and a ledger written before this change still reads, with the pane stated as unrecorded.
+derivation:
+  kind: model
+  model: gilb
+  prompt: attempt-records-its-pane-2026-11-14
+authorization:
+  granted_by: Rodrigo Sasaki
+  mandate: loom-feed-2026-11-04  # "You're free to do changes on phyxius and interlock too", 23:25 UTC
+  approver: Rodrigo Sasaki; Gilb relays the recorded approval and coordinates cleared-node merges. The cross-vendor vet is advisory.
+read: >
+  Arc: bring-october-back, "Bring October's Preston back" (Preston's .interlock/arcs.yaml, mirrored in this repository's
+  .interlock/arcs.yaml the way agents-set-up-as-one already is). Rodrigo, 2026-11-05 12:40 UTC, project chat: "I want
+  the old review, the agent, the steps. The real climb. I want the good results back". Two things on that arc need to
+  know which herdr pane an attempt ran in: Preston's live-sessions count (Preston graph 0074-setup-sees-every-agent,
+  which today shows 10 holders for 4 real agents because it counts stale and duplicate panes), and the orchestrator
+  script that quits a node's agent pane after the node files its debrief. Preston's 0074 does not cover it: it reads
+  the process table and Interlock's sessions list and never asks Interlock which pane an attempt opened.
+
+  What is true today, from source (main bd4c9ca4). `interlock run` prints "pane w12:pXX opened" and the runner appends
+  that line as narration (packages/runner/src/sessionDrive.ts:918, narrate(`pane ${pane.id} opened`)), but the pane
+  itself is kept only in a local variable (sessionDrive.ts:866, pane = openedPane.value). The attempt's record is its
+  session-started event, written earlier (sessionDrive.ts:432) before any pane exists, and nothing later adds the pane:
+  SessionView (packages/ledger/src/projection.ts:30-50) has no pane field, PositionAttempt
+  (packages/face/src/attempts.ts:20-35) has none, and the one pane the position reads show is positions@v2's live
+  attempt `pane` (packages/cli/src/position.ts:67, :187), which is observed from herdr at read time and is "unknown"
+  once herdr cannot find the pane. The cockpit's loom builds each attempt from `interlock position` (position@v3) and
+  reads `pane` from it (Preston cockpit/loom/serve.ts:452-458), so every attempt shows pane None. The only trace of
+  the pane is the narration line, which no reader parses, and which a resumed attempt writes again for its own new
+  pane with nothing tying it to the structure.
+
+  What changes, and why this way.
+  - A new ledger event, pane-opened, carrying the session id and the pane as herdr names it: id (for example
+    "w12:p3") and workspace when the runtime gives one. It is written by the session drive immediately after
+    runtime.openPane succeeds, before the machine provider's admission, the pane process check, or any later step
+    that can refuse the start, so an attempt that opened a pane and was then refused still names the pane it left
+    open. It is a new event, not a new field on session-started, because session-started is written before the pane
+    exists and a recorded event is never rewritten.
+  - The projection keeps the latest pane-opened for each session on its SessionView as a recorded-or-unknown fact,
+    written the way startedAt is (SessionStartedAt, packages/ledger/src/session.ts:143-160): known with the pane, or
+    unknown with a because ("its journal carries no pane-opened event for it, as a session written before the pane
+    was recorded does not"). A session ending (debrief filed, outcome set, lease released or expired) changes
+    nothing about it: the record is the pane the attempt opened, not whether the pane is still open.
+  - Versioning, the way the ledger already versions (event@v11 arrived with the probe event, dcbfd51e, with
+    bf2d7aa4 keeping older tags from carrying it): EVENT_SHAPE becomes event@v12, schemas/event@v12.json is added, and
+    event@v11 joins the table of prior shapes beside event@v10 so every earlier journal line still reads. A line
+    tagged with an earlier shape that carries a pane-opened event is refused, as an earlier-tagged probe event is
+    (packages/ledger/src/envelope.ts:52-65). That table today refuses an earlier-tagged line that carries provider
+    attribution unless it is tagged event@v10, or that is a probe event; once event@v11 is a prior shape it must be
+    exempt from both, since it introduced the probe event and carries provider attribution. Nothing rewrites an old
+    journal.
+  - position@v3 becomes position@v4 (packages/face/src/position.ts:17). Each attempt gains `pane`: {state:"known",
+    id, workspace?} or {state:"unknown", because}. The cockpit and any other reader tolerates position@v3, where the
+    field is absent, as it does now. docs/shapes.md and the schemas folder are regenerated by
+    `pnpm interlock schema reference`, and the shapes-fresh check holds. positions@v2's observed live `pane` is not
+    changed; it keeps meaning "what herdr says now".
+  - A resume is a new session with its own id and its own pane-opened event; the earlier attempt keeps its pane. No
+    other reader is changed here: Preston reads `pane.id` off each position attempt, and says so in its own graph.
+
+  Out of scope: closing a pane (the orchestrator script does that with herdr, from the pane id this records); Preston's
+  live-sessions count and the cockpit (they adopt the field in their own graphs); `interlock sessions` rows, which list
+  exec sessions only.
+
+  Laws: AGENTS.md. No comments in packages/*/src; strict TypeScript with no `as`, `!`, `any` or `as unknown as`;
+  Biome. Tests use a temp home and a fake runtime with the real ledger, and never a real herdr, agent CLI or the real
+  HOME.
+
+gates:
+  - id: approved
+    kind: human
+
+nodes:
+  - id: attempt-records-its-pane
+    role: implementer
+    acceptance: |
+      As the read. Allowed paths: packages/ledger/, packages/runner/, packages/face/, packages/cli/, schemas/,
+      docs/shapes.md, scripts/gates/attempt-pane-proven.ts, and this graph's session folder.
+      1. The ledger gains the pane-opened event ({session, pane: {id, workspace?}}), validated by isLedgerEvent and
+         replayed into SessionView as a recorded-or-unknown pane; EVENT_SHAPE is event@v12 with schemas/event@v12.json;
+         event@v11 is a prior shape; every journal fixture under packages/ledger/test/fixtures still replays; an
+         earlier-tagged line carrying pane-opened is refused.
+      2. The session drive writes pane-opened right after runtime.openPane succeeds and before every later step that
+         can refuse the start; a resume writes its own.
+      3. position@v4: each PositionAttempt carries pane (known with id and workspace, or unknown with a because);
+         position@v3 documents still read; docs/shapes.md and schemas are regenerated.
+      4. Tests, each failing on main bd4c9ca4 for its intended assertion, with a temp home, a fake runtime and the
+         real ledger, exactly these named cases:
+         - "a run records the pane it opened" (packages/runner/test/paneRecorded.test.ts: the journal holds one
+           pane-opened for the session, with the fake runtime's pane id and workspace, after session-started and
+           before the opening narration)
+         - "a resume records its new pane, and the earlier attempt keeps its own" (same file: two sessions on one node,
+           two panes, each projected to its own)
+         - "a start refused after the pane opened still records that pane" (same file: a machine provider whose pane
+           process check fails; the session ends refused and its pane is recorded)
+         - "an older record without a pane still reads" (packages/ledger/test/paneRecorded.test.ts: a journal of
+           event@v10 and event@v11 lines replays; the session's pane is unknown with its because; no refusal)
+         - "the pane survives the attempt ending" (same file: after debrief-filed, outcome-set and lease-expired the
+           session still projects the pane it opened)
+         - "the position read shows each attempt's pane, and position@v3 still reads" (packages/face/test/
+           attemptPane.test.ts: a known pane on a recorded attempt, an unknown pane with its because on an older one,
+           and a position@v3 document parsed without error)
+      5. Proof: scripts/gates/attempt-pane-proven.ts runs the three test
+         files above once with vitest's JSON reporter, fails on a missing file, and prints "attempt pane proven: 6
+         named cases passed" only when the run exits zero, every title above passes exactly once, and there are no
+         failures, skips, todos, missing summaries or extra cases in those files.
+      6. Existing tests keep passing, including packages/ledger replay tests over the old fixtures. New tests are
+         declared or baselined as the slow-tests-accounted gate requires. No test starts a real herdr or agent CLI or
+         uses the real HOME.
+      Before you file the debrief (and before any refile), end every vitest worker and child process you started and
+      confirm with pgrep that none survives.
+    gates:
+      - id: branch-contains-main
+        kind: command
+        run: git merge-base --is-ancestor origin/main HEAD
+      - id: attempt-pane-proven
+        kind: command
+        run: node scripts/gates/attempt-pane-proven.ts
+        expect_output: 'attempt pane proven: 6 named cases passed'
+      - id: shapes-fresh
+        kind: command
+        run: pnpm interlock schema reference --check
+      - id: slow-tests-accounted
+        kind: command
+        run: node scripts/gates/slow-tests.ts
+        expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1\.5 s'
