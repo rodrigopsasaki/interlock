@@ -95,3 +95,7 @@ entries:
     at: "2026-11-14T15:28:47Z"
     asked: "The immutable brief names graph base fdd3c346, but the existing canonical debrief names ab731fa; should I preserve the existing debrief identity for revise, or should the debrief filing path be repaired to accept the current brief identity?"
     options: [preserve existing identity, repair filing path]
+  - kind: choice
+    at: "2026-11-14T16:36:26Z"
+    chose: Preserve graph_base_sha ab731fa and session_start_sha 7e33ce5 in debrief-candidate-3.yaml before revising.
+    because: Rodrigo explicitly directed this node to preserve the existing canonical debrief identity and not change the filing path; the candidate must match the existing revision identity for debrief revise to select it.
