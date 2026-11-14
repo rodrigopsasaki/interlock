@@ -99,3 +99,12 @@ entries:
     at: "2026-11-14T16:36:26Z"
     chose: Preserve graph_base_sha ab731fa and session_start_sha 7e33ce5 in debrief-candidate-3.yaml before revising.
     because: Rodrigo explicitly directed this node to preserve the existing canonical debrief identity and not change the filing path; the candidate must match the existing revision identity for debrief revise to select it.
+  - kind: surprise
+    at: "2026-11-14T16:37:08Z"
+    expected: debrief revise would select debrief-candidate-3.yaml after its graph and session identity were aligned with the existing canonical debrief.
+    observed: "debrief revise: graph_base_sha does not match the session brief"
+    because: The filing path still validates the candidate identity against the immutable brief's fdd3c346 graph base, despite Rodrigo's explicit instruction to preserve the existing canonical ab731fa identity.
+  - kind: choice
+    at: "2026-11-14T16:40:00Z"
+    chose: Remove the stale canonical debrief filed against ab731fa in a signed forward commit, then file the candidate against the current brief graph base fdd3c346 through the normal first-filing path.
+    because: Rodrigo resolved that a debrief must match the current approved graph version and explicitly authorized replacing the superseded artifact without changing interlock's filing code.
