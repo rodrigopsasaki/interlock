@@ -32,6 +32,7 @@ export {
   execRunRoot,
   execSocketPathLength,
   execSocketSecretDigest,
+  listExecSessionRecords,
   listExecSessions,
   readExecTranscript,
   readLatestRecord,
@@ -40,6 +41,14 @@ export {
   SESSION_SHAPE,
   TRANSCRIPT_SHAPE,
 } from "./execRuntime.ts";
+export type { ExecStopMode, ExecStopTarget, StopSignal } from "./execStop.ts";
+export {
+  dispatchExecStopIntent,
+  recordExecStopIntent,
+  replayExecStopIntents,
+  stopExecSession,
+  stopSignalFor,
+} from "./execStop.ts";
 export type { GateCommand, PlaceholderRefusal } from "./gateCommand.ts";
 export {
   declaredGateIds,
@@ -104,6 +113,7 @@ export {
   machineDelivery,
   machineIntent,
   reconcileMachineOnStart,
+  stopMachinePane,
 } from "./machineOutbox.ts";
 export type { MachineAttempt, MachineProvider } from "./machineProvider.ts";
 export {

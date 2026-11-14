@@ -1614,6 +1614,7 @@ One agent process working one node in one pane.
 | `runnerBoot` | string | yes |  |
 | `launchNonce` | string | yes |  |
 | `controlSecret` | string | yes |  |
+| `controlSocketPath` | string | no |  |
 | `startedAt` | string | yes |  |
 | `endedAt` | unknown | yes |  |
 | `state` | one of `"running"`, `"done"`, `"failed"`, `"killed"` | yes |  |

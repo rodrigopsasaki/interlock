@@ -1,0 +1,15 @@
+interlock: notes@v0
+node: sessions-stop-stops
+entries:
+  - kind: choice
+    at: "2026-11-14T16:00:00Z"
+    chose: "Use one runner exec-stop adapter for intent persistence, control-socket dispatch, delivery recording, replay, and phase-stop consumption; make the CLI call that adapter after validating the closed sessions grammar."
+    because: "The acceptance requires the exec timeout and the human stop to share an outbox effect, while the CLI must not signal a process itself and the phase driver must decide whether to continue or hold the attempt."
+  - kind: surprise
+    at: "2026-11-14T16:32:00Z"
+    expected: "A live exec session record would be readable as soon as its generation filename appeared."
+    observed: "The reader could see a generation while its exclusive writer was still flushing JSON, so a stop/list read could hit truncated JSON; it now skips partial generations and uses the newest valid record."
+  - kind: choice
+    at: "2026-11-14T16:35:00Z"
+    chose: "Add controlSocketPath as an optional session@v0 field and omit it from the sessions@v0 projection."
+    because: "The runner needs a durable locator for a human stop to reach the phase anchor, while old session records and the existing public sessions listing must remain readable and shape-compatible."
