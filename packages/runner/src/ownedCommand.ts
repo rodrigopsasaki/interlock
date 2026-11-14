@@ -13,9 +13,9 @@ export const DEFAULT_COMMAND_TERM_GRACE_MS = 250;
 export interface TimedOwnedCommandResult {
   readonly code: number;
   readonly signal: NodeJS.Signals | null;
-  readonly stdout: string;
-  readonly stderr: string;
-  readonly output: string;
+  readonly stdout: Buffer;
+  readonly stderr: Buffer;
+  readonly output: Buffer;
   readonly timedOut: boolean;
 }
 
@@ -98,38 +98,44 @@ export function runOwnedCommandWithTimeout(
       resolve({
         code: -1,
         signal: null,
-        stdout: "",
-        stderr: error instanceof Error ? error.message : String(error),
-        output: error instanceof Error ? error.message : String(error),
+        stdout: Buffer.alloc(0),
+        stderr: Buffer.from(error instanceof Error ? error.message : String(error)),
+        output: Buffer.from(error instanceof Error ? error.message : String(error)),
         timedOut: false,
       });
       return;
     }
 
-    let stdout = "";
-    let stderr = "";
-    let output = "";
+    const stdout: Buffer[] = [];
+    const stderr: Buffer[] = [];
+    const output: Buffer[] = [];
     let timedOut = false;
     let termination: Promise<void> | undefined;
     let timer: NodeJS.Timeout | undefined;
-    child.stdout.setEncoding("utf8");
-    child.stderr.setEncoding("utf8");
-    child.stdout.on("data", (chunk: string) => {
-      stdout += chunk;
-      output += chunk;
+    child.stdout.on("data", (chunk: Buffer) => {
+      stdout.push(chunk);
+      output.push(chunk);
     });
-    child.stderr.on("data", (chunk: string) => {
-      stderr += chunk;
-      output += chunk;
+    child.stderr.on("data", (chunk: Buffer) => {
+      stderr.push(chunk);
+      output.push(chunk);
     });
     child.on("error", (error) => {
-      stderr += error.message;
-      output += error.message;
+      const message = Buffer.from(error.message);
+      stderr.push(message);
+      output.push(message);
     });
     child.on("close", async (code, signal) => {
       if (timer !== undefined) clearTimeout(timer);
       if (termination !== undefined) await termination;
-      resolve({ code: code ?? -1, signal, stdout, stderr, output, timedOut });
+      resolve({
+        code: code ?? -1,
+        signal,
+        stdout: Buffer.concat(stdout),
+        stderr: Buffer.concat(stderr),
+        output: Buffer.concat(output),
+        timedOut,
+      });
     });
     child.stdin.end();
     timer = setTimeout(() => {

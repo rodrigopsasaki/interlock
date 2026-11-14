@@ -162,9 +162,9 @@ async function spawnGateCommand(
   const result = await runOwnedCommandWithTimeout(argv, cwd, env, timeoutMs);
   return {
     exitCode: result.code,
-    output: result.output,
-    stdout: Buffer.from(result.stdout),
-    stderr: Buffer.from(result.stderr),
+    output: result.output.toString("utf8"),
+    stdout: result.stdout,
+    stderr: result.stderr,
     timedOut: result.timedOut,
   };
 }
@@ -358,8 +358,8 @@ export async function judgeGates(
       return ok({
         code: result.code,
         signal: result.signal,
-        stdout: result.stdout,
-        stderr: result.stderr,
+        stdout: result.stdout.toString("utf8"),
+        stderr: result.stderr.toString("utf8"),
       });
     });
   const authoritativeGraphPath =

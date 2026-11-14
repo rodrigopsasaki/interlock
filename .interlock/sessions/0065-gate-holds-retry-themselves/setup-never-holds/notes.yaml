@@ -37,3 +37,11 @@ entries:
     at: "2026-11-14T05:30:00Z"
     chose: Keep timeout narration as one plain line and join the retained output tail with separators.
     because: The acceptance calls for a single readable timeout line while still naming the command, timeout, last output, and retained log.
+  - kind: surprise
+    at: "2026-11-14T05:45:00Z"
+    expected: The first standing workspace test would preserve all existing gate-output behavior.
+    observed: The timed command helper initially re-encoded gate streams as UTF-8 strings and broke the existing literal-byte retention test; the helper now keeps stdout, stderr, and combined output as Buffers until each consumer explicitly decodes them.
+  - kind: surprise
+    at: "2026-11-14T05:50:00Z"
+    expected: The standing workspace test would leave the worktree's dependency links and fixture isolation intact.
+    observed: The full run reported owner Codex configuration reads, missing fixture Git identity, and a missing tinypool worker; the local node_modules links were also absent afterward, so the worktree was restored with an offline frozen install before targeted verification.

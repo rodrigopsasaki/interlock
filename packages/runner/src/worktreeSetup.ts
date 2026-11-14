@@ -108,7 +108,7 @@ async function spawnSetupCommand(
       : { kind: "exit", code: result.code };
   return {
     exit,
-    tail: appendTail(Buffer.alloc(0), Buffer.from(result.output)),
+    tail: appendTail(Buffer.alloc(0), result.output),
     timedOut: result.timedOut,
   };
 }
@@ -133,8 +133,8 @@ export async function runSetupCommand(
       return ok({
         code: result.code,
         signal: result.signal,
-        stdout: result.stdout,
-        stderr: result.stderr,
+        stdout: result.stdout.toString("utf8"),
+        stderr: result.stderr.toString("utf8"),
       });
     });
   const nodeEngine = await checkNodeEngine(cwd, "worktree setup", commandEnv, heavy, versionRunner);
