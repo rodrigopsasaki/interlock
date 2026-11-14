@@ -519,42 +519,49 @@ it("keeps pane launches on today's herdr-not-ready refusal", async () => {
   expect(result.message).toBe("herdr's server is not running; open herdr and run again");
 }, 30_000);
 
-it("does not call an injected failing herdr runtime for exec", async () => {
-  const cwd = fixture();
-  const script = join(cwd, "injected-runtime.mjs");
-  writeFileSync(script, "process.exit(0);\n");
-  const catalogue = join(cwd, "runtimes.yaml");
-  writeFileSync(catalogue, execCatalogue(process.execPath, script));
-  commitAll(cwd, "add injected-runtime fixture");
-  process.env["INTERLOCK_RUNTIMES"] = catalogue;
-  await runGraphApprove(["demo", "--by", "Rodrigo Sasaki", "--because", "fixture"], { cwd });
-  herdrFreeEnvironment();
-  const calls: string[] = [];
-  const never = (): never => {
-    throw new Error("injected herdr runtime method called");
-  };
-  const injected: Runtime = {
-    checkServer: () => {
-      calls.push("checkServer");
-      return Promise.resolve(err({ kind: "not-ready", message: "injected failure" }));
-    },
-    openPane: never,
-    startAgent: never,
-    reportIdentity: never,
-    prompt: never,
-    waitUntil: never,
-    read: never,
-    sendKeys: never,
-    sendPaneKeys: never,
-    closePane: never,
-  };
+slowIntegration(
+  "does not call an injected failing herdr runtime for exec",
+  {
+    budgetMs: 30_000,
+    reason: "integrates an approved exec run while proving herdr is not touched",
+  },
+  async () => {
+    const cwd = fixture();
+    const script = join(cwd, "injected-runtime.mjs");
+    writeFileSync(script, "process.exit(0);\n");
+    const catalogue = join(cwd, "runtimes.yaml");
+    writeFileSync(catalogue, execCatalogue(process.execPath, script));
+    commitAll(cwd, "add injected-runtime fixture");
+    process.env["INTERLOCK_RUNTIMES"] = catalogue;
+    await runGraphApprove(["demo", "--by", "Rodrigo Sasaki", "--because", "fixture"], { cwd });
+    herdrFreeEnvironment();
+    const calls: string[] = [];
+    const never = (): never => {
+      throw new Error("injected herdr runtime method called");
+    };
+    const injected: Runtime = {
+      checkServer: () => {
+        calls.push("checkServer");
+        return Promise.resolve(err({ kind: "not-ready", message: "injected failure" }));
+      },
+      openPane: never,
+      startAgent: never,
+      reportIdentity: never,
+      prompt: never,
+      waitUntil: never,
+      read: never,
+      sendKeys: never,
+      sendPaneKeys: never,
+      closePane: never,
+    };
 
-  const result = await runInterlockRun(["demo", "a", "--runtime", "fixture"], {
-    cwd,
-    runtime: injected,
-  });
+    const result = await runInterlockRun(["demo", "a", "--runtime", "fixture"], {
+      cwd,
+      runtime: injected,
+    });
 
-  expect(result.exitCode).toBe(0);
-  expect(calls).toEqual([]);
-  await assertDoneExecPhases(cwd);
-}, 30_000);
+    expect(result.exitCode).toBe(0);
+    expect(calls).toEqual([]);
+    await assertDoneExecPhases(cwd);
+  },
+);

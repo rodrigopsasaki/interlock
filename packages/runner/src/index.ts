@@ -115,7 +115,7 @@ export {
   reconcileMachineOnStart,
   stopMachinePane,
 } from "./machineOutbox.ts";
-export type { MachineAttempt, MachineProvider } from "./machineProvider.ts";
+export type { BusyPolicy, MachineAttempt, MachineProvider } from "./machineProvider.ts";
 export {
   loadMachine,
   machinePath,

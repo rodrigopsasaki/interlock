@@ -1197,19 +1197,24 @@ No vocabulary entry for `machine`.
 ### Versions
 
 - `machine@v0`: the first version.
+- `machine@v1`: retyped `provider`.
 
-### Fields (`machine@v0`)
+### Fields (`machine@v1`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `interlock` | the literal `"machine@v0"` | yes |  |
-| `provider` | one of `?`, `?` | yes | `?`: no fields beyond `kind`; `?`: admit, release, env, heavy, cite (optional) |
+| `interlock` | the literal `"machine@v1"` | yes |  |
+| `provider` | one of `?`, `?` | yes | `?`: no fields beyond `kind`; `?`: admit, release, env, heavy, cite (optional), busy (optional) |
 
 ### Examples
 
 #### `machine@v0`
 
 _No example of `machine@v0` was found in the corpus._
+
+#### `machine@v1`
+
+_No example of `machine@v1` was found in the corpus._
 
 ## notes
 

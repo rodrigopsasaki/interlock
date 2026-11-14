@@ -1,0 +1,113 @@
+interlock: debrief@v2
+graph: 0065-gate-holds-retry-themselves
+node: busy-gates-wait
+role: implementer
+graph_base_sha: fdd3c346ce3fc1fc01a9f1230a7fb989a1d5f0f9
+session_start_sha: 3a2d51262e1edc448ec28a59cd1c05c08f2f6ac0
+head_sha: b210fd23aa7f6ef6c06c8e083a25a791cab05a04
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: assert-node-engine-boundary-argv
+    what: Added exact node-engine argv assertions for both the ordinary machine path and the busy boundary path, including the shell script and command tail.
+    because: The node-engine probe is part of the shared busy allowance, while machine@v0 must keep its argv byte-identical.
+    rests_on:
+      - packages/runner/test/busyGatesWait.test.ts:129-204
+    hunks:
+      - packages/runner/test/busyGatesWait.test.ts:129-204
+  - id: preserve-started-command-judgement
+    what: Preserved started-command judgement, marker dominance, hidden boundary variables, gate-owned busy-shaped reports, and ambiguous exit handling in the boundary regression cases.
+    because: A gate that starts is its own proof boundary; the acceptance explicitly keeps ordinary gate behavior and judges a gate-written report as the gate's own result.
+    rests_on:
+      - packages/runner/test/busyGatesWait.test.ts:127-322
+    hunks:
+      - packages/runner/test/busyGatesWait.test.ts:127-322
+  - id: carry-busy-policy-through-every-door
+    what: Added busy refusals through judgeWorktree, backfill, and the interlock judge command, each admitting on a retry, and extended the drive fixture to inject the policy and command runner.
+    because: Every judging door must apply the same machine policy, so a retry proven only in judgeGates would leave two production entry points untested.
+    rests_on:
+      - packages/runner/test/busyGatesWait.test.ts:599-639
+      - packages/cli/test/judgeProvider.test.ts:149-175
+      - packages/runner/test/machineProvider.test.ts:813-865
+      - packages/runner/test/support/driveFixture.ts:186-221
+    hunks:
+      - packages/runner/test/busyGatesWait.test.ts:599-639
+      - packages/cli/test/judgeProvider.test.ts:149-175
+      - packages/runner/test/machineProvider.test.ts:813-865
+      - packages/runner/test/support/driveFixture.ts:186-221
+  - id: retain-replayable-busy-receipt-identity
+    what: Proved that identical busy refusals from separate judgements carry distinct receipt and judgement identities, replay to the same projection, and assess as not-recorded rather than as a run.
+    because: Busy is a harness refusal, not command execution; its proof must remain distinguishable and replayable without being mistaken for a gate run.
+    rests_on:
+      - packages/runner/test/busyGatesWait.test.ts:641-692
+    hunks:
+      - packages/runner/test/busyGatesWait.test.ts:641-692
+  - id: renew-leases-during-busy-drive
+    what: Added exec and pane drive tests that cross several lease periods, sweep between busy backoffs, and assert renewal continues until after the outcome event.
+    because: A busy wait is still live runner work; the sweeper must abandon nothing while the runner holds the node and must stop only after the outcome is recorded.
+    rests_on:
+      - packages/runner/test/execWithoutHerdr.test.ts:190-322
+      - packages/runner/test/support/driveFixture.ts:186-221
+    hunks:
+      - packages/runner/test/execWithoutHerdr.test.ts:190-322
+      - packages/runner/test/support/driveFixture.ts:186-221
+  - id: preserve-test-fixture-isolation
+    what: Isolated the new ledger and drive artifacts under the package test runs directory and kept the fixture's existing runtime and Git setup seams injectable.
+    because: The lease proof needs to inspect the live ledger while ensuring test artifacts do not escape into packages/runner/outbox or inherit the parent repository.
+    rests_on:
+      - packages/runner/test/support/driveFixture.ts:186-221
+      - packages/runner/test/execWithoutHerdr.test.ts:193-197
+      - packages/runner/test/execWithoutHerdr.test.ts:285-297
+    hunks:
+      - packages/runner/test/support/driveFixture.ts:186-221
+      - packages/runner/test/execWithoutHerdr.test.ts:193-197
+      - packages/runner/test/execWithoutHerdr.test.ts:285-297
+  - id: record-round-notes
+    what: Recorded the choices and surprises for the public-door, replay, lease, dependency-link, and standing-gate checks in notes@v0.
+    because: The session trace must preserve both the implementation choices and the unresolved standing-gate evidence without rewriting the earlier session record.
+    rests_on:
+      - .interlock/sessions/0065-gate-holds-retry-themselves/busy-gates-wait/notes.yaml:69-93
+    hunks:
+      - .interlock/sessions/0065-gate-holds-retry-themselves/busy-gates-wait/notes.yaml:69-93
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: All workspace TypeScript projects passed at the implementation head.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Biome checked the workspace successfully; it emitted one pre-existing regex-literal warning without failing.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+    note: No source comments were reported in packages/*/src.
+  - id: test
+    result: fail
+    invocation: mise exec -- pnpm test
+    note: The workspace run failed in existing Codex-guard integration cases under the owner configuration and later lost a tinypool worker; no passing full-workspace receipt is claimed, and real Codex was not rerun because this session forbids it.
+  - id: busy-gates-tests
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter runner exec vitest run test/busyGatesWait.test.ts test/busyPrefix.test.ts test/machineProvider.test.ts test/gateJudge.test.ts --passWithNoTests=false
+    note: 75 tests passed across four focused runner files at the final code head.
+  - id: busy-schema-tests
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter schemas exec vitest run test/machineV1.test.ts test/reference.test.ts --passWithNoTests=false
+    note: 6 tests passed.
+  - id: busy-hold-face-tests
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter face exec vitest run test/busyHold.test.ts --passWithNoTests=false
+    note: 1 test passed.
+  - id: shapes-fresh
+    result: pass
+    invocation: mise exec -- pnpm interlock schema reference --check
+    note: The reference shape check reported fresh after recreating this worktree's frozen-lockfile pnpm links.
+  - id: slow-tests-accounted
+    result: fail
+    invocation: mise exec -- node scripts/gates/slow-tests.ts
+    note: The accounting command failed in package integration tests; it was not rerun through a real Codex executable because the session explicitly forbids that.
+open:
+  - The implementation has no known product acceptance gap in the focused proof, but the standing full-workspace test and slow-tests-accounted receipts remain unresolved under the explicit no-real-Codex constraint; a future run needs a fixture-only Codex integration path or an authorized environment.

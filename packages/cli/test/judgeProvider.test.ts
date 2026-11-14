@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { createControlledClock } from "@phyxiusjs/clock";
+import { type Clock, createControlledClock } from "@phyxiusjs/clock";
 import { ok, unwrap } from "@phyxiusjs/fp";
 import { createLedger, sessionRuntime } from "ledger";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -69,7 +69,17 @@ async function session() {
   });
   await ledger.close();
 }
-function provider(envBody: string) {
+function provider(
+  envBody: string,
+  busy:
+    | {
+        readonly exit_code: number;
+        readonly attempts: number;
+        readonly first_backoff_ms: number;
+        readonly max_backoff_ms: number;
+      }
+    | undefined = undefined,
+) {
   const env = join(root, "env.cjs");
   const heavy = join(root, "heavy.cjs");
   writeFileSync(env, envBody);
@@ -80,15 +90,27 @@ function provider(envBody: string) {
   writeFileSync(
     machine,
     JSON.stringify({
-      interlock: "machine@v0",
+      interlock: busy === undefined ? "machine@v0" : "machine@v1",
       provider: {
         admit: ["false"],
         release: ["false"],
         env: [process.execPath, env],
         heavy: [process.execPath, heavy],
+        ...(busy === undefined ? {} : { busy }),
       },
     }),
   );
+}
+
+function advancingClock(): Clock {
+  const controlled = createControlledClock({ initialTime: 0 });
+  return {
+    now: () => controlled.now(),
+    sleep: async (duration) => controlled.advanceBy(duration),
+    timeout: (duration) => controlled.timeout(duration),
+    deadline: (target) => controlled.deadline(target),
+    interval: (duration, callback) => controlled.interval(duration, callback),
+  };
 }
 
 describe("standalone judge machine provider", () => {
@@ -122,5 +144,32 @@ describe("standalone judge machine provider", () => {
       (await runInterlockJudge(["g", "n"], { cwd: root, clock, narrate: () => {} })).exitCode,
     ).toBe(0);
     expect(JSON.parse(readFileSync(output, "utf8"))).toEqual({});
+  });
+
+  it("retries a busy gate through the interlock judge door", async () => {
+    provider("process.stdout.write('{}');", {
+      exit_code: 75,
+      attempts: 2,
+      first_backoff_ms: 10,
+      max_backoff_ms: 10,
+    });
+    await session();
+    let starts = 0;
+    const judged = await runInterlockJudge(["g", "n"], {
+      cwd: root,
+      clock: advancingClock(),
+      narrate: () => {},
+      commandRunner: async (_argv, _cwd, env) => {
+        starts += 1;
+        if (starts === 1) {
+          writeFileSync(env["INTERLOCK_BUSY_REPORT"] ?? "", "judge prefix busy\n");
+          return { exitCode: 75, output: "", stdout: Buffer.alloc(0), stderr: Buffer.alloc(0) };
+        }
+        writeFileSync(env["INTERLOCK_GATE_START"] ?? "", "started\n");
+        return { exitCode: 0, output: "", stdout: Buffer.alloc(0), stderr: Buffer.alloc(0) };
+      },
+    });
+    expect(judged).toEqual({ exitCode: 0, message: "n: cleared (session s, judged by hand)" });
+    expect(starts).toBe(2);
   });
 });
