@@ -41,3 +41,7 @@ entries:
     at: "2026-11-14T00:00:00Z"
     expected: The new notes entries would be accepted by the repository's notes reader during the safe full-suite check.
     observed: A because scalar beginning with a backtick was invalid YAML; the value is now quoted before the suite is rerun.
+  - kind: choice
+    at: "2026-11-14T00:00:00Z"
+    chose: Pin command gates to the worktree's recorded pnpm store and pass that store explicitly to the slow-test helper's pnpm children.
+    because: The full pnpm test gate can purge node_modules before slow-tests-accounted runs, and slow-tests starts pnpm in the real worktree under the runner's fixture HOME.

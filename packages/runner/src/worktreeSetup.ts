@@ -3,7 +3,6 @@ import { link, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
 import { sharedJournalDirectory } from "face";
-import { parse as parseYaml } from "yaml";
 import {
   checkNodeEngine,
   explainNodeEngineRefusal,
@@ -11,6 +10,7 @@ import {
   type NodeVersionRunner,
 } from "./nodeEngine.ts";
 import { nonInteractiveEnvironment, runOwnedCommandWithTimeout } from "./ownedCommand.ts";
+import { recordedStoreDir } from "./pnpmStore.ts";
 
 export const SETUP_LOG_TAIL_BYTES = 64 * 1024;
 export const DEFAULT_WORKTREE_SETUP_HOLD_TIMEOUT_MS = 20 * 60 * 1000;
@@ -56,29 +56,10 @@ function appendTail(tail: Buffer, chunk: Buffer): Buffer {
     : combined;
 }
 
-type YamlMap = Readonly<Record<string, unknown>>;
-
-function isYamlMap(value: unknown): value is YamlMap {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 type SetupStore = {
   readonly path: string;
   readonly source: "recorded in the worktree" | "runner's default";
 };
-
-async function recordedStoreDir(worktree: string): Promise<string | undefined> {
-  try {
-    const document: unknown = parseYaml(
-      await readFile(join(worktree, "node_modules", ".modules.yaml"), "utf8"),
-    );
-    if (!isYamlMap(document)) return undefined;
-    const storeDir = document["storeDir"];
-    return typeof storeDir === "string" && storeDir.trim().length > 0 ? storeDir : undefined;
-  } catch {
-    return undefined;
-  }
-}
 
 async function removeTemporary(path: string): Promise<void> {
   try {

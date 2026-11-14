@@ -1,11 +1,17 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { relative, resolve } from "node:path";
+import { recordedStoreDirSync } from "../../packages/runner/src/pnpmStore.ts";
 
 const repoRoot = resolve(import.meta.dirname, "../..");
 const packagesRoot = resolve(repoRoot, "packages");
 const reportsRoot = resolve(repoRoot, "packages/runner/test/.runs", `slow-tests-${Date.now()}`);
 const thresholdMs = 1_500;
+const recordedStore = recordedStoreDirSync(repoRoot);
+const childEnvironment =
+  recordedStore === undefined
+    ? process.env
+    : { ...process.env, npm_config_store_dir: recordedStore };
 
 interface SlowDeclaration {
   readonly budgetMs: number;
@@ -286,7 +292,7 @@ for (const packageName of packages) {
       "--reporter=json",
       `--outputFile=${reportPath}`,
     ],
-    { cwd: repoRoot, encoding: "utf8" },
+    { cwd: repoRoot, encoding: "utf8", env: childEnvironment },
   );
   writeFileSync(outputPath, `${result.stdout ?? ""}${result.stderr ?? ""}`);
   writeFileSync(resolve(reportsRoot, `${packageName}.workers.txt`), "maxWorkers=1\nminWorkers=1\n");

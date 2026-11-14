@@ -5,14 +5,20 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readlinkSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, join } from "node:path";
+import { createControlledClock } from "@phyxiusjs/clock";
 import { isErr, isOk } from "@phyxiusjs/fp";
+import { noneClient } from "substrate";
 import { afterEach, describe, expect, it } from "vitest";
+import { judgeGates } from "../src/gateJudge.ts";
 import { runSetupCommand } from "../src/worktreeSetup.ts";
 import { gitInitFixtureWithContent } from "./support/gitFixture.ts";
+import { memoryLedger } from "./support/memoryLedger.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -54,6 +60,13 @@ function fakeCommands(root: string): { readonly mise: string; readonly bin: stri
       "fi",
       'printf "%s\\n" "store=$npm_config_store_dir" > "$RESULT"',
       'printf "%s\\n" "purge=$npm_config_confirm_modules_purge" >> "$RESULT"',
+      'if [ "$1" = "test" ]; then',
+      '  if [ "$npm_config_store_dir" != "$RECORDED_STORE" ]; then',
+      '    rm -f "$WORKTREE/node_modules/.modules.yaml" "$WORKTREE/packages/runner/node_modules/vitest"',
+      "  fi",
+      '  printf "%s\\n" "Tests 1 passed (1)"',
+      "  exit 0",
+      "fi",
       'if [ "$FAIL_INSTALL" = "1" ]; then',
       '  printf "%s\\n" "fake install failed"',
       "  exit 7",
@@ -109,7 +122,10 @@ function fixtureEnvironment(
     PATH: `${bin}${delimiter}${process.env["PATH"] ?? ""}`,
     DEFAULT_STORE: defaultStore,
     RESULT: result,
+    RECORDED_STORE: "/fixture/store-a",
+    WORKTREE: root,
     FAIL_INSTALL: failInstall ? "1" : "0",
+    npm_config_store_dir: defaultStore,
   };
 }
 
@@ -179,5 +195,43 @@ describe("worktree setup store pinning", () => {
       "worktree setup store: /fixture/store-b (runner's default)",
     );
     expect(existsSync(join(root, "home", ".local"))).toBe(false);
+  });
+
+  it("keeps module metadata and the vitest link through the full test gate", async () => {
+    const root = fixtureDir();
+    const commands = fakeCommands(root);
+    const vitestTarget = join(root, "vitest-target");
+    const vitestLink = join(root, "packages", "runner", "node_modules", "vitest");
+    mkdirSync(join(root, "packages", "runner", "node_modules"), { recursive: true });
+    writeFileSync(vitestTarget, "fixture vitest");
+    symlinkSync(vitestTarget, vitestLink);
+    modulesFile(root, "storeDir: /fixture/store-a\n");
+    gitInitFixtureWithContent(root);
+
+    const beforeModules = readFileSync(join(root, "node_modules", ".modules.yaml"), "utf8");
+    const beforeVitestLink = readlinkSync(vitestLink);
+    const ledger = memoryLedger();
+    const judged = await judgeGates({
+      ledger,
+      clock: createControlledClock(),
+      node: { graph: "fixture", id: "store-stays-pinned" },
+      session: "session",
+      declaredGateIds: ["full-suite"],
+      commandFor: new Map([["full-suite", { kind: "command", run: "pnpm test" }]]),
+      worktree: root,
+      scopeRoot: root,
+      scopePaths: [],
+      commitSha: "deadbeef",
+      runnerId: "runner",
+      holdMs: 60_000,
+      substrate: noneClient(),
+      env: fixtureEnvironment(root, commands.bin, "/fixture/store-b", join(root, "result.txt")),
+      heavy: [commands.mise],
+      narrate: () => {},
+    });
+
+    expect(isOk(judged)).toBe(true);
+    expect(readFileSync(join(root, "node_modules", ".modules.yaml"), "utf8")).toBe(beforeModules);
+    expect(readlinkSync(vitestLink)).toBe(beforeVitestLink);
   });
 });

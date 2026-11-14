@@ -66,6 +66,7 @@ import {
 } from "./gateOutput.ts";
 import { checkNodeEngine, type NodeVersionRunner } from "./nodeEngine.ts";
 import { nonInteractiveEnvironment, runOwnedCommandWithTimeout } from "./ownedCommand.ts";
+import { recordedStoreDir } from "./pnpmStore.ts";
 import { appendUnrecordedNotes } from "./questionNotes.ts";
 
 export const DEFAULT_GATE_HOLD_TIMEOUT_MS = 60 * 60 * 1000;
@@ -360,6 +361,11 @@ export async function judgeGates(
     ((argv: readonly string[], cwd: string, commandEnv: NodeJS.ProcessEnv) =>
       spawnGateCommand(argv, cwd, commandEnv, holdTimeoutMs));
   const commandEnv = nonInteractiveEnvironment(env);
+  const recordedStore = await recordedStoreDir(worktree);
+  const gateEnv =
+    recordedStore === undefined
+      ? commandEnv
+      : { ...commandEnv, npm_config_store_dir: recordedStore };
   const versionRunner =
     nodeVersionRunner ??
     (async (argv: readonly string[], versionCwd: string, versionEnv: NodeJS.ProcessEnv) => {
@@ -447,7 +453,7 @@ export async function judgeGates(
     } = await commandRunner(
       [...heavy, "mise", "exec", "--", ...tokenize(substituted.value)],
       worktree,
-      commandEnv,
+      gateEnv,
     );
     const after = clock.now().monoMs;
 
