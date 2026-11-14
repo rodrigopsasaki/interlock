@@ -24,7 +24,7 @@ entries:
   - kind: choice
     at: "2026-11-14T00:00:00Z"
     chose: Resolve the runner's default pnpm store outside the machine provider's heavy prefix, while keeping the actual worktree setup command under that prefix.
-    because: `pnpm store path` only reads the runner environment and does not mutate the store or install dependencies; holding the machine lock for that probe would add an unnecessary heavy operation and would make setup plus a gate report an extra heavy entry.
+    because: "`pnpm store path` only reads the runner environment and does not mutate the store or install dependencies; holding the machine lock for that probe would add an unnecessary heavy operation and would make setup plus a gate report an extra heavy entry."
   - kind: surprise
     at: "2026-11-14T00:00:00Z"
     expected: The fake mise used by the focused store tests would continue to invoke pnpm after the default-store lookup moved outside the heavy prefix.
@@ -37,3 +37,7 @@ entries:
     at: "2026-11-14T00:00:00Z"
     expected: The approval test would reproduce the one missing-HEAD failure seen during slow-tests accounting.
     observed: The graph approve test file passed all 7 tests in both single-worker harness-style runs, including the subsequent-show approval case; neither run reported a missing HEAD.
+  - kind: surprise
+    at: "2026-11-14T00:00:00Z"
+    expected: The new notes entries would be accepted by the repository's notes reader during the safe full-suite check.
+    observed: A because scalar beginning with a backtick was invalid YAML; the value is now quoted before the suite is rerun.
