@@ -21,11 +21,19 @@ entries:
     at: "2026-11-14T16:45:00Z"
     expected: "The full suite would resolve Codex configuration from the fixture home used by the test command."
     observed: "Codex guard tests found the owner's project configuration at /Users/rodrigosasaki/.codex/config.toml despite fixture HOME/XDG values; the rerun will set CODEX_HOME inside the worktree so no owner configuration is consulted."
+  - kind: choice
+    at: "2026-11-14T16:46:00Z"
+    chose: "Preserve the existing run timeout reason when the timeout is represented by the shared exec-stop intent."
+    because: "The timeout must use the same durable outbox effect as a human stop, but compatibility requires timeout records to continue explaining the timeout rather than presenting it as a human stop."
   - kind: surprise
     at: "2026-11-14T16:49:00Z"
     expected: "Setting CODEX_HOME and the guard's user-home override inside the worktree would isolate the full suite from the owner configuration."
     observed: "The guard walks repository ancestors and still classifies /Users/rodrigosasaki/.codex/config.toml as a project layer because it is outside the fixture user-home path; the full suite remains blocked by that pre-existing environment-sensitive test guard."
   - kind: choice
-    at: "2026-11-14T16:52:00Z"
-    chose: "Preserve the existing run timeout reason when the timeout is represented by the shared exec-stop intent."
-    because: "The timeout must use the same durable outbox effect as a human stop, but compatibility requires timeout records to continue explaining the timeout rather than presenting it as a human stop."
+    at: "2026-11-14T16:50:32Z"
+    chose: "Add the successful debrief validation receipt to the authored candidate and revise the filed debrief from that candidate."
+    because: "The debrief-valid gate is part of the node contract, so the final authored report should carry the actual validation result rather than leave it implicit in the command log."
+  - kind: choice
+    at: "2026-11-14T16:51:10Z"
+    chose: "Remove the now-stale debrief-valid item from open after the revised canonical debrief validated successfully."
+    because: "The open section must carry only unresolved acceptance work; the validation receipt is now present in gates_run_by_agent and the gate passed."
