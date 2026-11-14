@@ -634,6 +634,7 @@ scope:
   - .interlock/sessions/0065-gate-holds-retry-themselves/codex-stays-home-in-tests/revisions/723c5ccf52115cdc270f22e06355873043a06178aab80ab90a0214e7da2081b8.yaml
   - .interlock/sessions/0065-gate-holds-retry-themselves/codex-stays-home-in-tests/revisions/7fb1b51bb8eb6e77349250e2258ce6f3d110be5d173ac15ea03ef2a34a66ef4d.yaml
   - .interlock/sessions/0065-gate-holds-retry-themselves/codex-stays-home-in-tests/revisions/f95fa6c0a9dc9d99b029fec2062e158f8b8a8e16d8c07a81622f66723128f0f9.yaml
+  - .interlock/sessions/0065-gate-holds-retry-themselves/gate-output-is-plain/brief.md
   - .interlock/sessions/0065-gate-holds-retry-themselves/interlock-tests-never-see-his-home/brief.md
   - .interlock/sessions/0065-gate-holds-retry-themselves/sessions-live-all/brief.md
   - .interlock/sessions/0065-gate-holds-retry-themselves/sessions-stop-stops/brief.md
@@ -1371,7 +1372,7 @@ walk:
   kind: none
   because: the substrate address is none, so there is nothing to ask
 graph_base_sha: 4dfef50e5ffb948f874185968140b93202243958
-session: 80acd323-798d-4639-abfe-714bb322f4f3
+session: 64009104-5754-4e9e-865c-6baafb09e18b
 ---
 
 # Brief · node `store-stays-pinned` · graph `0065-gate-holds-retry-themselves`
