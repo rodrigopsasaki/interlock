@@ -620,3 +620,55 @@ nodes:
         kind: command
         run: node scripts/gates/slow-tests.ts
         expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1\.5 s'
+
+  - id: gate-output-is-plain
+    role: implementer
+    depends_on: []
+    acceptance: |
+      Found 2026-11-14: since the pin advanced, every gate output in this repository's ledger carries ANSI color codes,
+      and gates whose tests passed are held because their expect_output regex does not match. Seen on node
+      store-stays-pinned, gate store-stays-pinned-tests: 4 of 4 tests passed and the node held on
+      `Tests +[1-9][0-9]* passed \([1-9][0-9]*\)`. The cause is our own environment: nonInteractiveEnvironment
+      (packages/runner/src/ownedCommand.ts:22) returns `{ ...env, CI: "1", npm_config_confirm_modules_purge: "false" }`
+      and gateJudge.ts:353 and worktreeSetup.ts:128 run every gate and setup command with it. With CI set, vitest
+      (tinyrainbow) colors its output even off a TTY. Measured on main: `vitest run test/note.test.ts` in
+      packages/ledger prints 0 ESC[ lines with CI unset, 6 with CI=1, and 0 with CI=1 NO_COLOR=1. The colored summary
+      is `^[[2m      Tests ^[[22m ^[[1m^[[32m4 passed^[[39m^[[22m^[[90m (4)^[[39m`. A gate's proof is its output; the
+      output a person and a regex read should be plain text.
+      - Gate and setup commands get plain text: nonInteractiveEnvironment also sets NO_COLOR=1 and removes
+        FORCE_COLOR, and removes any other variable the runner can see that forces color if the code shows one
+        (grep the runner and the standing gate scripts for FORCE_COLOR, CLICOLOR_FORCE and the like; name what you
+        found and did not find in the notes). A FORCE_COLOR in the caller's environment never reaches a gate or a
+        setup command. CI=1 and npm_config_confirm_modules_purge=false stay exactly as setup-never-holds set them.
+      - expect_output is matched against the gate's output with ANSI escape sequences removed (CSI sequences,
+        ESC[ ... final byte, and the other escape forms a command can plausibly print), so a command that colors
+        through its own flags still matches. Decided: the stored output (the retained stdout and stderr artifacts)
+        and outputHash keep the raw bytes exactly as today, because the hash is the proof of what the command
+        printed and a stripped hash would make old and new receipts incomparable; only the pattern test sees the
+        stripped text. The pattern recorded in the proof (pattern.source, outputMatched) is unchanged in shape. One
+        small named function strips, in packages/runner/src, used only at the match.
+      - Tests in packages/runner/test/gateOutputIsPlain.test.ts, each failing on main 4dfef50e for its intended
+        assertion: the vitest summary line above, as the colored string a CI=1 run prints, matches
+        `Tests +[1-9][0-9]* passed \([1-9][0-9]*\)` through the judge and a gate with that pattern is satisfied;
+        a gate whose command is a fixture script that writes ESC[ codes itself (not through the environment) matches
+        its pattern after stripping and is satisfied; FORCE_COLOR in the caller's environment does not reach the gate
+        command, NO_COLOR=1 does, and CI=1 does; the same for a setup command; the retained output artifacts and the
+        recorded outputHash of the colored fixture are the raw bytes, byte for byte, and equal the hash of the raw
+        output; a gate whose output is plain still matches and one whose output does not match still fails; every
+        existing expectOutput and gateJudge test still passes unchanged.
+      - No change to which commands run or how long they hold: argv, heavy prefix, timeouts, stdin and the busy and
+        timeout classifications are untouched. No change outside packages/runner and its tests plus this session
+        folder.
+      Before you file the debrief (and before any refile), end every vitest worker and child process you started and
+      confirm with pgrep that none survives; never run a real codex.
+    gates:
+      - id: gate-output-is-plain-tests
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/gateOutputIsPlain.test.ts --passWithNoTests=false
+        # The judge that clears this node still runs the pinned runner, which colors vitest output; this pattern
+        # matches the summary with or without color codes, and exit 0 still decides that the tests passed.
+        expect_output: 'Tests.*[1-9][0-9]* passed.*\([1-9][0-9]*\)'
+      - id: slow-tests-accounted
+        kind: command
+        run: node scripts/gates/slow-tests.ts
+        expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1\.5 s'
