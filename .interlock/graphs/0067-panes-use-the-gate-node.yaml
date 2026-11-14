@@ -56,9 +56,14 @@ read: >
     would find. No pane means no pane-opened event and nothing for a cleanup to close.
   - Interlock-owned startup files make the gate's Node first in every shell the pane or the agent starts. Per
     attempt, before the pane opens, the drive writes a small folder of zsh startup files under Interlock's own state:
-    <sharedJournalDirectory(repoRoot)>/pane-startup/<session id>/ (sharedJournalDirectory, sessionDrive.ts:7 and
-    :594, is the folder the gate output and the codex journal already live in; never the worktree, never the owner's
-    home), created with mode 0700 and removed by the drive's cleanup when the attempt ends or is refused (a removal
+    <state>/pane-startup/<graph>/<node>/<session id>/, where <state> is interlockStateDirectory(environment)
+    (packages/runner/src/codex/config.ts:543), the same root under which the codex session overlay already lives as
+    <state>/codex-homes/<graph>/<node>/<session> (config.ts:835-836), so the startup folder is its sibling. It is
+    never under sharedJournalDirectory, which resolves to the repository's .interlock/ledger, a protected record
+    that agents are told never to read, and never in the worktree or the owner's home. Its path segments are
+    checked the way the overlay checks them (safeSegment, config.ts:802; an unsafe graph, node or session id is a
+    plain refusal before any pane opens), and the state root is validated as the overlay validates it
+    (validateStateContainment, config.ts:833). The folder is created with mode 0700 and removed by the drive's cleanup when the attempt ends or is refused (a removal
     failure is narrated, never raised). It holds .zshenv, .zprofile, .zshrc and .zlogin. Each file does the same three
     things in order: remember the owned ZDOTDIR; source the owner's corresponding file unchanged from the owner's own
     startup folder when that file exists (the owner's ZDOTDIR if the environment Interlock runs in has one, else
@@ -106,7 +111,7 @@ read: >
   (for codex too), and compare with `mise exec -- node --version` and `mise exec -- command -v node` in the worktree.
 
   Tests, the real services and the standing gates. This node's own tests and proof script never start herdr, tmux,
-  a real agent CLI or a real provider, and never read the real HOME. Every new case builds its whole tool state under
+  a real agent CLI or a real provider, and never read the real HOME. In every case the state root comes from the fixture state under the system temp folder (the environment's XDG_STATE_HOME or the helper's equivalent), so the startup folder is created and removed there and never in a real state folder. Every new case builds its whole tool state under
   a mkdtemp folder in the system temp folder, never inside the worktree and never inherited from the caller's
   environment: HOME, ZDOTDIR for the stub owner profile, XDG_CONFIG_HOME, XDG_DATA_HOME, XDG_STATE_HOME,
   XDG_CACHE_HOME, MISE_DATA_DIR, MISE_CONFIG_DIR, MISE_CACHE_DIR, MISE_STATE_DIR, COREPACK_HOME, npm_config_cache,
@@ -148,7 +153,7 @@ nodes:
          attempt, with that reason and no pane opened, when it cannot. A timed-out resolution leaves no process
          running.
       2. A new module writes the owned zsh startup folder (.zshenv, .zprofile, .zshrc, .zlogin) under
-         <sharedJournalDirectory>/pane-startup/<session>/ with mode 0700, as the read specifies: owned ZDOTDIR
+         <state>/pane-startup/<graph>/<node>/<session>/ (a sibling of codex-homes under interlockStateDirectory) with mode 0700, as the read specifies: owned ZDOTDIR
          remembered, the owner's file sourced unchanged when it exists, ZDOTDIR restored, the gate folder put first
          on PATH last. The drive removes the folder in its cleanup on every end of the attempt, refusals included.
          The drive adds ZDOTDIR to agentEnvironment (conflict with a different ZDOTDIR already set is refused with a

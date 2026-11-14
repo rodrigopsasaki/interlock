@@ -1466,7 +1466,7 @@ edit it.
 >    attempt, with that reason and no pane opened, when it cannot. A timed-out resolution leaves no process
 >    running.
 > 2. A new module writes the owned zsh startup folder (.zshenv, .zprofile, .zshrc, .zlogin) under
->    <sharedJournalDirectory>/pane-startup/<session>/ with mode 0700, as the read specifies: owned ZDOTDIR
+>    <state>/pane-startup/<graph>/<node>/<session>/ (a sibling of codex-homes under interlockStateDirectory) with mode 0700, as the read specifies: owned ZDOTDIR
 >    remembered, the owner's file sourced unchanged when it exists, ZDOTDIR restored, the gate folder put first
 >    on PATH last. The drive removes the folder in its cleanup on every end of the attempt, refusals included.
 >    The drive adds ZDOTDIR to agentEnvironment (conflict with a different ZDOTDIR already set is refused with a
