@@ -9,9 +9,10 @@ import {
   type NodeEngineRefusal,
   type NodeVersionRunner,
 } from "./nodeEngine.ts";
-import { spawnOwned } from "./ownedCommand.ts";
+import { nonInteractiveEnvironment, runOwnedCommandWithTimeout } from "./ownedCommand.ts";
 
 export const SETUP_LOG_TAIL_BYTES = 64 * 1024;
+export const DEFAULT_WORKTREE_SETUP_HOLD_TIMEOUT_MS = 20 * 60 * 1000;
 
 export type WorktreeSetupExit =
   | { readonly kind: "exit"; readonly code: number }
@@ -24,6 +25,7 @@ export type WorktreeSetupRefusal =
       readonly exit: WorktreeSetupExit;
       readonly tail: string;
       readonly logPath?: string;
+      readonly timeoutMs?: number;
     }
   | NodeEngineRefusal;
 
@@ -33,7 +35,10 @@ function describeExit(exit: WorktreeSetupExit): string {
 
 export function explainWorktreeSetupRefusal(refusal: WorktreeSetupRefusal): string {
   if (refusal.kind === "node-engine") return explainNodeEngineRefusal(refusal);
-  const header = `"${refusal.command}" ${describeExit(refusal.exit)}.`;
+  const header =
+    refusal.timeoutMs === undefined
+      ? `"${refusal.command}" ${describeExit(refusal.exit)}.`
+      : `"${refusal.command}" timed out after ${refusal.timeoutMs}ms.`;
   const tail = refusal.tail.length === 0 ? "" : `\n${refusal.tail}`;
   const logged = refusal.logPath === undefined ? "" : `\nsetup output kept at ${refusal.logPath}`;
   return `${header}${tail}${logged}`;
@@ -84,30 +89,28 @@ async function retainSetupLog(worktree: string, tail: Buffer): Promise<string | 
   }
 }
 
-function spawnSetupCommand(
+async function spawnSetupCommand(
   tokens: readonly string[],
   cwd: string,
   env: NodeJS.ProcessEnv,
   heavy: readonly string[],
-): Promise<{ readonly exit: WorktreeSetupExit; readonly tail: Buffer }> {
-  return new Promise((resolve) => {
-    const [bin, ...args] = [...heavy, "mise", "exec", "--", ...tokens];
-    const child = spawnOwned([bin ?? "mise", ...args], cwd, env, false);
-    child.on("error", (error) => {
-      tail = appendTail(tail, Buffer.from(error.message));
-    });
-    let tail: Buffer = Buffer.alloc(0);
-    const onData = (chunk: Buffer) => {
-      tail = appendTail(tail, chunk);
-    };
-    child.stdout.on("data", onData);
-    child.stderr.on("data", onData);
-    child.on("close", (code, signal) => {
-      const exit: WorktreeSetupExit =
-        signal !== null ? { kind: "signal", signal } : { kind: "exit", code: code ?? -1 };
-      resolve({ exit, tail });
-    });
-  });
+  timeoutMs: number,
+): Promise<{
+  readonly exit: WorktreeSetupExit;
+  readonly tail: Buffer;
+  readonly timedOut: boolean;
+}> {
+  const [bin, ...args] = [...heavy, "mise", "exec", "--", ...tokens];
+  const result = await runOwnedCommandWithTimeout([bin ?? "mise", ...args], cwd, env, timeoutMs);
+  const exit: WorktreeSetupExit =
+    result.signal !== null
+      ? { kind: "signal", signal: result.signal }
+      : { kind: "exit", code: result.code };
+  return {
+    exit,
+    tail: appendTail(Buffer.alloc(0), result.output),
+    timedOut: result.timedOut,
+  };
 }
 
 export async function runSetupCommand(
@@ -116,14 +119,33 @@ export async function runSetupCommand(
   env: NodeJS.ProcessEnv = process.env,
   heavy: readonly string[] = [],
   runVersion: NodeVersionRunner | undefined = undefined,
+  holdTimeoutMs: number = DEFAULT_WORKTREE_SETUP_HOLD_TIMEOUT_MS,
 ): Promise<Result<void, WorktreeSetupRefusal>> {
   const tokens = tokenize(command);
   if (tokens.length === 0) {
     return err({ kind: "command-failed", command, exit: { kind: "exit", code: -1 }, tail: "" });
   }
-  const nodeEngine = await checkNodeEngine(cwd, "worktree setup", env, heavy, runVersion);
+  const commandEnv = nonInteractiveEnvironment(env);
+  const versionRunner =
+    runVersion ??
+    (async (argv: readonly string[], versionCwd: string, versionEnv: NodeJS.ProcessEnv) => {
+      const result = await runOwnedCommandWithTimeout(argv, versionCwd, versionEnv, holdTimeoutMs);
+      return ok({
+        code: result.code,
+        signal: result.signal,
+        stdout: result.stdout.toString("utf8"),
+        stderr: result.stderr.toString("utf8"),
+      });
+    });
+  const nodeEngine = await checkNodeEngine(cwd, "worktree setup", commandEnv, heavy, versionRunner);
   if (isErr(nodeEngine)) return nodeEngine;
-  const { exit, tail } = await spawnSetupCommand(tokens, cwd, env, heavy);
+  const { exit, tail, timedOut } = await spawnSetupCommand(
+    tokens,
+    cwd,
+    commandEnv,
+    heavy,
+    holdTimeoutMs,
+  );
   if (exit.kind === "exit" && exit.code === 0) return ok(undefined);
   const logPath = await retainSetupLog(cwd, tail);
   return err({
@@ -132,6 +154,7 @@ export async function runSetupCommand(
     exit,
     tail: tail.toString("utf-8"),
     ...(logPath === undefined ? {} : { logPath }),
+    ...(timedOut ? { timeoutMs: holdTimeoutMs } : {}),
   });
 }
 
@@ -142,10 +165,18 @@ export async function runWorktreeSetup(
   env: NodeJS.ProcessEnv = process.env,
   heavy: readonly string[] = [],
   runVersion: NodeVersionRunner | undefined = undefined,
+  holdTimeoutMs: number = DEFAULT_WORKTREE_SETUP_HOLD_TIMEOUT_MS,
 ): Promise<Result<void, WorktreeSetupRefusal>> {
   for (const command of commands) {
     narrate(`worktree setup: ${command}`);
-    const setup = await runSetupCommand(command, worktreePath, env, heavy, runVersion);
+    const setup = await runSetupCommand(
+      command,
+      worktreePath,
+      env,
+      heavy,
+      runVersion,
+      holdTimeoutMs,
+    );
     if (isErr(setup)) return setup;
   }
   return ok(undefined);

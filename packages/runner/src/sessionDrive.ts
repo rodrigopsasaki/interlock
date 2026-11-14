@@ -792,6 +792,7 @@ export async function driveInteractiveSession(
         narrate,
         runnerId: `${runnerIdPrefix}-${sessionId}`,
         holdMs: HELD_REVISIT_MS,
+        holdTimeoutMs: localConfig.runTimeoutMs,
         substrate,
         personEvents: isErr(personEventsRead) ? [] : personEventsRead.value,
         ...(request.nodeVersionRunner === undefined
@@ -1250,6 +1251,7 @@ export async function driveInteractiveSession(
       narrate,
       runnerId: `${runnerIdPrefix}-${sessionId}`,
       holdMs: HELD_REVISIT_MS,
+      holdTimeoutMs: localConfig.runTimeoutMs,
       substrate,
       personEvents: isErr(personEventsRead) ? [] : personEventsRead.value,
       ...(request.nodeVersionRunner === undefined

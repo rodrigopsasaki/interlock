@@ -8,6 +8,21 @@ import { err, ok, type Result } from "@phyxiusjs/fp";
 
 export type OwnedProcess = ChildProcessWithoutNullStreams;
 
+export const DEFAULT_COMMAND_TERM_GRACE_MS = 250;
+
+export interface TimedOwnedCommandResult {
+  readonly code: number;
+  readonly signal: NodeJS.Signals | null;
+  readonly stdout: Buffer;
+  readonly stderr: Buffer;
+  readonly output: Buffer;
+  readonly timedOut: boolean;
+}
+
+export function nonInteractiveEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  return { ...env, CI: "1", npm_config_confirm_modules_purge: "false" };
+}
+
 export function execFileSyncOwned(
   program: string,
   args: readonly string[],
@@ -40,6 +55,97 @@ export function spawnOwned(
   return spawn(program, args, { cwd, env, detached, stdio: "pipe" });
 }
 
+function groupAlive(pid: number): boolean {
+  try {
+    process.kill(-pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function signalGroup(pid: number, signal: NodeJS.Signals): void {
+  try {
+    process.kill(-pid, signal);
+  } catch {}
+}
+
+async function waitForGroupGone(pid: number, timeoutMs: number): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (groupAlive(pid) && Date.now() < deadline) {
+    await new Promise<void>((resolve) => setTimeout(resolve, 10));
+  }
+}
+
+async function terminateGroup(pid: number, graceMs: number): Promise<void> {
+  signalGroup(pid, "SIGTERM");
+  await waitForGroupGone(pid, graceMs);
+  if (groupAlive(pid)) signalGroup(pid, "SIGKILL");
+}
+
+export function runOwnedCommandWithTimeout(
+  argv: readonly string[],
+  cwd: string,
+  env: NodeJS.ProcessEnv,
+  timeoutMs: number,
+  termGraceMs: number = DEFAULT_COMMAND_TERM_GRACE_MS,
+): Promise<TimedOwnedCommandResult> {
+  return new Promise((resolve) => {
+    let child: OwnedProcess;
+    try {
+      child = spawnOwned(argv, cwd, nonInteractiveEnvironment(env), true);
+    } catch (error) {
+      resolve({
+        code: -1,
+        signal: null,
+        stdout: Buffer.alloc(0),
+        stderr: Buffer.from(error instanceof Error ? error.message : String(error)),
+        output: Buffer.from(error instanceof Error ? error.message : String(error)),
+        timedOut: false,
+      });
+      return;
+    }
+
+    const stdout: Buffer[] = [];
+    const stderr: Buffer[] = [];
+    const output: Buffer[] = [];
+    let timedOut = false;
+    let termination: Promise<void> | undefined;
+    let timer: NodeJS.Timeout | undefined;
+    child.stdout.on("data", (chunk: Buffer) => {
+      stdout.push(chunk);
+      output.push(chunk);
+    });
+    child.stderr.on("data", (chunk: Buffer) => {
+      stderr.push(chunk);
+      output.push(chunk);
+    });
+    child.on("error", (error) => {
+      const message = Buffer.from(error.message);
+      stderr.push(message);
+      output.push(message);
+    });
+    child.on("close", async (code, signal) => {
+      if (timer !== undefined) clearTimeout(timer);
+      if (termination !== undefined) await termination;
+      resolve({
+        code: code ?? -1,
+        signal,
+        stdout: Buffer.concat(stdout),
+        stderr: Buffer.concat(stderr),
+        output: Buffer.concat(output),
+        timedOut,
+      });
+    });
+    child.stdin.end();
+    timer = setTimeout(() => {
+      timedOut = true;
+      termination =
+        child.pid === undefined ? Promise.resolve() : terminateGroup(child.pid, termGraceMs);
+    }, timeoutMs);
+  });
+}
+
 export interface OwnedCommandResult {
   readonly code: number;
   readonly signal: NodeJS.Signals | null;
@@ -55,7 +161,7 @@ export function runOwnedCommand(
   return new Promise((resolve) => {
     let child: OwnedProcess;
     try {
-      child = spawnOwned(argv, cwd, env, false);
+      child = spawnOwned(argv, cwd, nonInteractiveEnvironment(env), true);
     } catch (error) {
       resolve(err(error instanceof Error ? error.message : String(error)));
       return;
@@ -72,5 +178,6 @@ export function runOwnedCommand(
     });
     child.on("error", (error) => resolve(err(error.message)));
     child.on("close", (code, signal) => resolve(ok({ code: code ?? -1, signal, stdout, stderr })));
+    child.stdin.end();
   });
 }
