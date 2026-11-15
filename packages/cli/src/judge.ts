@@ -55,6 +55,7 @@ export async function runInterlockJudge(
     readonly commandRunner?: GateCommandRunner;
     readonly outputDirectory?: string;
     readonly narrate?: (line: string) => void;
+    readonly scopeGuardRecheck?: boolean;
   } = {},
 ): Promise<CommandResult> {
   const [graph, node] = args;
@@ -219,6 +220,12 @@ export async function runInterlockJudge(
       ...(options.outputDirectory === undefined
         ? {}
         : { outputDirectory: options.outputDirectory }),
+      scopeGuardRecheck:
+        options.scopeGuardRecheck === true ||
+        args.includes("--scope-guard-recheck") ||
+        args.includes("--scope-guard-rerun") ||
+        args.includes("--recheck-scope"),
+      watchPaths: localConfig.value.watchPaths ?? [],
     });
     if (isErr(judged)) {
       const line = `judge refused: ${explainJudgeWorktreeRefusal(judged.error)}`;

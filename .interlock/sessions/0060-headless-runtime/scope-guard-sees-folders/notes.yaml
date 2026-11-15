@@ -1,0 +1,107 @@
+interlock: notes@v0
+node: scope-guard-sees-folders
+entries:
+  - kind: choice
+    at: "2026-11-14T22:00:00Z"
+    chose: Walk untracked directory entries through the existing watch-path traversal and represent symbolic links without dereferencing their targets.
+    because: Git can report an untracked nested repository as one directory entry, while the guard must inspect its files and never read through a link.
+  - kind: choice
+    at: "2026-11-14T22:00:00Z"
+    chose: Protect a scope-guard hold in judge with explicit recheck and person-clear receipts.
+    because: A generic held outcome does not identify why judge may proceed, so the guard reason must remain visible until a runner comparison or a named person's action authorizes clearance.
+  - kind: choice
+    at: "2026-11-14T22:00:00Z"
+    chose: Expose guard rechecking as an explicit judge flag and person clearance as the existing gate-clear command with gate scope-guard.
+    because: The acceptance requires judge-alone refusal while preserving a direct, recorded recovery path for a runner check or a person's named decision.
+  - kind: surprise
+    at: "2026-11-14T22:00:00Z"
+    expected: mise exec would select the pinned repository Node version for the focused scope proof.
+    observed: The isolated command ran on Node v26.13.0 while package.json requests v24.14.0; all 13 scopeGuard tests passed and the mismatch remains open for the handoff.
+  - kind: surprise
+    at: "2026-11-14T22:00:00Z"
+    expected: The first typecheck would accept the new judge refusal branch and receipt error messages.
+    observed: TypeScript found the new scope-guard refusal needed handling in both session-drive branches, and the local-config and scope-refusal unions needed their existing explainers; those corrections are now applied.
+  - kind: surprise
+    at: "2026-11-14T22:00:00Z"
+    expected: The existing CLI judge integration suite would be independent of the fixture HOME.
+    observed: Three cases failed before their assertions because isolated Git could not find a user identity; the next fixture commands set a worktree-local GIT_CONFIG_GLOBAL and do not consult the owner's home.
+  - kind: surprise
+    at: "2026-11-14T22:00:00Z"
+    expected: The standing lint gate would be clean after formatting the changed files.
+    observed: Lint exits successfully but retains one pre-existing fixable warning in packages/runner/src/gateJudge.ts for a regular-expression literal; no changed file is warned.
+  - kind: surprise
+    at: "2026-11-14T22:00:00Z"
+    expected: The complete runner suite would run from the fixture HOME used by the command.
+    observed: The suite failed in existing Codex guard cases because spawned commands still resolved /Users/rodrigosasaki/.codex/config.toml, and a later Vitest worker could not resolve the installed tinypool process module; the focused scopeGuard proof remained green.
+  - kind: surprise
+    at: "2026-11-14T22:00:00Z"
+    expected: The repository test gate would complete after the package tests passed.
+    observed: pnpm test reached 755 passing runner tests and the other workspace suites, then failed the same 13 existing Codex guard cases because the spawned command resolved /Users/rodrigosasaki/.codex/config.toml.
+  - kind: choice
+    at: "2026-11-14T22:00:00Z"
+    chose: Add a CLI proof that a failed recheck snapshot leaves the scope-guard hold uncleared.
+    because: The acceptance treats snapshot failure as a hold rather than a pass, so the recovery path needs an executable refusal proof alongside the clean recheck and named person paths.
+  - kind: surprise
+    at: "2026-11-14T22:00:00Z"
+    expected: The invalid watch-path fixture would report a regular-file refusal.
+    observed: /dev/null was refused earlier as neither a file nor a directory by the watch-path boundary; the focused assertion now names that actual refusal and all 15 judge tests pass.
+  - kind: choice
+    at: "2026-11-14T23:00:00Z"
+    chose: Put the already-installed Node 24.14.0 executable first in the isolated fixture PATH before invoking pnpm through mise exec.
+    because: The fixture MISE_DATA_DIR must not read the owner's tool state, so mise otherwise falls through to Homebrew Node 26 even though the repository pins Node 24.14.0.
+  - kind: surprise
+    at: "2026-11-14T23:00:00Z"
+    expected: The isolated fixture wrapper would preserve the existing PATH when passing it through eval.
+    observed: A space in an existing JetBrains path was split by eval, so the Node check did not run; the suite was not started and the wrapper is being replaced with direct environment assignments.
+  - kind: surprise
+    at: "2026-11-14T23:00:00Z"
+    expected: Prepending Node 24 to PATH would control the child command under mise exec.
+    observed: mise rebuilt the child PATH with its shell-managed shims and Homebrew Node 26 before the prepended path; the version check stayed on Node 26, so the suite was not started.
+  - kind: choice
+    at: "2026-11-14T23:00:00Z"
+    chose: Re-enter the preinstalled Node 24 and pnpm paths inside the shell command passed to mise exec.
+    because: This keeps mise, HOME, XDG, corepack and package-manager state in the fixture while bypassing only mise's PATH selection, which cannot see the real installed tool under the isolated MISE_DATA_DIR.
+  - kind: surprise
+    at: "2026-11-14T23:00:00Z"
+    expected: The Node 24 and pinned pnpm paths would select the standalone pnpm binary.
+    observed: Node 24's directory also contains a Corepack pnpm shim, which took precedence and downloaded pnpm 12 before the run was stopped; the captured run has no repository test result.
+  - kind: surprise
+    at: "2026-11-14T23:00:00Z"
+    expected: Setting HOME and CODEX_HOME in the outer fixture would isolate every Codex guard subprocess.
+    observed: The guard test setup explicitly defaults INTERLOCK_CODEX_GUARD_USER_HOME to homedir(), so 13 cases still read the owner's .codex/config.toml until that test-specific override is set.
+  - kind: choice
+    at: "2026-11-14T23:00:00Z"
+    chose: Set INTERLOCK_CODEX_GUARD_USER_HOME to the fixture home for full-suite runs.
+    because: The test guard's explicit user-home input is part of the subprocess fixture boundary; using it prevents any test process from reading the owner's Codex configuration.
+  - kind: surprise
+    at: "2026-11-14T23:00:00Z"
+    expected: The repaired package links would remain stable during the full suite.
+    observed: Another pnpm test process was concurrently running in this same worktree while the suite ran, and Vitest later reported a transient missing @vitest/utils worker dependency; no source assertion failed for this node.
+  - kind: choice
+    at: "2026-11-14T23:00:00Z"
+    chose: Compare the failing Codex guard test on a detached origin/main checkout before changing implementation code.
+    because: The acceptance requires fixing failures caused by this node while preserving unrelated baseline failures; origin/main supplies the direct control for that distinction.
+  - kind: surprise
+    at: "2026-11-14T23:00:00Z"
+    expected: The detached origin/main Codex guard test would be clean under the same isolated fixture.
+    observed: origin/main at 8b1698ce produced the same 13 failed Codex guard tests and the same /Users/rodrigosasaki/.codex/config.toml refusal, proving those failures predate this node.
+  - kind: surprise
+    at: "2026-11-14T23:00:00Z"
+    expected: A final full-suite run with the explicit guard-home fixture would start every workspace test.
+    observed: A concurrent same-worktree pnpm test process left the workspace without the ledger vitest executable, so the final attempt stopped at vitest command not found before any test; the earlier Node 24 run reached scopeGuard.test.ts with 13 passing tests.
+  - kind: surprise
+    at: "2026-11-14T23:00:00Z"
+    expected: The workspace links would remain available for debrief preparation after the gate attempt.
+    observed: Debrief prepare could not resolve @phyxiusjs/fp from the CLI because the concurrent same-worktree gate had removed package links; no candidate was created.
+  - kind: surprise
+    at: "2026-11-14T23:00:00Z"
+    expected: The authored debrief candidate would preview as a valid string-valued open list.
+    observed: An unquoted colon in an open sentence made YAML parse that entry as a map; the candidate is being corrected with quoted open strings before filing.
+  - kind: choice
+    at: "2026-11-14T23:00:00Z"
+    chose: Preserve the original implementation session start in the refiled debrief while updating its current head and gate reports.
+    because: The fresh resumed-session range contains no source hunks, but the node's existing implementation decisions are rooted in the earlier code session and must retain that provenance when the debrief is refiled.
+  - kind: surprise
+    at: "2026-11-14T23:00:00Z"
+    expected: The corrected candidate could be installed with file-derived after preserving the implementation session start.
+    observed: file-derived refused the candidate because an existing canonical debrief has a different current derived session identity; the authored candidate matches the existing filing and is being selected through debrief revise.

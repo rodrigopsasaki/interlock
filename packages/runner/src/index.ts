@@ -215,13 +215,18 @@ export {
 export { gitScope, gitTrackedFiles } from "./scope.ts";
 export type {
   ScopeGuardChange,
+  ScopeGuardHold,
+  ScopeGuardReceiptRequest,
   ScopeSnapshot,
   ScopeSnapshotEntry,
   ScopeSnapshotRefusal,
 } from "./scopeGuard.ts";
 export {
   changedScopePaths,
+  createScopeGuardReceipt,
   describeScopeChange,
+  SCOPE_GUARD_RECEIPT_GATE,
+  scopeGuardHold,
   snapshotScope,
 } from "./scopeGuard.ts";
 export type { BriefWriteOutcome, DeclaredNode, SessionBriefRefusal } from "./sessionBrief.ts";

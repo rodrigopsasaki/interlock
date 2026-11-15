@@ -1,14 +1,27 @@
 import { createHash } from "node:crypto";
-import { lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { lstatSync, readdirSync, readFileSync, readlinkSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { err, isErr, ok, type Result } from "@phyxiusjs/fp";
+import {
+  commandReceiptId,
+  createReceipt,
+  derivation,
+  duration,
+  explainScopeRefusal,
+  type Outcome,
+  type Receipt,
+  spend,
+} from "ledger";
 import type { WatchPath } from "./localConfig.ts";
 import { execFileSyncOwned } from "./ownedCommand.ts";
+import { gitScope } from "./scope.ts";
 
 const GIT_BUFFER_PAST_EXEC_FILE_SYNC_ONE_MEGABYTE_DEFAULT = 512 * 1024 * 1024;
 const EXCLUDED_ROOTS: readonly string[] = [".interlock/ledger", ".interlock/sessions"];
+export const SCOPE_GUARD_RECEIPT_GATE = "scope-guard";
 
 export interface ScopeSnapshotEntry {
+  readonly kind: "file" | "link";
   readonly root: "main checkout" | "watch path";
   readonly rootPath: string;
   readonly path: string;
@@ -24,6 +37,7 @@ export interface ScopeSnapshot {
 }
 
 export interface ScopeGuardChange {
+  readonly kind: ScopeSnapshotEntry["kind"];
   readonly root: ScopeSnapshotEntry["root"];
   readonly rootPath: string;
   readonly path: string;
@@ -39,6 +53,22 @@ export type ScopeSnapshotFileReader = (path: string) => Buffer;
 
 export interface ScopeSnapshotOptions {
   readonly readFile?: ScopeSnapshotFileReader;
+}
+
+export interface ScopeGuardReceiptRequest {
+  readonly worktree: string;
+  readonly session: string;
+  readonly commitSha: string;
+  readonly action: "recheck" | "person-clear";
+  readonly paths: readonly string[];
+  readonly actor: string;
+  readonly checkedAt?: number;
+  readonly changedPaths?: readonly string[];
+}
+
+export interface ScopeGuardHold {
+  readonly because: string;
+  readonly paths: readonly string[];
 }
 
 type SnapshotOptions = ScopeSnapshotOptions | ScopeSnapshotFileReader;
@@ -119,6 +149,47 @@ function changedMainPaths(
   }
 }
 
+function mainEntries(
+  mainRoot: string,
+  paths: readonly string[],
+  readFile: ScopeSnapshotFileReader,
+): Result<readonly ScopeSnapshotEntry[], ScopeSnapshotRefusal> {
+  const entries: ScopeSnapshotEntry[] = [];
+  for (const path of paths) {
+    if (!path.endsWith("/")) {
+      const entry = fileEntry(
+        "main checkout",
+        mainRoot,
+        path,
+        join(mainRoot, path),
+        false,
+        readFile,
+      );
+      if (isErr(entry)) return entry;
+      entries.push(entry.value);
+      continue;
+    }
+
+    const directory = path.slice(0, -1);
+    const files: string[] = [];
+    const collected = collectWatchFiles(mainRoot, join(mainRoot, directory), files, []);
+    if (isErr(collected)) return collected;
+    for (const file of files.sort()) {
+      const entry = fileEntry(
+        "main checkout",
+        mainRoot,
+        file,
+        join(mainRoot, file),
+        false,
+        readFile,
+      );
+      if (isErr(entry)) return entry;
+      entries.push(entry.value);
+    }
+  }
+  return ok(entries);
+}
+
 function fileEntry(
   root: ScopeSnapshotEntry["root"],
   rootPath: string,
@@ -128,13 +199,27 @@ function fileEntry(
   readFile: ScopeSnapshotFileReader,
 ): Result<ScopeSnapshotEntry, ScopeSnapshotRefusal> {
   try {
-    const stat = statSync(absolutePath);
+    const stat = lstatSync(absolutePath);
+    if (stat.isSymbolicLink()) {
+      return ok({
+        kind: "link",
+        root,
+        rootPath,
+        path,
+        present: true,
+        size: stat.size,
+        mtimeMs: Math.trunc(stat.mtimeMs),
+        sha256: createHash("sha256").update(readlinkSync(absolutePath, "utf8")).digest("hex"),
+        ownerOnly: false,
+      });
+    }
     if (!stat.isFile()) {
       return err({ path: absolutePath, because: "the snapshot target is not a regular file" });
     }
     const ownerOnly = allowOwnerOnly && (stat.mode & 0o077) === 0;
     const mtimeMs = ownerOnly ? Math.trunc(stat.mtimeMs) : undefined;
     return ok({
+      kind: "file",
       root,
       rootPath,
       path,
@@ -149,6 +234,7 @@ function fileEntry(
   } catch (error) {
     if (error instanceof Error && "code" in error && error.code === "ENOENT") {
       return ok({
+        kind: "file",
         root,
         rootPath,
         path,
@@ -290,9 +376,9 @@ export function snapshotScope(
 
   const entries: ScopeSnapshotEntry[] = [];
   for (const path of changed.value) {
-    const entry = fileEntry("main checkout", mainRoot, path, join(mainRoot, path), false, readFile);
-    if (isErr(entry)) return entry;
-    entries.push(entry.value);
+    const main = mainEntries(mainRoot, [path], readFile);
+    if (isErr(main)) return main;
+    entries.push(...main.value);
   }
 
   const configured = new Map<string, readonly string[]>();
@@ -319,6 +405,7 @@ function entryKey(entry: ScopeSnapshotEntry): string {
 
 function sameEntry(a: ScopeSnapshotEntry | undefined, b: ScopeSnapshotEntry | undefined): boolean {
   return (
+    a?.kind === b?.kind &&
     a?.present === b?.present &&
     a?.size === b?.size &&
     a?.mtimeMs === b?.mtimeMs &&
@@ -340,6 +427,7 @@ export function changedScopePaths(
     const entry = afterEntry ?? beforeEntry;
     if (entry !== undefined) {
       changes.push({
+        kind: entry.kind,
         root: entry.root,
         rootPath: entry.rootPath,
         path: entry.path,
@@ -355,5 +443,60 @@ export function describeScopeChange(change: ScopeGuardChange): string {
     change.root === "main checkout"
       ? `main checkout/${change.path}`
       : `watch path ${change.rootPath}/${change.path}`;
-  return change.ownerOnly ? `${description} (owner-only; size and mtimeMs only)` : description;
+  const link = change.kind === "link" ? " (symbolic link)" : "";
+  const ownerOnly = change.ownerOnly ? " (owner-only; size and mtimeMs only)" : "";
+  return `${description}${link}${ownerOnly}`;
+}
+
+export function scopeGuardHold(outcome: Outcome | undefined): ScopeGuardHold | undefined {
+  if (
+    outcome?.kind !== "held" ||
+    outcome.on.kind !== "gate-failure" ||
+    !outcome.because.startsWith("scope guard held node:")
+  ) {
+    return undefined;
+  }
+  const marker = "changed paths: ";
+  const markerIndex = outcome.because.indexOf(marker);
+  return {
+    because: outcome.because,
+    paths:
+      markerIndex === -1
+        ? []
+        : outcome.because
+            .slice(markerIndex + marker.length)
+            .split(", ")
+            .filter((path) => path.length > 0),
+  };
+}
+
+export async function createScopeGuardReceipt(
+  request: ScopeGuardReceiptRequest,
+): Promise<Result<Receipt, string>> {
+  const scope = gitScope(request.worktree);
+  const proof: Record<string, unknown> = {
+    action: request.action,
+    paths: request.paths,
+    session: request.session,
+    ...(request.checkedAt === undefined ? {} : { checkedAt: request.checkedAt }),
+    ...(request.changedPaths === undefined ? {} : { changedPaths: request.changedPaths }),
+  };
+  const receipt = await createReceipt(
+    request.worktree,
+    scope,
+    SCOPE_GUARD_RECEIPT_GATE,
+    request.commitSha,
+    spend.none(),
+    duration.unknown(),
+    request.action === "person-clear"
+      ? derivation.human(request.actor)
+      : derivation.gate(SCOPE_GUARD_RECEIPT_GATE, "runner@0", request.actor),
+    proof,
+  );
+  if (isErr(receipt))
+    return err(`${explainScopeRefusal(receipt.error)} scope guard receipt could not be written.`);
+  const id = await commandReceiptId(request.worktree, scope, SCOPE_GUARD_RECEIPT_GATE, proof);
+  if (isErr(id))
+    return err(`${explainScopeRefusal(id.error)} scope guard receipt could not be addressed.`);
+  return ok({ ...receipt.value, id: id.value });
 }

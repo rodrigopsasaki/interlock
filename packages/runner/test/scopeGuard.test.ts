@@ -5,6 +5,7 @@ import {
   readFileSync,
   rmSync,
   statSync,
+  symlinkSync,
   utimesSync,
   writeFileSync,
 } from "node:fs";
@@ -58,6 +59,56 @@ function requireSnapshot(worktree: string, watchPaths: readonly WatchPath[] = []
 }
 
 describe("scope guard snapshots", () => {
+  it("walks an untracked folder containing a nested repository and catches inner writes", () => {
+    const fixture = fixtureWorktree();
+    const nested = join(fixture.main, ".worktrees-retired", "retired");
+    mkdirSync(nested, { recursive: true });
+    writeFileSync(join(nested, "nested.txt"), "before\n");
+    gitInitFixtureWithContent(nested);
+
+    const before = requireSnapshot(fixture.worktree);
+    expect(changedScopePaths(before, requireSnapshot(fixture.worktree))).toEqual([]);
+    writeFileSync(join(nested, "nested.txt"), "after\n");
+    const after = requireSnapshot(fixture.worktree);
+
+    expect(changedScopePaths(before, after).map(describeScopeChange)).toEqual([
+      "main checkout/.worktrees-retired/retired/nested.txt",
+    ]);
+  });
+
+  it("records a symbolic link in an untracked folder without reading or following its target", () => {
+    const fixture = fixtureWorktree();
+    const nested = join(fixture.main, ".worktrees-retired", "retired");
+    const target = join(fixture.main, "..", "target.txt");
+    const link = join(nested, "target-link");
+    mkdirSync(nested, { recursive: true });
+    writeFileSync(target, "target\n");
+    symlinkSync(target, link);
+    gitInitFixtureWithContent(join(fixture.main, ".worktrees-retired", "retired"));
+
+    const reads: string[] = [];
+    const snapshot = snapshotScope(fixture.worktree, [], {
+      readFile: (path) => {
+        reads.push(path);
+        return readFileSync(path);
+      },
+    });
+
+    expect(isOk(snapshot)).toBe(true);
+    if (!isOk(snapshot)) return;
+    expect(
+      snapshot.value.entries.find((entry) => entry.path.endsWith("target-link")),
+    ).toMatchObject({
+      kind: "link",
+    });
+    expect(reads).not.toContain(target);
+    expect(reads).not.toContain(link);
+
+    writeFileSync(target, "changed-target\n");
+    const after = requireSnapshot(fixture.worktree);
+    expect(changedScopePaths(snapshot.value, after)).toEqual([]);
+  });
+
   it("holds a fixture agent turn that writes a new file into the main checkout", async () => {
     const fixture = fixtureWorktree();
     const before = requireSnapshot(fixture.worktree);
