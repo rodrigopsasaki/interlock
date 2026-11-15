@@ -1,7 +1,7 @@
 interlock: graph@v0
 id: 0069-agent-keeps-its-lease
 arc: bring-october-back
-ask: While an agent the runner launched is alive and working in its pane, the node's lease is renewed, whatever the runner's own wait did; when the agent exits or the pane closes, or the agent shows no work for a full lease, renewal stops and the lease ends. A second launch of a node whose lease is live is refused plainly, for a run and a resume alike.
+ask: While an agent the runner launched is alive in its pane, the node's lease is renewed, whatever the runner's own wait did, up to an explicit ceiling; when the agent exits or the pane closes the lease ends. A second launch of a node whose lease is live is refused plainly and atomically, for a run and a resume alike, and the refusal never suggests a sweep.
 derivation:
   kind: model
   model: claude-sonnet-5-5
@@ -51,97 +51,161 @@ read: >
        each calls lease.stop() with the agent still running.
     4. The finally block itself (:1316-1318): `stopLease?.()` runs before the pane decision, so after a judged outcome that
        is not cleared (paneCustody stays "person") the lease ends while the pane stays open.
-    5. A stop signal (holdStoppedAttempt, :566-580) ends renewal too, but that is a person asking the agent to stop and
-       is correct.
+    5. A recorded stop request (holdStoppedAttempt, :566-580) ends renewal at the moment the request is recorded. A
+       request is not a confirmed stop, so renewal must continue until the agent is confirmed exited.
+    6. Early abandonment lines that narrate "lease not renewed" at the moment of a refusal: the beforeJudge refusal
+       (:1243-1255) and the judgement refusals (:1289-1298), and the scope-guard hold (holdForScopeGuard, :553-565).
+    7. A cleared result returns custody to the runner (:1302), and the finally then stops the lease (:1317) before it
+       tries to close the pane. When the close or machine release is unconfirmed (:1319-1345, the held outcome with
+       "close or machine release unconfirmed") the agent may still run with no lease. A condition on paneCustody alone
+       misses this: the boundary has to be confirmed termination, not custody.
   Before the prompt is delivered (:504-1068) every failure ends in `lease.stop()` and the finally closes the pane
   (paneCustody is still "runner"), so the agent is closed with the lease. Exec runtimes run their phases as children the
   drive awaits (:700-800), so their lease lives exactly as long as the child; they are out of scope.
   And the process that renews is the process that waits: the instant `interlock run` returns, the CLI closes the ledger and
   exits (packages/cli/src/run.ts:303-305), so even a renewal that outlived the drive's stop would die with the process.
 
-  Nothing stops the second launch today. `interlock run` checks the approval, the decided outcome (decidedNodeRefusal) and
+  Nothing stops the second launch today, and a check alone would not stop two at once. `interlock run` checks the approval, the decided outcome (decidedNodeRefusal) and
   dependencies (packages/cli/src/run.ts:196-222) but never whether the node holds a live lease; only judge
   (packages/cli/src/judge.ts:176-189), node reset (packages/cli/src/node/reset.ts:84-97) and graph status do. driveInteractiveSession
   calls ensureNodeWorktree (:368) before it ever leases, so a second launch reuses and may rebase the worktree an agent is
-  writing in.
+  writing in. And the ledger gives no cross-process ordering: each process loads its projection once at createLedger
+  (packages/ledger/src/ledger.ts:30-60) and updates it only from its own appends, the sink appending to a shared
+  journal.jsonl with no lock. Two launches that both read before either leases both pass a plain leaseIsLive check
+  (projection.ts:89-91). The CLI also runs reconcileMachineOnStart (packages/cli/src/run.ts:186-194), which can record
+  recovery outcomes, before the drive starts, so a refusal inside the drive is too late to promise that nothing was
+  appended.
 
   How the drive can know the agent is alive. The drive holds the pane and the agent it opened (sessionDrive.ts:320-321,
   :555, :713). The Runtime interface (packages/runner/src/runtime.ts:132-190) offers observe() (herdr agent.list: agent
   status, pane, and per-runtime live-work evidence, herdr/adapter.ts:174-224), read(agent) (the pane's recent text) and
-  paneProcess(pane) (herdr pane.list plus pane.process_info, adapter.ts:424-445, which today reads only the shell's pid
-  for the machine provider). Two of these cannot be the answer alone. The agent status is unreliable exactly where the
-  evidence is: herdr reported "done" while codex worked, and liveWork has no source for codex. And the pane existing says
-  nothing: after the agent exits the shell stays, and an agent that finished its turn sits alive at its prompt, so
-  "alive" is not "working". herdr's pane.process_info does carry what is missing: the pane's foreground processes
-  (schema PaneProcessInfo in packages/runner/test/fixtures/herdr-socket-schema.json: foreground_process_group_id,
-  foreground_processes with pid, name, argv, and shell_pid). The agent is running when a foreground process other than
-  the shell exists; it has exited when the shell alone is foreground or the pane is gone from pane.list.
+  paneProcess(pane) (herdr pane.list plus pane.process_info, adapter.ts:424-445), which reads only the shell's pid for
+  the machine provider's custody and stays exactly as it is, separate from what this node adds. Progress signals cannot
+  decide ownership: herdr reported "done" while codex worked, liveWork has no source for codex, the claude source
+  treats an unanswered tool call as live without proof of progress (packages/runner/src/claude/liveWork.ts:142), a screen
+  can animate while an agent is stuck, and a silent build leaves the text unchanged for longer than a lease. Design D11
+  (docs/design/0001-interlock.md:168) says the same: alive and stuck is a third state, not a lost lease. So ownership
+  rests on the one fact that is hard to fake, that the agent process this runner started is still alive, and progress
+  evidence only classifies it for the narration.
+
+  The process contract, exactly (herdr pane.process_info, schema PaneProcessInfo in packages/runner/test/fixtures/
+  herdr-socket-schema.json:6155 and the pane_process_info envelope at :7191, which requires only pane_id; shell_pid,
+  foreground_process_group_id and foreground_processes may be absent or null).
+    Binding. Right after the opening prompt is delivered (so the agent is certainly running, sessionDrive.ts:1072) the
+    drive reads the pane once and records the AgentBinding: the pane id, the pid and the name (and argv0 when present) of
+    the single foreground process that is not shell_pid. If the reading is missing a field, shows no such process or
+    more than one candidate, there is no binding, and the attendance is unbound (see the table).
+    Reading. A later reading is validated: the response carries the same pane_id, foreground_processes is an array of
+    entries each with an integer pid and a name, and shell_pid is an integer. Any violation is "unreadable". With a valid
+    response: running when an entry has the bound pid and the bound name; exited, reason "shell-foreground", when no
+    entry has the bound pid and every entry's pid is shell_pid or the list is empty with shell_pid known; ambiguous, which
+    is unreadable, when the bound pid is absent and some other non-shell process is in the foreground (a replacement
+    command, a pid reuse). The pane absent from a valid pane.list is exited, reason "pane-closed", a typed field and never
+    inferred from the because text. A backgrounded or suspended agent leaves the foreground, so it reads exited; that is a
+    named limit.
 
   The plan, as decisions.
-    A. One new optional runtime capability, agentProcess(pane): Result of {state: "running"} or {state: "exited", because},
-       a RuntimeRefusal when the runtime cannot read it. The herdr adapter implements it from pane.list and
-       pane.process_info as above. The tmux adapter does not implement it. A runtime without the capability is not
-       attended: the lease ends with the drive as today and the drive narrates "the runtime offers no agent process
-       reading; the lease is not renewed after this drive ends" once. This also leaves every existing stub runtime, none
-       of which implements it, behaving exactly as today.
-    B. One new unit, packages/runner/src/leaseKeeping.ts, with one function the drive awaits: keepLeaseWhileAgentWorks. It
-       runs while the heartbeat that takeLease started keeps running, polls every lease_ms / 3 (the heartbeat's own
-       interval, so no new setting and a reading is never older than one renewal), and decides each poll from one
-       reading: agentProcess, then (when running) the observation's agent status and live work and a fresh read of the
-       pane text. Evidence the agent is working is any of: status working; live work "live"; the pane text differing from
-       the previous poll's text (a working agent's screen moves; an idle prompt's does not). Blocked and idle are not
-       evidence: a blocked agent is waiting for a person and an idle one has finished its turn.
-       It ends, and the caller stops the heartbeat, on the first of: the agent has exited or the pane is gone (immediately);
-       no evidence for a full lease_ms since the last evidence ("quiet"), which also covers a reading that fails or a
-       runtime that cannot read: the attendance started with the agent presumed working, so unreadable liveness renews for
-       at most one lease_ms and then stops, never forever. The agent staying alive and working keeps renewing without a
-       ceiling, because the agent's own exit is the bound and hours of real work are the case this fixes.
-       Why one lease of quiet: the heartbeat keeps the lease live at least lease_ms ahead of now at each tick, so
-       stopping renewal after a quiet lease_ms means the lease lapses within roughly another lease_ms, a bounded tail
-       the cockpit and the second launch see as the same single event.
-    C. The drive. The post-delivery `lease.stop()` calls (the list in paths 1 to 3 above) are removed, and the finally block
-       awaits keepLeaseWhileAgentWorks before `stopLease` whenever paneCustody is "person" and the runtime has the
-       capability (so after a judged non-cleared outcome too, path 4). Pre-delivery stops are untouched. The line "lease
-       not renewed; the sweeper will collect it at <iso>" is narrated once, when renewal really ends, never while it is
-       running; holdForScopeGuard and holdStoppedAttempt, which narrate it today at the moment of the hold, narrate it
-       from the same one place. While attending, the drive narrates why it is holding (the wait's own refusal text,
-       first), each change of evidence class, and why it ended ("agent exited", "pane closed", "no work shown for <n>s;
-       lease ended", "liveness unreadable for <n>s: <because>; lease ended"). The drive's result (exit code and message)
-       is the same as without attendance, delivered when attendance ends; a process that is killed during attendance
-       stops renewing, exactly as today. The caller that waits on `interlock run` sees it exit when the agent does, not
-       when the wait gave up; that is the cost of the lease being owned by the process, named in the debrief.
-    D. The refusal of a second launch. driveInteractiveSession refuses, before the worktree is created or reused and
-       before any pane opens, when the ledger holds a live lease (ledger's leaseIsLive over this node's sessions, now taken
-       from the drive's clock) for the node: the message "<node> is leased by session <id> until <iso>; wait for it or run
-       interlock sweep." (the same words judge and reset use). No outcome is written and no event is appended by the
-       refusal, so a refused second launch leaves the first attempt's ledger untouched. A run and a resume are the same
-       call, so both are covered.
+    A. Claim. A new unit packages/runner/src/nodeClaim.ts takes a cross-process exclusive claim on a node: an exclusive
+       file creation (open with the exclusive flag) of claims/<graph>.<node>.lock inside the shared journal directory,
+       holding {pid, takenAt}, retried every 100 ms for at most 30 s; a claim whose pid is not alive, or older than two
+       minutes, is stale and replaced. Under the claim, the launch re-reads the journal afresh (readReplay, exported by the
+       ledger, not the process's own projection), and refuses when leaseIsLive holds for any session of the node. The
+       claim is released right after takeLease has appended lease-taken (the sink writes and syncs before returning), and
+       on every refusal and throw before that. The claim is taken by `interlock run` before routeRuntime and before
+       reconcileMachineOnStart, so a refusal appends nothing, and is handed to driveInteractiveSession; the drive takes
+       its own when none is handed in (the plan command), before ensureNodeWorktree. A launch that cannot get the claim in
+       30 s is refused with "<node> is being started by another launch; this launch was refused so that start is not
+       disturbed." A run and a resume are the same call.
+    B. Refusal wording. "<node> is still being worked on in session <id> (lease until <iso>); this launch was refused so
+       that work is not disturbed." It never says to sweep: the owner's standing rule is that live agents are never swept,
+       and the sweeper (sweep.ts:29-56) looks at expiry and outcomes, never at whether an agent survives. (judge and node
+       reset keep their existing "or run interlock sweep" text; this node neither copies nor changes it, and the
+       debrief lists it as an open item.)
+    C. Runtime capability. One new optional Runtime member agentProcess(pane, binding?) with the reading above, plus a
+       bindAgentProcess(pane) that returns the binding or a refusal. The herdr adapter implements both; paneProcess is
+       untouched. The tmux adapter does not implement them: a runtime without the capability is not attended and the drive
+       narrates once "the runtime offers no agent process reading; the lease is not renewed after this drive ends".
+    D. The keeper. packages/runner/src/leaseKeeping.ts exports keepLeaseWhileAgentLives, awaited by the drive while the
+       heartbeat that takeLease started keeps running. It polls every lease_ms / 3 on the clock's sleep; every awaited
+       call (agentProcess, observe, read) is raced against its own deadline of lease_ms / 3 so a call that never settles
+       is an unreadable poll, never a hang. The rule, in one table:
+
+         process reading            | progress evidence | renewal                                   | narrated state
+         running                    | any               | renew at each tick                        | "working" when evidence is fresh, "quiet since <iso>, still owned" otherwise
+         running, ceiling reached   | any               | stop renewing; held outcome appended      | "ceiling reached; agent may still be running"
+         exited (typed reason)      | none needed       | stop at this poll                         | "agent exited" or "pane closed"
+         unreadable (failed, malformed, ambiguous, never settles) | any | renew for at most one lease_ms since the last running reading, then stop; held outcome appended | "liveness unreadable for <n>s: <because>; ownership uncertain"
+         unbound (no binding)       | any               | same as unreadable, counted from the start of attendance | same
+         runtime offers no capability | none          | not attended                              | the one sentence in C
+
+       Progress evidence is status working, live work live, or the pane text changed since the previous poll; it changes
+       the narrated word and nothing else, so stale "working", an animated screen and a pending tool cannot extend
+       ownership beyond the process, and a silent build is never mistaken for an abandoned one. The ceiling is explicit:
+       12 times run_timeout_ms of attendance (12 hours at the default hour), named in one constant, never a setting; it
+       exists so a stuck agent does not hold a node for ever, and reaching it ends renewal without claiming the agent
+       stopped. When renewal ends with the agent possibly still alive (ceiling, unreadable, unbound), the drive appends an
+       outcome held on the node naming the pane, the reason and the last running reading, using the same held outcome
+       the drive already writes (HELD_REVISIT_MS), so the position shows that the worktree is not known to be free; the
+       lapsed lease alone is never the whole record. The keeper writes no ledger event itself; the drive does.
+    E. The drive. The post-delivery `lease.stop()` calls and the early "lease not renewed" lines are removed (paths 1 to 6
+       of the list above). The finally block takes one boundary: renewal stops only after the agent is confirmed
+       terminated or the keeper has ended. Concretely, whenever an agent exists and termination was not confirmed
+       (paneCustody "person", or a cleared result whose pane close or machine release failed, path 7), the finally awaits
+       keepLeaseWhileAgentLives inside its own try/finally in which the heartbeat is cancelled and launchCleanup runs
+       whatever the keeper does, including a thrown read. A recorded stop request attends like any other exit and ends at
+       the first poll that reads the agent exited. The line "renewal stopped; the lease expires at <iso>" (the last
+       expiry the heartbeat wrote; cancelling the heartbeat does not shorten it) is narrated once per drive, after
+       renewal has ended, never while it runs. It replaces "the sweeper will collect it", which promised a sweep nobody
+       schedules. The drive's returned outcome (exit code and message) is the same as without attendance, delivered
+       when attendance ends. Pre-delivery failures are untouched: their pane is closed by the finally and their lease
+       stops at once.
+    F. The guarantee, stated as limits, in the code's narration and in the debrief. It holds for supported herdr
+       sessions whose runner process survives. It does not survive: the runner process being killed or its terminal
+       closed (no signal handler is added; renewal stops with the process, as today); the machine sleeping (heartbeats
+       pause while wall-clock expiry advances, and a sweep in that window marks the lease expired for good, because a later
+       renewal does not clear leaseExpired, projection.ts:197); herdr crashing or becoming unreachable (unreadable, so
+       bounded to one lease, then a held outcome); a person closing the pane (the agent is gone at the next poll, so the
+       lease ends within lease_ms / 3 plus one call deadline, not "immediately"). None of these proves the agent is dead;
+       the held outcome is how the position says so. The `interlock run` process now lives until the keeper ends, which
+       is when the agent exits, the pane closes, liveness stays unreadable for a lease, or the ceiling passes; callers
+       that treated its exit as the end of the attempt see it later.
   What stays as it is: the lease length, the heartbeat, the sweeper, the wait's timeout (run_timeout_ms still ends the
-  wait; it no longer ends the lease), every event and position shape. The ledger package is untouched, and no setting,
-  schema or shape is added (so there is no shapes-fresh gate here; the three signals above reuse lease_ms).
+  wait; it no longer ends the lease), paneProcess, every event and position shape. The ledger package is untouched, and no
+  setting, schema or shape is added (so no shapes-fresh gate; the poll and the grace reuse lease_ms, the ceiling reuses
+  run_timeout_ms).
 
-  What this plan does not do, and says so. (a) A runner process killed while its agent works stops renewing, so the lease
-  lapses and a second launch is allowed; closing that needs a liveness check at launch or a separate renewer, which
-  this node does not build because every reading of "alive" other than the process's own pane needs an identity the
-  second launch cannot trust today. (b) The two agents running now (stored-findings, slow-tests-load-robust) predate the
-  change and their leases have already lapsed; nothing here renews them, and until they finish a launch of those nodes
-  is not refused. (c) After the wait gives up with the agent still working, the drive does not later judge the work; the
-  agent's own debrief and a later run or judge do, as today. (d) The herdr reading is by foreground process; that herdr
-  reports the agent as a foreground process other than the shell, and the shell alone once it exits, is unproven by any
-  gate (the cases run over a fake server shaped by the checked-in schema). The debrief names it and gives the manual
-  check.
+  What this plan does not do, and says so. (a) The two agents running now (stored-findings, slow-tests-load-robust)
+  predate the change; this change neither renews their leases nor makes their worktrees safe to reuse, and they need
+  separate handling by whoever launches those nodes. (b) A killed runner and the other limits in F. (c) tmux and exec.
+  (d) After the wait gives up with the agent still working the drive does not later judge the work; the agent's debrief
+  and a later run or judge do, as today. (e) That herdr shows the agent as a foreground process other than the shell, and
+  the shell alone after it exits, is unproven by any gate: the cases run over a fake shaped by the checked-in schema, and
+  a conforming fake cannot establish the real behaviour. The debrief names it and gives the manual check.
 
-  Tests and the real services. Every test of this node uses a fake runtime (a literal Runtime whose agentProcess, observe,
-  read and waitUntil the test scripts), the controlled fake clock from @phyxiusjs/clock that tests already use, and a
-  memory ledger; the adapter case uses the checked-in herdr fake server (packages/runner/test/herdr/fakeServer.ts). Never
-  real herdr, never a real agent CLI, never the real HOME. Every fixture repository and folder is created with mkdtemp
-  under the system temp folder, never inside the worktree, and removed after; a test that needs HOME-shaped folders sets
-  them under that temp folder and passes them explicitly. The three existing real-codex tests keep running through the
-  0065 guard under `pnpm test`; this node does not add, change or widen them.
+  Tests and the real services. Every test of this node uses a fake runtime (a literal Runtime whose agentProcess,
+  bindAgentProcess, observe, read and waitUntil the test scripts, including calls that never settle), the controlled fake
+  clock from @phyxiusjs/clock, and ledgers over journal folders under the system temp folder (two independent ledger
+  instances over one folder where the case needs a second process's view). The herdr cases extend the checked-in fake
+  server (packages/runner/test/herdr/fakeServer.ts) first: today its pane.list is untagged and it has no
+  pane.process_info handler, while the real schema tags pane_list and requires the pane_process_info envelope. The fake
+  gains schema-faithful, scriptable pane.list and pane.process_info responses, validated against the checked-in schema
+  by the test, including omitted and null fields, empty lists, malformed entries, a mismatched pane id, and a pane that
+  disappears between two calls. Never real herdr, never a real agent CLI, never the real HOME or any real provider
+  folder; every fixture folder is made with mkdtemp under the system temp folder and removed after.
+
+  Gate isolation. The node's gates run whole suites: `pnpm test`, and scripts/gates/slow-tests.ts, which reruns every
+  package suite with the inherited environment. Existing tests launch real executables on purpose (the three real-codex
+  tests through the 0065 guard, packages/runner/test/support/codexGuard.ts). For this node's gates the implementer adds
+  a fake-only profile, honoured by the suite-running gate scripts and vitest.setup.ts, under which the three real-codex
+  test files are not run and every inherited home or configuration override (HOME, XDG_CONFIG_HOME, XDG_DATA_HOME,
+  XDG_STATE_HOME, XDG_CACHE_HOME, CODEX_HOME, CLAUDE_CONFIG_DIR and the Kimi equivalents) points at a temp folder under
+  the system temp folder, and PATH carries no real agent CLI. The implementer reads the guard to decide the mechanism
+  and records the choice in notes.yaml. The profile is proven by a case, not claimed.
 
   Out of scope: renewing leases from outside the runner process; the sweeper's schedule or behaviour; exec runtimes;
   tmux agent liveness; judging an attempt after a late agent finish; the ledger, events, schemas, positions and the
-  cockpit; the owner's local.yaml; the wait loop's own logic (sessionWait.ts is not changed).
+  cockpit; the owner's local.yaml; the wait loop's own logic (sessionWait.ts is not changed); the sweep wording in
+  judge and node reset.
 
   Laws: AGENTS.md. No comments in packages/*/src; strict TypeScript with no `as`, `!`, `any` or `as unknown as`; plain
   engineering names; Biome; no em dashes.
@@ -154,100 +218,123 @@ nodes:
   - id: agent-keeps-its-lease
     role: implementer
     acceptance: |
-      As the read. Allowed paths: packages/runner/ (src and test), packages/cli/ (only if a caller needs a type update),
-      scripts/gates/lease-kept-proven.ts, scripts/gates/slow-tests.ts (declarations only, if the slow-tests-accounted gate
-      requires them), and this graph's session folder. The ledger package, every event and position schema, local@v1 and
-      docs/shapes.md are untouched.
-      1. packages/runner/src/runtime.ts gains the optional Runtime member agentProcess(pane), returning a Result of
-         AgentProcess ({ state: "running" } or { state: "exited", because }) or a RuntimeRefusal. packages/runner/src/
-         herdr/adapter.ts implements it: pane absent from pane.list is exited with because "the pane is closed"; a
-         foreground process in pane.process_info whose pid differs from shell_pid is running; none is exited with because
-         "only the shell remains in the pane"; a missing or malformed pane.list or pane.process_info is a transport
-         refusal naming the call. The tmux adapter and every existing stub runtime are unchanged and keep passing.
-      2. packages/runner/src/leaseKeeping.ts exports keepLeaseWhileAgentWorks, taking the runtime, the pane, the agent,
-         the attempt's identity (graph, node, session), the clock, lease_ms and narrate, and resolving with the reason it
-         ended: "exited", "pane-closed", "quiet" or "unreadable", each with the plain sentence narrated. It polls every
-         lease_ms / 3 on the clock's own sleep, never a real timer, and reads agentProcess first and the rest only when
-         the agent is running. Evidence of work is exactly: observation agent status working, live work live, or pane
-         text different from the previous poll's. It ends on exit or a closed pane at the poll that sees it; on a quiet
-         lease_ms since the last evidence, counted from the start of attendance when there has been none; and when
-         agentProcess fails or is absent, treated as no evidence, so it ends after at most one lease_ms (reported
-         "unreadable" when the last reading failed, "quiet" otherwise). It never ends because agent status is done or
-         idle by itself, and never because the wait's own timeout passed. It performs no ledger write and holds no timer
-         of its own: renewal remains takeLease's heartbeat.
-      3. packages/runner/src/sessionDrive.ts: before the worktree is created or reused (before ensureNodeWorktree) it
-         refuses a node with a live lease, using the ledger's leaseIsLive over that node's sessions with the drive's
-         clock, with exactly "<node> is leased by session <id> until <iso>; wait for it or run interlock sweep.", exit
-         code 1, no event appended, no pane opened. The post-delivery `lease.stop()` calls and their early
-         abandonLease() lines are removed; the finally block awaits keepLeaseWhileAgentWorks before stopLease whenever
-         paneCustody is "person", an agent exists and the runtime offers agentProcess, and otherwise (including a runtime
-         without agentProcess, with the one narrated sentence from the read) behaves as today. "lease not renewed; the
-         sweeper will collect it at <iso>" is narrated exactly once per drive and only after renewal has ended, with
-         the lease's last expiry. The drive's returned outcome is identical to today's for every path. The runner never
-         attends a pre-delivery failure: its pane is still closed by the finally and its lease still stops at once. A
-         stop signal (holdStoppedAttempt) attends like any other post-delivery exit and ends at the first poll that finds
-         the agent exited.
-      4. Tests, each failing on main b67507b8 for its intended assertion except where marked, with the fake runtime, the
-         controlled fake clock, a memory ledger and fixtures under the system temp folder as the read says. Exactly
-         these seven titles; the assertions named under each are inside that case:
-         - "a working agent keeps its lease past the wait's timeout" (packages/runner/test/leaseKept.test.ts: drive a
-           node through delivery with a fake runtime whose waitUntil advances the fake clock to the run timeout and
-           returns the timeout refusal, whose agentProcess says running and whose pane text changes each poll; advance
-           the clock three lease lengths past the timeout: lease-renewed events keep appending, each with an expiry
-           later than the last, the projection's lease is live at every checkpoint (leaseIsLive), and the drive has not
-           yet returned; the wait's refusal text was narrated first as the reason for holding; "lease not renewed" is not
-           narrated while renewing. Repeated for a wait that ends with a non-timeout refusal (a remote refusal
-           agent_not_running) and for a scope guard hold after the turn, and for a judged outcome that is not cleared
-           with the pane left open: each keeps the lease)
-         - "the lease ends when the agent exits" (same file: the fake agentProcess flips to exited at a poll; the heartbeat
-           stops at that poll, no lease-renewed event appends afterwards over two more lease lengths, the lease lapses
-           at its last expiry, "lease not renewed; the sweeper will collect it at <iso>" is narrated exactly once, after
-           the exit sentence and not before, the drive returns the same outcome (exit code and message) as the same
-           script with no attendance, and a pane that closes (pane gone) ends it the same way with its own sentence)
-         - "a second launch of a node whose agent is alive is refused" (same file: while the first drive is attending,
-           a second driveInteractiveSession call for the same node over the same memory ledger and repository returns
-           exit code 1 with exactly "<node> is leased by session <id> until <iso>; wait for it or run interlock sweep.",
-           opens no pane, appends no event, and leaves the worktree's HEAD, branch and files as they were; after the
-           agent exits and the lease lapses the same call is not refused; a launch of a different node is not refused)
-         - "unreadable liveness renews only for a bounded grace" (same file: agentProcess returns a refusal on every
-           poll; renewal continues for lease_ms and not longer, the drive returns after that with "unreadable" narrated
-           with the refusal's text and the number of seconds, no event appends after it; and a runtime with no
-           agentProcess at all is not attended: the drive returns at once, the lease stops as today, and the one sentence
-           naming the missing capability is narrated)
-         - "a resume keeps its lease the same way" (same file: a first drive ends with its worktree holding prior work
-           and its agent gone, a second drive on the same node (the resume: the worktree is reused, "worktree carries
-           prior work" narrated) takes a new lease, its wait times out, and its lease keeps renewing while its agent runs
-           and ends when it exits; the first session's lease never renews again; the two sessions' lease events carry
-           their own session ids)
-         - "an agent that is alive but shows no work stops renewing after one quiet lease" (same file: agentProcess
-           running, status idle and done by turns, no live work, the pane text unchanged: renewal stops once a full
-           lease_ms has passed since the last evidence, narrated "no work shown for <n>s"; a single text change or one
-           working status resets the quiet window; a status of done with a changing pane text keeps renewing, which is
-           the logged codex case; blocked alone is not evidence)
-         - "herdr reports the agent gone when only the shell is left in the pane" (packages/runner/test/herdr/
-           agentProcess.test.ts over the checked-in fake server shaped by the checked-in schema: a foreground process that
-           is not the shell is running; the shell alone is exited with its sentence; a pane missing from pane.list is
-           exited as closed; a malformed pane.process_info is a transport refusal naming the call; the tmux runtime
-           has no agentProcess)
-      5. Proof: scripts/gates/lease-kept-proven.ts runs the two test files above once with vitest's JSON reporter, with
-         a temporary HOME, fails on a missing file, and prints "lease kept proven: 7 named cases passed" only when the run
-         exits zero, every title above passes exactly once, and there are no failures, skips, todos, missing summaries or
-         extra cases in those files. It proves execution and titles; the assertions above are what the judge reads each
-         case for.
-      6. Existing tests keep passing, including packages/runner/test/lease.test.ts, sweep.test.ts, sessionWait.test.ts,
-         refusalOutcomes.test.ts, startFailureNotTimeout.test.ts and the herdr adapter tests, updated only where the removal
-         of the early lease.stop() calls or the moved "lease not renewed" line requires it. New tests are declared or
-         baselined as the slow-tests-accounted gate requires.
-      7. The debrief states: the paths that ended renewal (the list in the read), the one rule that replaces them
-         (renewal ends when the agent exits, the pane closes, or no work is shown for a full lease; the wait's timeout
-         no longer ends it); that `interlock run` now exits when the agent does, not when the wait gives up, and that a
-         killed runner stops renewing as before; that unreadable liveness is bounded to one lease length and a runtime
-         without agentProcess is not attended; the evidence used for "working" and why status alone is not trusted (the
-         logged "done while working"); that the herdr foreground-process reading is unproven by any gate, with the manual
-         check (start a real agent in a pane through the runner against a throwaway node, let the wait time out with
-         run_timeout_ms set small, and watch lease-renewed keep appending in `interlock position`; end the agent and
-         watch renewal stop); that the ledger, events, positions and settings are untouched; and that the two agents
-         running at the time of the plan are not covered.
+      As the read. Allowed paths: packages/runner/ (src and test, including packages/runner/test/herdr/fakeServer.ts),
+      packages/cli/src/run.ts and packages/cli/src/plan.ts (claim hand-in and the earlier refusal point; other cli files
+      only if a caller needs a type update), scripts/gates/lease-kept-proven.ts, scripts/gates/slow-tests.ts (the
+      fake-only profile and declarations), vitest.setup.ts and vitest.config.base.ts (the fake-only profile only), and
+      this graph's session folder. The ledger package, every event and position schema, local@v1, docs/shapes.md,
+      paneProcess and judge and node reset are untouched.
+      1. runtime.ts gains the optional Runtime members bindAgentProcess(pane) and agentProcess(pane, binding), with typed
+         results: a binding, or { state: "running" } | { state: "exited", reason: "pane-closed" | "shell-foreground" },
+         or a RuntimeRefusal. The herdr adapter implements them by the contract in the read (validation of pane_id, pid,
+         name, shell_pid; the bound pid and name; ambiguity is a refusal naming what was ambiguous; a missing or malformed
+         field is a transport refusal naming the call and field; the typed reason is never inferred from text).
+         paneProcess is byte for byte unchanged. tmux and every existing stub runtime are unchanged and keep passing.
+      2. nodeClaim.ts and the claim flow of decision A: exclusive file creation, 100 ms retry, 30 s bound, stale claim
+         replacement (dead pid or older than two minutes), fresh readReplay and leaseIsLive under the claim, release right
+         after lease-taken is appended and on every refusal and throw before it, taken in `interlock run` before routeRuntime
+         and reconcileMachineOnStart, handed to the drive, taken by the drive itself when none is handed in. The refusal is
+         exactly "<node> is still being worked on in session <id> (lease until <iso>); this launch was refused so that
+         work is not disturbed." with exit code 1, no event appended, no pane opened, no worktree touched. No string in
+         this node's sources or tests contains the word sweep as an instruction.
+      3. leaseKeeping.ts exports keepLeaseWhileAgentLives implementing the table of decision D exactly: polls every
+         lease_ms / 3 on the clock's sleep, every awaited call raced against its own lease_ms / 3 deadline, ownership
+         from the process reading alone, progress evidence only for the narrated word, unreadable and unbound bounded to
+         one lease_ms, the ceiling of 12 times run_timeout_ms as one named constant, never a setting. It resolves with
+         the reason it ended ("exited", "pane-closed", "unreadable", "unbound", "ceiling") and narrates the plain sentence.
+         It writes no ledger event and holds no timer of its own: renewal remains takeLease's heartbeat.
+      4. sessionDrive.ts: the drive binds the agent right after the prompt is delivered; the post-delivery lease.stop()
+         calls and early abandonLease lines are removed; the finally awaits the keeper, inside its own try/finally that
+         cancels the heartbeat and runs launchCleanup whatever happens, whenever an agent exists and termination was not
+         confirmed (person custody, or a failed close or release after a cleared result); a stop request attends too; when
+         the keeper ends with the agent possibly alive (ceiling, unreadable, unbound) the drive appends the held outcome
+         of decision D naming pane, reason and last running reading; "renewal stopped; the lease expires at <iso>" is
+         narrated exactly once per drive after renewal has ended; a runtime without the capability narrates the one
+         sentence and behaves as today. The drive's returned outcome is identical to today's for every path.
+      5. Tests, each failing on main b67507b8 for its intended assertion except where marked, as the read says. Exactly
+         these ten titles; the assertions under each are inside that case:
+         - "a working agent keeps its lease past the wait's timeout" (packages/runner/test/leaseKept.test.ts: a fake
+           runtime whose waitUntil advances the fake clock to the run timeout and returns the timeout refusal, whose
+           agentProcess says running: advance three lease lengths past the timeout: lease-renewed events keep appending
+           with growing expiries, leaseIsLive holds at every checkpoint, the drive has not returned, the wait's refusal text
+           was narrated first as the reason, and "renewal stopped" is not narrated while renewing. Repeated for a wait that
+           ends with a non-timeout refusal (a remote agent_not_running) and for a scope guard hold after the turn)
+         - "the lease ends when the agent exits" (same file: immediately before the flip, assert at least one more
+           renewal happened and the drive is unresolved, so premature stopping cannot pass; then agentProcess flips to
+           exited at a poll: the heartbeat is cancelled, no lease-renewed event appends over two more lease lengths,
+           "renewal stopped; the lease expires at <iso>" is narrated exactly once, after the exit sentence, the lease's
+           expiry is the last renewed one, the drive returns the same exit code and message as without attendance, and a
+           pane that closes ends it the same way with the pane-closed reason; the stop is observed within lease_ms / 3
+           plus the call deadline, not instantly)
+         - "a second launch of a node whose agent is alive is refused" (same file: while the first drive attends, a
+           second driveInteractiveSession for the same node, with its own independent ledger instance over the same
+           journal folder, returns exit code 1 with exactly the refusal text of decision B, opens no pane, appends no
+           event, and leaves the worktree HEAD, branch and files as they were; the text contains neither "sweep" nor an
+           instruction to sweep; after the agent exits and the lease lapses the same call is not refused; a different
+           node is not refused)
+         - "two launches started together cannot both take the lease" (packages/runner/test/leaseClaim.test.ts: two
+           independent ledger instances over one journal folder started in the same tick with Promise.all, repeated over
+           many rounds with different interleavings forced by the fake clock and a stub that yields between the claim and
+           the lease: exactly one proceeds to lease-taken and exactly one is refused with the decision B text or the "being
+           started by another launch" text; the journal holds exactly one lease-taken for the window; a stale claim file
+           from a dead pid is replaced; a claim older than two minutes is replaced; a claim never released by a thrown
+           launch is released by the throw; the claim wait is bounded at 30 s of fake time; `interlock run`'s path takes
+           the claim before reconcileMachineOnStart, proved by the refused launch appending nothing)
+         - "unreadable liveness renews only for a bounded grace" (leaseKept.test.ts: agentProcess returns a refusal on
+           every poll, and separately returns malformed, ambiguous and never-settling results: renewal continues for
+           lease_ms since the last running reading and not longer, the drive then returns with the unreadable sentence
+           carrying the refusal text and the seconds, the held outcome naming the pane and reason is on the ledger, and
+           no event appends after it; an unbound attendance is bounded the same way from its start; a runtime with no
+           capability is not attended: the drive returns at once, the lease stops as today, the one sentence is narrated)
+         - "a resume keeps its lease the same way" (same file: a first drive ends with prior work in the worktree and its
+           agent exited; a second drive on the same node (worktree reused, "worktree carries prior work" narrated) takes
+           a new lease, its wait times out, and its lease keeps renewing while its agent runs, a third launch is refused
+           while it works, and the lease ends when its agent exits; the first session's lease never renews again; the
+           two sessions' lease events carry their own session ids)
+         - "a silent or stale-looking agent keeps its lease while its process lives, up to the ceiling" (same file:
+           process running with the pane text unchanged, status idle or done by turns, live work none or stale live: renewal
+           continues past many lease lengths and is narrated "quiet since <iso>, still owned", never ended for lack of
+           progress; a done status with a changing text is narrated working; at the ceiling of 12 times run_timeout_ms
+           renewal stops, "ceiling reached; agent may still be running" is narrated, a held outcome is appended, and the
+           agent is not claimed stopped; the ceiling constant is not read from any setting)
+         - "every exit after the prompt keeps the lease while the agent lives" (same file: the debrief prompt refused, the
+           taken wait refused, the debrief wait refused, the debrief commit refused, the beforeJudge refusal, a judgement
+           error, a recorded stop request, a cleared result whose pane close is unconfirmed, and a read that throws inside
+           the keeper: each keeps the lease while agentProcess says running, never narrates "renewal stopped" early, and
+           in the throwing case the heartbeat is still cancelled and launchCleanup still runs)
+         - "herdr reports the agent gone only when the bound process is gone" (packages/runner/test/herdr/
+           agentProcess.test.ts over the extended schema-validated fake: binding from a single non-shell foreground
+           process; running while the bound pid and name are foreground; shell alone foreground is exited with reason
+           shell-foreground; the pane missing from pane.list is exited with reason pane-closed as a typed field; a
+           different non-shell process in the foreground, an omitted or null foreground_processes, a null shell_pid, an
+           entry without pid or name, a mismatched pane_id and a pane that vanishes between the two calls are each
+           refusals naming the problem, never "exited"; paneProcess answers as before; the tmux runtime has no
+           agentProcess)
+         - "the suite-running gates use a fake-only profile" (packages/runner/test/fakeOnlyProfile.test.ts: the
+           environment the slow-tests script and the proof script pass to child suites has HOME, the XDG folders,
+           CODEX_HOME, CLAUDE_CONFIG_DIR and the Kimi equivalents under a temp folder and none of the owner's values, a
+           PATH without any real agent CLI, and the three real-codex test files excluded; the proof script run on a fixture
+           with a stub vitest sees that environment)
+      6. Proof: scripts/gates/lease-kept-proven.ts runs the four test files above once with vitest's JSON reporter,
+         under the fake-only profile, fails on a missing file, and prints "lease kept proven: 10 named cases passed"
+         only when the run exits zero, every title above passes exactly once, and there are no failures, skips, todos,
+         missing summaries or extra cases in those files. It proves execution and titles; the assertions above are what
+         the judge reads each case for.
+      7. Existing tests keep passing under the fake-only profile, including lease.test.ts, sweep.test.ts,
+         sessionWait.test.ts, refusalOutcomes.test.ts, startFailureNotTimeout.test.ts and the herdr adapter tests,
+         updated only where the removal of the early lease.stop() calls, the moved narration or the extended fake
+         requires it. New tests are declared or baselined as the slow-tests-accounted gate requires.
+      8. The debrief states: the paths that ended renewal (the list in the read, seven entries), the one rule that
+         replaces them (the table), the claim and why a check alone is a race, the limits of decision F in plain words
+         (supported herdr sessions whose runner survives; killed runner, sleep, herdr crash, a person closing the pane),
+         that `interlock run` lives until the keeper ends and what that means for callers, that unreadable or unbound
+         liveness is bounded to one lease and ends in a held outcome, the ceiling and why it is a constant, why progress
+         evidence only classifies, the fake-only profile and its mechanism, that judge and node reset still say "or run
+         interlock sweep" (an open item, not changed here), that the herdr foreground-process reading is unproven by any
+         gate with the manual check (start a real agent in a pane through the runner against a throwaway node with
+         run_timeout_ms set small, watch lease-renewed keep appending in `interlock position`, then end the agent and watch
+         renewal stop), that the ledger, events, positions and settings are untouched, and that the two agents running at
+         the time of the plan are neither protected nor made safe to reuse by this change.
       Before you file the debrief (and before any refile), end every vitest worker and child process you started and
       confirm with pgrep that none survives.
     gates:
@@ -257,7 +344,7 @@ nodes:
       - id: lease-kept-proven
         kind: command
         run: node scripts/gates/lease-kept-proven.ts
-        expect_output: 'lease kept proven: 7 named cases passed'
+        expect_output: 'lease kept proven: 10 named cases passed'
       - id: slow-tests-accounted
         kind: command
         run: node scripts/gates/slow-tests.ts
