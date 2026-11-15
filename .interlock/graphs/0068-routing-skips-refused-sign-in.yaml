@@ -1,7 +1,7 @@
 interlock: graph@v0
 id: 0068-routing-skips-refused-sign-in
 arc: bring-october-back
-ask: Launch routing never picks a provider whose saved sign-in is refused, and never picks a provider the owner excludes, including as a last resort; when nothing allowed is left it refuses plainly and names each provider and why it is unavailable.
+ask: Automatic launch routing never picks a provider whose sign-in the CLI itself cannot use, and never picks a provider the owner excludes, including as the last resort; when nothing allowed is left it refuses plainly and names each provider and why it is unavailable. A runtime the owner requests by name still wins.
 derivation:
   kind: model
   model: claude-sonnet-5-5
@@ -22,8 +22,10 @@ read: >
 
   Defect two: the last resort defaults to anthropic (providerRouting.ts:78-80). When every other routable provider is
   known exhausted (or is the only one), the router routes to the last-resort provider (:79-80, :92-96, :101-104). The
-  owner's standing rule is that builds never go to Anthropic; nothing in local configuration can say so, because
-  last_resort only names which provider is kept last, never one that is refused.
+  owner's standing rule is "Anthropic last, never default": Anthropic is the provider kept for when nothing else is
+  usable, never the one launches default to; nothing in local configuration can say that a provider is refused outright,
+  because last_resort only names which provider is kept last. The guarantee of this graph is about automatic routing
+  (no runtime requested); a runtime the owner names explicitly still wins without any check, as today.
 
   Where headroom is read, and what each reader can detect today, from source. routeRuntime reads one headroom per
   routable candidate through options.readHeadroom, which defaults to readProviderHeadroom
@@ -34,10 +36,22 @@ read: >
   unknown with a reason and read nothing at all. So Interlock detects a refused sign-in nowhere today. The only
   detection that exists is outside this repository: the Preston cockpit's usage reader treats HTTP 401 and 403 from a
   provider's usage endpoint as "the plan refused the saved sign-in (HTTP n)" (Preston cockpit/server.ts, getJson), and
-  for Kimi reads the sign-in Kimi Code saved under its own folder and calls the usages endpoint of
-  KIMI_CODE_BASE_URL (default https://api.kimi.com/coding/v1). That is the signal this plan brings into the runner,
-  for Kimi only, because Kimi is the provider whose refusal is observed; codex and claude have no refusal signal to map
-  and the plan does not invent one.
+  for Kimi reads the sign-in Kimi Code saved under its own folder and calls the usages endpoint.
+
+  A fact observed on 2026-11-14 changes what that signal means. Kimi Code keeps a short-lived access token in its saved
+  sign-in and refreshes it whenever the CLI runs. The usages call (path /usages under KIMI_CODE_BASE_URL, default the
+  CLI's own https://api.kimi.ai/coding/v1) with the saved token returned 401 about fifteen minutes after the CLI last
+  ran, and passed right after a one-line CLI call refreshed the token. So a 401 on the saved token alone is a stale
+  token, not a refused sign-in, and treating it as refused would route around a working Kimi. The CLI's help (kimi
+  --help, kimi provider --help, kimi provider list --help, kimi doctor --help, kimi login --help) offers no
+  non-interactive account check: `provider list` and `doctor config` only describe local configuration files, and
+  `login` is an interactive device flow that must never run from the router. The one non-interactive way to make the
+  CLI use its sign-in is its one-prompt mode (`kimi -p <prompt>`), which refreshes the token as a side effect. This plan
+  therefore defines refused as: the saved token is rejected (401 or 403), the CLI is then run once through its own
+  mechanism, and the same saved sign-in, re-read afterwards, is rejected again. A stale access token reads as unknown,
+  never refused. The signal is brought into the runner for Kimi only, because Kimi is the provider whose refusal is
+  observed; codex and claude have no refusal signal to map and the plan does not invent one, and the debrief does not
+  claim refusal detection for them.
 
   What changes, and why this way.
   - A fourth reading, kept in the runner and out of the ledger. ProviderHeadroom (packages/ledger/src/session.ts:4-13) is
@@ -49,28 +63,56 @@ read: >
     holds the one function that maps an HTTP status to a reading: 401 and 403 are refused; every other status is not a
     refusal. RoutingOptions.readHeadroom and readProviderHeadroom return ProviderAvailability. The ledger package,
     event@v11 and every position shape are untouched, and the debrief says so.
+  - Availability is resolved from the provider's identity and the runtime's adapter together, at selection time. Today
+    the router reads headroom by runtime.kind alone (providerRouting.ts:56, adapter.ts:7-17), so a profile with
+    kind exec and provider kimi would reach the adapter's unknown branch and bypass the Kimi check. The reader option
+    becomes readHeadroom(kind, provider, environment): the adapter uses the kind's own reader when it has one, and for a
+    kind with none (exec) uses the reader of the provider name when the provider has one (kimi). The environment (HOME)
+    is a parameter so tests supply fixtures and the router passes the caller's. Availability is a selection-time fact:
+    a new run or plan re-reads it, while prompt retries, in-session resume and the separate exec debrief launch keep the
+    runtime already selected; run.ts and plan.ts both call this router, so planner and reviewer-node selection are
+    covered by the same change.
   - The router treats refused as unavailable, never as unknown and never as available. A refused candidate is dropped
     from the pool before any choice, even when every other provider is unknown or exhausted, and it is not a last-resort
     candidate either. It is not copied into the persisted candidates list; the because text of a routed attempt names
     each provider that was skipped and why ("skipped kimi: the plan refused the saved sign-in (HTTP 401)"), so the
     record of why a launch did not go there is kept in the chosen attempt's own because, which is already a persisted
-    string.
-  - Kimi's reader gains the refusal check. readKimiHeadroom becomes async and takes an injected usage probe (the real one
-    is the default): it looks for the saved Kimi Code sign-in in place and asks the usages endpoint once, with a named
-    short timeout constant (three seconds, so a slow endpoint can never stall a launch), and maps the answer through the
-    status function above: 401 or 403 reads refused; a good answer, a different status, no saved sign-in, a timeout or a
-    network error reads as unknown with a plain reason, exactly as the fixed unknown does today, so nothing becomes
-    refused on a guess. The saved sign-in is read where Kimi Code keeps it, never copied, written, logged or recorded
-    anywhere (no reason, receipt, narration or error text contains the token), in the way the cockpit already reads it.
-    The location and the base URL come in as parameters (home folder, base URL, fetch) so tests supply fixtures and
-    stubs. The adapter's readProviderHeadroom passes the real defaults. This is the one place the plan reads a
-    credential, and it is decided here, not left to the node: the alternative, a router that cannot learn about a
-    refusal at all, leaves defect one unfixed.
+    string. This is not omitted merely because the provider was not chosen (today's candidates also hold unchosen
+    providers); it is omitted because isProviderHeadroom (session.ts:39-55) accepts only known and unknown readings, and
+    changing it would change an event shape. A test proves it end to end: the chosen runtime's attribution round-trips
+    through isChosenBy and through an event replay from a fixture journal, with the skip reason surviving in because and
+    no refused reading in candidates.
+  - Kimi's reader gains the refusal check, as defined above. readKimiHeadroom becomes async and takes injected
+    parameters (home folder from the environment, base URL, fetch, the kimi command, and its own clock for timeouts); the
+    real defaults are the environment's HOME, KIMI_CODE_BASE_URL or the CLI's global default, the global fetch and the
+    command `kimi`. The steps, in order:
+    1. Choose one saved sign-in: the newest file by modification time under the Kimi Code state folder's oauth and
+       credentials folders that parses and holds an access token; files that do not parse or hold none are skipped; none
+       means unknown ("no saved sign-in"). Exactly one token is used; the cockpit's try-each-token loop is not copied.
+    2. One request to the usages endpoint with that token, with a total deadline of three seconds that the probe itself
+       creates and enforces (a named constant; the fetch is cancelled when it expires). 401 or 403 goes to step 3; a good
+       answer, any other status, a timeout or a network error reads unknown with a plain reason.
+    3. Run the CLI once, `kimi -p` with a one-word prompt, through the runner's owned-command runner with a timeout (a named
+       constant of thirty seconds, shell-free, the whole process group ended on timeout, cwd a fresh folder under the
+       system temp folder), to let the CLI refresh its own sign-in. Its output is discarded and never returned or
+       recorded. A CLI that cannot start, times out or exits non-zero here still goes to step 4: the verdict is the
+       second request, not the exit code. This is a model call, so it costs a one-line prompt, and only after a 401;
+       a fresh token then lasts until it goes stale again.
+    4. Re-read the newest saved sign-in (the CLI may have rewritten it) and make one more request under a new
+       three-second deadline. 401 or 403 again reads refused ("the plan refused the saved sign-in (HTTP n), and the
+       CLI could not renew it"); anything else reads unknown, including success, because the sign-in then works.
+    Nothing is cached: no token and no result survives the call, so the cockpit's sixty-second cache is not copied. The
+    token exists only in memory for the request and the header that carries it; it is never logged, narrated, written,
+    put in a returned reading, an error text or the CLI's argv or environment. Errors are mapped to plain sentences and
+    never forwarded raw. The saved sign-in files are never written or copied by Interlock; the CLI alone rewrites them.
+    The worst case of one read is thirty-six seconds (3 + 30 + 3) and only after a 401; a read that does not hit a 401
+    is at most three seconds.
   - One owner setting, excluded_providers. A new optional list in local.yaml, a list of distinct nonempty provider
     names, spelled and validated the way provider_order is (packages/runner/src/localConfig.ts:277-289) and carried on
     LocalConfig as excludedProviders beside providerOrder and lastResort. A provider named in it is never routed to
     by routeRuntime: not as an ordinary candidate, not as the last resort, not when it is the sole routable provider.
-    Its headroom is not even read. Why a list and not `last_resort: none`: the rule is about which providers builds may
+    Its headroom is not even read. An excluded provider's exclusion wins over provider_order, over a configured
+    last_resort and over an automatic fallback. Why a list and not `last_resort: none`: the rule is about which providers builds may
     never use, which is wider than which one is kept last, and last_resort keeps meaning what it means now (a provider
     kept last, still usable). Versioning: the setting is added to local@v1 the way provider_order and last_resort
     were (the shape history in docs/shapes.md lists them under local@v1 as optional additions), because adding an
@@ -85,7 +127,9 @@ read: >
     not silently change behaviour. So the plan does not change any configuration's behaviour on its own; the owner's own
     local.yaml states the rule explicitly with `excluded_providers: [anthropic]`, a one-line edit made on the owner's
     machine and outside this node (local.yaml is gitignored and never committed), after which defect two is closed
-    for that machine. The debrief says this in one line, naming the edit.
+    for that machine, provided the owner's local.yaml does not itself name anthropic as last_resort, which is a
+    contradiction the loader refuses and which the owner would then also remove. The debrief says this in one line,
+    naming the edit and that condition.
   - What a refusal says. The existing refusal kind providers-exhausted (packages/runner/src/runtimeSelection.ts:9, :23)
     gains an unavailable list of {provider, why}, and its message becomes "every allowed provider is unavailable:
     kimi (the plan refused the saved sign-in (HTTP 401)), codex (no allowance left), anthropic (excluded by
@@ -93,30 +137,44 @@ read: >
     or currently rate limited. The kind is kept so every caller (packages/cli/src/run.ts:174-181, packages/cli/src/plan.ts:245-252)
     keeps working unchanged, and its `known` field stays. When all routable profiles are excluded or unavailable the
     router refuses; it never falls to the "no routable profile" default-runtime branch (:58-69), which is only for a
-    catalogue where no profile opts in. That fallback keeps resolving the owner's default_runtime, except that a
-    fallback whose provider is in excluded_providers is refused the same plain way. A runtime the owner asks for
+    catalogue where no profile opts in. That fallback keeps resolving the owner's default_runtime, with two checks that
+    apply only when they can matter: its availability is resolved the same way as a candidate's (identity plus adapter),
+    and a refused one is refused plainly; and when excluded_providers is non-empty its provider must be identifiable and
+    not excluded. A providerless runtime (the legacy runtime: block becomes a runtime named default with no provider,
+    runtimeCatalogue.ts:713-726) gets its provider from the adapter's kind (claude is anthropic, kimi is kimi); a kind whose
+    provider cannot be identified, with exclusions active, is refused plainly ("the fallback runtime's provider cannot be
+    identified, so excluded_providers cannot be enforced"). With no exclusions and no refusal the fallback behaves exactly
+    as today. The exec kind gets the same treatment in the candidate loop. A runtime the owner asks for
     explicitly (requested) still wins without reading headroom (:48-51), exactly as today: the owner's explicit word is
     never gated.
   - A provider that is rate limited or known exhausted is unchanged in how it is dropped; the plan only adds it to the
     refusal's list so the message is complete.
 
-  Tests and the real services. Every test of this node uses stub providers (literal ResolvedRuntime catalogues) and stub
-  headroom readers and stub usage probes and a stub fetch, never a real provider, never the network, never herdr. Every
+  Tests and the real services. Every test of this node uses stub providers (literal ResolvedRuntime catalogues), stub
+  headroom readers or the production adapter over a stub fetch and a stub kimi command (an executable script written by the
+  test under the system temp folder that, depending on the case, rewrites the stub saved sign-in with a fresh token or
+  leaves it stale), never a real provider, never the network, never the real kimi, never herdr. Every
   fixture folder (the repository root holding .interlock/local.yaml, and the fixture HOME holding a fake Kimi Code
   sign-in file with a fake token) is created with mkdtemp under the system temp folder, never inside the worktree, and
   removed after; HOME, XDG_CONFIG_HOME, XDG_DATA_HOME, XDG_STATE_HOME and XDG_CACHE_HOME are set to folders under it for
-  the test processes that need them (vitest.setup.ts already confines the standing test process to a temporary
-  HOME); no test reads or writes the owner's ~/.config/interlock or any real provider's saved sign-in, and the Kimi
+  the test processes that need them, passed as the environment parameter of the readers; this node does not rely on
+  vitest.setup.ts for isolation, which today sets no temporary HOME, and does not claim the whole suite is HOME-isolated
+  (suite-wide HOME isolation and the codex guard's fixture-only rule are the baseline's, owned by graphs 0066 and
+  0067's test work, and this node neither depends on nor widens them); no test reads or writes the owner's ~/.config/interlock or any real provider's saved sign-in, and the Kimi
   reader's tests pass the fixture home explicitly. The existing tests in packages/runner/test/providerRouting.test.ts
   keep their own fixtures and keep passing, updated only where the changed refusal message or the async Kimi reader
-  requires it. The honest state of the standing gates is as 0067 states it: the three existing real-codex tests run
+  requires it; in particular the existing readKimiHeadroom() assertion (providerRouting.test.ts:336) is changed to pass a
+  fixture home, a stub fetch and a stub kimi command, so no existing test can reach a real sign-in through the new default
+  probe. The honest state of the standing gates is as 0067 states it: the three existing real-codex tests run
   through the 0065 guard under `pnpm test`; this node does not add, change or widen them.
 
   What this plan cannot prove. The cases prove the router's behaviour over stubs and the Kimi reader's mapping over a
-  stub fetch. That the real Kimi usages endpoint answers 401 or 403 to the owner's refused sign-in is the cockpit's
-  observation (the cockpit reports HTTP 401 today); no gate here calls it. The debrief names it as unproven by any
-  gate and gives the manual check: with the owner's current Kimi state, `interlock run` with no runtime requested
-  must route around Kimi and its position must show the skipped reason in the attempt's because.
+  stub fetch and a stub CLI. That the real Kimi usages endpoint and the real CLI behave as observed (a 401 that a CLI call
+  clears, and a 401 that survives it for a truly refused sign-in) is unproven by any gate. The debrief names it and gives
+  the manual check: with the owner's current Kimi state, `interlock run` with no runtime requested must route around
+  Kimi only if the CLI cannot renew its sign-in, and its position must show the skipped reason in the attempt's because;
+  with a working but stale sign-in it must route to Kimi as an ordinary candidate. Codex and claude have no refusal
+  check, and the debrief says so.
 
   Out of scope: renewing or repairing a sign-in; the cockpit's own usage reading; codex and claude refusal detection (no
   signal exists to map); the ledger, events and positions; the owner's local.yaml; changing which provider is the default
@@ -138,11 +196,14 @@ nodes:
       (declarations only, if the slow-tests-accounted gate requires them), and this graph's session folder. The ledger
       package and every event and position schema are untouched.
       1. packages/runner/src/headroom/availability.ts defines ProviderAvailability (ProviderHeadroom or a refused reading
-         with a plain reason and optional status) and the status function (401 and 403 refused, anything else not).
-         RoutingOptions.readHeadroom and readProviderHeadroom return it.
+         with a plain reason and optional status) and the status function (401 and 403 rejected, anything else not; a
+         rejection is refused only as the read defines it for Kimi). RoutingOptions.readHeadroom and readProviderHeadroom
+         take (kind, provider, environment) and return it; the adapter resolves by kind and, for a kind with no reader,
+         by provider name, so a profile of kind exec and provider kimi is checked.
       2. routeRuntime drops a refused candidate before choosing, whatever the other providers read, never treats it as
          available or as a last resort, does not copy it into the persisted candidates, and names each skipped provider and
-         its reason in the attempt's because.
+         its reason in the attempt's because. The chosen attribution round-trips through isChosenBy and a fixture
+         journal replay with no refused reading in candidates and the skip reason in because.
       3. RoutingOptions and LocalConfig gain excludedProviders, loaded from the optional local.yaml list excluded_providers
          (distinct nonempty strings; malformed refused with a plain reason; a last_resort that is also excluded refused
          with a plain reason; absent means nothing excluded). schemas/local@v1.json gains the property; docs/shapes.md is
@@ -151,30 +212,46 @@ nodes:
          provider, and does not read its headroom. When nothing allowed remains it returns providers-exhausted with an
          unavailable list and the message "every allowed provider is unavailable: <provider> (<reason>), ..." naming
          every routable provider (refused, excluded, known exhausted, rate limited). The no-routable-profile fallback
-         refuses when its provider is excluded; an explicitly requested runtime still wins.
-      5. readKimiHeadroom is async, takes an injected usage probe with fixture-friendly home, base URL and fetch, and maps
-         401 and 403 to refused and every other outcome (success, other status, no saved sign-in, timeout, network error)
-         to unknown with a plain reason; the sign-in is never copied, written or logged and no reason or error text
-         contains it. The probe has a named three second timeout. The codex and claude readers are unchanged.
+         is availability-checked like a candidate and refused plainly when refused, when its provider is excluded, or
+         when exclusions are active and its provider cannot be identified (a providerless legacy runtime takes its
+         provider from the adapter's kind); with no exclusions and no refusal it behaves as today. An explicitly
+         requested runtime still wins.
+      5. readKimiHeadroom is async and implements steps 1 to 4 of the read: one saved sign-in chosen as the read says
+         (malformed and token-less files skipped), one request under a three second deadline the probe creates and
+         enforces, on 401 or 403 one run of the CLI through the owned-command runner (thirty second timeout, shell-free,
+         fresh temp cwd, output discarded), the sign-in re-read, one more request under its own three second deadline;
+         refused only when that second request is rejected too; every other outcome (stale token cleared by the CLI,
+         success, other status, no saved sign-in, timeout, network error, CLI missing) reads unknown with a plain reason.
+         Nothing is cached, copied, written or logged, and no returned reason, error text, CLI argument or CLI environment
+         contains the token. The codex and claude readers are unchanged.
       6. Tests, each failing on main 8b1698ce for its intended assertion except where marked, with stub providers, stub
          readers, a stub fetch and fixtures under the system temp folder as the read says. Exactly these seven titles;
          the assertions named under each are inside that case:
          - "a refused sign-in is never routed to, even when every other headroom is unknown" (packages/runner/test/
            routingRefusals.test.ts: a refused kimi beside two unknown providers, repeated over a fixture ledger that
            makes kimi the next in round-robin and in provider_order, and with the refused provider first in the catalogue:
-           the choice is never kimi; the persisted candidates do not contain kimi; the because text names kimi and its
-           reason; a refused provider beside a known one and beside a rate-limited one is also skipped)
+           the choice is never kimi; a refused provider beside a known one and beside a rate-limited one is also skipped;
+           a profile of kind exec and provider kimi is skipped the same way; the same through the production adapter
+           (readProviderHeadroom with a fixture environment, a stub fetch and a stub kimi command), not only through an
+           injected reader; the chosen attribution round-trips through isChosenBy and a fixture journal replay with no
+           refused reading in candidates and kimi named with its reason in because; a no-routable-profile fallback whose
+           runtime is refused is refused plainly)
          - "a refused sign-in is named in the refusal when nothing else is available" (same file: kimi refused and the
-           other provider known exhausted or rate limited, and kimi refused as the only routable provider: the result is
-           an error of kind providers-exhausted, its unavailable list names each provider with its own reason, and
-           explainRuntimeSelectionRefusal says "every allowed provider is unavailable:" followed by kimi and "the plan
-           refused the saved sign-in (HTTP 401)" and the other provider's reason)
+           other provider known exhausted or rate limited, and kimi refused as the only routable provider, and a refused
+           configured last resort: the result is an error of kind providers-exhausted, its unavailable list names each
+           provider with its own reason, and explainRuntimeSelectionRefusal says "every allowed provider is unavailable:"
+           followed by kimi and "the plan refused the saved sign-in (HTTP 401)" and the other provider's reason)
          - "an excluded last-resort provider is never routed to; the router refuses plainly instead" (same file: with
            excludedProviders ["anthropic"], the default last resort: every other provider known exhausted, anthropic the
-           sole routable provider, anthropic with the greatest fraction, and anthropic the only one left after another is
-           refused: each is a providers-exhausted refusal naming anthropic as excluded, never a routed or last-resort
-           choice; the stub reader is never asked about anthropic; a no-routable-profile fallback whose provider is
-           excluded is refused; an explicitly requested excluded runtime still resolves)
+           sole routable provider, and anthropic the only one left after another is refused: each is a
+           providers-exhausted refusal naming anthropic as excluded, never a routed or last-resort choice; when another
+           allowed provider is available, anthropic with the greatest fraction is still not chosen and the other provider
+           is, not a refusal; an excluded ordinary provider listed first in provider_order is skipped; excluding a provider
+           other than anthropic works the same; the stub reader is never asked about an excluded provider; a no-routable-
+           profile fallback whose provider is excluded is refused, and so is a providerless legacy fallback whose kind
+           maps to an excluded provider, and one whose kind cannot be identified while exclusions are active; with no
+           exclusions that same legacy fallback resolves as today; an explicitly requested excluded runtime still
+           resolves)
          - "a configured last resort that is not excluded still works as today" (same file: excludedProviders ["x"] with
            lastResort "a" and ordinary provider "b": b is routed first, a is the last resort chosen with kind last-resort
            when b is exhausted, with the because text the existing code gives; the outcomes equal the outcomes of the same
@@ -185,14 +262,23 @@ nodes:
            when every other provider is exhausted, with the unchanged because text; a preservation case, not a
            failing-on-main case)
          - "a config that excludes its own last resort is refused plainly" (same file: loadLocalConfig refuses
-           excluded_providers containing the config's last_resort, and refuses a non-list, an empty name and a duplicate,
-           each with a reason naming "excluded_providers"; a valid list loads as excludedProviders in order)
-         - "a kimi sign-in the service refuses reads as refused, and any other failure reads as unknown"
-           (packages/runner/test/kimiRefusal.test.ts: a fixture home holding a fake saved sign-in and a stub fetch:
-           401 and 403 read refused with the plain reason; 200, 500, a thrown network error, an aborted timeout and a
-           fixture home with no saved sign-in read unknown with a plain reason; the fetch stub was called with the fixture
-           base URL and the fake token only in its authorization header; no returned reading's reason contains the fake
-           token; nothing outside the fixture folder was read)
+           excluded_providers containing the config's explicit last_resort, and refuses a non-list, an empty name and a
+           duplicate, each with a reason naming "excluded_providers"; a valid list loads as excludedProviders in order; a
+           config that excludes anthropic without setting last_resort still loads, and routing it then refuses plainly
+           instead of using the implicit anthropic last resort)
+         - "a kimi sign-in is refused only when the CLI also cannot renew it; a stale access token reads as unknown"
+           (packages/runner/test/kimiRefusal.test.ts: a fixture home holding a stub saved sign-in, a stub fetch and a stub
+           kimi command written under the system temp folder. Stale then renewed: the first request is rejected 401, the
+           stub CLI rewrites the stub sign-in with a fresh token, the second request passes: unknown, never refused. Still
+           rejected: the stub CLI changes nothing and the second request is 401 or 403: refused with the plain reason, for
+           401 and for 403. Success on the first request, 500, a thrown network error, no saved sign-in, a malformed file
+           beside a valid one (skipped), several files (only the newest valid one is used, one token per request), and a
+           CLI that is missing or exits non-zero with a passing second request: unknown with a plain reason. A first
+           request that never answers is cancelled by the probe's own three second deadline under fake timers, and a stub
+           CLI that hangs is ended with its process group at its timeout, proved gone afterwards. No token appears in any
+           returned reason, any captured console output, the stub CLI's recorded argv and environment, or any file other
+           than the stub sign-in; the stub sign-in file and every other fixture file are byte for byte unchanged by the
+           reader (the stub CLI alone rewrites the sign-in); nothing outside the fixture folder was read)
       7. Proof: scripts/gates/routing-refusals-proven.ts runs the three test files above once with vitest's JSON reporter,
          with a temporary HOME, fails on a missing file, and prints "routing refusals proven: 7 named cases passed" only
          when the run exits zero, every title above passes exactly once, and there are no failures, skips, todos, missing
@@ -202,9 +288,11 @@ nodes:
          for local@v1 (updated only where the refusal message or the async reader requires it). New tests are declared or
          baselined as the slow-tests-accounted gate requires.
       9. The debrief states: the default (nothing excluded, behaviour unchanged) and the one-line owner edit
-         `excluded_providers: [anthropic]` in local.yaml; that the ledger and all event and position shapes are untouched;
-         that Kimi is the only provider with a refusal check and why; that the real endpoint's answer is unproven by any
-         gate, with the manual check from the read.
+         `excluded_providers: [anthropic]` in local.yaml, valid only if its explicit last_resort is not anthropic; that
+         the guarantee is about automatic routing and an explicitly requested runtime still wins; that the ledger and all
+         event and position shapes are untouched; that Kimi is the only provider with a refusal check, why, and that codex
+         and claude have none; that the real endpoint and CLI behaviour is unproven by any gate, with the manual check
+         from the read.
       Before you file the debrief (and before any refile), end every vitest worker and child process you started and
       confirm with pgrep that none survives.
     gates:
@@ -221,4 +309,4 @@ nodes:
       - id: slow-tests-accounted
         kind: command
         run: node scripts/gates/slow-tests.ts
-        expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1\.5 s'
+        expect_output: 'slow tests accounted: [0-9]+ declared, [0-9]+ logic under 1[.]5 s'
