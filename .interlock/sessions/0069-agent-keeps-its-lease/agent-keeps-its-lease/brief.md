@@ -1477,7 +1477,9 @@ edit it.
 >    name, shell_pid; the bound pid and name; ambiguity is a refusal naming what was ambiguous; a missing or malformed
 >    field is a transport refusal naming the call and field; the typed reason is never inferred from text).
 >    paneProcess is byte for byte unchanged. tmux and every existing stub runtime are unchanged and keep passing.
-> 2. nodeClaim.ts and the claim flow of decision A: exclusive file creation, 100 ms retry, 30 s bound, stale claim
+> 2. nodeClaim.ts and the claim flow of decision A: the lock at <state>/node-claims/<repo key>/<graph>/<node>.lock
+>    under interlockStateDirectory (repo key from the git common dir, safeSegment and containment validated, never
+>    a file in the journal folder), exclusive file creation, 100 ms retry, 30 s bound, stale claim
 >    replacement (dead pid or older than two minutes), fresh readReplay and leaseIsLive under the claim, release right
 >    after lease-taken is appended and on every refusal and throw before it, taken in `interlock run` before routeRuntime
 >    and reconcileMachineOnStart, handed to the drive, taken by the drive itself when none is handed in. The refusal is
@@ -1520,11 +1522,12 @@ edit it.
 >      instruction to sweep; after the agent exits and the lease lapses the same call is not refused; a different
 >      node is not refused)
 >    - "two launches started together cannot both take the lease" (packages/runner/test/leaseClaim.test.ts: two
->      independent ledger instances over one journal folder started in the same tick with Promise.all, repeated over
+>      independent ledger instances over one journal folder and one temp state root, started in the same tick with Promise.all, repeated over
 >      many rounds with different interleavings forced by the fake clock and a stub that yields between the claim and
 >      the lease: exactly one proceeds to lease-taken and exactly one is refused with the decision B text or the "being
->      started by another launch" text; the journal holds exactly one lease-taken for the window; a stale claim file
->      from a dead pid is replaced; a claim older than two minutes is replaced; a claim never released by a thrown
+>      started by another launch" text; the journal holds exactly one lease-taken for the window; the claim file is under <state>/node-claims/<repo key>/<graph>/<node>.lock and the journal folder holds only
+>      ledger records after the run; two worktrees of one repository share one claim and two repositories do not; an
+>      unsafe segment or an escaping path is refused plainly; a stale claim file from a dead pid is replaced; a claim older than two minutes is replaced; a claim never released by a thrown
 >      launch is released by the throw; the claim wait is bounded at 30 s of fake time; `interlock run`'s path takes
 >      the claim before reconcileMachineOnStart, proved by the refused launch appending nothing)
 >    - "unreadable liveness renews only for a bounded grace" (leaseKept.test.ts: agentProcess returns a refusal on

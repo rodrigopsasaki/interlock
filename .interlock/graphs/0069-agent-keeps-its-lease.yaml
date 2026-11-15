@@ -106,8 +106,14 @@ read: >
 
   The plan, as decisions.
     A. Claim. A new unit packages/runner/src/nodeClaim.ts takes a cross-process exclusive claim on a node: an exclusive
-       file creation (open with the exclusive flag) of claims/<graph>.<node>.lock inside the shared journal directory,
-       holding {pid, takenAt}, retried every 100 ms for at most 30 s; a claim whose pid is not alive, or older than two
+       file creation (open with the exclusive flag) of <state>/node-claims/<repo key>/<graph>/<node>.lock, holding
+       {pid, takenAt}. <state> is interlockStateDirectory (packages/runner/src/codex/config.ts:543), the root the codex-homes
+       overlay and the pane-startup folder already use; the claim never lives in the shared journal folder
+       (sharedJournalDirectory, the repository's .interlock/ledger), which is the protected record: its readers scan it
+       and nothing but ledger records belongs there. <repo key> is a stable, safe name derived from the repository's
+       git common dir (so every worktree of one repository shares one claim), and the key, graph and node segments are
+       validated with the overlay's safeSegment check (config.ts:802) and a containment check that the resolved path stays
+       under <state>/node-claims, a violation being a plain refusal. The claim holds {pid, takenAt}, retried every 100 ms for at most 30 s; a claim whose pid is not alive, or older than two
        minutes, is stale and replaced. Under the claim, the launch re-reads the journal afresh (readReplay, exported by the
        ledger, not the process's own projection), and refuses when leaseIsLive holds for any session of the node. The
        claim is released right after takeLease has appended lease-taken (the sink writes and syncs before returning), and
@@ -184,8 +190,8 @@ read: >
 
   Tests and the real services. Every test of this node uses a fake runtime (a literal Runtime whose agentProcess,
   bindAgentProcess, observe, read and waitUntil the test scripts, including calls that never settle), the controlled fake
-  clock from @phyxiusjs/clock, and ledgers over journal folders under the system temp folder (two independent ledger
-  instances over one folder where the case needs a second process's view). The herdr cases extend the checked-in fake
+  clock from @phyxiusjs/clock, and ledgers over journal folders and a state root (the environment passed to interlockStateDirectory) both under the system
+  temp folder (two independent ledger instances over one folder where the case needs a second process's view). The herdr cases extend the checked-in fake
   server (packages/runner/test/herdr/fakeServer.ts) first: today its pane.list is untagged and it has no
   pane.process_info handler, while the real schema tags pane_list and requires the pane_process_info envelope. The fake
   gains schema-faithful, scriptable pane.list and pane.process_info responses, validated against the checked-in schema
@@ -230,7 +236,9 @@ nodes:
          name, shell_pid; the bound pid and name; ambiguity is a refusal naming what was ambiguous; a missing or malformed
          field is a transport refusal naming the call and field; the typed reason is never inferred from text).
          paneProcess is byte for byte unchanged. tmux and every existing stub runtime are unchanged and keep passing.
-      2. nodeClaim.ts and the claim flow of decision A: exclusive file creation, 100 ms retry, 30 s bound, stale claim
+      2. nodeClaim.ts and the claim flow of decision A: the lock at <state>/node-claims/<repo key>/<graph>/<node>.lock
+         under interlockStateDirectory (repo key from the git common dir, safeSegment and containment validated, never
+         a file in the journal folder), exclusive file creation, 100 ms retry, 30 s bound, stale claim
          replacement (dead pid or older than two minutes), fresh readReplay and leaseIsLive under the claim, release right
          after lease-taken is appended and on every refusal and throw before it, taken in `interlock run` before routeRuntime
          and reconcileMachineOnStart, handed to the drive, taken by the drive itself when none is handed in. The refusal is
@@ -273,11 +281,12 @@ nodes:
            instruction to sweep; after the agent exits and the lease lapses the same call is not refused; a different
            node is not refused)
          - "two launches started together cannot both take the lease" (packages/runner/test/leaseClaim.test.ts: two
-           independent ledger instances over one journal folder started in the same tick with Promise.all, repeated over
+           independent ledger instances over one journal folder and one temp state root, started in the same tick with Promise.all, repeated over
            many rounds with different interleavings forced by the fake clock and a stub that yields between the claim and
            the lease: exactly one proceeds to lease-taken and exactly one is refused with the decision B text or the "being
-           started by another launch" text; the journal holds exactly one lease-taken for the window; a stale claim file
-           from a dead pid is replaced; a claim older than two minutes is replaced; a claim never released by a thrown
+           started by another launch" text; the journal holds exactly one lease-taken for the window; the claim file is under <state>/node-claims/<repo key>/<graph>/<node>.lock and the journal folder holds only
+           ledger records after the run; two worktrees of one repository share one claim and two repositories do not; an
+           unsafe segment or an escaping path is refused plainly; a stale claim file from a dead pid is replaced; a claim older than two minutes is replaced; a claim never released by a thrown
            launch is released by the throw; the claim wait is bounded at 30 s of fake time; `interlock run`'s path takes
            the claim before reconcileMachineOnStart, proved by the refused launch appending nothing)
          - "unreadable liveness renews only for a bounded grace" (leaseKept.test.ts: agentProcess returns a refusal on
