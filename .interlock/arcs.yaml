@@ -374,3 +374,4 @@ arcs:
     graphs:
       - interlock/0066-attempt-records-its-pane
       - interlock/0067-panes-use-the-gate-node
+      - interlock/0068-routing-skips-refused-sign-in
