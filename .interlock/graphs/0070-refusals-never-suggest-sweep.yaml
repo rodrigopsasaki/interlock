@@ -1,7 +1,7 @@
 interlock: graph@v0
 id: 0070-refusals-never-suggest-sweep
 arc: bring-october-back
-ask: No refusal or narration tells a person to run interlock sweep. When judge or node reset refuses a node because its lease is live, it says who holds the lease and until when, to wait for the lease to end or for the agent to finish, and, for a reset, that the node can be reset only once the lease has ended and no agent is alive. The sweep command itself stays, and still works when run on purpose.
+ask: No refusal or narration tells a person to run interlock sweep. When judge or node reset refuses a node because its lease is live, it names the session and lease expiry, says the lease must end first, says lease expiry does not prove that the agent has exited, and directs the person to wait when the read-only agent process check reports the agent alive or cannot tell. Reset also says that a resettable outcome is required. The sweep command itself stays, and still works when run on purpose. This node cannot clear until graph 0069 has replaced the runner's sweep narration and supplied the read-only agent process check.
 derivation:
   kind: model
   model: claude-sonnet-5-5
@@ -14,80 +14,96 @@ read: >
   Arc: bring-october-back (this repository's .interlock/arcs.yaml). The owner's standing rule is that live agents are
   never swept: `interlock sweep` (packages/cli/src/sweep.ts, sweepExpiredLeases at packages/runner/src/sweep.ts:29)
   cancels terminally any session whose lease expiry has passed and whose outcome is unresolved, and it looks at expiry
-  and outcomes, never at whether an agent is still alive. A lease can lapse under a working agent (graph
-  0069-agent-keeps-its-lease is the plan that stops that), so a sentence that tells a person to sweep is a sentence that
-  tells them to kill live work. Graph 0069 removed the sweep suggestion from the run and resume refusal and left two
-  refusals untouched on purpose, listing them as an open item (its read, decision B and out-of-scope paragraph, and its
-  debrief item). This graph closes that item.
+  and outcomes, never at whether an agent is still alive. A lease can lapse under a working agent, so a sentence that
+  tells a person to sweep can tell them to kill live work. Graph 0069 removes the sweep suggestion from the run and
+  resume refusal and supplies the read-only agent process check; this graph requires that change before it can clear.
 
   Found on main 94345094, by searching every string in packages/*/src that mentions sweeping:
     1. packages/cli/src/judge.ts:187, judge's refusal of a node with a live lease: "<node> is leased by session <id> until
        <iso>; wait for it or run interlock sweep."
     2. packages/cli/src/node/reset.ts:95, node reset's refusal of a node with a live lease: the same sentence.
     3. packages/runner/src/sessionDrive.ts:475, the drive's narration "lease not renewed; the sweeper will collect it at
-       <iso>". It does not say to run anything, but it promises a sweep nobody schedules. Graph 0069 replaces this line
-       (its decision E) and owns packages/runner/, so this node does not touch it; the proof scans for the instruction
-       "interlock sweep" and this line is not one. If 0069 has not landed when this node runs, the line stays and is
-       named in the debrief.
+       <iso>". It does not tell a person to run anything, but it promises a sweep nobody schedules. Graph 0069 owns this
+       line and must replace it before this node clears. Until then, the source proof fails on an explicit sessionDrive
+       check, so a debrief cannot turn the exception into a pass.
     4. packages/runner/src/localConfig.ts:78, the lease_ms description "how long a lease lasts before a sweep may call it
-       abandoned". A description of a setting, true, and not an instruction; left as it is.
+       abandoned". A description of a setting, true and not an instruction; left as it is.
     5. packages/cli/src/sweep.ts:38-39, the sweep command's own output ("sweep: no expired, unresolved leases." and
        "sweep: abandoned <n> session(s): ..."), and the face key "s sweep (plans)" (packages/face/src/helpText.ts:12): the
        command and its own words, kept.
-  Only items 1 and 2 tell a person to sweep. The message tests that pin them are packages/cli/test/node/reset.test.ts:150
-  (exact text) and packages/cli/test/judge.test.ts:470 (a substring that survives).
+  The first two items are the messages this node changes. The message tests that pin them are
+  packages/cli/test/node/reset.test.ts:150 (exact text) and packages/cli/test/judge.test.ts:470 (a substring that
+  survives). The fifth item is an intentional command, help and output exception. The fourth is an intentional
+  configuration description. The third is not an exception: 0069 must land its replacement first.
 
   The new wording says what is true and what is safe, in plain sentences, and never offers a way to end a node whose
   agent may be working:
-    judge:  "<node> is leased by session <id> until <iso>; its agent may still be working. Wait for the lease to end or
-            for the agent to finish, then judge again."
-    reset:  "<node> is leased by session <id> until <iso>; its agent may still be working. Wait for the lease to end or
-            for the agent to finish. Once the lease has ended and no agent is alive in the node's pane, run this reset
-            again."
-  The lease end, not the agent's end, is what the ledger can state; the second sentence of the reset text is what makes
-  the safe path explicit: a reset is offered only when both are true, and the text never claims either for the person.
-  A lease that has genuinely expired is not refused by either command today and stays so; this node changes the words of
-  the two live-lease refusals and nothing about when they fire.
+    judge:  "<node> is leased by session <id> until <iso>; its agent may still be working. Wait for the lease to end.
+            Lease expiry does not show that the agent has exited. Use the read-only agent process check for the pane
+            recorded for session <id>; if it reports the agent is alive or the result is unknown, wait for the agent to
+            finish. Then judge again."
+    reset:  "<node> is leased by session <id> until <iso>; its agent may still be working. Wait for the lease to end.
+            Lease expiry does not show that the agent has exited. If there is a resettable outcome, use the read-only
+            agent process check for the pane recorded for session <id>; if it reports the agent is alive or the result
+            is unknown, wait for the agent to finish. Run this reset again only after the lease has ended, the check
+            reports no agent alive, and a resettable outcome exists."
+  The named check is graph 0069's read-only Runtime.agentProcess check, using the pane id from that session's agent
+  binding and the existing pane process adapter. A missing pane id, an unavailable check, an unreadable response or an
+  unknown result is not proof that the agent exited, so the person keeps waiting. This node does not inspect a pane or
+  make an automatic liveness decision. The lease end, not the agent's end, is what the ledger can state. A lease that
+  has genuinely expired is not refused by either command today and stays so; this node changes the words of the two
+  live-lease refusals and nothing about when they fire.
 
   Plan, as decisions.
     A. One sentence builder. packages/cli/src/heldLease.ts exports explainLiveLease(held, then), where held carries the
        node id, the session id and the lease expiry in wall milliseconds and then is "judge" or "reset". It owns the ISO
        formatting both commands already do privately, so their two local isoOf functions go when nothing else uses
        them. judge.ts and node/reset.ts call it at their existing refusal points with their existing live-lease test;
-       neither command's condition, order of checks, exit code or ledger effect changes. Two callers and one sentence
-       family is the reason for the shared unit: the two texts must not drift apart again.
-    B. Independent of 0069. This graph needs none of 0069's wording or helpers: 0069's refusal is a different sentence on
-       a different path (run and resume, in packages/runner and packages/cli/src/run.ts and plan.ts), and 0069 declares
-       judge and node reset untouched, so the two graphs touch disjoint files and may land in either order. There is no
-       prerequisite gate. If 0069 lands first, its narration line (item 3) is gone; if not, the debrief says it remains.
+       neither command's condition, order of checks, exit code or ledger effect changes. The builder only explains the
+       safe next step. It does not check a pane, change a lease or write an event.
+    B. Ordered with 0069. The two graphs may be drafted in either order, but 0069's sessionDrive replacement and its
+       read-only agent process check must be present before this node can clear. This graph does not edit packages/runner,
+       and its source proof fails while the old drive narration remains. The run and resume refusal remains 0069's work;
+       this graph does not copy its helpers or wording.
     C. The sweep command stays. It is not edited, not renamed, not hidden. A named case runs it on purpose on a fixture
-       with an expired, unresolved lease and expects it to abandon that session, and runs it through main's dispatch so the
-       route is proven too.
+       with an expired, unresolved lease and expects it to abandon that session. The same case runs unmocked main(["sweep"])
+       from a fresh fixture directory and proves the dispatch, message, journal event and second-run result.
     D. The proof. scripts/gates/sweep-wording-proven.ts runs packages/cli/test/refusalsNeverSuggestSweep.test.ts once with
-       vitest's JSON reporter and prints "refusals never suggest sweep proven: 4 named cases passed" only when the run
-       exits zero, the four titles below each pass exactly once, and there are no failures, skips, todos or extra cases.
-       Its child process environment has HOME, the XDG folders, CODEX_HOME, CLAUDE_CONFIG_DIR and the Kimi equivalents
-       pointing at a folder made under the system temp folder, and a PATH with no real agent CLI, so the run can never
-       reach the owner's homes. It proves execution and titles; the assertions below are what the judge reads each case
-       for.
-    E. The scan. The first named case reads every .ts file under packages/*/src (not tests, not node_modules, not
-       test/.runs), and fails on any string or template literal that contains "interlock sweep" or "run sweep", ignoring
-       case, outside packages/cli/src/sweep.ts. It reads source with the TypeScript compiler's scanner already in the
-       repository's toolchain, or if that is not available to the cli package, with a conservative text scan of quoted and
-       backticked literals; the choice and why go in notes.yaml. The scan also asserts its own coverage: it reports the
-       number of files read and fails when that is zero or when packages/cli/src/judge.ts and
-       packages/cli/src/node/reset.ts were not among them, so an empty glob cannot pass.
+       vitest's JSON reporter and prints "refusals never suggest sweep proven: 5 named cases passed" only when the run
+       exits zero, the five titles below each pass exactly once, and there are no failures, skips, todos or extra cases.
+       The proof script and scripts/gates/slow-tests.ts each create the same fake-only child profile instead of trusting
+       inherited settings. HOME, XDG_CONFIG_HOME, XDG_DATA_HOME, XDG_STATE_HOME, XDG_CACHE_HOME, CODEX_HOME,
+       CLAUDE_CONFIG_DIR and the Kimi equivalents point into directories made under the system temp folder. PATH has no
+       real agent CLI, and the real-provider test files are excluded under this profile. Every test runner and gate used
+       for this node uses that profile. The profile case proves the environment and exclusion, and the other assertions
+       are what the judge reads each case for.
+    E. The scan. The first named case discovers every .ts file under every packages/*/src root (not tests, not
+       node_modules, not test/.runs), records each root and file count, and fails if any root is empty or omitted. It
+       explicitly requires packages/cli/src/judge.ts, packages/cli/src/node/reset.ts, packages/runner/src/sessionDrive.ts,
+       packages/runner/src/localConfig.ts, packages/cli/src/sweep.ts and packages/face/src/helpText.ts. It scans string
+       and template literal text for sweep or sweeper instructions, including interlock sweep and run sweep, ignoring
+       case. The only allowed literal exceptions are command plumbing in packages/cli/src/main.ts and packages/face/src/
+       verb.ts and faceReducer.ts, the face help key in packages/face/src/helpText.ts, the lease_ms description in
+       packages/runner/src/localConfig.ts, and the deliberate command output in packages/cli/src/sweep.ts. The old
+       sessionDrive narration is never an exception. It uses the TypeScript scanner already in the repository's
+       toolchain, or a conservative quoted and backticked literal scan if that scanner is unavailable to the cli package;
+       the choice and why go in notes.yaml. Negative controls put a forbidden refusal and the old sweeper narration into
+       temporary non-exception source files and require failure, put allowed literals into each exception and require
+       success, and require missing-root and omitted-file checks to fail, so coverage cannot pass by scanning only judge
+       and reset.
 
   Tests and the real services. Every test uses a fixture repository made with mkdtemp under the system temp folder
   (os.tmpdir()), removed after, a controlled fake clock from @phyxiusjs/clock, and ledgers over journal folders in the
   fixture. The judge and reset cases reuse the fixture style of packages/cli/test/judge.test.ts (the "refuses a node whose
   lease has not expired" case) and packages/cli/test/node/reset.test.ts (the live-lease case): a session-started and a
-  lease-taken event over a journal folder, then the real command function. Never real herdr, never a real agent CLI,
-  never the real HOME or any provider folder, never the owner's ledger.
+  lease-taken event over a journal folder, then the real command function. The main sweep case runs with its process cwd
+  set to a fresh fixture because main forwards no cwd or clock options. Every test invocation and every gate invocation
+  uses the fake-only profile. Never real herdr, never a real agent CLI, never the real HOME or any provider folder, never
+  the owner's ledger.
 
-  Out of scope: the sweeper's behaviour, schedule or output; the run and resume refusal (0069); the drive's narration
-  (0069); the lease_ms description; the face key; any event, schema, shape or setting; deciding for a person whether an
-  agent is alive (this node never inspects a pane); renaming or removing the sweep command.
+  Out of scope: the sweeper's behaviour, schedule or deliberate command output; the run and resume refusal (0069); any
+  runner edit in this node; the lease_ms description; the face key; any event, schema, shape or setting; deciding for a
+  person whether an agent is alive (the text only names a read-only check); renaming or removing the sweep command.
 
   Laws: AGENTS.md. No comments in packages/*/src; strict TypeScript with no `as`, `!`, `any` or `as unknown as`; plain
   engineering names; Biome; no em dashes.
@@ -103,43 +119,71 @@ nodes:
       As the read. Allowed paths: packages/cli/src/heldLease.ts (new), packages/cli/src/judge.ts,
       packages/cli/src/node/reset.ts, packages/cli/test/refusalsNeverSuggestSweep.test.ts (new),
       packages/cli/test/node/reset.test.ts and packages/cli/test/judge.test.ts (only the live-lease assertions),
-      scripts/gates/sweep-wording-proven.ts (new), scripts/gates/slow-tests.ts (only if a declaration is required), and
-      this graph's session folder. The runner package, the ledger package, packages/cli/src/sweep.ts, every event and
+      scripts/gates/sweep-wording-proven.ts (new), scripts/gates/slow-tests.ts (the fake-only profile and declarations),
+      vitest.setup.ts and vitest.config.base.ts (the fake-only profile only), and this graph's session folder. The runner
+      package is not edited by this node: graph 0069's sessionDrive replacement and read-only agent process check must
+      already be present before this node can clear. The ledger package, packages/cli/src/sweep.ts, every event and
       position schema, local@v1 and docs/shapes.md are untouched.
-      1. packages/cli/src/heldLease.ts exports explainLiveLease(held, then) returning exactly the two texts of the read for
-         then "judge" and then "reset", with the lease expiry formatted as an ISO timestamp. judge.ts and node/reset.ts
-         use it at their existing live-lease refusals; their conditions, check order, exit codes and ledger effects are
-         unchanged; their private isoOf is removed if nothing else in the file uses it.
-      2. No string in packages/*/src outside packages/cli/src/sweep.ts contains "interlock sweep" or "run sweep".
-         The sessionDrive.ts narration and the lease_ms description are not edited by this node.
-      3. packages/cli/test/refusalsNeverSuggestSweep.test.ts holds exactly these four titles:
-         - "no refusal or narration suggests interlock sweep" (the source scan of decision E over packages/*/src: reads
-           more than zero files, includes judge.ts and node/reset.ts, finds no literal containing "interlock sweep" or
-           "run sweep" outside packages/cli/src/sweep.ts; and, through the real command paths, a live-lease refusal from
-           judge and one from node reset, and the run refusal if it is present on main, contain neither "sweep" nor
-           "sweeper")
+      1. packages/cli/src/heldLease.ts exports explainLiveLease(held, then) returning exactly these texts for then
+         "judge" and then "reset", with the lease expiry formatted as an ISO timestamp:
+         judge: "<node> is leased by session <id> until <iso>; its agent may still be working. Wait for the lease to end.
+         Lease expiry does not show that the agent has exited. Use the read-only agent process check for the pane recorded
+         for session <id>; if it reports the agent is alive or the result is unknown, wait for the agent to finish. Then
+         judge again."
+         reset: "<node> is leased by session <id> until <iso>; its agent may still be working. Wait for the lease to end.
+         Lease expiry does not show that the agent has exited. If there is a resettable outcome, use the read-only agent
+         process check for the pane recorded for session <id>; if it reports the agent is alive or the result is unknown,
+         wait for the agent to finish. Run this reset again only after the lease has ended, the check reports no agent
+         alive, and a resettable outcome exists."
+         The named check is graph 0069's read-only Runtime.agentProcess check using the pane id from the session's agent
+         binding. judge.ts and node/reset.ts use the builder at their existing live-lease refusals; their conditions, check
+         order, exit codes and ledger effects are unchanged; their private isoOf is removed if nothing else in the file
+         uses it. This node does not inspect a pane, change a lease or write a liveness event.
+      2. The source proof reads every packages/*/src root and rejects any sweep or sweeper instruction or narration,
+         including "interlock sweep" and "run sweep", outside the narrow exceptions in decision E. The old
+         sessionDrive.ts narration is absent before this node clears. The lease_ms description, the face help key and the
+         sweep command's deliberate output remain unchanged. The run and resume refusal is graph 0069's work.
+      3. packages/cli/test/refusalsNeverSuggestSweep.test.ts holds exactly these five titles:
+         - "no refusal or narration suggests interlock sweep" (the source scan of decision E discovers every
+           packages/*/src root, reads more than zero files in each, includes judge.ts, node/reset.ts, sessionDrive.ts,
+           localConfig.ts, sweep.ts and face/helpText.ts, rejects the old drive narration and every forbidden literal,
+           accepts only the listed command, help, configuration and output literals, exercises a live-lease refusal from
+           judge and one from node reset, and exercises the run refusal if it is present on main; none of those messages
+           contains "sweep" or "sweeper")
          - "judge's lease refusal says who holds it and until when" (a fixture node with a session-started and a
            lease-taken event expiring at a known fake time, the fake clock before it: runInterlockJudge refuses with exit
            code 1 and exactly the judge text of the read, naming the session id and the ISO expiry, appends no event to the
-           journal, and the same node with the clock past the expiry is not refused for the lease)
+           journal; after the clock passes expiry, a setup whose later judge path is known to succeed reaches its positive
+           outcome milestone and expected event or receipt, so the test cannot pass on a different refusal)
          - "node reset's refusal says who holds it and until when" (the same fixture through runNodeReset with --by and
            --because: exit code 1 and exactly the reset text of the read, naming the session id and the ISO expiry,
-           including the sentence that a reset is possible only once the lease has ended and no agent is alive; the journal
-           is unchanged; with the clock past the expiry and an outcome on the node, the reset proceeds as it does today)
-         - "the sweep command itself still works when run on purpose" (a fixture with a session whose lease has expired and
-           whose outcome is unresolved: runInterlockSweep returns exit code 0 and the abandoned-session message naming
-           that session and the journal records the abandonment; a second run reports nothing to abandon; and main's
-           dispatch of ["sweep"] reaches the same command)
-      4. packages/cli/test/node/reset.test.ts:150 and the judge.test.ts live-lease assertion are updated to the new
-         wording and nothing else in them changes.
-      5. Proof: scripts/gates/sweep-wording-proven.ts as decision D, run under a fake-only child environment, prints
-         "refusals never suggest sweep proven: 4 named cases passed".
-      6. Existing tests keep passing, including sweep.test.ts unchanged. New tests are declared or baselined as the
-         slow-tests-accounted gate requires.
-      7. The debrief states: every message found (the five items of the read, with file and line), which two were
-         changed and why only those, the exact new texts, that the sessionDrive.ts narration is owned by graph 0069 and
-         whether it was still present when this node ran, that the lease_ms description and the face key were left,
-         the scan's mechanism and its coverage assertion, and that nothing here decides whether an agent is alive.
+           including the lease, agent-exit and resettable-outcome limits; the journal is unchanged; with the clock past
+           expiry and a resettable outcome, reset returns success, the message is exact and the journal has exactly the
+           existing outcome-set events and reset fields; with the clock past expiry and no outcome, the exact no-outcome
+           refusal is returned and the journal is unchanged)
+         - "the sweep command itself still works when run on purpose" (a fresh fixture with a session whose lease has
+           expired and whose outcome is unresolved: runInterlockSweep returns exit code 0 and the abandoned-session
+           message naming that session and records exactly its abandonment event; an unmocked main(["sweep"]) call from a
+           fresh fixture cwd reaches the same command and asserts the same message and event; a second main call reports
+           nothing to abandon and leaves the journal unchanged)
+         - "suite-running gates use a fake-only profile" (the proof and slow-tests scripts pass child suites HOME, all
+           XDG folders, CODEX_HOME, CLAUDE_CONFIG_DIR and the Kimi equivalents under directories made in the system
+           temp folder, pass a PATH with no real agent CLI, and exclude real-provider test files; a stub child records
+           those values and the test fails if any value comes from the parent or any path is outside the fixture profile)
+      4. packages/cli/test/node/reset.test.ts and the judge.test.ts live-lease assertion are updated to the new wording
+         and nothing else in them changes.
+      5. Proof: scripts/gates/sweep-wording-proven.ts as decision D, run under the fake-only child environment, prints
+         "refusals never suggest sweep proven: 5 named cases passed".
+      6. Existing tests keep passing under the fake-only profile, including sweep.test.ts unchanged. Real-provider test
+         files are excluded by that profile rather than allowed to start real agent CLIs or contact real herdr. New tests
+         are declared or baselined as the slow-tests-accounted gate requires.
+      7. The debrief states: every message found (the five items of the read, with file and line), that graph 0069's
+         sessionDrive replacement and read-only agent process check were present before clearance, which two messages were
+         changed and why only those, the exact new texts, the pane id source and the keep-waiting rule for alive or unknown
+         process results, that the lease_ms description and the face key were left, the source roots and required-file
+         coverage, the scanner mechanism, allowed exceptions and negative controls, the positive post-expiry judge
+         milestone, the exact reset outcome events and no-outcome refusal, the fixture cwd used for unmocked main(["sweep"]),
+         the fake-only profile and excluded real-provider files, and that nothing here decides whether an agent is alive.
       Before you file the debrief (and before any refile), end every vitest worker and child process you started and
       confirm with pgrep that none survives.
     gates:
@@ -149,7 +193,7 @@ nodes:
       - id: sweep-wording-proven
         kind: command
         run: node scripts/gates/sweep-wording-proven.ts
-        expect_output: 'refusals never suggest sweep proven: 4 named cases passed'
+        expect_output: 'refusals never suggest sweep proven: 5 named cases passed'
       - id: slow-tests-accounted
         kind: command
         run: node scripts/gates/slow-tests.ts
