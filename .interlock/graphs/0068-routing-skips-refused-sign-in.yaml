@@ -92,16 +92,23 @@ read: >
     2. One request to the usages endpoint with that token, with a total deadline of three seconds that the probe itself
        creates and enforces (a named constant; the fetch is cancelled when it expires). 401 or 403 goes to step 3; a good
        answer, any other status, a timeout or a network error reads unknown with a plain reason.
-    3. Run the CLI once, `kimi -p` with a one-word prompt, through the runner's owned-command runner with a timeout (a named
+    3. Only right after that 401 or 403, and only if no renewal was attempted in the last fifteen minutes (a named
+       constant), run the CLI once, `kimi -p` with a one-word prompt, through the runner's owned-command runner with a timeout (a named
        constant of thirty seconds, shell-free, the whole process group ended on timeout, cwd a fresh folder under the
        system temp folder), to let the CLI refresh its own sign-in. Its output is discarded and never returned or
        recorded. A CLI that cannot start, times out or exits non-zero here still goes to step 4: the verdict is the
        second request, not the exit code. This is a model call, so it costs a one-line prompt, and only after a 401;
-       a fresh token then lasts until it goes stale again.
+       a fresh token then lasts until it goes stale again. The renewal is a confirmation step and nothing else: it never
+       runs on a timer, never while checks pass, and never for any other provider, none of which ever gets a model call
+       for checking. The time of the last renewal attempt (not a token) is kept in memory only, in the process, through
+       the probe's injected clock; within the fifteen minute window a 401 or 403 skips the renewal and the reading is
+       unknown ("rejected, and the CLI was asked to renew less than fifteen minutes ago"), never refused, because
+       refused needs the renewal's confirmation.
     4. Re-read the newest saved sign-in (the CLI may have rewritten it) and make one more request under a new
        three-second deadline. 401 or 403 again reads refused ("the plan refused the saved sign-in (HTTP n), and the
        CLI could not renew it"); anything else reads unknown, including success, because the sign-in then works.
-    Nothing is cached: no token and no result survives the call, so the cockpit's sixty-second cache is not copied. The
+    Nothing is cached: no token and no result survives the call, so the cockpit's sixty-second cache is not copied; the
+    only thing kept between calls is the time of the last renewal attempt, in memory. The
     token exists only in memory for the request and the header that carries it; it is never logged, narrated, written,
     put in a returned reading, an error text or the CLI's argv or environment. Errors are mapped to plain sentences and
     never forwarded raw. The saved sign-in files are never written or copied by Interlock; the CLI alone rewrites them.
@@ -225,7 +232,7 @@ nodes:
          Nothing is cached, copied, written or logged, and no returned reason, error text, CLI argument or CLI environment
          contains the token. The codex and claude readers are unchanged.
       6. Tests, each failing on main 8b1698ce for its intended assertion except where marked, with stub providers, stub
-         readers, a stub fetch and fixtures under the system temp folder as the read says. Exactly these seven titles;
+         readers, a stub fetch and fixtures under the system temp folder as the read says. Exactly these eight titles;
          the assertions named under each are inside that case:
          - "a refused sign-in is never routed to, even when every other headroom is unknown" (packages/runner/test/
            routingRefusals.test.ts: a refused kimi beside two unknown providers, repeated over a fixture ledger that
@@ -279,8 +286,16 @@ nodes:
            returned reason, any captured console output, the stub CLI's recorded argv and environment, or any file other
            than the stub sign-in; the stub sign-in file and every other fixture file are byte for byte unchanged by the
            reader (the stub CLI alone rewrites the sign-in); nothing outside the fixture folder was read)
+         - "the kimi renewal runs only right after a refusal and at most once per 15 minutes" (packages/runner/test/
+           kimiRefusal.test.ts, with a fake clock and a stub kimi command that records each run: reads that pass, and
+           reads of any number over a simulated hour that never see a 401 or 403, run the stub CLI zero times; a 401
+           runs it exactly once, immediately after that 401; a second 401 within 15 minutes of the attempt runs it zero
+           more times and reads unknown, never refused, whatever the second request would say; after 15 minutes of the
+           fake clock a 401 runs it once more; the same for 403; nothing runs it on a timer; the stub CLI is never run
+           for a codex, claude or exec-kind reading; the only state kept between reads is the attempt time, and no token
+           is in it)
       7. Proof: scripts/gates/routing-refusals-proven.ts runs the three test files above once with vitest's JSON reporter,
-         with a temporary HOME, fails on a missing file, and prints "routing refusals proven: 7 named cases passed" only
+         with a temporary HOME, fails on a missing file, and prints "routing refusals proven: 8 named cases passed" only
          when the run exits zero, every title above passes exactly once, and there are no failures, skips, todos, missing
          summaries or extra cases in those files. It proves execution and titles; the assertions above are what the judge
          reads each case for.
@@ -302,7 +317,7 @@ nodes:
       - id: routing-refusals-proven
         kind: command
         run: node scripts/gates/routing-refusals-proven.ts
-        expect_output: 'routing refusals proven: 7 named cases passed'
+        expect_output: 'routing refusals proven: 8 named cases passed'
       - id: shapes-fresh
         kind: command
         run: pnpm interlock schema reference --check

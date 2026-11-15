@@ -25,7 +25,7 @@ gates:
 - id: routing-refusals-proven
   kind: command
   run: node scripts/gates/routing-refusals-proven.ts
-  expect_output: 'routing refusals proven: 7 named cases passed'
+  expect_output: 'routing refusals proven: 8 named cases passed'
 - id: shapes-fresh
   kind: command
   run: pnpm interlock schema reference --check
@@ -1494,7 +1494,7 @@ edit it.
 >    Nothing is cached, copied, written or logged, and no returned reason, error text, CLI argument or CLI environment
 >    contains the token. The codex and claude readers are unchanged.
 > 6. Tests, each failing on main 8b1698ce for its intended assertion except where marked, with stub providers, stub
->    readers, a stub fetch and fixtures under the system temp folder as the read says. Exactly these seven titles;
+>    readers, a stub fetch and fixtures under the system temp folder as the read says. Exactly these eight titles;
 >    the assertions named under each are inside that case:
 >    - "a refused sign-in is never routed to, even when every other headroom is unknown" (packages/runner/test/
 >      routingRefusals.test.ts: a refused kimi beside two unknown providers, repeated over a fixture ledger that
@@ -1548,8 +1548,16 @@ edit it.
 >      returned reason, any captured console output, the stub CLI's recorded argv and environment, or any file other
 >      than the stub sign-in; the stub sign-in file and every other fixture file are byte for byte unchanged by the
 >      reader (the stub CLI alone rewrites the sign-in); nothing outside the fixture folder was read)
+>    - "the kimi renewal runs only right after a refusal and at most once per 15 minutes" (packages/runner/test/
+>      kimiRefusal.test.ts, with a fake clock and a stub kimi command that records each run: reads that pass, and
+>      reads of any number over a simulated hour that never see a 401 or 403, run the stub CLI zero times; a 401
+>      runs it exactly once, immediately after that 401; a second 401 within 15 minutes of the attempt runs it zero
+>      more times and reads unknown, never refused, whatever the second request would say; after 15 minutes of the
+>      fake clock a 401 runs it once more; the same for 403; nothing runs it on a timer; the stub CLI is never run
+>      for a codex, claude or exec-kind reading; the only state kept between reads is the attempt time, and no token
+>      is in it)
 > 7. Proof: scripts/gates/routing-refusals-proven.ts runs the three test files above once with vitest's JSON reporter,
->    with a temporary HOME, fails on a missing file, and prints "routing refusals proven: 7 named cases passed" only
+>    with a temporary HOME, fails on a missing file, and prints "routing refusals proven: 8 named cases passed" only
 >    when the run exits zero, every title above passes exactly once, and there are no failures, skips, todos, missing
 >    summaries or extra cases in those files. It proves execution and titles; the assertions above are what the judge
 >    reads each case for.
