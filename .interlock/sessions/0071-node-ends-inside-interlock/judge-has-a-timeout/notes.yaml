@@ -1,0 +1,47 @@
+interlock: notes@v0
+node: judge-has-a-timeout
+entries:
+  - kind: choice
+    at: "2026-11-16T17:36:48Z"
+    chose: Keep the timeout orchestration in the new runner deadline module and make judge.ts supply its graph and command boundaries.
+    because: The acceptance limits production changes to judge.ts and the new deadline seam; the runner module can own process termination and lease polling while judge.ts remains responsible for graph loading, ledger state and narration.
+  - kind: choice
+    at: "2026-11-16T17:36:48Z"
+    chose: Give each gate command its own detached process group and terminate that group with TERM followed by KILL after ten seconds when the judge deadline expires.
+    because: Process-group ownership lets the judge stop only processes it started, including descendants, without signalling unrelated processes; the ten-second grace is part of the acceptance.
+  - kind: surprise
+    at: "2026-11-16T17:38:00Z"
+    expected: The first focused test command would write its output under the package's existing ignored run directory.
+    observed: The runner test/.runs directory was absent, and zsh treats the variable name status as read-only, so the command produced no test output and did not start Vitest.
+  - kind: choice
+    at: "2026-11-16T17:41:00Z"
+    chose: Give the held-lease fake clock four minutes so it can observe two minute reports before the lease releases on the third poll.
+    because: The helper checks the deadline before reading after each sleep, so a three-minute deadline ends at the third boundary rather than producing the release read.
+  - kind: surprise
+    at: "2026-11-16T17:42:00Z"
+    expected: The focused deadline tests would satisfy the repository's strict TypeScript check after they passed Vitest.
+    observed: The installed Vitest matcher type does not accept a type argument on toMatchObject; removing that annotation keeps the same runtime assertion and restores strict compilation.
+  - kind: choice
+    at: "2026-11-16T17:44:00Z"
+    chose: Install the recording narrator before waiting on a held lease.
+    because: Lease reports are judge observations tied to the session, so they should leave the same narration receipt as gate and outcome messages while still being printed immediately.
+  - kind: choice
+    at: "2026-11-16T17:45:00Z"
+    chose: Keep the legacy immediate refusal for a live lease whose historical session has no recorded start time.
+    because: The new minute-by-minute wait can name a real session's start, while a backfilled lease cannot honestly supply that fact; retaining the old refusal keeps historical ledger reads deterministic and preserves the way back.
+  - kind: surprise
+    at: "2026-11-16T17:47:00Z"
+    expected: The post-commit typecheck would remain green after wiring the controlled clock into lease waiting.
+    observed: The clock API brands sleep durations as Millis; the new wait callback needed the existing ms adapter instead of passing a plain number.
+  - kind: surprise
+    at: "2026-11-16T17:48:00Z"
+    expected: The targeted Biome check would remain clean after adding the ms import.
+    observed: Biome requires the type, value and named imports in its sorted order; only the import ordering needed correction.
+  - kind: surprise
+    at: "2026-11-16T17:50:00Z"
+    expected: The standing lint gate would report no diagnostics after the focused Biome check passed.
+    observed: The repository-wide lint gate exits zero but retains one pre-existing warning in packages/runner/src/gateJudge.ts about its ANSI regular-expression constructor; the changed files are clean.
+  - kind: choice
+    at: "2026-11-16T17:50:00Z"
+    chose: Leave the repository-wide test gate unrun and record that limitation in the final debrief.
+    because: The current session rule explicitly limits test execution to changed or named focused files and reserves full suites for the landing check, while the focused runner and CLI judge suites already provide the scoped proof.
