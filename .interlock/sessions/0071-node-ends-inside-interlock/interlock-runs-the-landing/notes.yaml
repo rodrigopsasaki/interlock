@@ -1,0 +1,41 @@
+interlock: notes@v0
+node: interlock-runs-the-landing
+entries:
+  - kind: choice
+    at: '2026-11-16T19:05:00Z'
+    chose: >-
+      Reuse the existing runner merge-main and detached-worktree seams for landing, and keep
+      fixture environment construction in a new runner adapter.
+    because: >-
+      The acceptance gives judge and land the same main-in and frozen-install contract, while
+      the fixture environment is runtime-neutral and belongs outside the CLI command parser.
+  - kind: choice
+    at: '2026-11-16T19:05:00Z'
+    chose: >-
+      Add known_environment_failures as an additive graph field and report matching suite names
+      without treating them as landing failures.
+    because: >-
+      The acceptance names this graph-owned exception explicitly, and graph@v0 readers already
+      evolve by accepting optional fields without changing the artifact version.
+  - kind: choice
+    at: '2026-11-16T19:20:00Z'
+    chose: >-
+      Run one frozen install for every land attempt, letting the shared merge seam perform it when
+      the main merge changed a lockfile and performing it after an unchanged merge otherwise.
+    because: >-
+      The landing read requires a frozen install even when main is already contained, while the
+      judge seam already owns the conditional post-merge install and should not run it twice.
+  - kind: surprise
+    at: '2026-11-16T19:20:00Z'
+    expected: The first land implementation could type its graph and ledger helpers through the
+      existing public exports without additional narrowing.
+    observed: >-
+      The graph document reader lives in face and createLedger requires an explicit clock; the
+      implementation was narrowed to those existing contracts before any focused test ran.
+  - kind: surprise
+    at: '2026-11-16T19:50:00Z'
+    expected: The schema package would already have its ignored test output directory like the
+      runner and CLI packages.
+    observed: >-
+      The first graph schema test invocation failed before Vitest started because
+      packages/schemas/test/.runs did not exist; the directory is now created before rerunning.

@@ -14,6 +14,7 @@ import { runGraphApprove } from "./graph/approve.ts";
 import { runGraphShow } from "./graph/show.ts";
 import { runGraphStatus } from "./graph/status.ts";
 import { runInterlockJudge } from "./judge.ts";
+import { runInterlockLand } from "./land.ts";
 import { runNodeCancel } from "./node/cancel.ts";
 import { runNodeReset } from "./node/reset.ts";
 import { runInterlockPlan } from "./plan.ts";
@@ -157,6 +158,10 @@ export async function run(argv: readonly string[]): Promise<CommandResult> {
 
   if (group === "judge") {
     return runInterlockJudge(argv.slice(1));
+  }
+
+  if (group === "land") {
+    return runInterlockLand(argv.slice(1));
   }
 
   if (group === "sweep") {

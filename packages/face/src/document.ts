@@ -28,6 +28,7 @@ export interface GraphDocument {
   readonly id: string;
   readonly arc?: string;
   readonly ask?: string;
+  readonly knownEnvironmentFailures?: readonly string[];
   readonly gates: readonly GateDeclaration[];
   readonly nodes: readonly NodeDeclaration[];
 }
@@ -130,6 +131,11 @@ function parseShape(parsed: unknown): Result<GraphDocument, string> {
   const arc = prop(parsed, "arc");
   if (arc !== undefined && !isString(arc)) return err('"arc" must be a string');
 
+  const knownEnvironmentFailures = prop(parsed, "known_environment_failures");
+  if (knownEnvironmentFailures !== undefined && !isStringArray(knownEnvironmentFailures)) {
+    return err('"known_environment_failures" must be a list of test file names');
+  }
+
   const parsedGates = parseGateDeclarations(prop(parsed, "gates"), "");
   if (isErr(parsedGates)) return parsedGates;
 
@@ -182,6 +188,7 @@ function parseShape(parsed: unknown): Result<GraphDocument, string> {
     id,
     ...(arc === undefined ? {} : { arc }),
     ...(ask === undefined ? {} : { ask }),
+    ...(knownEnvironmentFailures === undefined ? {} : { knownEnvironmentFailures }),
     gates: parsedGates.value,
     nodes,
   });
