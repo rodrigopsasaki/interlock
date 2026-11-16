@@ -1,10 +1,10 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
-import { err, ok, unwrap } from "@phyxiusjs/fp";
+import { err, ok, type Result, unwrap } from "@phyxiusjs/fp";
 import { sharedJournalDirectory } from "face";
 import { createLedger, heldOn, outcome, sessionRuntime } from "ledger";
-import type { Runtime } from "runner";
+import type { MergeMainOutcome, MergeMainRefusal, MergeMainRequest, Runtime } from "runner";
 import { afterEach, describe, expect, it } from "vitest";
 import { fixtureGit } from "../../../test/support/gitFixture.ts";
 import {
@@ -543,6 +543,31 @@ describe("interlock judge", () => {
 
     expect(judged.exitCode).toBe(0);
     expect(judged.message).toBe("a: cleared (session hand-named-session, judged by hand)");
+  });
+
+  it("brings main in before running the settled-worktree gates", async () => {
+    const cwd = fixture();
+    await approve(cwd);
+    const worktreePath = join(cwd, ".worktrees", "a");
+    mkdirSync(worktreePath, { recursive: true });
+    gitInitFixture(worktreePath);
+    writeFileSync(join(worktreePath, "work.txt"), "settled\n");
+    commitAll(worktreePath, "settled worktree");
+    const calls: string[] = [];
+    const mergeMain = async (
+      request: MergeMainRequest,
+    ): Promise<Result<MergeMainOutcome, MergeMainRefusal>> => {
+      calls.push(`${request.node}:${request.worktree}`);
+      return ok({ kind: "merged", mainRef: "origin/main", lockfileChanged: false });
+    };
+
+    const judged = await runInterlockJudge(["demo", "a", "--session", "ordered-session"], {
+      cwd,
+      mergeMain,
+    });
+
+    expect(judged.exitCode).toBe(0);
+    expect(calls).toEqual([`a:${worktreePath}`]);
   });
 
   it("lets --session override the ledger's latest session", async () => {
