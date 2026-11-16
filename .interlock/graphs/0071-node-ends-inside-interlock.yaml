@@ -1,0 +1,133 @@
+# Plan: the end of a node (merge main, judge, watchdog, session end on filing, landing suites) happens inside Interlock,
+# so the shell scripts judge3.sh, judge-watchdog.zsh, merge-main-into.zsh, quit-filed.zsh, finish-watch.sh and
+# land-suites.sh in ~/.local/state/claude-orchestrator retire. Step 4 of Preston's arc "Run the work loop inside
+# Preston" (preston/0078-run-the-work-loop-inside-preston).
+interlock: graph@v0
+id: 0071-node-ends-inside-interlock
+arc: run-the-work-loop-inside-preston
+
+ask: >
+  A node goes from filed to landed with nothing outside Interlock and Preston running: `interlock judge` brings main
+  into the node first with a signed merge, runs under a timeout and says when it gave up, ends the node's agent
+  session once the node is filed, and `interlock land` runs the landing suites on the merged tree in a fixture
+  environment and reports the land branch and its full sha.
+
+authorization:
+  granted_by: Rodrigo Sasaki
+  mandate: preston-revival-autonomy-2026-11-04
+  approver: Rodrigo Sasaki; Gilb relays the recorded approval and coordinates cleared-node merges. The cross-vendor vet is advisory.
+
+read: >
+  Rodrigo, 2026-11-16 12:55 UTC: "we shouldn't have any zsh scripts outside the runic installation that Preston should
+  manage itself. Do a validation of that"; 13:14 UTC: "just do whatever you feel is the best way from getting from A to
+  B the fastest. Be methodical so new agents can continue the work, use interlock if you want, it's not a requirement
+  though. Just keep pushing".
+
+  What the shell does today that must survive, read from the scripts (2026-11-16): judge3.sh merges origin/main into
+  the worktree before judging (signed, only when clean and conflict-free), installs after a merge, then runs
+  `interlock judge` and retries while the lease is held; judge-watchdog.zsh ends a judge that has not progressed;
+  quit-filed.zsh types /quit into an agent's pane within a minute of its node being filed, because a filed agent that
+  stays alive keeps its lease and its judge waits forever (2026-11-16 13:00: 0068's judge waited 32 minutes on it);
+  finish-watch.sh notices a filed debrief; land-suites.sh creates a land worktree, installs with the frozen lockfile,
+  runs each landing command under a fixture HOME (fixture git identity, GIT_CONFIG_GLOBAL=/dev/null,
+  GIT_CONFIG_NOSYSTEM=1, empty XDG folders, all under the system temp folder) with the mode's test limits, and prints
+  the head sha and its signature status. What Interlock has on main ff1b90e7: packages/cli/src/judge.ts (243 lines, no
+  timeout, no merge of main, no session end), position.ts with --json, sessions.ts, run.ts, sweep.ts. 21 existing
+  codex-guard, exec and worktree tests read the machine's own codex configuration and fail under a bare fixture HOME
+  (0068's debrief); landing suites run under the fixture must not count those as the node's failures until graphs 0066
+  and 0067 isolate the suite, and must name them.
+
+gates:
+  - id: approved
+    kind: human
+
+nodes:
+  - id: judge-brings-main-in-first
+    role: implementer
+    depends_on: []
+    acceptance: |
+      `interlock judge <graph> <node>` first brings origin/main into the node's worktree when main has moved past the
+      branch: a signed `git merge --no-ff` (the repository's configured signing, never a key of its own) only when the
+      tree has no uncommitted tracked change and the merge has no conflict, then the frozen install when the lockfile
+      changed. A dirty tree or a conflict refuses the judge, naming the files, and changes nothing. The merge commit's
+      subject says why. Touches only: packages/cli/src/judge.ts, packages/runner/src/mergeMain.ts (new),
+      packages/runner/test/mergeMain.test.ts (new), packages/cli/test/judge*.test.ts. Named cases: "a branch behind main
+      gets a signed merge before the judge"; "a branch already containing main is judged as it is"; "a dirty tree refuses
+      and changes nothing"; "a conflict refuses naming the files and leaves no merge in progress"; "the install runs only
+      when the lockfile changed".
+    gates:
+      - id: merge-main-tests-pass
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/mergeMain.test.ts --passWithNoTests=false
+        expect_output: 'Tests +([5-9]|[1-9][0-9]+) passed'
+      - { id: typescript-compiles, kind: command, run: pnpm typecheck }
+
+  - id: judge-has-a-timeout
+    role: implementer
+    depends_on: []
+    acceptance: |
+      A judge has a deadline (default 45 minutes, `--timeout <minutes>`, and a per-graph `judge_timeout_minutes`): when
+      it passes, every gate process the judge started is ended (TERM, then KILL after 10 seconds, only processes the
+      judge started), the judge records "gave up after N minutes on gate <id>" and exits non-zero. A judge waiting on a
+      held lease says whose lease and since when every minute instead of waiting silently, and that wait counts toward
+      the deadline. Touches only: packages/cli/src/judge.ts, packages/runner/src/deadline.ts (new),
+      packages/runner/test/deadline.test.ts (new). Named cases: "a judge past its deadline ends its gate processes and
+      says so"; "only processes the judge started are signalled"; "a held lease is named every minute"; "the per-graph
+      timeout overrides the default".
+    gates:
+      - id: deadline-tests-pass
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/deadline.test.ts --passWithNoTests=false
+        expect_output: 'Tests +([4-9]|[1-9][0-9]+) passed'
+      - { id: typescript-compiles, kind: command, run: pnpm typecheck }
+
+  - id: filing-ends-the-session
+    role: implementer
+    depends_on: []
+    acceptance: |
+      When a node's debrief is filed (`interlock` records the filing), Interlock ends that node's agent session within a
+      minute: it sends the runtime's own quit (`/quit` for codex and kimi-code, through the pane it opened) and confirms
+      the pane shows a shell, then releases the lease, recording "session ended after filing". It never ends a session
+      it did not start, and an agent that does not quit within 2 minutes is reported, not killed. A filing also emits
+      one line on `interlock events` (new, a stream of filings, judge results and session ends) so Preston's queue view
+      and launcher can follow without polling worktrees. Touches only: packages/runner/src/sessionEnd.ts (new),
+      packages/runner/test/sessionEnd.test.ts (new), packages/cli/src/sessions.ts, packages/cli/src/events.ts (new),
+      packages/cli/src/main.ts. Named cases: "a filed node's session gets quit and its lease released"; "a session
+      Interlock did not start is left alone"; "an agent that does not quit is reported, not killed"; "a filing emits one
+      events line"; "a judge result emits one events line".
+    gates:
+      - id: session-end-tests-pass
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/sessionEnd.test.ts --passWithNoTests=false
+        expect_output: 'Tests +([5-9]|[1-9][0-9]+) passed'
+      - { id: typescript-compiles, kind: command, run: pnpm typecheck }
+
+  - id: interlock-runs-the-landing
+    role: implementer
+    depends_on: [judge-brings-main-in-first]
+    acceptance: |
+      `interlock land <graph> <node>` takes a cleared node to a land branch: a land worktree from the node's head, main
+      brought in the same way as the judge does, the frozen install, then the graph's landing suites (each node's gates
+      plus the repository's test, lint and typecheck) run one at a time under a fixture environment (HOME, XDG folders
+      and tool state under the system temp folder, a fixture git identity, GIT_CONFIG_GLOBAL=/dev/null,
+      GIT_CONFIG_NOSYSTEM=1, and VITEST_MAX_WORKERS / NODE_OPTIONS from `--test-workers` and `--heap-mb`, which Preston
+      passes from its mode). It prints each suite's result, the land branch name, its full sha and whether every commit
+      on it is signed (%G? G); an unsigned or unknown-key commit refuses the land. It pushes nothing; pushing stays
+      with the caller. Test files named in the graph's `known_environment_failures` list are reported separately and do
+      not fail the land, and every name on that list is printed. Touches only: packages/cli/src/land.ts (new),
+      packages/runner/src/fixtureEnv.ts (new), packages/cli/src/main.ts, packages/cli/test/land.test.ts (new),
+      packages/runner/test/fixtureEnv.test.ts (new), packages/schemas/src/graph.ts and its test for the new optional
+      keys. Named cases: "land builds a worktree from the node head with main in"; "suites run one at a time under the
+      fixture environment"; "the fixture carries a git identity and no global git config"; "test limits come from the
+      flags"; "an unsigned commit refuses the land"; "known environment failures are named and do not fail the land";
+      "land prints the branch, its full sha and the signature status"; "land pushes nothing".
+    gates:
+      - id: land-tests-pass
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/land.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - id: fixture-env-tests-pass
+        kind: command
+        run: pnpm --fail-if-no-match --filter runner exec vitest run test/fixtureEnv.test.ts --passWithNoTests=false
+        expect_output: 'Tests +[1-9][0-9]* passed'
+      - { id: typescript-compiles, kind: command, run: pnpm typecheck }
