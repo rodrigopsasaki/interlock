@@ -84,3 +84,14 @@ entries:
       TypeScript required an explicit conflict-kind narrow before reading paths and bracket access
       for the process environment index signature. The test was corrected without changing runtime
       behavior.
+  - kind: choice
+    at: '2026-11-16T18:25:00Z'
+    chose: Hoist the supported lockfile names to one runner-level set.
+    because: The merge seam checks one fixed repository path list per merge, so the policy should be allocated once and read directly.
+  - kind: surprise
+    at: '2026-11-16T18:25:00Z'
+    expected: file-derived would accept a candidate whose head_sha names the last product-code commit while notes followed it.
+    observed: >-
+      file-derived requires the candidate identity to match the current derived proof, which also
+      includes the later notes commit. A fresh source commit and candidate are required so the
+      current head is again a product-code commit.

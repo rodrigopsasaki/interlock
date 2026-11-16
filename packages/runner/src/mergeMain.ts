@@ -8,6 +8,14 @@ interface GitExecution {
   readonly stderr: string;
 }
 
+const LOCKFILES = new Set([
+  "pnpm-lock.yaml",
+  "package-lock.json",
+  "yarn.lock",
+  "bun.lock",
+  "bun.lockb",
+]);
+
 export type FrozenInstall = (
   worktree: string,
   env: NodeJS.ProcessEnv,
@@ -101,9 +109,7 @@ function resolveMainRef(worktree: string): Result<string, string> {
 }
 
 function isLockfile(path: string): boolean {
-  return new Set(["pnpm-lock.yaml", "package-lock.json", "yarn.lock", "bun.lock", "bun.lockb"]).has(
-    path,
-  );
+  return LOCKFILES.has(path);
 }
 
 function conflictPaths(output: string): readonly string[] {
