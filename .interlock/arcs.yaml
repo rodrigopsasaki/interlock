@@ -385,3 +385,4 @@ arcs:
     graphs:
       - preston/0078-run-the-work-loop-inside-preston
       - interlock/0071-node-ends-inside-interlock
+      - interlock/0072-position-answers-what-is-ready

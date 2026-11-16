@@ -1,0 +1,71 @@
+# Plan: `interlock position` answers "what is ready" in a small, bounded read, so Preston's launcher can ask it every
+# cycle. Step 2 of Preston's arc "Run the work loop inside Preston" failed twice on this (2026-11-16 20:10 and 22:58 UTC).
+interlock: graph@v0
+id: 0072-position-answers-what-is-ready
+arc: run-the-work-loop-inside-preston
+
+ask: >
+  `interlock position --ready --json` answers only what a launcher needs: for each repository asked, its root and the
+  ready nodes in launch order (graph, node, and the node's place on its graph's critical path), and nothing else. Its
+  size depends on how many nodes are ready, never on how much history the graphs hold. The full `position` read is
+  unchanged.
+
+authorization:
+  granted_by: Rodrigo Sasaki
+  mandate: preston-revival-autonomy-2026-11-04
+  approver: Rodrigo Sasaki; Gilb relays the recorded approval and coordinates cleared-node merges. The cross-vendor vet is advisory.
+
+read: >
+  Rodrigo, 2026-11-16 12:55 UTC: "we shouldn't have any zsh scripts outside the runic installation that Preston should
+  manage itself. Do a validation of that"; 13:14 UTC: "just do whatever you feel is the best way from getting from A to
+  B the fastest. Be methodical so new agents can continue the work, use interlock if you want, it's not a requirement
+  though. Just keep pushing".
+
+  Why: Preston's serve launcher (preston main 16a97338, packages/cli/src/serve.ts:542) feeds itself with
+  feedForKnownCheckouts (cockpit/queue/feed.ts:183), which runs `interlock position --json --repo <each checkout>` and
+  returns no work when the read is truncated (feed.ts:174). Preston's runner caps output at 4 MiB
+  (packages/read/src/runner.ts:62, DEFAULT_MAX_OUTPUT_BYTES). On 2026-11-16 23:00 UTC the read for the Preston and
+  Interlock checkouts was 17,653,679 bytes (146 graphs; 22 ready nodes in Preston, 7 in Interlock): it is pretty-printed
+  (position.ts:381, JSON.stringify(positions, null, 2)) and each node carries its full attempts history (one 0051 node:
+  93,795 bytes of attempts of 125,818). So the launcher saw nothing ready and launched nothing, and step 2's proof
+  failed twice. The read grows with every attempt, so raising Preston's cap only moves the failure.
+
+  What exists: packages/cli/src/position.ts (positionsOf at :318, reposAsked at :333, runInterlockPosition at :364,
+  POSITIONS_SHAPE "positions@v2"); Preston reads a node as ready where position.nodes[].state is "ready" (kind or
+  string) and orders by repository, graph, critical-path index, node index (feed.ts readyNodesFromPosition). Those are
+  the facts this read must keep.
+
+gates:
+  - id: approved
+    kind: human
+
+nodes:
+  - id: position-answers-what-is-ready
+    role: implementer
+    depends_on: []
+    acceptance: |
+      `interlock position --ready` (with or without `--json`; `--repo` as today) reads the same graphs and decides
+      readiness exactly as the full read does (same function, no second definition of ready), then emits only the
+      ready nodes. With `--json` the output is one compact line in a new shape `ready@v0`:
+      { "interlock": "ready@v0", "repositories": [ { "root": <path>, "state": "read" | "not-found",
+      "because"?: <text>, "ready": [ { "graph": <id>, "node": <id>, "criticalPathIndex": <n or -1>,
+      "nodeIndex": <n> } ] } ] }, with ready in launch order: graph order as the full read lists graphs, then
+      critical-path index (absent last), then node index. A graph that cannot be read is skipped and named under its
+      repository as "unreadable": [ { "graph", "because" } ], never treated as having ready nodes. Add schemas/ready@v0.json beside
+      schemas/positions@v2.json so `interlock schema validate` accepts it. Without `--ready` every output
+      byte is unchanged.
+      Named cases in packages/cli/test/positionReady.test.ts: "a ready node in a fixture graph is listed with its
+      graph and node"; "a node that is running, held, cleared or blocked is not listed"; "launch order is graph order,
+      then critical path, then node index"; "an unreadable graph is named, never listed as ready"; "two repositories
+      are answered in the order asked"; "the read does not grow with attempts: a node with 200 recorded attempts adds
+      nothing to the output beyond its one ready entry"; "the output validates as ready@v0"; "without --ready the
+      output is byte-identical to today's full read on the same fixture".
+      Touches only: packages/cli/src/position.ts, packages/cli/src/main.ts (only if the flag must be wired there),
+      schemas/ready@v0.json (new), packages/schemas/src/registry.ts only if shapes are listed there, the new test file.
+      Tests build fixture repositories; they never read his real checkouts or HOME.
+    gates:
+      - id: position-ready-tests-pass
+        kind: command
+        run: pnpm --fail-if-no-match --filter cli exec vitest run test/positionReady.test.ts --passWithNoTests=false
+        expect_output: 'Tests +([8-9]|[1-9][0-9]+) passed'
+      - { id: typescript-compiles, kind: command, run: pnpm typecheck }
