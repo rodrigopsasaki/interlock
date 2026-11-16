@@ -1,0 +1,114 @@
+interlock: debrief@v2
+graph: 0071-node-ends-inside-interlock
+node: judge-brings-main-in-first
+role: implementer
+graph_base_sha: 4ede5c6959f7709883bd917a2ee2dc6a63b6a157
+session_start_sha: 458ca65bf1e86d4d4c833c48c64796773925addc
+head_sha: e0bcbdf58060169f78d30b7e9b6b2520aa1bcad4
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: preflight-and-signed-merge
+    applies_to: { kind: repository }
+    what: >-
+      Added a runner merge-main seam that refuses dirty worktrees, resolves origin/main with a
+      local-main fallback for isolated repositories, preflights conflicts without mutation, and
+      performs a configured signed git merge --no-ff with a why-subject.
+    because: >-
+      Judge must bring main into a settled node before running gates, while a dirty or conflicting
+      tree must name its files and leave both the worktree and merge state unchanged.
+    rests_on:
+      - .interlock/graphs/0071-node-ends-inside-interlock.yaml
+      - packages/runner/src/mergeMain.ts
+    hunks:
+      - packages/runner/src/mergeMain.ts:43-112
+      - packages/runner/src/mergeMain.ts:139-220
+      - packages/runner/test/mergeMain.test.ts:77-149
+  - id: frozen-install-order
+    applies_to: { kind: repository }
+    what: >-
+      Detect lockfile changes in the completed merge and run the existing setup boundary with
+      pnpm install --frozen-lockfile only for those merges, returning install refusal separately.
+    because: >-
+      Dependencies must be refreshed after a lockfile-changing main merge without imposing an
+      install on branches that already contain main or merges that change no lockfile.
+    rests_on:
+      - .interlock/graphs/0071-node-ends-inside-interlock.yaml
+      - packages/runner/src/mergeMain.ts
+    hunks:
+      - packages/runner/src/mergeMain.ts:5-12
+      - packages/runner/src/mergeMain.ts:103-122
+      - packages/runner/src/mergeMain.ts:223-250
+      - packages/runner/test/mergeMain.test.ts:151-187
+  - id: judge-ordering
+    applies_to: { kind: repository }
+    what: >-
+      Invoke merge-main after the existing lease and session checks but before recording and
+      executing settled-worktree gates, narrating successful merges and refusing the judge on a
+      merge or install refusal.
+    because: >-
+      A live session must not be mutated, and every accepted judge must use the merged tree as the
+      input to the harness-produced gate proof.
+    rests_on:
+      - .interlock/graphs/0071-node-ends-inside-interlock.yaml
+      - packages/cli/src/judge.ts
+      - packages/cli/test/judge.test.ts
+    hunks:
+      - packages/cli/src/judge.ts:204-223
+      - packages/cli/test/judge.test.ts:548-571
+  - id: runner-public-seam
+    what: Export the typed merge-main request, result, refusal, explanation, and runner function.
+    because: >-
+      The CLI needs one named runner seam and the focused tests need its contract without importing
+      private implementation details.
+    rests_on:
+      - packages/runner/src/index.ts
+    hunks:
+      - packages/runner/src/index.ts:129-138
+  - id: session-receipts
+    what: >-
+      Recorded the implementation choices, fixture corrections, focused gate results, full-suite
+      deferral, pre-existing lint warning, signing-environment correction, and derived-filing
+      identity correction in notes.
+    because: >-
+      The session requires every choice and surprise to retain its way back, including why the
+      repository-wide test gate is not claimed as executed.
+    rests_on:
+      - .interlock/sessions/0071-node-ends-inside-interlock/judge-brings-main-in-first/notes.yaml
+    hunks:
+      - .interlock/sessions/0071-node-ends-inside-interlock/judge-brings-main-in-first/notes.yaml:1-100
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: All workspace packages typechecked successfully; the available Node was 26.13.0 and pnpm reported the pinned 24.14.0 engine warning.
+  - id: lint
+    result: pass
+    invocation: mise exec -- pnpm lint
+    note: Biome exited 0; one pre-existing warning remains in packages/runner/src/gateJudge.ts and no changed file is implicated.
+  - id: comments
+    result: pass
+    invocation: mise exec -- pnpm check:comments
+    note: packages/*/src contains no comments.
+  - id: merge-main-tests-pass
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter runner exec vitest run test/mergeMain.test.ts --passWithNoTests=false
+    note: 5 focused tests passed after the final source commit, including signed merge, unchanged branch, dirty refusal, conflict cleanup, and lockfile-only install.
+  - id: judge-ordering-proof
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter cli exec vitest run test/judge.test.ts --passWithNoTests=false
+    note: 16 CLI judge tests passed at the preceding source commit, including the merge-before-gates ordering regression; the final source cleanup does not affect the CLI seam.
+  - id: typescript-compiles
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: Final workspace typecheck passed before the final lockfile-policy cleanup; the cleanup is type-preserving and covered by the focused runner proof.
+open:
+  - >-
+    The standing pnpm test gate was intentionally not run because the owner's shared-machine rule
+    reserves full suites for landing; the touched runner and CLI files passed their focused proofs.
+  - >-
+    The repository-wide lint gate exits successfully with one pre-existing warning in
+    packages/runner/src/gateJudge.ts, outside this node's diff.
