@@ -110,3 +110,14 @@ entries:
     at: '2026-11-16T20:50:00Z'
     chose: Revise the filed debrief candidate to include the successful debrief-valid receipt.
     because: The final report should carry the validation receipt produced after its first filing, while preserving the prior canonical debrief as an archive.
+  - kind: surprise
+    at: '2026-11-16T21:00:00Z'
+    expected: The committed schema and landing implementation would satisfy the repository reference freshness check without another generated artifact.
+    observed: >-
+      The judge held only the full test gate because docs/shapes.md was stale after the graph schema
+      gained known_environment_failures and land options; four other failures reproduce on unrelated
+      branches and are load-sensitive rather than caused by this change.
+  - kind: choice
+    at: '2026-11-16T21:00:00Z'
+    chose: Regenerate docs/shapes.md with the repository schema reference command, confirm its check, and include the generated page in the final signed commit.
+    because: The repository's byte-for-byte reference test requires the committed documentation to be derived from the current schemas.
