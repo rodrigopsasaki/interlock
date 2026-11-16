@@ -78,10 +78,11 @@ function parsePositiveInteger(
   const parsed = parseFlagValue(args, flag);
   if (parsed.kind === "absent") return ok(fallback);
   if (parsed.kind === "invalid") return { _tag: "Err", error: `${flag} requires a value` };
+  if (!/^[1-9][0-9]*$/.test(parsed.value)) {
+    return { _tag: "Err", error: `${flag} must be a positive integer` };
+  }
   const value = Number.parseInt(parsed.value, 10);
-  return Number.isSafeInteger(value) && value > 0
-    ? ok(value)
-    : { _tag: "Err", error: `${flag} must be a positive integer` };
+  return Number.isSafeInteger(value) ? ok(value) : { _tag: "Err", error: `${flag} is too large` };
 }
 
 function gitOutput(cwd: string, args: readonly string[]): Result<string, string> {
@@ -315,8 +316,10 @@ export async function runInterlockLand(
     const branch = branchName(graph, node);
     mkdirSync(path, { recursive: true });
     const created = ensureNodeWorktree(repoRoot, path, head.value, branch);
-    if (isErr(created))
+    if (isErr(created)) {
+      if (options.fixture === undefined) fixture.cleanup();
       return { exitCode: 1, message: `interlock land: ${explainWorktreeRefusal(created.error)}.` };
+    }
     try {
       narrate(`land branch: ${branch}`);
       let installedByMerge = false;

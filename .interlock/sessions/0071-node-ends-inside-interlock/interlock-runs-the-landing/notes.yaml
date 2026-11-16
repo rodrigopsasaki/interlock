@@ -39,3 +39,30 @@ entries:
     observed: >-
       The first graph schema test invocation failed before Vitest started because
       packages/schemas/test/.runs did not exist; the directory is now created before rerunning.
+  - kind: surprise
+    at: '2026-11-16T19:55:00Z'
+    expected: Each focused Vitest command would leave no worker after its command exited.
+    observed: >-
+      The process check found five Vitest processes surviving the focused runs; they were
+      terminated by their recorded PIDs and a second process check found none remaining.
+  - kind: choice
+    at: '2026-11-16T20:00:00Z'
+    chose: >-
+      Reject partially numeric test-limit flags and clean internally created fixture state when
+      land worktree creation refuses.
+    because: >-
+      A limit flag is a contract boundary, and a refused land attempt must not leave temporary
+      tool state behind when Interlock created it itself.
+  - kind: surprise
+    at: '2026-11-16T20:05:00Z'
+    expected: The fixture-wrapped typecheck command would return its captured exit code.
+    observed: >-
+      The zsh wrapper used the read-only variable name status after typecheck completed; the log
+      contains a successful workspace typecheck, and the command was rerun with a non-reserved
+      variable name.
+  - kind: surprise
+    at: '2026-11-16T20:10:00Z'
+    expected: The Vitest process check would show only processes from this worktree.
+    observed: >-
+      It showed processes rooted in the owner's Preston worktrees; they were left untouched, and
+      no process from this worktree remained after the focused test.
