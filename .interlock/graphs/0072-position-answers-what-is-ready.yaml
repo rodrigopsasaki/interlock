@@ -32,8 +32,9 @@ read: >
 
   What exists: packages/cli/src/position.ts (positionsOf at :318, reposAsked at :333, runInterlockPosition at :364,
   POSITIONS_SHAPE "positions@v2"); Preston reads a node as ready where position.nodes[].state is "ready" (kind or
-  string) and orders by repository, graph, critical-path index, node index (feed.ts readyNodesFromPosition). Those are
-  the facts this read must keep.
+  string) only in approved graphs, names the repository by its origin owner/name (else the path), and orders by
+  repository, graph, critical-path index, node index (feed.ts:82-118 readyNodesFromPosition). Those are the facts this
+  read must keep.
 
 gates:
   - id: approved
@@ -46,16 +47,18 @@ nodes:
     acceptance: |
       `interlock position --ready` (with or without `--json`; `--repo` as today) reads the same graphs and decides
       readiness exactly as the full read does (same function, no second definition of ready), then emits only the
-      ready nodes. With `--json` the output is one compact line in a new shape `ready@v0`:
-      { "interlock": "ready@v0", "repositories": [ { "root": <path>, "state": "read" | "not-found",
-      "because"?: <text>, "ready": [ { "graph": <id>, "node": <id>, "criticalPathIndex": <n or -1>,
+      ready nodes of approved graphs: a node of a graph that is not approved is never listed, whatever its state
+      (on 2026-11-16 the full read showed unapproved 0080's node as "ready"). With `--json` the output is one compact line in a new shape `ready@v0`:
+      { "interlock": "ready@v0", "repositories": [ { "root": <path>, "origin"?: { "owner", "name" } (when the full
+      read identifies it), "state": "read" | "not-found", "because"?: <text>, "ready": [ { "graph": <id>, "node": <id>, "criticalPathIndex": <n or -1>,
       "nodeIndex": <n> } ] } ] }, with ready in launch order: graph order as the full read lists graphs, then
       critical-path index (absent last), then node index. A graph that cannot be read is skipped and named under its
       repository as "unreadable": [ { "graph", "because" } ], never treated as having ready nodes. Add schemas/ready@v0.json beside
       schemas/positions@v2.json so `interlock schema validate` accepts it. Without `--ready` every output
       byte is unchanged.
       Named cases in packages/cli/test/positionReady.test.ts: "a ready node in a fixture graph is listed with its
-      graph and node"; "a node that is running, held, cleared or blocked is not listed"; "launch order is graph order,
+      graph and node"; "a node that is running, held, cleared or blocked is not listed"; "a ready node of an unapproved graph is not
+      listed"; "the repository's origin owner and name are carried when identified"; "launch order is graph order,
       then critical path, then node index"; "an unreadable graph is named, never listed as ready"; "two repositories
       are answered in the order asked"; "the read does not grow with attempts: a node with 200 recorded attempts adds
       nothing to the output beyond its one ready entry"; "the output validates as ready@v0"; "without --ready the
@@ -67,5 +70,5 @@ nodes:
       - id: position-ready-tests-pass
         kind: command
         run: pnpm --fail-if-no-match --filter cli exec vitest run test/positionReady.test.ts --passWithNoTests=false
-        expect_output: 'Tests +([8-9]|[1-9][0-9]+) passed'
+        expect_output: 'Tests +([1-9][0-9]+) passed'
       - { id: typescript-compiles, kind: command, run: pnpm typecheck }
