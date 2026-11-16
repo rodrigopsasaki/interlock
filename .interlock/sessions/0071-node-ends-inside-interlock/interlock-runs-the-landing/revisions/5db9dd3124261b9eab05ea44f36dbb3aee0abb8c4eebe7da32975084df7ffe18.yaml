@@ -1,0 +1,102 @@
+interlock: debrief@v2
+graph: 0071-node-ends-inside-interlock
+node: interlock-runs-the-landing
+role: implementer
+graph_base_sha: df5da5e5c32c11970c170ee1bf6b80fc2173d46c
+session_start_sha: 83f7ec1844f0c8db789eaae09b268468f95ddfba
+head_sha: e8c4dc41fbbf86883f19e60649a094bd9ab4ed87
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: graph-known-environment-failures
+    what: Add the optional known_environment_failures graph field while preserving existing graph documents.
+    because: Landing needs an explicit, additive list of environment-only test files so the runner can report those failures without weakening ordinary gate failures.
+    rests_on:
+      - 'brief: Acceptance (verbatim from the graph)'
+      - packages/face/src/document.ts
+      - schemas/graph@v0.json
+    hunks:
+      - packages/face/src/document.ts
+      - schemas/graph@v0.json
+      - packages/schemas/test/graph.test.ts
+    applies_to:
+      kind: path
+      path: schemas/graph@v0.json
+  - id: fixture-environment-boundary
+    what: Put landing HOME, XDG, tool state, Git identity, Git config restrictions and test limits behind the runner fixture environment adapter.
+    because: The landing suites must be isolated from the caller's home and configuration while receiving the exact worker and heap limits selected for the run.
+    rests_on:
+      - 'brief: Acceptance (verbatim from the graph)'
+      - packages/runner/src/fixtureEnv.ts
+      - packages/runner/test/fixtureEnv.test.ts
+    hunks:
+      - packages/runner/src/fixtureEnv.ts
+      - packages/runner/src/index.ts
+      - packages/runner/test/fixtureEnv.test.ts
+    applies_to:
+      kind: path
+      path: packages/runner/src/fixtureEnv.ts
+  - id: landing-workflow
+    what: Build the land branch from the cleared node head, bring main in through the existing merge seam, install once, run every landing suite serially, and refuse unsigned or unknown-key commits without pushing.
+    because: Reusing the judge's worktree and merge boundaries keeps landing behavior aligned with existing repository setup while the dedicated orchestration owns suite ordering, signature reporting and cleanup.
+    rests_on:
+      - 'brief: Acceptance (verbatim from the graph)'
+      - packages/cli/src/land.ts
+      - packages/runner/src/mergeMain.ts
+    hunks:
+      - packages/cli/src/land.ts
+      - packages/cli/src/main.ts
+      - packages/cli/test/land.test.ts
+    applies_to:
+      kind: path
+      path: packages/cli/src/land.ts
+  - id: strict-land-boundaries
+    what: Reject malformed positive-integer limits and clean fixture state when internally created worktree setup refuses.
+    because: CLI flags are a contract boundary, and a refused land attempt must not leak temporary state created by the command itself.
+    rests_on:
+      - notes.yaml
+      - packages/cli/src/land.ts
+    hunks:
+      - packages/cli/src/land.ts
+      - .interlock/sessions/0071-node-ends-inside-interlock/interlock-runs-the-landing/notes.yaml
+    applies_to:
+      kind: path
+      path: packages/cli/src/land.ts
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: Workspace typecheck passed after the final source commit.
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: Passed with one pre-existing fixable RegExp-constructor warning in packages/runner/src/gateJudge.ts.
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+  - id: test
+    result: fail
+    invocation: pnpm test
+    note: The workspace suites ran, but runner Codex guard cases failed against the owner's Codex configuration path and existing worktree-maintenance lock diagnostics were reported; the new landing and fixture tests passed.
+  - id: land-tests-pass
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter cli exec vitest run test/land.test.ts --passWithNoTests=false
+    note: 2 tests passed.
+  - id: fixture-env-tests-pass
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/fixtureEnv.test.ts --passWithNoTests=false
+    note: 1 test passed.
+  - id: typescript-compiles
+    result: pass
+    invocation: pnpm typecheck
+    note: Same successful workspace typecheck receipt as the typecheck gate.
+  - id: debrief-valid
+    result: pass
+    invocation: pnpm interlock debrief validate 0071-node-ends-inside-interlock interlock-runs-the-landing
+    note: Canonical debrief and notes validated as debrief@v2 and notes@v0.
+open:
+  - The standing test gate is not fully green because existing runner Codex guard cases resolve the owner's Codex configuration path and worktree-maintenance tests report lock permission diagnostics; this session did not alter those unrelated tests or run the owner's Preston installation.
+  - mise exec selected Node v26.13.0 while the repository declares Node 24.14.0, producing the existing unsupported-engine warning.

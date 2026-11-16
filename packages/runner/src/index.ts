@@ -49,6 +49,8 @@ export {
   stopExecSession,
   stopSignalFor,
 } from "./execStop.ts";
+export type { FixtureEnvironment, FixtureEnvironmentOptions } from "./fixtureEnv.ts";
+export { createFixtureEnvironment, fixtureEnvironment } from "./fixtureEnv.ts";
 export type { GateCommand, PlaceholderRefusal } from "./gateCommand.ts";
 export {
   declaredGateIds,
@@ -141,6 +143,7 @@ export type { NodeEngineRefusal, NodeVersionRunner } from "./nodeEngine.ts";
 export type { PriorWork, SessionRole } from "./openingPrompt.ts";
 export { buildOpeningPrompt } from "./openingPrompt.ts";
 export { renderOpeningView } from "./openingView.ts";
+export { execFileSyncOwned, runOwnedCommandWithTimeout } from "./ownedCommand.ts";
 export type {
   PromptDeliveryOutcome,
   PromptDeliveryRequest,

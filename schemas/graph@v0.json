@@ -19,6 +19,13 @@
       "description": "The ask the graph was produced from. Optional; when present the loader requires a string and the position carries it verbatim.",
       "type": "string"
     },
+    "known_environment_failures": {
+      "description": "Optional test file names known to fail only because the landing fixture differs from the machine environment.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
     "gates": {
       "type": "array",
       "items": {

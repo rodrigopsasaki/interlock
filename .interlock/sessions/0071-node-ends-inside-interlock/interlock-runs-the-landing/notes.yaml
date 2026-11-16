@@ -1,0 +1,123 @@
+interlock: notes@v0
+node: interlock-runs-the-landing
+entries:
+  - kind: choice
+    at: '2026-11-16T19:05:00Z'
+    chose: >-
+      Reuse the existing runner merge-main and detached-worktree seams for landing, and keep
+      fixture environment construction in a new runner adapter.
+    because: >-
+      The acceptance gives judge and land the same main-in and frozen-install contract, while
+      the fixture environment is runtime-neutral and belongs outside the CLI command parser.
+  - kind: choice
+    at: '2026-11-16T19:05:00Z'
+    chose: >-
+      Add known_environment_failures as an additive graph field and report matching suite names
+      without treating them as landing failures.
+    because: >-
+      The acceptance names this graph-owned exception explicitly, and graph@v0 readers already
+      evolve by accepting optional fields without changing the artifact version.
+  - kind: choice
+    at: '2026-11-16T19:20:00Z'
+    chose: >-
+      Run one frozen install for every land attempt, letting the shared merge seam perform it when
+      the main merge changed a lockfile and performing it after an unchanged merge otherwise.
+    because: >-
+      The landing read requires a frozen install even when main is already contained, while the
+      judge seam already owns the conditional post-merge install and should not run it twice.
+  - kind: surprise
+    at: '2026-11-16T19:20:00Z'
+    expected: The first land implementation could type its graph and ledger helpers through the
+      existing public exports without additional narrowing.
+    observed: >-
+      The graph document reader lives in face and createLedger requires an explicit clock; the
+      implementation was narrowed to those existing contracts before any focused test ran.
+  - kind: surprise
+    at: '2026-11-16T19:50:00Z'
+    expected: The schema package would already have its ignored test output directory like the
+      runner and CLI packages.
+    observed: >-
+      The first graph schema test invocation failed before Vitest started because
+      packages/schemas/test/.runs did not exist; the directory is now created before rerunning.
+  - kind: surprise
+    at: '2026-11-16T19:55:00Z'
+    expected: Each focused Vitest command would leave no worker after its command exited.
+    observed: >-
+      The process check found five Vitest processes surviving the focused runs; they were
+      terminated by their recorded PIDs and a second process check found none remaining.
+  - kind: choice
+    at: '2026-11-16T20:00:00Z'
+    chose: >-
+      Reject partially numeric test-limit flags and clean internally created fixture state when
+      land worktree creation refuses.
+    because: >-
+      A limit flag is a contract boundary, and a refused land attempt must not leave temporary
+      tool state behind when Interlock created it itself.
+  - kind: surprise
+    at: '2026-11-16T20:05:00Z'
+    expected: The fixture-wrapped typecheck command would return its captured exit code.
+    observed: >-
+      The zsh wrapper used the read-only variable name status after typecheck completed; the log
+      contains a successful workspace typecheck, and the command was rerun with a non-reserved
+      variable name.
+  - kind: surprise
+    at: '2026-11-16T20:10:00Z'
+    expected: The Vitest process check would show only processes from this worktree.
+    observed: >-
+      It showed processes rooted in the owner's Preston worktrees; they were left untouched, and
+      no process from this worktree remained after the focused test.
+  - kind: surprise
+    at: '2026-11-16T20:15:00Z'
+    expected: The standing lint gate would be warning-free after the landing changes.
+    observed: >-
+      Lint passed with one pre-existing fixable warning in packages/runner/src/gateJudge.ts for a
+      RegExp constructor; the landing files introduced no lint findings.
+  - kind: surprise
+    at: '2026-11-16T20:20:00Z'
+    expected: The full test gate would complete under the fixture HOME and restricted Git config.
+    observed: >-
+      It failed in existing runner tests because the shell invocation had not supplied explicit
+      fixture author and committer variables; the output also contained existing worktree
+      maintenance permission failures and a Vitest worker-module failure. The gate is rerun with
+      the complete fixture identity.
+  - kind: surprise
+    at: '2026-11-16T20:25:00Z'
+    expected: The identity-corrected full test retry would start every workspace test script.
+    observed: >-
+      The retry stopped immediately because the ledger package could not find its Vitest binary;
+      the first full run had left the local dependency links in an unusable state, so the frozen
+      install receipt is checked before another retry.
+  - kind: surprise
+    at: '2026-11-16T20:35:00Z'
+    expected: The frozen-install full test retry would pass once fixture Git identity was present.
+    observed: >-
+      Workspace tests ran, but runner Codex guard cases still failed against the owner's Codex
+      configuration path; the run also reported existing maintenance-lock errors. The landing and
+      fixture-environment tests passed within that run.
+  - kind: choice
+    at: '2026-11-16T20:40:00Z'
+    chose: Commit the accumulated session notes before preparing the debrief candidate.
+    because: >-
+      The file-derived debrief command requires its candidate head to equal the current commit,
+      so the notes receipt must be committed before authoring the final candidate.
+  - kind: surprise
+    at: '2026-11-16T20:45:00Z'
+    expected: The authored debrief candidate would parse on its first preview.
+    observed: >-
+      Unquoted evidence containing a colon was parsed as a YAML mapping; quoting those rests_on
+      entries made the preview parse and root every cited hunk.
+  - kind: choice
+    at: '2026-11-16T20:50:00Z'
+    chose: Revise the filed debrief candidate to include the successful debrief-valid receipt.
+    because: The final report should carry the validation receipt produced after its first filing, while preserving the prior canonical debrief as an archive.
+  - kind: surprise
+    at: '2026-11-16T21:00:00Z'
+    expected: The committed schema and landing implementation would satisfy the repository reference freshness check without another generated artifact.
+    observed: >-
+      The judge held only the full test gate because docs/shapes.md was stale after the graph schema
+      gained known_environment_failures and land options; four other failures reproduce on unrelated
+      branches and are load-sensitive rather than caused by this change.
+  - kind: choice
+    at: '2026-11-16T21:00:00Z'
+    chose: Regenerate docs/shapes.md with the repository schema reference command, confirm its check, and include the generated page in the final signed commit.
+    because: The repository's byte-for-byte reference test requires the committed documentation to be derived from the current schemas.
