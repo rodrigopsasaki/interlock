@@ -55,6 +55,27 @@ entries:
     because: >-
       The CLI test can prove judge invokes the seam before gate execution without duplicating the
       runner's disposable signed-repository fixtures.
+  - kind: choice
+    at: '2026-11-16T18:10:00Z'
+    chose: >-
+      Leave the repository-wide pnpm test gate for landing and report the two touched test files
+      as the session's executed test proof.
+    because: >-
+      The owner's current shared-machine rule explicitly forbids full suites in this session, while
+      the focused files are the acceptance's named runner gate and the CLI file touched here.
+  - kind: surprise
+    at: '2026-11-16T18:10:00Z'
+    expected: The standing lint output would be entirely clean after formatting the changed files.
+    observed: >-
+      Lint exits successfully but retains one pre-existing warning in packages/runner/src/gateJudge.ts
+      about its existing regular-expression constructor; no changed file is implicated.
+  - kind: surprise
+    at: '2026-11-16T18:15:00Z'
+    expected: The notes-only signed commit would use the owner's normal signing environment.
+    observed: >-
+      The first commit attempt inherited the temporary fixture HOME and GPG refused because that
+      HOME had no .gnupg directory. No commit was created; the staged notes are being retried in the
+      normal environment as required.
   - kind: surprise
     at: '2026-11-16T18:00:00Z'
     expected: The first standing typecheck would accept the focused test's discriminated-union
