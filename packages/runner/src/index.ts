@@ -126,6 +126,16 @@ export {
   runProviderCommand,
   validateExecMachine,
 } from "./machineProvider.ts";
+export type {
+  FrozenInstall,
+  MergeMainOutcome,
+  MergeMainRefusal,
+  MergeMainRequest,
+} from "./mergeMain.ts";
+export {
+  explainMergeMainRefusal,
+  mergeMainIntoWorktree,
+} from "./mergeMain.ts";
 export { recordingNarrate } from "./narration.ts";
 export type { NodeEngineRefusal, NodeVersionRunner } from "./nodeEngine.ts";
 export type { PriorWork, SessionRole } from "./openingPrompt.ts";

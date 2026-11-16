@@ -1,0 +1,118 @@
+interlock: notes@v0
+node: judge-brings-main-in-first
+entries:
+  - kind: choice
+    at: '2026-11-16T17:00:00Z'
+    chose: >-
+      Add a runner merge-main seam that preflights cleanliness and conflicts, performs a signed
+      no-ff merge, and installs frozen dependencies only when a supported lockfile changes.
+    because: >-
+      The acceptance puts merge safety and install ordering inside interlock while the existing
+      judge already owns the point immediately before settled-worktree gate execution.
+  - kind: choice
+    at: '2026-11-16T17:00:00Z'
+    chose: >-
+      Prefer origin/main and fall back to the local main branch when the tracking ref is absent.
+    because: >-
+      The node must follow origin/main in a normal checkout, while the existing isolated Git
+      fixtures have no remote and must continue to exercise an unchanged judge.
+  - kind: choice
+    at: '2026-11-16T17:00:00Z'
+    chose: >-
+      Run git merge-tree with write-tree and name-only before the mutating merge, then report its
+      conflict paths without starting a merge.
+    because: >-
+      A failed git merge can leave MERGE_HEAD behind; a read-only preflight preserves the promise
+      that a conflict refuses with no merge in progress or worktree change.
+  - kind: choice
+    at: '2026-11-16T17:00:00Z'
+    chose: >-
+      Reuse runSetupCommand for the post-merge pnpm frozen install and pass the already resolved
+      machine environment and heavy command prefix from the CLI.
+    because: >-
+      This preserves the repository's existing Node, pnpm-store, timeout, environment and output
+      handling instead of introducing a second install path inside the judge.
+  - kind: surprise
+    at: '2026-11-16T17:30:00Z'
+    expected: The focused merge tests would use the fixture Git identity and commit only the
+      intended root files.
+    observed: >-
+      The test process did not export the fixture identity to the production merge subprocess, and
+      the temporary root staged the linked node checkout as an embedded repository. The test
+      environment and fixture ignore were corrected before treating the run as code evidence.
+  - kind: surprise
+    at: '2026-11-16T17:35:00Z'
+    expected: The Git revision strings returned by the helper would be ready for use as diff
+      revisions.
+    observed: >-
+      The helper retained trailing newlines from rev-parse, so the post-merge diff looked up
+      revisions containing newline characters. The revision values are now trimmed at the seam.
+  - kind: choice
+    at: '2026-11-16T17:45:00Z'
+    chose: >-
+      Cover the CLI ordering with an injected merge seam while keeping the runner suite responsible
+      for real Git merge, signing, conflict, and install behavior.
+    because: >-
+      The CLI test can prove judge invokes the seam before gate execution without duplicating the
+      runner's disposable signed-repository fixtures.
+  - kind: choice
+    at: '2026-11-16T18:10:00Z'
+    chose: >-
+      Leave the repository-wide pnpm test gate for landing and report the two touched test files
+      as the session's executed test proof.
+    because: >-
+      The owner's current shared-machine rule explicitly forbids full suites in this session, while
+      the focused files are the acceptance's named runner gate and the CLI file touched here.
+  - kind: surprise
+    at: '2026-11-16T18:10:00Z'
+    expected: The standing lint output would be entirely clean after formatting the changed files.
+    observed: >-
+      Lint exits successfully but retains one pre-existing warning in packages/runner/src/gateJudge.ts
+      about its existing regular-expression constructor; no changed file is implicated.
+  - kind: surprise
+    at: '2026-11-16T18:15:00Z'
+    expected: The notes-only signed commit would use the owner's normal signing environment.
+    observed: >-
+      The first commit attempt inherited the temporary fixture HOME and GPG refused because that
+      HOME had no .gnupg directory. No commit was created; the staged notes are being retried in the
+      normal environment as required.
+  - kind: surprise
+    at: '2026-11-16T18:00:00Z'
+    expected: The first standing typecheck would accept the focused test's discriminated-union
+      assertions and environment access.
+    observed: >-
+      TypeScript required an explicit conflict-kind narrow before reading paths and bracket access
+      for the process environment index signature. The test was corrected without changing runtime
+      behavior.
+  - kind: choice
+    at: '2026-11-16T18:25:00Z'
+    chose: Hoist the supported lockfile names to one runner-level set.
+    because: The merge seam checks one fixed repository path list per merge, so the policy should be allocated once and read directly.
+  - kind: surprise
+    at: '2026-11-16T18:25:00Z'
+    expected: file-derived would accept a candidate whose head_sha names the last product-code commit while notes followed it.
+    observed: >-
+      file-derived requires the candidate identity to match the current derived proof, which also
+      includes the later notes commit. A fresh source commit and candidate are required so the
+      current head is again a product-code commit.
+  - kind: surprise
+    at: '2026-11-16T18:20:00Z'
+    expected: The new merge seam would leave existing fixture judges unchanged when their worktree had no Git main ref.
+    observed: >-
+      The provider judge fixtures use plain directories without a Git repository, so the seam
+      refused before the existing gate path. The seam now treats a missing repository or main ref
+      as unchanged, while real repositories still preflight and merge.
+  - kind: choice
+    at: '2026-11-16T18:25:00Z'
+    chose: >-
+      Check only tracked worktree changes before merging main and keep untracked fixture files out
+      of the dirty refusal.
+    because: >-
+      The acceptance requires no uncommitted tracked change, and the existing judge fixtures leave
+      generated untracked files beside otherwise settled work.
+  - kind: surprise
+    at: '2026-11-16T18:35:00Z'
+    expected: The fresh authored candidate could be filed with the first-filing command.
+    observed: >-
+      An earlier debrief already exists for this node, so file-derived refused with EEXIST without
+      changing the artifact. The correction must be selected through debrief revise.

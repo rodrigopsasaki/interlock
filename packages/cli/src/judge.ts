@@ -25,6 +25,7 @@ import {
   declaredGateIds,
   explainJudgeWorktreeRefusal,
   explainLocalConfigRefusal,
+  explainMergeMainRefusal,
   explainStandingGatesRefusal,
   type GateCommandRunner,
   gateCommandTable,
@@ -32,6 +33,8 @@ import {
   judgeWorktree,
   loadLocalConfig,
   loadStandingGates,
+  type MergeMainOutcome,
+  mergeMainIntoWorktree,
   recordingNarrate,
   resolveMachine,
 } from "runner";
@@ -53,6 +56,7 @@ export async function runInterlockJudge(
     readonly cwd?: string;
     readonly clock?: Clock;
     readonly commandRunner?: GateCommandRunner;
+    readonly mergeMain?: typeof mergeMainIntoWorktree;
     readonly outputDirectory?: string;
     readonly narrate?: (line: string) => void;
     readonly scopeGuardRecheck?: boolean;
@@ -195,6 +199,26 @@ export async function runInterlockJudge(
         exitCode: 1,
         message: `${node}: no session recorded for this node; name one with --session <id>.`,
       };
+    }
+
+    const mergeMain = await (options.mergeMain ?? mergeMainIntoWorktree)({
+      worktree: worktreePath,
+      node,
+      env: { ...process.env, ...machine.value.env },
+      heavy: machine.value.heavy,
+    });
+    if (isErr(mergeMain)) {
+      const line = `judge refused: ${explainMergeMainRefusal(mergeMain.error)}`;
+      narrate(line);
+      return { exitCode: 1, message: line };
+    }
+    const mergeOutcome: MergeMainOutcome = mergeMain.value;
+    if (mergeOutcome.kind === "merged") {
+      narrate(
+        mergeOutcome.lockfileChanged
+          ? `merged ${mergeOutcome.mainRef} before judging ${node}; frozen install passed`
+          : `merged ${mergeOutcome.mainRef} before judging ${node}`,
+      );
     }
     narrate = recordingNarrate(ledger, clock, sessionId, narrate);
 

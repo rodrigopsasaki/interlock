@@ -1,0 +1,172 @@
+interlock: debrief@v2
+graph: 0071-node-ends-inside-interlock
+node: judge-brings-main-in-first
+role: implementer
+graph_base_sha: 4ede5c6959f7709883bd917a2ee2dc6a63b6a157
+session_start_sha: 458ca65bf1e86d4d4c833c48c64796773925addc
+head_sha: 6393124953e8732208a6c7e6712baa5bb239e45d
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: preflight-and-signed-merge
+    applies_to: { kind: repository }
+    what: >-
+      Added a runner merge-main seam that refuses dirty worktrees, resolves origin/main with a
+      local-main fallback for isolated repositories, preflights conflicts without mutation, and
+      performs a configured signed git merge --no-ff with a why-subject.
+    because: >-
+      Judge must bring main into a settled node before running gates, while a dirty or conflicting
+      tree must name its files and leave both the worktree and merge state unchanged.
+    rests_on:
+      - .interlock/graphs/0071-node-ends-inside-interlock.yaml
+      - packages/runner/src/mergeMain.ts
+    hunks:
+      - packages/runner/src/mergeMain.ts:1-132
+      - packages/runner/src/mergeMain.ts:134-240
+      - packages/runner/test/mergeMain.test.ts:1-157
+  - id: frozen-install-order
+    applies_to: { kind: repository }
+    what: >-
+      Detect lockfile changes in the completed merge and run the existing setup boundary with
+      pnpm install --frozen-lockfile only for those merges, returning install refusal separately.
+    because: >-
+      Dependencies must be refreshed after a lockfile-changing main merge without imposing an
+      install on branches that already contain main or merges that change no lockfile.
+    rests_on:
+      - .interlock/graphs/0071-node-ends-inside-interlock.yaml
+      - packages/runner/src/mergeMain.ts
+    hunks:
+      - packages/runner/src/mergeMain.ts:11-17
+      - packages/runner/src/mergeMain.ts:124-132
+      - packages/runner/src/mergeMain.ts:243-270
+      - packages/runner/test/mergeMain.test.ts:159-195
+  - id: judge-ordering
+    applies_to: { kind: repository }
+    what: >-
+      Invoke merge-main after the existing lease and session checks but before recording and
+      executing settled-worktree gates, narrating successful merges and refusing the judge on a
+      merge or install refusal.
+    because: >-
+      A live session must not be mutated, and every accepted judge must use the merged tree as the
+      input to the harness-produced gate proof.
+    rests_on:
+      - .interlock/graphs/0071-node-ends-inside-interlock.yaml
+      - packages/cli/src/judge.ts
+      - packages/cli/test/judge.test.ts
+    hunks:
+      - packages/cli/src/judge.ts:204-223
+      - packages/cli/test/judge.test.ts:548-571
+  - id: runner-public-seam
+    what: Export the typed merge-main request, result, refusal, explanation, and runner function.
+    because: The CLI needs one named runner seam and focused tests need its public contract.
+    rests_on:
+      - packages/runner/src/index.ts
+    hunks:
+      - packages/runner/src/index.ts:129-138
+  - id: prior-session-receipts
+    what: >-
+      Retain the prior session's implementation choices, fixture corrections, focused gate
+      results, and derived-filing identity correction in the versioned notes receipt.
+    because: >-
+      This correction supersedes the prior debrief without discarding the earlier session's way
+      back to its decisions and proof.
+    rests_on:
+      - .interlock/sessions/0071-node-ends-inside-interlock/judge-brings-main-in-first/notes.yaml
+    hunks:
+      - .interlock/sessions/0071-node-ends-inside-interlock/judge-brings-main-in-first/notes.yaml:1-97
+  - id: preserve-fixture-judges-without-main
+    applies_to: { kind: path, path: packages/runner/src/mergeMain.ts }
+    what: >-
+      Treat a worktree without a Git repository or without either origin/main or main as an
+      unchanged merge preflight, while keeping real Git errors refused.
+    because: >-
+      Existing judge fixtures can provide a plain worktree or a repository without a main ref;
+      the new preflight must not change those judges when there is no main to bring in.
+    rests_on:
+      - packages/runner/src/mergeMain.ts
+    hunks:
+      - packages/runner/src/mergeMain.ts:33-37
+      - packages/runner/src/mergeMain.ts:70-72
+      - packages/runner/src/mergeMain.ts:107-112
+      - packages/runner/src/mergeMain.ts:149-160
+      - packages/runner/src/mergeMain.ts:177-185
+  - id: refuse-only-tracked-dirt
+    applies_to: { kind: path, path: packages/runner/src/mergeMain.ts }
+    what: >-
+      Run the cleanliness preflight with untracked files disabled so only uncommitted tracked
+      changes refuse the merge, and keep the refusal's command description aligned with that
+      check.
+    because: >-
+      The acceptance gates on a clean tracked tree, while generated untracked fixture files must
+      not prevent a judge from reaching the existing gate path.
+    rests_on:
+      - packages/runner/src/mergeMain.ts
+    hunks:
+      - packages/runner/src/mergeMain.ts:161-175
+  - id: cover-compatibility-regressions
+    applies_to: { kind: path, path: packages/runner/test/mergeMain.test.ts }
+    what: >-
+      Change the dirty-tree fixture to modify a tracked file and add a regression case for a
+      worktree without a main ref, preserving signed merge, conflict, unchanged-branch and
+      lockfile-install coverage.
+    because: >-
+      The focused proof must distinguish the acceptance's tracked-dirt refusal from harmless
+      untracked fixture content and must lock in the no-main compatibility behavior.
+    rests_on:
+      - packages/runner/test/mergeMain.test.ts
+    hunks:
+      - packages/runner/test/mergeMain.test.ts:107-126
+  - id: record-repair-receipts
+    applies_to: { kind: path, path: .interlock/sessions/0071-node-ends-inside-interlock/judge-brings-main-in-first/notes.yaml }
+    what: >-
+      Appended the observed fixture regression, tracked-dirt design choice, and debrief revision
+      route to notes@v0.
+    because: >-
+      The resumed implementation must retain the reason for its compatibility bend, the evidence
+      that the original provider failures were caused by the merge preflight, and why revise was
+      required for the existing debrief artifact.
+    rests_on:
+      - .interlock/sessions/0071-node-ends-inside-interlock/judge-brings-main-in-first/notes.yaml
+    hunks:
+      - .interlock/sessions/0071-node-ends-inside-interlock/judge-brings-main-in-first/notes.yaml:98-118
+gates_run_by_agent:
+  - id: merge-main-tests-pass
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter runner exec vitest run test/mergeMain.test.ts --passWithNoTests=false
+    note: 6 tests passed, including the signed merge, no-main fixture, tracked-dirty refusal, conflict cleanup, unchanged branch, and lockfile-only install cases.
+  - id: judge-provider-regressions
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter cli exec vitest run test/judgeProvider.test.ts --passWithNoTests=false
+    note: 5 tests passed; the three reported provider judge failures now remain unchanged and clear.
+  - id: exec-without-herdr-regressions
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter cli exec vitest run test/execWithoutHerdr.test.ts --passWithNoTests=false
+    note: 7 tests passed, including the two reported exec regressions.
+  - id: plan-correction-regression
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter cli exec vitest run test/plan.test.ts --passWithNoTests=false
+    note: 32 tests passed, including correction ask inheritance.
+  - id: run-brief-projection-regression
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter cli exec vitest run test/run.test.ts --passWithNoTests=false
+    note: 50 tests passed, including the 3000-path concise prompt projection.
+  - id: backfill-maintenance-regression
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter runner exec vitest run test/backfillMaintenance.test.ts --passWithNoTests=false
+    note: 1 test passed; the inherited GIT_CONFIG_COUNT case is clear.
+  - id: worktree-setup-output-regression
+    result: pass
+    invocation: mise exec -- pnpm --fail-if-no-match --filter runner exec vitest run test/worktreeSetup.test.ts --passWithNoTests=false
+    note: 5 tests passed, including tail truncation.
+  - id: typescript-compiles
+    result: pass
+    invocation: mise exec -- pnpm typecheck
+    note: All workspace packages typechecked successfully.
+open:
+  - >-
+    The repository-wide pnpm test gate was not rerun in this repair session because the owner's
+    shared-machine rule limited execution to the reported files, mergeMain.test.ts, and typecheck;
+    the earlier landing comparison remains the honest full-suite evidence.
