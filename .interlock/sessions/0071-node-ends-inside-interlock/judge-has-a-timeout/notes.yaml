@@ -37,3 +37,11 @@ entries:
     at: "2026-11-16T17:48:00Z"
     expected: The targeted Biome check would remain clean after adding the ms import.
     observed: Biome requires the type, value and named imports in its sorted order; only the import ordering needed correction.
+  - kind: surprise
+    at: "2026-11-16T17:50:00Z"
+    expected: The standing lint gate would report no diagnostics after the focused Biome check passed.
+    observed: The repository-wide lint gate exits zero but retains one pre-existing warning in packages/runner/src/gateJudge.ts about its ANSI regular-expression constructor; the changed files are clean.
+  - kind: choice
+    at: "2026-11-16T17:50:00Z"
+    chose: Leave the repository-wide test gate unrun and record that limitation in the final debrief.
+    because: The current session rule explicitly limits test execution to changed or named focused files and reserves full suites for the landing check, while the focused runner and CLI judge suites already provide the scoped proof.
