@@ -100,3 +100,13 @@ entries:
     because: >-
       The file-derived debrief command requires its candidate head to equal the current commit,
       so the notes receipt must be committed before authoring the final candidate.
+  - kind: surprise
+    at: '2026-11-16T20:45:00Z'
+    expected: The authored debrief candidate would parse on its first preview.
+    observed: >-
+      Unquoted evidence containing a colon was parsed as a YAML mapping; quoting those rests_on
+      entries made the preview parse and root every cited hunk.
+  - kind: choice
+    at: '2026-11-16T20:50:00Z'
+    chose: Revise the filed debrief candidate to include the successful debrief-valid receipt.
+    because: The final report should carry the validation receipt produced after its first filing, while preserving the prior canonical debrief as an archive.
