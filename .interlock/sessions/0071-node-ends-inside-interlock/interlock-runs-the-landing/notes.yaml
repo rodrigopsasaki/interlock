@@ -66,3 +66,37 @@ entries:
     observed: >-
       It showed processes rooted in the owner's Preston worktrees; they were left untouched, and
       no process from this worktree remained after the focused test.
+  - kind: surprise
+    at: '2026-11-16T20:15:00Z'
+    expected: The standing lint gate would be warning-free after the landing changes.
+    observed: >-
+      Lint passed with one pre-existing fixable warning in packages/runner/src/gateJudge.ts for a
+      RegExp constructor; the landing files introduced no lint findings.
+  - kind: surprise
+    at: '2026-11-16T20:20:00Z'
+    expected: The full test gate would complete under the fixture HOME and restricted Git config.
+    observed: >-
+      It failed in existing runner tests because the shell invocation had not supplied explicit
+      fixture author and committer variables; the output also contained existing worktree
+      maintenance permission failures and a Vitest worker-module failure. The gate is rerun with
+      the complete fixture identity.
+  - kind: surprise
+    at: '2026-11-16T20:25:00Z'
+    expected: The identity-corrected full test retry would start every workspace test script.
+    observed: >-
+      The retry stopped immediately because the ledger package could not find its Vitest binary;
+      the first full run had left the local dependency links in an unusable state, so the frozen
+      install receipt is checked before another retry.
+  - kind: surprise
+    at: '2026-11-16T20:35:00Z'
+    expected: The frozen-install full test retry would pass once fixture Git identity was present.
+    observed: >-
+      Workspace tests ran, but runner Codex guard cases still failed against the owner's Codex
+      configuration path; the run also reported existing maintenance-lock errors. The landing and
+      fixture-environment tests passed within that run.
+  - kind: choice
+    at: '2026-11-16T20:40:00Z'
+    chose: Commit the accumulated session notes before preparing the debrief candidate.
+    because: >-
+      The file-derived debrief command requires its candidate head to equal the current commit,
+      so the notes receipt must be committed before authoring the final candidate.
