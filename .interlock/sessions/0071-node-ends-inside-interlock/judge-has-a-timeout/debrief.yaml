@@ -1,0 +1,141 @@
+interlock: debrief@v2
+graph: 0071-node-ends-inside-interlock
+node: judge-has-a-timeout
+role: implementer
+graph_base_sha: 4ede5c6959f7709883bd917a2ee2dc6a63b6a157
+session_start_sha: b48a5e9202973e2f41f973fa030c1853ea565c19
+head_sha: ab47d59396b2319398b4ffac2809c416dbb8c73a
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: timeout-resolution
+    applies_to: { kind: path, path: packages/runner/src/deadline.ts }
+    what: >-
+      Added a 45-minute default with positive command-line and graph-level timeout resolution,
+      and represented the running deadline as a clock-backed value with remaining and expired
+      checks.
+    because: >-
+      The judge needs one precedence rule for the default, --timeout and judge_timeout_minutes,
+      while injected clocks keep the deadline deterministic in focused tests.
+    rests_on:
+      - packages/runner/src/deadline.ts:5-89
+      - packages/cli/src/judge.ts:124-148
+    hunks:
+      - packages/runner/src/deadline.ts:5-89
+      - packages/cli/src/judge.ts:124-148
+    produces:
+      - packages/runner/src/deadline.ts
+      - packages/cli/src/judge.ts
+  - id: judge-owned-gate-processes
+    applies_to: { kind: path, path: packages/runner/src/deadline.ts }
+    what: >-
+      Wrapped each command gate in a judge-owned process group using the remaining deadline and a
+      ten-second TERM grace, then raised a typed gate-specific expiry for judge.ts to narrate and
+      return non-zero.
+    because: >-
+      The acceptance requires ending every gate process the judge started without signalling
+      unrelated processes, and the gate id must survive the process boundary for the required
+      "gave up" report.
+    rests_on:
+      - packages/runner/src/deadline.ts:91-131
+      - packages/cli/src/judge.ts:268-311
+    hunks:
+      - packages/runner/src/deadline.ts:91-131
+      - packages/cli/src/judge.ts:268-311
+    produces:
+      - packages/runner/src/deadline.ts
+      - packages/cli/src/judge.ts
+  - id: held-lease-wait
+    applies_to: { kind: path, path: packages/cli/src/judge.ts }
+    what: >-
+      Made a judge with a known session start wait in one-minute deadline-bounded intervals,
+      reload lease-taken, lease-renewed and lease-expired events, and narrate the owning session
+      and start time on every still-held interval; historical leases without a start time retain
+      their immediate refusal with that limitation named.
+    because: >-
+      Waiting must count toward the same deadline and must not silently hide a live lease, while
+      a backfilled session cannot honestly supply a start time it never recorded.
+    rests_on:
+      - packages/runner/src/deadline.ts:133-155
+      - packages/cli/src/judge.ts:193-266
+    hunks:
+      - packages/runner/src/deadline.ts:133-155
+      - packages/cli/src/judge.ts:193-266
+    produces:
+      - packages/runner/src/deadline.ts
+      - packages/cli/src/judge.ts
+  - id: deadline-regression-cases
+    applies_to: { kind: path, path: packages/runner/test/deadline.test.ts }
+    what: >-
+      Added four focused cases covering deadline termination, unrelated-process preservation,
+      minute-by-minute held-lease narration and per-graph timeout precedence.
+    because: >-
+      Each named acceptance case needs an executable proof at the new seam, including a real
+      child process for the ownership boundary and a controlled clock for interval reporting.
+    rests_on:
+      - packages/runner/test/deadline.test.ts:28-92
+    hunks:
+      - packages/runner/test/deadline.test.ts:28-92
+    produces:
+      - packages/runner/test/deadline.test.ts
+  - id: session-evidence
+    applies_to: { kind: path, path: .interlock/sessions/0071-node-ends-inside-interlock/judge-has-a-timeout/notes.yaml }
+    what: >-
+      Retained the implementation choices, test-environment correction, clock-type correction,
+      pre-existing lint warning and focused-test limit in notes@v0.
+    because: >-
+      The debrief is a compression with a way back to the choices and observed surprises that
+      shaped the implementation and its proof boundary.
+    rests_on:
+      - .interlock/sessions/0071-node-ends-inside-interlock/judge-has-a-timeout/notes.yaml:1-47
+    hunks:
+      - .interlock/sessions/0071-node-ends-inside-interlock/judge-has-a-timeout/notes.yaml:1-47
+    produces:
+      - .interlock/sessions/0071-node-ends-inside-interlock/judge-has-a-timeout/notes.yaml
+gates_run_by_agent:
+  - id: deadline-tests-pass
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/deadline.test.ts --passWithNoTests=false
+    note: >-
+      Exit 0 on head ab47d59396b2319398b4ffac2809c416dbb8c73a; one file and four tests passed.
+      Output: packages/runner/test/.runs/deadline-focused-4.txt.
+  - id: cli-judge-focused
+    result: pass
+    invocation: pnpm --filter cli exec vitest run test/judge.test.ts --passWithNoTests=false
+    note: >-
+      Exit 0 on head ab47d59396b2319398b4ffac2809c416dbb8c73a; one file and fifteen tests
+      passed with fixture Git identity. Output: packages/runner/test/.runs/deadline-cli-judge-2.txt.
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: >-
+      Exit 0 on head ab47d59396b2319398b4ffac2809c416dbb8c73a. Output:
+      packages/runner/test/.runs/deadline-typecheck-4.txt.
+  - id: typescript-compiles
+    result: pass
+    invocation: pnpm typecheck
+    note: >-
+      The same final workspace typecheck exited 0; output:
+      packages/runner/test/.runs/deadline-typecheck-4.txt.
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: >-
+      Exit 0 on the final tree. Biome retained one pre-existing warning in
+      packages/runner/src/gateJudge.ts; output: packages/runner/test/.runs/deadline-lint-standing-1.txt.
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+    note: >-
+      Exit 0; packages/*/src contains no comments. Output:
+      packages/runner/test/.runs/deadline-comments-1.txt.
+open:
+  - >-
+    The repository-wide pnpm test gate was not run because the session's current test-limit rule
+    reserves full suites for landing; the focused runner and CLI judge suites passed instead.
+  - >-
+    A historical live lease whose session-started event has no startedAt cannot be reported with
+    a truthful start time, so it retains the immediate refusal path and names that limitation.
