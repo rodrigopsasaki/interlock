@@ -110,3 +110,9 @@ entries:
     because: >-
       The acceptance requires no uncommitted tracked change, and the existing judge fixtures leave
       generated untracked files beside otherwise settled work.
+  - kind: surprise
+    at: '2026-11-16T18:35:00Z'
+    expected: The fresh authored candidate could be filed with the first-filing command.
+    observed: >-
+      An earlier debrief already exists for this node, so file-derived refused with EEXIST without
+      changing the artifact. The correction must be selected through debrief revise.
