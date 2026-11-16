@@ -106,15 +106,23 @@ describe("merge main before judging", () => {
 
   it("a dirty tree refuses and changes nothing", async () => {
     const worktree = createBehindRepository("main.txt", "main\n");
-    writeFileSync(join(worktree, "dirty.txt"), "dirty\n");
+    writeFileSync(join(worktree, "base.txt"), "dirty\n");
     const before = fixtureGit(["rev-parse", "HEAD"], { cwd: worktree, env: gitEnv });
 
     const result = await mergeMainIntoWorktree({ worktree, node: "judge" });
 
     expect(isErr(result)).toBe(true);
     if (!isErr(result)) return;
-    expect(result.error).toEqual({ kind: "dirty", paths: ["dirty.txt"] });
+    expect(result.error).toEqual({ kind: "dirty", paths: ["base.txt"] });
     expect(fixtureGit(["rev-parse", "HEAD"], { cwd: worktree, env: gitEnv })).toBe(before);
+  });
+
+  it("leaves a fixture without a main ref unchanged", async () => {
+    directory = mkdtempSync(join(runsRoot, "merge-main-no-ref-"));
+
+    const result = await mergeMainIntoWorktree({ worktree: directory, node: "judge" });
+
+    expect(result).toEqual(ok({ kind: "unchanged", mainRef: undefined }));
   });
 
   it("a conflict refuses naming the files and leaves no merge in progress", async () => {

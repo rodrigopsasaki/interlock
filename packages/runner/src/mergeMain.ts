@@ -33,7 +33,7 @@ export interface MergeMainRequest {
 export type MergeMainOutcome =
   | {
       readonly kind: "unchanged";
-      readonly mainRef: string;
+      readonly mainRef: string | undefined;
     }
   | {
       readonly kind: "merged";
@@ -65,6 +65,10 @@ function executeGit(cwd: string, args: readonly string[]): GitExecution {
 function gitFailure(execution: GitExecution): string {
   const output = `${execution.stderr}${execution.stdout}`.trim();
   return output.length === 0 ? `git exited ${execution.code}` : output;
+}
+
+function isMissingRepository(execution: GitExecution): boolean {
+  return `${execution.stderr}${execution.stdout}`.includes("not a git repository");
 }
 
 function runGit(cwd: string, args: readonly string[]): Result<string, string> {
@@ -100,12 +104,12 @@ function statusPaths(output: string): readonly string[] {
   return [...paths].filter((path) => path.length > 0);
 }
 
-function resolveMainRef(worktree: string): Result<string, string> {
+function resolveMainRef(worktree: string): Result<string | undefined, string> {
   for (const candidate of ["origin/main", "main"]) {
     const resolved = executeGit(worktree, ["rev-parse", "--verify", "--quiet", candidate]);
     if (resolved.code === 0) return ok(candidate);
   }
-  return err("no main branch ref: expected origin/main or main");
+  return ok(undefined);
 }
 
 function isLockfile(path: string): boolean {
@@ -145,16 +149,25 @@ export function explainMergeMainRefusal(refusal: MergeMainRefusal): string {
 export async function mergeMainIntoWorktree(
   request: MergeMainRequest,
 ): Promise<Result<MergeMainOutcome, MergeMainRefusal>> {
+  const repository = executeGit(request.worktree, ["rev-parse", "--git-dir"]);
+  if (repository.code !== 0) {
+    if (isMissingRepository(repository)) return ok({ kind: "unchanged", mainRef: undefined });
+    return err({
+      kind: "git",
+      command: ["rev-parse", "--git-dir"],
+      because: gitFailure(repository),
+    });
+  }
   const status = executeGit(request.worktree, [
     "status",
     "--porcelain=v1",
     "-z",
-    "--untracked-files=all",
+    "--untracked-files=no",
   ]);
   if (status.code !== 0) {
     return err({
       kind: "git",
-      command: ["status", "--porcelain=v1", "-z", "--untracked-files=all"],
+      command: ["status", "--porcelain=v1", "-z", "--untracked-files=no"],
       because: gitFailure(status),
     });
   }
@@ -169,6 +182,7 @@ export async function mergeMainIntoWorktree(
       because: mainRef.error,
     });
   }
+  if (mainRef.value === undefined) return ok({ kind: "unchanged", mainRef: undefined });
 
   const ancestor = executeGit(request.worktree, [
     "merge-base",

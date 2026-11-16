@@ -95,3 +95,18 @@ entries:
       file-derived requires the candidate identity to match the current derived proof, which also
       includes the later notes commit. A fresh source commit and candidate are required so the
       current head is again a product-code commit.
+  - kind: surprise
+    at: '2026-11-16T18:20:00Z'
+    expected: The new merge seam would leave existing fixture judges unchanged when their worktree had no Git main ref.
+    observed: >-
+      The provider judge fixtures use plain directories without a Git repository, so the seam
+      refused before the existing gate path. The seam now treats a missing repository or main ref
+      as unchanged, while real repositories still preflight and merge.
+  - kind: choice
+    at: '2026-11-16T18:25:00Z'
+    chose: >-
+      Check only tracked worktree changes before merging main and keep untracked fixture files out
+      of the dirty refusal.
+    because: >-
+      The acceptance requires no uncommitted tracked change, and the existing judge fixtures leave
+      generated untracked files beside otherwise settled work.
