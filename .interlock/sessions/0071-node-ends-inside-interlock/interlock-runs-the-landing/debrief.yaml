@@ -4,7 +4,7 @@ node: interlock-runs-the-landing
 role: implementer
 graph_base_sha: df5da5e5c32c11970c170ee1bf6b80fc2173d46c
 session_start_sha: 83f7ec1844f0c8db789eaae09b268468f95ddfba
-head_sha: e8c4dc41fbbf86883f19e60649a094bd9ab4ed87
+head_sha: f605553619178ad673ad983b63dc7e244aa760c3
 derivation:
   kind: agent
   runtime: codex
@@ -65,6 +65,18 @@ decisions:
     applies_to:
       kind: path
       path: packages/cli/src/land.ts
+  - id: schema-reference-page
+    what: Regenerate docs/shapes.md from the committed schemas so the graph artifact reference includes the new optional landing field.
+    because: The repository's reference freshness gate compares the generated page byte for byte with the committed documentation.
+    rests_on:
+      - 'brief: Acceptance (verbatim from the graph)'
+      - schemas/graph@v0.json
+      - docs/shapes.md
+    hunks:
+      - docs/shapes.md
+    applies_to:
+      kind: path
+      path: docs/shapes.md
 gates_run_by_agent:
   - id: typecheck
     result: pass
@@ -80,7 +92,7 @@ gates_run_by_agent:
   - id: test
     result: fail
     invocation: pnpm test
-    note: The workspace suites ran, but runner Codex guard cases failed against the owner's Codex configuration path and existing worktree-maintenance lock diagnostics were reported; the new landing and fixture tests passed.
+    note: The workspace suites ran, but runner Codex guard cases failed against the owner's Codex configuration path, existing worktree-maintenance lock diagnostics were reported, and the judge's differential run found the stale schema reference page; the schema page was regenerated and its reference check passed afterward. The new landing and fixture tests passed.
   - id: land-tests-pass
     result: pass
     invocation: pnpm --fail-if-no-match --filter cli exec vitest run test/land.test.ts --passWithNoTests=false
@@ -97,6 +109,11 @@ gates_run_by_agent:
     result: pass
     invocation: pnpm interlock debrief validate 0071-node-ends-inside-interlock interlock-runs-the-landing
     note: Canonical debrief and notes validated as debrief@v2 and notes@v0.
+  - id: schema-reference-check
+    result: pass
+    invocation: pnpm interlock schema reference --check
+    note: docs/shapes.md reported fresh after regeneration.
 open:
   - The standing test gate is not fully green because existing runner Codex guard cases resolve the owner's Codex configuration path and worktree-maintenance tests report lock permission diagnostics; this session did not alter those unrelated tests or run the owner's Preston installation.
+  - Four additional branch failures (backfill command-exit-zero, backfill maintenance, worktree-setup signal reporting, and worktree-setup output truncation) also fail on two unrelated branches but not on main; they are load-sensitive and were left unchanged.
   - mise exec selected Node v26.13.0 while the repository declares Node 24.14.0, producing the existing unsupported-engine warning.
