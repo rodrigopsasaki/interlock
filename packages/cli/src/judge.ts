@@ -35,6 +35,16 @@ import {
   recordingNarrate,
   resolveMachine,
 } from "runner";
+import {
+  commandRunnerWithDeadline,
+  createJudgeDeadline,
+  deadlineMessage,
+  type HeldLease,
+  JudgeDeadlineExceeded,
+  leaseDeadlineMessage,
+  resolveJudgeTimeout,
+  waitForHeldLease,
+} from "../../runner/src/deadline.ts";
 import type { CommandResult } from "./main.ts";
 import { substrateClientForRepository } from "./repositoryOrigin.ts";
 
@@ -114,6 +124,9 @@ export async function runInterlockJudge(
     return { exitCode: 1, message: explainGraphRefusal(document.error) };
   }
 
+  const timeout = resolveJudgeTimeout(args, graphBytes.toString("utf-8"));
+  if (timeout.kind === "refused") return { exitCode: 1, message: timeout.message };
+
   const declaration = document.value.nodes.find((candidate) => candidate.id === node);
   if (declaration === undefined) {
     return {
@@ -132,6 +145,7 @@ export async function runInterlockJudge(
 
   const journal = await sharedJournalDirectory(repoRoot);
   const clock = options.clock ?? createSystemClock();
+  const deadline = createJudgeDeadline(timeout.minutes, () => clock.now().wallMs);
   const opened = await createLedger({ clock, directory: journal });
   if (isErr(opened)) {
     return {
@@ -176,18 +190,6 @@ export async function runInterlockJudge(
       (session) => session.node.graph === graph && session.node.id === node,
     );
 
-    const nowWallMs = clock.now().wallMs;
-    const liveLease = nodeSessions.find(
-      (session) =>
-        session.lease !== undefined && !session.leaseExpired && session.lease.expiry > nowWallMs,
-    );
-    if (liveLease?.lease !== undefined) {
-      return {
-        exitCode: 1,
-        message: `${node} is leased by session ${liveLease.session} until ${isoOf(liveLease.lease.expiry)}; wait for it or run interlock sweep.`,
-      };
-    }
-
     const latestSession = nodeSessions[nodeSessions.length - 1];
     const sessionId = sessionOverrideFrom(args) ?? latestSession?.session;
     if (sessionId === undefined) {
@@ -198,35 +200,115 @@ export async function runInterlockJudge(
     }
     narrate = recordingNarrate(ledger, clock, sessionId, narrate);
 
+    const nowWallMs = clock.now().wallMs;
+    const liveLease = nodeSessions.find(
+      (session) =>
+        session.lease !== undefined && !session.leaseExpired && session.lease.expiry > nowWallMs,
+    );
+    if (liveLease?.lease !== undefined) {
+      if (latestSession?.startedAt.state !== "known") {
+        const line =
+          `${node} is leased by session ${liveLease.lease.session} until ${isoOf(liveLease.lease.expiry)}; ` +
+          "the lease start is unknown, so wait for it or run interlock sweep.";
+        narrate(line);
+        return { exitCode: 1, message: line };
+      }
+      let observedLease: HeldLease | undefined = {
+        session: liveLease.lease.session,
+        since:
+          latestSession?.startedAt.state === "known"
+            ? isoOf(latestSession.startedAt.epochMs)
+            : "unknown",
+      };
+      const waited = await waitForHeldLease(
+        deadline,
+        async () => {
+          const events = await readRawEvents(journal);
+          if (isErr(events)) return observedLease;
+          let current: { readonly session: string; readonly expiry: number } | undefined;
+          const startedAt = new Map<string, number | undefined>();
+          for (const event of events.value) {
+            if (event.kind === "session-started") {
+              startedAt.set(event.session.id, event.startedAt);
+            } else if (
+              (event.kind === "lease-taken" || event.kind === "lease-renewed") &&
+              event.node.graph === graph &&
+              event.node.id === node
+            ) {
+              current = { session: event.session, expiry: event.expiry };
+            } else if (
+              event.kind === "lease-expired" &&
+              event.node.graph === graph &&
+              event.node.id === node &&
+              current?.session === event.session
+            ) {
+              current = undefined;
+            }
+          }
+          if (current === undefined || current.expiry <= clock.now().wallMs) {
+            observedLease = undefined;
+            return undefined;
+          }
+          const started = startedAt.get(current.session);
+          observedLease = {
+            session: current.session,
+            since: started === undefined ? "unknown" : isoOf(started),
+          };
+          return observedLease;
+        },
+        narrate,
+        (milliseconds) => clock.sleep(milliseconds),
+      );
+      if (waited === "deadline") {
+        const line = leaseDeadlineMessage(timeout.minutes);
+        narrate(line);
+        return { exitCode: 1, message: line };
+      }
+    }
     const gateIds = declaredGateIds(standingGates.value, declaration.gates);
-    const personEventsRead = await readRawEvents(journal);
-    const judged = await judgeWorktree({
-      machine: machine.value,
-      ledger,
-      clock,
-      node: targetNode,
-      session: sessionId,
-      declaredGateIds: gateIds,
-      commandFor: gateCommandTable(standingGates.value, declaration.gates),
-      worktree: worktreePath,
-      authoritativeGraphPath: graphPath,
-      parsedGraphHash: createHash("sha256").update(graphBytes).digest("hex"),
-      narrate,
-      runnerId: `judge-${sessionId}`,
-      holdMs: HELD_REVISIT_MS,
-      substrate,
-      personEvents: isErr(personEventsRead) ? [] : personEventsRead.value,
-      ...(options.commandRunner === undefined ? {} : { commandRunner: options.commandRunner }),
-      ...(options.outputDirectory === undefined
-        ? {}
-        : { outputDirectory: options.outputDirectory }),
-      scopeGuardRecheck:
-        options.scopeGuardRecheck === true ||
-        args.includes("--scope-guard-recheck") ||
-        args.includes("--scope-guard-rerun") ||
-        args.includes("--recheck-scope"),
-      watchPaths: localConfig.value.watchPaths ?? [],
+    const commands = gateCommandTable(standingGates.value, declaration.gates);
+    const commandGateIds = gateIds.filter((gateId) => {
+      const command = commands.get(gateId);
+      if (command?.kind === "human") return false;
+      const current = ledger.projection().nodes.get(nodeKey(targetNode))?.gates.get(gateId);
+      return !(current?.kind === "satisfied" && current.receipt.spend.kind !== "none");
     });
+    const personEventsRead = await readRawEvents(journal);
+    let judged: Awaited<ReturnType<typeof judgeWorktree>>;
+    try {
+      judged = await judgeWorktree({
+        machine: machine.value,
+        ledger,
+        clock,
+        node: targetNode,
+        session: sessionId,
+        declaredGateIds: gateIds,
+        commandFor: commands,
+        worktree: worktreePath,
+        authoritativeGraphPath: graphPath,
+        parsedGraphHash: createHash("sha256").update(graphBytes).digest("hex"),
+        narrate,
+        runnerId: `judge-${sessionId}`,
+        holdMs: HELD_REVISIT_MS,
+        substrate,
+        personEvents: isErr(personEventsRead) ? [] : personEventsRead.value,
+        commandRunner: commandRunnerWithDeadline(deadline, commandGateIds, options.commandRunner),
+        ...(options.outputDirectory === undefined
+          ? {}
+          : { outputDirectory: options.outputDirectory }),
+        scopeGuardRecheck:
+          options.scopeGuardRecheck === true ||
+          args.includes("--scope-guard-recheck") ||
+          args.includes("--scope-guard-rerun") ||
+          args.includes("--recheck-scope"),
+        watchPaths: localConfig.value.watchPaths ?? [],
+      });
+    } catch (error) {
+      if (!(error instanceof JudgeDeadlineExceeded)) throw error;
+      const line = deadlineMessage(timeout.minutes, error.gateId);
+      narrate(line);
+      return { exitCode: 1, message: line };
+    }
     if (isErr(judged)) {
       const line = `judge refused: ${explainJudgeWorktreeRefusal(judged.error)}`;
       narrate(line);
