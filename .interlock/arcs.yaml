@@ -377,3 +377,11 @@ arcs:
       - interlock/0068-routing-skips-refused-sign-in
       - interlock/0069-agent-keeps-its-lease
       - interlock/0070-refusals-never-suggest-sweep
+
+  - id: run-the-work-loop-inside-preston
+    title: Run the work loop inside Preston
+    ask: "we shouldn't have any zsh scripts outside the runic installation that Preston should manage itself. Do a validation of that"
+    source: 2026-11-16 12:55 UTC, project chat relayed by the coordinator (no message id is held for these words); go-ahead 13:14 UTC "just do whatever you feel is the best way from getting from A to B the fastest. Be methodical so new agents can continue the work, use interlock if you want, it's not a requirement though. Just keep pushing"
+    graphs:
+      - preston/0078-run-the-work-loop-inside-preston
+      - interlock/0071-node-ends-inside-interlock
