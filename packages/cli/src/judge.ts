@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
-import { type Clock, createSystemClock } from "@phyxiusjs/clock";
+import { type Clock, createSystemClock, ms } from "@phyxiusjs/clock";
 import { isErr } from "@phyxiusjs/fp";
 import {
   approvalState,
@@ -257,7 +257,7 @@ export async function runInterlockJudge(
           return observedLease;
         },
         narrate,
-        (milliseconds) => clock.sleep(milliseconds),
+        (milliseconds) => clock.sleep(ms(milliseconds)),
       );
       if (waited === "deadline") {
         const line = leaseDeadlineMessage(timeout.minutes);

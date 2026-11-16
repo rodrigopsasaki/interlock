@@ -29,3 +29,11 @@ entries:
     at: "2026-11-16T17:45:00Z"
     chose: Keep the legacy immediate refusal for a live lease whose historical session has no recorded start time.
     because: The new minute-by-minute wait can name a real session's start, while a backfilled lease cannot honestly supply that fact; retaining the old refusal keeps historical ledger reads deterministic and preserves the way back.
+  - kind: surprise
+    at: "2026-11-16T17:47:00Z"
+    expected: The post-commit typecheck would remain green after wiring the controlled clock into lease waiting.
+    observed: The clock API brands sleep durations as Millis; the new wait callback needed the existing ms adapter instead of passing a plain number.
+  - kind: surprise
+    at: "2026-11-16T17:48:00Z"
+    expected: The targeted Biome check would remain clean after adding the ms import.
+    observed: Biome requires the type, value and named imports in its sorted order; only the import ordering needed correction.
