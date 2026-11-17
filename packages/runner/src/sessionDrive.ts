@@ -46,6 +46,7 @@ import type { NodeVersionRunner } from "./nodeEngine.ts";
 import { buildOpeningPrompt, type PriorWork, type SessionRole } from "./openingPrompt.ts";
 import { deliverOpeningPrompt } from "./promptDelivery.ts";
 import { recordQuestionNotes } from "./questionNotes.ts";
+import { registerRepository } from "./repositoryIndex.ts";
 import type { RoleShape } from "./roleShape.ts";
 import { commitRunnerCode, commitRunnerDebrief } from "./runnerCommits.ts";
 import { type MarkerConflict, mergeRunnerMarker, runnerMarker } from "./runnerMarker.ts";
@@ -876,6 +877,7 @@ export async function driveInteractiveSession(
     }
     launchCleanup = launch.value.cleanup;
 
+    registerRepository(repoRoot, execRunRoot(dirname(dirname(ledger.directory()))));
     const openedPane = await runtime.openPane(worktreePath, launch.value.environment);
     if (isErr(openedPane)) {
       const result = refuse(abandon("pane open"), explainRuntimeRefusal(openedPane.error));

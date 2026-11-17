@@ -1,0 +1,152 @@
+interlock: debrief@v2
+graph: 0065-gate-holds-retry-themselves
+node: sessions-live-all
+role: implementer
+graph_base_sha: 5226cfe0ccc6e8a9f240f8de2539dae7cd10fe71
+session_start_sha: 409ec4cc1583047133e87f1b1eb236692ee4e277
+head_sha: 3c3a946edc99df3dadd3285212bd72de6427e219
+derivation:
+  kind: agent
+  runtime: codex
+  model: gpt-5
+discoveries: []
+decisions:
+  - id: repository-index-and-launch-registration
+    applies_to: { kind: path, path: packages/runner/src/repositoryIndex.ts }
+    what: >-
+      Added a repository-index@v0 keyed by canonical common Git directory, with idempotent
+      registration from both exec and pane launch paths and readable entries for --all discovery.
+    because: >-
+      Live-all must discover repositories beyond the caller while repeated launches of one
+      repository must leave one stable index entry and a missing run root must remain reportable.
+    rests_on:
+      - packages/runner/src/repositoryIndex.ts:16-196
+      - packages/runner/src/execRuntime.ts:843
+      - packages/runner/src/sessionDrive.ts:880
+    hunks:
+      - packages/runner/src/repositoryIndex.ts:16-196
+      - packages/runner/src/execRuntime.ts:843
+      - packages/runner/src/sessionDrive.ts:880
+    produces:
+      - packages/runner/src/repositoryIndex.ts
+      - packages/runner/src/execRuntime.ts
+      - packages/runner/src/sessionDrive.ts
+  - id: runtime-agent-enumeration
+    applies_to: { kind: path, path: packages/runner/src/runtime.ts }
+    what: >-
+      Added a typed optional Runtime.listAgents seam and mapped herdr agent.list responses into
+      tokened and untokened EnumeratedAgent values without exposing herdr protocol details to the
+      CLI.
+    because: >-
+      The acceptance requires every runtime-listed pane to remain visible, including panes with no
+      interlock tokens, while the CLI must depend on the Runtime seam rather than parse a screen.
+    rests_on:
+      - packages/runner/src/runtime.ts:45-55
+      - packages/runner/src/runtime.ts:167-212
+      - packages/runner/src/herdr/adapter.ts:227-292
+      - packages/runner/src/herdr/adapter.ts:720-727
+      - packages/runner/test/herdr/listAgents.test.ts:30-73
+    hunks:
+      - packages/runner/src/runtime.ts:45-55
+      - packages/runner/src/runtime.ts:167-212
+      - packages/runner/src/herdr/adapter.ts:227-292
+      - packages/runner/src/herdr/adapter.ts:720-727
+      - packages/runner/test/herdr/listAgents.test.ts:30-73
+    produces:
+      - packages/runner/src/runtime.ts
+      - packages/runner/src/herdr/adapter.ts
+      - packages/runner/test/herdr/listAgents.test.ts
+  - id: live-all-composition-and-liveness
+    applies_to: { kind: path, path: packages/cli/src/sessions.ts }
+    what: >-
+      Added sessions@v1 live-all composition for indexed exec roots and Runtime-listed panes,
+      process-start liveness classification, phase collapse, cross-transport deduplication, source
+      warnings and partial state, while stripping the row shape from the existing sessions@v0
+      no-all JSON output.
+    because: >-
+      The graph acceptance counts live and unknown rows, excludes dead or reused exec anchors,
+      preserves untracked panes and source failures, and keeps the prior local sessions contract
+      readable forever.
+    rests_on:
+      - packages/cli/src/sessions.ts:38-45
+      - packages/cli/src/sessions.ts:54-329
+      - packages/cli/test/sessionsLiveAll.test.ts:42-79
+    hunks:
+      - packages/cli/src/sessions.ts:38-45
+      - packages/cli/src/sessions.ts:54-329
+      - packages/cli/test/sessionsLiveAll.test.ts:42-79
+    produces:
+      - packages/cli/src/sessions.ts
+      - packages/cli/test/sessionsLiveAll.test.ts
+  - id: sessions-v1-contract-and-reference
+    applies_to: { kind: path, path: schemas/sessions@v1.json }
+    what: >-
+      Published sessions@v1 with nullable cross-repository row identity, transport, phase and
+      liveness fields plus repository and herdr source states, and regenerated the shape reference.
+    because: >-
+      The new --all envelope is a public artifact and must validate its complete and partial reads
+      without changing the sessions@v0 artifact used by local reads.
+    rests_on:
+      - schemas/sessions@v1.json:1-54
+      - docs/shapes.md:1650-1671
+      - packages/schemas/test/sessionsV1.test.ts:49-62
+    hunks:
+      - schemas/sessions@v1.json:1-54
+      - docs/shapes.md:1650-1671
+      - packages/schemas/test/sessionsV1.test.ts:49-62
+    produces:
+      - schemas/sessions@v1.json
+      - docs/shapes.md
+      - packages/schemas/test/sessionsV1.test.ts
+  - id: session-receipts-retained
+    applies_to: { kind: path, path: .interlock/sessions/0065-gate-holds-retry-themselves/sessions-live-all/notes.yaml }
+    what: Retained each implementation choice and observed gate-environment surprise in notes@v0 beside the diff.
+    because: The session debrief must preserve the way back from the compressed implementation and its proof boundary.
+    rests_on:
+      - .interlock/sessions/0065-gate-holds-retry-themselves/sessions-live-all/notes.yaml:1-24
+    hunks:
+      - .interlock/sessions/0065-gate-holds-retry-themselves/sessions-live-all/notes.yaml:1-24
+    produces:
+      - .interlock/sessions/0065-gate-holds-retry-themselves/sessions-live-all/notes.yaml
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: Exit 0; output in packages/runner/test/.runs/sessions-live-all-typecheck-final.txt.
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: Exit 0 with one pre-existing gateJudge RegExp warning; output in packages/cli/test/.runs/sessions-live-all-lint.txt.
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+    note: Exit 0; packages/*/src contains no comments. Output in packages/cli/test/.runs/sessions-live-all-comments.txt.
+  - id: sessions-live-all-tests
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter cli exec vitest run test/sessionsLiveAll.test.ts --passWithNoTests=false
+    note: One file and two tests passed; output in packages/cli/test/.runs/sessions-live-all-cli-tests-final.txt.
+  - id: list-agents-tests
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter runner exec vitest run test/herdr/listAgents.test.ts --passWithNoTests=false
+    note: One file and two tests passed; output in packages/runner/test/.runs/sessions-live-all-list-agents-final.txt.
+  - id: sessions-schema-tests
+    result: pass
+    invocation: pnpm --fail-if-no-match --filter schemas exec vitest run test/sessionsV1.test.ts test/reference.test.ts --passWithNoTests=false
+    note: Two files and six tests passed; output in packages/schemas/test/.runs/sessions-live-all-schema-tests-final.txt.
+  - id: shapes-fresh
+    result: pass
+    invocation: pnpm interlock schema reference --check
+    note: docs/shapes.md reported fresh; output in packages/cli/test/.runs/sessions-live-all-shapes-final.txt.
+  - id: test
+    result: fail
+    invocation: pnpm test
+    note: Fixture-identity rerun passed the completed packages and the new tests, then failed in the runner Vitest infrastructure when tinypool's worker entry disappeared; output in packages/cli/test/.runs/sessions-live-all-test-final.txt.
+  - id: slow-tests-accounted
+    result: fail
+    invocation: node scripts/gates/slow-tests.ts
+    note: Existing timing and runner failures were reported; no sessions-live-all test was named. Output in packages/cli/test/.runs/sessions-live-all-slow-tests.txt.
+open:
+  - >-
+    The repository-wide test gate and slow-test accounting gate do not have passing receipts in
+    this session because of the dependency/worker and existing timing failures described above;
+    the focused acceptance tests, typecheck, lint, comments and shape freshness passed.

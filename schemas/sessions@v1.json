@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/sessions@v1.json",
+  "title": "sessions@v1",
+  "type": "object",
+  "required": ["interlock", "state", "count", "sessions", "sources"],
+  "properties": {
+    "interlock": {"const": "sessions@v1"},
+    "state": {"enum": ["complete", "partial"]},
+    "count": {"type": "integer", "minimum": 0},
+    "sessions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "repository", "graph", "node", "kind", "transport", "runtime", "pid", "phase", "phaseId", "liveness"],
+        "properties": {
+          "id": {"type": "string"},
+          "repository": {"type": ["string", "null"]},
+          "graph": {"type": ["string", "null"]},
+          "node": {"type": ["string", "null"]},
+          "kind": {"enum": ["node", "review", null]},
+          "transport": {"enum": ["pane", "exec"]},
+          "runtime": {"type": "string"},
+          "pid": {"type": ["integer", "null"]},
+          "phase": {"enum": ["work", "debrief", "review", null]},
+          "phaseId": {"type": ["string", "null"]},
+          "liveness": {"enum": ["live", "unknown"]}
+        },
+        "additionalProperties": false
+      }
+    },
+    "sources": {
+      "type": "object",
+      "required": ["repositories", "herdr"],
+      "properties": {
+        "repositories": {"$ref": "#/$defs/source"},
+        "herdr": {"$ref": "#/$defs/source"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "required": ["state"],
+      "properties": {
+        "state": {"enum": ["read", "partial", "unreadable"]},
+        "because": {"type": "string"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

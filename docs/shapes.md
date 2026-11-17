@@ -1648,19 +1648,27 @@ No vocabulary entry for `sessions`.
 ### Versions
 
 - `sessions@v0`: the first version.
+- `sessions@v1`: added `state` (required); added `count` (required); retyped `sessions`; added `sources` (required).
 
-### Fields (`sessions@v0`)
+### Fields (`sessions@v1`)
 
 | field | type | required | description |
 | --- | --- | --- | --- |
-| `interlock` | the literal `"sessions@v0"` | yes |  |
-| `sessions` | array of object | yes | fields: id (string, required); phase (one of `"work"`, `"debrief"`, `"review"`, required); phaseId (string, required); parentId (unknown, required); kind (one of `"node"`, `"review"`, required); graph (string, required); node (unknown, required); lens (unknown, required); subjectHash (unknown, required); snapshotHash (unknown, required); arc (unknown, required); runtime (string, required); model (string, required); pid (unknown, required); pgid (unknown, required); startedAt (string, required); endedAt (unknown, required); state (one of `"running"`, `"done"`, `"failed"`, `"killed"`, required); exitCode (unknown, required); signal (unknown, required); reason (unknown, required); reaped (unknown, required); captureComplete (boolean, required); asks (array, required); waitingOnAsk (boolean, required); transcriptPath (string, required) |
+| `interlock` | the literal `"sessions@v1"` | yes |  |
+| `state` | one of `"complete"`, `"partial"` | yes |  |
+| `count` | unknown | yes |  |
+| `sessions` | array of object | yes | fields: id (string, required); repository (unknown, required); graph (unknown, required); node (unknown, required); kind (one of `"node"`, `"review"`, `null`, required); transport (one of `"pane"`, `"exec"`, required); runtime (string, required); pid (unknown, required); phase (one of `"work"`, `"debrief"`, `"review"`, `null`, required); phaseId (unknown, required); liveness (one of `"live"`, `"unknown"`, required) |
+| `sources` | object | yes | fields: repositories (source, required); herdr (source, required) |
 
 ### Examples
 
 #### `sessions@v0`
 
 _No example of `sessions@v0` was found in the corpus._
+
+#### `sessions@v1`
+
+_No example of `sessions@v1` was found in the corpus._
 
 ## transcript
 

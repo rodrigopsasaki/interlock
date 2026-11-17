@@ -12,6 +12,7 @@ import {
   type AgentIdentityQuery,
   type AgentObservation,
   type AgentStatus,
+  type EnumeratedAgent,
   type LiveWork,
   type Pane,
   type Runtime,
@@ -220,6 +221,73 @@ function observationOf(
         liveWork: () => liveWorkOf(agent, sources),
       };
     },
+  };
+}
+
+function numberValue(
+  agent: Record<string, unknown>,
+  ...keys: readonly string[]
+): number | undefined {
+  for (const key of keys) {
+    const value = prop(agent, key);
+    if (typeof value === "number" && Number.isInteger(value) && value > 0) return value;
+  }
+  return undefined;
+}
+
+function stringValue(
+  agent: Record<string, unknown>,
+  ...keys: readonly string[]
+): string | undefined {
+  for (const key of keys) {
+    const value = prop(agent, key);
+    if (isString(value) && value.length > 0) return value;
+  }
+  return undefined;
+}
+
+function tokenValue(agent: Record<string, unknown>, key: string): string | undefined {
+  const tokens = prop(agent, "tokens");
+  if (!isRecord(tokens)) return undefined;
+  const value = prop(tokens, key);
+  return isString(value) ? value : undefined;
+}
+
+function workKind(agent: Record<string, unknown>): "node" | "review" | undefined {
+  const value = tokenValue(agent, "kind") ?? stringValue(agent, "work_kind", "workKind");
+  if (value === "node" || value === "review") return value;
+  return tokenValue(agent, "graph") !== undefined && tokenValue(agent, "node") !== undefined
+    ? "node"
+    : undefined;
+}
+
+function enumeratedAgentOf(agent: Record<string, unknown>): EnumeratedAgent {
+  const session = prop(agent, "agent_session");
+  const sessionAgent = isRecord(session) ? prop(session, "agent") : undefined;
+  const runtime =
+    (isString(sessionAgent) ? sessionAgent : undefined) ??
+    stringValue(agent, "runtime", "agent_kind", "agent", "kind") ??
+    "unknown";
+  const id = stringValue(agent, "name", "agent_id", "pane_id") ?? "unknown";
+  const sessionId = tokenValue(agent, "session");
+  const graph = tokenValue(agent, "graph");
+  const node = tokenValue(agent, "node");
+  const repository =
+    tokenValue(agent, "repository") ??
+    stringValue(agent, "repository", "repository_root", "cwd", "worktree");
+  const pane = stringValue(agent, "pane_id");
+  const pid = numberValue(agent, "pid", "process_id", "agent_pid", "shell_pid");
+  const kind = workKind(agent);
+  return {
+    id,
+    runtime,
+    ...(sessionId === undefined ? {} : { sessionId }),
+    ...(graph === undefined ? {} : { graph }),
+    ...(node === undefined ? {} : { node }),
+    ...(kind === undefined ? {} : { kind }),
+    ...(repository === undefined ? {} : { repository }),
+    ...(pane === undefined ? {} : { pane }),
+    ...(pid === undefined ? {} : { pid }),
   };
 }
 
@@ -647,6 +715,11 @@ export function herdrRuntime(
     async focusPane(pane: Pane) {
       const focused = await call("pane.focus", { pane_id: pane.id });
       return isErr(focused) ? focused : ok(undefined);
+    },
+
+    async listAgents() {
+      const listed = await listAgents(call);
+      return isErr(listed) ? listed : ok(listed.value.map(enumeratedAgentOf));
     },
 
     async observe() {

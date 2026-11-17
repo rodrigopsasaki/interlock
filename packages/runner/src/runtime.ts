@@ -42,6 +42,18 @@ export interface RuntimeObservation {
   attempt(query: AgentIdentityQuery): AgentObservation;
 }
 
+export interface EnumeratedAgent {
+  readonly id: string;
+  readonly runtime: string;
+  readonly sessionId?: string;
+  readonly graph?: string;
+  readonly node?: string;
+  readonly kind?: "node" | "review";
+  readonly repository?: string;
+  readonly pane?: string;
+  readonly pid?: number;
+}
+
 export type ProbeCheck = "shm" | "loopback" | "worktree-file" | "git-metadata" | "signed-commit";
 
 export interface PreparedLaunch {
@@ -197,5 +209,6 @@ export interface Runtime {
   resolvePane?(query: AgentIdentityQuery): Promise<Result<Pane | undefined, RuntimeRefusal>>;
   resolveAgent?(query: AgentIdentityQuery): Promise<Result<Agent | undefined, RuntimeRefusal>>;
   focusPane?(pane: Pane): Promise<Result<void, RuntimeRefusal>>;
+  listAgents?(): Promise<Result<readonly EnumeratedAgent[], RuntimeRefusal>>;
   observe?(): Promise<Result<RuntimeObservation, RuntimeRefusal>>;
 }
