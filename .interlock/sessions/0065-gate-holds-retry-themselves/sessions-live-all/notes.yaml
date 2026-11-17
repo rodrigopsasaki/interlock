@@ -13,3 +13,15 @@ entries:
     at: "2026-11-17T15:45:00Z"
     chose: Represent --all output as sessions@v1 rows with nullable repository, graph, node and work kind, explicit pane or exec transport, and source states in the envelope.
     because: Untokened panes and unreadable sources must remain visible instead of being silently dropped, while the pre-existing no-all output must remain sessions@v0-compatible.
+  - kind: surprise
+    at: "2026-11-17T15:55:00Z"
+    expected: The standing full test gate would run with the same fixture isolation as the focused tests and complete.
+    observed: The first full test invocation omitted the fixture Git identity, so fixture-commit tests failed with author identity unknown and the recursive Vitest run later lost a worker; the implementation-focused tests and typecheck had already passed.
+  - kind: surprise
+    at: "2026-11-17T16:00:00Z"
+    expected: Restoring the repository's workspace links and supplying fixture Git identity would make the recursive test gate complete.
+    observed: The identity-related failures cleared, but the runner's recursive Vitest process later failed because its installed tinypool worker entry disappeared during the run; focused tests and all completed runner files passed before that infrastructure failure.
+  - kind: surprise
+    at: "2026-11-17T16:08:00Z"
+    expected: The slow-test accounting gate would report all declared integrations accounted for.
+    observed: It reported existing undeclared or over-half-budget integration timings under the current Node/tool environment and a runner Vitest failure; no session-live-all test was named in the failures.
