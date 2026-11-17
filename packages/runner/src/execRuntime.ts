@@ -14,6 +14,7 @@ import {
   stopSignalFor,
 } from "./execStop.ts";
 import { type OwnedProcess, spawnOwned } from "./ownedCommand.ts";
+import { registerRepository } from "./repositoryIndex.ts";
 
 export const SESSION_SHAPE = "session@v0";
 export const TRANSCRIPT_SHAPE = "transcript@v0";
@@ -839,6 +840,7 @@ export async function runExecPhase(
   const uid = process.getuid?.() ?? process.pid;
   const socketPath = join(tmpdir(), `interlock-${uid}`, `${randomBytes(8).toString("hex")}.sock`);
   const record = initialRecord({ ...request, id, phaseId }, runDir, nonce, secret, socketPath);
+  registerRepository(request.cwd, request.runRoot);
   const writer = new TranscriptWriter(
     transcriptPath,
     request.transcriptSink ?? nativeTranscriptSink,

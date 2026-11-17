@@ -1,0 +1,15 @@
+interlock: notes@v0
+node: sessions-live-all
+entries:
+  - kind: choice
+    at: "2026-11-17T15:45:00Z"
+    chose: Add a machine repository index under the interlock state directory, keyed by canonical common git directory and storing the repository root and exec run root.
+    because: The --all read must discover repositories across worktrees and remain idempotent when one repository launches more than once.
+  - kind: choice
+    at: "2026-11-17T15:45:00Z"
+    chose: Add typed Runtime.listAgents enumeration and implement it in the herdr adapter through agent.list.
+    because: The acceptance requires sessions.ts to use the Runtime seam without parsing a screen or naming herdr in the CLI aggregation layer.
+  - kind: choice
+    at: "2026-11-17T15:45:00Z"
+    chose: Represent --all output as sessions@v1 rows with nullable repository, graph, node and work kind, explicit pane or exec transport, and source states in the envelope.
+    because: Untokened panes and unreadable sources must remain visible instead of being silently dropped, while the pre-existing no-all output must remain sessions@v0-compatible.

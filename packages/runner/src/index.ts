@@ -11,6 +11,7 @@ export {
   renderBriefFile,
 } from "./briefRewrite.ts";
 export { claudeLiveWork, liveWorkOfTranscript } from "./claude/liveWork.ts";
+export { interlockStateDirectory } from "./codex/config.ts";
 export { withRenderedContextSlice } from "./contextSlice.ts";
 export { decidedNodeRefusal } from "./decidedNode.ts";
 export { unmetDependencies } from "./dependencies.ts";
@@ -151,6 +152,13 @@ export type {
 export { deliverOpeningPrompt } from "./promptDelivery.ts";
 export type { RoutingOptions } from "./providerRouting.ts";
 export { routeRuntime } from "./providerRouting.ts";
+export type { RepositoryIndexEntry, RepositoryIndexRead } from "./repositoryIndex.ts";
+export {
+  REPOSITORY_INDEX_SHAPE,
+  readRepositoryIndex,
+  registerRepository,
+  repositoryIndexPath,
+} from "./repositoryIndex.ts";
 export type { RoleShape } from "./roleShape.ts";
 export { roleShapeFor } from "./roleShape.ts";
 export {
@@ -166,6 +174,7 @@ export type {
   AgentIdentityQuery,
   AgentObservation,
   AgentStatus,
+  EnumeratedAgent,
   LiveWork,
   Pane,
   PaneFact,
