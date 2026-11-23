@@ -1453,7 +1453,7 @@ walk:
   kind: none
   because: the substrate address is none, so there is nothing to ask
 graph_base_sha: 3b73a622d16d64742e96dd74a855eed8423dbf04
-session: 5f197bcf-11fc-4b1f-9e28-d324db9ce5d3
+session: 32e720e2-0c2f-41e0-b253-3d3c9d51e1ff
 ---
 
 # Brief · node `position-answers-what-is-ready` · graph `0072-position-answers-what-is-ready`
