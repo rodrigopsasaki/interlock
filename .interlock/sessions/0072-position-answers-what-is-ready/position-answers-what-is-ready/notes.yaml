@@ -1,0 +1,19 @@
+interlock: notes@v0
+node: position-answers-what-is-ready
+entries:
+  - kind: choice
+    at: "2026-11-23T23:24:02Z"
+    chose: Project readiness as the full read's positionOf state "ready" with no live attempt (face's isLiveAttempt), listed only when the graph approval is "approved".
+    because: The acceptance demands one readiness definition shared with the full read; a node with a live session stands as working in the face's own standing, never ready, and the touch list forbids editing face, so the projection reuses positionOf's state and face's exported isLiveAttempt rather than coining a second definition.
+  - kind: choice
+    at: "2026-11-23T23:24:02Z"
+    chose: Carry the asked path as root for a not-found repository in ready@v0, with state "not-found", its because, and an empty ready list.
+    because: The acceptance sketch shows root on every repository entry and names no asked field; the asked path is the only path a not-found repository has, and the schema description says so.
+  - kind: surprise
+    at: "2026-11-23T23:24:02Z"
+    expected: Adding schemas/ready@v0.json would touch only the files the acceptance lists.
+    observed: packages/schemas/test/reference.test.ts regenerates docs/shapes.md byte-for-byte from the schemas directory and asserts an exact missing-vocabulary list, so a new schema file forces docs/shapes.md to be regenerated and the expected list to gain "ready" for pnpm test to stay green.
+  - kind: surprise
+    at: "2026-11-23T23:32:00Z"
+    expected: The full workspace suite could run locally as the test gate's own command.
+    observed: The session rules mid-work limited local runs to the test files the change touches with a fixture HOME and worker caps, so the full-suite run was stopped; before stopping it showed one failure in untouched packages/runner/test/setupNeverHolds.test.ts ("expected ... to contain 'setup still waiting'"), environment-sensitive from running under the real HOME, unrelated to this change and left to the landing check.

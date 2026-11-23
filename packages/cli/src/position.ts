@@ -10,6 +10,7 @@ import {
   type GitRunner,
   type GraphDocument,
   graphFilePath,
+  isLiveAttempt,
   isNodeRole,
   type LandedReader,
   listGraphIds,
@@ -116,6 +117,91 @@ export type RepositoryPositionV0 =
 export interface PositionsV0 {
   readonly interlock: typeof POSITIONS_V0_SHAPE;
   readonly repositories: readonly RepositoryPositionV0[];
+}
+
+export const READY_SHAPE = "ready@v0";
+
+export interface ReadyNode {
+  readonly graph: string;
+  readonly node: string;
+  readonly criticalPathIndex: number;
+  readonly nodeIndex: number;
+}
+
+export interface UnreadableGraph {
+  readonly graph: string;
+  readonly because: string;
+}
+
+export type ReadyRepository =
+  | {
+      readonly root: string;
+      readonly origin?: { readonly owner: string; readonly name: string };
+      readonly state: "read";
+      readonly ready: readonly ReadyNode[];
+      readonly unreadable: readonly UnreadableGraph[];
+    }
+  | {
+      readonly root: string;
+      readonly state: "not-found";
+      readonly because: string;
+      readonly ready: readonly [];
+    };
+
+export interface Ready {
+  readonly interlock: typeof READY_SHAPE;
+  readonly repositories: readonly ReadyRepository[];
+}
+
+function readyNodesOf(position: Position, graph: string): readonly ReadyNode[] {
+  const onCriticalPath = new Map(position.criticalPath.map((id, index) => [id, index]));
+  const entries: ReadyNode[] = [];
+  position.nodes.forEach((node, nodeIndex) => {
+    if (node.state.kind !== "ready") return;
+    if (node.attempts.some(isLiveAttempt)) return;
+    entries.push({
+      graph,
+      node: node.id,
+      criticalPathIndex: onCriticalPath.get(node.id) ?? -1,
+      nodeIndex,
+    });
+  });
+  const launchOrder = (entry: ReadyNode): number =>
+    entry.criticalPathIndex === -1 ? Number.MAX_SAFE_INTEGER : entry.criticalPathIndex;
+  return entries.sort((a, b) => launchOrder(a) - launchOrder(b) || a.nodeIndex - b.nodeIndex);
+}
+
+export function readyOf(positions: Positions): Ready {
+  const repositories = positions.repositories.map((repository): ReadyRepository => {
+    if (repository.state === "not-found") {
+      return {
+        root: repository.asked,
+        state: "not-found",
+        because: repository.because,
+        ready: [],
+      };
+    }
+    const ready: ReadyNode[] = [];
+    const unreadable: UnreadableGraph[] = [];
+    for (const graph of repository.graphs) {
+      if (graph.state === "unreadable") {
+        unreadable.push({ graph: graph.graph, because: graph.because });
+        continue;
+      }
+      if (graph.position.approval !== "approved") continue;
+      ready.push(...readyNodesOf(graph.position, graph.graph));
+    }
+    return {
+      root: repository.root,
+      ...(repository.origin?.state === "identified"
+        ? { origin: { owner: repository.origin.owner, name: repository.origin.name } }
+        : {}),
+      state: "read",
+      ready,
+      unreadable,
+    };
+  });
+  return { interlock: READY_SHAPE, repositories };
 }
 
 export function upcastPositionsV0(read: PositionsV0): Positions {
@@ -361,6 +447,19 @@ function renderRepository(repository: RepositoryPosition): string {
   return [header, ...journal, ...repository.graphs.map(renderGraph)].join("\n\n");
 }
 
+function renderReadyRepository(repository: ReadyRepository): string {
+  if (repository.state === "not-found") return repository.because;
+  const header =
+    repository.origin === undefined
+      ? repository.root
+      : `${repository.root} (${repository.origin.owner}/${repository.origin.name})`;
+  return [
+    header,
+    ...repository.ready.map((entry) => `${entry.graph}/${entry.node}`),
+    ...repository.unreadable.map((graph) => `${graph.graph} — unreadable: ${graph.because}`),
+  ].join("\n");
+}
+
 export async function runInterlockPosition(
   args: readonly string[],
   options: {
@@ -375,6 +474,15 @@ export async function runInterlockPosition(
     options.runtime,
     options.clock ?? createSystemClock(),
   );
+  if (args.includes("--ready")) {
+    const ready = readyOf(positions);
+    return {
+      exitCode: 0,
+      message: args.includes("--json")
+        ? JSON.stringify(ready)
+        : ready.repositories.map(renderReadyRepository).join("\n\n"),
+    };
+  }
   return {
     exitCode: 0,
     message: args.includes("--json")

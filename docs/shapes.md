@@ -1352,6 +1352,27 @@ No vocabulary entry for `queue`.
 
 _No example of `queue@v0` was found in the corpus._
 
+## ready
+
+No vocabulary entry for `ready`.
+
+### Versions
+
+- `ready@v0`: the first version.
+
+### Fields (`ready@v0`)
+
+| field | type | required | description |
+| --- | --- | --- | --- |
+| `interlock` | the literal `"ready@v0"` | yes |  |
+| `repositories` | array of repository | yes | `?`: root, origin (optional), state, ready, unreadable; `?`: root, state, because, ready |
+
+### Examples
+
+#### `ready@v0`
+
+_No example of `ready@v0` was found in the corpus._
+
 ## roles
 
 No vocabulary entry for `roles`.

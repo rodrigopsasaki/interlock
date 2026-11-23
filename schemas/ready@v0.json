@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigopsasaki/interlock/schemas/ready@v0.json",
+  "title": "ready@v0",
+  "description": "The bounded answer to what a launcher may start: the ready nodes of approved graphs in launch order, and nothing that grows with the graphs' history.",
+  "type": "object",
+  "properties": {
+    "interlock": {
+      "const": "ready@v0"
+    },
+    "repositories": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/repository"
+      }
+    }
+  },
+  "required": [
+    "interlock",
+    "repositories"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "repository": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "root": {
+              "type": "string"
+            },
+            "origin": {
+              "description": "Present only when the full read identifies the repository's origin.",
+              "$ref": "#/$defs/origin"
+            },
+            "state": {
+              "const": "read"
+            },
+            "ready": {
+              "description": "The ready nodes of approved graphs, in launch order: graph order as the full read lists graphs, then critical-path index with absent entries last, then node index.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/readyNode"
+              }
+            },
+            "unreadable": {
+              "description": "Every graph that could not be read, named with its reason; an unreadable graph is never treated as having ready nodes.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/unreadable"
+              }
+            }
+          },
+          "required": [
+            "root",
+            "state",
+            "ready",
+            "unreadable"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "root": {
+              "description": "The asked path; no repository root was found at it or any parent.",
+              "type": "string"
+            },
+            "state": {
+              "const": "not-found"
+            },
+            "because": {
+              "type": "string"
+            },
+            "ready": {
+              "type": "array",
+              "maxItems": 0
+            }
+          },
+          "required": [
+            "root",
+            "state",
+            "because",
+            "ready"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "origin": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "owner",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "readyNode": {
+      "type": "object",
+      "properties": {
+        "graph": {
+          "type": "string"
+        },
+        "node": {
+          "type": "string"
+        },
+        "criticalPathIndex": {
+          "description": "The node's place on its graph's critical path, or -1 when it is not on it.",
+          "type": "integer",
+          "minimum": -1
+        },
+        "nodeIndex": {
+          "description": "The node's place in its graph's position node order.",
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "graph",
+        "node",
+        "criticalPathIndex",
+        "nodeIndex"
+      ],
+      "additionalProperties": false
+    },
+    "unreadable": {
+      "type": "object",
+      "properties": {
+        "graph": {
+          "type": "string"
+        },
+        "because": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "graph",
+        "because"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
