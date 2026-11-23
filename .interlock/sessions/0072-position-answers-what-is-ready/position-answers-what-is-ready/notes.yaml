@@ -17,3 +17,7 @@ entries:
     at: "2026-11-23T23:32:00Z"
     expected: The full workspace suite could run locally as the test gate's own command.
     observed: The session rules mid-work limited local runs to the test files the change touches with a fixture HOME and worker caps, so the full-suite run was stopped; before stopping it showed one failure in untouched packages/runner/test/setupNeverHolds.test.ts ("expected ... to contain 'setup still waiting'"), environment-sensitive from running under the real HOME, unrelated to this change and left to the landing check.
+  - kind: surprise
+    at: "2026-11-23T23:48:00Z"
+    expected: VITEST_MAX_WORKERS=4 VITEST_MAX_THREADS=4 VITEST_MAX_FORKS=4 alone would cap a vitest 2.1.9 run under the session's shared-mode limits.
+    observed: Vitest 2.1.9 derives the forks pool's minForks (and the threads pool's minThreads) from the machine's CPU count when no minimum is set, so a max of 4 below the CPU count throws "options.minThreads and options.maxThreads must not conflict" before any test runs; VITEST_MIN_THREADS=1 and VITEST_MIN_FORKS=1 must accompany the caps, and with them positionReady.test.ts passes 10/10 under a fixture HOME with fixture git identity.
