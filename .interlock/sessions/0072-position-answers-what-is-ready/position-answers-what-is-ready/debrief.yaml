@@ -1,0 +1,140 @@
+interlock: debrief@v2
+graph: 0072-position-answers-what-is-ready
+node: position-answers-what-is-ready
+role: implementer
+graph_base_sha: 3b73a622d16d64742e96dd74a855eed8423dbf04
+session_start_sha: cb93a4934de7ccf6c86e4ee7c399a6f9240c4d86
+head_sha: e2cd00e0fedf9e0c6970a1c1630ca31e20dbcfa5
+derivation:
+  kind: agent
+  runtime: kimi
+  model: kimi-code/k3
+discoveries:
+  - id: schema-addition-moves-generated-docs
+    applies_to: { kind: path, path: schemas }
+    what: >-
+      Adding a schema file under schemas/ moves two more files: docs/shapes.md, which is
+      regenerated from the schema directory, and the exact missing-vocabulary list asserted in
+      the reference test.
+    found_at: >-
+      packages/schemas/test/reference.test.ts:9 "regenerating from the committed schemas
+      reproduces the committed page byte for byte"
+    mattered_because: >-
+      The acceptance's touch list named only schemas/ready@v0.json, yet pnpm test goes red the
+      moment a schema file appears until both the generated page and the expected list move; a
+      later session adding a shape can plan the full touch set instead of learning it from a
+      failing gate.
+decisions:
+  - id: one-readiness-definition
+    applies_to: { kind: path, path: packages/cli/src/position.ts }
+    what: >-
+      The ready projection reuses the full read's own facts: a node is listed only when its
+      positionOf state is "ready", it has no live attempt by face's isLiveAttempt, and its
+      graph's approval is "approved". Readiness is computed nowhere else.
+    because: >-
+      The acceptance demands readiness decided exactly as the full read decides it, and the
+      named cases require a running node, whose positionOf state is "ready" while its live
+      session stands, never to be listed; the touch list forbade editing face, so the
+      projection composes face's exported positionOf state and isLiveAttempt rather than
+      coining a second definition.
+    rests_on:
+      - packages/cli/src/position.ts:156-172
+      - packages/cli/src/position.ts:174-205
+    hunks:
+      - packages/cli/src/position.ts:156-172
+      - packages/cli/src/position.ts:174-205
+    produces:
+      - packages/cli/src/position.ts
+  - id: bounded-ready-shape
+    applies_to: { kind: path, path: packages/cli/src/position.ts }
+    what: >-
+      ready@v0 carries, per repository, its root, its origin owner and name only when the full
+      read identifies them, ready entries in launch order (graph order, then critical-path
+      index with absent entries last, then node index), and unreadable graphs named with their
+      because and never listed as ready. A not-found repository carries the asked path as root
+      with an empty ready list. The --json output is one compact line, and without --ready the
+      full read's output is byte-identical.
+    because: >-
+      A launcher polls this read every cycle and its output must be bounded by how many nodes
+      are ready, never by how much history the graphs hold; carrying the asked path for a
+      not-found repository keeps the acceptance's every-entry-has-root shape honest about
+      which ask failed.
+    rests_on:
+      - packages/cli/src/position.ts:122-153
+      - packages/cli/src/position.ts:450-486
+      - schemas/ready@v0.json
+    hunks:
+      - packages/cli/src/position.ts:122-153
+      - packages/cli/src/position.ts:450-486
+      - schemas/ready@v0.json
+    produces:
+      - packages/cli/src/position.ts
+      - schemas/ready@v0.json
+  - id: docs-and-reference-test-beyond-touch-list
+    applies_to: { kind: path, path: packages/schemas/test/reference.test.ts }
+    what: >-
+      Regenerated docs/shapes.md and added "ready" to the reference test's expected
+      missing-vocabulary list, two files beyond the acceptance's touch list.
+    because: >-
+      packages/schemas/test/reference.test.ts regenerates docs/shapes.md byte-for-byte from
+      the schemas directory and asserts the exact vocabulary-gap list, so pnpm test fails the
+      moment schemas/ready@v0.json exists until both move; the gate left no smaller path, and
+      the bend is recorded here rather than silently widening the touch list.
+    rests_on:
+      - docs/shapes.md
+      - packages/schemas/test/reference.test.ts
+    hunks:
+      - docs/shapes.md
+      - packages/schemas/test/reference.test.ts
+    produces:
+      - docs/shapes.md
+      - packages/schemas/test/reference.test.ts
+gates_run_by_agent:
+  - id: typecheck
+    result: pass
+    invocation: pnpm typecheck
+    note: >-
+      Exit 0 on head e2cd00e0fedf9e0c6970a1c1630ca31e20dbcfa5; every workspace package's
+      tsc --noEmit passed.
+  - id: lint
+    result: pass
+    invocation: pnpm lint
+    note: >-
+      Exit 0 on head e2cd00e0fedf9e0c6970a1c1630ca31e20dbcfa5; the only finding is a
+      pre-existing useRegexLiterals warning in untouched packages/runner/src/gateJudge.ts.
+  - id: comments
+    result: pass
+    invocation: pnpm check:comments
+    note: Exit 0 on head e2cd00e0fedf9e0c6970a1c1630ca31e20dbcfa5; no comments found.
+  - id: test
+    result: fail
+    invocation: pnpm test
+    note: >-
+      Started and stopped by session rule before completion on head
+      e2cd00e0fedf9e0c6970a1c1630ca31e20dbcfa5: shared mode limits local runs to the test
+      files the change touches, so the full suite is left to the landing check. Before
+      stopping, one failure showed in untouched packages/runner/test/setupNeverHolds.test.ts
+      ("expected ... to contain 'setup still waiting'"), environment-sensitive from running
+      under the real HOME. The focused files this change touches all pass under the fixture
+      environment: cli test/positionReady.test.ts and test/position.test.ts (23 tests), and
+      schemas test/reference.test.ts and test/registry.test.ts (6 tests), with
+      VITEST_MAX_WORKERS=4 VITEST_MAX_THREADS=4 VITEST_MAX_FORKS=4 and
+      NODE_OPTIONS=--max-old-space-size=3072.
+  - id: position-ready-tests-pass
+    result: pass
+    invocation: >-
+      pnpm --fail-if-no-match --filter cli exec vitest run test/positionReady.test.ts
+      --passWithNoTests=false
+    note: >-
+      Exit 0 on head e2cd00e0fedf9e0c6970a1c1630ca31e20dbcfa5; one file and ten tests passed,
+      matching the gate's expect_output.
+  - id: typescript-compiles
+    result: pass
+    invocation: pnpm typecheck
+    note: >-
+      Exit 0 on head e2cd00e0fedf9e0c6970a1c1630ca31e20dbcfa5; same run as the typecheck
+      gate.
+open:
+  - >-
+    The test gate (pnpm test) was not run to completion locally by session rule; the full
+    suite is left to the landing check.
