@@ -2,8 +2,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { docsShapesPath, generateReference } from "schemas";
 import { afterEach, describe, expect, it } from "vitest";
-import { initFixtureRepository } from "../../../../test/support/gitFixture.ts";
 import { runSchemaReference } from "../../src/schema/reference.ts";
+import { initFixtureRepositoryWithIdentity } from "../support/gitFixture.ts";
 
 const runsRoot = join(import.meta.dirname, "..", ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -17,7 +17,7 @@ afterEach(() => {
 
 function fixture(): string {
   directory = mkdtempSync(join(runsRoot, "schema-reference-"));
-  initFixtureRepository(directory, { defaultBranch: "main" });
+  initFixtureRepositoryWithIdentity(directory, { defaultBranch: "main" });
   writeFileSync(
     join(directory, "AGENTS.md"),
     [

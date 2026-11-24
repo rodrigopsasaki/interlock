@@ -4,8 +4,9 @@ import { join } from "node:path";
 import { envelopeFor, type LedgerEvent, outcome, sessionRuntime } from "ledger";
 import { findInheritedSessionStart } from "runner";
 import { afterEach, describe, expect, it } from "vitest";
-import { fixtureGit, initFixtureRepository } from "../../../test/support/gitFixture.ts";
+import { fixtureGit } from "../../../test/support/gitFixture.ts";
 import { runDebriefPrepare } from "../src/debrief/derived.ts";
+import { initFixtureRepositoryWithIdentity } from "./support/gitFixture.ts";
 import { slowIntegration } from "./support/slowIntegration.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
@@ -86,9 +87,7 @@ interface Fixture {
 
 function fixture(withDebrief = false): Fixture {
   directory = mkdtempSync(join(runsRoot, "resume-range-"));
-  initFixtureRepository(directory, { defaultBranch: "main" });
-  git(directory, ["config", "user.name", "fixture"]);
-  git(directory, ["config", "user.email", "fixture@example.test"]);
+  initFixtureRepositoryWithIdentity(directory, { defaultBranch: "main" });
   const sessionPath = join(directory, ".interlock", "sessions", graph, node);
   mkdirSync(join(directory, ".interlock", "graphs"), { recursive: true });
   mkdirSync(sessionPath, { recursive: true });

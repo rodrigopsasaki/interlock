@@ -1,4 +1,5 @@
-import { fixtureGit, initFixtureRepository } from "../../../../test/support/gitFixture.ts";
+import { fixtureGit } from "../../../../test/support/gitFixture.ts";
+import { initFixtureRepositoryWithIdentity } from "../support/gitFixture.ts";
 
 const GIT_ENV = {
   ...process.env,
@@ -10,7 +11,7 @@ const GIT_ENV = {
 
 // A fixture directory without its own `.git` would resolve to the real repository's journal.
 export function gitInitFixture(directory: string): void {
-  initFixtureRepository(directory, { defaultBranch: "main" });
+  initFixtureRepositoryWithIdentity(directory, { defaultBranch: "main" });
   fixtureGit(
     ["-c", "commit.gpgsign=false", "commit", "--quiet", "--allow-empty", "-m", "fixture root"],
     { cwd: directory, env: GIT_ENV },

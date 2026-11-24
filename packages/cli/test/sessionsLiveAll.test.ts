@@ -3,10 +3,10 @@ import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { join, relative } from "node:path";
 import { buildRegistry, judgeValue } from "schemas";
 import { afterEach, describe, expect, it } from "vitest";
-import { fixtureGit, initFixtureRepository } from "../../../test/support/gitFixture.ts";
 import { createHerdrRuntime } from "../../runner/src/herdr/adapter.ts";
 import { type FakeHerdrServer, startFakeHerdrServer } from "../../runner/test/herdr/fakeServer.ts";
 import { runSessions } from "../src/sessions.ts";
+import { initFixtureRepositoryWithIdentity } from "./support/gitFixture.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -28,9 +28,7 @@ async function fixture(): Promise<{
   directory = mkdtempSync(join(runsRoot, "live-all-"));
   const repository = join(directory, "repository");
   mkdirSync(repository, { recursive: true });
-  initFixtureRepository(repository, { defaultBranch: "main" });
-  fixtureGit(["config", "user.name", "fixture"], { cwd: repository });
-  fixtureGit(["config", "user.email", "fixture@example.invalid"], { cwd: repository });
+  initFixtureRepositoryWithIdentity(repository, { defaultBranch: "main" });
   const fake = await startFakeHerdrServer(
     relative(process.cwd(), join(directory, `${randomUUID()}.sock`)),
   );

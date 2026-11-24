@@ -1,11 +1,12 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { isLedgerEvent } from "ledger";
 import { afterEach, describe, expect, it } from "vitest";
 import { runInterlockBackfill } from "../src/backfill.ts";
 import { commitAll, gitInitFixture } from "./graph/gitFixture.ts";
 
-const runsRoot = join(import.meta.dirname, ".runs");
+const runsRoot = tmpdir();
 mkdirSync(runsRoot, { recursive: true });
 
 let directory: string | undefined;
