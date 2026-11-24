@@ -1,5 +1,5 @@
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { userInfo } from "node:os";
 import { delimiter, join } from "node:path";
 import { afterAll, afterEach } from "vitest";
 import {
@@ -31,7 +31,7 @@ process.env["INTERLOCK_CODEX_GUARD_REGISTRY"] = registry;
 process.env["INTERLOCK_CODEX_GUARD_NODE"] = process.execPath;
 process.env["INTERLOCK_CODEX_GUARD_SOURCE"] = guardSource;
 process.env["INTERLOCK_CODEX_GUARD_USER_HOME"] =
-  process.env["INTERLOCK_CODEX_GUARD_USER_HOME"] ?? homedir();
+  process.env["INTERLOCK_CODEX_GUARD_USER_HOME"] ?? userInfo().homedir;
 process.env["PATH"] = `${guardDirectory}${delimiter}${originalPath}`;
 
 afterEach(async () => {
