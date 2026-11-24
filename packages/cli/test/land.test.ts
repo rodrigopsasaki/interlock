@@ -1,16 +1,18 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createSystemClock } from "@phyxiusjs/clock";
 import { isErr, ok } from "@phyxiusjs/fp";
 import { sharedJournalDirectory } from "face";
 import { createLedger, derivation, duration, spend } from "ledger";
 import { afterEach, describe, expect, it } from "vitest";
-import { fixtureGit, initFixtureRepository } from "../../../test/support/gitFixture.ts";
+import { fixtureGit } from "../../../test/support/gitFixture.ts";
 import { createFixtureEnvironment } from "../../runner/src/fixtureEnv.ts";
 import { runInterlockLand } from "../src/land.ts";
 import { run } from "../src/main.ts";
+import { initFixtureRepositoryWithIdentity } from "./support/gitFixture.ts";
 
-const runsRoot = join(import.meta.dirname, ".runs");
+const runsRoot = tmpdir();
 mkdirSync(runsRoot, { recursive: true });
 const gitEnv = {
   ...process.env,
@@ -66,7 +68,7 @@ function repository(): string {
       "",
     ].join("\n"),
   );
-  initFixtureRepository(directory, { defaultBranch: "main", env: gitEnv });
+  initFixtureRepositoryWithIdentity(directory, { defaultBranch: "main", env: gitEnv });
   fixtureGit(["add", "-A"], { cwd: directory, env: gitEnv });
   fixtureGit(["-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "fixture content"], {
     cwd: directory,

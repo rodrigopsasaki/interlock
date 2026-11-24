@@ -5,8 +5,9 @@ import { join } from "node:path";
 import { isErr, isOk } from "@phyxiusjs/fp";
 import { debriefRevisionsDirectory, reviseDebrief } from "debrief";
 import { afterEach, describe, expect, it } from "vitest";
-import { fixtureGit, initFixtureRepository } from "../../../../test/support/gitFixture.ts";
+import { fixtureGit } from "../../../../test/support/gitFixture.ts";
 import { recoverSessionStart } from "../../src/debrief/recoverSessionStart.ts";
+import { initFixtureRepositoryWithIdentity } from "../support/gitFixture.ts";
 import { slowIntegration } from "../support/slowIntegration.ts";
 
 const runsRoot = join(import.meta.dirname, "..", ".runs");
@@ -108,9 +109,7 @@ function writeStarted(root: string, base: string, session = SESSION, append = fa
 
 function fixture(): Fixture {
   directory = mkdtempSync(join(runsRoot, "recover-session-start-"));
-  initFixtureRepository(directory, { defaultBranch: "main" });
-  git(directory, ["config", "user.name", "fixture"]);
-  git(directory, ["config", "user.email", "fixture@example.test"]);
+  initFixtureRepositoryWithIdentity(directory, { defaultBranch: "main" });
   const session = join(directory, ".interlock", "sessions", GRAPH, NODE);
   mkdirSync(join(directory, ".interlock", "graphs"), { recursive: true });
   mkdirSync(session, { recursive: true });

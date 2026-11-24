@@ -12,9 +12,10 @@ import {
 import { join } from "node:path";
 import { EVENT_SHAPE, envelopeFor, sessionRuntime, upcastTable } from "ledger";
 import { afterEach, describe, expect, it } from "vitest";
-import { fixtureGit, initFixtureRepository } from "../../../../test/support/gitFixture.ts";
+import { fixtureGit } from "../../../../test/support/gitFixture.ts";
 import { runDebriefFileDerived, runDebriefPrepare } from "../../src/debrief/derived.ts";
 import { runDebriefRevise } from "../../src/debrief/revise.ts";
+import { initFixtureRepositoryWithIdentity } from "../support/gitFixture.ts";
 
 const runsRoot = join(import.meta.dirname, "..", ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -75,9 +76,7 @@ function fixture(nodeId = node): {
   readonly start: string;
 } {
   directory = mkdtempSync(join(runsRoot, "derived-"));
-  initFixtureRepository(directory, { defaultBranch: "main" });
-  git(directory, ["config", "user.name", "fixture"]);
-  git(directory, ["config", "user.email", "fixture@example.test"]);
+  initFixtureRepositoryWithIdentity(directory, { defaultBranch: "main" });
   const sessionPath = join(directory, ".interlock", "sessions", graph, nodeId);
   mkdirSync(join(directory, ".interlock", "graphs"), { recursive: true });
   mkdirSync(sessionPath, { recursive: true });

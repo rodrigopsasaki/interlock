@@ -2,12 +2,12 @@ import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { isErr, isOk } from "@phyxiusjs/fp";
 import { afterEach, describe, expect, it } from "vitest";
-import { initFixtureRepository } from "../../../test/support/gitFixture.ts";
 import {
   type FakeSubstrateServer,
   startFakeSubstrateServer,
 } from "../../substrate/test/support/fakeSubstrateServer.ts";
 import { repositoryForOrigin, substrateClientForRepository } from "../src/repositoryOrigin.ts";
+import { initFixtureRepositoryWithIdentity } from "./support/gitFixture.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -62,7 +62,7 @@ describe("substrateClientForRepository", () => {
 
   it("refuses an enabled missing origin before issuing HTTP", async () => {
     directory = mkdtempSync(join(runsRoot, "origin-"));
-    initFixtureRepository(directory);
+    initFixtureRepositoryWithIdentity(directory);
     server = await startFakeSubstrateServer();
 
     const client = await substrateClientForRepository(directory, server.url, undefined, true);

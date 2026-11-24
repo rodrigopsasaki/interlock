@@ -1,8 +1,9 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { fixtureGit, initFixtureRepository } from "../../../test/support/gitFixture.ts";
+import { fixtureGit } from "../../../test/support/gitFixture.ts";
 import { runInterlockVerify } from "../src/verify.ts";
+import { initFixtureRepositoryWithIdentity } from "./support/gitFixture.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -70,7 +71,7 @@ function fixtureRepo(): {
   readonly to: string;
 } {
   directory = mkdtempSync(join(runsRoot, "verify-"));
-  initFixtureRepository(directory, { defaultBranch: "main" });
+  initFixtureRepositoryWithIdentity(directory, { defaultBranch: "main" });
   writeFileSync(join(directory, "AGENTS.md"), AGENTS_MD);
   git(["add", "-A"], directory);
   git(["-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "root"], directory);
