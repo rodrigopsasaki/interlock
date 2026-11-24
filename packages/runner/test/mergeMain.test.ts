@@ -50,6 +50,8 @@ function configureSigner(root: string): void {
   fixtureGit(["config", "gpg.format", "openpgp"], { cwd: root, env: gitEnv });
   fixtureGit(["config", "gpg.program", signer], { cwd: root, env: gitEnv });
   fixtureGit(["config", "user.signingkey", "fixture"], { cwd: root, env: gitEnv });
+  fixtureGit(["config", "user.name", "Fixture"], { cwd: root, env: gitEnv });
+  fixtureGit(["config", "user.email", "fixture@example.invalid"], { cwd: root, env: gitEnv });
 }
 
 function createBehindRepository(mainPath: string, mainContent: string): string {
