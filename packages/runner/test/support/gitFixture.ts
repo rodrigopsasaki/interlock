@@ -8,10 +8,18 @@ const GIT_ENV = {
   GIT_COMMITTER_EMAIL: "fixture@example.invalid",
 };
 
+export function configureFixtureIdentity(directory: string): void {
+  fixtureGit(["config", "--local", "user.name", "fixture"], { cwd: directory });
+  fixtureGit(["config", "--local", "user.email", "fixture@example.invalid"], {
+    cwd: directory,
+  });
+}
+
 // Commits whatever is already on disk under `directory`, so a fixture repository's own worktree
 // checkouts and `git rev-parse main` resolve real, present content.
 export function gitInitFixtureWithContent(directory: string): void {
   initFixtureRepository(directory, { defaultBranch: "main" });
+  configureFixtureIdentity(directory);
   commitAll(directory, "fixture root");
 }
 

@@ -1,4 +1,5 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createControlledClock } from "@phyxiusjs/clock";
 import { isErr } from "@phyxiusjs/fp";
@@ -10,7 +11,7 @@ import { gitInitFixtureWithContent } from "./support/gitFixture.ts";
 import { memoryLedger, memoryLedgerWithLog } from "./support/memoryLedger.ts";
 import { slowIntegration } from "./support/slowIntegration.ts";
 
-const runsRoot = join(import.meta.dirname, ".runs");
+const runsRoot = tmpdir();
 mkdirSync(runsRoot, { recursive: true });
 
 let directory: string | undefined;
