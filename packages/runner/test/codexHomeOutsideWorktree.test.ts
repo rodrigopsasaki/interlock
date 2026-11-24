@@ -17,6 +17,7 @@ import {
   reapRegisteredGuardLaunchesSync,
   registeredGuardLaunchCount,
 } from "./support/codexGuardAssertions.ts";
+import { configureFixtureIdentity } from "./support/gitFixture.ts";
 import { slowIntegration } from "./support/slowIntegration.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
@@ -44,6 +45,7 @@ function fixture(): { readonly repository: string; readonly state: string; reado
   const home = mkdtempSync(join(runsRoot, "overlay-home-"));
   directories = [repository, state, home];
   initFixtureRepository(repository);
+  configureFixtureIdentity(repository);
   writeFileSync(join(home, "config.toml"), "");
   writeFileSync(join(home, "auth.json"), '{"token":"fixture"}\n');
   return { repository, state, home };
