@@ -1,9 +1,10 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fixtureGit, initFixtureRepository } from "../../../../test/support/gitFixture.ts";
+import { fixtureGit } from "../../../../test/support/gitFixture.ts";
 import { runDebriefPreview } from "../../src/debrief/preview.ts";
 import { run } from "../../src/main.ts";
+import { initFixtureRepositoryWithIdentity } from "../support/gitFixture.ts";
 
 const runsRoot = join(import.meta.dirname, "..", ".runs");
 mkdirSync(runsRoot, { recursive: true });
@@ -30,7 +31,7 @@ function git(args: readonly string[], cwd: string): string {
 
 function fixtureRepo(): { readonly cwd: string; readonly start: string; readonly head: string } {
   directory = mkdtempSync(join(runsRoot, "preview-"));
-  initFixtureRepository(directory, { defaultBranch: "main" });
+  initFixtureRepositoryWithIdentity(directory, { defaultBranch: "main" });
   mkdirSync(join(directory, ".interlock"), { recursive: true });
   writeFileSync(join(directory, "AGENTS.md"), "## Vocabulary\n\n| term | means |\n| --- | --- |\n");
   git(["add", "-A"], directory);

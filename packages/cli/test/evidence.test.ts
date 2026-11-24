@@ -23,9 +23,10 @@ import { judgeGates } from "runner";
 import { noneClient } from "substrate";
 import { afterEach, describe, expect, it } from "vitest";
 import { parse } from "yaml";
-import { fixtureGit, initFixtureRepository } from "../../../test/support/gitFixture.ts";
+import { fixtureGit } from "../../../test/support/gitFixture.ts";
 import { runDebriefRevise } from "../src/debrief/revise.ts";
 import { runInterlockEvidence } from "../src/evidence.ts";
+import { initFixtureRepositoryWithIdentity } from "./support/gitFixture.ts";
 import { slowIntegration } from "./support/slowIntegration.ts";
 
 const runsRoot = join(import.meta.dirname, ".runs");
@@ -63,7 +64,7 @@ const AGENTS_MD = [
 ].join("\n");
 
 function initFixtureRepo(directory: string): void {
-  initFixtureRepository(directory, { defaultBranch: "main" });
+  initFixtureRepositoryWithIdentity(directory, { defaultBranch: "main" });
   writeFileSync(join(directory, "AGENTS.md"), AGENTS_MD);
   git(["add", "-A"], directory);
   git(["-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "root"], directory);
